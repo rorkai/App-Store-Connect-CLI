@@ -34,6 +34,10 @@ var deleteDeveloperServiceIDFn = func(ctx context.Context, client *webcore.Clien
 	return client.DeleteDeveloperServiceID(ctx, request)
 }
 
+var setDeveloperServiceIDDomainsFn = func(ctx context.Context, client *webcore.Client, request webcore.DeveloperServiceIDDomainsSetRequest) (*asc.WebServiceIDMutationResult, error) {
+	return client.SetDeveloperServiceIDDomains(ctx, request)
+}
+
 // WebServiceIDsCommand returns the private Developer Portal Services ID
 // command group. Services IDs use Apple's private bundleIds endpoint with the
 // SERVICES platform and are distinct from public App Store Connect Bundle IDs.
@@ -50,8 +54,9 @@ cookie-authenticated Developer Portal. These private resources are represented
 by Apple's bundleIds endpoint with platform=SERVICES and are not part of the
 public App Store Connect Bundle ID API.
 
-Capability configuration, Sign in with Apple domains, Website Push IDs, and
-iCloud containers are separate workflows and are not changed by these commands.
+Capability configuration, Website Push IDs, and iCloud containers are separate
+workflows. domains set replaces the domain and return URL lists of an already
+configured Sign in with Apple Services ID and verifies the saved values.
 
 `,
 		FlagSet:   fs,
@@ -62,6 +67,7 @@ iCloud containers are separate workflows and are not changed by these commands.
 			WebServiceIDsCreateCommand(),
 			WebServiceIDsRenameCommand(),
 			WebServiceIDsDeleteCommand(),
+			WebServiceIDsDomainsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -486,6 +492,106 @@ func renderDeveloperServiceIDMutationTable(result *asc.WebServiceIDMutationResul
 func renderDeveloperServiceIDMutationMarkdown(result *asc.WebServiceIDMutationResult) error {
 	asc.RenderMarkdown(webServiceIDMutationHeaders(), webServiceIDMutationRows(result))
 	return nil
+}
+
+// WebServiceIDsDomainsCommand groups Sign in with Apple domain configuration.
+func WebServiceIDsDomainsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web service-ids domains", flag.ExitOnError)
+	return &ffcli.Command{
+		Name:       "domains",
+		ShortUsage: "asc web service-ids domains <subcommand> [flags]",
+		ShortHelp:  "Sign in with Apple domain configuration for a Services ID.",
+		LongHelp: `Sign in with Apple domain configuration for a Services ID.
+
+The set command replaces complete domain and return URL lists while preserving
+the existing primary App ID and Sign in with Apple enabled state.
+`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			WebServiceIDsDomainsSetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// WebServiceIDsDomainsSetCommand updates and verifies configured Services ID domains.
+func WebServiceIDsDomainsSetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web service-ids domains set", flag.ExitOnError)
+	serviceID := fs.String("service-id", "", "Services ID resource ID")
+	domain := fs.String("domain", "", "Complete comma-separated list of DNS hostnames")
+	returnURL := fs.String("return-url", "", "Complete comma-separated list of HTTPS return URLs")
+	confirm := fs.Bool("confirm", false, "Confirm replacing the domain and return URL lists")
+	authFlags := bindWebSessionFlags(fs)
+	portalFlags := bindDeveloperPortalFlags(fs)
+	output := shared.BindOutputFlags(fs)
+	return &ffcli.Command{
+		Name:       "set",
+		ShortUsage: "asc web service-ids domains set --service-id ID --domain DOMAIN --return-url URL --confirm [flags]",
+		ShortHelp:  "Replace Sign in with Apple domains and return URLs for a Services ID.",
+		LongHelp: `Replace the complete domain and return URL lists of a Services ID.
+
+Sign in with Apple must already be enabled with a primary App ID configured in
+Developer Portal. The command preserves that association and other capabilities.
+Domains must be ASCII DNS hostnames (use punycode for international names).
+Return URLs must use HTTPS, contain no credentials or fragments, and use a host
+listed in --domain. Both lists must be non-empty; include values you want to keep.
+
+--confirm is required. Success requires a fresh read confirming the saved state.
+An ambiguous write or failed readback is an unknown outcome; inspect the Services
+ID before retrying. This private Apple endpoint can change without notice.
+
+Example:
+  asc web service-ids domains set --service-id "SERVICE_ID" --domain "example.com" --return-url "https://example.com/callback" --confirm
+`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError("web service-ids domains set does not accept positional arguments")
+			}
+			request, err := webcore.NormalizeDeveloperServiceIDDomainsSetRequest(webcore.DeveloperServiceIDDomainsSetRequest{
+				ServiceID: *serviceID, Domains: strings.Split(*domain, ","), ReturnURLs: strings.Split(*returnURL, ","),
+			})
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			if !*confirm {
+				return shared.MissingRequiredUsageError("--confirm")
+			}
+			if err = validateDeveloperPortalFlags(portalFlags); err != nil {
+				return err
+			}
+			if _, err = shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
+				return shared.UsageError(err.Error())
+			}
+			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			defer cancel()
+			if err != nil {
+				return withWebAuthHint(err, "web service-ids domains set")
+			}
+			var result *asc.WebServiceIDMutationResult
+			err = withWebSpinner("Updating Services ID domains", func() error {
+				var writeErr error
+				result, writeErr = setDeveloperServiceIDDomainsFn(requestCtx, newDeveloperPortalClient(session, portalFlags), request)
+				return writeErr
+			})
+			persistDeveloperPortalSession(session)
+			if err != nil {
+				return withWebAuthHint(err, "web service-ids domains set")
+			}
+			if result == nil {
+				return fmt.Errorf("web service-ids domains set failed: missing update result")
+			}
+			return shared.PrintOutputWithRenderers(
+				result, *output.Output, *output.Pretty,
+				func() error { return renderDeveloperServiceIDMutationTable(result) },
+				func() error { return renderDeveloperServiceIDMutationMarkdown(result) },
+			)
+		},
+	}
 }
 
 func webServiceIDMutationHeaders() []string {

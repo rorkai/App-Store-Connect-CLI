@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -188,6 +189,153 @@ func TestRenameDeveloperServiceIDPreservesCapabilityGraph(t *testing.T) {
 	}
 	if result.Status != "renamed" || !result.Verified || result.Identifier != "com.example.service" {
 		t.Fatalf("unexpected receipt: %+v", result)
+	}
+}
+
+func TestSetDeveloperServiceIDDomainsUpdatesOnlyAuthInputsAndVerifies(t *testing.T) {
+	preflight := serviceIDDetailCapabilityGraphFixture(" Old Name ", false)
+	postRead := strings.Replace(preflight, `"value":"old.example.com"`, `"value":"login.example.net"`, 1)
+	postRead = strings.Replace(postRead, `"value":"https://old.example.com/callback"`, `"value":"https://login.example.net/callback"`, 1)
+	var requests int
+	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+		requests++
+		switch requests {
+		case 1:
+			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), http.Header{"csrf": {"csrf"}, "csrf_ts": {"csrf-ts"}}), nil
+		case 2:
+			if r.Method != http.MethodPost || r.URL.Path != "/services-account/v1/bundleIds/service-1" || r.Header.Get("X-HTTP-Method-Override") != http.MethodGet {
+				t.Fatalf("preflight transport = %s %s override=%q", r.Method, r.URL.String(), r.Header.Get("X-HTTP-Method-Override"))
+			}
+			return developerPortalTestResponse(http.StatusOK, preflight, nil), nil
+		case 3:
+			if r.Method != http.MethodPatch || r.URL.Path != "/services-account/v1/bundleIds/service-1" || r.Header.Get("X-HTTP-Method-Override") != "" {
+				t.Fatalf("domains transport = %s %s override=%q", r.Method, r.URL.String(), r.Header.Get("X-HTTP-Method-Override"))
+			}
+			var payload developerBundleIDPatchRequest
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode domains payload: %v", err)
+			}
+			if payload.Data.ID != "service-1" || payload.Data.Type != "bundleIds" {
+				t.Fatalf("domains resource identity = %+v", payload.Data)
+			}
+			var parentAttributes map[string]json.RawMessage
+			if err := json.Unmarshal(payload.Data.Attributes, &parentAttributes); err != nil {
+				t.Fatal(err)
+			}
+			if string(parentAttributes["name"]) != `" Old Name "` {
+				t.Fatalf("name changed: %s", parentAttributes["name"])
+			}
+			var capabilities struct {
+				Data []developerResource `json:"data"`
+			}
+			if err := json.Unmarshal(payload.Data.Relationships["bundleIdCapabilities"], &capabilities); err != nil {
+				t.Fatalf("decode capability replacement: %v", err)
+			}
+			if len(capabilities.Data) != 2 {
+				t.Fatalf("capability count = %d, want both existing capabilities", len(capabilities.Data))
+			}
+			for _, capability := range capabilities.Data {
+				var capabilityLink, appConsentLink struct {
+					Data struct {
+						ID string `json:"id"`
+					} `json:"data"`
+				}
+				if err := json.Unmarshal(capability.Relationships["capability"], &capabilityLink); err != nil {
+					t.Fatalf("decode capability relationship: %v", err)
+				}
+				if err := json.Unmarshal(capability.Relationships["appConsentBundleId"], &appConsentLink); err != nil {
+					t.Fatalf("decode primary app relationship: %v", err)
+				}
+				var attributes map[string]json.RawMessage
+				if err := json.Unmarshal(capability.Attributes, &attributes); err != nil {
+					t.Fatalf("decode capability attributes: %v", err)
+				}
+				if _, ok := capability.Relationships["appGroups"]; ok && capabilityLink.Data.ID == "APPLE_ID_AUTH" {
+					t.Fatal("PATCH must omit navigation-only appGroups relationship")
+				}
+				if _, ok := capability.Relationships["bundleId"]; ok {
+					t.Fatal("PATCH must omit navigation-only bundleId relationship")
+				}
+				switch capabilityLink.Data.ID {
+				case "APPLE_ID_AUTH":
+					var inputs []struct {
+						Key    string `json:"key"`
+						Values []struct {
+							Value string `json:"value"`
+						} `json:"values"`
+					}
+					if err := json.Unmarshal(attributes["inputs"], &inputs); err != nil {
+						t.Fatalf("decode Apple ID Auth inputs: %v", err)
+					}
+					got := make(map[string][]string, len(inputs))
+					for _, input := range inputs {
+						for _, value := range input.Values {
+							got[input.Key] = append(got[input.Key], value.Value)
+						}
+					}
+					if !reflect.DeepEqual(got, map[string][]string{
+						"APPLE_ID_AUTH_WEB_DOMAIN":     {"login.example.net"},
+						"APPLE_ID_AUTH_WEB_RETURN_URL": {"https://login.example.net/callback"},
+						"OTHER_AUTH_INPUT":             {"keep"},
+					}) {
+						t.Fatalf("Apple ID Auth inputs = %+v", got)
+					}
+					if string(attributes["settings"]) != `[{"key":"KEEP","value":"one"},{"key":"SECOND","value":"two"}]` {
+						t.Fatalf("Apple ID Auth settings changed: %s", attributes["settings"])
+					}
+					var enabled bool
+					if err := json.Unmarshal(attributes["enabled"], &enabled); err != nil || !enabled {
+						t.Fatalf("Apple ID Auth enabled state = %s, err=%v", attributes["enabled"], err)
+					}
+					if appConsentLink.Data.ID != "consent-1" {
+						t.Fatalf("primary app relationship changed: %+v", appConsentLink.Data)
+					}
+				case "PUSH_NOTIFICATIONS":
+					if string(capability.Relationships["appGroups"]) != `{"data":[]}` {
+						t.Fatalf("explicit relationship data changed: %s", capability.Relationships["appGroups"])
+					}
+					if string(attributes["settings"]) != `[{"key":"OTHER","value":"two"}]` {
+						t.Fatalf("unrelated capability settings changed: %s", attributes["settings"])
+					}
+					if string(attributes["inputs"]) != `[{"key":"UNRELATED_INPUT","values":[{"value":"preserve"}]}]` {
+						t.Fatalf("unrelated capability inputs changed: %s", attributes["inputs"])
+					}
+					var enabled bool
+					if err := json.Unmarshal(attributes["enabled"], &enabled); err != nil || enabled {
+						t.Fatalf("unrelated capability enabled state = %s, err=%v", attributes["enabled"], err)
+					}
+				default:
+					t.Fatalf("unexpected capability %q", capabilityLink.Data.ID)
+				}
+			}
+			if _, ok := payload.Data.Relationships["profiles"]; !ok {
+				t.Fatal("domains update dropped the existing profiles relationship")
+			}
+			return developerPortalTestResponse(http.StatusOK, `{}`, nil), nil
+		case 4:
+			if r.Method != http.MethodPost || r.URL.Path != "/services-account/v1/bundleIds/service-1" || r.Header.Get("X-HTTP-Method-Override") != http.MethodGet {
+				t.Fatalf("post-write transport = %s %s override=%q", r.Method, r.URL.String(), r.Header.Get("X-HTTP-Method-Override"))
+			}
+			return developerPortalTestResponse(http.StatusOK, postRead, nil), nil
+		default:
+			t.Fatalf("unexpected request %d: %s %s", requests, r.Method, r.URL.String())
+			return nil, nil
+		}
+	})
+
+	result, err := client.SetDeveloperServiceIDDomains(context.Background(), DeveloperServiceIDDomainsSetRequest{
+		ServiceID:  "service-1",
+		Domains:    []string{"login.example.net"},
+		ReturnURLs: []string{"https://login.example.net/callback"},
+	})
+	if err != nil {
+		t.Fatalf("SetDeveloperServiceIDDomains() error: %v", err)
+	}
+	if result.Operation != "domains-set" || result.Status != "updated" || !result.Changed || !result.Verified {
+		t.Fatalf("unexpected receipt: %+v", result)
+	}
+	if requests != 4 {
+		t.Fatalf("requests = %d, want bootstrap, preflight, PATCH, and post-write read", requests)
 	}
 }
 
@@ -546,8 +694,8 @@ func serviceIDDetailFixtureWithRelationships(name, platform, relationships strin
 func serviceIDDetailCapabilityGraphFixture(name string, reverse bool) string {
 	marker := "preflight"
 	references := `[{"type":"bundleIdCapabilities","id":"cap-1"},{"type":"bundleIdCapabilities","id":"cap-2"}]`
-	capabilityOne := `{"type":"bundleIdCapabilities","id":"cap-1","attributes":{"enabled":true,"settings":[{"key":"KEEP","value":"one"},{"key":"SECOND","value":"two"}],"providerOpaque":"stable-one"},"relationships":{"capability":{"data":{"type":"capabilities","id":"APPLE_ID_AUTH"},"links":{"related":"/capability/preflight"},"meta":{"request":"preflight"}},"appConsentBundleId":{"data":{"type":"bundleIds","id":"consent-1"},"links":{"related":"/consent/preflight"},"meta":{"request":"preflight"}}},"links":{"self":"/bundleIdCapabilities/cap-1/preflight"},"meta":{"request":"preflight"}}`
-	capabilityTwo := `{"type":"bundleIdCapabilities","id":"cap-2","attributes":{"enabled":false,"settings":[{"key":"OTHER","value":"two"}],"providerOpaque":"stable-two"},"relationships":{"capability":{"data":{"type":"capabilities","id":"PUSH_NOTIFICATIONS"},"links":{"related":"/capability/preflight"},"meta":{"request":"preflight"}},"appConsentBundleId":{"data":{"type":"bundleIds","id":"consent-2"},"links":{"related":"/consent/preflight"},"meta":{"request":"preflight"}}},"links":{"self":"/bundleIdCapabilities/cap-2/preflight"},"meta":{"request":"preflight"}}`
+	capabilityOne := `{"type":"bundleIdCapabilities","id":"cap-1","attributes":{"enabled":true,"settings":[{"key":"KEEP","value":"one"},{"key":"SECOND","value":"two"}],"inputs":[{"key":"APPLE_ID_AUTH_WEB_DOMAIN","values":[{"value":"old.example.com"}]},{"key":"APPLE_ID_AUTH_WEB_RETURN_URL","values":[{"value":"https://old.example.com/callback"}]},{"key":"OTHER_AUTH_INPUT","values":[{"value":"keep"}]}],"providerOpaque":"stable-one"},"relationships":{"appGroups":{"meta":{"paging":{"total":0,"limit":2147483647}},"links":{"related":"/appGroups"}},"bundleId":{"links":{"related":"/bundleId"}},"capability":{"data":{"type":"capabilities","id":"APPLE_ID_AUTH"},"links":{"related":"/capability/preflight"},"meta":{"request":"preflight"}},"appConsentBundleId":{"data":{"type":"bundleIds","id":"consent-1"},"links":{"related":"/consent/preflight"},"meta":{"request":"preflight"}}},"links":{"self":"/bundleIdCapabilities/cap-1/preflight"},"meta":{"request":"preflight"}}`
+	capabilityTwo := `{"type":"bundleIdCapabilities","id":"cap-2","attributes":{"enabled":false,"settings":[{"key":"OTHER","value":"two"}],"inputs":[{"key":"UNRELATED_INPUT","values":[{"value":"preserve"}]}],"providerOpaque":"stable-two"},"relationships":{"appGroups":{"data":[],"links":{"related":"/appGroups"}},"capability":{"data":{"type":"capabilities","id":"PUSH_NOTIFICATIONS"},"links":{"related":"/capability/preflight"},"meta":{"request":"preflight"}},"appConsentBundleId":{"data":{"type":"bundleIds","id":"consent-2"},"links":{"related":"/consent/preflight"},"meta":{"request":"preflight"}}},"links":{"self":"/bundleIdCapabilities/cap-2/preflight"},"meta":{"request":"preflight"}}`
 	included := "[" + capabilityOne + "," + capabilityTwo + "]"
 	if reverse {
 		marker = "postwrite"
@@ -557,7 +705,7 @@ func serviceIDDetailCapabilityGraphFixture(name string, reverse bool) string {
 		capabilityOne = strings.Replace(capabilityOne, `"settings":[{"key":"KEEP","value":"one"},{"key":"SECOND","value":"two"}]`, `"settings":[{"key":"SECOND","value":"two"},{"key":"KEEP","value":"one"}]`, 1)
 		included = "[" + capabilityTwo + "," + capabilityOne + "]"
 	}
-	return `{"links":{"self":"/bundleIds/service-1/` + marker + `"},"meta":{"request":"` + marker + `"},"data":{"id":"service-1","type":"bundleIds","attributes":{"name":"` + name + `","identifier":"com.example.service","platform":"SERVICES","seedId":"TEAM123456","~permissions.delete":true,"~permissions.edit":true},"relationships":{"bundleIdCapabilities":{"data":` + references + `,"links":{"self":"/relationships/` + marker + `"},"meta":{"opaque":"keep","request":"` + marker + `"}}}},"included":` + included + `}`
+	return `{"links":{"self":"/bundleIds/service-1/` + marker + `"},"meta":{"request":"` + marker + `"},"data":{"id":"service-1","type":"bundleIds","attributes":{"name":"` + name + `","identifier":"com.example.service","platform":"SERVICES","seedId":"TEAM123456","teamId":"TEAM123456","~permissions.delete":true,"~permissions.edit":true},"relationships":{"bundleIdCapabilities":{"data":` + references + `,"links":{"self":"/relationships/` + marker + `"},"meta":{"opaque":"keep","request":"` + marker + `","paging":{"total":0,"limit":2147483647}}},"profiles":{"data":[],"links":{"self":"/profiles/` + marker + `"},"meta":{"opaque":"profiles"}}}},"included":` + included + `}`
 }
 
 func mapsEqual(got, want map[string]string) bool {
@@ -570,4 +718,85 @@ func mapsEqual(got, want map[string]string) bool {
 		}
 	}
 	return true
+}
+
+func TestSetDeveloperServiceIDDomainsRejectsUnsafePreflight(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		old         string
+		replacement string
+	}{
+		{"unknown relationship", `"appGroups":`, `"unrecognizedRelation":`},
+		{"disabled", "\"enabled\":true", "\"enabled\":false"},
+		{"null input value", `"value":"preserve"`, `"value":null`},
+		{"unknown value field", `{"value":"preserve"}`, `{"value":"preserve","opaque":true}`},
+		{"missing primary", "\"id\":\"consent-1\"", "\"id\":\"\""},
+		{"partial graph", "\"total\":0", "\"total\":3"},
+		{"unrecognized zero total", "\"limit\":2147483647", "\"limit\":50"},
+		{"next page", "\"self\":\"/relationships/preflight\"", "\"next\":\"/next\""},
+		{"missing included", "\"id\":\"cap-2\",\"attributes\"", "\"id\":\"cap-3\",\"attributes\""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			body := strings.Replace(serviceIDDetailCapabilityGraphFixture("Service", false), tc.old, tc.replacement, 1)
+			client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+				calls++
+				if calls == 1 {
+					return developerPortalTestResponse(200, developerPortalTeamsFixture(), http.Header{"csrf": {"csrf"}, "csrf_ts": {"csrf-ts"}}), nil
+				}
+				if calls != 2 || r.Method != http.MethodPost {
+					t.Fatalf("unexpected write: %s %s", r.Method, r.URL)
+				}
+				return developerPortalTestResponse(200, body, nil), nil
+			})
+			_, err := client.SetDeveloperServiceIDDomains(context.Background(), DeveloperServiceIDDomainsSetRequest{ServiceID: "service-1", Domains: []string{"example.com"}, ReturnURLs: []string{"https://example.com/cb"}})
+			if err == nil || calls != 2 {
+				t.Fatalf("error=%v calls=%d", err, calls)
+			}
+		})
+	}
+}
+
+func TestSetDeveloperServiceIDDomainsNoOpAndUnverifiedWrites(t *testing.T) {
+	for _, mode := range []string{"unchanged", "stale readback", "server failure", "readback failure"} {
+		t.Run(mode, func(t *testing.T) {
+			calls := 0
+			writes := 0
+			body := serviceIDDetailCapabilityGraphFixture("Service", false)
+			client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+				calls++
+				if calls == 1 {
+					return developerPortalTestResponse(200, developerPortalTeamsFixture(), http.Header{"csrf": {"csrf"}, "csrf_ts": {"csrf-ts"}}), nil
+				}
+				if r.Method == http.MethodPatch {
+					writes++
+					if mode == "server failure" {
+						return developerPortalTestResponse(500, `{"errors":[{"detail":"failed"}]}`, nil), nil
+					}
+					return developerPortalTestResponse(200, `{}`, nil), nil
+				}
+				if calls > 2 && mode == "readback failure" {
+					return developerPortalTestResponse(403, `{"errors":[{"detail":"denied"}]}`, nil), nil
+				}
+				return developerPortalTestResponse(200, body, nil), nil
+			})
+			domain := "example.com"
+			callback := "https://example.com/cb"
+			if mode == "unchanged" {
+				domain = "old.example.com"
+				callback = "https://old.example.com/callback"
+			}
+			result, err := client.SetDeveloperServiceIDDomains(context.Background(), DeveloperServiceIDDomainsSetRequest{ServiceID: "service-1", Domains: []string{domain}, ReturnURLs: []string{callback}})
+			if mode == "unchanged" {
+				if err != nil || result.Changed || !result.Verified || writes != 0 {
+					t.Fatalf("result=%+v err=%v writes=%d", result, err, writes)
+				}
+				return
+			}
+			var unknown *DeveloperServiceIDUnverifiedError
+			if !errors.As(err, &unknown) || result != nil || writes != 1 {
+				t.Fatalf("result=%+v err=%v writes=%d", result, err, writes)
+			}
+		})
+	}
 }

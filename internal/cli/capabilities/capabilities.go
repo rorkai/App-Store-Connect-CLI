@@ -585,10 +585,10 @@ func capabilityRows() []Capability {
 			Area:         "signing",
 			Capability:   "Developer Portal Services ID lifecycle",
 			Status:       statusWebSession,
-			Commands:     []string{"asc web service-ids"},
+			Commands:     []string{"asc web service-ids", "asc web service-ids domains set"},
 			APIResources: []string{"bundleIds"},
-			Notes:        []string{"Services ID list, view, create, rename, and delete use the captured private Developer Portal web-session bundleIds contract filtered to platform=SERVICES. This entry does not cover public Bundle ID lifecycle or Service ID capability and Sign in with Apple configuration workflows."},
-			NextAction:   "Use asc web service-ids list, view, create, rename, or delete; configure Service ID capabilities and Sign in with Apple settings separately in the Developer Portal.",
+			Notes:        []string{"Services ID list, view, create, rename, and delete use the captured Developer Portal web-session bundleIds contract filtered to platform=SERVICES. domains set replaces and verifies domain and return URL lists on an already configured Sign in with Apple Services ID, preserving the primary App ID."},
+			NextAction:   "Use the lifecycle commands to manage Services IDs. Use domains set with complete --domain and --return-url lists and --confirm after configuring Sign in with Apple in Developer Portal.",
 		},
 		{
 			Area:       "signing",

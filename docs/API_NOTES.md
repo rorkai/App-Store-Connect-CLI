@@ -469,8 +469,28 @@ the App Store Connect web-client source captured for issue #2299:
   failed post-read is an unverified outcome; no Services ID mutation is
   retried automatically.
 - Services ID lifecycle support is private-only because the public OpenAPI
-  `BundleIdPlatform` enum does not include `SERVICES`. Capability graph
-  mutation and Sign in with Apple domain configuration remain uncaptured.
+  `BundleIdPlatform` enum does not include `SERVICES`.
+- `asc web service-ids domains set` replaces complete domain and return URL
+  lists on an already enabled Sign in with Apple Services ID. The primary App ID
+  must already be configured; this command does not enable or re-parent it.
+  The 2026-09-26 browser capture accepted `PATCH /services-account/v1/bundleIds/{id}`
+  with an ID-less `bundleIdCapabilities` child linked to capability `APPLE_ID_AUTH`
+  and its existing `appConsentBundleId`. Its `inputs` use keys
+  `APPLE_ID_AUTH_WEB_DOMAIN` and `APPLE_ID_AUTH_WEB_RETURN_URL`, with `values`
+  arrays of `{ "value": "..." }` objects. Other capability inputs/settings and
+  parent relationships are preserved. A separate detail read must confirm the
+  resulting state; ambiguous writes are never retried automatically.
+  The captured detail response reported `paging.total=0` with
+  `limit=2147483647` despite populated capability linkage. This specific
+  placeholder is accepted only with resolved references and no next page;
+  positive count mismatches and missing or unreferenced included capabilities fail.
+  Capability relationships may also contain navigation-only links without `data`
+  (for example, `appGroups` and `bundleId`). Known navigation-only relationships
+  are omitted from the PATCH; explicit relationship data is preserved, and unknown
+  unresolved relationships fail before writing.
+  Live CLI verification on 2026-09-27 confirmed an update, unchanged repeat, and
+  two-domain/two-return-URL replacement with the existing primary App ID preserved.
+  The disposable Services ID and parent App ID were deleted afterward.
   Website Push ID lifecycle and iCloud container reads use the separate
   captured workflows documented below.
 

@@ -41,7 +41,7 @@ func TestWebServiceIDsCreateRequiresConfirm(t *testing.T) {
 
 func TestWebServiceIDsCommandHierarchy(t *testing.T) {
 	command := WebServiceIDsCommand()
-	want := []string{"list", "view", "create", "rename", "delete"}
+	want := []string{"list", "view", "create", "rename", "delete", "domains"}
 	if len(command.Subcommands) != len(want) {
 		t.Fatalf("subcommands = %d, want %d", len(command.Subcommands), len(want))
 	}
