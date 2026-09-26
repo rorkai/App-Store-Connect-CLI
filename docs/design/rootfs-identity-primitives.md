@@ -27,6 +27,8 @@ func (r Root) CaptureFile(name string) (*FileIdentity, error)
 
 func (r Root) CaptureFileLimited(name string, limit int64) (*FileIdentity, error)
 
+func (r Root) ReleaseFileIdentity(identity *FileIdentity) error
+
 func (r Root) ReplaceFileIfSame(
 	name string,
 	expected *FileIdentity,
@@ -85,6 +87,27 @@ hard-link fallback marks the destination as published as soon as its link
 succeeds. If removal of the private staging link then fails, that entry is
 preserved as evidence and deferred cleanup does not retry an unchecked pathname
 removal. New transaction code must use the descriptor-backed methods above.
+
+A caller that supersedes many inventory identities can release each old token
+after successful replacement with `ReleaseFileIdentity`. Release checks root
+ownership, is idempotent, and makes the old token unusable. The replacement
+token remains retained until explicitly released or `Root.Close`.
+
+## Bounded media removal
+
+`RemoveFileIfSHA256Same(name, expectedSize, expectedDigest)` supports recorded
+exported media larger than the byte capture limit. It streams SHA-256 with an
+exact size bound and one sentinel byte, retains the opened descriptor, and uses
+the same metadata, hard-link, quarantine, recovery, and final content checks.
+The private removal-only identity never leaves the operation; byte publication
+APIs reject it. Its retained descriptor is released on every exit. Existing
+8 MiB mutation and 16 MiB explicit capture limits remain unchanged.
+
+The operation is synchronous, like the existing rooted primitives, and performs
+repeated streaming verification rather than retaining the media in memory.
+Callers check cancellation between files. Windows returns
+`ErrFileIdentityMutationUnsupported` without moving the file. The portable
+close-to-unlink boundary described below still applies.
 
 ## Platform boundary and recovery
 

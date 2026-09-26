@@ -18,6 +18,7 @@ package rootfs
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -198,10 +199,28 @@ type FileIdentity struct {
 	file              *os.File
 	info              os.FileInfo
 	data              []byte
+	removalDigest     *[sha256.Size]byte
 	path              string
 	multipleHardLinks bool
 	metadata          fileIdentityMetadata
 	metadataCaptured  bool
+}
+
+// ReleaseFileIdentity releases a token superseded by a completed operation.
+// Only its owning Root may release it. Repeated release is harmless; subsequent
+// identity-checked use of the released token fails. It never changes a pathname.
+func (r Root) ReleaseFileIdentity(identity *FileIdentity) error {
+	if err := r.selectedIdentity.begin(); err != nil {
+		return err
+	}
+	defer r.selectedIdentity.end()
+	if identity == nil {
+		return ErrFileIdentityChanged
+	}
+	if identity.owner != r.selectedIdentity {
+		return ErrFileIdentityMismatch
+	}
+	return r.selectedIdentity.releaseFile(identity.file)
 }
 
 // Info returns the captured file metadata snapshot. The snapshot is useful for
@@ -218,6 +237,9 @@ func (identity *FileIdentity) Info() os.FileInfo {
 func (identity *FileIdentity) Data() []byte {
 	if identity == nil {
 		return nil
+	}
+	if identity.removalDigest != nil {
+		panic("rootfs: removal-only identity has no byte snapshot")
 	}
 	return bytes.Clone(identity.data)
 }
@@ -1344,10 +1366,14 @@ func (r Root) CaptureFileLimited(name string, limit int64) (*FileIdentity, error
 		return nil, err
 	}
 	defer r.selectedIdentity.end()
+	return r.captureFile(name, limit, nil)
+}
+
+func (r Root) captureFile(name string, limit int64, digest *[sha256.Size]byte) (*FileIdentity, error) {
 	if limit < 0 {
 		return nil, fmt.Errorf("file identity capture limit must not be negative")
 	}
-	if limit > fileIdentityCaptureLimit {
+	if digest == nil && limit > fileIdentityCaptureLimit {
 		return nil, fmt.Errorf("file identity capture limit %d exceeds %d-byte limit: %w", limit, fileIdentityCaptureLimit, ErrFileIdentityDataTooLarge)
 	}
 	resolved, err := r.Resolve(name)
@@ -1379,6 +1405,9 @@ func (r Root) CaptureFileLimited(name string, limit int64) (*FileIdentity, error
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("%q is not a regular file", resolved)
 	}
+	if digest != nil && info.Size() != limit {
+		return nil, fmt.Errorf("%w: file size differs from recorded export", ErrFileIdentityChanged)
+	}
 	initialMultipleLinks, err := hasMultipleHardLinks(file, info)
 	if err != nil {
 		return nil, fmt.Errorf("inspect captured file links: %w", err)
@@ -1390,6 +1419,12 @@ func (r Root) CaptureFileLimited(name string, limit int64) (*FileIdentity, error
 	readSnapshot := func() ([]byte, error) {
 		if _, err := file.Seek(0, io.SeekStart); err != nil {
 			return nil, err
+		}
+		if digest != nil {
+			if err := verifyFileDigest(file, limit, *digest); err != nil {
+				return nil, err
+			}
+			return nil, nil
 		}
 		data, err := io.ReadAll(io.LimitReader(file, limit+1))
 		if err != nil {
@@ -1445,10 +1480,14 @@ func (r Root) CaptureFileLimited(name string, limit int64) (*FileIdentity, error
 		!sameFileIdentityMetadata(initialMetadata, middleMetadata) ||
 		!sameFileIdentityMetadata(middleMetadata, finalMetadata) ||
 		!sameFileIdentityMetadata(finalMetadata, rootedMetadata) ||
-		!bytes.Equal(data, verifiedData) || finalInfo.Size() != int64(len(verifiedData)) {
+		!bytes.Equal(data, verifiedData) || (digest == nil && finalInfo.Size() != int64(len(verifiedData))) {
 		return nil, fmt.Errorf("%w: %q changed during identity capture", ErrFileIdentityChanged, resolved)
 	}
-	identity, err := r.selectedIdentity.retainIdentityWithMetadataLimited(file, finalInfo, verifiedData, resolved, finalMetadata, true, limit)
+	retainedLimit := limit
+	if digest != nil {
+		retainedLimit = fileIdentityDataLimit
+	}
+	identity, err := r.selectedIdentity.retainIdentityWithMetadataLimited(file, finalInfo, verifiedData, resolved, finalMetadata, true, retainedLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -1463,6 +1502,7 @@ func (r Root) CaptureFileLimited(name string, limit int64) (*FileIdentity, error
 			r.selectedIdentity.releaseFile(file),
 		)
 	}
+	identity.removalDigest = digest
 	closeOnError = false
 	return identity, nil
 }
@@ -1957,6 +1997,41 @@ func (r Root) removeFileIfSameLegacy(name string, expected os.FileInfo, expected
 	return nil
 }
 
+// RemoveFileIfSHA256Same removes a regular file only when its recorded size and
+// SHA-256 still match. Hashing uses bounded memory, retaining a descriptor through
+// the existing quarantine and recovery checks. The digest identity never escapes
+// this operation. As with RemoveFileIfSameIdentity, Windows is unsupported.
+func (r Root) RemoveFileIfSHA256Same(name string, expectedSize int64, expectedDigest [sha256.Size]byte) (resultErr error) {
+	if err := r.selectedIdentity.begin(); err != nil {
+		return err
+	}
+	defer r.selectedIdentity.end()
+	if runtime.GOOS == "windows" {
+		return ErrFileIdentityMutationUnsupported
+	}
+	if expectedSize < 0 || expectedSize == math.MaxInt64 {
+		return fmt.Errorf("invalid expected file size")
+	}
+	identity, err := r.captureFile(name, expectedSize, &expectedDigest)
+	if err != nil {
+		return err
+	}
+	defer func() { resultErr = errors.Join(resultErr, r.selectedIdentity.releaseFile(identity.file)) }()
+	return r.removeFileIfSameIdentity(name, identity)
+}
+
+func verifyFileDigest(file *os.File, size int64, expected [sha256.Size]byte) error {
+	hash := sha256.New()
+	n, err := io.Copy(hash, io.LimitReader(file, size+1))
+	if err != nil {
+		return err
+	}
+	if n != size || !bytes.Equal(hash.Sum(nil), expected[:]) {
+		return fmt.Errorf("%w: file contents differ from recorded export", ErrFileIdentityChanged)
+	}
+	return nil
+}
+
 // RemoveFileIfSameIdentity removes name only when the descriptor-backed
 // identity captured by the same Root still matches. The matching file is first
 // moved to an unpredictable quarantine name in the same rooted directory. A
@@ -1971,6 +2046,13 @@ func (r Root) RemoveFileIfSameIdentity(name string, expected *FileIdentity) (res
 		return err
 	}
 	defer r.selectedIdentity.end()
+	if expected != nil && expected.removalDigest != nil {
+		return ErrFileIdentityMutationUnsupported
+	}
+	return r.removeFileIfSameIdentity(name, expected)
+}
+
+func (r Root) removeFileIfSameIdentity(name string, expected *FileIdentity) (resultErr error) {
 	if runtime.GOOS == "windows" {
 		return ErrFileIdentityMutationUnsupported
 	}
@@ -2173,6 +2255,9 @@ func (r Root) writeFileIfSame(
 	requireNativeNoReplace bool,
 	strictIdentity bool,
 ) (_ os.FileInfo, resultErr error) {
+	if expected != nil && expected.removalDigest != nil {
+		return nil, ErrFileIdentityMutationUnsupported
+	}
 	if strictIdentity && int64(len(data)) > fileIdentityDataLimit {
 		return nil, fmt.Errorf("%d bytes exceeds %d-byte identity limit: %w", len(data), fileIdentityDataLimit, ErrFileIdentityDataTooLarge)
 	}
@@ -2775,6 +2860,9 @@ func (r Root) openExpectedIdentityRootedFile(parent *os.Root, name string, expec
 		if _, err := file.Seek(0, io.SeekStart); err != nil {
 			return nil, err
 		}
+		if expected.removalDigest != nil {
+			return nil, verifyFileDigest(file, expected.info.Size(), *expected.removalDigest)
+		}
 		return io.ReadAll(io.LimitReader(file, int64(len(expected.data))+1))
 	}
 	contents, err := readExpected()
@@ -3189,7 +3277,12 @@ func (r Root) removeExpectedIdentityQuarantine(parent *os.Root, quarantineName s
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return uncertain("rewind quarantined file before removal", err)
 	}
-	contents, err := io.ReadAll(io.LimitReader(file, int64(len(expected.data))+1))
+	var contents []byte
+	if expected.removalDigest != nil {
+		err = verifyFileDigest(file, expected.info.Size(), *expected.removalDigest)
+	} else {
+		contents, err = io.ReadAll(io.LimitReader(file, int64(len(expected.data))+1))
+	}
 	if err != nil {
 		return uncertain("re-read quarantined file before removal", err)
 	}
