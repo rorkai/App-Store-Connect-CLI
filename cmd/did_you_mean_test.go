@@ -216,11 +216,15 @@ func TestRun_UnknownChildTelemetryNeverCarriesThePositionalToken(t *testing.T) {
 		args        []string
 		token       string
 		wantCommand string
+		wantChild   string
 	}{
-		{name: "synonym", args: []string{"versions", "latest"}, token: "latest", wantCommand: "asc versions"},
-		{name: "former legacy child", args: []string{"auth", "whoami"}, token: "whoami", wantCommand: "asc auth"},
-		{name: "near match", args: []string{"builds", "lsit"}, token: "lsit", wantCommand: "asc builds"},
-		{name: "no suggestion", args: []string{"builds", "qqqqq"}, token: "qqqqq", wantCommand: "asc builds"},
+		{name: "synonym", args: []string{"versions", "latest"}, token: "latest", wantCommand: "asc versions", wantChild: "other"},
+		{name: "former legacy child", args: []string{"auth", "whoami"}, token: "whoami", wantCommand: "asc auth", wantChild: "other"},
+		{name: "near match", args: []string{"builds", "lsit"}, token: "lsit", wantCommand: "asc builds", wantChild: "other"},
+		{name: "no suggestion", args: []string{"builds", "qqqqq"}, token: "qqqqq", wantCommand: "asc builds", wantChild: "other"},
+		{name: "allowlisted child", args: []string{"apps", "get"}, wantCommand: "asc apps", wantChild: "get"},
+		{name: "flag value is skipped", args: []string{"--profile", "list", "apps", "get"}, wantCommand: "asc apps", wantChild: "get"},
+		{name: "inline flag value is skipped", args: []string{"--profile=list", "apps", "get"}, wantCommand: "asc apps", wantChild: "get"},
 	}
 
 	for _, test := range tests {
@@ -246,7 +250,10 @@ func TestRun_UnknownChildTelemetryNeverCarriesThePositionalToken(t *testing.T) {
 			if gotContext.InvocationShape != telemetry.InvocationShapeUnknownChild || gotContext.FailureParameter != "" {
 				t.Fatalf("unexpected telemetry context: %+v", gotContext)
 			}
-			if rendered := fmt.Sprintf("%+v", gotContext); strings.Contains(rendered, test.token) {
+			if gotContext.AttemptedChild != test.wantChild {
+				t.Fatalf("AttemptedChild = %q, want %q", gotContext.AttemptedChild, test.wantChild)
+			}
+			if rendered := fmt.Sprintf("%+v", gotContext); test.token != "" && strings.Contains(rendered, test.token) {
 				t.Fatalf("telemetry context leaks the positional token %q: %s", test.token, rendered)
 			}
 		})

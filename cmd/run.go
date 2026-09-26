@@ -696,6 +696,7 @@ func printUsageJUnitReportFailure(commandName, versionInfo string, analysis invo
 		ErrorKind:       telemetry.ErrorKindOther,
 		FailureStage:    telemetry.FailureStageExecution,
 		OutcomeKind:     telemetry.OutcomeInternalError,
+		AttemptedChild:  attemptedChildToken(analysis),
 	})
 }
 

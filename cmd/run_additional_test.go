@@ -541,11 +541,19 @@ func TestRun_UnknownInputReportWriteFailureReturnsExitError(t *testing.T) {
 		name       string
 		args       []string
 		wantPrefix string
+		wantChild  string
 	}{
 		{
 			name:       "unknown command",
 			args:       []string{"builds", "lsit"},
 			wantPrefix: "Error: unknown command `asc builds lsit`\n",
+			wantChild:  "other",
+		},
+		{
+			name:       "allowlisted unknown command",
+			args:       []string{"builds", "get"},
+			wantPrefix: "Error: unknown command `asc builds get`\n",
+			wantChild:  "get",
 		},
 		{
 			name:       "unknown flag",
@@ -597,6 +605,9 @@ func TestRun_UnknownInputReportWriteFailureReturnsExitError(t *testing.T) {
 			if calls != 1 || gotExit != ExitError || gotContext.FailureStage != telemetry.FailureStageExecution ||
 				gotContext.ErrorKind != telemetry.ErrorKindOther || gotContext.OutcomeKind != telemetry.OutcomeInternalError {
 				t.Fatalf("unexpected telemetry: calls=%d command=%q exit=%d context=%+v", calls, gotCommand, gotExit, gotContext)
+			}
+			if gotContext.AttemptedChild != test.wantChild {
+				t.Fatalf("AttemptedChild = %q, want %q", gotContext.AttemptedChild, test.wantChild)
 			}
 			if !strings.HasPrefix(gotCommand, "asc builds") {
 				t.Fatalf("telemetry command = %q, want canonical builds path", gotCommand)
