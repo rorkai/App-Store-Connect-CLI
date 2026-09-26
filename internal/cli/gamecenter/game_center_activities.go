@@ -199,7 +199,7 @@ func GameCenterActivitiesCreateCommand() *ffcli.Command {
 	supportsPartyCode := fs.String("supports-party-code", "", "Supports party code (true/false)")
 	createInitialVersion := fs.String("create-initial-version", "", "Create an initial activity version inline (true/false)")
 	initialFallbackURL := fs.String("initial-fallback-url", "", "Fallback URL for the initial activity version")
-	groupID := fs.String("group-id", "", "Game Center group ID")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -496,7 +496,7 @@ Examples:
 func GameCenterActivityAchievementsSetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("set", flag.ExitOnError)
 
-	activityID := fs.String("activity-id", "", "Game Center activity ID")
+	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
 	ids := shared.BindOnceCSVFlag(fs, "ids", "Comma-separated achievement IDs")
 	remove := fs.Bool("remove", false, "Remove relationships instead of adding")
 	confirm := fs.Bool("confirm", false, "Confirm removal (required with --remove)")
@@ -586,7 +586,7 @@ Examples:
 func GameCenterActivityLeaderboardsSetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("set", flag.ExitOnError)
 
-	activityID := fs.String("activity-id", "", "Game Center activity ID")
+	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
 	ids := shared.BindOnceCSVFlag(fs, "ids", "Comma-separated leaderboard IDs")
 	remove := fs.Bool("remove", false, "Remove relationships instead of adding")
 	confirm := fs.Bool("confirm", false, "Confirm removal (required with --remove)")
@@ -681,7 +681,7 @@ Examples:
 func GameCenterActivityVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	activityID := fs.String("activity-id", "", "Game Center activity ID")
+	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -799,7 +799,7 @@ Examples:
 func GameCenterActivityVersionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	activityID := fs.String("activity-id", "", "Game Center activity ID")
+	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
 	fallbackURL := fs.String("fallback-url", "", "Fallback URL")
 	output := shared.BindOutputFlags(fs)
 
@@ -925,7 +925,7 @@ Examples:
 func GameCenterActivityLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Game Center activity version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterActivityVersions", "Game Center activity version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -1043,7 +1043,7 @@ Examples:
 func GameCenterActivityLocalizationsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Game Center activity version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterActivityVersions", "Game Center activity version ID")
 	locale := fs.String("locale", "", "Localization locale (e.g., en-US)")
 	name := fs.String("name", "", "Localized name")
 	description := fs.String("description", "", "Localized description")
@@ -1250,7 +1250,7 @@ Examples:
 func GameCenterActivityImagesUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("upload", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Activity localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterActivityLocalizations", "Activity localization ID")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
 	output := shared.BindOutputFlags(fs)
 
@@ -1507,7 +1507,7 @@ Examples:
 func GameCenterActivityReleasesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Game Center activity version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterActivityVersions", "Game Center activity version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

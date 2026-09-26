@@ -63,14 +63,14 @@ func TestCompletionNodesIncludeNestedCommandsAndVisibleFlags(t *testing.T) {
 	if got, want := apps.subcommands, []string{"view"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("apps subcommands = %v, want %v", got, want)
 	}
-	if got, want := apps.flags, []string{"--app", "--paginate"}; !reflect.DeepEqual(got, want) {
+	if got, want := apps.flags, []string{"--app", "--paginate", "--profile"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("apps flags = %v, want %v", got, want)
 	}
-	if got, want := apps.valueFlags, []string{"--app"}; !reflect.DeepEqual(got, want) {
+	if got, want := apps.valueFlags, []string{"--app", "--profile"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("apps value flags = %v, want %v", got, want)
 	}
 	view := findCompletionNode(t, nodes, "apps view")
-	if got, want := view.flags, []string{"--id"}; !reflect.DeepEqual(got, want) {
+	if got, want := view.flags, []string{"--id", "--profile"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("view flags = %v, want %v", got, want)
 	}
 
@@ -339,4 +339,38 @@ func captureStdout(t *testing.T, fn func() error) string {
 		t.Fatalf("unexpected command error: %v", runErr)
 	}
 	return buf.String()
+}
+
+// TestCompletionNodesOfferRootProfileOnEveryCommand pins the completion side of
+// the root-owned `--profile` selector: it is accepted after the command name,
+// so every command offers it, and a command that binds its own `profile` flag
+// still lists exactly one.
+func TestCompletionNodesOfferRootProfileOnEveryCommand(t *testing.T) {
+	rootFlags := flag.NewFlagSet("asc", flag.ContinueOnError)
+	rootFlags.String("profile", "", "Authentication profile")
+
+	runFlags := flag.NewFlagSet("run", flag.ContinueOnError)
+	runFlags.String("profile", "", "Path to the provisioning profile")
+
+	nodes := completionNodes([]*ffcli.Command{
+		{
+			Name:    "signing",
+			FlagSet: flag.NewFlagSet("signing", flag.ContinueOnError),
+			Subcommands: []*ffcli.Command{
+				{Name: "run", FlagSet: runFlags},
+			},
+		},
+	}, rootFlags)
+
+	signing := findCompletionNode(t, nodes, "signing")
+	if got, want := signing.flags, []string{"--profile"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("signing flags = %v, want %v", got, want)
+	}
+	run := findCompletionNode(t, nodes, "signing run")
+	if got, want := run.flags, []string{"--profile"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("signing run flags = %v, want %v", got, want)
+	}
+	if got, want := run.valueFlags, []string{"--profile"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("signing run value flags = %v, want %v", got, want)
+	}
 }

@@ -31,7 +31,7 @@ func TestReviewSubmissionsListGlobalSuccess(t *testing.T) {
 		if req.URL.Query().Get("filter[app]") != "app-1" {
 			t.Fatalf("expected filter[app]=app-1, got %q", req.URL.Query().Get("filter[app]"))
 		}
-		body := `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}]}`
+		body := `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}],"links":{"self":"/v1/reviewSubmissions"}}`
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(body)),
@@ -100,7 +100,7 @@ func TestReviewSubmissionsItemFieldsAutomaticallyIncludeItems(t *testing.T) {
 				}
 				body := `{"data":{"type":"reviewSubmissions","id":"submission-1"}}`
 				if strings.Contains(test.name, "list") {
-					body = `{"data":[]}`
+					body = `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
@@ -206,7 +206,7 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
+					Body:       io.NopCloser(strings.NewReader(`{"data":[],"links":{"self":"/v1/reviewSubmissions/submission-1/items"}}`)),
 					Header:     http.Header{"Content-Type": []string{"application/json"}},
 				}, nil
 			})
@@ -256,7 +256,7 @@ func TestReviewSubmissionsListGlobalWithASCAppIDSet(t *testing.T) {
 		if req.URL.Query().Get("filter[app]") != "app-from-env" {
 			t.Fatalf("expected filter[app]=app-from-env, got %q", req.URL.Query().Get("filter[app]"))
 		}
-		body := `{"data":[]}`
+		body := `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(body)),
@@ -308,7 +308,7 @@ func TestReviewSubmissionsListGlobalWithFilters(t *testing.T) {
 		if values.Get("filter[state]") != "READY_FOR_REVIEW" {
 			t.Fatalf("expected filter[state]=READY_FOR_REVIEW, got %q", values.Get("filter[state]"))
 		}
-		body := `{"data":[]}`
+		body := `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(body)),
@@ -389,7 +389,7 @@ func TestReviewSubmissionsListScopedStillWorks(t *testing.T) {
 		if req.URL.Path != "/v1/apps/app-1/reviewSubmissions" {
 			t.Fatalf("expected path /v1/apps/app-1/reviewSubmissions, got %s", req.URL.Path)
 		}
-		body := `{"data":[{"type":"reviewSubmissions","id":"rs-scoped","attributes":{"platform":"IOS"}}]}`
+		body := `{"data":[{"type":"reviewSubmissions","id":"rs-scoped","attributes":{"platform":"IOS"}}],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(body)),
@@ -432,7 +432,7 @@ func TestReviewSubmissionsListNextSkipsSelector(t *testing.T) {
 		if req.URL.String() != nextURL {
 			t.Fatalf("expected next URL %q, got %q", nextURL, req.URL.String())
 		}
-		body := `{"data":[]}`
+		body := `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(body)),
@@ -478,14 +478,14 @@ func TestReviewSubmissionsListGlobalPaginate(t *testing.T) {
 			if req.URL.Query().Get("filter[app]") != "app-1" {
 				t.Fatalf("expected filter[app]=app-1, got %q", req.URL.Query().Get("filter[app]"))
 			}
-			body := `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=page2"}}`
+			body := `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS"}}],"links":{"self":"/v1/reviewSubmissions","next":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=page2"}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case 2:
-			body := `{"data":[{"type":"reviewSubmissions","id":"rs-2","attributes":{"platform":"MAC_OS"}}]}`
+			body := `{"data":[{"type":"reviewSubmissions","id":"rs-2","attributes":{"platform":"MAC_OS"}}],"links":{"self":"/v1/reviewSubmissions"}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),

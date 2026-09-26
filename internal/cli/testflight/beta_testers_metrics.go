@@ -24,8 +24,8 @@ var betaTesterUsagePeriods = map[string]struct{}{
 func BetaTestersMetricsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("metrics", flag.ExitOnError)
 
-	testerID := fs.String("tester-id", "", "Beta tester ID")
-	aliasID := fs.String("id", "", "Beta tester ID (alias of --tester-id)")
+	testerID := shared.BindResourceIDFlag(fs, "tester-id", "betaTesters", "Beta tester ID")
+	aliasID := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID (alias of --tester-id)")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	period := fs.String("period", "", "Reporting period: "+strings.Join(betaTesterUsagePeriodList(), ", "))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")

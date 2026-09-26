@@ -30,7 +30,9 @@ const rootGettingStartedSamples = `  Find the command, with examples:
   Show a one-screen release overview:
     asc status --app APP_ID
 
-  Add --help to any command; replace placeholders like APP_ID with real values.`
+  Add --help to any command; replace placeholders like APP_ID with real values.
+  Any flag that takes a value accepts @env:NAME or @file:PATH; escape a literal @ as @@.
+  --output and the root --profile, --report, --report-file are read literally.`
 
 // rootLongHelp renders the GETTING STARTED block shown between USAGE and the
 // grouped command listing.

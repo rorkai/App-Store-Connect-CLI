@@ -69,3 +69,12 @@ func hasCheckField(checks []CheckResult, field string) bool {
 	}
 	return false
 }
+
+func TestAgeRatingChecksKorea45(t *testing.T) {
+	for _, rating := range []string{"ALL", "TWELVE_PLUS"} {
+		checks := ageRatingChecks(&AgeRatingDeclaration{KoreaAgeRatingOverride: &rating})
+		if hasCheckField(checks, "koreaAgeRatingOverride") {
+			t.Errorf("valid Korea rating %s rejected", rating)
+		}
+	}
+}

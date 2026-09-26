@@ -5,11 +5,78 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	reviewcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/reviews"
 )
+
+func TestReviewSubmissionsCreateReportsPartialCreateID(t *testing.T) {
+	requests := 0
+	client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissions" {
+			t.Fatalf("unexpected request %d: %s %s", requests, req.Method, req.URL.Path)
+		}
+		return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-partial"},"errors":[]}`)
+	}))
+	restore := reviewcli.SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"review", "submissions-create", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil || !strings.Contains(runErr.Error(), "sub-partial") ||
+		!strings.Contains(runErr.Error(), "asc submit cancel --id sub-partial --confirm") {
+		t.Fatalf("run error = %v, want partial submission ID and cancellation guidance", runErr)
+	}
+	if requests != 1 {
+		t.Fatalf("requests = %d, want one create request", requests)
+	}
+	if stdout != "" || stderr != "" {
+		t.Fatalf("stdout = %q, stderr = %q, want no command output", stdout, stderr)
+	}
+}
+
+func TestReviewSubmissionsCreateCleanResponseStillSucceeds(t *testing.T) {
+	requests := 0
+	client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissions" {
+			t.Fatalf("unexpected request %d: %s %s", requests, req.Method, req.URL.Path)
+		}
+		return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-clean"}}`)
+	}))
+	restore := reviewcli.SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"review", "submissions-create", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if requests != 1 || !strings.Contains(stdout, `"id":"sub-clean"`) || stderr != "" {
+		t.Fatalf("requests = %d, stdout = %q, stderr = %q, want successful create output", requests, stdout, stderr)
+	}
+}
 
 func TestReviewCommandSubmissionsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")

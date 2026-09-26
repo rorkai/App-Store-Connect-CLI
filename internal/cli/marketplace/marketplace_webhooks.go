@@ -125,7 +125,7 @@ Examples:
 func MarketplaceWebhooksGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	webhookID := fs.String("webhook-id", "", "Marketplace webhook ID")
+	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "marketplaceWebhooks", "Marketplace webhook ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -219,7 +219,7 @@ Examples:
 func MarketplaceWebhooksUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	webhookID := fs.String("webhook-id", "", "Marketplace webhook ID")
+	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "marketplaceWebhooks", "Marketplace webhook ID")
 	url := fs.String("url", "", "Webhook endpoint URL")
 	secret := fs.String("secret", "", "Webhook secret")
 	output := shared.BindOutputFlags(fs)
@@ -286,7 +286,7 @@ Examples:
 func MarketplaceWebhooksDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	webhookID := fs.String("webhook-id", "", "Marketplace webhook ID")
+	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "marketplaceWebhooks", "Marketplace webhook ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

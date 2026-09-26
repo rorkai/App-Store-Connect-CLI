@@ -4264,7 +4264,7 @@ func TestAppsUpdateValidationErrors(t *testing.T) {
 		{
 			name:    "apps update missing fields",
 			args:    []string{"apps", "update", "--id", "APP_ID"},
-			wantErr: "Error: --bundle-id, --primary-locale, or --content-rights is required",
+			wantErr: "Error: at least one update field is required (--bundle-id, --primary-locale, --content-rights, --subscription-status-url, --sandbox-subscription-status-url)",
 		},
 		{
 			name:    "apps update invalid content rights",

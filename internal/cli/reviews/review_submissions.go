@@ -2,6 +2,7 @@ package reviews
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -319,6 +320,20 @@ Examples:
 
 			resp, err := client.CreateReviewSubmission(requestCtx, resolvedAppID, asc.Platform(normalizedPlatform))
 			if err != nil {
+				var partialErr *asc.ReviewSubmissionCreatePartialError
+				if errors.As(err, &partialErr) && partialErr.Response != nil &&
+					partialErr.Response.Data.Type == asc.ResourceTypeReviewSubmissions {
+					submissionID := strings.TrimSpace(partialErr.Response.Data.ID)
+					if submissionID != "" {
+						return fmt.Errorf(
+							"review submissions-create: review submission %q may have been created; inspect it with `asc review submissions-get --id %s` or cancel it with `asc submit cancel --id %s --confirm`: %w",
+							submissionID,
+							submissionID,
+							submissionID,
+							err,
+						)
+					}
+				}
 				return fmt.Errorf("review submissions-create: %w", err)
 			}
 

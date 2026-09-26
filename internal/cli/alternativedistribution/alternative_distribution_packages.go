@@ -51,7 +51,7 @@ Examples:
 func AlternativeDistributionPackagesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	packageID := fs.String("package-id", "", "Alternative distribution package ID")
+	packageID := shared.BindResourceIDFlag(fs, "package-id", "alternativeDistributionPackages", "Alternative distribution package ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -93,7 +93,7 @@ Examples:
 func AlternativeDistributionPackagesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	appStoreVersionID := fs.String("app-store-version-id", "", "App Store version ID for the package")
+	appStoreVersionID := shared.BindResourceIDFlag(fs, "app-store-version-id", "appStoreVersions", "App Store version ID for the package")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -135,7 +135,7 @@ Examples:
 func AlternativeDistributionPackagesAppStoreVersionCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-store-version", flag.ExitOnError)
 
-	appStoreVersionID := fs.String("app-store-version-id", "", "App Store version ID")
+	appStoreVersionID := shared.BindResourceIDFlag(fs, "app-store-version-id", "appStoreVersions", "App Store version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -177,7 +177,7 @@ Examples:
 func AlternativeDistributionPackageVariantsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("variants", flag.ExitOnError)
 
-	variantID := fs.String("variant-id", "", "Alternative distribution package variant ID")
+	variantID := shared.BindResourceIDFlag(fs, "variant-id", "alternativeDistributionPackageVariants", "Alternative distribution package variant ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -219,7 +219,7 @@ Examples:
 func AlternativeDistributionPackageDeltasCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("deltas", flag.ExitOnError)
 
-	deltaID := fs.String("delta-id", "", "Alternative distribution package delta ID")
+	deltaID := shared.BindResourceIDFlag(fs, "delta-id", "alternativeDistributionPackageDeltas", "Alternative distribution package delta ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

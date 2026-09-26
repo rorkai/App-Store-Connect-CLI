@@ -60,7 +60,7 @@ Examples:
 // SubscriptionsVersionsCreateCommand returns the versions create command.
 func SubscriptionsVersionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions create", flag.ExitOnError)
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
@@ -103,7 +103,7 @@ Examples:
 // SubscriptionsVersionsListCommand returns the versions list command.
 func SubscriptionsVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions list", flag.ExitOnError)
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	state := fs.String("state", "", "Filter by version state (comma-separated)")
 	fields := fs.String("fields", "", "Sparse fields for subscriptionVersions")
@@ -304,7 +304,7 @@ Examples:
 // SubscriptionsVersionsLinksCommand returns the subscription-to-version linkage command.
 func SubscriptionsVersionsLinksCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions links", flag.ExitOnError)
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")

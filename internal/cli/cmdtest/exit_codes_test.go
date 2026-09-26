@@ -27,6 +27,7 @@ func TestExitCodeConstantsMatch(t *testing.T) {
 		{"Auth", 3, func() int { return cmd.ExitAuth }},
 		{"NotFound", 4, func() int { return cmd.ExitNotFound }},
 		{"Conflict", 5, func() int { return cmd.ExitConflict }},
+		{"ReadOnly", 6, func() int { return cmd.ExitReadOnly }},
 	}
 
 	for _, tt := range tests {
@@ -429,7 +430,7 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 		{
 			name:    "reviews ratings rejects positional args",
 			args:    []string{"reviews", "ratings", "--app", "123", "extra"},
-			wantErr: "reviews ratings does not accept positional arguments",
+			wantErr: `unexpected argument "extra"`,
 		},
 		{
 			name:    "reviews ratings unsupported country",

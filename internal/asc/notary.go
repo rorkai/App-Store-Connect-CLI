@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const (
@@ -184,6 +186,9 @@ func (c *Client) newNotaryRequest(ctx context.Context, method, path string, body
 	url := path
 	if !strings.HasPrefix(path, "http://") && !strings.HasPrefix(path, "https://") {
 		url = c.resolveNotaryBaseURL() + path
+	}
+	if err := readonly.Check(ctx, method, readonly.Target(url)); err != nil {
+		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
@@ -459,6 +464,9 @@ func uploadSinglePartToS3(ctx context.Context, creds S3Credentials, data io.Read
 	now := time.Now().UTC()
 	amzDate := now.Format("20060102T150405Z")
 
+	if err := readonly.Check(ctx, http.MethodPut, readonly.Target(url)); err != nil {
+		return err
+	}
 	req, err := http.NewRequestWithContext(ctx, "PUT", url, data)
 	if err != nil {
 		return fmt.Errorf("create S3 request: %w", err)
@@ -965,6 +973,9 @@ func newS3Request(ctx context.Context, method, host, encodedPath, rawQuery strin
 	url := fmt.Sprintf("https://%s%s", host, encodedPath)
 	if rawQuery != "" {
 		url = url + "?" + rawQuery
+	}
+	if err := readonly.Check(ctx, method, readonly.Target(url)); err != nil {
+		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {

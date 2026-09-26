@@ -83,6 +83,20 @@ class RenderTests(unittest.TestCase):
             rendered,
         )
 
+    def test_xcode_nested_commands_are_present_in_high_signal_examples(self) -> None:
+        rendered = generate_command_docs.render(
+            "asc <subcommand> [flags]", [], []
+        )
+
+        self.assertIn(
+            "asc xcode test-destinations --platform iOS --available-only --output json",
+            rendered,
+        )
+        self.assertIn(
+            "asc xcode test junit --xcresult ./Test.xcresult --report-file ./junit.xml --output json",
+            rendered,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -382,6 +382,7 @@ type CertificateCreateAttributes struct {
 
 // CertificateCreateRelationships describes relationships for certificate creation.
 type CertificateCreateRelationships struct {
+	MerchantID *Relationship `json:"merchantId,omitempty"`
 	PassTypeID *Relationship `json:"passTypeId,omitempty"`
 }
 

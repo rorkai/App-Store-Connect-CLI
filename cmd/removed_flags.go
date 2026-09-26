@@ -303,11 +303,12 @@ func printRemovedFlagHint(w io.Writer, commandName, flagName string, flags *flag
 	}
 	fmt.Fprintf(
 		w,
-		"Error: `--%s` was removed in %s; %s (see migrate-to-5-0)\nFor help:\n  %s --help\n",
+		"Error: `--%s` was removed in %s; %s (see migrate-to-5-0)\n",
 		rule.flag,
 		removedFlagVersion,
 		rule.guidance(),
-		commandName,
 	)
+	printFlagSuggestions(w, removedFlagGuidanceSuggestions(rule, flags, flagName))
+	fmt.Fprintf(w, "For help:\n  %s --help\n", commandName)
 	return true
 }

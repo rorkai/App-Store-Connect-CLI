@@ -276,13 +276,16 @@ For `subscriptions offers introductory create`, an explicit request timeout also
 </ParamField>
 
 <ParamField path="ASC_UPLOAD_TIMEOUT" type="string">
-  Upload timeout for large files (e.g., `60s`, `5m`)
+  Upload and streamed download timeout for large files (e.g., `60s`, `5m`).
+  Applies to the sales, finance, analytics report, performance diagnostic, screenshot,
+  preview, and dSYM download commands. Each file gets its own budget; parent cancellation and earlier
+  deadlines still apply. Listing and metadata requests use `ASC_TIMEOUT`.
 
   Default: `5m`
 </ParamField>
 
 <ParamField path="ASC_UPLOAD_TIMEOUT_SECONDS" type="number">
-  Upload timeout in seconds (alternative to `ASC_UPLOAD_TIMEOUT`)
+  Upload and streamed download timeout in seconds (alternative to `ASC_UPLOAD_TIMEOUT`)
 </ParamField>
 
 ## Retry and debugging variables
@@ -318,6 +321,14 @@ Configure retry behavior and debug logging.
 
   * Set to `true` for general debug logging
   * Set to `api` for HTTP request/response logging (redacts sensitive values)
+</ParamField>
+
+## Safety variables
+
+<ParamField path="ASC_READ_ONLY" type="boolean">
+  Refuse every mutating request (`POST`, `PATCH`, `PUT`, `DELETE`) before it is sent
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to enable. Equivalent to the global `--read-only` flag; refusals exit with code `6`. See [Read-only mode](/concepts/read-only-mode).
 </ParamField>
 
 ## Output variables

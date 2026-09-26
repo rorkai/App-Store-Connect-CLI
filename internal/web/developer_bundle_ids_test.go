@@ -526,6 +526,35 @@ func TestDisableDeveloperBundleIDCapabilityRejectsUnknownTargetStateBeforePatch(
 	}
 }
 
+func TestEnableDeveloperBundleIDCapabilityRejectsWrongResourceIDBeforePatch(t *testing.T) {
+	requestCount := 0
+	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
+		case 2:
+			return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
+		case 3:
+			return developerPortalTestResponse(http.StatusOK, strings.Replace(developerBundleResponse(false), `"bundle-1"`, `"other-bundle"`, 1), nil), nil
+		default:
+			t.Fatalf("unexpected write after wrong resource id: %s %s", r.Method, r.URL.String())
+			return nil, nil
+		}
+	})
+
+	_, err := client.EnableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityEnableRequest{
+		BundleID:   "bundle-1",
+		Capability: "PRIVATE_CLOUD_COMPUTE",
+	})
+	if err == nil || !strings.Contains(err.Error(), "returned resource") {
+		t.Fatalf("error = %v, want exact-resource rejection", err)
+	}
+	if requestCount != 3 {
+		t.Fatalf("request count = %d, want 3", requestCount)
+	}
+}
+
 func TestDisableDeveloperBundleIDCapabilityRejectsWrongResourceIDBeforePatch(t *testing.T) {
 	requestCount := 0
 	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {

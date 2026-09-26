@@ -43,7 +43,7 @@ func TestReviewSubmissionsNestedListMatchesFlatSurface(t *testing.T) {
 		)
 		results = append(results, runReviewSubmissionsSurface(
 			t, args, http.StatusOK,
-			`{"data":[{"type":"reviewSubmissions","id":"submission-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}]}`,
+			`{"data":[{"type":"reviewSubmissions","id":"submission-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`,
 		))
 	}
 
@@ -73,7 +73,7 @@ func TestReviewSubmissionsNestedListMatchesFlatTableOutput(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	response := `{"data":[{"type":"reviewSubmissions","id":"submission-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}]}`
+	response := `{"data":[{"type":"reviewSubmissions","id":"submission-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`
 	flat := runReviewSubmissionsSurface(
 		t,
 		[]string{"review", "submissions-list", "--app", "app-1", "--output", "table"},

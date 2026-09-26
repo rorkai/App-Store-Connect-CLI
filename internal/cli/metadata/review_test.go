@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestMetadataApproveWritesToRequestedReviewDir(t *testing.T) {
@@ -226,5 +228,53 @@ func metadataReviewTestPushOptions(plan PushPlanResult) PushExecutionOptions {
 		Include:      strings.Join(plan.Includes, ","),
 		DryRun:       true,
 		AllowDeletes: false,
+	}
+}
+
+func TestVerifyApprovedMetadataPlanRejectsChangedIfExistsMode(t *testing.T) {
+	reviewDir := t.TempDir()
+	plan := metadataReviewTestPlan(t, reviewDir)
+	if err := writeMetadataReviewJSON(filepath.Join(reviewDir, metadataPlanFileName), plan); err != nil {
+		t.Fatalf("write plan: %v", err)
+	}
+	if plan.Options.IfExists != "" {
+		t.Fatalf("plan options ifExists = %q, want the default fail to be omitted", plan.Options.IfExists)
+	}
+
+	opts := metadataReviewTestPushOptions(plan.Plan)
+	opts.IfExists = string(shared.IfExistsUpdate)
+	err := VerifyApprovedMetadataPlan(opts, plan.Plan, reviewDir)
+	if err == nil {
+		t.Fatal("expected applying an approved plan with a different --if-exists mode to be rejected")
+	}
+	if !strings.Contains(err.Error(), "approved metadata plan drifted") {
+		t.Fatalf("expected drift error, got %v", err)
+	}
+}
+
+func TestMetadataPlanOptionsIfExistsFailMatchesUnsetHash(t *testing.T) {
+	result := PushPlanResult{AppID: "app-1", Version: "1.2.3", Dir: "./metadata", DryRun: true}
+	unset := metadataPlanOptionsFromPush(PushExecutionOptions{AppID: "app-1", Version: "1.2.3", Dir: "./metadata"}, result)
+	explicitFail := metadataPlanOptionsFromPush(PushExecutionOptions{AppID: "app-1", Version: "1.2.3", Dir: "./metadata", IfExists: string(shared.IfExistsFail)}, result)
+
+	unsetHash, err := hashMetadataPlan(unset, result)
+	if err != nil {
+		t.Fatalf("hash unset: %v", err)
+	}
+	failHash, err := hashMetadataPlan(explicitFail, result)
+	if err != nil {
+		t.Fatalf("hash explicit fail: %v", err)
+	}
+	if unsetHash != failHash {
+		t.Fatalf("explicit --if-exists fail must hash like the unset default: %s != %s", unsetHash, failHash)
+	}
+
+	skip := metadataPlanOptionsFromPush(PushExecutionOptions{AppID: "app-1", Version: "1.2.3", Dir: "./metadata", IfExists: string(shared.IfExistsSkip)}, result)
+	skipHash, err := hashMetadataPlan(skip, result)
+	if err != nil {
+		t.Fatalf("hash skip: %v", err)
+	}
+	if skipHash == failHash {
+		t.Fatal("--if-exists skip must change the plan hash")
 	}
 }

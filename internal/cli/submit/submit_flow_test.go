@@ -40,7 +40,7 @@ func TestSubmitResolvedVersionReusesReadySubmissionWithTargetVersion(t *testing.
 						}
 					}
 				}],
-				"links": {}
+				"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-submission/items":
 			return submitJSONResponse(http.StatusOK, `{
@@ -52,8 +52,9 @@ func TestSubmitResolvedVersionReusesReadySubmissionWithTargetVersion(t *testing.
 							"data": {"type": "appStoreVersions", "id": "version-1"}
 						}
 					}
-				}]
-			}`)
+				}],
+				"links": {"self": "/v1/reviewSubmissions/existing-submission/items"}
+				}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-submission":
 			return submitJSONResponse(http.StatusOK, `{
 				"data": {
@@ -181,7 +182,7 @@ func TestSubmitResolvedVersionFailsClosedWhenReviewSubmissionPreparationFails(t 
 			handler: func(req *http.Request) (*http.Response, error) {
 				return submitJSONResponse(http.StatusOK, `{
 					"data": [],
-					"links": {},
+				"links": {"self": "/v1/apps/app-1/reviewSubmissions"},
 					"meta": {"paging": {"total": 1, "limit": 200}}
 				}`)
 			},
@@ -192,7 +193,7 @@ func TestSubmitResolvedVersionFailsClosedWhenReviewSubmissionPreparationFails(t 
 				if req.URL.Query().Get("cursor") == "" {
 					return submitJSONResponse(http.StatusOK, `{
 						"data": [],
-						"links": {"next": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=page-2"}
+					"links": {"self": "/v1/apps/app-1/reviewSubmissions", "next": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=page-2"}
 					}`)
 				}
 				return submitJSONResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"BAD_REQUEST","title":"Invalid request"}]}`)
@@ -205,7 +206,7 @@ func TestSubmitResolvedVersionFailsClosedWhenReviewSubmissionPreparationFails(t 
 				if req.URL.Query().Get("cursor") == "" {
 					return submitJSONResponse(http.StatusOK, `{
 						"data": [],
-						"links": {"next": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=page-2"}
+					"links": {"self": "/v1/apps/app-1/reviewSubmissions", "next": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=page-2"}
 					}`)
 				}
 				return submitJSONResponse(http.StatusOK, `{}`)
@@ -221,7 +222,7 @@ func TestSubmitResolvedVersionFailsClosedWhenReviewSubmissionPreparationFails(t 
 							"id": "unproven-submission",
 							"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
 						}],
-						"links": {}
+						"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 					}`)
 				}
 				return submitJSONResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"BAD_REQUEST","title":"Invalid request"}]}`)
@@ -238,7 +239,7 @@ func TestSubmitResolvedVersionFailsClosedWhenReviewSubmissionPreparationFails(t 
 							"id": "unproven-submission",
 							"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
 						}],
-						"links": {}
+						"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 					}`)
 				}
 				return submitJSONResponse(http.StatusOK, `{}`)
@@ -254,7 +255,7 @@ func TestSubmitResolvedVersionFailsClosedWhenReviewSubmissionPreparationFails(t 
 							"id": "unproven-submission",
 							"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
 						}],
-						"links": {}
+						"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 					}`)
 				}
 				return submitJSONResponse(http.StatusOK, `{"data":null}`)
@@ -270,12 +271,12 @@ func TestSubmitResolvedVersionFailsClosedWhenReviewSubmissionPreparationFails(t 
 							"id": "unproven-submission",
 							"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
 						}],
-						"links": {}
+						"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 					}`)
 				}
 				return submitJSONResponse(http.StatusOK, `{
 					"data": [],
-					"links": {},
+					"links": {"self": "/v1/apps/app-1/reviewSubmissions"},
 					"meta": {"paging": {"total": 1, "limit": 200}}
 				}`)
 			},
@@ -289,7 +290,7 @@ func TestSubmitResolvedVersionFailsClosedWhenReviewSubmissionPreparationFails(t 
 						"id": "",
 						"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
 					}],
-					"links": {}
+					"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 				}`)
 			},
 		},
@@ -384,7 +385,7 @@ func TestSubmitResolvedVersionRejectsRepeatedPreparationPageBeforeMutation(t *te
 		}
 		return submitJSONResponse(http.StatusOK, `{
 			"data": [],
-			"links": {"next": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=same"}
+			"links": {"self": "/v1/apps/app-1/reviewSubmissions", "next": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=same"}
 		}`)
 	}))
 

@@ -50,7 +50,7 @@ Examples:
 func GameCenterLeaderboardLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	leaderboardID := fs.String("leaderboard-id", "", "Game Center leaderboard ID")
+	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Game Center leaderboard ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -168,7 +168,7 @@ Examples:
 func GameCenterLeaderboardLocalizationsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	leaderboardID := fs.String("leaderboard-id", "", "Game Center leaderboard ID")
+	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Game Center leaderboard ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, de-DE)")
 	name := fs.String("name", "", "Display name for the leaderboard in this locale")
 	formatterOverride := fs.String("formatter-override", "", "Override the default formatter (optional)")

@@ -17,7 +17,7 @@ import (
 func VersionsReleaseCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions release", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm release request (required)")
 	output := shared.BindOutputFlags(fs)
 

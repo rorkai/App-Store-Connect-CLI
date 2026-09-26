@@ -153,7 +153,7 @@ func rejectWebhooksListNextFlagConflicts(fs *flag.FlagSet, next string, names ..
 func WebhooksGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	webhookID := fs.String("webhook-id", "", "Webhook ID")
+	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -276,7 +276,7 @@ Examples:
 func WebhooksUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	webhookID := fs.String("webhook-id", "", "Webhook ID")
+	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
 	name := fs.String("name", "", "Webhook name")
 	url := fs.String("url", "", "Webhook endpoint URL")
 	secret := fs.String("secret", "", "Webhook secret")
@@ -362,7 +362,7 @@ Examples:
 func WebhooksDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	webhookID := fs.String("webhook-id", "", "Webhook ID")
+	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
@@ -409,7 +409,7 @@ Examples:
 func WebhookDeliveriesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("deliveries", flag.ExitOnError)
 
-	webhookID := fs.String("webhook-id", "", "Webhook ID")
+	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
 	createdAfter := fs.String("created-after", "", "Filter deliveries created after or equal to a timestamp")
 	createdBefore := fs.String("created-before", "", "Filter deliveries created before a timestamp")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -511,7 +511,7 @@ Examples:
 func WebhookDeliveriesRelationshipsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("links", flag.ExitOnError)
 
-	webhookID := fs.String("webhook-id", "", "Webhook ID")
+	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -637,7 +637,7 @@ Examples:
 func WebhookPingCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("ping", flag.ExitOnError)
 
-	webhookID := fs.String("webhook-id", "", "Webhook ID")
+	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

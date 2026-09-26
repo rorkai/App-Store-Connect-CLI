@@ -19,6 +19,10 @@ type buildsQuery struct {
 	include              []string
 }
 
+type buildUploadQuery struct {
+	include []string
+}
+
 type buildUploadsQuery struct {
 	listQuery
 	cfBundleShortVersions []string
@@ -62,6 +66,12 @@ func buildBuildBundlesQuery(query *buildBundlesQuery) string {
 func buildBuildBundleFileSizesQuery(query *buildBundleFileSizesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBuildUploadQuery(query *buildUploadQuery) string {
+	values := url.Values{}
+	addCSV(values, "include", query.include)
 	return values.Encode()
 }
 
@@ -113,6 +123,9 @@ type BuildBundlesOption func(*buildBundlesQuery)
 
 // BuildBundleFileSizesOption is a functional option for GetBuildBundleFileSizes.
 type BuildBundleFileSizesOption func(*buildBundleFileSizesQuery)
+
+// BuildUploadOption is a functional option for GetBuildUpload.
+type BuildUploadOption func(*buildUploadQuery)
 
 // BuildUploadsOption is a functional option for GetBuildUploads.
 type BuildUploadsOption func(*buildUploadsQuery)
@@ -245,6 +258,18 @@ func WithBuildsExpired(expired bool) BuildsOption {
 // (e.g., "preReleaseVersion" to get the marketing version string).
 func WithBuildsInclude(include []string) BuildsOption {
 	return func(q *buildsQuery) {
+		normalized := normalizeList(include)
+		if len(normalized) > 0 {
+			q.include = normalized
+		}
+	}
+}
+
+// WithBuildUploadInclude requests related resources for a single build upload.
+// App Store Connect returns the build relationship linkage only when "build"
+// is included.
+func WithBuildUploadInclude(include []string) BuildUploadOption {
+	return func(q *buildUploadQuery) {
 		normalized := normalizeList(include)
 		if len(normalized) > 0 {
 			q.include = normalized

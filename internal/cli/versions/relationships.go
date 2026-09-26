@@ -57,7 +57,7 @@ func paginationConflictParameter(limit int, next string, paginate bool) string {
 func VersionsRelationshipsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions links", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (not an app ID; list IDs with \"asc versions list --app APP_ID\")")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (not an app ID; list IDs with \"asc versions list --app APP_ID\")")
 	relType := fs.String("type", "", shared.RelationshipTypeFlagUsage(appStoreVersionRelationshipList()))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")

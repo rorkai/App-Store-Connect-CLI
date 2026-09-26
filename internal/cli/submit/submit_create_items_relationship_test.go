@@ -31,7 +31,8 @@ func TestSummarizeReviewSubmissionItemsRequestsVersionRelationship(t *testing.T)
 						"data": {"type": "appStoreVersions", "id": "version-1"}
 					}
 				}
-			}]
+			}],
+			"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-1/items"}
 		}`)
 	}))
 
@@ -58,7 +59,8 @@ func TestSummarizeReviewSubmissionItemsWithoutRelationshipsIsNotTarget(t *testin
 				"type": "reviewSubmissionItems",
 				"id": "item-1",
 				"attributes": {"state": "READY_FOR_REVIEW"}
-			}]
+			}],
+			"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-1/items"}
 		}`)
 	}))
 

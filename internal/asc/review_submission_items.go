@@ -274,6 +274,17 @@ type ReviewSubmissionItemDeleteResult struct {
 
 // GetReviewSubmissionItems retrieves items for a review submission.
 func (c *Client) GetReviewSubmissionItems(ctx context.Context, submissionID string, opts ...ReviewSubmissionItemsOption) (*ReviewSubmissionItemsResponse, error) {
+	return c.getReviewSubmissionItems(ctx, submissionID, false, opts...)
+}
+
+// GetReviewSubmissionItemsStrict retrieves review submission items and
+// validates the complete JSON:API collection envelope before callers use it as
+// mutation preflight evidence.
+func (c *Client) GetReviewSubmissionItemsStrict(ctx context.Context, submissionID string, opts ...ReviewSubmissionItemsOption) (*ReviewSubmissionItemsResponse, error) {
+	return c.getReviewSubmissionItems(ctx, submissionID, true, opts...)
+}
+
+func (c *Client) getReviewSubmissionItems(ctx context.Context, submissionID string, strict bool, opts ...ReviewSubmissionItemsOption) (*ReviewSubmissionItemsResponse, error) {
 	query := &reviewSubmissionItemsQuery{}
 	for _, opt := range opts {
 		opt(query)
@@ -304,6 +315,11 @@ func (c *Client) GetReviewSubmissionItems(ctx context.Context, submissionID stri
 	var response ReviewSubmissionItemsResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse review submission items response: %w", err)
+	}
+	if strict {
+		if err := validateReviewSubmissionCollectionEnvelope(data, "review submission items", reviewSubmissionItemCollectionResourceSpec); err != nil {
+			return nil, err
+		}
 	}
 
 	return &response, nil
@@ -359,6 +375,9 @@ func (c *Client) CreateReviewSubmissionItem(ctx context.Context, submissionID st
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse review submission item response: %w", err)
 	}
+	if err := rejectReviewSubmissionTopLevelErrorsInDocument(data, "review submission item"); err != nil {
+		return nil, err
+	}
 
 	return &response, nil
 }
@@ -391,6 +410,9 @@ func (c *Client) UpdateReviewSubmissionItem(ctx context.Context, itemID string, 
 	var response ReviewSubmissionItemResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse review submission item response: %w", err)
+	}
+	if err := rejectReviewSubmissionTopLevelErrorsInDocument(data, "review submission item"); err != nil {
+		return nil, err
 	}
 
 	return &response, nil

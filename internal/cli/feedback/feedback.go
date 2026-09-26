@@ -33,7 +33,7 @@ type listCommandFlags struct {
 
 func bindListCommandFlags(fs *flag.FlagSet) listCommandFlags {
 	return listCommandFlags{
-		appID:              fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)"),
+		appID:              shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)"),
 		output:             shared.BindOutputFlags(fs),
 		includeScreenshots: fs.Bool("include-screenshots", false, "Include screenshot URLs in feedback output"),
 		deviceModel:        fs.String("device-model", "", "Filter by device model(s), comma-separated"),

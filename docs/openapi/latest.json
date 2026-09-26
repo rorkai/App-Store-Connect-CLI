@@ -2,7 +2,7 @@
   "openapi": "3.0.1",
   "info": {
     "title": "App Store Connect API",
-    "version": "4.4.1",
+    "version": "4.5",
     "x-platforms": {
       "app_store_connect_api": "App Store Connect API"
     }
@@ -5931,6 +5931,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -7088,6 +7089,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -7832,6 +7834,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -8194,6 +8197,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -10225,7 +10229,6 @@
                   "brazilAgeRatingV2",
                   "franceAgeRating",
                   "koreaAgeRating",
-                  "kidsAgeBand",
                   "app",
                   "ageRatingDeclaration",
                   "appInfoLocalizations",
@@ -10521,7 +10524,6 @@
                   "brazilAgeRatingV2",
                   "franceAgeRating",
                   "koreaAgeRating",
-                  "kidsAgeBand",
                   "app",
                   "ageRatingDeclaration",
                   "appInfoLocalizations",
@@ -10582,6 +10584,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -10647,6 +10650,7 @@
                   "ageRatingOverride",
                   "ageRatingOverrideV2",
                   "koreaAgeRatingOverride",
+                  "gracRatingClassificationNumber",
                   "developerAgeRatingInfoUrl"
                 ]
               }
@@ -11766,6 +11770,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -12067,6 +12072,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -14789,6 +14795,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -16815,6 +16822,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -17781,6 +17789,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -18105,7 +18114,6 @@
                   "brazilAgeRatingV2",
                   "franceAgeRating",
                   "koreaAgeRating",
-                  "kidsAgeBand",
                   "app",
                   "ageRatingDeclaration",
                   "appInfoLocalizations",
@@ -18383,6 +18391,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -18792,6 +18801,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -19116,7 +19126,6 @@
                   "brazilAgeRatingV2",
                   "franceAgeRating",
                   "koreaAgeRating",
-                  "kidsAgeBand",
                   "app",
                   "ageRatingDeclaration",
                   "appInfoLocalizations",
@@ -19394,6 +19403,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -21101,6 +21111,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -22119,6 +22130,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -22391,6 +22403,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -22762,6 +22775,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -22947,6 +22961,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -25050,6 +25065,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -25442,6 +25458,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -25916,6 +25933,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -26094,6 +26112,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -26977,6 +26996,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -27361,6 +27381,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -29314,6 +29335,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -29878,6 +29900,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -30796,6 +30819,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -31137,6 +31161,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -33234,6 +33259,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -33480,6 +33506,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -35806,6 +35833,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -38035,6 +38063,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -38659,6 +38688,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -39172,6 +39202,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -39725,6 +39756,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -39819,6 +39851,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -43579,6 +43612,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -43665,6 +43699,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -43942,6 +43977,119 @@
         }
       ]
     },
+    "/v1/gameCenterDetailPlayers/{id}": {
+      "patch": {
+        "tags": [
+          "GameCenterDetailPlayers"
+        ],
+        "operationId": "gameCenterDetailPlayers_updateInstance",
+        "requestBody": {
+          "description": "GameCenterDetailPlayer representation",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameCenterDetailPlayerUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable request entity error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Single GameCenterDetailPlayer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCenterDetailPlayerResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request entity error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "the id of the requested resource",
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple",
+          "required": true
+        }
+      ]
+    },
     "/v1/gameCenterDetails": {
       "post": {
         "tags": [
@@ -44071,6 +44219,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -44122,6 +44271,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -44225,6 +44375,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -44945,6 +45096,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -44983,6 +45135,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -45448,6 +45601,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -45486,6 +45640,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -47873,6 +48028,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -50325,6 +50481,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -50932,6 +51089,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -50991,6 +51149,7 @@
                   "gameCenterDetail",
                   "gameCenterGroup",
                   "gameCenterLeaderboardSets",
+                  "gameCenterScoreModerations",
                   "activity",
                   "challenge",
                   "versions"
@@ -51455,6 +51614,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -52008,6 +52168,7 @@
                   "gameCenterDetail",
                   "gameCenterGroup",
                   "gameCenterLeaderboardSets",
+                  "gameCenterScoreModerations",
                   "activity",
                   "challenge",
                   "versions"
@@ -52316,6 +52477,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -52899,6 +53061,7 @@
                   "gameCenterDetail",
                   "gameCenterGroup",
                   "gameCenterLeaderboardSets",
+                  "gameCenterScoreModerations",
                   "activity",
                   "challenge",
                   "versions"
@@ -52940,6 +53103,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -55267,6 +55431,119 @@
           }
         }
       }
+    },
+    "/v1/gameCenterScoreModerations/{id}": {
+      "patch": {
+        "tags": [
+          "GameCenterScoreModerations"
+        ],
+        "operationId": "gameCenterScoreModerations_updateInstance",
+        "requestBody": {
+          "description": "GameCenterScoreModeration representation",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameCenterScoreModerationUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable request entity error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Single GameCenterScoreModeration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCenterScoreModerationResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request entity error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "the id of the requested resource",
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple",
+          "required": true
+        }
+      ]
     },
     "/v1/inAppPurchaseAppStoreReviewScreenshots": {
       "post": {
@@ -59475,6 +59752,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -61670,6 +61948,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -62065,6 +62344,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -63321,6 +63601,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -63555,6 +63836,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -64541,6 +64823,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -65213,6 +65497,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -65593,6 +65878,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -67775,6 +68061,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -69767,6 +70055,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -70256,6 +70546,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -71682,6 +71974,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -72794,6 +73088,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -73889,6 +74185,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -74421,6 +74719,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -74717,6 +75017,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -75759,6 +76061,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -76043,6 +76346,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -76387,6 +76691,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -76581,6 +76886,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -77219,6 +77525,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -80948,6 +81255,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -84015,6 +84323,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -85366,6 +85675,7 @@
                   "ageRatingOverride",
                   "ageRatingOverrideV2",
                   "koreaAgeRatingOverride",
+                  "gracRatingClassificationNumber",
                   "developerAgeRatingInfoUrl"
                 ]
               }
@@ -85603,7 +85913,6 @@
                   "brazilAgeRatingV2",
                   "franceAgeRating",
                   "koreaAgeRating",
-                  "kidsAgeBand",
                   "app",
                   "ageRatingDeclaration",
                   "appInfoLocalizations",
@@ -87752,6 +88061,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -93588,6 +93898,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -97476,6 +97787,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -97814,6 +98126,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -98184,6 +98497,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -98807,7 +99121,6 @@
                   "brazilAgeRatingV2",
                   "franceAgeRating",
                   "koreaAgeRating",
-                  "kidsAgeBand",
                   "app",
                   "ageRatingDeclaration",
                   "appInfoLocalizations",
@@ -98867,6 +99180,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -98931,6 +99245,7 @@
                   "ageRatingOverride",
                   "ageRatingOverrideV2",
                   "koreaAgeRatingOverride",
+                  "gracRatingClassificationNumber",
                   "developerAgeRatingInfoUrl"
                 ]
               }
@@ -99276,6 +99591,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -99580,6 +99896,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -99953,6 +100270,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -100461,6 +100779,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -101386,6 +101705,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -104077,6 +104397,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -105306,6 +105627,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -105356,6 +105678,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -105456,6 +105779,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -106195,6 +106519,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -106557,6 +106882,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -107576,6 +107902,103 @@
         }
       ]
     },
+    "/v1/apps/{id}/performanceOverviews": {
+      "get": {
+        "tags": [
+          "Apps"
+        ],
+        "operationId": "apps_performanceOverviews_getToManyRelated",
+        "parameters": [
+          {
+            "name": "filter[deviceType]",
+            "in": "query",
+            "description": "filter by attribute 'deviceType'",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": false
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "List of PerformanceOverviews",
+            "content": {
+              "application/vnd.apple.xcode-overview+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/xcodeOverview"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "the id of the requested resource",
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple",
+          "required": true
+        }
+      ]
+    },
     "/v1/apps/{id}/relationships/preReleaseVersions": {
       "get": {
         "tags": [
@@ -108044,6 +108467,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -108376,6 +108801,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -109214,6 +109640,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -109573,6 +110001,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -110526,6 +110955,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -110763,6 +111193,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -111599,6 +112030,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -113012,6 +113444,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -113355,6 +113788,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -114603,6 +115037,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -116093,6 +116528,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -116660,6 +117096,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -119168,6 +119605,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -121743,6 +122181,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -122740,6 +123179,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -123053,7 +123493,6 @@
                   "brazilAgeRatingV2",
                   "franceAgeRating",
                   "koreaAgeRating",
-                  "kidsAgeBand",
                   "app",
                   "ageRatingDeclaration",
                   "appInfoLocalizations",
@@ -123319,6 +123758,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -126531,6 +126971,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -127983,6 +128424,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -128659,6 +129101,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -130743,6 +131186,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -132966,6 +133410,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -133320,6 +133765,212 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GameCenterActivityVersionReleasesResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "the id of the requested resource",
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple",
+          "required": true
+        }
+      ]
+    },
+    "/v1/gameCenterDetails/{id}/relationships/blockedPlayers": {
+      "get": {
+        "tags": [
+          "GameCenterDetails"
+        ],
+        "operationId": "gameCenterDetails_blockedPlayers_getToManyRelationship",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "maximum resources per page",
+            "schema": {
+              "type": "integer",
+              "maximum": 200
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "List of related linkages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCenterDetailBlockedPlayersLinkagesResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "the id of the requested resource",
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple",
+          "required": true
+        }
+      ]
+    },
+    "/v1/gameCenterDetails/{id}/blockedPlayers": {
+      "get": {
+        "tags": [
+          "GameCenterDetails"
+        ],
+        "operationId": "gameCenterDetails_blockedPlayers_getToManyRelated",
+        "parameters": [
+          {
+            "name": "fields[gameCenterDetailPlayers]",
+            "in": "query",
+            "description": "the fields to include for returned resources of type gameCenterDetailPlayers",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "nickname",
+                  "blocked",
+                  "bundleId"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "maximum resources per page",
+            "schema": {
+              "type": "integer",
+              "maximum": 200
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "List of GameCenterDetailPlayers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCenterDetailPlayersResponse"
                 }
               }
             }
@@ -133992,6 +134643,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -134512,6 +135164,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -134871,6 +135524,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -134962,6 +135616,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -135633,6 +136288,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -135716,6 +136372,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -135986,6 +136643,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -136023,6 +136681,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -136608,6 +137267,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -137125,6 +137785,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -137182,6 +137843,7 @@
                   "gameCenterDetail",
                   "gameCenterGroup",
                   "gameCenterLeaderboardSets",
+                  "gameCenterScoreModerations",
                   "activity",
                   "challenge",
                   "versions"
@@ -137638,6 +138300,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -138189,6 +138852,7 @@
                   "gameCenterDetail",
                   "gameCenterGroup",
                   "gameCenterLeaderboardSets",
+                  "gameCenterScoreModerations",
                   "activity",
                   "challenge",
                   "versions"
@@ -138229,6 +138893,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -138663,6 +139328,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -138989,6 +139655,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -139643,6 +140310,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -140079,6 +140747,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -140599,6 +141268,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -140958,6 +141628,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -141049,6 +141720,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -141435,6 +142107,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -141518,6 +142191,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -141787,6 +142461,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -141837,6 +142512,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -141937,6 +142613,7 @@
                   "releases",
                   "activity",
                   "challenge",
+                  "gameCenterScoreModerations",
                   "versions"
                 ]
               }
@@ -142734,6 +143411,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -143251,6 +143929,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -143308,6 +143987,7 @@
                   "gameCenterDetail",
                   "gameCenterGroup",
                   "gameCenterLeaderboardSets",
+                  "gameCenterScoreModerations",
                   "activity",
                   "challenge",
                   "versions"
@@ -143764,6 +144444,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -144315,6 +144996,7 @@
                   "gameCenterDetail",
                   "gameCenterGroup",
                   "gameCenterLeaderboardSets",
+                  "gameCenterScoreModerations",
                   "activity",
                   "challenge",
                   "versions"
@@ -144355,6 +145037,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -145673,6 +146356,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -146103,6 +146787,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -147044,6 +147729,7 @@
                   "gameCenterDetail",
                   "gameCenterGroup",
                   "gameCenterLeaderboardSets",
+                  "gameCenterScoreModerations",
                   "activity",
                   "challenge",
                   "versions"
@@ -147084,6 +147770,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -148101,6 +148788,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -148634,6 +149322,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -149318,6 +150007,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -150186,6 +150876,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -150935,6 +151626,7 @@
                   "challengeReleases",
                   "leaderboardReleases",
                   "leaderboardSetReleases",
+                  "blockedPlayers",
                   "challengesMinimumPlatformVersions"
                 ]
               }
@@ -151294,6 +151986,261 @@
         }
       ]
     },
+    "/v2/gameCenterLeaderboards/{id}/relationships/gameCenterScoreModerations": {
+      "get": {
+        "tags": [
+          "GameCenterLeaderboards"
+        ],
+        "operationId": "gameCenterLeaderboardsV2_gameCenterScoreModerations_getToManyRelationship",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "maximum resources per page",
+            "schema": {
+              "type": "integer",
+              "maximum": 200
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "List of related linkages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCenterLeaderboardV2GameCenterScoreModerationsLinkagesResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "the id of the requested resource",
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple",
+          "required": true
+        }
+      ]
+    },
+    "/v2/gameCenterLeaderboards/{id}/gameCenterScoreModerations": {
+      "get": {
+        "tags": [
+          "GameCenterLeaderboards"
+        ],
+        "operationId": "gameCenterLeaderboardsV2_gameCenterScoreModerations_getToManyRelated",
+        "parameters": [
+          {
+            "name": "exists[blocked]",
+            "in": "query",
+            "description": "filter by attribute 'blocked'",
+            "schema": {
+              "type": "boolean"
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "fields[gameCenterScoreModerations]",
+            "in": "query",
+            "description": "the fields to include for returned resources of type gameCenterScoreModerations",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "rank",
+                  "score",
+                  "submittedDate",
+                  "blocked",
+                  "preReleased",
+                  "context",
+                  "challengeIds",
+                  "player"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "fields[gameCenterDetailPlayers]",
+            "in": "query",
+            "description": "the fields to include for returned resources of type gameCenterDetailPlayers",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "nickname",
+                  "blocked",
+                  "bundleId"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "maximum resources per page",
+            "schema": {
+              "type": "integer",
+              "maximum": 200
+            },
+            "style": "form"
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "comma-separated list of relationships to include",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "player"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "List of GameCenterScoreModerations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCenterScoreModerationsResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "the id of the requested resource",
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple",
+          "required": true
+        }
+      ]
+    },
     "/v2/gameCenterLeaderboards/{id}/relationships/versions": {
       "get": {
         "tags": [
@@ -151439,6 +152386,7 @@
                   "gameCenterDetail",
                   "gameCenterGroup",
                   "gameCenterLeaderboardSets",
+                  "gameCenterScoreModerations",
                   "activity",
                   "challenge",
                   "versions"
@@ -157160,6 +158108,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -158433,6 +159383,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -161584,6 +162535,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -163615,7 +164568,8 @@
               }
             },
             "style": "form",
-            "explode": false
+            "explode": false,
+            "required": true
           },
           {
             "name": "fields[subscriptionPricePoints]",
@@ -165103,6 +166057,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -165356,6 +166312,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -165725,6 +166683,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -166048,6 +167008,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -167352,6 +168314,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -167619,6 +168583,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -168135,6 +169101,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -168420,6 +169388,8 @@
                   "subscriptionPeriod",
                   "reviewNote",
                   "groupLevel",
+                  "multiSeatStatus",
+                  "marketSettings",
                   "subscriptionLocalizations",
                   "appStoreReviewScreenshot",
                   "group",
@@ -169010,6 +169980,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -169544,6 +170515,7 @@
                   "inAppPurchases",
                   "subscriptionGroups",
                   "gameCenterEnabledVersions",
+                  "performanceOverviews",
                   "perfPowerMetrics",
                   "appCustomProductPages",
                   "inAppPurchasesV2",
@@ -173181,9 +174153,14 @@
                 "type": "string",
                 "enum": [
                   "NONE",
+                  "ALL",
+                  "TWELVE_PLUS",
                   "FIFTEEN_PLUS",
                   "NINETEEN_PLUS"
                 ]
+              },
+              "gracRatingClassificationNumber": {
+                "type": "string"
               },
               "developerAgeRatingInfoUrl": {
                 "type": "string",
@@ -173456,9 +174433,15 @@
                     "nullable": true,
                     "enum": [
                       "NONE",
+                      "ALL",
+                      "TWELVE_PLUS",
                       "FIFTEEN_PLUS",
                       "NINETEEN_PLUS"
                     ]
+                  },
+                  "gracRatingClassificationNumber": {
+                    "type": "string",
+                    "nullable": true
                   },
                   "developerAgeRatingInfoUrl": {
                     "type": "string",
@@ -181273,10 +182256,6 @@
                   "NINETEEN",
                   "NOT_APPLICABLE"
                 ]
-              },
-              "kidsAgeBand": {
-                "deprecated": true,
-                "$ref": "#/components/schemas/KidsAgeBand"
               }
             }
           },
@@ -188019,6 +188998,14 @@
                         "type"
                       ]
                     }
+                  }
+                }
+              },
+              "performanceOverviews": {
+                "type": "object",
+                "properties": {
+                  "links": {
+                    "$ref": "#/components/schemas/RelationshipLinks"
                   }
                 }
               },
@@ -204887,6 +205874,120 @@
           "data"
         ]
       },
+      "GameCenterDetailPlayer": {
+        "type": "object",
+        "title": "GameCenterDetailPlayer",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "gameCenterDetailPlayers"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "nickname": {
+                "type": "string"
+              },
+              "blocked": {
+                "type": "boolean"
+              },
+              "bundleId": {
+                "type": "string"
+              }
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResourceLinks"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ]
+      },
+      "GameCenterDetailPlayersResponse": {
+        "type": "object",
+        "title": "GameCenterDetailPlayersResponse",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GameCenterDetailPlayer"
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/PagedDocumentLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PagingInformation"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
+      "GameCenterDetailPlayerResponse": {
+        "type": "object",
+        "title": "GameCenterDetailPlayerResponse",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/GameCenterDetailPlayer"
+          },
+          "links": {
+            "$ref": "#/components/schemas/DocumentLinks"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
+      "GameCenterDetailPlayerUpdateRequest": {
+        "type": "object",
+        "title": "GameCenterDetailPlayerUpdateRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "gameCenterDetailPlayers"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "blocked": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "bundleId": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
       "GameCenterDetail": {
         "type": "object",
         "title": "GameCenterDetail",
@@ -205513,6 +206614,14 @@
                   }
                 },
                 "deprecated": true
+              },
+              "blockedPlayers": {
+                "type": "object",
+                "properties": {
+                  "links": {
+                    "$ref": "#/components/schemas/RelationshipLinks"
+                  }
+                }
               },
               "challengesMinimumPlatformVersions": {
                 "type": "object",
@@ -211878,6 +212987,14 @@
                   }
                 }
               },
+              "gameCenterScoreModerations": {
+                "type": "object",
+                "properties": {
+                  "links": {
+                    "$ref": "#/components/schemas/RelationshipLinks"
+                  }
+                }
+              },
               "activity": {
                 "type": "object",
                 "properties": {
@@ -213956,6 +215073,175 @@
             },
             "required": [
               "attributes",
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "GameCenterScoreModeration": {
+        "type": "object",
+        "title": "GameCenterScoreModeration",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "gameCenterScoreModerations"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "rank": {
+                "type": "string",
+                "format": "number"
+              },
+              "score": {
+                "type": "string",
+                "format": "number"
+              },
+              "submittedDate": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "blocked": {
+                "type": "boolean"
+              },
+              "preReleased": {
+                "type": "boolean"
+              },
+              "context": {
+                "type": "string",
+                "format": "number"
+              },
+              "challengeIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "relationships": {
+            "type": "object",
+            "properties": {
+              "player": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "gameCenterDetailPlayers"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResourceLinks"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ]
+      },
+      "GameCenterScoreModerationsResponse": {
+        "type": "object",
+        "title": "GameCenterScoreModerationsResponse",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GameCenterScoreModeration"
+            }
+          },
+          "included": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GameCenterDetailPlayer"
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/PagedDocumentLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PagingInformation"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
+      "GameCenterScoreModerationResponse": {
+        "type": "object",
+        "title": "GameCenterScoreModerationResponse",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/GameCenterScoreModeration"
+          },
+          "included": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GameCenterDetailPlayer"
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/DocumentLinks"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
+      "GameCenterScoreModerationUpdateRequest": {
+        "type": "object",
+        "title": "GameCenterScoreModerationUpdateRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "gameCenterScoreModerations"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "blocked": {
+                    "type": "boolean",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "required": [
+              "id",
               "type"
             ]
           }
@@ -219772,6 +221058,36 @@
                   "STORAGE"
                 ]
               },
+              "deviceType": {
+                "type": "string"
+              }
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResourceLinks"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ]
+      },
+      "PerformanceOverview": {
+        "type": "object",
+        "title": "PerformanceOverview",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "performanceOverviews"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
               "deviceType": {
                 "type": "string"
               }
@@ -229225,6 +230541,24 @@
               },
               "groupLevel": {
                 "type": "integer"
+              },
+              "multiSeatStatus": {
+                "type": "string",
+                "enum": [
+                  "ENABLED",
+                  "DISABLED"
+                ]
+              },
+              "marketSettings": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "APPLE_SCHOOL",
+                    "APP_STORE",
+                    "APPLE_BUSINESS"
+                  ]
+                }
               }
             }
           },
@@ -229949,6 +231283,26 @@
                   },
                   "groupLevel": {
                     "type": "integer",
+                    "nullable": true
+                  },
+                  "multiSeatStatus": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "ENABLED",
+                      "DISABLED"
+                    ]
+                  },
+                  "marketSettings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "APPLE_SCHOOL",
+                        "APP_STORE",
+                        "APPLE_BUSINESS"
+                      ]
+                    },
                     "nullable": true
                   }
                 }
@@ -235798,6 +237152,42 @@
           "links"
         ]
       },
+      "AppPerformanceOverviewsLinkagesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "performanceOverviews"
+                  ]
+                },
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "type"
+              ]
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/PagedDocumentLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PagingInformation"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
       "PreReleaseVersionsWithoutIncludesResponse": {
         "type": "object",
         "title": "PreReleaseVersionsWithoutIncludesResponse",
@@ -239315,6 +240705,42 @@
         ],
         "deprecated": true
       },
+      "GameCenterDetailBlockedPlayersLinkagesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "gameCenterDetailPlayers"
+                  ]
+                },
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "type"
+              ]
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/PagedDocumentLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PagingInformation"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
       "GameCenterDetailChallengeReleasesLinkagesResponse": {
         "type": "object",
         "properties": {
@@ -241352,6 +242778,42 @@
         },
         "required": [
           "data"
+        ]
+      },
+      "GameCenterLeaderboardV2GameCenterScoreModerationsLinkagesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "gameCenterScoreModerations"
+                  ]
+                },
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "type"
+              ]
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/PagedDocumentLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PagingInformation"
+          }
+        },
+        "required": [
+          "data",
+          "links"
         ]
       },
       "GameCenterLeaderboardV2VersionsLinkagesResponse": {
@@ -246295,6 +247757,51 @@
           "SANDBOX"
         ]
       },
+      "PerformanceSignature": {
+        "type": "object",
+        "properties": {
+          "signatureId": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "weight": {
+            "type": "number"
+          },
+          "sourceFile": {
+            "type": "string"
+          },
+          "lineNumber": {
+            "type": "integer"
+          },
+          "trendInfo": {
+            "$ref": "#/components/schemas/DiagnosticInsightDirection"
+          },
+          "metricsSummary": {
+            "type": "object",
+            "properties": {
+              "referenceVersions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "PhasedReleaseState": {
         "type": "string",
         "enum": [
@@ -247042,6 +248549,180 @@
                 }
               }
             }
+          }
+        }
+      },
+      "xcodeOverview": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "appMetadata": {
+            "type": "object",
+            "properties": {
+              "bundleId": {
+                "type": "string"
+              },
+              "appId": {
+                "type": "string"
+              },
+              "latestVersion": {
+                "type": "string"
+              },
+              "platform": {
+                "type": "string"
+              }
+            }
+          },
+          "insights": {
+            "type": "object",
+            "properties": {
+              "regressions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MetricsInsight"
+                }
+              },
+              "trendingUp": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MetricsInsight"
+                }
+              }
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "identifier": {
+                  "type": "string"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "sections": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "identifier": {
+                        "type": "string"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "relevanceScore": {
+                        "type": "number"
+                      },
+                      "sortOrder": {
+                        "type": "integer"
+                      },
+                      "unit": {
+                        "type": "object",
+                        "properties": {
+                          "identifier": {
+                            "type": "string"
+                          },
+                          "displayName": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "datasets": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "filterCriteria": {
+                              "type": "object",
+                              "properties": {
+                                "percentile": {
+                                  "type": "string"
+                                },
+                                "device": {
+                                  "type": "string"
+                                },
+                                "deviceMarketingName": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "points": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "version": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "type": "number"
+                                  },
+                                  "errorMargin": {
+                                    "type": "number"
+                                  },
+                                  "percentageBreakdown": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "type": "number"
+                                      },
+                                      "subSystemLabel": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "recommendedMetricGoal": {
+                              "type": "object",
+                              "properties": {
+                                "value": {
+                                  "type": "number"
+                                },
+                                "detail": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "signatures": {
+            "type": "object",
+            "properties": {
+              "topHangPoint": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PerformanceSignature"
+                }
+              },
+              "topLaunchPoint": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PerformanceSignature"
+                }
+              },
+              "topDiskWritePoint": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PerformanceSignature"
+                }
+              }
+            }
+          },
+          "telemetryIdentifier": {
+            "type": "string"
           }
         }
       }

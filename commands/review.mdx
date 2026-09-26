@@ -196,6 +196,16 @@ asc review items-update --id "ITEM_ID" --resolved false
 asc review items-update --id "ITEM_ID" --clear-removed
 ```
 
+`--if-exists fail|skip` (default `fail`) controls a 409 that reports the item
+as already on the submission: `skip` reads the item back, prints it, and exits
+0. `update` is rejected because an item carries no inputs to re-apply. Other
+409s, such as `STATE_ERROR.*` for an unreviewable resource or a submission that
+is no longer editable, keep failing.
+
+```bash  theme={null}
+asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID" --if-exists skip
+```
+
 `--item-type appStoreVersionExperimentV2`, the 3.x singular spelling of
 `appStoreVersionExperimentsV2`, was removed in 4.0.0. It is rejected with an
 error naming the canonical value.

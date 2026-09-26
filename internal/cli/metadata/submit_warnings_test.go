@@ -136,14 +136,18 @@ func TestSuccessfulVersionCreateWarningsFiltersFailedCreates(t *testing.T) {
 	warnings := []shared.SubmitReadinessCreateWarning{
 		{Locale: "en-US", Mode: shared.SubmitReadinessCreateModeApplied, MissingFields: []string{"keywords"}},
 		{Locale: "fr-FR", Mode: shared.SubmitReadinessCreateModeApplied, MissingFields: []string{"supportUrl"}},
+		{Locale: "ja", Mode: shared.SubmitReadinessCreateModeApplied, MissingFields: []string{"description"}},
+		{Locale: "de-DE", Mode: shared.SubmitReadinessCreateModeApplied, MissingFields: []string{"description"}},
 	}
 	actions := []ApplyAction{
 		{Scope: versionDirName, Locale: "en-US", Action: "create", Status: "succeeded", LocalizationID: "en-id"},
 		{Scope: versionDirName, Locale: "fr-FR", Action: "create", Status: "failed", Error: "rejected"},
+		{Scope: versionDirName, Locale: "ja", Action: "reconcile", Status: "succeeded", LocalizationID: "ja-id"},
+		{Scope: versionDirName, Locale: "de-DE", Action: "reconcile", Status: "succeeded", LocalizationID: "de-id", AlreadyExists: true},
 	}
 
 	filtered := successfulVersionCreateWarnings(warnings, actions, nil)
-	if len(filtered) != 1 || filtered[0].Locale != "en-US" {
+	if len(filtered) != 2 || filtered[0].Locale != "en-US" || filtered[1].Locale != "ja" {
 		t.Fatalf("unexpected applied warnings: %+v", filtered)
 	}
 }

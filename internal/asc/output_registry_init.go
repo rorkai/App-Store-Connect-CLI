@@ -166,6 +166,7 @@ func registerAllOutputRenderers() {
 	registerRows(inAppPurchaseContentRows)
 	registerRows(inAppPurchasePriceScheduleRows)
 	registerRows(inAppPurchaseReviewScreenshotRows)
+	registerDirect(inAppPurchaseImportTables)
 	registerRowsWithSingleResourceAdapter(appEventsRows)
 	registerRowsWithSingleResourceAdapter(appEventLocalizationsRows)
 	registerRowsWithSingleResourceAdapter(appEventScreenshotsRows)
@@ -227,7 +228,11 @@ func registerAllOutputRenderers() {
 	registerRowsWithSingleResourceAdapter(buildUploadsRows)
 	registerRows(buildsNextBuildNumberRows)
 	registerRows(dsymDownloadResultRows)
+	registerRows(artifactIPAInfoRows)
+	registerRows(artifactPKGInfoRows)
 	registerRows(buildWaitResultRows)
+	registerRows(xcodeJUnitResultRows)
+	registerRows(xcodeTestDestinationsRows)
 	registerRowsWithSingleResourceAdapter(buildUploadFilesRows)
 	registerDirect(func(v *AppClipDomainStatusResult, render func([]string, [][]string)) error {
 		h, r := appClipDomainStatusMainRows(v)
@@ -275,6 +280,19 @@ func registerAllOutputRenderers() {
 	registerRowsWithSingleResourceAdapter(actorsRows)
 	registerRowsWithSingleResourceAdapter(devicesRows)
 	registerRows(deviceLocalUDIDRows)
+	registerDirect(func(v *DeviceURLRegistrationResult, render func([]string, [][]string)) error {
+		h, r := deviceURLRegistrationSummaryRows(v)
+		render(h, r)
+		if len(v.Devices) > 0 {
+			h, r = deviceURLRegistrationRows(v.Devices)
+			render(h, r)
+		}
+		if len(v.Failures) > 0 {
+			h, r = deviceURLRegistrationRows(v.Failures)
+			render(h, r)
+		}
+		return nil
+	})
 	registerDirect(func(v *DeviceBatchRegistrationSummary, render func([]string, [][]string)) error {
 		h, r := deviceBatchRegistrationSummaryRows(v)
 		render(h, r)
@@ -478,6 +496,7 @@ func registerAllOutputRenderers() {
 	registerRowsWithSingleResourceAdapter(gameCenterLeaderboardsRows)
 	registerRows(gameCenterLeaderboardDeleteResultRows)
 	registerRowsWithSingleResourceAdapter(gameCenterLeaderboardVersionsRows)
+	registerRowsWithSingleResourceAdapter(gameCenterScoreModerationsRows)
 	registerRowsWithSingleResourceAdapter(gameCenterLeaderboardSetsRows)
 	registerRows(gameCenterLeaderboardSetDeleteResultRows)
 	registerRowsWithSingleResourceAdapter(gameCenterLeaderboardSetVersionsRows)
@@ -526,6 +545,7 @@ func registerAllOutputRenderers() {
 	registerRowsWithSingleResourceAdapter(gameCenterAppVersionsRows)
 	registerRows(gameCenterEnabledVersionsRows)
 	registerRowsWithSingleResourceAdapter(gameCenterDetailsRows)
+	registerRowsWithSingleResourceAdapter(gameCenterDetailPlayersRows)
 	registerRowsWithSingleResourceAdapter(gameCenterMatchmakingQueuesRows)
 	registerRows(gameCenterMatchmakingQueueDeleteResultRows)
 	registerRowsWithSingleResourceAdapter(gameCenterMatchmakingRuleSetsRows)
@@ -579,8 +599,12 @@ func registerAllOutputRenderers() {
 	registerRows(endUserLicenseAgreementDeleteResultRows)
 	registerRows(profileDownloadResultRows)
 	registerRows(signingFetchResultRows)
+	registerDirect(signingFetchBatchResultRender)
+	registerRows(capabilityReconcilePlanRows)
 	registerRows(signingSyncRows)
 	registerRows(signingKeychainInstallRows)
+	registerRows(signingKeychainActionRows)
+	registerRows(signingKeychainListRows)
 	registerRows(xcodeTestResultRows)
 	registerRows(xcodeSigningPlanOutputRows)
 	registerRows(xcodeSigningApplyOutputRows)
@@ -633,6 +657,7 @@ func registerAllOutputRenderers() {
 	registerRows(appStoreVersionExperimentTreatmentDeleteResultRows)
 	registerRows(appStoreVersionExperimentTreatmentLocalizationDeleteResultRows)
 	registerRowsErr(perfPowerMetricsRows)
+	registerRowsErr(performanceOverviewRows)
 	registerRows(diagnosticSignaturesRows)
 	registerRowsErr(diagnosticLogsRows)
 	registerRows(performanceDownloadResultRows)

@@ -61,7 +61,7 @@ Examples:
 func SubscriptionsIntroductoryOffersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("introductory-offers list", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -165,7 +165,7 @@ Examples:
 func SubscriptionsIntroductoryOffersGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("introductory-offers view", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	offerID := fs.String("id", "", "Introductory offer ID")
 	output := shared.BindOutputFlags(fs)
@@ -257,7 +257,7 @@ func findSubscriptionIntroductoryOffer(ctx context.Context, client *asc.Client, 
 func SubscriptionsIntroductoryOffersCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("introductory-offers create", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	offerDuration := fs.String("offer-duration", "", "Offer duration: "+strings.Join(subscriptionOfferDurationValues, ", "))
 	offerMode := fs.String("offer-mode", "", "Offer mode: "+strings.Join(subscriptionOfferModeValues, ", "))

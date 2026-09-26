@@ -314,6 +314,142 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 	}
 }
 
+func TestResumeAppScreenshotUploadRetriesCleanupBeforeNewUploads(t *testing.T) {
+	workDir := t.TempDir()
+	artifactPath := filepath.Join(workDir, "resume-artifact.json")
+	if _, err := persistScreenshotUploadFailureArtifact(artifactPath, screenshotUploadFailureArtifact{
+		SetID:      "set-1",
+		OrderedIDs: []string{"existing-1"},
+		CleanupFailures: []screenshotPendingAsset{{
+			FileName: "04-settings.png",
+			FilePath: filepath.Join(workDir, "04-settings.png"),
+			AssetID:  "leaked-1",
+			State:    "COMPLETE",
+		}},
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("persistScreenshotUploadFailureArtifact() error: %v", err)
+	}
+
+	deleteAttempts := 0
+	postAttempts := 0
+	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch {
+		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appScreenshots/leaked-1":
+			deleteAttempts++
+			if deleteAttempts == 1 {
+				writeAssetsTestJSON(w, http.StatusInternalServerError, `{"errors":[{"status":"500","detail":"cleanup unavailable"}]}`)
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		case req.Method == http.MethodPost:
+			postAttempts++
+			writeAssetsTestJSON(w, http.StatusInternalServerError, `{"errors":[{"status":"500","detail":"unexpected new reservation"}]}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	}))
+
+	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	if err == nil || !strings.Contains(err.Error(), "cleanup unavailable") {
+		t.Fatalf("first resume error = %v, want cleanup failure", err)
+	}
+	if postAttempts != 0 {
+		t.Fatalf("new reservations after failed cleanup = %d, want none", postAttempts)
+	}
+	if result.FailureArtifactPath == "" {
+		t.Fatal("expected updated failure artifact path")
+	}
+	artifact, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	if err != nil {
+		t.Fatalf("load rewritten artifact: %v", err)
+	}
+	if len(artifact.CleanupFailures) != 1 || artifact.CleanupFailures[0].AssetID != "leaked-1" {
+		t.Fatalf("rewritten cleanup failures = %#v, want leaked-1", artifact.CleanupFailures)
+	}
+
+	result, err = resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	if err != nil {
+		t.Fatalf("second resume error = %v, want 404 cleanup to be idempotent", err)
+	}
+	if deleteAttempts != 2 {
+		t.Fatalf("cleanup attempts = %d, want retry", deleteAttempts)
+	}
+	if postAttempts != 0 {
+		t.Fatalf("new reservations after successful cleanup = %d, want none", postAttempts)
+	}
+}
+
+func TestExecuteAppScreenshotUploadSurfacesCleanupFailures(t *testing.T) {
+	workDir := t.TempDir()
+	files := []string{
+		writeAssetsTestPNG(t, workDir, "01-home.png"),
+		writeAssetsTestPNG(t, workDir, "02-settings.png"),
+		writeAssetsTestPNG(t, workDir, "03-profile.png"),
+	}
+	artifactPath := filepath.Join(workDir, "failure-artifact.json")
+	uploadErr := errors.New("upload failed")
+	previous := uploadOneScreenshot
+	t.Cleanup(func() { uploadOneScreenshot = previous })
+	uploadOneScreenshot = func(_ context.Context, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
+		if filepath.Base(filePath) == "01-home.png" {
+			return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, uploadErr
+		}
+		return asc.AssetUploadResultItem{
+			FileName: filepath.Base(filePath),
+			FilePath: filePath,
+			AssetID:  "asset-" + filepath.Base(filePath),
+		}, screenshotPendingAsset{}, nil
+	}
+
+	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[],"links":{}}`)
+		case req.Method == http.MethodDelete:
+			writeAssetsTestJSON(w, http.StatusInternalServerError, `{"errors":[{"status":"500","detail":"cleanup failed"}]}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	}))
+
+	result, err := executeAppScreenshotUpload(
+		withScreenshotUploadConcurrency(context.Background(), 3),
+		screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+			Client:         client,
+			LocalizationID: "LOC_123",
+			DisplayType:    "APP_IPHONE_65",
+			Files:          files,
+			RequestContext: contextWithAssetUploadTimeout,
+			UploadContext:  contextWithAssetUploadTimeout,
+			Access:         appStoreVersionScreenshotSetAccess,
+		},
+		artifactPath,
+	)
+	if !errors.Is(err, uploadErr) || !strings.Contains(err.Error(), "cleanup failed") {
+		t.Fatalf("executeAppScreenshotUpload() error = %v, want upload and cleanup failures", err)
+	}
+	if len(result.Failures) != 2 {
+		t.Fatalf("result failures = %#v, want upload plus cleanup entries", result.Failures)
+	}
+	if result.Failures[0].FilePath != files[0] || result.Failures[1].FileName != "screenshot cleanup" {
+		t.Fatalf("result failures = %#v, want failed file and cleanup entries", result.Failures)
+	}
+	artifact, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	if err != nil {
+		t.Fatalf("load failure artifact: %v", err)
+	}
+	if len(artifact.CleanupFailures) != 2 {
+		t.Fatalf("artifact cleanup failures = %#v, want unresolved siblings", artifact.CleanupFailures)
+	}
+}
+
 func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testing.T) {
 	workDir := t.TempDir()
 	filePath := writeAssetsTestPNG(t, workDir, "01-home.png")

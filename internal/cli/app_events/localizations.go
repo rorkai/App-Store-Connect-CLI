@@ -50,7 +50,7 @@ Examples:
 func AppEventLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations list", flag.ExitOnError)
 
-	eventID := fs.String("event-id", "", "App event ID")
+	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -124,7 +124,7 @@ Examples:
 func AppEventLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations view", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "App event localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -166,7 +166,7 @@ Examples:
 func AppEventLocalizationsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations create", flag.ExitOnError)
 
-	eventID := fs.String("event-id", "", "App event ID")
+	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
 	name := fs.String("name", "", "Localized name")
 	shortDescription := fs.String("short-description", "", "Short description")
@@ -226,7 +226,7 @@ Examples:
 func AppEventLocalizationsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations update", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "App event localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	name := fs.String("name", "", "Localized name")
 	shortDescription := fs.String("short-description", "", "Short description")
 	longDescription := fs.String("long-description", "", "Long description")
@@ -298,7 +298,7 @@ Examples:
 func AppEventLocalizationsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations delete", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "App event localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

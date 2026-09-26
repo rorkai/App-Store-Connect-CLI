@@ -130,7 +130,6 @@ func TestPricingScheduleCreateCommand_MissingFlags(t *testing.T) {
 		{name: "missing app", args: []string{"--price-point", "PP", "--base-territory", "USA", "--start-date", "2024-03-01"}},
 		{name: "missing price point", args: []string{"--app", "APP", "--base-territory", "USA", "--start-date", "2024-03-01"}},
 		{name: "missing base territory", args: []string{"--app", "APP", "--price-point", "PP", "--start-date", "2024-03-01"}},
-		{name: "missing start date", args: []string{"--app", "APP", "--price-point", "PP", "--base-territory", "USA"}},
 	}
 
 	for _, test := range tests {
@@ -199,8 +198,23 @@ func TestPricingScheduleCreateCommand_InvalidDate(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid start date")
 	}
-	if errors.Is(err, flag.ErrHelp) {
-		t.Fatal("expected non-ErrHelp error for invalid start date")
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected usage error (flag.ErrHelp) for invalid start date, got %v", err)
+	}
+}
+
+func TestPricingScheduleCreateCommand_HelpDocumentsStartDateDefault(t *testing.T) {
+	cmd := PricingScheduleCreateCommand()
+
+	usage := cmd.FlagSet.Lookup("start-date").Usage
+	if !strings.Contains(usage, "default: today in UTC") {
+		t.Fatalf("expected --start-date help to document the UTC default, got %q", usage)
+	}
+	if !strings.Contains(usage, "today or later") {
+		t.Fatalf("expected --start-date help to mention Apple requires today or later, got %q", usage)
+	}
+	if !strings.Contains(cmd.LongHelp, "Apple requires the start date to be today or later") {
+		t.Fatalf("expected long help to mention Apple's today-or-later rule, got %q", cmd.LongHelp)
 	}
 }
 

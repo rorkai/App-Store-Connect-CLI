@@ -421,6 +421,14 @@ asc workflow validate --output json
 asc workflow run --dry-run testflight_beta VERSION:1.2.3
 ```
 
+### Raw API requests
+
+```bash
+asc api GET /v1/apps --query limit=5
+asc api GET /v1/apps/APP_ID/relationships/builds --paginate
+asc api PATCH /v1/apps/APP_ID --confirm --body-file update.json
+```
+
 ### Verified local Xcode -> TestFlight workflow
 
 See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for local compile validation with

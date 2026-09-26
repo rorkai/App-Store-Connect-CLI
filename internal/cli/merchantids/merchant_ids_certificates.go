@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/certificates"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -20,17 +21,19 @@ func MerchantIDsCertificatesCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "certificates",
 		ShortUsage: "asc merchant-ids certificates <subcommand> [flags]",
-		ShortHelp:  "List merchant ID certificates.",
-		LongHelp: `List merchant ID certificates.
+		ShortHelp:  "Manage merchant ID certificates.",
+		LongHelp: `Manage merchant ID certificates.
 
 Examples:
   asc merchant-ids certificates list --merchant-id "MERCHANT_ID"
-  asc merchant-ids certificates view --merchant-id "MERCHANT_ID"`,
+  asc merchant-ids certificates view --merchant-id "MERCHANT_ID"
+  asc merchant-ids certificates create --merchant-id "MERCHANT_ID" --certificate-type APPLE_PAY_MERCHANT_IDENTITY --csr "./merchant.csr"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			MerchantIDsCertificatesListCommand(),
 			MerchantIDsCertificatesGetCommand(),
+			MerchantIDsCertificatesCreateCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -42,7 +45,7 @@ Examples:
 func MerchantIDsCertificatesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("certificates list", flag.ExitOnError)
 
-	merchantID := fs.String("merchant-id", "", "Merchant ID")
+	merchantID := shared.BindResourceIDFlag(fs, "merchant-id", "merchantIds", "Merchant ID")
 	displayName := fs.String("display-name", "", "Filter by certificate display name(s), comma-separated")
 	certificateType := fs.String("certificate-type", "", "Filter by certificate type(s), comma-separated")
 	serialNumber := fs.String("serial-number", "", "Filter by certificate serial number(s), comma-separated")
@@ -148,11 +151,18 @@ Examples:
 	}
 }
 
+// MerchantIDsCertificatesCreateCommand returns the certificates create
+// subcommand. The implementation lives in the certificates package so both
+// create paths share one CSR and relationship implementation.
+func MerchantIDsCertificatesCreateCommand() *ffcli.Command {
+	return certificates.MerchantIDCertificatesCreateCommand()
+}
+
 // MerchantIDsCertificatesGetCommand returns the certificates relationships get subcommand.
 func MerchantIDsCertificatesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("certificates view", flag.ExitOnError)
 
-	merchantID := fs.String("merchant-id", "", "Merchant ID")
+	merchantID := shared.BindResourceIDFlag(fs, "merchant-id", "merchantIds", "Merchant ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

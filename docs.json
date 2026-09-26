@@ -27,8 +27,10 @@
             "group": "Core Concepts",
             "pages": [
               "concepts/output-formats",
+              "concepts/value-indirection",
               "concepts/pagination",
               "concepts/error-handling",
+              "concepts/read-only-mode",
               "concepts/workflows"
             ]
           },
@@ -156,7 +158,8 @@
               "commands/migrate",
               "commands/system-status",
               "commands/completion",
-              "commands/telemetry"
+              "commands/telemetry",
+              "commands/api"
             ]
           }
         ]

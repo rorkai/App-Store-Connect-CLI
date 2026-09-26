@@ -44,7 +44,7 @@ Examples:
 func BackgroundAssetsVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	assetID := fs.String("background-asset-id", "", "Background asset ID")
+	assetID := shared.BindResourceIDFlag(fs, "background-asset-id", "backgroundAssets", "Background asset ID")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated (e.g., en-US,ja)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -123,7 +123,7 @@ Examples:
 func BackgroundAssetsVersionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Background asset version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "backgroundAssetVersions", "Background asset version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -165,7 +165,7 @@ Examples:
 func BackgroundAssetsVersionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	assetID := fs.String("background-asset-id", "", "Background asset ID")
+	assetID := shared.BindResourceIDFlag(fs, "background-asset-id", "backgroundAssets", "Background asset ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

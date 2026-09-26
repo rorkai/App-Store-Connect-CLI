@@ -1,0 +1,129 @@
+# api
+
+> Send an authenticated raw request to the App Store Connect API
+
+The `api` command runs any App Store Connect API operation through the CLI's
+authentication, retries, rate limiting, timeouts, and error rendering. Use it
+for endpoints that do not have a dedicated `asc` command yet, such as
+`relationships/` linkage reads, instead of building a token with `asc auth
+token` and shelling out to `curl`.
+
+## Usage
+
+```bash  theme={null}
+asc api <METHOD> <PATH> [flags]
+```
+
+`METHOD` is `GET`, `POST`, `PATCH`, or `DELETE`. `PATH` is a versioned API path
+such as `/v1/apps/APP_ID/builds` or a full
+`https://api.appstoreconnect.apple.com/...` URL. Any other host is rejected.
+
+## Examples
+
+```bash  theme={null}
+asc api GET /v1/apps --query limit=5 --query "fields[apps]=name,bundleId"
+asc api GET /v1/apps/APP_ID/relationships/builds --paginate
+asc api GET /v1/builds --query "filter[app]=APP_ID" --pretty
+asc api GET "https://api.appstoreconnect.apple.com/v1/apps?limit=1"
+asc api POST /v1/betaGroups --confirm --body '{"data":{"type":"betaGroups","attributes":{"name":"QA"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}'
+asc api PATCH /v1/apps/APP_ID --confirm --body-file update.json
+asc api DELETE /v1/betaGroups/GROUP_ID --confirm
+```
+
+Flags may appear before or after `METHOD` and `PATH`.
+
+## Flags
+
+<ParamField path="--query" type="string">
+  Query parameter as `key=value`; repeat the flag for each parameter. Accepted
+  for `GET` only. A query string inside `PATH` is merged with these values.
+</ParamField>
+
+<ParamField path="--body" type="string">
+  Inline JSON object request body, or `@path` to read the object from a file
+  (`@-` reads standard input). Accepted for `POST`, `PATCH`, and `DELETE`.
+</ParamField>
+
+<ParamField path="--body-file" type="string">
+  Path to a JSON object request body file (`-` reads standard input).
+  Mutually exclusive with `--body`.
+</ParamField>
+
+<ParamField path="--paginate" type="boolean" default="false">
+  Follow `links.next` and print one merged collection envelope. `GET` only.
+</ParamField>
+
+<ParamField path="--confirm" type="boolean" default="false">
+  Required for every `POST`, `PATCH`, and `DELETE` request. There are no
+  interactive prompts.
+</ParamField>
+
+<ParamField path="--allow-unknown-path" type="boolean" default="false">
+  Send the request even when `METHOD` and `PATH` are not in the embedded
+  schema index.
+</ParamField>
+
+<ParamField path="--output" type="string" default="json">
+  Output format; `json` is the only supported value
+</ParamField>
+
+<ParamField path="--pretty" type="boolean" default="false">
+  Pretty-print the JSON response
+</ParamField>
+
+## Behavior
+
+Validation runs before any credential or network access. Missing arguments, an
+unsupported method, a path outside `/v1/`, `/v2/`, or `/v3/`, a control
+character in `PATH`, a foreign host, a body on `GET`, `--query` or `--paginate`
+on a mutation, and a mutation without `--confirm` are usage errors with exit
+code 2.
+
+`METHOD` and `PATH` are matched against the embedded schema index that
+`asc schema` exposes, with `{id}` segments matching any concrete value. An
+unknown operation is a usage error that lists the nearest known operations;
+pass `--allow-unknown-path` to send it anyway.
+
+Successful responses print Apple's JSON envelope unmodified on stdout, so the
+output shape is exactly what the API returned. Because `json` is the only
+output format, a non-empty response that is not valid JSON fails instead of
+emitting invalid bytes, with or without `--pretty`. An empty response body, such as
+the `204` from a `DELETE`, prints nothing. Apple error responses render through
+the same error path and exit codes as every other command.
+
+Eight indexed `GET` operations declare no plain `application/json` success
+response, so the passthrough cannot serve them and each is a usage error that
+names the command which handles it: the `application/a-gzip` report downloads
+(`/v1/salesReports`, `/v1/financeReports`), the `text/csv` one-time-use code
+values (`/v1/subscriptionOfferCodeOneTimeUseCodes/{id}/values`,
+`/v1/inAppPurchaseOfferCodeOneTimeUseCodes/{id}/values`), and the vendor JSON
+metrics and log endpoints (`/v1/apps/{id}/perfPowerMetrics`,
+`/v1/builds/{id}/perfPowerMetrics`, `/v1/diagnosticSignatures/{id}/logs`).
+For the vendor JSON performance overview (`/v1/apps/{id}/performanceOverviews`),
+use `asc performance overview --app APP_ID`.
+The check matches the schema template, so it also applies under
+`--allow-unknown-path`. A test resolves every recommended command through the
+real command tree, so the advice cannot go stale. Every other `text/csv` endpoint in the schema also
+serves `application/json` and works through the passthrough.
+
+`--paginate` requires a collection response with a `data` array; a to-one
+linkage or a `null` data member is an error rather than an empty collection. Pages are
+merged the way other paginated commands merge them: `data` is concatenated,
+`included` is concatenated with duplicate resources removed, and `links` and
+`meta` come from the first page with `links.next` removed. Every `links.next`
+URL must stay on `api.appstoreconnect.apple.com`.
+
+Telemetry records only that `asc api` ran and its outcome; the method, path,
+query, and body are never sent.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Schema" icon="book" href="/commands/overview">
+    Inspect endpoint schemas at runtime with `asc schema`
+  </Card>
+
+  <Card title="Authentication" icon="key" href="/commands/auth">
+    Configure the credentials `asc api` sends
+  </Card>
+</CardGroup>

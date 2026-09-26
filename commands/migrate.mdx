@@ -61,6 +61,9 @@ For canonical JSON metadata, opt into the same asset folders with
 The default `localizations` scope continues to process JSON localizations only.
 Canonical metadata pushes that replace an existing App Clip header require
 `--allow-deletes --confirm`; dry-run lists the replacement under `deletes`.
+When combining JSON localizations and previews, a planned localization deletion
+that would remove a local preview's parent is rejected before changes. Keep that
+locale's version JSON file, or exclude previews when intentionally deleting it.
 
 ## Subcommands
 

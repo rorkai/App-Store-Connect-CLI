@@ -1,6 +1,9 @@
 package appleads
 
-import "strings"
+import (
+	"net/http"
+	"strings"
+)
 
 // BodyKind describes the JSON body shape accepted by an Apple Ads endpoint.
 type BodyKind string
@@ -33,6 +36,27 @@ type ParamSpec struct {
 	Allowed      []string
 	Description  string
 	Default      int
+}
+
+// ReadOnlyRequest reports whether the endpoint only reads Apple Ads data.
+// Apple transports selector lookups (/find, /query), reporting, and search as
+// POST requests, so read-only mode consults this instead of the method alone.
+func (spec EndpointSpec) ReadOnlyRequest() bool {
+	switch spec.Method {
+	case http.MethodGet, http.MethodHead:
+		return true
+	case http.MethodPost:
+	default:
+		return false
+	}
+	path := strings.TrimPrefix(strings.TrimSpace(spec.Path), "/")
+	return strings.HasSuffix(path, "/find") ||
+		strings.HasSuffix(path, "/query") ||
+		strings.HasPrefix(path, "v5/reports/") ||
+		strings.HasPrefix(path, "v5/search/") ||
+		// The Platform API serves the same search namespace under v1, and its
+		// geolocation resolution is a POST read.
+		strings.HasPrefix(path, "v1/search/")
 }
 
 // EndpointSpec is the single source of truth for the Apple Ads command and

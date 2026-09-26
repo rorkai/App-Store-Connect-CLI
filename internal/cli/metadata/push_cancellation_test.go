@@ -49,6 +49,7 @@ func TestApplyMetadataPlanDoesNotFailWhenCancellationFollowsFinalAction(t *testi
 		},
 		nil,
 		false,
+		metadataIfExistsOptions{},
 	)
 	if err != nil {
 		t.Fatalf("final completed action should succeed despite trailing cancellation: %v", err)

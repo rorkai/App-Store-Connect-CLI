@@ -94,6 +94,52 @@ func TestAPIErrorError_AssociatedErrorsSortedByResourcePath(t *testing.T) {
 	}
 }
 
+func TestParseErrorWithStatus_RetainsEveryErrorCode(t *testing.T) {
+	// Apple's live 409 for a duplicate versionString on
+	// POST /v1/appStoreVersions carries two errors, and the duplicate code is
+	// the second one. Captured against app 6759231657 on 2026-09-15.
+	payload := `{"errors":[{"id":"b068c5c0-b3fa-4d12-aa89-f1b9aa061b28","status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"The provided entity includes a relationship with an invalid value","detail":"You cannot create a new version of the App in the current state.","source":{"pointer":"/data/relationships/app"}},{"id":"eb1884a7-e427-42db-ac95-26c49c84a5c2","status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE","title":"The provided entity includes an attribute with a value that has already been used","detail":"The version number has been previously used.","source":{"pointer":"/data/attributes/versionString"}}]}`
+
+	err := ParseErrorWithStatus([]byte(payload), 409)
+
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("ParseErrorWithStatus returned %T, want *APIError", err)
+	}
+	if apiErr.Code != "ENTITY_ERROR.RELATIONSHIP.INVALID" {
+		t.Fatalf("Code = %q, want the first error's code", apiErr.Code)
+	}
+	want := []string{"ENTITY_ERROR.RELATIONSHIP.INVALID", "ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE"}
+	if len(apiErr.AllCodes) != len(want) {
+		t.Fatalf("AllCodes = %v, want %v", apiErr.AllCodes, want)
+	}
+	for i, code := range want {
+		if apiErr.AllCodes[i] != code {
+			t.Fatalf("AllCodes = %v, want %v", apiErr.AllCodes, want)
+		}
+	}
+}
+
+func TestParseErrorWithStatus_RetainsEveryErrorDetail(t *testing.T) {
+	payload := `{"errors":[{"code":"FIRST","detail":"first detail"},{"code":"SECOND","detail":"second detail"},{"code":"THIRD","detail":""}]}`
+
+	err := ParseErrorWithStatus([]byte(payload), 409)
+
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("ParseErrorWithStatus returned %T, want *APIError", err)
+	}
+	want := []string{"first detail", "second detail", ""}
+	if len(apiErr.AllDetails) != len(want) {
+		t.Fatalf("AllDetails = %v, want %v", apiErr.AllDetails, want)
+	}
+	for i, detail := range want {
+		if apiErr.AllDetails[i] != detail {
+			t.Fatalf("AllDetails = %v, want %v", apiErr.AllDetails, want)
+		}
+	}
+}
+
 func TestIsMissingResourceOfType(t *testing.T) {
 	const missingAvailability = `{"errors":[{"id":"b8a2b802-0512-4f42-b46a-cb444c0dc8db","status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'appAvailabilities' with id '6807733044'"}]}`
 	const missingApp = `{"errors":[{"id":"1c5bfc66-b18d-46ce-9863-635985130e62","status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'apps' with id '999999999999'"}]}`

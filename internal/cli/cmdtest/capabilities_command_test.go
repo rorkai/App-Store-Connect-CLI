@@ -227,7 +227,7 @@ func TestRun_CapabilitiesUnexpectedArgsReturnsUsage(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "unexpected arguments: typo") {
+	if !strings.Contains(stderr, `unexpected argument "typo"`) {
 		t.Fatalf("expected unexpected argument error, got stderr: %s", stderr)
 	}
 }

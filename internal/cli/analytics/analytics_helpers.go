@@ -564,7 +564,7 @@ func getAnalyticsReportSegmentsPage(ctx context.Context, client *asc.Client, ins
 }
 
 func downloadAnalyticsReportToFile(ctx context.Context, client *asc.Client, downloadURL, outputPath string) (int64, error) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
 	defer cancel()
 
 	download, err := client.DownloadAnalyticsReport(requestCtx, downloadURL)

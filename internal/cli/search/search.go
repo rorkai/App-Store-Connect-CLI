@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -23,6 +24,8 @@ const (
 	compoundPathTokenScore = 30
 	exactLeafCommandBoost  = 40
 )
+
+var errRootProfileAfterPositional = errors.New("`--profile` must appear before positional arguments")
 
 var tokenPattern = regexp.MustCompile(`[a-z0-9][a-z0-9-]*`)
 
@@ -166,6 +169,9 @@ Examples:
 
 			args, err := parseInterspersedSearchFlags(fs, args)
 			if err != nil {
+				if errors.Is(err, errRootProfileAfterPositional) {
+					return shared.UsageError(err.Error())
+				}
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				return flag.ErrHelp
 			}
@@ -224,6 +230,14 @@ func parseInterspersedSearchFlags(fs *flag.FlagSet, args []string) ([]string, er
 	if fs == nil || len(args) == 0 {
 		return args, nil
 	}
+	if args[0] == shared.FlagTerminatorSentinel {
+		return args[1:], nil
+	}
+	// flag.FlagSet removes a leading -- before Exec. If the first remaining
+	// argument still starts with a dash, it was escaped and must stay positional.
+	if strings.HasPrefix(args[0], "-") {
+		return args, nil
+	}
 
 	queryArgs := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
@@ -241,6 +255,9 @@ func parseInterspersedSearchFlags(fs *flag.FlagSet, args []string) ([]string, er
 
 		f := fs.Lookup(name)
 		if f == nil {
+			if name == shared.RootProfileFlagName {
+				return nil, errRootProfileAfterPositional
+			}
 			queryArgs = append(queryArgs, arg)
 			continue
 		}

@@ -11,6 +11,7 @@ import (
 var appInfoSparseFields441 = []string{"kidsAgeBand"}
 
 var ageRatingSparseFields441 = []string{
+	"gracRatingClassificationNumber",
 	"socialMedia",
 	"socialMediaAgeRestricted",
 }

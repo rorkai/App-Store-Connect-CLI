@@ -39,16 +39,6 @@ asc screenshots sizes --all
 ### Upload Screenshots
 
 <Steps>
-  <Step title="Find your version localization ID">
-    List localizations for your app version:
-
-    ```bash  theme={null}
-    asc localizations list --version "VERSION_ID" --output json
-    ```
-
-    Extract the localization ID for your target locale (e.g., `en-US`).
-  </Step>
-
   <Step title="Prepare screenshot files">
     Organize screenshots by device type:
 
@@ -66,23 +56,44 @@ asc screenshots sizes --all
   </Step>
 
   <Step title="Upload iPhone screenshots">
+    Select the localization with the app, version string, and locale. No
+    localization ID lookup is needed:
+
     ```bash  theme={null}
     asc screenshots upload \
-      --version-localization "LOCALIZATION_ID" \
+      --app "YOUR_APP_ID" \
+      --version "1.2.3" \
+      --locale "en-US" \
       --path "./screenshots/iphone" \
-      --device-type "IPHONE_65"
+      --device-type "IPHONE_65" \
+      --concurrency 4
     ```
+
+    With `--locale`, `--path` points directly at that locale's screenshots.
+    The version must already have an `en-US` localization; otherwise the
+    command fails and lists the locales the version has.
+
+    Uploads within one screenshot set are bounded to four concurrent requests
+    by default. Use `--concurrency 1` for serial uploads or any value through
+    `8` when the API and network can sustain more fan-out; output ordering stays
+    deterministic.
   </Step>
 
   <Step title="Upload iPad screenshots">
     ```bash  theme={null}
     asc screenshots upload \
-      --version-localization "LOCALIZATION_ID" \
+      --app "YOUR_APP_ID" \
+      --version "1.2.3" \
+      --locale "en-US" \
       --path "./screenshots/ipad" \
       --device-type "IPAD_PRO_3GEN_129"
     ```
   </Step>
 </Steps>
+
+If you already have a version localization ID, `--version-localization
+"LOCALIZATION_ID"` uploads to it directly. `asc localizations list --app
+"YOUR_APP_ID" --version "1.2.3"` shows each localization's ID.
 
 ### Device Types
 
@@ -168,7 +179,7 @@ asc screenshots delete --id "SCREENSHOT_ID" --confirm
     asc screenshots capture \
       --bundle-id "com.example.myapp" \
       --name "home-screen" \
-      --output "./screenshots/raw"
+      --output-dir "./screenshots/raw"
     ```
 
     This captures from the currently running simulator.
@@ -181,7 +192,7 @@ asc screenshots delete --id "SCREENSHOT_ID" --confirm
     asc screenshots frame \
       --input "./screenshots/raw/home-screen.png" \
       --device "iphone-air" \
-      --output "./screenshots/framed"
+      --output-dir "./screenshots/framed"
     ```
 
     See available device frames:
@@ -310,15 +321,11 @@ set -e
 
 # Configuration
 export ASC_APP_ID="YOUR_APP_ID"
-VERSION_ID="YOUR_VERSION_ID"
+VERSION="1.2.3"
 BUNDLE_ID="com.example.myapp"
 
-# 1. Get localization IDs
-echo "Getting localization IDs..."
-EN_US_LOC_ID=$(asc localizations list --version "$VERSION_ID" --output json | \
-  jq -r '.data[] | select(.attributes.locale == "en-US") | .id')
-
-echo "en-US Localization ID: $EN_US_LOC_ID"
+# 1. Check the version's localizations
+asc localizations list --app "$ASC_APP_ID" --version "$VERSION" --output table
 
 # 2. Create directories
 mkdir -p screenshots/{raw,framed,iphone,ipad}
@@ -333,7 +340,7 @@ for screen in home features settings details; do
   asc screenshots capture \
     --bundle-id "$BUNDLE_ID" \
     --name "$screen" \
-    --output "./screenshots/raw"
+    --output-dir "./screenshots/raw"
 done
 
 # 4. Frame screenshots
@@ -343,7 +350,7 @@ for raw_file in screenshots/raw/*.png; do
   asc screenshots frame \
     --input "$raw_file" \
     --device "iphone-air" \
-    --output "./screenshots/framed/$filename"
+    --output-path "./screenshots/framed/$filename"
 done
 
 # 5. Copy to upload directories
@@ -352,14 +359,16 @@ cp screenshots/framed/*.png screenshots/iphone/
 # 6. Upload to App Store Connect
 echo "Uploading iPhone screenshots..."
 asc screenshots upload \
-  --version-localization "$EN_US_LOC_ID" \
+  --app "$ASC_APP_ID" \
+  --version "$VERSION" \
+  --locale "en-US" \
   --path "./screenshots/iphone" \
   --device-type "IPHONE_65"
 
 echo "Screenshots uploaded successfully!"
 
 # 7. Verify upload
-asc screenshots list --version-localization "$EN_US_LOC_ID"
+asc screenshots list --app "$ASC_APP_ID" --version "$VERSION" --locale "en-US"
 ```
 
 If an upload stops partway through, the command prints a failure artifact path like

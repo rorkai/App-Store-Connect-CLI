@@ -399,7 +399,11 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			response := jsonResponse(http.StatusOK, `{"data":[]}`)
+			body := `{"data":[]}`
+			if tt.name == "ListReviewSubmissions" {
+				body = `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions"}}`
+			}
+			response := jsonResponse(http.StatusOK, body)
 			client := newTestClient(t, func(req *http.Request) {
 				if req.URL.String() != tt.next {
 					t.Fatalf("expected next URL %q, got %q", tt.next, req.URL.String())
@@ -8393,6 +8397,51 @@ func TestCreateCertificate_WithPassTypeIDRelationship(t *testing.T) {
 	}
 }
 
+func TestCreateCertificate_WithMerchantIDRelationship(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"certificates","id":"c1","attributes":{"name":"Merchant Cert","certificateType":"APPLE_PAY_MERCHANT_IDENTITY"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/certificates" {
+			t.Fatalf("expected path /v1/certificates, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload CertificateCreateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Attributes.CertificateType != "APPLE_PAY_MERCHANT_IDENTITY" {
+			t.Fatalf("expected certificate type APPLE_PAY_MERCHANT_IDENTITY, got %q", payload.Data.Attributes.CertificateType)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.MerchantID == nil {
+			t.Fatal("expected merchantId relationship")
+		}
+		if got := payload.Data.Relationships.MerchantID.Data.Type; got != ResourceTypeMerchantIds {
+			t.Fatalf("expected relationship type merchantIds, got %q", got)
+		}
+		if got := payload.Data.Relationships.MerchantID.Data.ID; got != "merchant-123" {
+			t.Fatalf("expected relationship ID merchant-123, got %q", got)
+		}
+		if payload.Data.Relationships.PassTypeID != nil {
+			t.Fatalf("expected passTypeId to be omitted, got %#v", payload.Data.Relationships.PassTypeID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.CreateCertificate(
+		context.Background(),
+		"CSR_CONTENT",
+		"APPLE_PAY_MERCHANT_IDENTITY",
+		WithCertificateMerchantID(" merchant-123 "),
+	); err != nil {
+		t.Fatalf("CreateCertificate() error: %v", err)
+	}
+}
+
 func TestUpdateCertificate_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"IOS_DISTRIBUTION","activated":true}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -12514,7 +12563,7 @@ func TestListBetaBuildLocalizationsGlobal_WithBuildFilter(t *testing.T) {
 }
 
 func TestListReviewSubmissionsGlobal_UsesV1ReviewSubmissionsPath(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}]}`)
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions"}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
@@ -12542,7 +12591,7 @@ func TestListReviewSubmissionsGlobal_UsesV1ReviewSubmissionsPath(t *testing.T) {
 }
 
 func TestListReviewSubmissionsGlobal_WithFilters(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	response := jsonResponse(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions"}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.URL.Path != "/v1/reviewSubmissions" {
 			t.Fatalf("expected path /v1/reviewSubmissions, got %s", req.URL.Path)

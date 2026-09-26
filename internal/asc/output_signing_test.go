@@ -64,6 +64,47 @@ func TestSigningSyncResultBatchJSONOmitsSingularBundleID(t *testing.T) {
 	}
 }
 
+func TestSigningSyncResultJSONIncludesPartialCreationState(t *testing.T) {
+	result := &SigningSyncResult{
+		Operation:                "push",
+		RepoURL:                  "file:///tmp/signing.git",
+		ProfileType:              "IOS_APP_STORE",
+		Files:                    []string{},
+		BundleIDs:                []string{"com.example.app"},
+		CertificateIDs:           []string{"certificate-1"},
+		CertificateCreationState: "created",
+		ProfileCreationState:     "unknown",
+		PublicationState:         "unknown",
+		Partial:                  true,
+		Targets: []SigningSyncTargetResult{{
+			BundleID:                 "com.example.app",
+			ProfileType:              "IOS_APP_STORE",
+			CertificateCreationState: "created",
+			ProfileCreationState:     "unknown",
+		}},
+	}
+	result.MarkBatch()
+
+	data, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{
+		`"certificateIds":["certificate-1"]`,
+		`"certificateCreationState":"created"`,
+		`"profileCreationState":"unknown"`,
+		`"publicationState":"unknown"`,
+		`"partial":true`,
+	} {
+		if !strings.Contains(string(data), field) {
+			t.Fatalf("partial JSON missing %s: %s", field, data)
+		}
+	}
+	if strings.Count(string(data), `"profileCreationState":"unknown"`) != 2 {
+		t.Fatalf("partial JSON missing per-target profile state: %s", data)
+	}
+}
+
 func TestSigningSyncResultRendererRegisteredAndRenders(t *testing.T) {
 	ensureOutputRegistryPopulated()
 	handler := requireOutputHandlerFor[SigningSyncResult](t, "SigningSyncResult")

@@ -191,8 +191,8 @@ func GameCenterChallengesCreateCommand() *ffcli.Command {
 	vendorID := fs.String("vendor-id", "", "Vendor identifier for the challenge")
 	repeatable := fs.String("repeatable", "", "Challenge can be earned multiple times (true/false)")
 	createInitialVersion := fs.String("create-initial-version", "", "Create an initial challenge version inline (true/false)")
-	leaderboardID := fs.String("leaderboard-id", "", "Leaderboard ID for the challenge")
-	groupID := fs.String("group-id", "", "Game Center group ID")
+	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Leaderboard ID for the challenge")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -296,7 +296,7 @@ func GameCenterChallengesUpdateCommand() *ffcli.Command {
 	referenceName := fs.String("reference-name", "", "Reference name for the challenge")
 	repeatable := fs.String("repeatable", "", "Challenge can be earned multiple times (true/false)")
 	archived := fs.String("archived", "", "Archive the challenge (true/false)")
-	leaderboardID := fs.String("leaderboard-id", "", "Leaderboard ID for the challenge")
+	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Leaderboard ID for the challenge")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -453,7 +453,7 @@ Examples:
 func GameCenterChallengeVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	challengeID := fs.String("challenge-id", "", "Game Center challenge ID")
+	challengeID := shared.BindResourceIDFlag(fs, "challenge-id", "gameCenterChallenges", "Game Center challenge ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -571,7 +571,7 @@ Examples:
 func GameCenterChallengeVersionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	challengeID := fs.String("challenge-id", "", "Game Center challenge ID")
+	challengeID := shared.BindResourceIDFlag(fs, "challenge-id", "gameCenterChallenges", "Game Center challenge ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -645,7 +645,7 @@ Examples:
 func GameCenterChallengeLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Game Center challenge version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterChallengeVersions", "Game Center challenge version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -763,7 +763,7 @@ Examples:
 func GameCenterChallengeLocalizationsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Game Center challenge version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterChallengeVersions", "Game Center challenge version ID")
 	locale := fs.String("locale", "", "Localization locale (e.g., en-US)")
 	name := fs.String("name", "", "Localized name")
 	description := fs.String("description", "", "Localized description")
@@ -970,7 +970,7 @@ Examples:
 func GameCenterChallengeImagesUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("upload", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Challenge localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterChallengeLocalizations", "Challenge localization ID")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
 	output := shared.BindOutputFlags(fs)
 
@@ -1227,7 +1227,7 @@ Examples:
 func GameCenterChallengeReleasesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Game Center challenge version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterChallengeVersions", "Game Center challenge version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

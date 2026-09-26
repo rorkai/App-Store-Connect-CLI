@@ -56,7 +56,7 @@ func IAPOfferCodesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes list", flag.ExitOnError)
 
 	appID := addIAPLookupAppFlag(fs)
-	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -138,7 +138,7 @@ Examples:
 func IAPOfferCodesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes view", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -181,7 +181,7 @@ func IAPOfferCodesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes create", flag.ExitOnError)
 
 	appID := addIAPLookupAppFlag(fs)
-	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	name := fs.String("name", "", "Offer code name")
 	eligibilities := fs.String("eligibilities", "", "Customer eligibilities (comma-separated)")
 	prices := fs.String("prices", "", "Prices: TERRITORY:PRICE_POINT_ID or TERRITORY:FREE entries (territory accepts alpha-2, alpha-3, or exact English country name)")
@@ -262,7 +262,7 @@ Examples:
 func IAPOfferCodesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes update", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID")
 	var active shared.OptionalBool
 	fs.Var(&active, "active", "Set active status: true or false")
 	output := shared.BindOutputFlags(fs)

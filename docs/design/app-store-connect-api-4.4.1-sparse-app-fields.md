@@ -1,5 +1,12 @@
 # App Store Connect API 4.4.1 sparse app fields
 
+> API 4.5 update: `AppInfo.kidsAgeBand` was removed from the response schema.
+> The legacy selector remains forwarded with a stderr deprecation warning.
+> Migrate reads to `asc age-rating view --app-info-id ID`.
+> `AgeRatingDeclaration.kidsAgeBand` remains valid. The API 4.4.1 support and
+> live observations below are historical evidence, not a current acceptance claim.
+
+
 ## Placement and command shape
 
 This slice covers eight existing GET operations whose sparse-field enums gained

@@ -27,7 +27,8 @@ type AppCustomProductPageCreateAttributes struct {
 
 // AppCustomProductPageCreateRelationships describes create relationships.
 type AppCustomProductPageCreateRelationships struct {
-	App *Relationship `json:"app"`
+	App                          *Relationship    `json:"app"`
+	AppCustomProductPageVersions RelationshipList `json:"appCustomProductPageVersions"`
 }
 
 // AppCustomProductPageCreateData is the data payload for create requests.
@@ -39,7 +40,21 @@ type AppCustomProductPageCreateData struct {
 
 // AppCustomProductPageCreateRequest is a request to create a custom product page.
 type AppCustomProductPageCreateRequest struct {
-	Data AppCustomProductPageCreateData `json:"data"`
+	Data     AppCustomProductPageCreateData       `json:"data"`
+	Included []AppCustomProductPageIncludedCreate `json:"included"`
+}
+
+// AppCustomProductPageIncludedCreate is an inline custom product page version or localization.
+type AppCustomProductPageIncludedCreate struct {
+	Type          ResourceType                                          `json:"type"`
+	ID            string                                                `json:"id"`
+	Attributes    *AppCustomProductPageLocalizationCreateAttributes     `json:"attributes,omitempty"`
+	Relationships *AppCustomProductPageVersionInlineCreateRelationships `json:"relationships,omitempty"`
+}
+
+// AppCustomProductPageVersionInlineCreateRelationships describes inline version relationships.
+type AppCustomProductPageVersionInlineCreateRelationships struct {
+	AppCustomProductPageLocalizations RelationshipList `json:"appCustomProductPageLocalizations"`
 }
 
 // AppCustomProductPageUpdateAttributes describes update payload attributes.
@@ -235,8 +250,12 @@ func (c *Client) GetAppCustomProductPage(ctx context.Context, pageID string) (*A
 	return &response, nil
 }
 
-// CreateAppCustomProductPage creates a custom product page.
+// CreateAppCustomProductPage creates a custom product page with an initial version and
+// a localization that uses the app's primary locale.
 func (c *Client) CreateAppCustomProductPage(ctx context.Context, appID, name string) (*AppCustomProductPageResponse, error) {
+	const initialVersionID = "${new-appCustomProductPageVersion-id}"
+	const initialLocalizationID = "${new-appCustomProductPageLocalization-id}"
+
 	appID = strings.TrimSpace(appID)
 	name = strings.TrimSpace(name)
 	if appID == "" {
@@ -244,6 +263,15 @@ func (c *Client) CreateAppCustomProductPage(ctx context.Context, appID, name str
 	}
 	if name == "" {
 		return nil, fmt.Errorf("name is required")
+	}
+
+	app, err := c.GetApp(ctx, appID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve app primary locale: %w", err)
+	}
+	primaryLocale := strings.TrimSpace(app.Data.Attributes.PrimaryLocale)
+	if primaryLocale == "" {
+		return nil, fmt.Errorf("app primary locale is required")
 	}
 
 	payload := AppCustomProductPageCreateRequest{
@@ -257,8 +285,28 @@ func (c *Client) CreateAppCustomProductPage(ctx context.Context, appID, name str
 						ID:   appID,
 					},
 				},
+				AppCustomProductPageVersions: RelationshipList{Data: []ResourceData{{
+					Type: ResourceTypeAppCustomProductPageVersions,
+					ID:   initialVersionID,
+				}}},
 			},
 		},
+		Included: []AppCustomProductPageIncludedCreate{{
+			Type: ResourceTypeAppCustomProductPageVersions,
+			ID:   initialVersionID,
+			Relationships: &AppCustomProductPageVersionInlineCreateRelationships{
+				AppCustomProductPageLocalizations: RelationshipList{Data: []ResourceData{{
+					Type: ResourceTypeAppCustomProductPageLocalizations,
+					ID:   initialLocalizationID,
+				}}},
+			},
+		}, {
+			Type: ResourceTypeAppCustomProductPageLocalizations,
+			ID:   initialLocalizationID,
+			Attributes: &AppCustomProductPageLocalizationCreateAttributes{
+				Locale: primaryLocale,
+			},
+		}},
 	}
 
 	body, err := BuildRequestBody(payload)

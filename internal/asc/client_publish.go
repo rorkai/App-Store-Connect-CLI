@@ -17,6 +17,13 @@ func (e *buildProcessingFailure) Error() string {
 	return fmt.Sprintf("build processing failed: %s", e.state)
 }
 
+// IsBuildProcessingFailure reports whether err is WaitForBuildProcessing
+// stopping at a FAILED or INVALID processing state.
+func IsBuildProcessingFailure(err error) bool {
+	var processingFailure *buildProcessingFailure
+	return errors.As(err, &processingFailure)
+}
+
 // WaitForBuildProcessing polls a build until processing completes.
 func (c *Client) WaitForBuildProcessing(ctx context.Context, buildID string, pollInterval time.Duration) (*BuildResponse, error) {
 	buildID = strings.TrimSpace(buildID)

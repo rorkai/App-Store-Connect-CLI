@@ -38,6 +38,13 @@ const windowsUnneutralCharacters = "\"$`%!\\\u201c\u201d\u201e"
 // invalid UTF-8, which cannot be both inert in a terminal and byte-exact.
 // Callers must then omit the value instead of printing an approximation.
 func ShellQuote(value string) (string, bool) {
+	return ShellQuoteForOS(value, runtime.GOOS)
+}
+
+// ShellQuoteForOS applies ShellQuote's byte-exact rendering contract for the
+// requested target platform. It exists for callers that already make an
+// explicit platform decision and for deterministic cross-platform tests.
+func ShellQuoteForOS(value, goos string) (string, bool) {
 	if !utf8.ValidString(value) || asc.HasInterpretedTerminalSequence(value) {
 		return "", false
 	}
@@ -46,7 +53,7 @@ func ShellQuote(value string) (string, bool) {
 	if shellSafeWordPattern.MatchString(value) && !strings.HasPrefix(value, "=") {
 		return value, true
 	}
-	if runtime.GOOS == "windows" {
+	if goos == "windows" {
 		return windowsShellQuote(value)
 	}
 	return posixShellQuote(value), true

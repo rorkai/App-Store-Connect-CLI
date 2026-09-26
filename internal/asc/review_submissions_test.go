@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -88,6 +89,75 @@ func TestCreateReviewSubmission(t *testing.T) {
 	}
 }
 
+func TestCreateReviewSubmissionPreservesPartialCreateID(t *testing.T) {
+	for _, errorsMember := range []string{
+		`[]`,
+		`[{"status":"500","detail":"partial response"}]`,
+	} {
+		response := reviewSubmissionsJSONResponse(http.StatusCreated, `{
+			"errors": `+errorsMember+`,
+			"data": {"type": "reviewSubmissions", "id": "submission-created"}
+		}`)
+		client := newTestClient(t, nil, response)
+
+		receipt, err := client.CreateReviewSubmission(context.Background(), "app-123", PlatformIOS)
+		if err == nil || !strings.Contains(err.Error(), "top-level errors") {
+			t.Fatalf("CreateReviewSubmission() error = %v, want top-level errors rejection", err)
+		}
+		if receipt != nil {
+			t.Fatalf("CreateReviewSubmission() receipt = %+v, want nil on response validation error", receipt)
+		}
+		var partialErr *ReviewSubmissionCreatePartialError
+		if !errors.As(err, &partialErr) {
+			t.Fatalf("CreateReviewSubmission() error = %T, want ReviewSubmissionCreatePartialError", err)
+		}
+		if partialErr.Response == nil || partialErr.Response.Data.ID != "submission-created" {
+			t.Fatalf("partial create response = %+v, want submission-created", partialErr.Response)
+		}
+		if partialErr.Unwrap() == nil {
+			t.Fatal("partial create error did not retain its validation cause")
+		}
+	}
+}
+
+func TestCreateReviewSubmissionDoesNotClassifyFailedRequestAsPartialCreate(t *testing.T) {
+	response := reviewSubmissionsJSONResponse(http.StatusBadRequest, `{
+		"errors": [{"status": "400", "detail": "request failed"}],
+		"data": {"type": "reviewSubmissions", "id": "untrusted-id"}
+	}`)
+	client := newTestClient(t, nil, response)
+
+	receipt, err := client.CreateReviewSubmission(context.Background(), "app-123", PlatformIOS)
+	if err == nil {
+		t.Fatal("CreateReviewSubmission() error = nil, want API failure")
+	}
+	if receipt != nil {
+		t.Fatalf("CreateReviewSubmission() receipt = %+v, want nil", receipt)
+	}
+	var partialErr *ReviewSubmissionCreatePartialError
+	if errors.As(err, &partialErr) {
+		t.Fatalf("CreateReviewSubmission() error = %+v, must not trust an ID from a failed request", partialErr)
+	}
+}
+
+func TestCreateReviewSubmissionDoesNotInventPartialCreateID(t *testing.T) {
+	tests := []string{
+		`{"errors":[],"data":{"type":"reviewSubmissions","id":""}}`,
+		`{"errors":[],"data":{"type":"apps","id":"app-123"}}`,
+	}
+	for _, body := range tests {
+		client := newTestClient(t, nil, reviewSubmissionsJSONResponse(http.StatusCreated, body))
+		_, err := client.CreateReviewSubmission(context.Background(), "app-123", PlatformIOS)
+		if err == nil || !strings.Contains(err.Error(), "top-level errors") {
+			t.Fatalf("CreateReviewSubmission() error = %v, want top-level errors rejection", err)
+		}
+		var partialErr *ReviewSubmissionCreatePartialError
+		if errors.As(err, &partialErr) {
+			t.Fatalf("CreateReviewSubmission() error = %+v, must not expose an untrusted create ID", partialErr)
+		}
+	}
+}
+
 func TestReviewSubmissionsResponsePreservesSchemaMetadata(t *testing.T) {
 	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
 		"data": [{
@@ -132,6 +202,31 @@ func TestReviewSubmissionsResponsePreservesSchemaMetadata(t *testing.T) {
 		if !strings.Contains(string(encoded), want) {
 			t.Fatalf("re-encoded response omitted %s: %s", want, encoded)
 		}
+	}
+}
+
+func TestReviewSubmissionCollectionAllowsSparseToManyItemsRelationship(t *testing.T) {
+	tests := []struct {
+		name         string
+		relationship string
+	}{
+		{
+			name:         "links only",
+			relationship: `{"links":{"related":"/v1/reviewSubmissions/submission-1/items"}}`,
+		},
+		{
+			name:         "meta only",
+			relationship: `{"meta":{"paging":{"limit":50}}}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			body := `{"data":[{"type":"reviewSubmissions","id":"submission-1","relationships":{"items":` + test.relationship + `}}],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`
+			if err := validateReviewSubmissionCollectionEnvelope([]byte(body), "review submissions", reviewSubmissionCollectionResourceSpec); err != nil {
+				t.Fatalf("validateReviewSubmissionCollectionEnvelope() error = %v, want sparse to-many relationship accepted", err)
+			}
+		})
 	}
 }
 
@@ -732,6 +827,49 @@ func TestGetReviewSubmissionItems(t *testing.T) {
 	}
 }
 
+func TestReviewSubmissionItemResponsesRejectTopLevelErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		call func(*Client) error
+	}{
+		{
+			name: "relationships",
+			body: `{"errors":[],"data":[]}`,
+			call: func(client *Client) error {
+				_, err := client.GetReviewSubmissionItemsRelationships(context.Background(), "submission-1")
+				return err
+			},
+		},
+		{
+			name: "create",
+			body: `{"errors":[],"data":{}}`,
+			call: func(client *Client) error {
+				_, err := client.CreateReviewSubmissionItem(context.Background(), "submission-1", ReviewSubmissionItemTypeAppStoreVersion, "version-1")
+				return err
+			},
+		},
+		{
+			name: "update",
+			body: `{"errors":[],"data":{}}`,
+			call: func(client *Client) error {
+				resolved := true
+				_, err := client.UpdateReviewSubmissionItem(context.Background(), "item-1", ReviewSubmissionItemUpdateAttributes{Resolved: &NullableBool{Value: &resolved}})
+				return err
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, nil, reviewSubmissionsJSONResponse(http.StatusOK, test.body))
+			if err := test.call(client); err == nil || !strings.Contains(err.Error(), "top-level errors") {
+				t.Fatalf("call error = %v, want top-level errors rejection", err)
+			}
+		})
+	}
+}
+
 func TestGetReviewSubmissionItems_WithIncludeAndFields(t *testing.T) {
 	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
 		"data": [
@@ -739,7 +877,8 @@ func TestGetReviewSubmissionItems_WithIncludeAndFields(t *testing.T) {
 				"type": "reviewSubmissionItems",
 				"id": "item-456"
 			}
-		]
+		],
+		"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-456/items"}
 	}`)
 
 	client := newTestClient(t, func(req *http.Request) {
@@ -785,6 +924,7 @@ func TestGetReviewSubmissionItems_With441VersionSparseFields(t *testing.T) {
 			{"type":"subscriptionVersions","id":"subv-1"},
 			{"type":"subscriptionGroupVersions","id":"sgv-1"}
 		],
+		"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-456/items"},
 		"meta":{"paging":{"total":1,"limit":200}}
 	}`)
 
@@ -849,6 +989,7 @@ func TestGetReviewSubmissions_WithInclude(t *testing.T) {
 				}
 			}
 		],
+		"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions"},
 		"included": [
 			{
 				"type": "appStoreVersions",
@@ -903,7 +1044,7 @@ func TestReviewSubmissionGetOperationsSend441ItemFieldsAndIncludeItems(t *testin
 		{
 			name: "app related list",
 			path: "/v1/apps/app-1/reviewSubmissions",
-			body: `{"data":[]}`,
+			body: `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}}`,
 			call: func(client *Client) error {
 				_, err := client.GetReviewSubmissions(context.Background(), "app-1", WithReviewSubmissionsItemFields(strings.Split(wantFields, ",")), WithReviewSubmissionsInclude([]string{"items"}))
 				return err
@@ -912,7 +1053,7 @@ func TestReviewSubmissionGetOperationsSend441ItemFieldsAndIncludeItems(t *testin
 		{
 			name: "top-level list",
 			path: "/v1/reviewSubmissions",
-			body: `{"data":[]}`,
+			body: `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions"}}`,
 			call: func(client *Client) error {
 				_, err := client.ListReviewSubmissions(context.Background(), WithReviewSubmissionsItemFields(strings.Split(wantFields, ",")), WithReviewSubmissionsInclude([]string{"items"}))
 				return err

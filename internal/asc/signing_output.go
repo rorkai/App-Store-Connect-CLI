@@ -160,7 +160,29 @@ func signingFetchResultRows(result *SigningFetchResult) ([]string, [][]string) {
 		joinSigningList(result.CertificateFiles),
 		fmt.Sprintf("%t", result.Created),
 	}}
+	if stale := result.StaleProfiles; stale != nil {
+		headers = append(headers, "Stale Dry Run", "Stale Planned", "Stale Deleted", "Stale Failed")
+		failed := make([]string, 0, len(stale.Failed))
+		for _, item := range stale.Failed {
+			failed = append(failed, item.ID+": "+item.Error)
+		}
+		rows[0] = append(
+			rows[0],
+			fmt.Sprintf("%t", stale.DryRun),
+			joinSigningList(signingStaleProfileIDs(stale.Planned)),
+			joinSigningList(signingStaleProfileIDs(stale.Deleted)),
+			joinSigningList(failed),
+		)
+	}
 	return headers, rows
+}
+
+func signingStaleProfileIDs(profiles []SigningStaleProfile) []string {
+	ids := make([]string, 0, len(profiles))
+	for _, profile := range profiles {
+		ids = append(ids, profile.ID)
+	}
+	return ids
 }
 
 func formatCapabilitySettings(settings []CapabilitySetting) string {

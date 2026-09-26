@@ -2,8 +2,10 @@ package backgroundassets
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -18,6 +20,8 @@ type fakeSubmitClient struct {
 	createErr          error
 	createItemErrFor   map[string]error
 	canceled           []string
+	cancelContextErr   error
+	cancelErr          error
 	submitted          []string
 	attached           []string
 }
@@ -36,7 +40,19 @@ func (f *fakeSubmitClient) GetBackgroundAssetVersions(_ context.Context, backgro
 	return &asc.BackgroundAssetVersionsResponse{Data: f.versions[backgroundAssetID]}, nil
 }
 
-func (f *fakeSubmitClient) GetReviewSubmissionItems(_ context.Context, submissionID string, _ ...asc.ReviewSubmissionItemsOption) (*asc.ReviewSubmissionItemsResponse, error) {
+func (f *fakeSubmitClient) GetReviewSubmissionStrict(_ context.Context, submissionID string, _ ...asc.ReviewSubmissionOption) (*asc.ReviewSubmissionResponse, error) {
+	return &asc.ReviewSubmissionResponse{Data: asc.ReviewSubmissionResource{
+		Type:       asc.ResourceTypeReviewSubmissions,
+		ID:         submissionID,
+		Attributes: asc.ReviewSubmissionAttributes{SubmissionState: asc.ReviewSubmissionStateReadyForReview, Platform: asc.PlatformIOS},
+		Relationships: &asc.ReviewSubmissionRelationships{App: &asc.Relationship{Data: asc.ResourceData{
+			Type: asc.ResourceTypeApps,
+			ID:   "APP",
+		}}},
+	}}, nil
+}
+
+func (f *fakeSubmitClient) GetReviewSubmissionItemsStrict(_ context.Context, submissionID string, _ ...asc.ReviewSubmissionItemsOption) (*asc.ReviewSubmissionItemsResponse, error) {
 	return &asc.ReviewSubmissionItemsResponse{Data: f.existingItems[submissionID]}, nil
 }
 
@@ -48,7 +64,11 @@ func (f *fakeSubmitClient) CreateReviewSubmission(_ context.Context, _ string, p
 	if id == "" {
 		id = "new-submission"
 	}
-	return &asc.ReviewSubmissionResponse{Data: asc.ReviewSubmissionResource{ID: id, Attributes: asc.ReviewSubmissionAttributes{Platform: platform}}}, nil
+	return &asc.ReviewSubmissionResponse{Data: asc.ReviewSubmissionResource{
+		Type:       asc.ResourceTypeReviewSubmissions,
+		ID:         id,
+		Attributes: asc.ReviewSubmissionAttributes{Platform: platform, SubmissionState: asc.ReviewSubmissionStateReadyForReview},
+	}}, nil
 }
 
 func (f *fakeSubmitClient) CreateReviewSubmissionItem(_ context.Context, submissionID string, _ asc.ReviewSubmissionItemType, itemID string) (*asc.ReviewSubmissionItemResponse, error) {
@@ -64,8 +84,12 @@ func (f *fakeSubmitClient) SubmitReviewSubmission(_ context.Context, submissionI
 	return &asc.ReviewSubmissionResponse{Data: asc.ReviewSubmissionResource{ID: submissionID, Attributes: asc.ReviewSubmissionAttributes{SubmissionState: asc.ReviewSubmissionStateWaitingForReview, SubmittedDate: "2026-05-14T13:00:00Z"}}}, nil
 }
 
-func (f *fakeSubmitClient) CancelReviewSubmission(_ context.Context, submissionID string) (*asc.ReviewSubmissionResponse, error) {
+func (f *fakeSubmitClient) CancelReviewSubmission(ctx context.Context, submissionID string) (*asc.ReviewSubmissionResponse, error) {
+	f.cancelContextErr = ctx.Err()
 	f.canceled = append(f.canceled, submissionID)
+	if f.cancelErr != nil {
+		return nil, f.cancelErr
+	}
 	return &asc.ReviewSubmissionResponse{Data: asc.ReviewSubmissionResource{ID: submissionID}}, nil
 }
 
@@ -114,6 +138,60 @@ func newFakeSubmitClient() *fakeSubmitClient {
 				},
 			},
 		},
+	}
+}
+
+func TestRollbackBackgroundAssetReviewSubmissionUsesFreshContext(t *testing.T) {
+	client := newFakeSubmitClient()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := rollbackBackgroundAssetReviewSubmission(ctx, client, "sub-1", "validate before adding items", errors.New("invalid receipt"))
+	if err == nil || !strings.Contains(err.Error(), "rolled back the submission") {
+		t.Fatalf("expected rollback error, got %v", err)
+	}
+	if len(client.canceled) != 1 || client.canceled[0] != "sub-1" {
+		t.Fatalf("canceled submissions = %v, want [sub-1]", client.canceled)
+	}
+	if client.cancelContextErr != nil {
+		t.Fatalf("rollback used canceled context: %v", client.cancelContextErr)
+	}
+}
+
+func TestBackgroundAssetSubmitRequestContextRespectsCallerDeadline(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "2h")
+	t.Setenv("ASC_TIMEOUT_SECONDS", "")
+
+	parent, cancelParent := context.WithTimeout(context.Background(), time.Hour)
+	defer cancelParent()
+	parentDeadline, ok := parent.Deadline()
+	if !ok {
+		t.Fatal("caller context should have a deadline")
+	}
+
+	requestCtx, cancelRequest := backgroundAssetSubmitRequestContext(parent)
+	defer cancelRequest()
+	requestDeadline, ok := requestCtx.Deadline()
+	if !ok {
+		t.Fatal("request context should have a deadline")
+	}
+	if requestDeadline.After(parentDeadline) {
+		t.Fatalf("request deadline %v exceeds caller deadline %v", requestDeadline, parentDeadline)
+	}
+}
+
+func TestRollbackBackgroundAssetReviewSubmissionRetainsBothFailures(t *testing.T) {
+	client := newFakeSubmitClient()
+	cause := errors.New("invalid create response")
+	cancelErr := errors.New("cancel unavailable")
+	client.cancelErr = cancelErr
+
+	err := rollbackBackgroundAssetReviewSubmission(context.Background(), client, "sub-1", "create review submission", cause)
+	if err == nil || !strings.Contains(err.Error(), "rollback also failed") || !strings.Contains(err.Error(), "sub-1") {
+		t.Fatalf("rollback error = %v, want leaked submission detail", err)
+	}
+	if !errors.Is(err, cause) || !errors.Is(err, cancelErr) {
+		t.Fatalf("rollback error = %v, want both original and cancellation causes", err)
 	}
 }
 

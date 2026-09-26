@@ -181,7 +181,7 @@ Examples:
 func GameCenterAppVersionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	appStoreVersionID := fs.String("app-store-version-id", "", "App Store version ID to associate")
+	appStoreVersionID := shared.BindResourceIDFlag(fs, "app-store-version-id", "appStoreVersions", "App Store version ID to associate")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

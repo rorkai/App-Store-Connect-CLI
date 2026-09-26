@@ -27,7 +27,8 @@ asc age-rating view \
   --fields socialMedia,socialMediaAgeRestricted
 ```
 
-`--fields` accepts `socialMedia` and `socialMediaAgeRestricted`. It is also
+`--fields` accepts `gracRatingClassificationNumber`, `socialMedia`, and
+`socialMediaAgeRestricted`. It is also
 supported when the declaration is resolved through `--app` or `--version-id`.
 
 ## Update a Declaration
@@ -127,3 +128,31 @@ The command also supports:
 `--age-rating-override` is deprecated. Use `--age-rating-override-v2` for new
 automation, and run `asc age-rating edit --help` for the current accepted enum
 values before scripting an override.
+
+## Korea Ratings (API 4.5)
+
+`--korea-age-rating-override` accepts `NONE`, `ALL`, `TWELVE_PLUS`,
+`FIFTEEN_PLUS`, and `NINETEEN_PLUS`. Submission validation accepts the same values.
+Use `--grac-rating-classification-number` to set the GRAC classification number:
+
+```bash
+asc age-rating edit --id "DECLARATION_ID" --korea-age-rating-override TWELVE_PLUS --grac-rating-classification-number "CLASSIFICATION_NUMBER"
+```
+
+The classification number must be nonempty. Omit both GRAC flags to leave it
+unchanged. Use `--clear-grac-rating-classification-number` to remove it with an
+explicit JSON `null`; the set and clear flags cannot be combined.
+
+```bash
+asc age-rating edit --id "DECLARATION_ID" --clear-grac-rating-classification-number
+```
+
+Declaration responses include the number in JSON, table, and Markdown output.
+
+Read the GRAC number directly or through an included age-rating declaration:
+
+```bash
+asc age-rating view --app-info-id "APP_INFO_ID" --fields gracRatingClassificationNumber
+asc apps info view --info-id "APP_INFO_ID" --age-rating-fields gracRatingClassificationNumber
+asc apps info list --app "APP_ID" --age-rating-fields gracRatingClassificationNumber
+```

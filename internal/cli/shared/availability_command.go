@@ -710,3 +710,36 @@ func territoryIDFromAvailabilityID(availabilityID string) (string, bool) {
 	}
 	return strings.ToUpper(territoryID), true
 }
+
+// TerritoryAvailabilityUpdateRequest describes a territory availability change
+// applied to an app's existing availability record.
+type TerritoryAvailabilityUpdateRequest struct {
+	// AppID is the App Store Connect app whose availability is updated.
+	AppID string
+	// Territories lists the territories to change. Ignored when AllTerritories
+	// is set.
+	Territories []string
+	// AllTerritories applies the change to every territory in the record.
+	AllTerritories bool
+	// Available is the availability value applied to the selected territories.
+	Available bool
+	// ExpectedAvailableInNewTerritories, when set, verifies the record's
+	// existing new-territory policy. Apple exposes no update operation for it.
+	ExpectedAvailableInNewTerritories *bool
+	// ErrorPrefix prefixes returned errors, for example "pricing availability create".
+	ErrorPrefix string
+}
+
+// ApplyTerritoryAvailabilityUpdate applies request to an app's existing
+// availability record and returns Apple's response together with the number of
+// territories whose availability actually changed (0 when every requested
+// territory already matched). It is the same code path
+// "asc pricing availability edit" runs, exported so a create-style command can
+// route --if-exists update to it instead of duplicating the update logic.
+func ApplyTerritoryAvailabilityUpdate(ctx context.Context, client *asc.Client, request TerritoryAvailabilityUpdateRequest) (*asc.AppAvailabilityV2Response, int, error) {
+	resp, summary, err := executeTerritoryAvailabilityUpdate(ctx, client, availabilityUpdateRequest(request))
+	if err != nil {
+		return nil, 0, err
+	}
+	return resp, summary.UpdatedTerritories, nil
+}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -135,6 +136,64 @@ type CanvasOptions struct {
 
 func (o CanvasOptions) hasText() bool { return o.Title != "" || o.Subtitle != "" }
 
+func validateFrameCanvas(spec frameDeviceKoubouSpec, canvas *CanvasOptions) error {
+	if canvas == nil || spec.Canvas {
+		return nil
+	}
+	if strings.TrimSpace(canvas.BGColor) != "" {
+		return fmt.Errorf("background overlays require a canvas device")
+	}
+	return nil
+}
+
+func bezelContentItems(absInputPath string, scale float64, opts *CanvasOptions) []koubouDefaultContentItem {
+	if opts == nil {
+		opts = &CanvasOptions{}
+	}
+	items := make([]koubouDefaultContentItem, 0, 3)
+	if opts.Title != "" {
+		color := opts.TitleColor
+		if color == "" {
+			color = canvasDefaultTitleColor
+		}
+		items = append(items, koubouDefaultContentItem{
+			Type:      "text",
+			Content:   opts.Title,
+			Position:  [2]string{"50%", canvasTitleY},
+			Size:      canvasTitleFontSize,
+			Weight:    "bold",
+			Color:     color,
+			Alignment: "center",
+		})
+	}
+	if opts.Subtitle != "" {
+		color := opts.SubtitleColor
+		if color == "" {
+			color = canvasDefaultSubtitleColor
+		}
+		subtitleY := canvasSubtitleY
+		if opts.Title == "" {
+			subtitleY = canvasSubtitleSoloY
+		}
+		items = append(items, koubouDefaultContentItem{
+			Type:      "text",
+			Content:   opts.Subtitle,
+			Position:  [2]string{"50%", subtitleY},
+			Size:      canvasSubtitleFontSize,
+			Color:     color,
+			Alignment: "center",
+		})
+	}
+	items = append(items, koubouDefaultContentItem{
+		Type:     "image",
+		Asset:    absInputPath,
+		Position: [2]string{"50%", "50%"},
+		Scale:    scale,
+		Frame:    boolPtr(true),
+	})
+	return items
+}
+
 // FrameRequest holds options for composing one screenshot.
 type FrameRequest struct {
 	InputPath  string         // required when ConfigPath is empty
@@ -168,18 +227,25 @@ var matrixFrameWorkRootBeforeAnchorForTest func(string)
 // Production always leaves it nil.
 var matrixFrameInputBeforeCopyForTest func(string)
 
+// matrixFrameInputAfterFileLockForTest is a narrow test seam for replacing the
+// pinned input between file protection and directory protection. Production
+// always leaves it nil.
+var matrixFrameInputAfterFileLockForTest func(string)
+
 // matrixFrameInputBeforeGenerateForTest is a narrow test seam for replacing
 // the pinned input after it has been copied but before Koubou receives the
 // generated configuration. Production always leaves it nil.
 var matrixFrameInputBeforeGenerateForTest func(string)
 
 type matrixPreparedFrameInput struct {
-	path   string
-	root   rootfs.Root
-	anchor *os.Root
-	size   int64
-	digest [sha256.Size]byte
-	locked bool
+	path     string
+	root     rootfs.Root
+	anchor   *os.Root
+	identity os.FileInfo
+	size     int64
+	digest   [sha256.Size]byte
+	fileDACL *matrixPrivateAttemptDACLHandle
+	attempt  *matrixPrivateAttemptRoot
 }
 
 func (input *matrixPreparedFrameInput) close() error {
@@ -187,12 +253,18 @@ func (input *matrixPreparedFrameInput) close() error {
 		return nil
 	}
 	var cleanupErr error
-	if input.locked && input.anchor != nil {
+	if input.fileDACL != nil {
 		// The input directory is read-only while Koubou runs so its pathname
 		// cannot be replaced by a concurrent path-based writer. Restore the
-		// private directory before rooted cleanup.
-		cleanupErr = errors.Join(cleanupErr, unlockMatrixPrivateAttemptFile(input.path))
-		cleanupErr = errors.Join(cleanupErr, unlockMatrixPrivateAttemptDirectory(input.anchor))
+		// private objects through the DACL-capable handles acquired before the
+		// lock. Reopening a read-only pathname is not a reliable cleanup path
+		// on Windows.
+		cleanupErr = errors.Join(cleanupErr, finalizeMatrixPrivateAttemptFile(input.fileDACL))
+	}
+	if input.attempt != nil {
+		cleanupErr = errors.Join(cleanupErr, cleanupMatrixPrivateAttemptForExecution(input.attempt))
+		cleanupErr = errors.Join(cleanupErr, closeMatrixPrivateAttemptForExecution(input.attempt))
+		return cleanupErr
 	}
 	cleanupErr = errors.Join(cleanupErr, cleanupMatrixProviderScratch(input.anchor, filepath.Dir(input.path)))
 	if input.anchor != nil {
@@ -200,6 +272,50 @@ func (input *matrixPreparedFrameInput) close() error {
 	}
 	cleanupErr = errors.Join(cleanupErr, input.root.Close())
 	return cleanupErr
+}
+
+// FrameInputSnapshot is a bounded, regular-file copy of a frame input. The
+// copy stays protected until Close, so hashing it and handing its path to an
+// external renderer describe the same bytes.
+type FrameInputSnapshot struct {
+	input     *matrixPreparedFrameInput
+	closeOnce sync.Once
+	closeErr  error
+}
+
+// OpenFrameInputSnapshot validates and copies inputPath into a private,
+// protected staging file.
+func OpenFrameInputSnapshot(ctx context.Context, inputPath string) (*FrameInputSnapshot, error) {
+	input, err := prepareMatrixFrameInput(ctx, inputPath)
+	if err != nil {
+		return nil, err
+	}
+	return &FrameInputSnapshot{input: input}, nil
+}
+
+// Path returns the protected path suitable for a renderer invocation.
+func (snapshot *FrameInputSnapshot) Path() string {
+	if snapshot == nil || snapshot.input == nil {
+		return ""
+	}
+	return snapshot.input.path
+}
+
+// SourceHash returns the SHA-256 digest of the exact bytes in Path.
+func (snapshot *FrameInputSnapshot) SourceHash() string {
+	if snapshot == nil || snapshot.input == nil {
+		return ""
+	}
+	return hex.EncodeToString(snapshot.input.digest[:])
+}
+
+// Close releases the protected staging file and its private directory.
+func (snapshot *FrameInputSnapshot) Close() error {
+	if snapshot == nil || snapshot.input == nil {
+		return nil
+	}
+	snapshot.closeOnce.Do(func() { snapshot.closeErr = snapshot.input.close() })
+	return snapshot.closeErr
 }
 
 func (input *matrixPreparedFrameInput) verify(ctx context.Context) error {
@@ -219,6 +335,18 @@ func (input *matrixPreparedFrameInput) verify(ctx context.Context) error {
 	openErr := opened.Close()
 	if openErr != nil {
 		return fmt.Errorf("close frame input root verification: %w", openErr)
+	}
+	currentFile, err := input.root.OpenFile(filepath.Base(input.path))
+	if err != nil {
+		return fmt.Errorf("open frame input identity: %w", err)
+	}
+	currentIdentity, statErr := currentFile.Stat()
+	closeErr := currentFile.Close()
+	if statErr != nil || closeErr != nil {
+		return errors.Join(statErr, closeErr)
+	}
+	if input.identity == nil || !os.SameFile(input.identity, currentIdentity) {
+		return errors.New("frame input identity changed during framing")
 	}
 	current, err := inspectMatrixArtifactWithContext(ctx, input.root, input.root.Path(), input.path)
 	if err != nil {
@@ -293,64 +421,90 @@ func prepareMatrixFrameInput(ctx context.Context, inputPath string) (*matrixPrep
 		return nil, fmt.Errorf("rewind frame input: %w", err)
 	}
 
-	scratchDir, err := createMatrixPrivateScratchDir("asc-shots-frame-input-")
+	scratchAttempt, err := createMatrixPrivateAttemptRoot()
 	if err != nil {
 		_ = sourceFile.Close()
 		_ = sourceRoot.Close()
 		return nil, fmt.Errorf("create frame input scratch: %w", err)
 	}
-	scratchRoot, err := rootfs.New(scratchDir)
-	if err != nil {
-		_ = sourceFile.Close()
-		_ = sourceRoot.Close()
-		// Do not remove an untrusted pathname after anchoring failed: it may
-		// already name a replacement directory.
-		return nil, fmt.Errorf("open frame input scratch: %w", err)
-	}
-	scratchAnchor, err := scratchRoot.OpenRoot()
-	if err != nil {
-		_ = sourceFile.Close()
-		_ = sourceRoot.Close()
-		_ = scratchRoot.Close()
-		return nil, fmt.Errorf("anchor frame input scratch: %w", err)
-	}
 	prepared := &matrixPreparedFrameInput{
-		path:   filepath.Join(scratchDir, "input.png"),
-		root:   scratchRoot,
-		anchor: scratchAnchor,
-		size:   size,
-		digest: digest,
+		path:    filepath.Join(scratchAttempt.path, "input.png"),
+		root:    scratchAttempt.root,
+		anchor:  scratchAttempt.pinned,
+		size:    size,
+		digest:  digest,
+		attempt: &scratchAttempt,
 	}
 	fail := func(primary error) (*matrixPreparedFrameInput, error) {
 		_ = sourceFile.Close()
 		_ = sourceRoot.Close()
 		return nil, errors.Join(primary, prepared.close())
 	}
-	if _, err := scratchRoot.WriteFromPreservingMode("input.png", &matrixContextReader{ctx: ctx, reader: io.LimitReader(sourceFile, maxMatrixArtifactBytes+1)}, 0o600); err != nil {
-		return fail(fmt.Errorf("copy frame input: %w", err))
+	protectedFile, err := createMatrixPrivateAttemptFileInRoot(scratchAttempt.pinned, "input.png", prepared.path)
+	if err != nil {
+		return fail(fmt.Errorf("create protected frame input: %w", err))
 	}
+	written, err := io.Copy(protectedFile, &matrixContextReader{ctx: ctx, reader: io.LimitReader(sourceFile, maxMatrixArtifactBytes+1)})
+	if err != nil {
+		return fail(errors.Join(fmt.Errorf("copy frame input: %w", err), protectedFile.Close()))
+	}
+	if written != size {
+		return fail(errors.Join(fmt.Errorf("copy frame input: wrote %d bytes, expected %d", written, size), protectedFile.Close()))
+	}
+	if err := protectedFile.Sync(); err != nil {
+		return fail(errors.Join(fmt.Errorf("sync protected frame input: %w", err), protectedFile.Close()))
+	}
+	protectedIdentity, err := protectedFile.Stat()
+	if err != nil {
+		return fail(errors.Join(fmt.Errorf("stat protected frame input: %w", err), protectedFile.Close()))
+	}
+	prepared.identity = protectedIdentity
 	if err := sourceFile.Close(); err != nil {
 		_ = sourceRoot.Close()
-		return nil, errors.Join(fmt.Errorf("close frame input: %w", err), prepared.close())
+		return nil, errors.Join(fmt.Errorf("close frame input: %w", err), protectedFile.Close(), prepared.close())
 	}
 	if err := sourceRoot.Close(); err != nil {
-		return nil, errors.Join(fmt.Errorf("close frame input directory: %w", err), prepared.close())
+		return nil, errors.Join(fmt.Errorf("close frame input directory: %w", err), protectedFile.Close(), prepared.close())
 	}
+	if err := prepared.verify(ctx); err != nil {
+		return nil, errors.Join(err, protectedFile.Close(), prepared.close())
+	}
+	fileDACL, err := lockMatrixPrivateAttemptFileRetained(protectedFile)
+	if err != nil {
+		return fail(fmt.Errorf("protect frame input file: %w", err))
+	}
+	prepared.fileDACL = fileDACL
+	if matrixFrameInputAfterFileLockForTest != nil {
+		matrixFrameInputAfterFileLockForTest(prepared.path)
+	}
+	if err := lockMatrixPrivateAttemptChild(&scratchAttempt); err != nil {
+		return fail(fmt.Errorf("protect frame input scratch: %w", err))
+	}
+	prepared.attempt = &scratchAttempt
+	// Revalidate only after both protection handles are in place. A pathname
+	// replacement between the file and directory DACL operations must fail
+	// closed before the snapshot path is handed to the renderer.
 	if err := prepared.verify(ctx); err != nil {
 		return fail(err)
 	}
-	if err := lockMatrixPrivateAttemptFile(prepared.path); err != nil {
-		return fail(fmt.Errorf("protect frame input file: %w", err))
-	}
-	if err := lockMatrixPrivateAttemptDirectory(scratchAnchor); err != nil {
-		return fail(fmt.Errorf("protect frame input scratch: %w", err))
-	}
-	prepared.locked = true
 	return prepared, nil
+}
+
+func finalizeMatrixPrivateAttemptFile(handle *matrixPrivateAttemptDACLHandle) error {
+	firstErr := unlockMatrixPrivateAttemptFileRetained(handle)
+	if firstErr == nil {
+		return finalizeMatrixPrivateAttemptDACLHandle(handle)
+	}
+	retryErr := unlockMatrixPrivateAttemptFileRetained(handle)
+	if retryErr == nil {
+		return finalizeMatrixPrivateAttemptDACLHandle(handle)
+	}
+	return errors.Join(firstErr, retryErr, finalizeMatrixPrivateAttemptDACLHandle(handle))
 }
 
 // FrameResult is the structured output for one composed frame image.
 type FrameResult struct {
+	OutputHash   string `json:"-"` // Digest of bytes published by this render.
 	Path         string `json:"path"`
 	FramePath    string `json:"frame_path"`
 	Device       string `json:"device"`
@@ -358,6 +512,7 @@ type FrameResult struct {
 	UploadWidth  int    `json:"upload_width,omitempty"`
 	UploadHeight int    `json:"upload_height,omitempty"`
 	Normalized   bool   `json:"normalized"`
+	Skipped      bool   `json:"skipped,omitempty"`
 	Width        int    `json:"width"`
 	Height       int    `json:"height"`
 }
@@ -539,8 +694,8 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 		if !ok {
 			return nil, fmt.Errorf("no Koubou mapping configured for device %q", device)
 		}
-		if req.Canvas != nil && !spec.Canvas {
-			return nil, fmt.Errorf("canvas options require a canvas device; %q uses a device bezel", device)
+		if err := validateFrameCanvas(spec, req.Canvas); err != nil {
+			return nil, err
 		}
 
 		absInputPath, err := filepath.Abs(inputPath)
@@ -571,41 +726,35 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 			}
 		}
 
-		var generatedConfigPath, generatedWorkDir string
+		var generatedConfigPath string
 		var generatedMetadata frameExecutionMetadata
-		if rootedOutput == nil {
-			generatedConfigPath, generatedMetadata, generatedWorkDir, err = createDefaultKoubouConfig(absInputPath, spec, req.Canvas)
-			if err != nil {
-				return nil, err
+		generatedWorkAttempt, err = createMatrixPrivateAttemptRoot()
+		if err != nil {
+			if rootedOutput == nil {
+				return nil, fmt.Errorf("create temp config directory: %w", err)
 			}
-			defer func() { _ = os.RemoveAll(generatedWorkDir) }()
-		} else {
-			generatedWorkAttempt, err = createMatrixPrivateAttemptRoot()
-			if err != nil {
-				return nil, fmt.Errorf("create Koubou work directory: %w", err)
-			}
-			generatedWorkDir = generatedWorkAttempt.path
-			generatedConfigPath, generatedMetadata, err = createDefaultKoubouConfigAtRoot(absInputPath, spec, req.Canvas, generatedWorkDir, generatedWorkAttempt.pinned)
-			if err != nil {
-				cleanupErr := cleanupMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				closeErr := closeMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				return nil, errors.Join(err, cleanupErr, closeErr)
-			}
-			generatedWorkRoot = &generatedWorkAttempt.root
-			if err := lockMatrixPrivateAttemptChild(&generatedWorkAttempt); err != nil {
-				cleanupErr := cleanupMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				closeErr := closeMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				return nil, errors.Join(fmt.Errorf("lock Koubou work directory: %w", err), cleanupErr, closeErr)
-			}
-			defer func() {
-				cleanupErr := cleanupMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				closeErr := closeMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				if resourceErr := errors.Join(cleanupErr, closeErr); resourceErr != nil {
-					result = nil
-					returnErr = errors.Join(returnErr, resourceErr)
-				}
-			}()
+			return nil, fmt.Errorf("create Koubou work directory: %w", err)
 		}
+		generatedConfigPath, generatedMetadata, err = createDefaultKoubouConfigAtRoot(absInputPath, spec, req.Canvas, generatedWorkAttempt.path, &generatedWorkAttempt)
+		if err != nil {
+			cleanupErr := cleanupMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			closeErr := closeMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			return nil, errors.Join(err, cleanupErr, closeErr)
+		}
+		generatedWorkRoot = &generatedWorkAttempt.root
+		if err := lockMatrixPrivateAttemptChild(&generatedWorkAttempt); err != nil {
+			cleanupErr := cleanupMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			closeErr := closeMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			return nil, errors.Join(fmt.Errorf("lock Koubou work directory: %w", err), cleanupErr, closeErr)
+		}
+		defer func() {
+			cleanupErr := cleanupMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			closeErr := closeMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			if resourceErr := errors.Join(cleanupErr, closeErr); resourceErr != nil {
+				result = nil
+				returnErr = errors.Join(returnErr, resourceErr)
+			}
+		}()
 		configPath = generatedConfigPath
 		metadata = generatedMetadata
 	} else {
@@ -641,20 +790,23 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 		if matrixFrameWorkRootBeforeReadForTest != nil {
 			matrixFrameWorkRootBeforeReadForTest(generatedWorkRoot.Path())
 		}
-		verifiedWorkRoot, verifyErr := generatedWorkRoot.OpenRoot()
-		if verifyErr != nil {
-			return nil, fmt.Errorf("koubou work directory changed during generation: %w", verifyErr)
-		}
-		if closeErr := verifiedWorkRoot.Close(); closeErr != nil {
-			return nil, fmt.Errorf("verify Koubou work directory: %w", closeErr)
-		}
-		generatedRelativePath, err = relativeMatrixOutputPath(generatedWorkRoot.Path(), generatedPath)
-		if err != nil {
-			return nil, fmt.Errorf("koubou output escapes rooted work directory: %w", err)
+		if rootedOutput != nil {
+			verifiedWorkRoot, verifyErr := generatedWorkRoot.OpenRoot()
+			if verifyErr != nil {
+				return nil, fmt.Errorf("koubou work directory changed during generation: %w", verifyErr)
+			}
+			if closeErr := verifiedWorkRoot.Close(); closeErr != nil {
+				return nil, fmt.Errorf("verify Koubou work directory: %w", closeErr)
+			}
+			generatedRelativePath, err = relativeMatrixOutputPath(generatedWorkRoot.Path(), generatedPath)
+			if err != nil {
+				return nil, fmt.Errorf("koubou output escapes rooted work directory: %w", err)
+			}
 		}
 	}
 
 	finalPath := generatedPath
+	var outputHash string
 	var rootedOutputPath string
 	if outputPath != "" {
 		absOutputPath, err := filepath.Abs(outputPath)
@@ -665,7 +817,8 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 			if err := os.MkdirAll(filepath.Dir(absOutputPath), 0o755); err != nil {
 				return nil, fmt.Errorf("create output directory: %w", err)
 			}
-			if err := copyFile(generatedPath, absOutputPath); err != nil {
+			outputHash, err = copyFileWithLimit(ctx, generatedPath, absOutputPath, maxMatrixArtifactBytes)
+			if err != nil {
 				return nil, err
 			}
 		} else {
@@ -686,10 +839,15 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 			if openErr != nil {
 				return nil, fmt.Errorf("open generated screenshot: %w", openErr)
 			}
-			written, writeErr := rootedOutput.WriteFromPreservingMode(rootedOutputPath, &matrixContextReader{ctx: ctx, reader: io.LimitReader(sourceFile, maxMatrixArtifactBytes+1)}, 0o644)
+			limited := &matrixArtifactLimitReader{
+				reader:    &matrixContextReader{ctx: ctx, reader: sourceFile},
+				remaining: maxMatrixArtifactBytes,
+			}
+			hasher := sha256.New()
+			written, writeErr := rootedOutput.WriteFromPreservingMode(rootedOutputPath, io.TeeReader(limited, hasher), 0o644)
 			closeErr := sourceFile.Close()
 			if writeErr != nil {
-				return nil, fmt.Errorf("publish framed screenshot: %w", writeErr)
+				return nil, errors.Join(fmt.Errorf("publish framed screenshot: %w", writeErr), closeErr)
 			}
 			if written > maxMatrixArtifactBytes {
 				return nil, errors.New("framed screenshot exceeds the artifact size limit")
@@ -697,6 +855,7 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 			if closeErr != nil {
 				return nil, fmt.Errorf("close generated screenshot: %w", closeErr)
 			}
+			outputHash = hex.EncodeToString(hasher.Sum(nil))
 			absOutputPath = filepath.Join(rootedOutput.Path(), rootedOutputPath)
 		}
 		finalPath = absOutputPath
@@ -730,6 +889,7 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 	normalized := dimensions.Width == metadata.UploadWidth && dimensions.Height == metadata.UploadHeight
 	absFinalPath, _ := filepath.Abs(finalPath)
 	return &FrameResult{
+		OutputHash:   outputHash,
 		Path:         absFinalPath,
 		FramePath:    metadata.FrameRef,
 		Device:       resultDevice,
@@ -775,17 +935,16 @@ func createDefaultKoubouConfigAt(
 	return createDefaultKoubouConfigAtRoot(absInputPath, spec, canvas, workDir, nil)
 }
 
-// createDefaultKoubouConfigAtRoot is the matrix-only variant of
-// createDefaultKoubouConfigAt. When workRoot is non-nil, all generated
-// directories and files are created relative to the already-pinned attempt
-// root. The path arguments remain only for the external Koubou contract and
-// diagnostics; they are not used to resolve the generated objects.
+// createDefaultKoubouConfigAtRoot creates generated directories and files
+// relative to the already-pinned attempt root. The path arguments remain only
+// for the external Koubou contract and diagnostics; they are not used to
+// resolve the generated objects.
 func createDefaultKoubouConfigAtRoot(
 	absInputPath string,
 	spec frameDeviceKoubouSpec,
 	canvas *CanvasOptions,
 	workDir string,
-	workRoot *os.Root,
+	workAttempt *matrixPrivateAttemptRoot,
 ) (string, frameExecutionMetadata, error) {
 	if strings.TrimSpace(workDir) == "" {
 		return "", frameExecutionMetadata{}, errors.New("koubou work directory is required")
@@ -793,8 +952,10 @@ func createDefaultKoubouConfigAtRoot(
 
 	kouOutputDir := filepath.Join(workDir, "output")
 	var outputErr error
-	if workRoot != nil {
-		outputErr = createMatrixPrivateAttemptOutputDirInRoot(workRoot)
+	var workRoot *os.Root
+	if workAttempt != nil {
+		workRoot = workAttempt.pinned
+		workAttempt.outputCreator, outputErr = createMatrixPrivateAttemptOutputDirInRootRetained(workRoot)
 	} else {
 		outputErr = createMatrixPrivateAttemptOutputDir(workDir)
 	}
@@ -893,15 +1054,7 @@ func createDefaultKoubouConfigAtRoot(
 			Frame:    boolPtr(false),
 		})
 	} else {
-		contentItems = []koubouDefaultContentItem{
-			{
-				Type:     "image",
-				Asset:    absInputPath,
-				Position: [2]string{"50%", "50%"},
-				Scale:    scale,
-				Frame:    boolPtr(true),
-			},
-		}
+		contentItems = bezelContentItems(absInputPath, scale, opts)
 	}
 
 	configPath := filepath.Join(workDir, "frame.yaml")
@@ -938,12 +1091,20 @@ func createDefaultKoubouConfigAtRoot(
 		_ = configFile.Close()
 		return "", frameExecutionMetadata{}, fmt.Errorf("write default Koubou YAML: %w", writeErr)
 	}
-	if err := lockMatrixPrivateAttemptFileHandle(configFile); err != nil {
-		_ = configFile.Close()
-		return "", frameExecutionMetadata{}, fmt.Errorf("protect default Koubou YAML: %w", err)
-	}
-	if err := configFile.Close(); err != nil {
-		return "", frameExecutionMetadata{}, fmt.Errorf("close default Koubou YAML: %w", err)
+	if workAttempt != nil {
+		configDACL, err := lockMatrixPrivateAttemptFileRetained(configFile)
+		if err != nil {
+			return "", frameExecutionMetadata{}, fmt.Errorf("protect default Koubou YAML: %w", err)
+		}
+		workAttempt.fileDACLs = append(workAttempt.fileDACLs, configDACL)
+	} else {
+		if err := lockMatrixPrivateAttemptFileHandle(configFile); err != nil {
+			_ = configFile.Close()
+			return "", frameExecutionMetadata{}, fmt.Errorf("protect default Koubou YAML: %w", err)
+		}
+		if err := configFile.Close(); err != nil {
+			return "", frameExecutionMetadata{}, fmt.Errorf("close default Koubou YAML: %w", err)
+		}
 	}
 
 	metadata := frameExecutionMetadata{
@@ -1398,24 +1559,68 @@ func selectGeneratedScreenshot(configPath string, results []koubouGenerateResult
 	return "", fmt.Errorf("koubou generation produced no successful output")
 }
 
-func copyFile(sourcePath, destinationPath string) error {
+type matrixArtifactLimitReader struct {
+	reader    io.Reader
+	remaining int64
+}
+
+func (reader *matrixArtifactLimitReader) Read(buffer []byte) (int, error) {
+	if reader.remaining == 0 {
+		var probe [1]byte
+		n, err := reader.reader.Read(probe[:])
+		if n > 0 {
+			return 0, errors.New("framed screenshot exceeds the artifact size limit")
+		}
+		return 0, err
+	}
+	if int64(len(buffer)) > reader.remaining {
+		buffer = buffer[:reader.remaining]
+	}
+	n, err := reader.reader.Read(buffer)
+	reader.remaining -= int64(n)
+	return n, err
+}
+
+func copyFileWithLimit(ctx context.Context, sourcePath, destinationPath string, limit int64) (digest string, returnErr error) {
 	sourceFile, err := os.Open(sourcePath)
 	if err != nil {
-		return fmt.Errorf("open generated screenshot: %w", err)
+		return "", fmt.Errorf("open generated screenshot: %w", err)
 	}
-	defer sourceFile.Close()
-
-	destinationFile, err := os.Create(destinationPath)
+	defer func() {
+		returnErr = errors.Join(returnErr, sourceFile.Close())
+	}()
+	sourceInfo, err := sourceFile.Stat()
 	if err != nil {
-		return fmt.Errorf("create final screenshot: %w", err)
+		return "", fmt.Errorf("inspect generated screenshot: %w", err)
 	}
-	defer destinationFile.Close()
+	if !sourceInfo.Mode().IsRegular() {
+		return "", errors.New("generated screenshot is not a regular file")
+	}
+	if sourceInfo.Size() > limit {
+		return "", errors.New("framed screenshot exceeds the artifact size limit")
+	}
 
-	buffer := make([]byte, 256*1024)
-	if _, err := io.CopyBuffer(destinationFile, sourceFile, buffer); err != nil {
-		return fmt.Errorf("copy generated screenshot: %w", err)
+	absoluteDestination, err := filepath.Abs(destinationPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve final screenshot: %w", err)
 	}
-	return nil
+	destinationRoot, err := rootfs.New(filepath.Dir(absoluteDestination))
+	if err != nil {
+		return "", fmt.Errorf("open final screenshot root: %w", err)
+	}
+	defer func() {
+		returnErr = errors.Join(returnErr, destinationRoot.Close())
+	}()
+	relativeDestination, err := filepath.Rel(destinationRoot.Path(), absoluteDestination)
+	if err != nil {
+		return "", fmt.Errorf("resolve final screenshot path: %w", err)
+	}
+	limited := &matrixArtifactLimitReader{reader: &matrixContextReader{ctx: ctx, reader: sourceFile}, remaining: limit}
+	hasher := sha256.New()
+	if _, err := destinationRoot.WriteFromPreservingMode(relativeDestination, io.TeeReader(limited, hasher), 0o644); err != nil {
+		return "", fmt.Errorf("publish final screenshot: %w", err)
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func resetKoubouVersionCacheForTest() {

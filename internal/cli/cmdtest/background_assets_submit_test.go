@@ -3,15 +3,372 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+func backgroundReviewSubmissionDetailJSON(resourceType, resourceID, state, platform, appID string) string {
+	return fmt.Sprintf(`{"data":{"type":%q,"id":%q,"attributes":{"state":%q,"platform":%q},"relationships":{"app":{"data":{"type":"apps","id":%q}}}}}`, resourceType, resourceID, state, platform, appID)
+}
+
+func TestBackgroundAssetsSubmitPreflightRejectsAdversarialResponses(t *testing.T) {
+	const (
+		appID       = "123456789"
+		platform    = "IOS"
+		validType   = "reviewSubmissions"
+		validID     = "sub-existing"
+		validState  = "READY_FOR_REVIEW"
+		validItemID = "item-1"
+	)
+	validDetail := backgroundReviewSubmissionDetailJSON(validType, validID, validState, platform, appID)
+	validCreate := backgroundReviewSubmissionDetailJSON(validType, "sub-created", validState, platform, appID)
+	validItems := `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-existing/items","next":""}}`
+
+	tests := []struct {
+		name               string
+		reuseID            string
+		createBody         string
+		detailBody         string
+		itemsBody          string
+		cancelStatus       int
+		cancelBody         string
+		wantErr            string
+		wantDetailRequests int32
+		wantCancelRequests int32
+	}{
+		{
+			name:               "missing item collection self link",
+			reuseID:            validID,
+			detailBody:         validDetail,
+			itemsBody:          `{"data":[{"type":"reviewSubmissionItems","id":"item-1"}],"links":{"next":""}}`,
+			wantErr:            "review submission items response links self is required",
+			wantDetailRequests: 1,
+		},
+		{
+			name:               "mixed item collection errors",
+			reuseID:            validID,
+			detailBody:         validDetail,
+			itemsBody:          `{"data":[],"errors":[{"status":"500","detail":"partial response"}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-existing/items"}}`,
+			wantErr:            "review submission items response must not contain top-level errors",
+			wantDetailRequests: 1,
+		},
+		{
+			name:               "wrong item resource type",
+			reuseID:            validID,
+			detailBody:         validDetail,
+			itemsBody:          fmt.Sprintf(`{"data":[{"type":"appStoreVersions","id":%q}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-existing/items","next":""}}`, validItemID),
+			wantErr:            "review submission items response data[0] type must be \"reviewSubmissionItems\"",
+			wantDetailRequests: 1,
+		},
+		{
+			name:               "empty item resource ID",
+			reuseID:            validID,
+			detailBody:         validDetail,
+			itemsBody:          `{"data":[{"type":"reviewSubmissionItems","id":""}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-existing/items","next":""}}`,
+			wantErr:            "review submission items response data[0] id must not be empty",
+			wantDetailRequests: 1,
+		},
+		{
+			name:               "background asset relationship missing linkage",
+			reuseID:            validID,
+			detailBody:         validDetail,
+			itemsBody:          `{"data":[{"type":"reviewSubmissionItems","id":"item-1","relationships":{"backgroundAssetVersion":{"links":{"related":"/v1/reviewSubmissionItems/item-1/backgroundAssetVersion"}}}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-existing/items","next":""}}`,
+			wantErr:            "background asset version relationship type \"\", not \"backgroundAssetVersions\"",
+			wantDetailRequests: 1,
+		},
+		{
+			name:               "existing submission wrong state",
+			reuseID:            validID,
+			detailBody:         backgroundReviewSubmissionDetailJSON(validType, validID, "WAITING_FOR_REVIEW", platform, appID),
+			itemsBody:          validItems,
+			wantErr:            "is in state \"WAITING_FOR_REVIEW\", not \"READY_FOR_REVIEW\"",
+			wantDetailRequests: 1,
+		},
+		{
+			name:               "existing submission wrong platform",
+			reuseID:            validID,
+			detailBody:         backgroundReviewSubmissionDetailJSON(validType, validID, validState, "MAC_OS", appID),
+			itemsBody:          validItems,
+			wantErr:            "is for platform \"MAC_OS\", not \"IOS\"",
+			wantDetailRequests: 1,
+		},
+		{
+			name:               "existing submission wrong app",
+			reuseID:            validID,
+			detailBody:         backgroundReviewSubmissionDetailJSON(validType, validID, validState, platform, "987654321"),
+			itemsBody:          validItems,
+			wantErr:            "belongs to app \"987654321\", not \"123456789\"",
+			wantDetailRequests: 1,
+		},
+		{
+			name:               "existing submission wrong ID",
+			reuseID:            validID,
+			detailBody:         backgroundReviewSubmissionDetailJSON(validType, "sub-other", validState, platform, appID),
+			itemsBody:          validItems,
+			wantErr:            "returned review submission sub-other instead of sub-existing",
+			wantDetailRequests: 1,
+		},
+		{
+			name:               "created receipt mixed errors",
+			createBody:         `{"data":{"type":"reviewSubmissions","id":"sub-created"},"errors":[{"status":"500","detail":"partial response"}]}`,
+			itemsBody:          validItems,
+			wantErr:            "review submission response must not contain top-level errors",
+			wantCancelRequests: 1,
+		},
+		{
+			name:               "created receipt mixed errors and rollback fails",
+			createBody:         `{"data":{"type":"reviewSubmissions","id":"sub-created"},"errors":[]}`,
+			itemsBody:          validItems,
+			cancelStatus:       http.StatusInternalServerError,
+			cancelBody:         `{"errors":[{"status":"500","detail":"cancel unavailable"}]}`,
+			wantErr:            `submission "sub-created" is leaked`,
+			wantCancelRequests: 1,
+		},
+		{
+			name:               "created receipt wrong resource type",
+			createBody:         backgroundReviewSubmissionDetailJSON("appStoreVersions", "sub-created", validState, platform, appID),
+			itemsBody:          validItems,
+			wantErr:            "created review submission returned resource type \"appStoreVersions\"",
+			wantCancelRequests: 1,
+		},
+		{
+			name:       "created receipt empty ID",
+			createBody: backgroundReviewSubmissionDetailJSON(validType, "", validState, platform, appID),
+			itemsBody:  validItems,
+			wantErr:    "created review submission returned an empty ID",
+		},
+		{
+			name:               "created receipt wrong state",
+			createBody:         backgroundReviewSubmissionDetailJSON(validType, "sub-created", "WAITING_FOR_REVIEW", platform, appID),
+			itemsBody:          validItems,
+			wantErr:            "created review submission sub-created is in state \"WAITING_FOR_REVIEW\"",
+			wantCancelRequests: 1,
+		},
+		{
+			name:               "created receipt wrong platform",
+			createBody:         backgroundReviewSubmissionDetailJSON(validType, "sub-created", validState, "MAC_OS", appID),
+			itemsBody:          validItems,
+			wantErr:            "created review submission sub-created is for platform \"MAC_OS\"",
+			wantCancelRequests: 1,
+		},
+		{
+			name:               "created receipt wrong app",
+			createBody:         backgroundReviewSubmissionDetailJSON(validType, "sub-created", validState, platform, "987654321"),
+			itemsBody:          validItems,
+			wantErr:            "created review submission sub-created belongs to app \"987654321\"",
+			wantCancelRequests: 1,
+		},
+		{
+			name:               "created detail wrong state",
+			createBody:         validCreate,
+			detailBody:         backgroundReviewSubmissionDetailJSON(validType, "sub-created", "WAITING_FOR_REVIEW", platform, appID),
+			itemsBody:          validItems,
+			wantErr:            "is in state \"WAITING_FOR_REVIEW\", not \"READY_FOR_REVIEW\"",
+			wantDetailRequests: 1,
+			wantCancelRequests: 1,
+		},
+		{
+			name:               "created detail wrong platform",
+			createBody:         validCreate,
+			detailBody:         backgroundReviewSubmissionDetailJSON(validType, "sub-created", validState, "MAC_OS", appID),
+			itemsBody:          validItems,
+			wantErr:            "is for platform \"MAC_OS\", not \"IOS\"",
+			wantDetailRequests: 1,
+			wantCancelRequests: 1,
+		},
+		{
+			name:               "created detail wrong app",
+			createBody:         validCreate,
+			detailBody:         backgroundReviewSubmissionDetailJSON(validType, "sub-created", validState, platform, "987654321"),
+			itemsBody:          validItems,
+			wantErr:            "belongs to app \"987654321\", not \"123456789\"",
+			wantDetailRequests: 1,
+			wantCancelRequests: 1,
+		},
+		{
+			name:               "created detail wrong ID",
+			createBody:         validCreate,
+			detailBody:         backgroundReviewSubmissionDetailJSON(validType, "sub-other", validState, platform, appID),
+			itemsBody:          validItems,
+			wantErr:            "returned review submission sub-other instead of sub-created",
+			wantDetailRequests: 1,
+			wantCancelRequests: 1,
+		},
+		{
+			name:               "created detail mixed errors",
+			createBody:         validCreate,
+			detailBody:         `{"data":{"type":"reviewSubmissions","id":"sub-created"},"errors":[{"status":"500","detail":"partial response"}]}`,
+			itemsBody:          validItems,
+			wantErr:            "review submission response must not contain top-level errors",
+			wantDetailRequests: 1,
+			wantCancelRequests: 1,
+		},
+		{
+			name:               "created item collection missing self link",
+			createBody:         validCreate,
+			detailBody:         backgroundReviewSubmissionDetailJSON(validType, "sub-created", validState, platform, appID),
+			itemsBody:          `{"data":[],"links":{}}`,
+			wantErr:            "review submission items response links self is required",
+			wantDetailRequests: 1,
+			wantCancelRequests: 1,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+			var detailRequests, cancelRequests, itemPosts int32
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				path := req.URL.Path
+				switch {
+				case req.Method == http.MethodPost && path == "/v1/reviewSubmissions":
+					if test.createBody == "" {
+						t.Fatalf("unexpected review submission create")
+					}
+					return jsonResponse(http.StatusCreated, test.createBody)
+				case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/reviewSubmissions/") && !strings.HasSuffix(path, "/items"):
+					atomic.AddInt32(&detailRequests, 1)
+					body := test.detailBody
+					if body == "" {
+						body = backgroundReviewSubmissionDetailJSON(validType, "sub-created", validState, platform, appID)
+					}
+					return jsonResponse(http.StatusOK, body)
+				case req.Method == http.MethodGet && strings.HasSuffix(path, "/items"):
+					body := test.itemsBody
+					if body == "" {
+						body = validItems
+					}
+					return jsonResponse(http.StatusOK, body)
+				case req.Method == http.MethodPost && path == "/v1/reviewSubmissionItems":
+					atomic.AddInt32(&itemPosts, 1)
+					return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-created"}}`)
+				case req.Method == http.MethodPatch:
+					atomic.AddInt32(&cancelRequests, 1)
+					status := test.cancelStatus
+					if status == 0 {
+						status = http.StatusOK
+					}
+					body := test.cancelBody
+					if body == "" {
+						body = `{"data":{"type":"reviewSubmissions","id":"sub-created","attributes":{"state":"CANCELING"}}}`
+					}
+					return jsonResponse(status, body)
+				default:
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			})
+
+			args := []string{"background-assets", "submit", "--app", appID, "--version-id", "version-1", "--confirm", "--output", "json"}
+			if test.reuseID != "" {
+				args = append(args, "--review-submission-id", test.reuseID)
+			} else if test.createBody == "" {
+				t.Fatalf("test case must specify reuseID or createBody")
+			}
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			_, _ = captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+			if runErr == nil {
+				t.Fatalf("expected preflight error containing %q", test.wantErr)
+			}
+			if !strings.Contains(runErr.Error(), test.wantErr) {
+				t.Fatalf("error = %q, want substring %q", runErr, test.wantErr)
+			}
+			if got := atomic.LoadInt32(&itemPosts); got != 0 {
+				t.Fatalf("expected zero review-submission item POSTs, got %d", got)
+			}
+			if got := atomic.LoadInt32(&detailRequests); got != test.wantDetailRequests {
+				t.Fatalf("detail requests = %d, want %d", got, test.wantDetailRequests)
+			}
+			if got := atomic.LoadInt32(&cancelRequests); got != test.wantCancelRequests {
+				t.Fatalf("cancel requests = %d, want %d", got, test.wantCancelRequests)
+			}
+		})
+	}
+}
+
+func TestBackgroundAssetsSubmitStopsBeforeFetchingItemPageBeyondLimit(t *testing.T) {
+	const (
+		appID        = "123456789"
+		submissionID = "sub-existing"
+	)
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	var itemGets, itemPosts int32
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/"+submissionID:
+			return jsonResponse(http.StatusOK, backgroundReviewSubmissionDetailJSON("reviewSubmissions", submissionID, "READY_FOR_REVIEW", "IOS", appID))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/"+submissionID+"/items":
+			page := atomic.AddInt32(&itemGets, 1)
+			next := fmt.Sprintf("https://api.appstoreconnect.apple.com/v1/reviewSubmissions/%s/items?page=%d", submissionID, page+1)
+			body := fmt.Sprintf(`{"data":[],"links":{"self":%q,"next":%q}}`, req.URL.String(), next)
+			return jsonResponse(http.StatusOK, body)
+		case req.Method == http.MethodPost:
+			atomic.AddInt32(&itemPosts, 1)
+			return jsonResponse(http.StatusInternalServerError, `{"errors":[{"detail":"unexpected mutation"}]}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	args := []string{
+		"background-assets", "submit",
+		"--app", appID,
+		"--version-id", "version-1",
+		"--review-submission-id", submissionID,
+		"--confirm",
+		"--output", "json",
+	}
+	if err := root.Parse(args); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	_, _ = captureOutput(t, func() {
+		err := root.Run(context.Background())
+		if err == nil || !strings.Contains(err.Error(), "page 1001 exceeds the maximum of 1000 pages") {
+			t.Fatalf("error = %v, want pagination limit failure", err)
+		}
+	})
+
+	if got := atomic.LoadInt32(&itemGets); got != 1000 {
+		t.Fatalf("item GET requests = %d, want 1000", got)
+	}
+	if got := atomic.LoadInt32(&itemPosts); got != 0 {
+		t.Fatalf("mutation POST requests = %d, want 0", got)
+	}
+}
 
 func TestBackgroundAssetsSubmitValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
@@ -186,6 +543,10 @@ func TestBackgroundAssetsSubmitAllHappyPath(t *testing.T) {
 		case req.Method == http.MethodPost && path == "/v1/reviewSubmissions":
 			atomic.AddInt32(&c.createSubmission, 1)
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-xyz","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}}`)
+		case req.Method == http.MethodGet && path == "/v1/reviewSubmissions/sub-xyz":
+			return jsonResponse(http.StatusOK, backgroundReviewSubmissionDetailJSON("reviewSubmissions", "sub-xyz", "READY_FOR_REVIEW", "IOS", "123456789"))
+		case req.Method == http.MethodGet && path == "/v1/reviewSubmissions/sub-xyz/items":
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-xyz/items"}}`)
 		case req.Method == http.MethodPost && path == "/v1/reviewSubmissionItems":
 			atomic.AddInt32(&c.createItem, 1)
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-`+req.URL.Path+`"}}`)
@@ -288,6 +649,8 @@ func TestBackgroundAssetsSubmitReuseExistingSkipsAttached(t *testing.T) {
 			return jsonResponse(http.StatusOK, `{"data":[
 				{"type":"backgroundAssetVersions","id":"`+assetID+`-v1","attributes":{"state":"COMPLETE","version":"1","platforms":["IOS"]}}
 			],"links":{"next":""}}`)
+		case req.Method == http.MethodGet && path == "/v1/reviewSubmissions/sub-existing":
+			return jsonResponse(http.StatusOK, backgroundReviewSubmissionDetailJSON("reviewSubmissions", "sub-existing", "READY_FOR_REVIEW", "IOS", "123456789"))
 		case req.Method == http.MethodGet && path == "/v1/reviewSubmissions/sub-existing/items":
 			atomic.AddInt32(&listItems, 1)
 			if include := req.URL.Query().Get("include"); !strings.Contains(include, "backgroundAssetVersion") {
@@ -295,7 +658,7 @@ func TestBackgroundAssetsSubmitReuseExistingSkipsAttached(t *testing.T) {
 			}
 			return jsonResponse(http.StatusOK, `{"data":[
 				{"type":"reviewSubmissionItems","id":"existing-item-1","attributes":{"state":"READY_FOR_REVIEW"},"relationships":{"backgroundAssetVersion":{"data":{"type":"backgroundAssetVersions","id":"asset-1-v1"}}}}
-			],"links":{"next":""}}`)
+			],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-existing/items","next":""}}`)
 		case req.Method == http.MethodPost && path == "/v1/reviewSubmissions":
 			atomic.AddInt32(&createSubmission, 1)
 			t.Errorf("CreateReviewSubmission should not be called when reusing")
@@ -394,6 +757,10 @@ func TestBackgroundAssetsSubmitRollsBackEmptySubmissionOnFirstAttachFailure(t *t
 		case req.Method == http.MethodPost && path == "/v1/reviewSubmissions":
 			atomic.AddInt32(&createSubmission, 1)
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-doomed","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}}`)
+		case req.Method == http.MethodGet && path == "/v1/reviewSubmissions/sub-doomed":
+			return jsonResponse(http.StatusOK, backgroundReviewSubmissionDetailJSON("reviewSubmissions", "sub-doomed", "READY_FOR_REVIEW", "IOS", "123456789"))
+		case req.Method == http.MethodGet && path == "/v1/reviewSubmissions/sub-doomed/items":
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-doomed/items"}}`)
 		case req.Method == http.MethodPost && path == "/v1/reviewSubmissionItems":
 			return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.STATE_NOT_ALLOWED","detail":"already attached to another submission"}]}`)
 		case req.Method == http.MethodPatch && path == "/v1/reviewSubmissions/sub-doomed":
@@ -528,5 +895,126 @@ func TestBackgroundAssetsSubmitFlagOrderEdgeCases(t *testing.T) {
 				t.Fatalf("expected dryRun=true in stdout JSON, got %q", stdout)
 			}
 		})
+	}
+}
+
+func TestBackgroundAssetsSubmitRenewsAttachBudgetAndRollsBackFailure(t *testing.T) {
+	const (
+		appID        = "123456789"
+		submissionID = "sub-created"
+		timeout      = 700 * time.Millisecond
+	)
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_TIMEOUT", timeout.String())
+	t.Setenv("ASC_TIMEOUT_SECONDS", "")
+	t.Setenv("ASC_MAX_RETRIES", "0")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			_, _ = io.WriteString(w, backgroundReviewSubmissionDetailJSON("reviewSubmissions", submissionID, "READY_FOR_REVIEW", "IOS", appID))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/"+submissionID:
+			// These individually bounded reads consume most of the old shared
+			// command deadline before the attach begins.
+			time.Sleep(250 * time.Millisecond)
+			_, _ = io.WriteString(w, backgroundReviewSubmissionDetailJSON("reviewSubmissions", submissionID, "READY_FOR_REVIEW", "IOS", appID))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/"+submissionID+"/items":
+			time.Sleep(350 * time.Millisecond)
+			_, _ = io.WriteString(w, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-created/items","next":""}}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			time.Sleep(250 * time.Millisecond)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = io.WriteString(w, `{"errors":[{"status":"500","detail":"attach failed"}]}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/"+submissionID:
+			var body struct {
+				Data struct {
+					Attributes struct {
+						Canceled *bool `json:"canceled"`
+					} `json:"attributes"`
+				} `json:"data"`
+			}
+			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+				t.Errorf("decode rollback request: %v", err)
+			} else if body.Data.Attributes.Canceled == nil || !*body.Data.Attributes.Canceled {
+				t.Errorf("rollback canceled attribute = %v, want true", body.Data.Attributes.Canceled)
+			}
+			_, _ = io.WriteString(w, `{"data":{"type":"reviewSubmissions","id":"sub-created","attributes":{"state":"CANCELING"}}}`)
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse test server URL: %v", err)
+	}
+	serverTransport := server.Client().Transport
+	attachBudget := make(chan time.Duration, 1)
+	rollbackBudget := make(chan time.Duration, 1)
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if deadline, ok := req.Context().Deadline(); ok {
+			remaining := time.Until(deadline)
+			switch {
+			case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+				attachBudget <- remaining
+			case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/"+submissionID:
+				rollbackBudget <- remaining
+			}
+		} else if req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems" {
+			attachBudget <- 0
+		} else if req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/"+submissionID {
+			rollbackBudget <- 0
+		}
+
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return serverTransport.RoundTrip(cloned)
+	})
+	client, err := asc.NewClientWithHTTPClient(
+		os.Getenv("ASC_KEY_ID"),
+		os.Getenv("ASC_ISSUER_ID"),
+		os.Getenv("ASC_PRIVATE_KEY_PATH"),
+		&http.Client{Transport: transport},
+	)
+	if err != nil {
+		t.Fatalf("create background-assets submit client: %v", err)
+	}
+	restoreClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil })
+	t.Cleanup(restoreClient)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	args := []string{
+		"background-assets", "submit",
+		"--app", appID,
+		"--version-id", "version-1",
+		"--confirm",
+		"--output", "json",
+	}
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse(args); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if runErr == nil || !strings.Contains(runErr.Error(), "attach version") || !strings.Contains(runErr.Error(), "rolled back the submission") {
+		t.Fatalf("run error = %v, want failed attach followed by rollback", runErr)
+	}
+	if got := <-attachBudget; got < 500*time.Millisecond {
+		t.Fatalf("attach request had only %s remaining, want a fresh per-request budget near %s", got, timeout)
+	}
+	if got := <-rollbackBudget; got < 500*time.Millisecond {
+		t.Fatalf("rollback request had only %s remaining, want an independent fresh budget", got)
 	}
 }

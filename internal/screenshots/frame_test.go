@@ -2,6 +2,7 @@ package screenshots
 
 import (
 	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -150,6 +151,94 @@ func TestDisplayTypeForDimensions_Mac(t *testing.T) {
 		if !ok || displayType != "APP_DESKTOP" {
 			t.Fatalf("displayTypeForDimensions(%d, %d) = %q, %v; want APP_DESKTOP, true", sz[0], sz[1], displayType, ok)
 		}
+	}
+}
+
+func TestCopyFileRejectsSymlinkDestinationWithoutMutatingTarget(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "generated.png")
+	if err := os.WriteFile(source, []byte("generated"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(t.TempDir(), "target.png")
+	if err := os.WriteFile(target, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(dir, "framed.png")
+	if err := os.Symlink(target, destination); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := copyFileWithLimit(t.Context(), source, destination, maxMatrixArtifactBytes); err == nil {
+		t.Fatal("copyFile() error = nil, want symlink destination rejection")
+	}
+	contents, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(contents) != "keep" {
+		t.Fatalf("symlink target changed to %q", contents)
+	}
+	info, err := os.Lstat(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("destination mode = %v, want symlink preserved", info.Mode())
+	}
+}
+
+func TestCopyFileAtomicallyPublishesRegularDestination(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "generated.png")
+	destination := filepath.Join(dir, "framed.png")
+	if err := os.WriteFile(source, []byte("generated"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destination, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := copyFileWithLimit(t.Context(), source, destination, maxMatrixArtifactBytes); err != nil {
+		t.Fatalf("copyFile() error = %v", err)
+	}
+	contents, err := os.ReadFile(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(contents) != "generated" {
+		t.Fatalf("destination contents = %q, want generated", contents)
+	}
+	info, err := os.Stat(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Windows reports synthetic permission bits; the DACL tests cover access there.
+	if got := info.Mode().Perm(); runtime.GOOS != "windows" && got != 0o600 {
+		t.Fatalf("destination mode = %#o, want %#o", got, 0o600)
+	}
+}
+
+func TestCopyFileRejectsOversizedSourceWithoutReplacingDestination(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "generated.png")
+	destination := filepath.Join(dir, "framed.png")
+	if err := os.WriteFile(source, []byte("oversized"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destination, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := copyFileWithLimit(t.Context(), source, destination, 4); err == nil {
+		t.Fatal("copyFileWithLimit() error = nil, want size-limit rejection")
+	}
+	contents, err := os.ReadFile(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(contents) != "keep" {
+		t.Fatalf("destination contents = %q, want original contents", contents)
 	}
 }
 
@@ -410,6 +499,12 @@ func TestFrame_InputModeCleansTemporaryKoubouDirectory(t *testing.T) {
 	installFrameTestMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
 
 	before := listFrameTempWorkDirs(t)
+	previousWorkRootHook := matrixFrameWorkRootBeforeReadForTest
+	var generatedWorkRoot string
+	matrixFrameWorkRootBeforeReadForTest = func(path string) {
+		generatedWorkRoot = path
+	}
+	t.Cleanup(func() { matrixFrameWorkRootBeforeReadForTest = previousWorkRootHook })
 	outputPath := filepath.Join(t.TempDir(), "framed", "home.png")
 	result, err := Frame(context.Background(), FrameRequest{
 		InputPath:  rawPath,
@@ -421,6 +516,19 @@ func TestFrame_InputModeCleansTemporaryKoubouDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(result.Path); err != nil {
 		t.Fatalf("expected output file at %q: %v", result.Path, err)
+	}
+	outputHash, err := HashFile(t.Context(), result.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.OutputHash != outputHash {
+		t.Fatalf("published output hash = %q, want %q", result.OutputHash, outputHash)
+	}
+	if generatedWorkRoot == "" {
+		t.Fatal("direct Frame() did not use the pinned Koubou work root")
+	}
+	if _, err := os.Stat(generatedWorkRoot); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("direct Frame() work root stat error = %v, want cleaned up", err)
 	}
 
 	for _, dir := range listFrameTempWorkDirs(t) {
@@ -654,7 +762,7 @@ func TestCreateDefaultKoubouConfig_CanvasCustomColors(t *testing.T) {
 func listFrameTempWorkDirs(t *testing.T) []string {
 	t.Helper()
 
-	pattern := filepath.Join(os.TempDir(), "asc-shots-kou-*")
+	pattern := filepath.Join(os.TempDir(), ".asc-matrix-attempt-ns-*")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		t.Fatalf("filepath.Glob(%q) error: %v", pattern, err)

@@ -47,7 +47,7 @@ Examples:
 func ExperimentTreatmentLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("treatment-localizations list", flag.ExitOnError)
 
-	treatmentID := fs.String("treatment-id", "", "Treatment ID")
+	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -122,7 +122,7 @@ Examples:
 func ExperimentTreatmentLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("treatment-localizations view", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Treatment localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -164,7 +164,7 @@ Examples:
 func ExperimentTreatmentLocalizationsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("treatment-localizations create", flag.ExitOnError)
 
-	treatmentID := fs.String("treatment-id", "", "Treatment ID")
+	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
 	locale := fs.String("locale", "", "Localization locale (e.g., en-US)")
 	output := shared.BindOutputFlags(fs)
 
@@ -213,7 +213,7 @@ Examples:
 func ExperimentTreatmentLocalizationsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("treatment-localizations delete", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Treatment localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

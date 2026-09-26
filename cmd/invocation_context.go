@@ -147,6 +147,20 @@ func printConciseUnknownFlag(root *ffcli.Command, analysis invocationAnalysis, c
 	if printRemovedFlagHint(os.Stderr, commandName, flagName, analysis.command.FlagSet) {
 		return
 	}
+	if name, ok := flagLookupName(flagName); ok && name == rootProfileFlagName &&
+		root != nil && root.FlagSet != nil && root.FlagSet.Lookup(name) != nil {
+		// `--profile` is accepted after the command name, so it is never an
+		// unknown flag there and placement is never the failure. It only
+		// reaches this path when no profile name could be read from the
+		// invocation, so report exactly that.
+		fmt.Fprintf(
+			os.Stderr,
+			"Error: `%s` needs a profile name; pass `--%s=NAME`.\nFor help:\n  asc --help\n",
+			shared.SanitizeTerminal(flagName),
+			rootProfileFlagName,
+		)
+		return
+	}
 	fmt.Fprintf(os.Stderr, "Error: %s\n", unknownFlagError(analysis, commandName))
 	if printMetadataValidateFlagRecovery(flagName, commandName, analysis, args) {
 		return
@@ -160,24 +174,11 @@ func printConciseUnknownFlag(root *ffcli.Command, analysis invocationAnalysis, c
 		return
 	}
 
-	visibleFlags := shared.VisibleHelpFlags(analysis.command.FlagSet)
-	candidates := make([]string, 0, len(visibleFlags))
-	for _, item := range visibleFlags {
-		if isDeprecatedFlagHelp(item.Usage) {
-			continue
-		}
-		candidates = append(candidates, item.Name)
-	}
-	suggestions := suggest.Flags(strings.TrimLeft(flagName, "-"), candidates)
-	if len(suggestions) > 2 {
-		suggestions = suggestions[:2]
-	}
-	if len(suggestions) > 0 {
-		fmt.Fprintln(os.Stderr, "Try:")
-		for _, suggestion := range suggestions {
-			fmt.Fprintf(os.Stderr, "  --%s\n", shared.SanitizeTerminal(suggestion))
-		}
-	}
+	printFlagSuggestions(os.Stderr, unknownFlagSuggestions(
+		analysis.command.FlagSet,
+		flagName,
+		unknownFlagSuggestionOptions{allowSelectorFallback: true},
+	))
 	fmt.Fprintln(os.Stderr, "For help:")
 	fmt.Fprintf(os.Stderr, "  %s --help\n", commandName)
 }

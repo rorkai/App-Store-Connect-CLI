@@ -38,7 +38,7 @@ Examples:
 func VersionsAppClipDefaultExperienceGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-clip-default-experience view", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

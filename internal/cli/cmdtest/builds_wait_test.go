@@ -911,15 +911,25 @@ func TestBuildsWaitFailOnInvalidReturnsError(t *testing.T) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/builds/build-1" {
-			t.Fatalf("expected path /v1/builds/build-1, got %s", req.URL.Path)
+		if req.URL.Path == "/v1/builds/build-1" {
+			body := `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"INVALID","version":"42"}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
 		}
-		body := `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"INVALID","version":"42"}}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
+		// Failure enrichment looks up the build's app and upload. Those lookups
+		// are best-effort; this test only requires the state error.
+		if strings.HasPrefix(req.URL.Path, "/v1/builds/build-1/") || strings.HasPrefix(req.URL.Path, "/v1/apps/") || strings.HasPrefix(req.URL.Path, "/v1/buildUploads") {
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"404","code":"NOT_FOUND"}]}`)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		}
+		t.Fatalf("unexpected path %s", req.URL.Path)
+		return nil, nil
 	})
 
 	root := RootCommand("1.2.3")
@@ -963,15 +973,25 @@ func TestBuildsWaitFailedStateReturnsError(t *testing.T) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/builds/build-1" {
-			t.Fatalf("expected path /v1/builds/build-1, got %s", req.URL.Path)
+		if req.URL.Path == "/v1/builds/build-1" {
+			body := `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"FAILED","version":"42"}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
 		}
-		body := `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"FAILED","version":"42"}}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
+		// Failure enrichment looks up the build's app and upload. Those lookups
+		// are best-effort; this test only requires the state error.
+		if strings.HasPrefix(req.URL.Path, "/v1/builds/build-1/") || strings.HasPrefix(req.URL.Path, "/v1/apps/") || strings.HasPrefix(req.URL.Path, "/v1/buildUploads") {
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"404","code":"NOT_FOUND"}]}`)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		}
+		t.Fatalf("unexpected path %s", req.URL.Path)
+		return nil, nil
 	})
 
 	root := RootCommand("1.2.3")

@@ -60,7 +60,7 @@ type metadataKeywordsPushInputObject struct {
 func MetadataKeywordsPushCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("metadata keywords push", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	inputPath := fs.String("input", "", "Input JSON file path (required)")
 	continueOnError := fs.String("continue-on-error", "true", "Continue processing locales after failures (default true)")
 	output := shared.BindOutputFlags(fs)

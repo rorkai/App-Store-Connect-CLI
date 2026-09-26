@@ -117,7 +117,7 @@ Examples:
 func AlternativeDistributionKeysGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	keyID := fs.String("key-id", "", "Alternative distribution key ID")
+	keyID := shared.BindResourceIDFlag(fs, "key-id", "alternativeDistributionKeys", "Alternative distribution key ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -221,7 +221,7 @@ Examples:
 func AlternativeDistributionKeysDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	keyID := fs.String("key-id", "", "Alternative distribution key ID")
+	keyID := shared.BindResourceIDFlag(fs, "key-id", "alternativeDistributionKeys", "Alternative distribution key ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

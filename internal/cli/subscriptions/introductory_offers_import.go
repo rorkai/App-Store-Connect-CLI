@@ -23,7 +23,7 @@ import (
 func SubscriptionsIntroductoryOffersImportCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("introductory-offers import", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	inputPath := fs.String("input", "", "Input CSV file path (required)")
 	offerDuration := fs.String("offer-duration", "", "Default offer duration")

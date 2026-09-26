@@ -15,9 +15,13 @@ func TestSubmitResolvedVersionRejectsUnverifiedConflictSubmission(t *testing.T) 
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
 			return submitJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-submission"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/new-submission":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-submission","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/new-submission/items":
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/new-submission/items"}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
 			return submitJSONResponse(http.StatusConflict, submitAlreadyAddedConflictBody("conflict-submission"))
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/conflict-submission":
@@ -47,12 +51,12 @@ func TestSubmitResolvedVersionRejectsUnverifiedConflictSubmission(t *testing.T) 
 							}
 						}
 					}],
-					"links": {"next": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/conflict-submission/items?cursor=page-2"}
+					"links": {"self": "/v1/reviewSubmissions/conflict-submission/items", "next": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/conflict-submission/items?cursor=page-2"}
 				}`)
 			}
 			return submitJSONResponse(http.StatusOK, `{
 				"data": [{"type": "reviewSubmissionItems", "id": "unrelated-item"}],
-				"links": {}
+				"links": {"self": "/v1/reviewSubmissions/conflict-submission/items"}
 			}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-submission":
 			canceledCreatedSubmission = true
@@ -96,9 +100,13 @@ func TestSubmitResolvedVersionPreservesCreatedSubmissionAfterAmbiguousAddFailure
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
 			return submitJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-submission"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/new-submission":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-submission","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/new-submission/items":
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/new-submission/items"}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
 			return nil, fmt.Errorf("connection closed after sending item request")
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-submission":
@@ -134,9 +142,13 @@ func TestSubmitResolvedVersionPreservesCreatedSubmissionAfterConflictRecovery(t 
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
 			return submitJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-submission"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/new-submission":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-submission","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/new-submission/items":
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/new-submission/items"}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
 			return submitJSONResponse(http.StatusConflict, submitAlreadyAddedConflictBody("conflict-submission"))
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/conflict-submission":
@@ -161,7 +173,7 @@ func TestSubmitResolvedVersionPreservesCreatedSubmissionAfterConflictRecovery(t 
 						}
 					}
 				}],
-				"links": {}
+				"links": {"self": "/v1/reviewSubmissions/existing-submission/items"}
 			}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-submission":
 			canceledCreatedSubmission = true
@@ -282,7 +294,7 @@ func TestSubmitResolvedVersionReusesTargetOnlySubmissionWithoutVersionRelationsh
 					"id": "existing-submission",
 					"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
 				}],
-				"links": {}
+				"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-submission":
 			detailReads++
@@ -308,7 +320,7 @@ func TestSubmitResolvedVersionReusesTargetOnlySubmissionWithoutVersionRelationsh
 						}
 					}
 				}],
-				"links": {}
+				"links": {"self": "/v1/reviewSubmissions/existing-submission/items"}
 			}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/existing-submission":
 			submitted = true
@@ -358,10 +370,11 @@ func TestPrepareReviewSubmissionForCreateNeverCancelsExistingSubmission(t *testi
 							"data": {"type": "appStoreVersions", "id": "version-2"}
 						}
 					}
-				}]
+				}],
+				"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/other-version-submission/items":
-			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/other-version-submission/items"}}`)
 		case req.Method == http.MethodPatch:
 			canceled = true
 			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"other-version-submission"}}`)

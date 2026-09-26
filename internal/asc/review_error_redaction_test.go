@@ -41,6 +41,11 @@ func assertSubmittedPasswordRedacted(t *testing.T, err error) {
 	if strings.Contains(apiErr.Error(), submittedPasswordErrorSentinel) {
 		t.Fatalf("errors.As exposed submitted password: %v", apiErr)
 	}
+	for _, detail := range apiErr.AllDetails {
+		if strings.Contains(detail, submittedPasswordErrorSentinel) {
+			t.Fatalf("errors.As exposed submitted password through AllDetails: %q", detail)
+		}
+	}
 	if !errors.Is(err, ErrBadRequest) {
 		t.Fatalf("bad-request classification was not preserved: %v", err)
 	}

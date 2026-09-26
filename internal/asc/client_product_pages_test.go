@@ -144,8 +144,15 @@ func TestGetAppCustomProductPage_SendsRequest(t *testing.T) {
 }
 
 func TestCreateAppCustomProductPage_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appCustomProductPages","id":"page-1","attributes":{"name":"Summer"}}}`)
+	appResponse := jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`)
+	createResponse := jsonResponse(http.StatusCreated, `{"data":{"type":"appCustomProductPages","id":"page-1","attributes":{"name":"Summer"}}}`)
+	sawAppGet := false
 	client := newTestClient(t, func(req *http.Request) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1" {
+			sawAppGet = true
+			assertAuthorized(t, req)
+			return
+		}
 		if req.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", req.Method)
 		}
@@ -172,11 +179,62 @@ func TestCreateAppCustomProductPage_SendsRequest(t *testing.T) {
 		if payload.Data.Relationships.App.Data.ID != "app-1" {
 			t.Fatalf("expected app ID app-1, got %q", payload.Data.Relationships.App.Data.ID)
 		}
+		versions := payload.Data.Relationships.AppCustomProductPageVersions.Data
+		if len(versions) != 1 {
+			t.Fatalf("expected one inline appCustomProductPageVersions linkage, got %#v", versions)
+		}
+		version := versions[0]
+		if version.Type != ResourceTypeAppCustomProductPageVersions || version.ID != "${new-appCustomProductPageVersion-id}" {
+			t.Fatalf("unexpected inline version linkage: %#v", version)
+		}
+		if len(payload.Included) != 2 {
+			t.Fatalf("expected an included version and localization, got %#v", payload.Included)
+		}
+		includedVersion := payload.Included[0]
+		if includedVersion.Type != version.Type || includedVersion.ID != version.ID {
+			t.Fatalf("included version does not match relationship linkage: %#v", includedVersion)
+		}
+		if includedVersion.Relationships == nil {
+			t.Fatal("expected inline version relationships")
+		}
+		localizations := includedVersion.Relationships.AppCustomProductPageLocalizations.Data
+		if len(localizations) != 1 {
+			t.Fatalf("expected one inline localization linkage, got %#v", localizations)
+		}
+		localization := localizations[0]
+		if localization.Type != ResourceTypeAppCustomProductPageLocalizations || localization.ID != "${new-appCustomProductPageLocalization-id}" {
+			t.Fatalf("unexpected inline localization linkage: %#v", localization)
+		}
+		includedLocalization := payload.Included[1]
+		if includedLocalization.Type != localization.Type || includedLocalization.ID != localization.ID {
+			t.Fatalf("included localization does not match relationship linkage: %#v", includedLocalization)
+		}
+		if includedLocalization.Attributes == nil || includedLocalization.Attributes.Locale != "en-US" {
+			t.Fatalf("expected localization to use app primary locale en-US, got %#v", includedLocalization.Attributes)
+		}
 		assertAuthorized(t, req)
-	}, response)
+	}, appResponse, createResponse)
 
 	if _, err := client.CreateAppCustomProductPage(context.Background(), "app-1", "Summer"); err != nil {
 		t.Fatalf("CreateAppCustomProductPage() error: %v", err)
+	}
+	if !sawAppGet {
+		t.Fatal("expected app primary locale lookup")
+	}
+}
+
+func TestCreateAppCustomProductPage_RequiresAppPrimaryLocale(t *testing.T) {
+	appResponse := jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1" {
+			t.Fatalf("expected app lookup, got %s %s", req.Method, req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, appResponse)
+
+	_, err := client.CreateAppCustomProductPage(context.Background(), "app-1", "Summer")
+	if err == nil || err.Error() != "app primary locale is required" {
+		t.Fatalf("expected app primary locale error, got %v", err)
 	}
 }
 

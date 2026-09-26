@@ -706,6 +706,7 @@ func validateCertificateDetailQuery(query *certificatesQuery) error {
 
 type certificateCreateOptions struct {
 	passTypeID string
+	merchantID string
 }
 
 // CertificateCreateOption configures certificate creation.
@@ -715,6 +716,14 @@ type CertificateCreateOption func(*certificateCreateOptions)
 func WithCertificatePassTypeID(passTypeID string) CertificateCreateOption {
 	return func(options *certificateCreateOptions) {
 		options.passTypeID = strings.TrimSpace(passTypeID)
+	}
+}
+
+// WithCertificateMerchantID associates a merchant ID with an Apple Pay
+// certificate.
+func WithCertificateMerchantID(merchantID string) CertificateCreateOption {
+	return func(options *certificateCreateOptions) {
+		options.merchantID = strings.TrimSpace(merchantID)
 	}
 }
 
@@ -734,15 +743,25 @@ func (c *Client) CreateCertificate(ctx context.Context, csrContent string, certT
 			},
 		},
 	}
-	if options.passTypeID != "" {
-		request.Data.Relationships = &CertificateCreateRelationships{
-			PassTypeID: &Relationship{
+	if options.passTypeID != "" || options.merchantID != "" {
+		relationships := &CertificateCreateRelationships{}
+		if options.passTypeID != "" {
+			relationships.PassTypeID = &Relationship{
 				Data: ResourceData{
 					Type: ResourceTypePassTypeIds,
 					ID:   options.passTypeID,
 				},
-			},
+			}
 		}
+		if options.merchantID != "" {
+			relationships.MerchantID = &Relationship{
+				Data: ResourceData{
+					Type: ResourceTypeMerchantIds,
+					ID:   options.merchantID,
+				},
+			}
+		}
+		request.Data.Relationships = relationships
 	}
 
 	body, err := BuildRequestBody(request)

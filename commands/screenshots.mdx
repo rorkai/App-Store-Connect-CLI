@@ -54,16 +54,23 @@ asc screenshots frame --input ./screenshots/raw/home.png --device iphone-air
 
 * `--input` - Path to raw screenshot PNG
 * `--device` - Frame device profile
-* `--output` - Output path for framed image
+* `--output-path` - Exact output path for the framed PNG
+* `--output-dir` - Output directory when `--output-path` is not set
+* `--output` - Output format (`json`, `table`, or `markdown`)
 * `--title` - Overlay title text
-* `--subtitle` - Overlay subtitle text
+* `--subtitle` - Overlay subtitle or keyword text
 * `--title-color` - Title text color (hex format)
 * `--subtitle-color` - Subtitle text color (hex format)
+* `--bg-color` - Canvas background color for supported devices such as `mac`
+* `--overlay-config` - JSON file with `default` and `data[]` entries (`filter`, `title`, `keyword`, `background`). `background` applies only to canvas devices such as `mac`.
+* `--resume` - Skip an unchanged input when the source and render settings still match `.asc/reports/screenshots-frame/state.json`
+
+`--bg-color` applies to canvas devices such as `mac`. Title and subtitle overlays apply to every supported device. Koubou 0.18.1 does not ship iPad, Apple Watch, or Apple TV frames, so those device names are usage errors that list the supported set. Frame colors are part of the pinned frame name (for example Light Gold or Silver) rather than a separate catalog.
 
 **Requirements:**
 
-* Koubou CLI tool (version 0.14.0 or higher)
-* Install via: `brew install koubou` or download from [releases](https://github.com/rudrankriyam/koubou/releases)
+* Koubou CLI tool (version 0.18.1 exactly)
+* Install via: `pip install koubou==0.18.1` or download the matching version from [releases](https://github.com/rudrankriyam/koubou/releases)
 
 ### Review Workflow
 
@@ -197,6 +204,19 @@ List all screenshots for a version localization:
 asc screenshots list --version-localization "LOC_ID"
 ```
 
+With `--version` or `--version-id`, `--locale` is optional. Omit it to list every
+localization of the version. JSON output then fills a `localizations` array with
+one entry per locale and leaves the top-level `versionLocalizationId` and `sets`
+keys empty, and table output gains a leading `Locale` column:
+
+```bash  theme={null}
+# Every localization of the version
+asc screenshots list --app "123456789" --version "1.2.3"
+
+# One localization
+asc screenshots list --app "123456789" --version "1.2.3" --locale "en-US"
+```
+
 ### Check Screenshot Sizes
 
 Display supported screenshot dimensions and device types:
@@ -224,6 +244,21 @@ asc screenshots sizes --display-type "APP_IPHONE_65"
 Upload screenshots to App Store Connect:
 
 ```bash  theme={null}
+# Upload one locale without looking up a localization ID
+asc screenshots upload --app "123456789" \
+  --version "1.2.3" \
+  --locale "en-US" \
+  --path "./screenshots/en-US" \
+  --device-type "IPHONE_65"
+
+# Replace only en-US's iPhone 6.5" set (other locales are untouched)
+asc screenshots upload --app "123456789" \
+  --version "1.2.3" \
+  --locale "en-US" \
+  --path "./screenshots/en-US" \
+  --device-type "IPHONE_65" \
+  --replace --confirm
+
 # Upload single file
 asc screenshots upload --version-localization "LOC_ID" \
   --path "./screenshot.png" \
@@ -240,6 +275,12 @@ asc screenshots upload --version-localization "LOC_ID" \
   --device-type "IPHONE_65" \
   --max-screenshots 10
 
+# Upload a set with bounded parallelism (default: 4, maximum: 8)
+asc screenshots upload --version-localization "LOC_ID" \
+  --path "./screenshots/iphone" \
+  --device-type "IPHONE_65" \
+  --concurrency 4
+
 # Fan out across locale directories in one run
 asc screenshots upload --app "123456789" \
   --version "1.2.3" \
@@ -247,7 +288,19 @@ asc screenshots upload --app "123456789" \
   --device-type "IPHONE_65"
 ```
 
-For app/version fan-out uploads, structure `--path` with locale directories such as
+With `--locale`, `--path` points directly at that locale's screenshot file or
+directory, the same way `--version-localization` uploads read it. `--locale`
+takes exactly one locale, and `--version-id` works in place of `--version`.
+The version must already have a localization for that locale; otherwise the
+command fails and lists the version's locales. `--locale` cannot be combined
+with `--version-localization` or `--resume`.
+
+App-scoped uploads (`--app` with `--version` or `--version-id`) print the
+fan-out JSON result: `appId`, `version`, `versionId`, `platform`,
+`displayType`, and a `localizations` array. With `--locale` that array has one
+entry. `--version-localization` uploads print the single-localization result.
+
+Without `--locale`, for app/version fan-out uploads, structure `--path` with locale directories such as
 `./screenshots/en-US/iphone/*.png` and `./screenshots/fr-FR/iphone/*.png`.
 Each locale directory is matched against the remote App Store version
 localizations, and only files matching the selected `--device-type` are
@@ -261,8 +314,11 @@ uploaded from each locale subtree. A device-rooted layout such as
 * Exact dimensions must match the device type specification
 * A screenshot set can contain at most 10 images; use `--max-screenshots 10`
   to upload the first 10 sorted files when a source folder contains extras
+* `--concurrency` controls parallel uploads within one set (1–8, default 4);
+  results and remote ordering remain deterministic
 * Use `asc screenshots sizes` to verify required dimensions
-* Partial failures write a retry artifact under `.asc/reports/screenshots-upload/`
+* Partial failures write a retry artifact under `.asc/reports/screenshots-upload/`;
+  if cleanup of a remote asset fails, the asset ID is retained in the artifact
 
 **Resume a Failed Upload:**
 
@@ -272,16 +328,20 @@ asc screenshots upload \
   --resume ".asc/reports/screenshots-upload/failures-123.json"
 ```
 
+Resume retries unresolved remote-asset cleanup before creating any new
+reservations. A remote asset already absent from App Store Connect is treated
+as cleaned up, so retrying the same artifact is safe.
+
 **Typical Submission:**
 
 ```bash  theme={null}
 # iPhone set (required)
-asc screenshots upload --version-localization "LOC_ID" \
+asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" \
   --path "./screenshots/iphone" \
   --device-type "IPHONE_65"
 
 # iPad set (for iPad apps)
-asc screenshots upload --version-localization "LOC_ID" \
+asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" \
   --path "./screenshots/ipad" \
   --device-type "IPAD_PRO_3GEN_129"
 

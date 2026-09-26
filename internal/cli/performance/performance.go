@@ -28,6 +28,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PerformanceMetricsCommand(),
+			PerformanceOverviewCommand(),
 			PerformanceDiagnosticsCommand(),
 			PerformanceDownloadCommand(),
 		},

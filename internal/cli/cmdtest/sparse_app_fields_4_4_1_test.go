@@ -193,6 +193,22 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 		response  string
 	}{
 		{
+			name: "apps shorthand", args: []string{"apps", "--app-info-fields", "kidsAgeBand", "--output", "json"},
+			wantPath: "/v1/apps", response: `{"data":[]}`,
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "include": "appInfos"},
+		},
+		{
+			name: "apps continuation", args: []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?fields%5BappInfos%5D=kidsAgeBand&cursor=next", "--output", "json"},
+			wantPath: "/v1/apps", response: `{"data":[]}`,
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "cursor": "next"},
+		},
+
+		{
+			name: "localizations continuation", args: []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--next", "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/appInfoLocalizations?fields%5BappInfos%5D=kidsAgeBand&cursor=next", "--output", "json"},
+			wantPath: "/v1/appInfos/info-1/appInfoLocalizations", response: `{"data":[]}`,
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "cursor": "next"},
+		},
+		{
 			name: "apps list", args: []string{"apps", "list", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--output", "json"},
 			wantPath: "/v1/apps", response: `{"data":[]}`,
 			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "include": "appInfos,inAppPurchases,subscriptionGroups"},
@@ -211,6 +227,11 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 			name: "app info view", args: []string{"apps", "info", "view", "--info-id", "info-1", "--fields", "kidsAgeBand", "--age-rating-fields", "socialMedia", "--output", "json"},
 			wantPath: "/v1/appInfos/info-1", response: `{"data":{"type":"appInfos","id":"info-1"}}`,
 			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "socialMedia", "include": "ageRatingDeclaration"},
+		},
+		{
+			name: "age rating kids age band remains valid", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--output", "json"},
+			wantPath: "/v1/appInfos/info-1/ageRatingDeclaration", response: `{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{"kidsAgeBand":"FIVE_AND_UNDER"}}}`,
+			wantQuery: map[string]string{},
 		},
 		{
 			name: "age rating view", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "socialMedia,socialMediaAgeRestricted", "--output", "json"},
@@ -258,7 +279,7 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
-			_, stderr := captureOutput(t, func() {
+			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse(test.args); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
@@ -266,9 +287,17 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 					t.Fatalf("run error: %v", err)
 				}
 			})
-			if stderr != "" {
-				t.Fatalf("stderr = %q, want empty", stderr)
+			wantStderr := ""
+			if strings.Contains(test.wantQuery["fields[appInfos]"], "kidsAgeBand") {
+				wantStderr = "Warning: AppInfo.kidsAgeBand is deprecated and was removed from the API 4.5 schema; use asc age-rating view --app-info-id ID. This selector is still forwarded for compatibility.\n"
 			}
+			if stderr != wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
+			}
+			if test.name == "age rating kids age band remains valid" && !strings.Contains(stdout, `"kidsAgeBand":"FIVE_AND_UNDER"`) {
+				t.Fatalf("age rating kidsAgeBand lost: %s", stdout)
+			}
+
 			if calls != 1 {
 				t.Fatalf("calls = %d, want 1", calls)
 			}

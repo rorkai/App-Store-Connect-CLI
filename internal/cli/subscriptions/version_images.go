@@ -42,7 +42,7 @@ Examples:
 // SubscriptionsVersionImagesListCommand lists related version images.
 func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images list", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "Subscription version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
 	fields := fs.String("fields", "", "Sparse fields for subscriptionImages")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -106,7 +106,7 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 // SubscriptionsVersionImagesPrimaryCommand reads the singular image relationship.
 func SubscriptionsVersionImagesPrimaryCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images primary", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "Subscription version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
 	fields := fs.String("fields", "", "Sparse fields for subscriptionImages")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
@@ -143,7 +143,7 @@ func SubscriptionsVersionImagesPrimaryCommand() *ffcli.Command {
 // SubscriptionsVersionImagesLinksCommand lists plural image linkages.
 func SubscriptionsVersionImagesLinksCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images links", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "Subscription version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages")
@@ -200,7 +200,7 @@ func SubscriptionsVersionImagesLinksCommand() *ffcli.Command {
 // SubscriptionsVersionImagesPrimaryLinkCommand reads the singular image linkage.
 func SubscriptionsVersionImagesPrimaryLinkCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images primary-link", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "Subscription version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "primary-link", ShortUsage: "asc subscriptions versions images primary-link --version-id \"VERSION_ID\"", ShortHelp: "View the singular image linkage.",
@@ -269,7 +269,7 @@ func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
 // SubscriptionsVersionImagesUploadCommand reserves, uploads, and commits a v2 image.
 func SubscriptionsVersionImagesUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images upload", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "Subscription version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
 	filePath := fs.String("file", "", "Path to image file")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
