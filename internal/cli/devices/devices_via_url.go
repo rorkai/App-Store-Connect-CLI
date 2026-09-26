@@ -50,6 +50,16 @@ func serveDeviceRegistration(ctx context.Context, options deviceURLServeOptions)
 	if err := validateDeviceURLServeOptions(options); err != nil {
 		return nil, err
 	}
+	if !options.Confirm {
+		root, err := rootfs.New(filepath.Dir(options.OutputFile))
+		if err != nil {
+			return nil, err
+		}
+		defer root.Close()
+		if err := root.CheckCreateNewFile(filepath.Base(options.OutputFile)); err != nil {
+			return nil, err
+		}
+	}
 	token, err := newDeviceRegistrationToken()
 	if err != nil {
 		return nil, err

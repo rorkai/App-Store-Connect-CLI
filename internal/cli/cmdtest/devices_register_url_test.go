@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,5 +62,48 @@ func TestDevicesRegisterURLTableOutput(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Output File") || !strings.Contains(stdout, path) {
 		t.Fatalf("missing collection receipt: %s", stdout)
+	}
+}
+
+func TestDevicesRegisterURLRejectsExistingOutputBeforeSession(t *testing.T) {
+	for _, occupied := range []bool{false, true} {
+		name := "available listener"
+		if occupied {
+			name = "occupied listener"
+		}
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "devices.tsv")
+			const original = "existing device data\n"
+			if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			listen := "127.0.0.1:0"
+			if occupied {
+				listener, err := net.Listen("tcp", listen)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer listener.Close()
+				listen = listener.Addr().String()
+			}
+			root := RootCommand("test")
+			if err := root.Parse([]string{"devices", "register", "--via-url", "--listen", listen, "--output-file", path}); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			var runErr error
+			stdout, stderr := captureOutput(t, func() { runErr = root.Run(ctx) })
+			data, err := os.ReadFile(path)
+			if err != nil || string(data) != original {
+				t.Fatalf("existing output changed: data=%q err=%v", data, err)
+			}
+			if !errors.Is(runErr, os.ErrExist) {
+				t.Fatalf("want existing output error before listener startup; got %v", runErr)
+			}
+			if stdout != "" || strings.Contains(stderr, "Open this URL") || strings.Contains(stderr, "/enroll?") {
+				t.Fatalf("session started before rejecting output: stdout=%q stderr=%q", stdout, stderr)
+			}
+		})
 	}
 }
