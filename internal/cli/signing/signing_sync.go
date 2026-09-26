@@ -198,8 +198,8 @@ func syncPushCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "push",
-		ShortUsage: "asc signing sync push (--bundle-id ID | --targets-file PATH) --profile-type TYPE --repo URL [--password-file PATH]",
-		ShortHelp:  "Fetch signing assets from ASC, encrypt, and push to git.",
+		ShortUsage: "asc signing sync push (--bundle-id ID | --targets-file PATH) --profile-type TYPE [--storage STORAGE] [storage options] [--password-file PATH]",
+		ShortHelp:  "Fetch signing assets from ASC, encrypt, and publish to the selected storage.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -650,8 +650,8 @@ func syncPullCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "pull",
-		ShortUsage: "asc signing sync pull --repo URL [--bundle-id ID | --targets-file PATH] [--profile-type TYPE] [--password-file PATH] [--output-dir DIR]",
-		ShortHelp:  "Pull and decrypt signing assets from git.",
+		ShortUsage: "asc signing sync pull [--storage STORAGE] [storage options] [--bundle-id ID | --targets-file PATH] [--profile-type TYPE] [--password-file PATH] [--output-dir DIR]",
+		ShortHelp:  "Pull and decrypt signing assets from the selected storage.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
