@@ -370,12 +370,13 @@ func uploadPreview(ctx context.Context, c *asc.Client, setID string, preview Pre
 }
 
 type previewGroup struct {
-	CurrentOrder []string
-	Locale       string
-	Device       string
-	SetID        string
-	DesiredIDs   []string
-	Existing     []asc.Resource[asc.AppPreviewAttributes]
+	LocalizationID string
+	CurrentOrder   []string
+	Locale         string
+	Device         string
+	SetID          string
+	DesiredIDs     []string
+	Existing       []asc.Resource[asc.AppPreviewAttributes]
 }
 
 func preparePreviews(ctx context.Context, c *asc.Client, p *ImportPlan) (*ImportPlan, error) {
@@ -397,7 +398,7 @@ func preparePreviews(ctx context.Context, c *asc.Client, p *ImportPlan) (*Import
 		key := preview.Locale + "/" + strings.ToUpper(preview.DeviceType)
 		group := p.previewGroups[key]
 		if group == nil {
-			group = &previewGroup{Locale: preview.Locale, Device: strings.ToUpper(preview.DeviceType)}
+			group = &previewGroup{Locale: preview.Locale, Device: strings.ToUpper(preview.DeviceType), LocalizationID: locIDs[preview.Locale]}
 			p.previewGroups[key] = group
 			if locID := locIDs[preview.Locale]; locID != "" {
 				sets, err := previewSets(ctx, c, locID)

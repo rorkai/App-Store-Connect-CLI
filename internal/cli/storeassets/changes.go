@@ -49,6 +49,20 @@ func (p *ImportPlan) Changes() []asc.StoreAssetChange {
 			}
 		}
 	}
+	newLocales := map[string]bool{}
+	for _, group := range p.previewGroups {
+		parent := group.LocalizationID
+		if parent == "" {
+			parent = "new:" + p.VersionID + ":" + group.Locale
+			if !newLocales[group.Locale] {
+				add("version_localization", group.Locale, "", "create", "", p.VersionID+":"+group.Locale)
+				newLocales[group.Locale] = true
+			}
+		}
+		if group.SetID == "" {
+			add("preview_set", group.Locale, strings.ToLower(group.Device), "create", "", parent+":"+group.Device)
+		}
+	}
 	for _, preview := range p.Previews {
 		group := p.previewGroups[preview.Locale+"/"+strings.ToUpper(preview.DeviceType)]
 		var match *asc.Resource[asc.AppPreviewAttributes]
