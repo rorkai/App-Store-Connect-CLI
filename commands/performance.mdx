@@ -12,6 +12,24 @@ App Store Connect collects performance data from iOS devices to help you identif
 * **Diagnostic Signatures** - Aggregated crash patterns, hangs, and disk write issues
 * **Diagnostic Logs** - Sample logs for investigating specific issues
 
+## Performance Overview (API 4.5)
+
+Read the aggregated overview used by Xcode performance reports:
+
+```bash
+asc performance overview --app "APP_ID" --output json
+asc performance overview --app "APP_ID" --device-type "iPhone15,2" --output json --pretty
+```
+
+`--app` can also come from `ASC_APP_ID`. The optional `--device-type` filter
+accepts comma-separated values. This endpoint has no pagination.
+
+JSON output preserves the complete Apple payload: app metadata, regressions,
+trends, metric datasets, and diagnostic signatures. Table and Markdown output
+summarize the app, metric-category count, and insight counts. The command
+negotiates Apple's `application/vnd.apple.xcode-overview+json` media type;
+`asc api` directs callers here.
+
 ## Performance Metrics
 
 Retrieve performance and power usage metrics for your app or specific builds.

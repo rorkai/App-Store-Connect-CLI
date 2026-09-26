@@ -165,7 +165,7 @@ func TestRunReviewItemsAddRejectsPositionalArgsBeforeAuth(t *testing.T) {
 	if strings.TrimSpace(stdout) != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	if !strings.Contains(stderr, "unexpected positional arguments") {
+	if !strings.Contains(stderr, `unexpected argument "unexpected"`) {
 		t.Fatalf("stderr = %q, want positional argument error", stderr)
 	}
 }

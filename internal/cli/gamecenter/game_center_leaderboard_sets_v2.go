@@ -54,7 +54,7 @@ func GameCenterLeaderboardSetsV2ListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	groupID := fs.String("group-id", "", "Game Center group ID")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -189,7 +189,7 @@ func GameCenterLeaderboardSetsV2CreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	groupID := fs.String("group-id", "", "Game Center group ID")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard set")
 	vendorID := fs.String("vendor-id", "", "Vendor identifier (e.g., com.example.set)")
 	output := shared.BindOutputFlags(fs)
@@ -405,7 +405,7 @@ Examples:
 func GameCenterLeaderboardSetMembersV2ListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	setID := fs.String("set-id", "", "Game Center leaderboard set ID")
+	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -480,7 +480,7 @@ Examples:
 func GameCenterLeaderboardSetMembersV2SetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("set", flag.ExitOnError)
 
-	setID := fs.String("set-id", "", "Game Center leaderboard set ID")
+	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
 	leaderboardIDs := shared.BindOnceCSVFlag(fs, "leaderboard-ids", "Comma-separated leaderboard IDs to set as members")
 	confirm := fs.Bool("confirm", false, "Confirm replacing all members (required)")
 	output := shared.BindOutputFlags(fs)
@@ -578,7 +578,7 @@ Examples:
 func GameCenterLeaderboardSetVersionsV2ListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	setID := fs.String("set-id", "", "Game Center leaderboard set ID")
+	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -695,7 +695,7 @@ Examples:
 func GameCenterLeaderboardSetVersionsV2CreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	setID := fs.String("set-id", "", "Game Center leaderboard set ID")
+	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -765,7 +765,7 @@ Examples:
 func GameCenterLeaderboardSetLocalizationsV2ListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Game Center leaderboard set version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterLeaderboardSetVersions", "Game Center leaderboard set version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -882,7 +882,7 @@ Examples:
 func GameCenterLeaderboardSetLocalizationsV2CreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Game Center leaderboard set version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterLeaderboardSetVersions", "Game Center leaderboard set version ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, de-DE)")
 	name := fs.String("name", "", "Display name for the leaderboard set in this locale")
 	output := shared.BindOutputFlags(fs)
@@ -1075,7 +1075,7 @@ Examples:
 func GameCenterLeaderboardSetImagesV2UploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("upload", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Game Center leaderboard set localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterLeaderboardSetLocalizations", "Game Center leaderboard set localization ID")
 	filePath := fs.String("file", "", "Path to image file")
 	output := shared.BindOutputFlags(fs)
 
@@ -1127,7 +1127,7 @@ func GameCenterLeaderboardSetImagesV2GetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Game Center leaderboard set image ID")
-	localizationID := fs.String("localization-id", "", "Game Center leaderboard set localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterLeaderboardSetLocalizations", "Game Center leaderboard set localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

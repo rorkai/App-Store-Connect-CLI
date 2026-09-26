@@ -181,6 +181,41 @@ the JSON receipt is partial and reports `certificateCreationState: "unknown"`;
 do not replace the preserved key or CSR until the account is checked for a
 matching certificate.
 
+### App extensions
+
+`--match-extensions` also fetches a profile for every registered bundle ID that extends `--bundle-id` with a dotted suffix, such as `com.example.app.widget` or `com.example.app.clip`. Wildcard identifiers never match.
+
+```bash  theme={null}
+asc signing fetch \
+  --bundle-id com.example.app \
+  --profile-type IOS_APP_STORE \
+  --match-extensions \
+  --output ./signing
+```
+
+When more than one bundle ID matches, the JSON receipt lists `matchedBundleIds`, one entry in `results` per fetched target, and `failures` for targets that could not be fetched. A certificate shared by several targets is written once and listed for each target. A failed target removes only the files it wrote; if it had already created a profile, its `failures` entry reports `profileId` and `profileCreationState` (`created`, or `unknown` when the create request may have reached App Store Connect). The command exits 1 after finishing the remaining targets. `--match-extensions` cannot be combined with `--create-missing-certificate`; create the certificate with a single-bundle fetch first. `signing sync push --bundle-id ID --match-extensions` expands to the same targets (at most 32) and cannot be combined with `--targets-file`.
+
+### Stale profiles
+
+`asc signing fetch` never selects an active profile whose expiration date has passed. To remove expired or `INVALID` profiles for the bundle ID and profile type before matching, preview the plan first, then confirm:
+
+```bash  theme={null}
+asc signing fetch \
+  --bundle-id com.example.app \
+  --profile-type IOS_APP_STORE \
+  --delete-stale-profiles \
+  --dry-run
+
+asc signing fetch \
+  --bundle-id com.example.app \
+  --profile-type IOS_APP_STORE \
+  --delete-stale-profiles \
+  --confirm \
+  --create-missing
+```
+
+`--dry-run` prints the plan and exits without deleting, creating, or writing anything. `--confirm` and `--dry-run` require `--delete-stale-profiles`, and `--delete-stale-profiles` requires one of them; each rule is a usage error (exit 2) checked before any request. Every page of profiles is read before the first deletion. The JSON receipt's `staleProfiles` lists `planned`, `deleted` (only profiles Apple confirmed deleted), and `failed` with each error. If any deletion fails, the command stops before fetching or creating anything. The receipt is printed even when a later step of the fetch fails, because deletions cannot be undone. With `--match-extensions`, every matched bundle ID is planned before any deletion, each entry in `results` (or `failures`) carries its own `staleProfiles`, and a failed deletion for any target stops the whole run before anything is fetched or created.
+
 ### Common profile types
 
 | Profile type | Use | Inferred certificate type | Devices when creating |

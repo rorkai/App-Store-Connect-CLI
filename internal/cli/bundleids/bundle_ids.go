@@ -257,7 +257,7 @@ func bundleIDsListFlagWasSet(fs *flag.FlagSet, name string) bool {
 func BundleIDsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	id := fs.String("id", "", "Bundle ID")
+	id := shared.BindResourceIDFlag(fs, "id", "bundleIds", "Bundle ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -359,7 +359,7 @@ Examples:
 func BundleIDsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	id := fs.String("id", "", "Bundle ID")
+	id := shared.BindResourceIDFlag(fs, "id", "bundleIds", "Bundle ID")
 	name := fs.String("name", "", "Bundle ID name")
 	output := shared.BindOutputFlags(fs)
 
@@ -411,7 +411,7 @@ Examples:
 func BundleIDsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	id := fs.String("id", "", "Bundle ID")
+	id := shared.BindResourceIDFlag(fs, "id", "bundleIds", "Bundle ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

@@ -63,7 +63,7 @@ Examples:
 func SubscriptionsPricingMonthlyCommitmentEnableCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing monthly-commitment enable", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	price := fs.String("price", "", "Monthly customer price; total commitment is price x 12")
 	priceTerritory := fs.String("price-territory", "", "Territory used to compare the upfront annual price")
@@ -232,7 +232,7 @@ Examples:
 func SubscriptionsPricingMonthlyCommitmentDisableCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing monthly-commitment disable", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	territories := fs.String("territories", "", "Territories to disable, comma-separated; USA and Singapore are excluded")
 	confirm := fs.Bool("confirm", false, "Confirm disabling monthly-commitment availability")
@@ -312,7 +312,7 @@ Examples:
 func SubscriptionsPricingMonthlyCommitmentListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing monthly-commitment list", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	planType := fs.String("plan-type", "", "Filter by plan type: MONTHLY or UPFRONT")
 	output := shared.BindOutputFlags(fs)

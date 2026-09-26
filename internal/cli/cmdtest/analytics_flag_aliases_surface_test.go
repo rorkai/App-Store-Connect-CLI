@@ -8,11 +8,12 @@ import (
 func TestAnalyticsRankedAmbiguousFlagsRemainRejected(t *testing.T) {
 	// These high-volume pairs need extra resource resolution or a missing
 	// subcommand, so treating them as spelling aliases would change semantics.
+	// screenshots upload --locale is intentionally absent: it is a real
+	// app-scoped selector that resolves the localization, not an alias.
 	tests := []struct {
 		path []string
 		flag string
 	}{
-		{path: []string{"screenshots", "upload"}, flag: "locale"},
 		{path: []string{"screenshots", "list"}, flag: "paginate"},
 		{path: []string{"localizations", "update"}, flag: "localization-id"},
 		{path: []string{"profiles", "list"}, flag: "bundle-id"},

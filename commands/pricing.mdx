@@ -297,6 +297,50 @@ asc pricing availability view --id "AVAILABILITY_ID"
 
 ***
 
+### `asc pricing availability create`
+
+Initialize app availability for territories. Selected territories are set to
+`--available` and every other territory starts unavailable.
+
+<ParamField path="--app" type="string" required>
+  App Store Connect app ID
+</ParamField>
+
+<ParamField path="--territory" type="string" required>
+  Territory codes (comma-separated, e.g., USA,GBR,DEU)
+</ParamField>
+
+<ParamField path="--available" type="boolean" required>
+  Set availability for the selected territories (true or false)
+</ParamField>
+
+<ParamField path="--available-in-new-territories" type="boolean" required>
+  Automatically make available in new territories
+</ParamField>
+
+<ParamField path="--if-exists" type="string" default="fail">
+  Behavior when the app already has an availability record: `fail` returns
+  Apple's 409, `skip` prints the existing record unchanged and exits 0, and
+  `update` applies `--territory` and `--available` to it through the same
+  path as `asc pricing availability edit`. Only the recognized
+  already-exists conflict is handled; every other 409 keeps failing.
+</ParamField>
+
+Apple exposes no update for `availableInNewTerritories`, so on `update` that
+flag is only checked against the existing policy and a mismatch fails. When
+every requested territory already matches, `update` sends no request and
+reports the record as left unchanged.
+
+**Examples:**
+
+```bash  theme={null}
+asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true
+asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true --if-exists skip
+asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true --if-exists update
+```
+
+***
+
 ### `asc pricing availability edit`
 
 Edit app availability for territories.

@@ -185,6 +185,12 @@ func TestEditDistanceCountsAdjacentTranspositionOnce(t *testing.T) {
 	}
 }
 
+func TestDistanceExportsCurrentEditDistance(t *testing.T) {
+	if got := Distance("lsit", "list"); got != 1 {
+		t.Fatalf("Distance(lsit, list) = %d, want 1", got)
+	}
+}
+
 // The unknown token is whatever the caller typed, so the ranker must stay
 // bounded by the command names it compares against rather than by that token.
 // A full edit-distance matrix over a token this long allocates a row per

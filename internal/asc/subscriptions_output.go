@@ -3,6 +3,7 @@ package asc
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // SubscriptionGroupDeleteResult represents CLI output for group deletions.
@@ -94,15 +95,21 @@ func subscriptionGroupLocalizationsV2Rows(resp *SubscriptionGroupLocalizationsV2
 }
 
 func subscriptionsRows(resp *SubscriptionsResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Name", "Product ID", "Period", "State"}
+	headers := []string{"ID", "Name", "Product ID", "Period", "State", "Markets", "Multi-seat Status"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
+		markets := ""
+		if item.Attributes.MarketSettings != nil {
+			markets = strings.Join(*item.Attributes.MarketSettings, ", ")
+		}
 		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			item.Attributes.ProductID,
 			item.Attributes.SubscriptionPeriod,
 			item.Attributes.State,
+			markets,
+			formatOptionalString(item.Attributes.MultiSeatStatus),
 		})
 	}
 	return headers, rows

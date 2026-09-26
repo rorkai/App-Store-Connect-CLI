@@ -101,7 +101,7 @@ Examples:
 func XcodeCloudProductsAppCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app", flag.ExitOnError)
 	id := fs.String("id", "", "Product ID")
-	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated; prefer age-rating data)")
+	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated; removed from API 4.5; prefer age-rating data)")
 	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
 	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
 	output := shared.BindOutputFlags(fs)
@@ -135,6 +135,8 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+
+			shared.WarnDeprecatedAppInfoFields(appInfoFieldValues, "")
 
 			client, err := shared.GetASCClient()
 			if err != nil {

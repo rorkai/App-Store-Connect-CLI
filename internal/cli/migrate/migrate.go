@@ -53,7 +53,7 @@ func MigrateImportCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("migrate import", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	versionID := fs.String("version-id", "", "App Store version ID (required unless Deliverfile app_version + platform)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required unless Deliverfile app_version + platform)")
 	fastlaneDir := fs.String("fastlane-dir", "", "Path to fastlane directory (optional)")
 	dryRun := fs.Bool("dry-run", false, "Preview changes without uploading")
 	confirm := fs.Bool("confirm", false, "Confirm uploading the imported metadata and screenshots (required unless --dry-run)")
@@ -429,7 +429,7 @@ func MigrateExportCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("migrate export", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	outputDir := fs.String("output-dir", "", "Output directory for fastlane structure (required)")
 	output := shared.BindOutputFlags(fs)
 

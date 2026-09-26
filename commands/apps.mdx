@@ -44,9 +44,11 @@ List apps from App Store Connect.
 </ParamField>
 
 <ParamField path="--app-info-fields" type="string">
-  Sparse fields for included app-info records. API 4.4.1 supports the deprecated
-  `kidsAgeBand` selector. Supplying this flag automatically includes `appInfos`.
-  Prefer `asc age-rating view` for current age-rating data.
+  Legacy sparse fields for included app-info records: `kidsAgeBand`. API 4.5
+  removed this property from `AppInfo`. The CLI forwards the selector for
+  compatibility and emits a deprecation warning on stderr. Supplying this flag
+  automatically includes `appInfos`. Use `asc age-rating view` for current
+  age-rating data.
 </ParamField>
 
 <ParamField path="--iap-fields" type="string">
@@ -118,8 +120,10 @@ Apple omits notification endpoints from its default response. Request them using
 </ParamField>
 
 <ParamField path="--app-info-fields" type="string">
-  Sparse fields for included app-info records: the deprecated `kidsAgeBand`
-  selector. Automatically includes `appInfos`; prefer `asc age-rating view`.
+  Legacy sparse fields for included app-info records: `kidsAgeBand`. API 4.5
+  removed this property from `AppInfo`. The selector is still forwarded with a
+  stderr deprecation warning and automatically includes `appInfos`. Use
+  `asc age-rating view` for current age-rating data.
 </ParamField>
 
 <ParamField path="--iap-fields" type="string">
@@ -215,41 +219,42 @@ asc apps rename --app "APP_ID" --app-info "APP_INFO_ID" --locale "fr-FR" --name 
 
 ### `asc apps info list`
 
-List app-info records for an app. API 4.4.1 adds sparse reads for the app info
-kids age band and the age-rating declaration's social-media fields.
+List app-info records for an app, with optional sparse fields on included
+age-rating declarations. The legacy AppInfo kids-age-band selector remains
+available with a deprecation warning.
 
 <ParamField path="--app" type="string" required>
   App Store Connect app ID (or `ASC_APP_ID`)
 </ParamField>
 
 <ParamField path="--fields" type="string">
-  Sparse app-info fields: `kidsAgeBand`. Apple marks this selector deprecated;
-  prefer `asc age-rating view` for current age-rating data.
+  Legacy sparse app-info fields: `kidsAgeBand`. API 4.5 removed this property
+  from `AppInfo`; the CLI still forwards it with a stderr deprecation warning.
+  Use `asc age-rating view` for current age-rating data.
 </ParamField>
 
 <ParamField path="--age-rating-fields" type="string">
   Sparse fields for the included age-rating declaration:
-  `socialMedia`, `socialMediaAgeRestricted`. Automatically includes
-  `ageRatingDeclaration`.
+  `socialMedia`, `socialMediaAgeRestricted`, `gracRatingClassificationNumber`.
+  Automatically includes `ageRatingDeclaration`.
 </ParamField>
 
 ```bash  theme={null}
 asc apps info list --app "APP_ID" --fields kidsAgeBand
-asc apps info list --app "APP_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted
+asc apps info list --app "APP_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted,gracRatingClassificationNumber
 ```
 
 <Note>
-  Apple's production API accepted the API 4.4.1 social-media fields in live
-  testing on July 17, 2026, but still rejected the official
-  `fields[appInfos]=kidsAgeBand` value on app-info detail and collection reads.
-  The CLI exposes the published schema while Apple's rollout catches up.
+  API 4.5 removed `AppInfo.kidsAgeBand` and its sparse-field selectors. The CLI
+  preserves existing selectors for compatibility, but Apple may reject them.
+  Explicit selectors and continuation URLs containing this field emit one
+  deprecation warning on stderr.
 </Note>
 
 <Warning>
-  `kidsAgeBand` remains available because it is present in the official API
-  4.4.1 sparse-field enum, but Apple marks it deprecated. New workflows should
-  read the age-rating declaration with `asc age-rating view`; use its `--fields`
-  flag for the API 4.4.1 social-media fields.
+  Migrate AppInfo selectors to `asc age-rating view --app-info-id "APP_INFO_ID"`.
+  `AgeRatingDeclaration.kidsAgeBand` and the `--kids-age-band` flag on
+  `asc age-rating edit` remain supported.
 </Warning>
 
 ### `asc apps info view`

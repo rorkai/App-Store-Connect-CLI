@@ -9,8 +9,9 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.47.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.5
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.5
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.1
-	github.com/aws/smithy-go v1.28.1
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.2
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.0
+	github.com/aws/smithy-go v1.28.2
 	github.com/bitrise-io/go-pkcs12 v0.1.0
 	github.com/bitrise-io/go-utils/v2 v2.0.0-alpha.39
 	github.com/bitrise-io/go-xcode v1.3.4
@@ -21,12 +22,13 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/olekukonko/tablewriter v1.1.4
+	github.com/mdp/qrterminal/v3 v3.2.1
+	github.com/olekukonko/tablewriter v1.1.5
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/tidwall/jsonc v0.3.3
 	go.mozilla.org/pkcs7 v0.10.0
-	golang.org/x/crypto v0.56.0
+	golang.org/x/crypto v0.57.0
 	golang.org/x/mod v0.41.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0
@@ -84,4 +86,5 @@ require (
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
+	rsc.io/qr v0.2.0 // indirect
 )

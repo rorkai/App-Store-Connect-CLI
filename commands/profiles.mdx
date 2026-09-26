@@ -32,6 +32,20 @@ asc profiles list --paginate
 * `--next` - Fetch next page using a `links.next` URL
 * `--paginate` - Automatically fetch all pages
 
+### Stale Profiles
+
+A profile is stale when it is `INVALID` or its expiration date has passed.
+
+```bash  theme={null}
+# Only stale profiles, across every page
+asc profiles list --stale-only
+
+# Add a Stale column to table output
+asc profiles list --include-stale --output table
+```
+
+`--stale-only` always reads every page and cannot be combined with `--next`. Its JSON keeps Apple's envelope shape but is a computed view: `data` holds only stale profiles, and `meta` and pagination links are dropped because they describe the unfiltered list; `included` keeps only resources the stale profiles reference. With `--fields`, both flags need `profileState` and `expirationDate`. `--include-stale` works with table and markdown output only; with JSON it is a usage error.
+
 ## Get Profile Details
 
 Retrieve a specific profile by ID:

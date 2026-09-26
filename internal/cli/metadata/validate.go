@@ -157,7 +157,7 @@ func validateDirWithOptions(ctx context.Context, dir string, options validateDir
 			if readErr != nil {
 				return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
 			}
-			fieldIntentIssues, fieldIntentErr := metadataFieldIntentIssues(data, appInfoPlanFields)
+			fieldIntentIssues, hasClear, clearOnly, fieldIntentErr := metadataFieldIntentIssues(data, appInfoPlanFields, resolvedLocale != DefaultLocale)
 			if fieldIntentErr != nil {
 				return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, fieldIntentErr)
 			}
@@ -168,7 +168,10 @@ func validateDirWithOptions(ctx context.Context, dir string, options validateDir
 			result.FilesScanned++
 			result.Issues = append(result.Issues, metadataIntentValidateIssues(appInfoDirName, filePath, resolvedLocale, "", fieldIntentIssues)...)
 
-			issues := ValidateAppInfoLocalization(loc, ValidationOptions{RequireName: resolvedLocale != DefaultLocale})
+			issues := ValidateAppInfoLocalization(loc, ValidationOptions{
+				RequireName: resolvedLocale != DefaultLocale && !hasClear,
+				AllowEmpty:  clearOnly,
+			})
 			for _, issue := range issues {
 				result.Issues = append(result.Issues, ValidateIssue{
 					Scope:    appInfoDirName,
@@ -227,7 +230,7 @@ func validateDirWithOptions(ctx context.Context, dir string, options validateDir
 				if readErr != nil {
 					return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
 				}
-				fieldIntentIssues, fieldIntentErr := metadataFieldIntentIssues(data, versionPlanFields)
+				fieldIntentIssues, _, clearOnly, fieldIntentErr := metadataFieldIntentIssues(data, versionPlanFields, resolvedLocale != DefaultLocale)
 				if fieldIntentErr != nil {
 					return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, fieldIntentErr)
 				}
@@ -238,7 +241,10 @@ func validateDirWithOptions(ctx context.Context, dir string, options validateDir
 				result.FilesScanned++
 				result.Issues = append(result.Issues, metadataIntentValidateIssues(versionDirName, filePath, resolvedLocale, version, fieldIntentIssues)...)
 
-				issues := ValidateVersionLocalization(loc)
+				var issues []ValidationIssue
+				if !clearOnly {
+					issues = ValidateVersionLocalization(loc)
+				}
 				for _, issue := range issues {
 					result.Issues = append(result.Issues, ValidateIssue{
 						Scope:    versionDirName,
@@ -314,27 +320,50 @@ type metadataFieldIntentIssue struct {
 	Message string
 }
 
-func metadataFieldIntentIssues(data []byte, allowed []string) ([]metadataFieldIntentIssue, error) {
+func metadataFieldIntentIssues(data []byte, allowed []string, allowClear bool) ([]metadataFieldIntentIssue, bool, bool, error) {
 	var raw map[string]json.RawMessage
 	if err := decodeStrictJSON(data, &raw); err != nil {
-		return nil, err
+		return nil, false, false, err
 	}
 
-	hasContent := false
+	hasSetContent := false
+	hasClear := false
+	hasExplicitIntent := false
 	issues := make([]metadataFieldIntentIssue, 0)
 	for _, key := range sortedKeys(raw) {
 		rawValue := raw[key]
 		canonicalKey, err := canonicalStringFieldPatchKey(key, allowed)
 		if err != nil {
-			return nil, err
+			return nil, false, false, err
+		}
+		if isJSONNull(rawValue) {
+			hasExplicitIntent = true
+			if _, clearable := clearableMetadataFields[canonicalKey]; !clearable {
+				issues = append(issues, metadataFieldIntentIssue{
+					Field:   canonicalKey,
+					Message: fmt.Sprintf("field %q cannot be null; omit the key to leave the remote value unchanged", canonicalKey),
+				})
+				continue
+			}
+			if !allowClear {
+				issues = append(issues, metadataFieldIntentIssue{
+					Field:   canonicalKey,
+					Message: fmt.Sprintf("field %q cannot be cleared in default.json; move the null value to an explicit locale file", canonicalKey),
+				})
+				continue
+			}
+			hasClear = true
+			continue
 		}
 		var value string
 		if err := json.Unmarshal(rawValue, &value); err != nil {
-			return nil, err
+			return nil, false, false, err
 		}
 		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			hasExplicitIntent = true
+		}
 		if trimmed == "__ASC_DELETE__" {
-			hasContent = true
 			issues = append(issues, metadataFieldIntentIssue{
 				Field:   canonicalKey,
 				Message: fmt.Sprintf("field %q uses unsupported clear token __ASC_DELETE__; omit the key to keep the remote value", canonicalKey),
@@ -348,12 +377,12 @@ func metadataFieldIntentIssues(data []byte, allowed []string) ([]metadataFieldIn
 			})
 			continue
 		}
-		hasContent = true
+		hasSetContent = true
 	}
-	if !hasContent {
-		return nil, nil
+	if !hasExplicitIntent {
+		return nil, false, false, nil
 	}
-	return issues, nil
+	return issues, hasClear, hasClear && !hasSetContent, nil
 }
 
 func metadataIntentValidateIssues(scope, filePath, locale, version string, issues []metadataFieldIntentIssue) []ValidateIssue {

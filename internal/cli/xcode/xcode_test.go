@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 	"howett.net/plist"
 )
@@ -2115,4 +2116,35 @@ func newXcodeCommandTestClient(t *testing.T) *asc.Client {
 		t.Fatalf("new client: %v", err)
 	}
 	return client
+}
+
+func TestXcodeExportBuildProcessingWaitIncludesProcessingDetails(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+	t.Cleanup(shared.SetBuildUploadFailureDiagnosticsForTesting(func(context.Context, *asc.Client, string, *asc.BuildUploadResponse) (string, error) {
+		return "ITMS-90000: processing details", nil
+	}))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	http.DefaultTransport = xcodeCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/builds/build-1":
+			return xcodeCommandJSONResponse(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"INVALID"}}}`)
+		case "/v1/builds/build-1/app":
+			return xcodeCommandJSONResponse(`{"data":{"type":"apps","id":"app-1"}}`)
+		case "/v1/builds/build-1/preReleaseVersion":
+			return xcodeCommandJSONResponse(`{"data":{"type":"preReleaseVersions","id":"pre-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`)
+		case "/v1/builds":
+			return xcodeCommandJSONResponse(`{"data":[{"type":"builds","id":"build-1","attributes":{"version":"42"},"relationships":{"buildUpload":{"data":{"type":"buildUploads","id":"upload-1"}}}}],"links":{}}`)
+		case "/v1/buildUploads/upload-1":
+			return xcodeCommandJSONResponse(`{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+	})
+
+	_, err := waitForBuildProcessingFn(context.Background(), newXcodeCommandTestClient(t), "build-1", time.Millisecond)
+	if want := "build processing failed: INVALID; App Store Connect processing details: ITMS-90000: processing details"; err == nil || err.Error() != want {
+		t.Fatalf("error = %v, want %q", err, want)
+	}
 }

@@ -147,6 +147,18 @@ asc bundle-ids profiles list --id "BUNDLE_ID"
 
 Manage app capabilities for a bundle ID.
 
+### Reconcile from entitlements
+
+Plan or apply the public-API capabilities implied by an entitlements file. Sub-feature settings already enabled, such as broadcast push, are kept. Unknown keys are a usage error unless `--ignore-unknown` is set.
+
+If an API write fails during `apply`, the command prints a partial receipt with `applied` and `failed` action statuses before exiting with an error. Inspect that receipt before retrying.
+If the plan requires a web-session capability, `apply` makes no API writes and exits with a receipt showing the manual command to run.
+
+```bash theme={null}
+asc bundle-ids capabilities reconcile plan --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements
+asc bundle-ids capabilities reconcile apply --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements --confirm
+```
+
 ### List Capabilities
 
 List all capabilities for a bundle ID:
@@ -171,6 +183,18 @@ asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
 asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
   --capability ICLOUD \
   --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_6","enabled":true}]}]'
+```
+
+`--if-exists fail|skip|update` (default `fail`) controls a 409 that reports the
+capability as already enabled: `skip` prints the existing capability unchanged
+and exits 0, and `update` applies `--settings` to it (without `--settings` it
+behaves like `skip`). Apple usually accepts a repeated add of an API-creatable
+capability as success, so the flag only engages when Apple reports the
+duplicate as a 409. Other 409s keep failing, including
+`ENTITY_ERROR.ATTRIBUTE.TYPE` for a capability type the API cannot create.
+
+```bash  theme={null}
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability ICLOUD --if-exists skip
 ```
 
 ### Common Capability Types

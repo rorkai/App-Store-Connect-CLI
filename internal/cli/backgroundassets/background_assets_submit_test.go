@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -154,6 +155,28 @@ func TestRollbackBackgroundAssetReviewSubmissionUsesFreshContext(t *testing.T) {
 	}
 	if client.cancelContextErr != nil {
 		t.Fatalf("rollback used canceled context: %v", client.cancelContextErr)
+	}
+}
+
+func TestBackgroundAssetSubmitRequestContextRespectsCallerDeadline(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "2h")
+	t.Setenv("ASC_TIMEOUT_SECONDS", "")
+
+	parent, cancelParent := context.WithTimeout(context.Background(), time.Hour)
+	defer cancelParent()
+	parentDeadline, ok := parent.Deadline()
+	if !ok {
+		t.Fatal("caller context should have a deadline")
+	}
+
+	requestCtx, cancelRequest := backgroundAssetSubmitRequestContext(parent)
+	defer cancelRequest()
+	requestDeadline, ok := requestCtx.Deadline()
+	if !ok {
+		t.Fatal("request context should have a deadline")
+	}
+	if requestDeadline.After(parentDeadline) {
+		t.Fatalf("request deadline %v exceeds caller deadline %v", requestDeadline, parentDeadline)
 	}
 }
 

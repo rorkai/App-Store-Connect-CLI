@@ -99,6 +99,7 @@ func completionNodes(rootSubcommands []*ffcli.Command, rootFlags *flag.FlagSet) 
 				subcommands: visibleSubcommandNames(command.Subcommands),
 			}
 			node.flags, node.valueFlags = completionFlags(command.FlagSet)
+			node.flags, node.valueFlags = withRootProfileFlag(command.FlagSet, node.flags, node.valueFlags)
 			byPath[path] = node
 			visit(path, command.Subcommands)
 		}
@@ -127,6 +128,22 @@ func completionFlags(fs *flag.FlagSet) ([]string, []string) {
 			valueFlags = append(valueFlags, flagName)
 		}
 	}
+	sort.Strings(flags)
+	sort.Strings(valueFlags)
+	return flags, valueFlags
+}
+
+// withRootProfileFlag offers the root-owned credential selector on every
+// command, because it is accepted after the command name as well. A command
+// that binds its own `profile` flag already lists it.
+func withRootProfileFlag(fs *flag.FlagSet, flags, valueFlags []string) ([]string, []string) {
+	if fs != nil && fs.Lookup(shared.RootProfileFlagName) != nil {
+		return flags, valueFlags
+	}
+
+	flagName := "--" + shared.RootProfileFlagName
+	flags = append(flags, flagName)
+	valueFlags = append(valueFlags, flagName)
 	sort.Strings(flags)
 	sort.Strings(valueFlags)
 	return flags, valueFlags

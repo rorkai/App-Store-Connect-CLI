@@ -12,13 +12,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type buildsWaitRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -123,7 +126,7 @@ func TestWaitForBuildProcessingStateToleratesTransientLookupFailures(t *testing.
 	var buildResp *asc.BuildResponse
 	var err error
 	stderr := captureBuildsWaitStderr(t, func() {
-		buildResp, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false)
+		buildResp, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false, shared.BuildProcessingFailureContext{})
 	})
 	if err != nil {
 		t.Fatalf("waitForBuildProcessingState() error: %v", err)
@@ -155,7 +158,7 @@ func TestWaitForBuildProcessingStateFailsAfterConsecutiveTransientLimit(t *testi
 
 	var err error
 	captureBuildsWaitStderr(t, func() {
-		_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false)
+		_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false, shared.BuildProcessingFailureContext{})
 	})
 	if err == nil {
 		t.Fatal("expected error once transient failures exceed the ceiling, got nil")
@@ -172,6 +175,740 @@ func TestWaitForBuildProcessingStateReturnsTerminalFailure(t *testing.T) {
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
 	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/builds/build-1":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "builds",
+					"id": "build-1",
+					"attributes": {"version": "42", "processingState": "FAILED"}
+				}
+			}`)
+		case "/v1/builds/build-1/app", "/v1/builds/build-1/preReleaseVersion":
+			return buildsWaitJSONResponse(http.StatusNotFound, buildsWaitNotFoundBody)
+		default:
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+	})
+
+	var err error
+	captureBuildsWaitStderr(t, func() {
+		_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false, shared.BuildProcessingFailureContext{})
+	})
+	if err == nil {
+		t.Fatal("expected terminal FAILED error, got nil")
+	}
+	if !strings.Contains(err.Error(), "build processing failed with state FAILED") {
+		t.Fatalf("expected terminal FAILED error, got %v", err)
+	}
+}
+
+const buildsWaitNotFoundBody = `{
+	"errors": [
+		{"status": "404", "code": "NOT_FOUND", "title": "The specified resource does not exist"}
+	]
+}`
+
+const buildsWaitProcessingDetail = `Invalid Siri Support. App Intent description "Searches Apple Music" cannot contain "apple"`
+
+// buildsWaitNoLinkedUploadsBody answers the build lookup that resolves which
+// upload a build came from, reporting no linkage.
+const buildsWaitNoLinkedUploadsBody = `{"data": [], "links": {}}`
+
+const buildsWaitPreReleaseVersionBody = `{
+	"data": {
+		"type": "preReleaseVersions",
+		"id": "pre-1",
+		"attributes": {"version": "1.2.3", "platform": "IOS"}
+	}
+}`
+
+type buildsWaitDiagnosticsStub struct {
+	calls     int
+	appIDs    []string
+	uploadIDs []string
+}
+
+// stubBuildsWaitProcessingDetails records diagnostics lookups so tests can
+// prove when, and for which upload, processing details are fetched.
+func stubBuildsWaitProcessingDetails(t *testing.T, details string, lookupErr error) *buildsWaitDiagnosticsStub {
+	t.Helper()
+
+	stub := &buildsWaitDiagnosticsStub{}
+	t.Cleanup(shared.SetBuildUploadFailureDiagnosticsForTesting(func(_ context.Context, _ *asc.Client, appID string, upload *asc.BuildUploadResponse) (string, error) {
+		stub.calls++
+		stub.appIDs = append(stub.appIDs, appID)
+		if upload != nil {
+			stub.uploadIDs = append(stub.uploadIDs, upload.Data.ID)
+		}
+		return details, lookupErr
+	}))
+	return stub
+}
+
+func TestWaitForBuildProcessingStateFailureIncludesProcessingDetails(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+
+	diagnostics := stubBuildsWaitProcessingDetails(t, buildsWaitProcessingDetail, nil)
+
+	var uploadQuery url.Values
+	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/builds/build-1":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "builds",
+					"id": "build-1",
+					"attributes": {"version": "42", "processingState": "FAILED"}
+				}
+			}`)
+		case "/v1/builds/build-1/app":
+			return buildsWaitJSONResponse(http.StatusOK, `{"data": {"type": "apps", "id": "app-1"}}`)
+		case "/v1/builds/build-1/preReleaseVersion":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "preReleaseVersions",
+					"id": "pre-1",
+					"attributes": {"version": "1.2.3", "platform": "IOS"}
+				}
+			}`)
+		case "/v1/builds":
+			return buildsWaitJSONResponse(http.StatusOK, buildsWaitNoLinkedUploadsBody)
+		case "/v1/apps/app-1/buildUploads":
+			uploadQuery = req.URL.Query()
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "buildUploads",
+						"id": "upload-1",
+						"attributes": {"cfBundleShortVersionString": "1.2.3", "cfBundleVersion": "42", "platform": "IOS"}
+					}
+				],
+				"links": {}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+	})
+
+	var err error
+	captureBuildsWaitStderr(t, func() {
+		_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false, shared.BuildProcessingFailureContext{})
+	})
+	if err == nil {
+		t.Fatal("expected terminal FAILED error, got nil")
+	}
+	message := err.Error()
+	if !strings.Contains(message, "build processing failed with state FAILED") {
+		t.Fatalf("expected the state error to be preserved, got %v", err)
+	}
+	if !strings.Contains(message, "App Store Connect processing details: "+buildsWaitProcessingDetail) {
+		t.Fatalf("expected processing details suffix, got %v", err)
+	}
+	if diagnostics.calls != 1 {
+		t.Fatalf("diagnostics lookups = %d, want 1", diagnostics.calls)
+	}
+	if want := []string{"app-1"}; !slices.Equal(diagnostics.appIDs, want) {
+		t.Fatalf("diagnostics app IDs = %v, want %v", diagnostics.appIDs, want)
+	}
+	if want := []string{"upload-1"}; !slices.Equal(diagnostics.uploadIDs, want) {
+		t.Fatalf("diagnostics upload IDs = %v, want %v", diagnostics.uploadIDs, want)
+	}
+	for key, want := range map[string]string{
+		"filter[cfBundleVersion]":            "42",
+		"filter[cfBundleShortVersionString]": "1.2.3",
+		"filter[platform]":                   "IOS",
+	} {
+		if got := uploadQuery.Get(key); got != want {
+			t.Fatalf("build uploads %s = %q, want %q", key, got, want)
+		}
+	}
+}
+
+// Retrying the same build number produces several uploads with identical
+// versions, so the upload linked to the waited build must win.
+func TestWaitForBuildProcessingStateFailurePrefersUploadLinkedToBuild(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+
+	diagnostics := stubBuildsWaitProcessingDetails(t, buildsWaitProcessingDetail, nil)
+
+	var buildsQuery url.Values
+	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/builds/build-1":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "builds",
+					"id": "build-1",
+					"attributes": {"version": "42", "processingState": "FAILED"}
+				}
+			}`)
+		case "/v1/builds/build-1/preReleaseVersion":
+			return buildsWaitJSONResponse(http.StatusOK, buildsWaitPreReleaseVersionBody)
+		case "/v1/builds":
+			buildsQuery = req.URL.Query()
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "builds",
+						"id": "build-retry",
+						"attributes": {"version": "42"},
+						"relationships": {"buildUpload": {"data": {"type": "buildUploads", "id": "upload-retry"}}}
+					},
+					{
+						"type": "builds",
+						"id": "build-1",
+						"attributes": {"version": "42"},
+						"relationships": {"buildUpload": {"data": {"type": "buildUploads", "id": "upload-waited"}}}
+					}
+				],
+				"links": {}
+			}`)
+		case "/v1/buildUploads/upload-waited":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "buildUploads",
+					"id": "upload-waited",
+					"attributes": {"cfBundleShortVersionString": "1.2.3", "cfBundleVersion": "42", "platform": "IOS"}
+				}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+	})
+
+	failureContext := shared.BuildProcessingFailureContext{
+		AppID:        "app-1",
+		ShortVersion: "1.2.3",
+		Platform:     "IOS",
+	}
+
+	var err error
+	captureBuildsWaitStderr(t, func() {
+		_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false, failureContext)
+	})
+	if err == nil {
+		t.Fatal("expected terminal FAILED error, got nil")
+	}
+	if !strings.Contains(err.Error(), "App Store Connect processing details: "+buildsWaitProcessingDetail) {
+		t.Fatalf("expected processing details suffix, got %v", err)
+	}
+	if want := []string{"upload-waited"}; !slices.Equal(diagnostics.uploadIDs, want) {
+		t.Fatalf("diagnostics upload IDs = %v, want %v", diagnostics.uploadIDs, want)
+	}
+	for key, want := range map[string]string{
+		"filter[app]":     "app-1",
+		"filter[version]": "42",
+		"include":         "buildUpload",
+	} {
+		if got := buildsQuery.Get(key); got != want {
+			t.Fatalf("builds lookup %s = %q, want %q", key, got, want)
+		}
+	}
+}
+
+func TestWaitForBuildProcessingStateFailureFallsBackWhenLinkedUploadLookupFails(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+
+	diagnostics := stubBuildsWaitProcessingDetails(t, buildsWaitProcessingDetail, nil)
+
+	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/builds/build-1":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "builds",
+					"id": "build-1",
+					"attributes": {"version": "42", "processingState": "FAILED"}
+				}
+			}`)
+		case "/v1/builds/build-1/preReleaseVersion":
+			return buildsWaitJSONResponse(http.StatusOK, buildsWaitPreReleaseVersionBody)
+		case "/v1/builds":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "builds",
+						"id": "build-1",
+						"attributes": {"version": "42"},
+						"relationships": {"buildUpload": {"data": {"type": "buildUploads", "id": "upload-missing"}}}
+					}
+				],
+				"links": {}
+			}`)
+		case "/v1/buildUploads/upload-missing":
+			return buildsWaitJSONResponse(http.StatusNotFound, buildsWaitNotFoundBody)
+		case "/v1/apps/app-1/buildUploads":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "buildUploads",
+						"id": "upload-1",
+						"attributes": {"cfBundleShortVersionString": "1.2.3", "cfBundleVersion": "42", "platform": "IOS"}
+					}
+				],
+				"links": {}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+	})
+
+	failureContext := shared.BuildProcessingFailureContext{AppID: "app-1"}
+
+	var err error
+	captureBuildsWaitStderr(t, func() {
+		_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false, failureContext)
+	})
+	if err == nil {
+		t.Fatal("expected terminal FAILED error, got nil")
+	}
+	if !strings.Contains(err.Error(), "App Store Connect processing details: "+buildsWaitProcessingDetail) {
+		t.Fatalf("expected processing details suffix, got %v", err)
+	}
+	if want := []string{"upload-1"}; !slices.Equal(diagnostics.uploadIDs, want) {
+		t.Fatalf("diagnostics upload IDs = %v, want %v", diagnostics.uploadIDs, want)
+	}
+}
+
+// Processing details are reported per app, build number, marketing version,
+// and platform, so an upload must not be guessed from an incomplete identity.
+func TestWaitForBuildProcessingStateFailureSkipsUploadMatchWithUnknownMarketingVersion(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+
+	diagnostics := stubBuildsWaitProcessingDetails(t, buildsWaitProcessingDetail, nil)
+
+	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/builds/build-1":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "builds",
+					"id": "build-1",
+					"attributes": {"version": "42", "processingState": "FAILED"}
+				}
+			}`)
+		case "/v1/builds/build-1/preReleaseVersion":
+			return buildsWaitJSONResponse(http.StatusNotFound, buildsWaitNotFoundBody)
+		case "/v1/builds":
+			return buildsWaitJSONResponse(http.StatusOK, buildsWaitNoLinkedUploadsBody)
+		default:
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+	})
+
+	failureContext := shared.BuildProcessingFailureContext{AppID: "app-1"}
+
+	var err error
+	captureBuildsWaitStderr(t, func() {
+		_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false, failureContext)
+	})
+	if err == nil {
+		t.Fatal("expected terminal FAILED error, got nil")
+	}
+	if got := err.Error(); got != "build processing failed with state FAILED" {
+		t.Fatalf("error = %q, want the unmodified state error", got)
+	}
+	if diagnostics.calls != 0 {
+		t.Fatalf("diagnostics lookups = %d, want 0", diagnostics.calls)
+	}
+}
+
+func TestWaitForBuildProcessingStateFailureSkipsAppLookupWhenSelectorProvidesApp(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+
+	diagnostics := stubBuildsWaitProcessingDetails(t, buildsWaitProcessingDetail, nil)
+
+	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/builds/build-1":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "builds",
+					"id": "build-1",
+					"attributes": {"version": "42", "processingState": "FAILED"}
+				}
+			}`)
+		case "/v1/builds/build-1/preReleaseVersion":
+			return buildsWaitJSONResponse(http.StatusOK, buildsWaitPreReleaseVersionBody)
+		case "/v1/builds":
+			return buildsWaitJSONResponse(http.StatusOK, buildsWaitNoLinkedUploadsBody)
+		case "/v1/apps/app-1/buildUploads":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "buildUploads",
+						"id": "upload-1",
+						"attributes": {"cfBundleShortVersionString": "1.2.3", "cfBundleVersion": "42", "platform": "IOS"}
+					}
+				],
+				"links": {}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+	})
+
+	failureContext := shared.BuildProcessingFailureContext{
+		AppID:        "app-1",
+		ShortVersion: "1.2.3",
+		Platform:     "IOS",
+	}
+
+	var err error
+	captureBuildsWaitStderr(t, func() {
+		_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false, failureContext)
+	})
+	if err == nil {
+		t.Fatal("expected terminal FAILED error, got nil")
+	}
+	if !strings.Contains(err.Error(), "App Store Connect processing details: "+buildsWaitProcessingDetail) {
+		t.Fatalf("expected processing details suffix, got %v", err)
+	}
+	if diagnostics.calls != 1 {
+		t.Fatalf("diagnostics lookups = %d, want 1", diagnostics.calls)
+	}
+}
+
+// Build numbers repeat across platforms, and App Store Connect stores only the
+// uploaded spelling of a marketing version, so the build's own pre-release
+// version and platform must drive the upload match.
+func TestWaitForBuildProcessingStateFailurePrefersBuildReportedVersionAndPlatform(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+
+	diagnostics := stubBuildsWaitProcessingDetails(t, buildsWaitProcessingDetail, nil)
+
+	var uploadQuery url.Values
+	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/builds/build-1":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "builds",
+					"id": "build-1",
+					"attributes": {"version": "42", "processingState": "FAILED"}
+				}
+			}`)
+		case "/v1/builds/build-1/preReleaseVersion":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "preReleaseVersions",
+					"id": "pre-1",
+					"attributes": {"version": "1.2", "platform": "MAC_OS"}
+				}
+			}`)
+		case "/v1/builds":
+			return buildsWaitJSONResponse(http.StatusOK, buildsWaitNoLinkedUploadsBody)
+		case "/v1/apps/app-1/buildUploads":
+			uploadQuery = req.URL.Query()
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "buildUploads",
+						"id": "upload-1",
+						"attributes": {"cfBundleShortVersionString": "1.2", "cfBundleVersion": "42", "platform": "MAC_OS"}
+					}
+				],
+				"links": {}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+	})
+
+	failureContext := shared.BuildProcessingFailureContext{
+		AppID:        "app-1",
+		ShortVersion: "1.2.0",
+	}
+
+	var err error
+	captureBuildsWaitStderr(t, func() {
+		_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false, failureContext)
+	})
+	if err == nil {
+		t.Fatal("expected terminal FAILED error, got nil")
+	}
+	if !strings.Contains(err.Error(), "App Store Connect processing details: "+buildsWaitProcessingDetail) {
+		t.Fatalf("expected processing details suffix, got %v", err)
+	}
+	for key, want := range map[string]string{
+		"filter[cfBundleShortVersionString]": "1.2",
+		"filter[platform]":                   "MAC_OS",
+	} {
+		if got := uploadQuery.Get(key); got != want {
+			t.Fatalf("build uploads %s = %q, want %q", key, got, want)
+		}
+	}
+	if diagnostics.calls != 1 {
+		t.Fatalf("diagnostics lookups = %d, want 1", diagnostics.calls)
+	}
+}
+
+func TestWaitForBuildProcessingStateFailureKeepsStateErrorWhenDetailsUnavailable(t *testing.T) {
+	tests := []struct {
+		name         string
+		uploadsBody  string
+		uploadStatus int
+		details      string
+		lookupErr    error
+		wantCalls    int
+	}{
+		{
+			name:         "no matching upload",
+			uploadStatus: http.StatusOK,
+			uploadsBody:  `{"data": [], "links": {}}`,
+		},
+		{
+			name:         "upload lookup fails",
+			uploadStatus: http.StatusNotFound,
+			uploadsBody:  buildsWaitNotFoundBody,
+		},
+		{
+			name:         "diagnostics lookup fails",
+			uploadStatus: http.StatusOK,
+			uploadsBody: `{
+				"data": [
+					{
+						"type": "buildUploads",
+						"id": "upload-1",
+						"attributes": {"cfBundleShortVersionString": "1.2.3", "cfBundleVersion": "42", "platform": "IOS"}
+					}
+				],
+				"links": {}
+			}`,
+			lookupErr: errors.New("processing details unavailable"),
+			wantCalls: 1,
+		},
+		{
+			name:         "details already reported",
+			uploadStatus: http.StatusOK,
+			uploadsBody: `{
+				"data": [
+					{
+						"type": "buildUploads",
+						"id": "upload-1",
+						"attributes": {"cfBundleShortVersionString": "1.2.3", "cfBundleVersion": "42", "platform": "IOS"}
+					}
+				],
+				"links": {}
+			}`,
+			details:   "build processing failed with state FAILED",
+			wantCalls: 1,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_MAX_RETRIES", "0")
+
+			diagnostics := stubBuildsWaitProcessingDetails(t, test.details, test.lookupErr)
+
+			client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+				switch req.URL.Path {
+				case "/v1/builds/build-1":
+					return buildsWaitJSONResponse(http.StatusOK, `{
+						"data": {
+							"type": "builds",
+							"id": "build-1",
+							"attributes": {"version": "42", "processingState": "FAILED"}
+						}
+					}`)
+				case "/v1/builds/build-1/preReleaseVersion":
+					return buildsWaitJSONResponse(http.StatusOK, buildsWaitPreReleaseVersionBody)
+				case "/v1/builds":
+					return buildsWaitJSONResponse(http.StatusOK, buildsWaitNoLinkedUploadsBody)
+				case "/v1/apps/app-1/buildUploads":
+					return buildsWaitJSONResponse(test.uploadStatus, test.uploadsBody)
+				default:
+					return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+				}
+			})
+
+			failureContext := shared.BuildProcessingFailureContext{
+				AppID:        "app-1",
+				ShortVersion: "1.2.3",
+				Platform:     "IOS",
+			}
+
+			var err error
+			captureBuildsWaitStderr(t, func() {
+				_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false, failureContext)
+			})
+			if err == nil {
+				t.Fatal("expected terminal FAILED error, got nil")
+			}
+			if got := err.Error(); got != "build processing failed with state FAILED" {
+				t.Fatalf("error = %q, want the unmodified state error", got)
+			}
+			if diagnostics.calls != test.wantCalls {
+				t.Fatalf("diagnostics lookups = %d, want %d", diagnostics.calls, test.wantCalls)
+			}
+		})
+	}
+}
+
+// Fetching processing details can outlast the wait deadline (altool is slow),
+// but a build that already reported FAILED must never be reported as a
+// timeout.
+func TestWaitForBuildProcessingStateFailureKeepsStateErrorWhenDetailsOutlastDeadline(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+
+	t.Cleanup(shared.SetBuildUploadFailureDiagnosticsForTesting(func(ctx context.Context, _ *asc.Client, _ string, _ *asc.BuildUploadResponse) (string, error) {
+		<-ctx.Done()
+		return "", ctx.Err()
+	}))
+
+	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/builds/build-1":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "builds",
+					"id": "build-1",
+					"attributes": {"version": "42", "processingState": "FAILED"}
+				}
+			}`)
+		case "/v1/builds/build-1/preReleaseVersion":
+			return buildsWaitJSONResponse(http.StatusOK, buildsWaitPreReleaseVersionBody)
+		case "/v1/builds":
+			return buildsWaitJSONResponse(http.StatusOK, buildsWaitNoLinkedUploadsBody)
+		case "/v1/apps/app-1/buildUploads":
+			return buildsWaitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "buildUploads",
+						"id": "upload-1",
+						"attributes": {"cfBundleShortVersionString": "1.2.3", "cfBundleVersion": "42", "platform": "IOS"}
+					}
+				],
+				"links": {}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	var err error
+	captureBuildsWaitStderr(t, func() {
+		_, err = waitForBuildProcessingState(ctx, client, "build-1", time.Millisecond, false, shared.BuildProcessingFailureContext{AppID: "app-1"})
+	})
+	if err == nil {
+		t.Fatal("expected terminal FAILED error, got nil")
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want the FAILED state error rather than a deadline", err)
+	}
+	if got := err.Error(); got != "build processing failed with state FAILED" {
+		t.Fatalf("error = %q, want the unmodified state error", got)
+	}
+}
+
+func TestWaitForBuildProcessingStateInvalidFetchesDetailsOnlyWhenFailing(t *testing.T) {
+	tests := []struct {
+		name          string
+		failOnInvalid bool
+		wantErr       bool
+	}{
+		{name: "invalid tolerated"},
+		{name: "invalid fails", failOnInvalid: true, wantErr: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_MAX_RETRIES", "0")
+
+			diagnostics := stubBuildsWaitProcessingDetails(t, buildsWaitProcessingDetail, nil)
+
+			client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+				switch req.URL.Path {
+				case "/v1/builds/build-1":
+					return buildsWaitJSONResponse(http.StatusOK, `{
+						"data": {
+							"type": "builds",
+							"id": "build-1",
+							"attributes": {"version": "42", "processingState": "INVALID"}
+						}
+					}`)
+				case "/v1/builds/build-1/preReleaseVersion":
+					if !test.failOnInvalid {
+						t.Errorf("unexpected pre-release version lookup for a tolerated INVALID build")
+					}
+					return buildsWaitJSONResponse(http.StatusOK, buildsWaitPreReleaseVersionBody)
+				case "/v1/builds":
+					if !test.failOnInvalid {
+						t.Errorf("unexpected upload linkage lookup for a tolerated INVALID build")
+					}
+					return buildsWaitJSONResponse(http.StatusOK, buildsWaitNoLinkedUploadsBody)
+				case "/v1/apps/app-1/buildUploads":
+					if !test.failOnInvalid {
+						t.Errorf("unexpected build upload lookup for a tolerated INVALID build")
+					}
+					return buildsWaitJSONResponse(http.StatusOK, `{
+						"data": [
+							{
+								"type": "buildUploads",
+								"id": "upload-1",
+								"attributes": {"cfBundleShortVersionString": "1.2.3", "cfBundleVersion": "42", "platform": "IOS"}
+							}
+						],
+						"links": {}
+					}`)
+				default:
+					return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+				}
+			})
+
+			failureContext := shared.BuildProcessingFailureContext{
+				AppID:        "app-1",
+				ShortVersion: "1.2.3",
+				Platform:     "IOS",
+			}
+
+			var buildResp *asc.BuildResponse
+			var err error
+			captureBuildsWaitStderr(t, func() {
+				buildResp, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, test.failOnInvalid, failureContext)
+			})
+
+			if !test.wantErr {
+				if err != nil {
+					t.Fatalf("waitForBuildProcessingState() error: %v", err)
+				}
+				if buildResp == nil || buildResp.Data.Attributes.ProcessingState != asc.BuildProcessingStateInvalid {
+					t.Fatalf("expected the INVALID build to be returned, got %#v", buildResp)
+				}
+				if diagnostics.calls != 0 {
+					t.Fatalf("diagnostics lookups = %d, want 0", diagnostics.calls)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatal("expected terminal INVALID error, got nil")
+			}
+			message := err.Error()
+			if !strings.Contains(message, "build processing failed with state INVALID") {
+				t.Fatalf("expected the state error to be preserved, got %v", err)
+			}
+			if !strings.Contains(message, "App Store Connect processing details: "+buildsWaitProcessingDetail) {
+				t.Fatalf("expected processing details suffix, got %v", err)
+			}
+			if diagnostics.calls != 1 {
+				t.Fatalf("diagnostics lookups = %d, want 1", diagnostics.calls)
+			}
+		})
+	}
+}
+
+func TestWaitForBuildProcessingStateValidSkipsProcessingDetails(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+
+	diagnostics := stubBuildsWaitProcessingDetails(t, buildsWaitProcessingDetail, nil)
+
+	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
 		if req.URL.Path != "/v1/builds/build-1" {
 			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
 		}
@@ -179,20 +916,30 @@ func TestWaitForBuildProcessingStateReturnsTerminalFailure(t *testing.T) {
 			"data": {
 				"type": "builds",
 				"id": "build-1",
-				"attributes": {"version": "42", "processingState": "FAILED"}
+				"attributes": {"version": "42", "processingState": "VALID"}
 			}
 		}`)
 	})
 
+	failureContext := shared.BuildProcessingFailureContext{
+		AppID:        "app-1",
+		ShortVersion: "1.2.3",
+		Platform:     "IOS",
+	}
+
+	var buildResp *asc.BuildResponse
 	var err error
 	captureBuildsWaitStderr(t, func() {
-		_, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, false)
+		buildResp, err = waitForBuildProcessingState(context.Background(), client, "build-1", time.Millisecond, true, failureContext)
 	})
-	if err == nil {
-		t.Fatal("expected terminal FAILED error, got nil")
+	if err != nil {
+		t.Fatalf("waitForBuildProcessingState() error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "build processing failed with state FAILED") {
-		t.Fatalf("expected terminal FAILED error, got %v", err)
+	if buildResp == nil || buildResp.Data.Attributes.ProcessingState != asc.BuildProcessingStateValid {
+		t.Fatalf("expected the VALID build to be returned, got %#v", buildResp)
+	}
+	if diagnostics.calls != 0 {
+		t.Fatalf("diagnostics lookups = %d, want 0", diagnostics.calls)
 	}
 }
 

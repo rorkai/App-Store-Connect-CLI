@@ -61,7 +61,7 @@ Examples:
 func PhasedReleaseGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("phased-release view", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -103,7 +103,7 @@ Examples:
 func PhasedReleaseCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("phased-release create", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	state := fs.String("state", "", "Initial state: INACTIVE, ACTIVE (optional, defaults to INACTIVE)")
 	output := shared.BindOutputFlags(fs)
 

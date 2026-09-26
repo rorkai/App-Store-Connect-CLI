@@ -2148,6 +2148,8 @@ func TestUnassignAndSetRejectAppGroupIdentifierBeforeWrite(t *testing.T) {
 				case 1:
 					return assertDeveloperPortalBootstrap(t, request), nil
 				case 2:
+					return developerPortalTestResponse(http.StatusOK, developerBundleAppGroupsFixture(true, "GROUP12345", "OTHER"), nil), nil
+				case 3:
 					return developerPortalTestResponse(http.StatusOK, listing, nil), nil
 				default:
 					t.Fatalf("identifier refusal must not lead to request %d (%s %s)", requestNumber, request.Method, request.URL.Path)
@@ -2161,6 +2163,129 @@ func TestUnassignAndSetRejectAppGroupIdentifierBeforeWrite(t *testing.T) {
 			}
 			if identifierErr.GroupID != "GROUP12345" {
 				t.Fatalf("identifier error did not resolve the resource ID: %+v", identifierErr)
+			}
+		})
+	}
+}
+
+func TestUnassignAndSetStopWhenAppGroupIdentifierLookupFails(t *testing.T) {
+	operations := map[string]func(*Client) error{
+		"unassign": func(client *Client) error {
+			_, err := client.UnassignDeveloperAppGroup(context.Background(), DeveloperAppGroupUnassignRequest{BundleID: "bundle-1", GroupID: "group.com.example.GROUP12345"})
+			return err
+		},
+		"set": func(client *Client) error {
+			_, err := client.SetDeveloperAppGroups(context.Background(), DeveloperAppGroupSetRequest{BundleID: "bundle-1", GroupIDs: []string{"GROUP12345", "group.com.example.GROUP12345"}})
+			return err
+		},
+	}
+	responses := map[string]string{
+		"malformed":  `{"resultCode":0,"applicationGroupList":`,
+		"incomplete": `{"resultCode":0,"applicationGroupList":[]}`,
+		"refused":    `{"resultCode":1100,"userString":"Access denied"}`,
+	}
+	for operation, run := range operations {
+		for name, body := range responses {
+			t.Run(operation+"/"+name, func(t *testing.T) {
+				lookupFailed := false
+				client := newDeveloperAppGroupsTestClient(t, func(requestNumber int, request *http.Request) (*http.Response, error) {
+					if requestNumber == 1 {
+						return assertDeveloperPortalBootstrap(t, request), nil
+					}
+					if lookupFailed {
+						t.Fatalf("failed identifier lookup must stop before any further request: %s %s", request.Method, request.URL.Path)
+					}
+					if request.URL.Path == "/services-account/QH65B2"+developerAppGroupsListPath {
+						lookupFailed = true
+						return developerPortalTestResponse(http.StatusOK, body, nil), nil
+					}
+					if request.URL.Path != "/services-account/v1/bundleIds/bundle-1" || request.Method != http.MethodPost || request.Header.Get("X-HTTP-Method-Override") != http.MethodGet {
+						t.Fatalf("unexpected request: %s %s", request.Method, request.URL.Path)
+					}
+					return developerPortalTestResponse(http.StatusOK, developerBundleAppGroupsFixture(true, "GROUP12345", "OTHER"), nil), nil
+				})
+				err := run(client)
+				if name == "refused" {
+					var refusal *DeveloperPortalResultError
+					if !errors.As(err, &refusal) || refusal.ResultCode != 1100 {
+						t.Fatalf("expected original portal refusal, got %v", err)
+					}
+				} else {
+					var unreadable *DeveloperAppGroupUnreadableResponseError
+					if !errors.As(err, &unreadable) {
+						t.Fatalf("expected unreadable App Groups response, got %v", err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestUnassignAndSetAcceptAppGroupResourceIDLookingLikeIdentifier(t *testing.T) {
+	const groupID = "group.com.example.shared"
+	tests := []struct {
+		name     string
+		unassign bool
+		before   []string
+		after    []string
+		changed  bool
+		complete bool
+	}{
+		{name: "unassign attached", unassign: true, before: []string{"OTHER", groupID}, after: []string{"OTHER"}, changed: true},
+		{name: "unassign not attached", unassign: true, before: []string{"OTHER"}, after: []string{"OTHER"}, complete: true},
+		{name: "set unchanged", before: []string{groupID}, after: []string{groupID}},
+		{name: "set add only", before: []string{"OTHER"}, after: []string{"OTHER", groupID}, changed: true},
+		{name: "set keep proven id", before: []string{"OTHER", groupID}, after: []string{groupID}, changed: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			patched := false
+			client := newDeveloperAppGroupsTestClient(t, func(requestNumber int, request *http.Request) (*http.Response, error) {
+				if requestNumber == 1 {
+					return assertDeveloperPortalBootstrap(t, request), nil
+				}
+				if request.URL.Path == "/services-account/QH65B2"+developerAppGroupsListPath {
+					body := `{"resultCode":0,"applicationGroupList":[]}`
+					if test.complete {
+						body = developerAppGroupsListFixture(groupID)
+					}
+					return developerPortalTestResponse(http.StatusOK, body, http.Header{"csrf": {"primed-csrf"}, "csrf_ts": {"primed-ts"}}), nil
+				}
+				if request.URL.Path != "/services-account/v1/bundleIds/bundle-1" {
+					t.Fatalf("unexpected request: %s %s", request.Method, request.URL.Path)
+				}
+				if request.Method == http.MethodPatch {
+					patched = true
+					body, err := io.ReadAll(request.Body)
+					if err != nil {
+						t.Fatal(err)
+					}
+					capabilities := decodeDeveloperBundlePatchCapabilities(t, body)
+					groups, enabled := decodeDeveloperAppGroupsCapability(t, capabilities[1])
+					if !enabled || strings.Join(groups, ",") != strings.Join(test.after, ",") {
+						t.Fatalf("unexpected assignments in PATCH: %v, enabled=%t", groups, enabled)
+					}
+					return developerPortalTestResponse(http.StatusOK, `{"data":{"type":"bundleIds","id":"bundle-1"}}`, nil), nil
+				}
+				groups := test.before
+				if patched {
+					groups = test.after
+				}
+				return developerPortalTestResponse(http.StatusOK, developerBundleAppGroupsFixture(true, groups...), nil), nil
+			})
+			if test.unassign {
+				result, err := client.UnassignDeveloperAppGroup(context.Background(), DeveloperAppGroupUnassignRequest{BundleID: "bundle-1", GroupID: groupID})
+				if err != nil || result == nil || result.Changed != test.changed {
+					t.Fatalf("unexpected unassign result: %+v, %v", result, err)
+				}
+			} else {
+				result, err := client.SetDeveloperAppGroups(context.Background(), DeveloperAppGroupSetRequest{BundleID: "bundle-1", GroupIDs: test.after})
+				if err != nil || result == nil || result.Changed != test.changed {
+					t.Fatalf("unexpected set result: %+v, %v", result, err)
+				}
+			}
+			if patched != test.changed {
+				t.Fatalf("PATCH sent = %t, want %t", patched, test.changed)
 			}
 		})
 	}

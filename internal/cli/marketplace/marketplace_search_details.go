@@ -143,7 +143,7 @@ Examples:
 func MarketplaceSearchDetailsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	detailID := fs.String("search-detail-id", "", "Marketplace search detail ID")
+	detailID := shared.BindResourceIDFlag(fs, "search-detail-id", "marketplaceSearchDetails", "Marketplace search detail ID")
 	catalogURL := fs.String("catalog-url", "", "Marketplace catalog URL")
 	output := shared.BindOutputFlags(fs)
 
@@ -202,7 +202,7 @@ Examples:
 func MarketplaceSearchDetailsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	detailID := fs.String("search-detail-id", "", "Marketplace search detail ID")
+	detailID := shared.BindResourceIDFlag(fs, "search-detail-id", "marketplaceSearchDetails", "Marketplace search detail ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

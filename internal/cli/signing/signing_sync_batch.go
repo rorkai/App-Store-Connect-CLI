@@ -17,6 +17,7 @@ import (
 )
 
 type signingSyncBatchOptions struct {
+	Transport                signingSyncTransport
 	RepoURL                  string
 	Branch                   string
 	Password                 string
@@ -81,11 +82,11 @@ func runSigningSyncBatch(ctx context.Context, client *asc.Client, options signin
 	if err != nil {
 		return SyncResult{}, fmt.Errorf("create temp dir: %w", err)
 	}
-	store := &signingpkg.GitStore{
-		RepoURL:  options.RepoURL,
-		LocalDir: tmpDir,
-		Branch:   options.Branch,
+	transport := options.Transport
+	if transport == nil {
+		transport = signingSyncGitTransport{repoURL: options.RepoURL, branch: options.Branch}
 	}
+	store := newSigningSyncStore(transport, tmpDir, options.RepoURL, options.Branch)
 	defer func() { _ = store.Cleanup() }()
 	identity := options.Identity
 	var createdCertificate asc.Resource[asc.CertificateAttributes]
@@ -103,8 +104,7 @@ func runSigningSyncBatch(ctx context.Context, client *asc.Client, options signin
 	}
 
 	prepareRepository := onceAfterSuccess(func() error {
-		fmt.Fprintln(os.Stderr, "Cloning signing repo...")
-		return store.Clone(ctx, true)
+		return transport.Fetch(ctx, store, true)
 	})
 
 	fmt.Fprintln(os.Stderr, "Fetching signing assets from App Store Connect...")
@@ -336,15 +336,14 @@ func runSigningSyncBatch(ctx context.Context, client *asc.Client, options signin
 	}
 
 	commitMessage := fmt.Sprintf("Update signing assets for %s (%d targets)", options.ProfileType, len(targets))
-	fmt.Fprintln(os.Stderr, "Pushing to git...")
-	if err := store.CommitAndPush(ctx, commitMessage); err != nil {
+	if err := transport.Publish(ctx, store, commitMessage); err != nil {
 		return partial(err, targets)
 	}
 	fmt.Fprintln(os.Stderr, "Done")
 
 	result := SyncResult{
 		Operation:       "push",
-		RepoURL:         sanitizeRepoURLForOutput(options.RepoURL),
+		RepoURL:         transport.Locator(),
 		ProfileType:     options.ProfileType,
 		Files:           make([]string, 0),
 		IdentityPresent: identity != nil,
@@ -383,9 +382,13 @@ func runSigningSyncBatch(ctx context.Context, client *asc.Client, options signin
 }
 
 func signingSyncBatchPartialResult(options signingSyncBatchOptions, bundleIDs []string, targets []signingSyncBatchTarget, identity *signingIdentity) SyncResult {
+	locator := sanitizeRepoURLForOutput(options.RepoURL)
+	if options.Transport != nil {
+		locator = options.Transport.Locator()
+	}
 	result := SyncResult{
 		Operation:       "push",
-		RepoURL:         sanitizeRepoURLForOutput(options.RepoURL),
+		RepoURL:         locator,
 		ProfileType:     options.ProfileType,
 		Files:           []string{},
 		IdentityPresent: identity != nil,

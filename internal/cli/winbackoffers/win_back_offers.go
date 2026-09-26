@@ -113,7 +113,7 @@ Examples:
 func WinBackOffersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env; required when --subscription-id uses a product ID or name)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(winBackOfferFieldsList(), ", "))
 	priceFields := fs.String("price-fields", "", "Price fields to include: "+strings.Join(winBackOfferPriceFieldsList(), ", "))
@@ -255,7 +255,7 @@ Examples:
 func WinBackOffersCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env; required when --subscription-id uses a product ID or name)")
 	referenceName := fs.String("reference-name", "", "Reference name")
 	offerID := fs.String("offer-id", "", "Offer ID")
@@ -891,7 +891,7 @@ Examples:
 func WinBackOffersRelationshipsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("links", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env; required when --subscription-id uses a product ID or name)")
 	limit := fs.Int("limit", 0, fmt.Sprintf("Maximum results per page (1-%d)", winBackOffersMaxLimit))
 	next := fs.String("next", "", "Fetch next page using a links.next URL")

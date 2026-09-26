@@ -58,10 +58,15 @@ func snapshotImageFile(source *os.File, size int64) (*os.File, func(), error) {
 	if err != nil {
 		return nil, func() {}, fmt.Errorf("create image snapshot: %w", err)
 	}
+	snapshotPath := snapshot.Name()
+	// Unlink immediately where the OS permits removing an open file. Some
+	// platforms keep the path until cleanup closes the snapshot descriptor.
+	snapshotPathLinked := os.Remove(snapshotPath) != nil
 	cleanup := func() {
-		name := snapshot.Name()
 		_ = snapshot.Close()
-		_ = os.Remove(name)
+		if snapshotPathLinked {
+			_ = os.Remove(snapshotPath)
+		}
 	}
 
 	if _, err := io.CopyN(snapshot, io.NewSectionReader(source, 0, size), size); err != nil {

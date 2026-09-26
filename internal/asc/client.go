@@ -172,13 +172,26 @@ type AppInfoLocalizationAttributes struct {
 }
 
 type localizationFieldsUpdateData struct {
-	Type       ResourceType      `json:"type"`
-	ID         string            `json:"id"`
-	Attributes map[string]string `json:"attributes"`
+	Type       ResourceType              `json:"type"`
+	ID         string                    `json:"id"`
+	Attributes map[string]NullableString `json:"attributes"`
 }
 
 type localizationFieldsUpdateRequest struct {
 	Data localizationFieldsUpdateData `json:"data"`
+}
+
+// nullableLocalizationFields converts set-only field values into nullable
+// attributes so string callers keep their existing wire format.
+func nullableLocalizationFields(fields map[string]string) map[string]NullableString {
+	if fields == nil {
+		return nil
+	}
+	attributes := make(map[string]NullableString, len(fields))
+	for field, value := range fields {
+		attributes[field] = NullableString{Value: &value}
+	}
+	return attributes
 }
 
 // AppInfoAttributes describes app info resources.
@@ -1495,6 +1508,13 @@ func (c *Client) UpdateAppStoreVersionLocalization(ctx context.Context, localiza
 // UpdateAppStoreVersionLocalizationFields updates exactly the supplied fields,
 // preserving explicit empty strings while leaving omitted fields unchanged.
 func (c *Client) UpdateAppStoreVersionLocalizationFields(ctx context.Context, localizationID string, fields map[string]string) (*AppStoreVersionLocalizationResponse, error) {
+	return c.UpdateAppStoreVersionLocalizationNullableFields(ctx, localizationID, nullableLocalizationFields(fields))
+}
+
+// UpdateAppStoreVersionLocalizationNullableFields updates exactly the supplied
+// fields, sending JSON null for fields whose value is nil so callers can clear
+// nullable attributes while leaving omitted fields unchanged.
+func (c *Client) UpdateAppStoreVersionLocalizationNullableFields(ctx context.Context, localizationID string, fields map[string]NullableString) (*AppStoreVersionLocalizationResponse, error) {
 	payload := localizationFieldsUpdateRequest{Data: localizationFieldsUpdateData{
 		Type:       ResourceTypeAppStoreVersionLocalizations,
 		ID:         localizationID,
@@ -1822,6 +1842,13 @@ func (c *Client) UpdateAppInfoLocalization(ctx context.Context, localizationID s
 // UpdateAppInfoLocalizationFields updates exactly the supplied fields,
 // preserving explicit empty strings while leaving omitted fields unchanged.
 func (c *Client) UpdateAppInfoLocalizationFields(ctx context.Context, localizationID string, fields map[string]string) (*AppInfoLocalizationResponse, error) {
+	return c.UpdateAppInfoLocalizationNullableFields(ctx, localizationID, nullableLocalizationFields(fields))
+}
+
+// UpdateAppInfoLocalizationNullableFields updates exactly the supplied fields,
+// sending JSON null for fields whose value is nil so callers can clear nullable
+// attributes while leaving omitted fields unchanged.
+func (c *Client) UpdateAppInfoLocalizationNullableFields(ctx context.Context, localizationID string, fields map[string]NullableString) (*AppInfoLocalizationResponse, error) {
 	payload := localizationFieldsUpdateRequest{Data: localizationFieldsUpdateData{
 		Type:       ResourceTypeAppInfoLocalizations,
 		ID:         localizationID,

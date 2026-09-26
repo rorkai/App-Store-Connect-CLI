@@ -246,7 +246,9 @@ func TestMetadataPlanApproveStatusAndApplyReviewDir(t *testing.T) {
 	if !dryRunOut.DryRun || len(dryRunOut.Updates) != 1 || len(dryRunOut.Actions) != 0 || patches != 0 {
 		t.Fatalf("review-dir dry-run mutated or returned unexpected output: dryRun=%+v patches=%d", dryRunOut, patches)
 	}
-	if appInfoLocalizationReads != 1 || versionLocalizationReads != 1 {
+	// The absent version/ directory leaves the version scope unmanaged, so its
+	// localizations are never read.
+	if appInfoLocalizationReads != 1 || versionLocalizationReads != 0 {
 		t.Fatalf("expected one verification read per localization endpoint on dry-run, got app-info=%d version=%d", appInfoLocalizationReads, versionLocalizationReads)
 	}
 
@@ -274,7 +276,7 @@ func TestMetadataPlanApproveStatusAndApplyReviewDir(t *testing.T) {
 	if !applyOut.Applied || applyOut.Total != 1 || applyOut.Succeeded != 1 || applyOut.Failed != 0 || patches != 1 {
 		t.Fatalf("unexpected apply output=%+v patches=%d", applyOut, patches)
 	}
-	if appInfoLocalizationReads != 1 || versionLocalizationReads != 1 {
+	if appInfoLocalizationReads != 1 || versionLocalizationReads != 0 {
 		t.Fatalf("expected guarded apply to verify and apply from one plan pass, got app-info=%d version=%d", appInfoLocalizationReads, versionLocalizationReads)
 	}
 }
@@ -1369,6 +1371,11 @@ func TestMetadataApplyReconcilesAmbiguousDeleteWithoutReplay(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, "app-info", "en-US.json"), []byte(`{"name":"Existing name"}`), 0o644); err != nil {
 		t.Fatalf("write app-info: %v", err)
+	}
+	// An explicitly present, empty version directory manages the version scope,
+	// so the remote fr-FR localization is planned as a delete.
+	if err := os.MkdirAll(filepath.Join(dir, "version", "1.2.3"), 0o755); err != nil {
+		t.Fatalf("mkdir version: %v", err)
 	}
 
 	originalTransport := http.DefaultTransport

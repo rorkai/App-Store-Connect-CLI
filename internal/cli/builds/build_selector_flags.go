@@ -56,8 +56,8 @@ func bindBuildSelectorFlags(fs *flag.FlagSet, opts buildSelectorFlagOptions) bui
 	}
 
 	return buildSelectorFlags{
-		buildID:        fs.String("build-id", "", buildIDUsage),
-		appID:          fs.String("app", "", appUsage),
+		buildID:        shared.BindResourceIDFlag(fs, "build-id", "builds", buildIDUsage),
+		appID:          shared.BindResourceIDFlag(fs, "app", "apps", appUsage),
 		latest:         fs.Bool("latest", false, latestUsage),
 		version:        fs.String("version", "", versionUsage),
 		buildNumber:    fs.String("build-number", "", buildNumberUsage),

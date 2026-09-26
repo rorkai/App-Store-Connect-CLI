@@ -65,7 +65,7 @@ func TestSubscriptionsPricingPlanAvailabilityValidationErrors(t *testing.T) {
 		{
 			name:    "show rejects positional arguments",
 			args:    []string{"subscriptions", "pricing", "plan-availability", "show", "sub-1"},
-			wantErr: "does not accept positional arguments",
+			wantErr: `unexpected argument "sub-1"`,
 		},
 		{
 			name:    "set missing subscription",

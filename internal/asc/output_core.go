@@ -52,6 +52,8 @@ func PrintPrettyJSON(data any) error {
 	switch v := data.(type) {
 	case json.RawMessage:
 		return printPrettyRawJSON(v)
+	case *PerformanceOverviewResponse:
+		return printPrettyRawJSON(v.Data)
 	case *PerfPowerMetricsResponse:
 		return printPrettyRawJSON(v.Data)
 	case *DiagnosticLogsResponse:

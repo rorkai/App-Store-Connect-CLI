@@ -188,7 +188,7 @@ func TestAppsViewNotificationFieldsPreserveIncludedRelationships(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		err = root.ParseAndRun(context.Background(), []string{"apps", "view", "--id", "app-1", "--fields", "subscriptionStatusUrl", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--output", "json"})
 	})
-	if err != nil || stderr != "" {
+	if err != nil || !strings.HasPrefix(stderr, "Warning: AppInfo.kidsAgeBand is deprecated") || strings.Count(stderr, "\n") != 1 {
 		t.Fatalf("err=%v stderr=%q", err, stderr)
 	}
 	var output struct {

@@ -53,7 +53,7 @@ Examples:
 func BuildLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -189,7 +189,7 @@ Examples:
 func BuildLocalizationsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
 	whatsNew := fs.String("whats-new", "", "Release notes (whats new), up to 4000 characters")
 	output := shared.BindOutputFlags(fs)

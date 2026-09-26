@@ -823,11 +823,16 @@ func TestPublishTestFlightUploadTestNotesFailurePreservesStructuredRecoveryConte
 			}
 			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`)
 		case 2:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/betaAppLocalizations" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"betaAppLocalizations","id":"bal-1","attributes":{"locale":"en-US"}}]}`)
+		case 3:
 			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-123/betaBuildLocalizations" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			return publishCommandJSONResponse(http.StatusOK, `{"data":[]}`)
-		case 3:
+		case 4:
 			if req.Method != http.MethodPost || req.URL.Path != "/v1/betaBuildLocalizations" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
@@ -2664,4 +2669,38 @@ func containsString(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestPublishBuildProcessingWaitIncludesProcessingDetails(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+	t.Cleanup(shared.SetBuildUploadFailureDiagnosticsForTesting(func(context.Context, *asc.Client, string, *asc.BuildUploadResponse) (string, error) {
+		return "ITMS-90000: processing details", nil
+	}))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/builds/build-1":
+			return publishCommandJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"FAILED"}}}`)
+		case "/v1/builds/build-1/app":
+			return publishCommandJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`)
+		case "/v1/builds/build-1/preReleaseVersion":
+			return publishCommandJSONResponse(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pre-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`)
+		case "/v1/builds":
+			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-1","attributes":{"version":"42"},"relationships":{"buildUpload":{"data":{"type":"buildUploads","id":"upload-1"}}}}],"links":{}}`)
+		case "/v1/buildUploads/upload-1":
+			return publishCommandJSONResponse(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+	})
+
+	build, err := waitForPublishBuildProcessingFn(context.Background(), newPublishCommandTestClient(t), "build-1", time.Millisecond)
+	if want := "build processing failed: FAILED; App Store Connect processing details: ITMS-90000: processing details"; err == nil || err.Error() != want {
+		t.Fatalf("error = %v, want %q", err, want)
+	}
+	if build == nil || build.Data.Attributes.ProcessingState != asc.BuildProcessingStateFailed {
+		t.Fatalf("build = %#v, want the failed build for partial-failure reporting", build)
+	}
 }

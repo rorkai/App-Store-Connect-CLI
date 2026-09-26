@@ -92,7 +92,7 @@ func BetaTestersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	buildID := fs.String("build-id", "", "Build ID to filter")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to filter")
 	group := fs.String("group", "", "Beta group name or ID to filter")
 	email := fs.String("email", "", "Filter by tester email")
 	firstName := fs.String("first-name", "", "Filter by tester first name (exact match)")

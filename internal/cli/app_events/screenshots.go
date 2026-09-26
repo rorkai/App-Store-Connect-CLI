@@ -45,8 +45,8 @@ Examples:
 func AppEventScreenshotsRelationshipsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("screenshots links", flag.ExitOnError)
 
-	eventID := fs.String("event-id", "", "App event ID")
-	localizationID := fs.String("localization-id", "", "App event localization ID")
+	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US) when resolving localization")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -130,8 +130,8 @@ Examples:
 func AppEventScreenshotsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("screenshots list", flag.ExitOnError)
 
-	eventID := fs.String("event-id", "", "App event ID")
-	localizationID := fs.String("localization-id", "", "App event localization ID")
+	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US) when resolving localization")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -215,7 +215,7 @@ Examples:
 func AppEventScreenshotsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("screenshots view", flag.ExitOnError)
 
-	screenshotID := fs.String("screenshot-id", "", "App event screenshot ID")
+	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "appEventScreenshots", "App event screenshot ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -257,8 +257,8 @@ Examples:
 func AppEventScreenshotsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("screenshots create", flag.ExitOnError)
 
-	eventID := fs.String("event-id", "", "App event ID")
-	localizationID := fs.String("localization-id", "", "App event localization ID")
+	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US) when resolving localization")
 	path := fs.String("path", "", "Path to screenshot file")
 	assetType := fs.String("asset-type", "", "Asset type: "+strings.Join(asc.ValidAppEventAssetTypes, ", "))
@@ -346,7 +346,7 @@ Examples:
 func AppEventScreenshotsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("screenshots delete", flag.ExitOnError)
 
-	screenshotID := fs.String("screenshot-id", "", "App event screenshot ID")
+	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "appEventScreenshots", "App event screenshot ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

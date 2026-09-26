@@ -43,7 +43,7 @@ Examples:
 func CustomPageLocalizationsSearchKeywordsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations search-keywords list", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -85,7 +85,7 @@ Examples:
 func CustomPageLocalizationsSearchKeywordsAddCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations search-keywords add", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	keywords := fs.String("keywords", "", "Keywords (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
@@ -133,7 +133,7 @@ Examples:
 func CustomPageLocalizationsSearchKeywordsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations search-keywords delete", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	keywords := fs.String("keywords", "", "Keywords (comma-separated)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)

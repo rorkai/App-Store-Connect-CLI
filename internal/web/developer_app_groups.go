@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const (
@@ -319,7 +320,7 @@ func (c *Client) listDeveloperAppGroupPages(ctx context.Context, teamID string, 
 	seenGroupIDs := make(map[string]struct{})
 	firstTotalRecords := 0
 	for pageNumber := 1; ; pageNumber++ {
-		body, err := c.doDeveloperPortalLegacyFormRequest(ctx, developerAppGroupsListPath, url.Values{
+		body, err := c.doDeveloperPortalLegacyFormRequest(readonly.WithReadIntent(ctx), developerAppGroupsListPath, url.Values{
 			"teamId":     {teamID},
 			"pageNumber": {strconv.Itoa(pageNumber)},
 			"pageSize":   {strconv.Itoa(developerAppGroupsPageSize)},
@@ -788,22 +789,28 @@ func (c *Client) CreateDeveloperAppGroup(ctx context.Context, request DeveloperA
 //
 // Only a value that cannot be confused with an opaque ID is examined, and only
 // against the team's own listing, so a team whose resource IDs happen to look
-// like identifiers is never refused. A listing that cannot be read leaves the
-// assignment to proceed exactly as before.
-func (c *Client) rejectDeveloperAppGroupIdentifier(ctx context.Context, groupID string) error {
+// like identifiers is never refused. Assign keeps its historical best-effort
+// lookup. Callers require a complete lookup when an unproven ID could cause
+// a false unassign no-op or removal of existing assignments.
+func (c *Client) rejectDeveloperAppGroupIdentifier(ctx context.Context, groupID string, requireLookup bool) error {
 	if !strings.HasPrefix(groupID, developerAppGroupIdentifierPrefix) {
 		return nil
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
+		if requireLookup {
+			return fmt.Errorf("%w; %s", ErrDeveloperPortalTeamNotSelected, developerPortalAuthHint)
+		}
 		return nil
 	}
 	// Only a complete listing can prove the value is not a resource ID: a
 	// success envelope that is short or sparse may omit the very group that
-	// was named, so the strict read is required and any failure leaves the
-	// assignment to proceed.
+	// was named, so the strict read is required to reject an identifier.
 	groups, err := c.listDeveloperAppGroupPages(ctx, teamID, true, true)
-	if err != nil || groups == nil {
+	if err != nil {
+		if requireLookup {
+			return developerAppGroupResponseError(fmt.Errorf("verify App Group resource ID %q: %w", groupID, err))
+		}
 		return nil
 	}
 	for _, group := range groups.Data {
@@ -819,9 +826,9 @@ func (c *Client) rejectDeveloperAppGroupIdentifier(ctx context.Context, groupID 
 	return &DeveloperAppGroupIdentifierError{Given: groupID}
 }
 
-func (c *Client) rejectDeveloperAppGroupIdentifiers(ctx context.Context, groupIDs []string) error {
+func (c *Client) rejectDeveloperAppGroupIdentifiers(ctx context.Context, groupIDs []string, requireLookup bool) error {
 	for _, groupID := range groupIDs {
-		if err := c.rejectDeveloperAppGroupIdentifier(ctx, groupID); err != nil {
+		if err := c.rejectDeveloperAppGroupIdentifier(ctx, groupID, requireLookup); err != nil {
 			return err
 		}
 	}
@@ -843,7 +850,7 @@ func (c *Client) AssignDeveloperAppGroup(ctx context.Context, request DeveloperA
 	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
 		return nil, developerAppGroupResponseError(err)
 	}
-	if err := c.rejectDeveloperAppGroupIdentifier(ctx, request.GroupID); err != nil {
+	if err := c.rejectDeveloperAppGroupIdentifier(ctx, request.GroupID, false); err != nil {
 		return nil, err
 	}
 	current, state, err := c.loadDeveloperBundleIDAppGroups(ctx, request.BundleID)
@@ -881,14 +888,14 @@ func (c *Client) UnassignDeveloperAppGroup(ctx context.Context, request Develope
 	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
 		return nil, developerAppGroupResponseError(err)
 	}
-	if err := c.rejectDeveloperAppGroupIdentifier(ctx, request.GroupID); err != nil {
-		return nil, err
-	}
 	current, state, err := c.loadDeveloperBundleIDAppGroups(ctx, request.BundleID)
 	if err != nil {
 		return nil, err
 	}
 	if !slices.Contains(state.GroupIDs, request.GroupID) {
+		if err := c.rejectDeveloperAppGroupIdentifier(ctx, request.GroupID, true); err != nil {
+			return nil, err
+		}
 		return &asc.WebAppGroupUnassignResult{BundleID: request.BundleID, GroupID: request.GroupID, RemainingGroupIDs: append([]string{}, state.GroupIDs...), Changed: false, Status: "not-assigned"}, nil
 	}
 	desired := make([]string, 0, len(state.GroupIDs))
@@ -919,15 +926,17 @@ func (c *Client) SetDeveloperAppGroups(ctx context.Context, request DeveloperApp
 	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
 		return nil, developerAppGroupResponseError(err)
 	}
-	if err := c.rejectDeveloperAppGroupIdentifiers(ctx, desired); err != nil {
-		return nil, err
-	}
 	current, state, err := c.loadDeveloperBundleIDAppGroups(ctx, request.BundleID)
 	if err != nil {
 		return nil, err
 	}
 	added := differenceStrings(desired, state.GroupIDs)
 	removed := differenceStrings(state.GroupIDs, desired)
+	// IDs already in the relationship are proven resource IDs. Unknown IDs
+	// need a complete lookup before replacing existing assignments.
+	if err := c.rejectDeveloperAppGroupIdentifiers(ctx, added, len(removed) > 0); err != nil {
+		return nil, err
+	}
 	result := &asc.WebAppGroupSetResult{BundleID: request.BundleID, GroupIDs: desired, Added: added, Removed: removed}
 	// A disabled capability that already lists the desired groups still needs a
 	// write so the groups become effective.
@@ -1029,7 +1038,7 @@ func (c *Client) primeDeveloperAppGroupCSRF(ctx context.Context) error {
 		return fmt.Errorf("%w; %s", ErrDeveloperPortalTeamNotSelected, developerPortalAuthHint)
 	}
 	c.clearDeveloperCSRFTokens()
-	body, err := c.doDeveloperPortalLegacyFormRequest(ctx, developerAppGroupsListPath, url.Values{
+	body, err := c.doDeveloperPortalLegacyFormRequest(readonly.WithReadIntent(ctx), developerAppGroupsListPath, url.Values{
 		"teamId":     {teamID},
 		"pageNumber": {"1"},
 		"pageSize":   {strconv.Itoa(developerAppGroupsPageSize)},

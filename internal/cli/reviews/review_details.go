@@ -72,7 +72,7 @@ Examples:
 func ReviewDetailsForVersionCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("details-for-version", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
@@ -141,7 +141,7 @@ Examples:
 func ReviewDetailsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("details-create", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	contactFirstName := fs.String("contact-first-name", "", "Contact first name")
 	contactLastName := fs.String("contact-last-name", "", "Contact last name")
 	contactEmail := fs.String("contact-email", "", "Contact email")
@@ -150,6 +150,7 @@ func ReviewDetailsCreateCommand() *ffcli.Command {
 	demoAccountPassword := fs.String("demo-account-password", "", reviewDetailDemoAccountPasswordUsage)
 	demoAccountRequired := fs.Bool("demo-account-required", false, reviewDetailDemoAccountRequiredUsage)
 	notes := fs.String("notes", "", reviewDetailNotesUsage)
+	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
@@ -165,7 +166,14 @@ Do not use placeholder demo credentials just to satisfy the field shape.
 
 Examples:
   asc review details-create --version-id "VERSION_ID" --contact-first-name "Dev" --contact-last-name "Support" --contact-email "dev@example.com" --contact-phone "+1 555 0100" --notes "Reviewer can use the guest flow from the welcome screen."
-  asc review details-create --version-id "VERSION_ID" --contact-first-name "Dev" --contact-last-name "Support" --contact-email "dev@example.com" --contact-phone "+1 555 0100" --demo-account-required=true --demo-account-name "reviewer@example.com" --demo-account-password "app-specific-password" --notes "2FA is disabled for this review account."`,
+  asc review details-create --version-id "VERSION_ID" --contact-first-name "Dev" --contact-last-name "Support" --contact-email "dev@example.com" --contact-phone "+1 555 0100" --demo-account-required=true --demo-account-name "reviewer@example.com" --demo-account-password "app-specific-password" --notes "2FA is disabled for this review account."
+  asc review details-create --version-id "VERSION_ID" --notes "Reviewer notes" --if-exists update
+
+--if-exists controls what happens when App Store Connect answers 409 because
+the version already has review details. fail (default) returns the error.
+skip reads the existing detail back, prints it unchanged, and exits 0. update
+applies the same flags to the existing detail with asc review details-update.
+Any other 409 keeps failing.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -174,13 +182,20 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return shared.MissingRequiredUsageError("--version-id")
 			}
+			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
+			if err != nil {
+				return err
+			}
 
 			visited := map[string]bool{}
 			fs.Visit(func(f *flag.Flag) {
 				visited[f.Name] = true
 			})
 
-			if visited["demo-account-required"] && *demoAccountRequired {
+			needsExistingDemoCredentials := ifExistsMode == shared.IfExistsUpdate &&
+				visited["demo-account-required"] && *demoAccountRequired &&
+				(!visited["demo-account-name"] || !visited["demo-account-password"])
+			if visited["demo-account-required"] && *demoAccountRequired && !needsExistingDemoCredentials {
 				if err := validateReviewDetailDemoCredentialValues(strings.TrimSpace(*demoAccountName), strings.TrimSpace(*demoAccountPassword)); err != nil {
 					return err
 				}
@@ -236,9 +251,61 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.CreateAppStoreReviewDetail(requestCtx, versionValue, attrsPtr)
+			var resp *asc.AppStoreReviewDetailResponse
+			var existing *asc.AppStoreReviewDetailResponse
+			handled := false
+			if needsExistingDemoCredentials {
+				existing, err = client.GetAppStoreReviewDetailForVersion(requestCtx, versionValue)
+				if err != nil {
+					if asc.IsNotFound(err) {
+						return validateReviewDetailDemoCredentialValues(strings.TrimSpace(*demoAccountName), strings.TrimSpace(*demoAccountPassword))
+					}
+					return fmt.Errorf("review details-create: failed to read existing review details for demo credential validation: %w", err)
+				}
+				if strings.TrimSpace(existing.Data.ID) == "" {
+					return fmt.Errorf("review details-create: existing review detail response did not include an id")
+				}
+
+				if err := validateReviewDetailDemoCredentialsWithExisting(
+					existing.Data.Attributes,
+					visited,
+					strings.TrimSpace(*demoAccountName),
+					strings.TrimSpace(*demoAccountPassword),
+				); err != nil {
+					return err
+				}
+				handled = true
+			} else {
+				resp, err = client.CreateAppStoreReviewDetail(requestCtx, versionValue, attrsPtr)
+			}
 			if err != nil {
-				return fmt.Errorf("review details-create: failed to create: %w", err)
+				var resolveErr error
+				existing, handled, resolveErr = shared.ResolveIfExistsConflict(ifExistsMode, err, reviewDetailsCreateExistsCodes, func() (*asc.AppStoreReviewDetailResponse, bool, error) {
+					detail, lookupErr := client.GetAppStoreReviewDetailForVersion(requestCtx, versionValue)
+					if lookupErr != nil {
+						return nil, false, lookupErr
+					}
+					return detail, strings.TrimSpace(detail.Data.ID) != "", nil
+				})
+				if resolveErr != nil {
+					return fmt.Errorf("review details-create: failed to create: %w", resolveErr)
+				}
+				if !handled {
+					return fmt.Errorf("review details-create: failed to create: %w", err)
+				}
+			}
+			if handled {
+				resp = existing
+				outcome := "left unchanged"
+				if ifExistsMode == shared.IfExistsUpdate && attrsPtr != nil {
+					updated, updateErr := client.UpdateAppStoreReviewDetail(requestCtx, existing.Data.ID, reviewDetailUpdateAttributesFromCreate(*attrsPtr))
+					if updateErr != nil {
+						return fmt.Errorf("review details-create: update existing review detail %s: %w", existing.Data.ID, updateErr)
+					}
+					resp = updated
+					outcome = "updated it in place"
+				}
+				fmt.Fprintf(os.Stderr, "review details-create: review detail %s already exists for version %s; %s (--if-exists %s)\n", existing.Data.ID, versionValue, outcome, ifExistsMode)
 			}
 
 			shared.WarnIncludeSensitive(os.Stderr, *includeSensitive)
@@ -365,6 +432,28 @@ Examples:
 	}
 }
 
+// reviewDetailsCreateExistsCodes lists the Apple 409 codes accepted as "an
+// appStoreReviewDetail already exists for this appStoreVersion" on
+// POST /v1/appStoreReviewDetails. Live against app 6759231657 on 2026-09-15
+// Apple answers this conflict with STATE_ERROR.ALREADY_EXISTS ("Resource
+// already exists." / "The given app version already has an existing review.");
+// the relationship and duplicate-attribute codes are kept because the version
+// owns at most one detail and Apple has reported the same conflict through
+// them. The read-back of GET /v1/appStoreVersions/{id}/appStoreReviewDetail is
+// what finally proves existence; every other STATE_ERROR.* keeps failing.
+var reviewDetailsCreateExistsCodes = []string{
+	"STATE_ERROR.ALREADY_EXISTS",
+	"ENTITY_ERROR.RELATIONSHIP.INVALID",
+	"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE",
+	"ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS",
+}
+
+// reviewDetailUpdateAttributesFromCreate carries the create flags over to the
+// PATCH schema, which accepts the same attribute set.
+func reviewDetailUpdateAttributesFromCreate(attrs asc.AppStoreReviewDetailCreateAttributes) asc.AppStoreReviewDetailUpdateAttributes {
+	return asc.AppStoreReviewDetailUpdateAttributes(attrs)
+}
+
 // presentableReviewDetail withholds the demo account password unless the caller
 // opted in for this invocation. The fetched response keeps its real value so
 // validation and request construction stay unaffected.
@@ -399,10 +488,8 @@ func validateReviewDetailUpdateDemoCredentials(
 		return nil
 	}
 
-	effectiveName := demoAccountName
-	effectivePassword := demoAccountPassword
 	if visited["demo-account-name"] && visited["demo-account-password"] {
-		return validateReviewDetailDemoCredentialValues(effectiveName, effectivePassword)
+		return validateReviewDetailDemoCredentialValues(demoAccountName, demoAccountPassword)
 	}
 
 	resp, err := client.GetAppStoreReviewDetail(ctx, detailID)
@@ -410,13 +497,23 @@ func validateReviewDetailUpdateDemoCredentials(
 		return fmt.Errorf("review details-update: failed to fetch existing review details for demo credential validation: %w", err)
 	}
 
-	if !visited["demo-account-name"] {
-		effectiveName = strings.TrimSpace(resp.Data.Attributes.DemoAccountName)
-	}
-	if !visited["demo-account-password"] {
-		effectivePassword = strings.TrimSpace(resp.Data.Attributes.DemoAccountPassword)
-	}
+	return validateReviewDetailDemoCredentialsWithExisting(resp.Data.Attributes, visited, demoAccountName, demoAccountPassword)
+}
 
+func validateReviewDetailDemoCredentialsWithExisting(
+	existing asc.AppStoreReviewDetailAttributes,
+	visited map[string]bool,
+	demoAccountName string,
+	demoAccountPassword string,
+) error {
+	effectiveName := demoAccountName
+	if !visited["demo-account-name"] {
+		effectiveName = strings.TrimSpace(existing.DemoAccountName)
+	}
+	effectivePassword := demoAccountPassword
+	if !visited["demo-account-password"] {
+		effectivePassword = strings.TrimSpace(existing.DemoAccountPassword)
+	}
 	return validateReviewDetailDemoCredentialValues(effectiveName, effectivePassword)
 }
 

@@ -1,6 +1,7 @@
 package signing
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +20,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 const deviceWithoutCreateMissingError = "--device requires --create-missing because device IDs are only applied to profiles this command creates"
@@ -45,13 +48,18 @@ func rejectDeviceWithoutCreateMissing(deviceIDs string, createMissing bool) erro
 func SigningFetchCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("fetch", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (optional, or ASC_APP_ID env)")
+	appID := fs.String("app", "", "App Store Connect app ID (optional); when set, --bundle-id must be this app's bundle ID")
 	bundleID := fs.String("bundle-id", "", "Bundle identifier (e.g., com.example.app) - required")
 	profileType := fs.String("profile-type", "", "Profile type: IOS_APP_STORE, IOS_APP_DEVELOPMENT, MAC_APP_STORE, etc. (required)")
 	deviceIDs := fs.String("device", "", "Device ID(s), comma-separated (requires --create-missing; required for development profiles)")
 	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
 	outputPath := fs.String("output", "./signing", "Output directory for signing files")
 	createMissing := fs.Bool("create-missing", false, "Create missing profiles")
+	matchExtensions := fs.Bool("match-extensions", false, "Also fetch profiles for registered bundle IDs that extend this identifier, such as <id>.widget")
+	strictMatch := fs.Bool("strict-match-identifier", false, "Fetch only the exact bundle identifier")
+	deleteStale := fs.Bool("delete-stale-profiles", false, "Delete expired or invalid profiles for this bundle ID and profile type before matching (requires --confirm or --dry-run)")
+	confirm := fs.Bool("confirm", false, "Confirm --delete-stale-profiles deletions")
+	dryRun := fs.Bool("dry-run", false, "With --delete-stale-profiles, print the stale-profile plan and exit without deleting, creating, or writing anything")
 	createMissingCertificate := fs.Bool("create-missing-certificate", false, "Create a certificate when none are active, then create the profile")
 	identityPasswordFile := fs.String("identity-password-file", "", "Protected 0600 file containing the PKCS#12 password")
 	keyOut := fs.String("key-out", "", "Private key output path (default: <output>/<type>.key)")
@@ -79,13 +87,35 @@ creates, so --device without --create-missing is rejected with a usage error.
 password-protected .p12 when no active certificate exists. It requires
 --create-missing and --identity-password-file.
 
+--match-extensions also fetches a profile for every registered bundle ID that
+extends --bundle-id with a dotted suffix (com.example.app.widget,
+com.example.app.clip); wildcard identifiers never match. Each target gets its
+own request timeout, a certificate shared by several targets is written once,
+and the JSON receipt lists matchedBundleIds, results, and failures. The command
+exits 1 after finishing the other targets if any target fails. It cannot be
+combined with --create-missing-certificate. --strict-match-identifier is the
+explicit exact-match default.
+
+Active profiles whose expiration date has passed are never selected.
+--delete-stale-profiles deletes expired or INVALID profiles for this bundle ID
+and profile type before matching; it requires --confirm. Every stale profile is
+listed before any deletion, and staleProfiles in the output separates planned,
+deleted, and failed profiles. If any deletion fails, the command stops before
+fetching or creating anything. --dry-run (only with --delete-stale-profiles)
+prints the plan and exits without deleting, creating, or writing files. With
+--match-extensions, stale profiles are planned for every matched bundle ID
+before any deletion, and each result carries its own staleProfiles receipt.
+
 Examples:
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --output ./signing
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_DEVELOPMENT --create-missing --device "DEVICE1,DEVICE2"
-  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --create-missing --create-missing-certificate --identity-password-file ./secrets/p12-password`,
+  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --create-missing --create-missing-certificate --identity-password-file ./secrets/p12-password
+  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --match-extensions --output ./signing
+  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --delete-stale-profiles --dry-run
+  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --delete-stale-profiles --confirm --create-missing`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
+		Exec: func(ctx context.Context, args []string) (runErr error) {
 			bundle := strings.TrimSpace(*bundleID)
 			if bundle == "" {
 				fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
@@ -98,6 +128,39 @@ Examples:
 				return shared.MissingRequiredUsageError("--profile-type")
 			}
 			profType = strings.ToUpper(profType)
+			if *matchExtensions && *strictMatch {
+				return shared.UsageError("--match-extensions and --strict-match-identifier are mutually exclusive")
+			}
+			if *matchExtensions && *createMissingCertificate {
+				const message = "--match-extensions cannot be combined with --create-missing-certificate; create the certificate with a single-bundle fetch first"
+				fmt.Fprintln(os.Stderr, "Error: "+message)
+				return shared.UsageError(message)
+			}
+			if !*deleteStale {
+				for _, dependent := range []struct {
+					name string
+					set  bool
+				}{{"--confirm", *confirm}, {"--dry-run", *dryRun}} {
+					if dependent.set {
+						message := dependent.name + " requires --delete-stale-profiles"
+						fmt.Fprintln(os.Stderr, "Error: "+message)
+						return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
+					}
+				}
+			}
+			if *deleteStale && !*confirm && !*dryRun {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --delete-stale-profiles")
+				return shared.MissingRequiredUsageError("--confirm")
+			}
+			if *deleteStale {
+				// Deletions are irreversible, so every value that would make the
+				// later fetch fail deterministically is rejected before them.
+				if _, err := resolveSigningCertificateTypes(profType, *certType); err != nil {
+					message := fmt.Sprintf("--delete-stale-profiles: %v", err)
+					fmt.Fprintln(os.Stderr, "Error: "+message)
+					return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
+				}
+			}
 			if err := rejectDeviceWithoutCreateMissing(*deviceIDs, *createMissing); err != nil {
 				return err
 			}
@@ -152,6 +215,21 @@ Examples:
 			certificateOutputs := &signingCertificateOutputs{BasePath: outputDir}
 			defer func() { _ = certificateOutputs.Close() }()
 
+			var result *asc.SigningFetchResult
+			emitted := false
+			emit := func() error {
+				emitted = true
+				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			}
+			// Stale-profile deletions are irreversible, so their receipt is
+			// printed even when a later step of the fetch fails.
+			defer func() {
+				if runErr == nil || emitted || result == nil || result.StaleProfiles == nil || len(result.StaleProfiles.Deleted) == 0 {
+					return
+				}
+				_ = emit()
+			}()
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("signing fetch: %w", err)
@@ -160,24 +238,74 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID != "" {
-				if err := validateBundleIDMatchesApp(requestCtx, client, resolvedAppID, bundle); err != nil {
+			// Only an explicit --app is cross-checked. The ASC_APP_ID or config
+			// default app must not veto the bundle ID the caller named.
+			if explicitAppID := strings.TrimSpace(*appID); explicitAppID != "" {
+				if err := validateBundleIDMatchesApp(requestCtx, client, explicitAppID, bundle); err != nil {
 					return fmt.Errorf("signing fetch: %w", err)
 				}
 			}
 
-			result := &asc.SigningFetchResult{
+			result = &asc.SigningFetchResult{
 				BundleID:    bundle,
 				ProfileType: profType,
 				OutputPath:  outputDir,
 			}
 
-			bundleIDResp, err := findBundleID(requestCtx, client, bundle)
+			bundleIDs, err := listSigningBundleIDs(requestCtx, client, bundle, *matchExtensions && !*strictMatch)
 			if err != nil {
 				return fmt.Errorf("signing fetch: %w", err)
 			}
+			if len(bundleIDs) > 1 {
+				batch, batchErr := fetchMatchedSigningBundles(ctx, client, bundleIDs, matchedSigningFetchOptions{
+					ProfileType:     profType,
+					OutputDir:       outputDir,
+					CertificateType: *certType,
+					DeviceIDs:       shared.SplitCSV(*deviceIDs),
+					CreateMissing:   *createMissing,
+					DeleteStale:     *deleteStale,
+					DryRun:          *dryRun,
+					PrepareOutput:   prepareOutputDir,
+				})
+				if *dryRun {
+					fmt.Fprintf(os.Stderr, "Dry run: would delete %d stale profile(s) across %d bundle ID(s); nothing was deleted, created, or written\n", batchStalePlanned(batch), len(bundleIDs))
+				}
+				if err := shared.PrintOutput(batch, *output.Output, *output.Pretty); err != nil {
+					return err
+				}
+				return batchErr
+			}
+			bundleIDResp := &asc.BundleIDResponse{Data: bundleIDs[0]}
 			result.BundleIDResource = bundleIDResp.Data.ID
+
+			if *deleteStale {
+				planned, err := findStaleSigningProfiles(requestCtx, client, bundleIDResp.Data.ID, profType)
+				if err != nil {
+					return fmt.Errorf("signing fetch: list stale profiles: %w", err)
+				}
+				result.StaleProfiles = &asc.SigningFetchStaleProfiles{
+					DryRun:  *dryRun,
+					Planned: planned,
+					Deleted: []asc.SigningStaleProfile{},
+				}
+				if *dryRun {
+					fmt.Fprintf(os.Stderr, "Dry run: would delete %d stale profile(s); nothing was deleted, created, or written\n", len(planned))
+					return emit()
+				}
+				// The output directory is the one deterministic local check that
+				// does not depend on which profile is later resolved, so it runs
+				// before the irreversible deletions.
+				if len(planned) > 0 {
+					if err := prepareOutputDir(); err != nil {
+						return fmt.Errorf("signing fetch: %w; no stale profiles were deleted", err)
+					}
+				}
+				deleteStaleSigningProfiles(requestCtx, client, result.StaleProfiles)
+				if failed := len(result.StaleProfiles.Failed); failed > 0 {
+					_ = emit()
+					return fmt.Errorf("signing fetch: failed to delete %d of %d stale profile(s); nothing was fetched or created", failed, len(planned))
+				}
+			}
 
 			var createdIdentity createdSigningIdentity
 			createdFlag := false
@@ -257,7 +385,7 @@ Examples:
 							result.ProfilesMetadataPath = metadataPath
 						}
 					}
-					_ = shared.PrintOutput(result, *output.Output, *output.Pretty)
+					_ = emit()
 				}
 				return fmt.Errorf("signing fetch: %w", err)
 			}
@@ -285,7 +413,7 @@ Examples:
 					result.ProfileCreationState = "created"
 				}
 				applyCreatedIdentity(result, createdIdentity, createdFlag)
-				_ = shared.PrintOutput(result, *output.Output, *output.Pretty)
+				_ = emit()
 				return fmt.Errorf("signing fetch: %w", primary)
 			}
 
@@ -333,9 +461,319 @@ Examples:
 				result.ProfilesMetadataPath = metadataPath
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return emit()
 		},
 	}
+}
+
+type matchedSigningFetchOptions struct {
+	ProfileType     string
+	OutputDir       string
+	CertificateType string
+	DeviceIDs       []string
+	CreateMissing   bool
+	DeleteStale     bool
+	DryRun          bool
+	PrepareOutput   func() error
+}
+
+// writtenSigningFile is a file this run created, kept so a failed target can
+// remove exactly what it wrote.
+type writtenSigningFile struct {
+	path string
+	data []byte
+}
+
+// fetchMatchedSigningBundles fetches one profile per matched bundle ID. Each
+// target gets its own request timeout. A certificate shared by several
+// targets is written once and reported for every target that uses it. A
+// target that fails removes only the files it created, never a shared
+// certificate an earlier target already wrote.
+func fetchMatchedSigningBundles(
+	ctx context.Context,
+	client *asc.Client,
+	bundleIDs []asc.Resource[asc.BundleIDAttributes],
+	opts matchedSigningFetchOptions,
+) (*asc.SigningFetchBatchResult, error) {
+	batch := &asc.SigningFetchBatchResult{
+		MatchedBundleIDs: make([]string, 0, len(bundleIDs)),
+		Results:          make([]asc.SigningFetchResult, 0, len(bundleIDs)),
+	}
+	identifiers := make([]string, 0, len(bundleIDs))
+	for _, item := range bundleIDs {
+		identifiers = append(identifiers, strings.TrimSpace(item.Attributes.Identifier))
+	}
+	batch.MatchedBundleIDs = append(batch.MatchedBundleIDs, identifiers...)
+
+	stale := make([]*asc.SigningFetchStaleProfiles, len(bundleIDs))
+	if opts.DeleteStale {
+		done, err := deleteMatchedStaleProfiles(ctx, client, bundleIDs, identifiers, opts, stale, batch)
+		if done || err != nil {
+			return batch, err
+		}
+	}
+
+	writtenCertificates := make(map[string]string)
+	for i, item := range bundleIDs {
+		result, err := fetchMatchedSigningBundle(ctx, client, item, identifiers[i], opts, writtenCertificates)
+		if err != nil {
+			failure := asc.SigningFetchBatchFailure{BundleID: identifiers[i], Error: err.Error(), StaleProfiles: stale[i]}
+			if result != nil {
+				failure.ProfileID = result.ProfileID
+				failure.ProfileCreationState = result.ProfileCreationState
+			}
+			batch.Failures = append(batch.Failures, failure)
+			continue
+		}
+		result.StaleProfiles = stale[i]
+		batch.Results = append(batch.Results, *result)
+	}
+	if len(batch.Failures) > 0 {
+		return batch, fmt.Errorf("signing fetch: %d of %d bundle ID(s) failed", len(batch.Failures), len(bundleIDs))
+	}
+	return batch, nil
+}
+
+// deleteMatchedStaleProfiles applies --delete-stale-profiles to every matched
+// bundle ID. Every target is planned before anything is deleted. A dry run
+// records the plans and stops. If any deletion fails, every target is
+// reported as a failure with its receipt and nothing is fetched or created.
+// done reports that the batch is complete and must not continue to fetch.
+func deleteMatchedStaleProfiles(
+	ctx context.Context,
+	client *asc.Client,
+	bundleIDs []asc.Resource[asc.BundleIDAttributes],
+	identifiers []string,
+	opts matchedSigningFetchOptions,
+	stale []*asc.SigningFetchStaleProfiles,
+	batch *asc.SigningFetchBatchResult,
+) (bool, error) {
+	for i, item := range bundleIDs {
+		planCtx, cancel := shared.ContextWithTimeout(ctx)
+		planned, err := findStaleSigningProfiles(planCtx, client, item.ID, opts.ProfileType)
+		cancel()
+		if err != nil {
+			batch.Failures = append(batch.Failures, asc.SigningFetchBatchFailure{BundleID: identifiers[i], Error: fmt.Sprintf("list stale profiles: %v", err)})
+			return true, fmt.Errorf("signing fetch: list stale profiles for %s: %w; nothing was deleted", identifiers[i], err)
+		}
+		stale[i] = &asc.SigningFetchStaleProfiles{DryRun: opts.DryRun, Planned: planned, Deleted: []asc.SigningStaleProfile{}}
+	}
+	if opts.DryRun {
+		for i, item := range bundleIDs {
+			batch.Results = append(batch.Results, asc.SigningFetchResult{
+				BundleID:         identifiers[i],
+				BundleIDResource: item.ID,
+				ProfileType:      opts.ProfileType,
+				OutputPath:       opts.OutputDir,
+				StaleProfiles:    stale[i],
+			})
+		}
+		return true, nil
+	}
+	for _, plan := range stale {
+		if len(plan.Planned) == 0 {
+			continue
+		}
+		// Check the output directory before the irreversible deletions.
+		if err := opts.PrepareOutput(); err != nil {
+			batch.Failures = append(batch.Failures, asc.SigningFetchBatchFailure{BundleID: identifiers[0], Error: err.Error()})
+			return true, fmt.Errorf("signing fetch: %w; no stale profiles were deleted", err)
+		}
+		break
+	}
+	failed, planned := 0, 0
+	for i := range bundleIDs {
+		deleteCtx, cancel := shared.ContextWithTimeout(ctx)
+		deleteStaleSigningProfiles(deleteCtx, client, stale[i])
+		cancel()
+		failed += len(stale[i].Failed)
+		planned += len(stale[i].Planned)
+	}
+	if failed == 0 {
+		return false, nil
+	}
+	for i := range bundleIDs {
+		message := "not fetched: stale profile deletion failed for another bundle ID"
+		if count := len(stale[i].Failed); count > 0 {
+			message = fmt.Sprintf("failed to delete %d stale profile(s)", count)
+		}
+		batch.Failures = append(batch.Failures, asc.SigningFetchBatchFailure{BundleID: identifiers[i], Error: message, StaleProfiles: stale[i]})
+	}
+	return true, fmt.Errorf("signing fetch: failed to delete %d of %d stale profile(s); nothing was fetched or created", failed, planned)
+}
+
+func batchStalePlanned(batch *asc.SigningFetchBatchResult) int {
+	total := 0
+	for _, result := range batch.Results {
+		if result.StaleProfiles != nil {
+			total += len(result.StaleProfiles.Planned)
+		}
+	}
+	return total
+}
+
+func fetchMatchedSigningBundle(
+	ctx context.Context,
+	client *asc.Client,
+	item asc.Resource[asc.BundleIDAttributes],
+	identifier string,
+	opts matchedSigningFetchOptions,
+	writtenCertificates map[string]string,
+) (*asc.SigningFetchResult, error) {
+	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	defer cancel()
+
+	// Certificates written for an earlier target are reused, so only the
+	// remaining ones must be free before a profile is created or written.
+	preflight := func(profileName, profileID string, certificates []asc.Resource[asc.CertificateAttributes]) error {
+		if err := opts.PrepareOutput(); err != nil {
+			return err
+		}
+		pending := make([]asc.Resource[asc.CertificateAttributes], 0, len(certificates))
+		for _, certificate := range certificates {
+			if _, ok := writtenCertificates[certificate.ID]; !ok {
+				pending = append(pending, certificate)
+			}
+		}
+		return ensureOutputPathsAreFree(signingOutputPaths(opts.OutputDir, profileName, profileID, opts.ProfileType, pending))
+	}
+
+	progress := &signingAssetsProgress{}
+	profile, certs, created, err := resolveSigningAssets(requestCtx, client, signingAssetsOptions{
+		BundleIDResourceID: item.ID,
+		BundleIdentifier:   identifier,
+		// Generated names carry the bundle ID so targets created in one run
+		// do not collide in App Store Connect or in the output directory.
+		ProfileName:     profileCreateNameForTarget(opts.ProfileType, identifier, signingFetchNowFn()),
+		ProfileType:     opts.ProfileType,
+		CertificateType: opts.CertificateType,
+		DeviceIDs:       opts.DeviceIDs,
+		CreateMissing:   opts.CreateMissing,
+		Progress:        progress,
+		BeforeCreate: func(plan profileCreatePlan) error {
+			return preflight(plan.ProfileName, "", plan.Certificates)
+		},
+	})
+	if err != nil {
+		if progress.ProfileCreateAttempted {
+			// The create request may have reached App Store Connect.
+			return &asc.SigningFetchResult{BundleID: identifier, ProfileCreationState: "unknown"}, err
+		}
+		return nil, err
+	}
+	result := &asc.SigningFetchResult{
+		BundleID:         identifier,
+		BundleIDResource: item.ID,
+		ProfileType:      opts.ProfileType,
+		ProfileID:        profile.Data.ID,
+		CertificateIDs:   extractIDs(certs.Data),
+		OutputPath:       opts.OutputDir,
+		Created:          created,
+	}
+	if created {
+		result.ProfileCreationState = "created"
+	}
+	// Once a profile exists, failures still return the result so the batch
+	// receipt can report the profile this run created.
+	partial := func(cause error) (*asc.SigningFetchResult, error) {
+		if created {
+			return result, cause
+		}
+		return nil, cause
+	}
+	fail := func(written []writtenSigningFile, cause error) error {
+		if cleanupErr := removeWrittenSigningFiles(opts.OutputDir, written); cleanupErr != nil {
+			return errors.Join(cause, fmt.Errorf("remove partial files: %w", cleanupErr))
+		}
+		return cause
+	}
+	if err := preflight(profile.Data.Attributes.Name, profile.Data.ID, certs.Data); err != nil {
+		return partial(err)
+	}
+	profilePath := profileOutputPath(opts.OutputDir, profile.Data.Attributes.Name, profile.Data.ID, opts.ProfileType)
+	profileContent, err := decodeBase64Content("profile", profile.Data.Attributes.ProfileContent)
+	if err != nil {
+		return partial(fmt.Errorf("decode profile: %w", err))
+	}
+	if err := shared.WriteProfileFile(profilePath, profileContent); err != nil {
+		return partial(fmt.Errorf("write profile: %w", err))
+	}
+	result.ProfileFile = profilePath
+	written := []writtenSigningFile{{path: profilePath, data: profileContent}}
+	newCertificates := make(map[string]string)
+	for _, cert := range certs.Data {
+		if path, ok := writtenCertificates[cert.ID]; ok {
+			result.CertificateFiles = append(result.CertificateFiles, path)
+			continue
+		}
+		certPath := certificateOutputPath(opts.OutputDir, cert)
+		certContent, err := decodeBase64Content("certificate", cert.Attributes.CertificateContent)
+		if err != nil {
+			result.ProfileFile, result.CertificateFiles = "", nil
+			return partial(fail(written, fmt.Errorf("decode certificate: %w", err)))
+		}
+		if err := writeBinaryFile(certPath, certContent); err != nil {
+			result.ProfileFile, result.CertificateFiles = "", nil
+			return partial(fail(written, fmt.Errorf("write certificate: %w", err)))
+		}
+		written = append(written, writtenSigningFile{path: certPath, data: certContent})
+		newCertificates[cert.ID] = certPath
+		result.CertificateFiles = append(result.CertificateFiles, certPath)
+	}
+	for id, path := range newCertificates {
+		writtenCertificates[id] = path
+	}
+	return result, nil
+}
+
+// removeWrittenSigningFiles removes files this run created beneath outputDir
+// through a rooted handle, and only while their content is unchanged.
+func removeWrittenSigningFiles(outputDir string, files []writtenSigningFile) error {
+	if len(files) == 0 {
+		return nil
+	}
+	absoluteDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return err
+	}
+	root, err := rootfs.New(absoluteDir)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+	var errs []error
+	for _, written := range files {
+		absolutePath, err := filepath.Abs(written.path)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		name, err := filepath.Rel(absoluteDir, absolutePath)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		file, err := root.OpenFile(name)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		info, statErr := file.Stat()
+		data, readErr := io.ReadAll(io.LimitReader(file, int64(len(written.data))+1))
+		closeErr := file.Close()
+		if statErr != nil || readErr != nil || closeErr != nil {
+			errs = append(errs, errors.Join(statErr, readErr, closeErr))
+			continue
+		}
+		if !bytes.Equal(data, written.data) {
+			errs = append(errs, fmt.Errorf("%s changed after it was written; leaving it in place", written.path))
+			continue
+		}
+		if err := root.RemoveFileIfSame(name, info, data); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func validateBundleIDMatchesApp(ctx context.Context, client *asc.Client, appID, bundleID string) error {
@@ -349,15 +787,120 @@ func validateBundleIDMatchesApp(ctx context.Context, client *asc.Client, appID, 
 	return nil
 }
 
-func findBundleID(ctx context.Context, client *asc.Client, identifier string) (*asc.BundleIDResponse, error) {
-	resp, err := client.GetBundleIDs(ctx, asc.WithBundleIDsFilterIdentifier(identifier))
-	if err != nil {
-		return nil, err
+// bundleIdentifierMatches reports whether candidate is parent itself or, with
+// matchExtensions, a dotted descendant such as parent.widget. Wildcard
+// identifiers are never expanded or matched as extensions.
+func bundleIdentifierMatches(parent, candidate string, matchExtensions bool) bool {
+	parent = strings.TrimSpace(parent)
+	candidate = strings.TrimSpace(candidate)
+	if parent == "" || candidate == "" {
+		return false
 	}
-	if len(resp.Data) == 0 {
+	if strings.EqualFold(parent, candidate) {
+		return true
+	}
+	if !matchExtensions || strings.Contains(parent, "*") || strings.Contains(candidate, "*") {
+		return false
+	}
+	return strings.HasPrefix(strings.ToLower(candidate), strings.ToLower(parent)+".")
+}
+
+// listSigningBundleIDs returns the exact bundle ID first, followed by its
+// registered extension bundle IDs when matchExtensions is set. App Store
+// Connect's filter[identifier] is a prefix/substring match, so the filtered
+// list is read in full and narrowed client-side to the exact identifier and
+// its dotted descendants.
+func listSigningBundleIDs(ctx context.Context, client *asc.Client, identifier string, matchExtensions bool) ([]asc.Resource[asc.BundleIDAttributes], error) {
+	if !matchExtensions || strings.Contains(identifier, "*") {
+		exact, err := findBundleID(ctx, client, identifier)
+		if err != nil {
+			return nil, err
+		}
+		return []asc.Resource[asc.BundleIDAttributes]{exact.Data}, nil
+	}
+
+	var exact *asc.Resource[asc.BundleIDAttributes]
+	var extensions []asc.Resource[asc.BundleIDAttributes]
+	seen := make(map[string]struct{})
+	seenNext := make(map[string]struct{})
+	next := ""
+	page := 1
+	for {
+		opts := []asc.BundleIDsOption{asc.WithBundleIDsFilterIdentifier(identifier), asc.WithBundleIDsLimit(200)}
+		if next != "" {
+			opts = []asc.BundleIDsOption{asc.WithBundleIDsNextURL(next)}
+		}
+		resp, err := client.GetBundleIDs(ctx, opts...)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range resp.Data {
+			if _, exists := seen[item.ID]; exists {
+				continue
+			}
+			candidate := strings.TrimSpace(item.Attributes.Identifier)
+			switch {
+			case strings.EqualFold(candidate, strings.TrimSpace(identifier)):
+				if exact == nil {
+					matched := item
+					exact = &matched
+				}
+			case bundleIdentifierMatches(identifier, candidate, true):
+				extensions = append(extensions, item)
+			default:
+				continue
+			}
+			seen[item.ID] = struct{}{}
+		}
+		if strings.TrimSpace(resp.Links.Next) == "" {
+			break
+		}
+		if _, repeated := seenNext[resp.Links.Next]; repeated {
+			return nil, fmt.Errorf("list bundle IDs page %d: %w", page+1, asc.ErrRepeatedPaginationURL)
+		}
+		seenNext[resp.Links.Next] = struct{}{}
+		page++
+		next = resp.Links.Next
+	}
+	if exact == nil {
 		return nil, fmt.Errorf("bundle ID not found: %s", identifier)
 	}
-	return &asc.BundleIDResponse{Data: resp.Data[0]}, nil
+	return append([]asc.Resource[asc.BundleIDAttributes]{*exact}, extensions...), nil
+}
+
+// findBundleID returns the bundle ID whose identifier equals identifier.
+// App Store Connect's filter[identifier] is a prefix/substring match, so the
+// filtered list is read in full and the exact identifier is selected instead
+// of trusting the first result.
+func findBundleID(ctx context.Context, client *asc.Client, identifier string) (*asc.BundleIDResponse, error) {
+	want := strings.TrimSpace(identifier)
+	next := ""
+	page := 1
+	seenNext := make(map[string]struct{})
+	for {
+		opts := []asc.BundleIDsOption{asc.WithBundleIDsFilterIdentifier(identifier), asc.WithBundleIDsLimit(200)}
+		if next != "" {
+			opts = []asc.BundleIDsOption{asc.WithBundleIDsNextURL(next)}
+		}
+		resp, err := client.GetBundleIDs(ctx, opts...)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range resp.Data {
+			if strings.EqualFold(strings.TrimSpace(item.Attributes.Identifier), want) {
+				return &asc.BundleIDResponse{Data: item}, nil
+			}
+		}
+		if strings.TrimSpace(resp.Links.Next) == "" {
+			return nil, fmt.Errorf("bundle ID not found: %s", identifier)
+		}
+		if _, repeated := seenNext[resp.Links.Next]; repeated {
+			return nil, fmt.Errorf("list bundle IDs page %d: %w", page+1, asc.ErrRepeatedPaginationURL)
+		}
+		seenNext[resp.Links.Next] = struct{}{}
+		page++
+		next = resp.Links.Next
+	}
 }
 
 func findCertificates(ctx context.Context, client *asc.Client, profileType, certType string) (*asc.CertificatesResponse, error) {
@@ -677,6 +1220,66 @@ func resolveSigningCertificateTypes(profileType, raw string) (string, error) {
 	return strings.Join(certificateTypes, ","), nil
 }
 
+func profileIsStale(profile asc.Resource[asc.ProfileAttributes], profileType string, now time.Time) bool {
+	if !strings.EqualFold(strings.TrimSpace(profile.Attributes.ProfileType), profileType) {
+		return false
+	}
+	return asc.ProfileIsStale(profile.Attributes, now)
+}
+
+// findStaleSigningProfiles collects every expired or INVALID profile of the
+// given type for a bundle ID. It reads all pages before anything is deleted so
+// deletions cannot shift pages and hide profiles from the plan.
+func findStaleSigningProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string) ([]asc.SigningStaleProfile, error) {
+	stale := []asc.SigningStaleProfile{}
+	next := ""
+	page := 1
+	seenNext := make(map[string]struct{})
+	now := signingFetchNowFn()
+	for {
+		profiles, err := client.GetBundleIDProfiles(ctx, bundleIDResourceID, asc.WithBundleIDProfilesNextURL(next))
+		if err != nil {
+			return nil, err
+		}
+		for _, profile := range profiles.Data {
+			if !profileIsStale(profile, profileType, now) {
+				continue
+			}
+			stale = append(stale, asc.SigningStaleProfile{
+				ID:             profile.ID,
+				Name:           profile.Attributes.Name,
+				ExpirationDate: profile.Attributes.ExpirationDate,
+				State:          string(profile.Attributes.ProfileState),
+			})
+		}
+		if strings.TrimSpace(profiles.Links.Next) == "" {
+			return stale, nil
+		}
+		if _, ok := seenNext[profiles.Links.Next]; ok {
+			return nil, fmt.Errorf("page %d: %w", page+1, asc.ErrRepeatedPaginationURL)
+		}
+		seenNext[profiles.Links.Next] = struct{}{}
+		page++
+		next = profiles.Links.Next
+	}
+}
+
+// deleteStaleSigningProfiles deletes every planned profile, recording a
+// profile as deleted only after Apple confirms the deletion.
+func deleteStaleSigningProfiles(ctx context.Context, client *asc.Client, report *asc.SigningFetchStaleProfiles) {
+	for _, profile := range report.Planned {
+		if err := client.DeleteProfile(ctx, profile.ID); err != nil {
+			report.Failed = append(report.Failed, asc.SigningStaleProfileFailure{
+				ID:    profile.ID,
+				Name:  profile.Name,
+				Error: err.Error(),
+			})
+			continue
+		}
+		report.Deleted = append(report.Deleted, profile)
+	}
+}
+
 func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string) ([]asc.Resource[asc.ProfileAttributes], error) {
 	var matches []asc.Resource[asc.ProfileAttributes]
 	next := ""
@@ -694,6 +1297,9 @@ func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourc
 
 		for _, profile := range profiles.Data {
 			if profile.Attributes.ProfileState != asc.ProfileStateActive {
+				continue
+			}
+			if asc.ProfileExpirationPassed(profile.Attributes.ExpirationDate, signingFetchNowFn()) {
 				continue
 			}
 			if strings.EqualFold(strings.TrimSpace(profile.Attributes.ProfileType), profileType) {

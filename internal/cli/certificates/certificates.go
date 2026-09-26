@@ -340,9 +340,9 @@ func newCertificateCreateCommand(spec certificateCreateSpec) *ffcli.Command {
 	certificateType := fs.String("certificate-type", "", "Certificate type: "+strings.Join(spec.certificateTypes, ", "))
 	var passTypeID *string
 	if spec.supportsPassType {
-		passTypeID = fs.String("pass-type-id", "", "Pass Type ID resource ID (required for PASS_TYPE_ID and PASS_TYPE_ID_WITH_NFC)")
+		passTypeID = shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass Type ID resource ID (required for PASS_TYPE_ID and PASS_TYPE_ID_WITH_NFC)")
 	}
-	merchantID := fs.String("merchant-id", "", spec.merchantIDUsage)
+	merchantID := shared.BindResourceIDFlag(fs, "merchant-id", "merchantIds", spec.merchantIDUsage)
 	csrPath := fs.String("csr", "", "CSR file path")
 	generateCSR := fs.Bool("generate-csr", false, "Generate a private key and CSR before creating the certificate")
 	keyOut := fs.String("key-out", "", "Private key output path for --generate-csr (PEM)")

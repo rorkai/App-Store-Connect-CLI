@@ -6,12 +6,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func backgroundReviewSubmissionDetailJSON(resourceType, resourceID, state, platform, appID string) string {
@@ -889,5 +895,126 @@ func TestBackgroundAssetsSubmitFlagOrderEdgeCases(t *testing.T) {
 				t.Fatalf("expected dryRun=true in stdout JSON, got %q", stdout)
 			}
 		})
+	}
+}
+
+func TestBackgroundAssetsSubmitRenewsAttachBudgetAndRollsBackFailure(t *testing.T) {
+	const (
+		appID        = "123456789"
+		submissionID = "sub-created"
+		timeout      = 700 * time.Millisecond
+	)
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_TIMEOUT", timeout.String())
+	t.Setenv("ASC_TIMEOUT_SECONDS", "")
+	t.Setenv("ASC_MAX_RETRIES", "0")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			_, _ = io.WriteString(w, backgroundReviewSubmissionDetailJSON("reviewSubmissions", submissionID, "READY_FOR_REVIEW", "IOS", appID))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/"+submissionID:
+			// These individually bounded reads consume most of the old shared
+			// command deadline before the attach begins.
+			time.Sleep(250 * time.Millisecond)
+			_, _ = io.WriteString(w, backgroundReviewSubmissionDetailJSON("reviewSubmissions", submissionID, "READY_FOR_REVIEW", "IOS", appID))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/"+submissionID+"/items":
+			time.Sleep(350 * time.Millisecond)
+			_, _ = io.WriteString(w, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-created/items","next":""}}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			time.Sleep(250 * time.Millisecond)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = io.WriteString(w, `{"errors":[{"status":"500","detail":"attach failed"}]}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/"+submissionID:
+			var body struct {
+				Data struct {
+					Attributes struct {
+						Canceled *bool `json:"canceled"`
+					} `json:"attributes"`
+				} `json:"data"`
+			}
+			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+				t.Errorf("decode rollback request: %v", err)
+			} else if body.Data.Attributes.Canceled == nil || !*body.Data.Attributes.Canceled {
+				t.Errorf("rollback canceled attribute = %v, want true", body.Data.Attributes.Canceled)
+			}
+			_, _ = io.WriteString(w, `{"data":{"type":"reviewSubmissions","id":"sub-created","attributes":{"state":"CANCELING"}}}`)
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse test server URL: %v", err)
+	}
+	serverTransport := server.Client().Transport
+	attachBudget := make(chan time.Duration, 1)
+	rollbackBudget := make(chan time.Duration, 1)
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if deadline, ok := req.Context().Deadline(); ok {
+			remaining := time.Until(deadline)
+			switch {
+			case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+				attachBudget <- remaining
+			case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/"+submissionID:
+				rollbackBudget <- remaining
+			}
+		} else if req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems" {
+			attachBudget <- 0
+		} else if req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/"+submissionID {
+			rollbackBudget <- 0
+		}
+
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return serverTransport.RoundTrip(cloned)
+	})
+	client, err := asc.NewClientWithHTTPClient(
+		os.Getenv("ASC_KEY_ID"),
+		os.Getenv("ASC_ISSUER_ID"),
+		os.Getenv("ASC_PRIVATE_KEY_PATH"),
+		&http.Client{Transport: transport},
+	)
+	if err != nil {
+		t.Fatalf("create background-assets submit client: %v", err)
+	}
+	restoreClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil })
+	t.Cleanup(restoreClient)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	args := []string{
+		"background-assets", "submit",
+		"--app", appID,
+		"--version-id", "version-1",
+		"--confirm",
+		"--output", "json",
+	}
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse(args); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if runErr == nil || !strings.Contains(runErr.Error(), "attach version") || !strings.Contains(runErr.Error(), "rolled back the submission") {
+		t.Fatalf("run error = %v, want failed attach followed by rollback", runErr)
+	}
+	if got := <-attachBudget; got < 500*time.Millisecond {
+		t.Fatalf("attach request had only %s remaining, want a fresh per-request budget near %s", got, timeout)
+	}
+	if got := <-rollbackBudget; got < 500*time.Millisecond {
+		t.Fatalf("rollback request had only %s remaining, want an independent fresh budget", got)
 	}
 }

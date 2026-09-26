@@ -45,7 +45,7 @@ Examples:
 func MerchantIDsCertificatesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("certificates list", flag.ExitOnError)
 
-	merchantID := fs.String("merchant-id", "", "Merchant ID")
+	merchantID := shared.BindResourceIDFlag(fs, "merchant-id", "merchantIds", "Merchant ID")
 	displayName := fs.String("display-name", "", "Filter by certificate display name(s), comma-separated")
 	certificateType := fs.String("certificate-type", "", "Filter by certificate type(s), comma-separated")
 	serialNumber := fs.String("serial-number", "", "Filter by certificate serial number(s), comma-separated")
@@ -162,7 +162,7 @@ func MerchantIDsCertificatesCreateCommand() *ffcli.Command {
 func MerchantIDsCertificatesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("certificates view", flag.ExitOnError)
 
-	merchantID := fs.String("merchant-id", "", "Merchant ID")
+	merchantID := shared.BindResourceIDFlag(fs, "merchant-id", "merchantIds", "Merchant ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

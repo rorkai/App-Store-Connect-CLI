@@ -97,7 +97,7 @@ Examples:
 func OfferCodeCustomCodesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Subscription offer code ID (required)")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Subscription offer code ID (required)")
 	code := fs.String("code", "", "Custom code value (required)")
 	quantity := fs.Int("quantity", 0, "Number of codes to create (required)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD)")

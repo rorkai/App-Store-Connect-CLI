@@ -51,9 +51,9 @@ Examples:
 func IAPReviewScreenshotsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots view", flag.ExitOnError)
 
-	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	appID := addIAPLookupAppFlag(fs)
-	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
+	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "inAppPurchaseAppStoreReviewScreenshots", "Review screenshot ID")
 	iapFields := fs.String("iap-fields", "", "fields[inAppPurchases] for the included in-app purchase (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
@@ -118,7 +118,7 @@ Examples:
 func IAPReviewScreenshotsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots create", flag.ExitOnError)
 
-	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	appID := addIAPLookupAppFlag(fs)
 	filePath := fs.String("file", "", "Path to screenshot file")
 	output := shared.BindOutputFlags(fs)
@@ -212,7 +212,7 @@ Examples:
 func IAPReviewScreenshotsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots update", flag.ExitOnError)
 
-	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
+	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "inAppPurchaseAppStoreReviewScreenshots", "Review screenshot ID")
 	checksum := fs.String("checksum", "", "Source file checksum (MD5)")
 	var uploaded shared.OptionalBool
 	fs.Var(&uploaded, "uploaded", "Mark upload complete: true or false")
@@ -403,7 +403,7 @@ func shellQuotedRemediationArgument(value, placeholder string) string {
 func IAPReviewScreenshotsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots delete", flag.ExitOnError)
 
-	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
+	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "inAppPurchaseAppStoreReviewScreenshots", "Review screenshot ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

@@ -44,9 +44,10 @@ func TestXcodeSigningRequiredFlagsReportConciseDiagnostics(t *testing.T) {
 		name      string
 		args      []string
 		parameter string
+		message   string
 	}{
 		{name: "plan project", args: []string{"xcode", "signing", "plan"}, parameter: "--project"},
-		{name: "plan settings file", args: []string{"xcode", "signing", "plan", "--project", "App.xcodeproj"}, parameter: "--settings-file"},
+		{name: "plan settings file", args: []string{"xcode", "signing", "plan", "--project", "App.xcodeproj"}, parameter: "--settings-file", message: "--settings-file or --profile"},
 		{name: "apply plan", args: []string{"xcode", "signing", "apply"}, parameter: "--plan"},
 		{name: "apply confirm", args: []string{"xcode", "signing", "apply", "--plan", "plan.json"}, parameter: "--confirm"},
 	}
@@ -71,7 +72,11 @@ func TestXcodeSigningRequiredFlagsReportConciseDiagnostics(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
-			wantDiagnostic := "Error: " + test.parameter + " is required\n"
+			message := test.parameter
+			if test.message != "" {
+				message = test.message
+			}
+			wantDiagnostic := "Error: " + message + " is required\n"
 			if !strings.HasPrefix(stderr, wantDiagnostic) || strings.Count(stderr, wantDiagnostic) != 1 {
 				t.Fatalf("stderr = %q, want one leading %q diagnostic", stderr, wantDiagnostic)
 			}

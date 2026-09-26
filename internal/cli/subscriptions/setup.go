@@ -156,7 +156,7 @@ func SubscriptionsSetupCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("setup", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	groupID := fs.String("group-id", "", "Existing subscription group ID")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Existing subscription group ID")
 	groupReferenceName := fs.String("group-reference-name", "", "Reference name for a new subscription group")
 	groupRefNameAlias := fs.String("group-ref-name", "", "Reference name alias for a new subscription group")
 	groupLocale := fs.String("group-locale", "", "Locale for the subscription group localization (e.g., en-US)")
@@ -176,7 +176,7 @@ func SubscriptionsSetupCommand() *ffcli.Command {
 	reviewScreenshot := fs.String("review-screenshot", "", "Path to the App Review screenshot for the subscription")
 
 	priceTerritory := fs.String("price-territory", "", "Territory used to resolve and verify the initial subscription price (accepts alpha-2, alpha-3, or exact English country name)")
-	pricePointID := fs.String("price-point-id", "", "Explicit price point ID for the initial subscription price")
+	pricePointID := shared.BindResourceIDFlag(fs, "price-point-id", "subscriptionPricePoints", "Explicit price point ID for the initial subscription price")
 	tier := fs.Int("tier", 0, "Pricing tier number for the initial subscription price")
 	price := fs.String("price", "", "Customer price for the initial subscription price")
 	startDate := fs.String("start-date", "", "Start date for the initial subscription price (YYYY-MM-DD)")

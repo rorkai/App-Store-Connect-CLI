@@ -56,14 +56,16 @@ type SubscriptionGroupUpdateRequest struct {
 
 // SubscriptionAttributes describes a subscription resource.
 type SubscriptionAttributes struct {
-	Name                      string `json:"name"`
-	ProductID                 string `json:"productId"`
-	FamilySharable            bool   `json:"familySharable,omitempty"`
-	State                     string `json:"state,omitempty"`
-	SubscriptionPeriod        string `json:"subscriptionPeriod,omitempty"`
-	ReviewNote                string `json:"reviewNote,omitempty"`
-	GroupLevel                int    `json:"groupLevel,omitempty"`
-	AvailableInAllTerritories bool   `json:"availableInAllTerritories,omitempty"`
+	Name                      string    `json:"name"`
+	ProductID                 string    `json:"productId"`
+	FamilySharable            bool      `json:"familySharable,omitempty"`
+	State                     string    `json:"state,omitempty"`
+	SubscriptionPeriod        string    `json:"subscriptionPeriod,omitempty"`
+	ReviewNote                string    `json:"reviewNote,omitempty"`
+	GroupLevel                int       `json:"groupLevel,omitempty"`
+	AvailableInAllTerritories bool      `json:"availableInAllTerritories,omitempty"`
+	MarketSettings            *[]string `json:"marketSettings,omitempty"`
+	MultiSeatStatus           *string   `json:"multiSeatStatus,omitempty"`
 }
 
 // SubscriptionCreateAttributes describes attributes for creating a subscription.
@@ -79,12 +81,14 @@ type SubscriptionCreateAttributes struct {
 
 // SubscriptionUpdateAttributes describes attributes for updating a subscription.
 type SubscriptionUpdateAttributes struct {
-	Name                      *string `json:"name,omitempty"`
-	ReviewNote                *string `json:"reviewNote,omitempty"`
-	FamilySharable            *bool   `json:"familySharable,omitempty"`
-	SubscriptionPeriod        *string `json:"subscriptionPeriod,omitempty"`
-	GroupLevel                *int    `json:"groupLevel,omitempty"`
-	AvailableInAllTerritories *bool   `json:"availableInAllTerritories,omitempty"`
+	Name                      *string   `json:"name,omitempty"`
+	ReviewNote                *string   `json:"reviewNote,omitempty"`
+	FamilySharable            *bool     `json:"familySharable,omitempty"`
+	SubscriptionPeriod        *string   `json:"subscriptionPeriod,omitempty"`
+	GroupLevel                *int      `json:"groupLevel,omitempty"`
+	AvailableInAllTerritories *bool     `json:"availableInAllTerritories,omitempty"`
+	MarketSettings            *[]string `json:"marketSettings,omitempty"`
+	MultiSeatStatus           *string   `json:"multiSeatStatus,omitempty"`
 }
 
 // SubscriptionRelationships describes relationships for subscriptions.

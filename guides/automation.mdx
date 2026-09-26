@@ -627,7 +627,16 @@ asc workflow run beta --pretty
   * Avoid hardcoding secrets—use environment variables
   * In CI/CD, use encrypted secrets for credentials
   * Don't run untrusted workflows on PRs with access to secrets
+  * Set `ASC_READ_ONLY=1` for audit, reporting, and agent sessions that must never write
 </Warning>
+
+### Read-only runs
+
+Export `ASC_READ_ONLY=1` (or pass the global `--read-only` flag) when a workflow, CI job, or agent session is only allowed to inspect App Store Connect. Every command still runs, but any `POST`, `PATCH`, `PUT`, or `DELETE` is refused before it leaves the process with exit code `6`. This is enforced in the HTTP clients, not per command, so it holds for every command in the workflow, and workflow steps inherit the mode as `ASC_READ_ONLY=1` so a nested `asc` call is refused too. Steps that call other tools are outside the guarantee. See [Read-only mode](/concepts/read-only-mode).
+
+```bash  theme={null}
+ASC_READ_ONLY=1 asc workflow run audit
+```
 
 ### Safe Practices
 

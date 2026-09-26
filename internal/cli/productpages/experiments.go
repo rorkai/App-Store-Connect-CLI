@@ -49,7 +49,7 @@ Examples:
 func ExperimentsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiments list", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (v1 experiments)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (v1 experiments)")
 	appID := fs.String("app", "", "App Store Connect app ID (v2 experiments)")
 	state := fs.String("state", "", "Filter by state(s), comma-separated")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -182,7 +182,7 @@ Examples:
 func ExperimentsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiments view", flag.ExitOnError)
 
-	experimentID := fs.String("experiment-id", "", "Experiment ID")
+	experimentID := shared.BindResourceIDFlag(fs, "experiment-id", "appStoreVersionExperiments", "Experiment ID")
 	output := shared.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
@@ -234,7 +234,7 @@ Examples:
 func ExperimentsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiments create", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (v1 experiments)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (v1 experiments)")
 	appID := fs.String("app", "", "App Store Connect app ID (v2 experiments)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (v2 experiments)")
 	name := fs.String("name", "", "Experiment name")
@@ -323,7 +323,7 @@ Examples:
 func ExperimentsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiments update", flag.ExitOnError)
 
-	experimentID := fs.String("experiment-id", "", "Experiment ID")
+	experimentID := shared.BindResourceIDFlag(fs, "experiment-id", "appStoreVersionExperiments", "Experiment ID")
 	name := fs.String("name", "", "Update experiment name")
 	trafficProportion := fs.String("traffic-proportion", "", "Update traffic proportion (integer)")
 	var started shared.OptionalBool
@@ -422,7 +422,7 @@ Examples:
 func ExperimentsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiments delete", flag.ExitOnError)
 
-	experimentID := fs.String("experiment-id", "", "Experiment ID")
+	experimentID := shared.BindResourceIDFlag(fs, "experiment-id", "appStoreVersionExperiments", "Experiment ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")

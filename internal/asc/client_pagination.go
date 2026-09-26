@@ -51,9 +51,13 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 
 	page := 1
 	seenNext := make(map[string]struct{})
+	included := &rawJSONArrayAccumulator{}
+	// pageErr records a pagination failure that still yields a partial result,
+	// so the accumulated included array is written before returning.
+	var pageErr error
 	for {
 		// Aggregate data from current page using reflection over the Data field.
-		if err := aggregatePageData(result, firstPage); err != nil {
+		if err := aggregatePageData(result, firstPage, included); err != nil {
 			return nil, fmt.Errorf("page %d: %w", page, err)
 		}
 		if page > 1 {
@@ -70,30 +74,46 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		nextURL := links.Next
 		nextIdentity := PaginationURLIdentity(nextURL)
 		if _, ok := seenNext[nextIdentity]; ok {
-			return result, fmt.Errorf("page %d: %w", page+1, ErrRepeatedPaginationURL)
+			pageErr = fmt.Errorf("page %d: %w", page+1, ErrRepeatedPaginationURL)
+			break
 		}
 		seenNext[nextIdentity] = struct{}{}
 		page++
 
 		if fetchNext == nil {
-			return result, fmt.Errorf("page %d: %w", page, ErrMissingPaginationFetcher)
+			pageErr = fmt.Errorf("page %d: %w", page, ErrMissingPaginationFetcher)
+			break
 		}
 
 		// Fetch next page
 		nextPage, err := fetchNext(ctx, nextURL)
 		if err != nil {
-			return result, fmt.Errorf("page %d: %w", page, err)
+			pageErr = fmt.Errorf("page %d: %w", page, err)
+			break
 		}
 		if isNilPaginatedResponse(nextPage) {
-			return result, fmt.Errorf("page %d: %w", page, ErrNilPaginationPage)
+			pageErr = fmt.Errorf("page %d: %w", page, ErrNilPaginationPage)
+			break
 		}
 
 		// Validate that the response type matches
 		if reflect.TypeOf(nextPage) != reflect.TypeOf(firstPage) {
-			return result, fmt.Errorf("page %d: unexpected response type (expected %T, got %T)", page, firstPage, nextPage)
+			pageErr = fmt.Errorf("page %d: unexpected response type (expected %T, got %T)", page, firstPage, nextPage)
+			break
 		}
 
 		firstPage = nextPage
+	}
+
+	// Write the merged included array once, after every page has been collected.
+	if err := setJSONRawArrayField(result, includedFieldName, included); err != nil {
+		if pageErr != nil {
+			return result, pageErr
+		}
+		return nil, err
+	}
+	if pageErr != nil {
+		return result, pageErr
 	}
 	if links := result.GetLinks(); links != nil {
 		links.Next = ""
@@ -353,7 +373,9 @@ func PageDataLen(page PaginatedResponse) (int, bool) {
 
 // aggregatePageData appends page data to result by reflecting on the shared Data field.
 // This keeps pagination aggregation generic while still validating type compatibility.
-func aggregatePageData(result, page PaginatedResponse) error {
+// The page's included resources are collected into included rather than merged
+// into result, so the aggregated array is marshaled only once.
+func aggregatePageData(result, page PaginatedResponse, included *rawJSONArrayAccumulator) error {
 	if result == nil || page == nil {
 		return fmt.Errorf("page aggregation received nil result or page")
 	}
@@ -392,69 +414,124 @@ func aggregatePageData(result, page PaginatedResponse) error {
 	}
 
 	resultData.Set(reflect.AppendSlice(resultData, pageData))
-	if err := aggregateJSONRawArrayField(resultElem, pageElem, "Included"); err != nil {
+	if err := collectJSONRawArrayField(resultElem, pageElem, includedFieldName, included); err != nil {
 		return err
 	}
 	return nil
 }
 
-func aggregateJSONRawArrayField(resultElem, pageElem reflect.Value, fieldName string) error {
+// includedFieldName is the JSON:API sideloaded-resources field aggregated across pages.
+const includedFieldName = "Included"
+
+var rawJSONMessageType = reflect.TypeOf(json.RawMessage{})
+
+// collectJSONRawArrayField records one page's raw JSON array field in acc. The
+// field is only collected when both the aggregated response and the page expose
+// it as a json.RawMessage.
+func collectJSONRawArrayField(resultElem, pageElem reflect.Value, fieldName string, acc *rawJSONArrayAccumulator) error {
 	resultField := resultElem.FieldByName(fieldName)
 	pageField := pageElem.FieldByName(fieldName)
 	if !resultField.IsValid() || !pageField.IsValid() {
 		return nil
 	}
-
-	rawMessageType := reflect.TypeOf(json.RawMessage{})
-	if resultField.Type() != rawMessageType || pageField.Type() != rawMessageType {
+	if resultField.Type() != rawJSONMessageType || pageField.Type() != rawJSONMessageType {
 		return nil
 	}
 
-	merged, err := mergeRawJSONArray(resultField.Interface().(json.RawMessage), pageField.Interface().(json.RawMessage))
-	if err != nil {
+	if err := acc.add(pageField.Interface().(json.RawMessage)); err != nil {
 		return fmt.Errorf("merge %s: %w", fieldName, err)
 	}
-	resultField.Set(reflect.ValueOf(merged))
 	return nil
 }
 
-func mergeRawJSONArray(dst, src json.RawMessage) (json.RawMessage, error) {
-	switch {
-	case len(src) == 0:
-		return dst, nil
-	case len(dst) == 0:
-		return append(json.RawMessage(nil), src...), nil
+// setJSONRawArrayField writes the array accumulated across pages to the
+// aggregated response, marshaling it a single time.
+func setJSONRawArrayField(result PaginatedResponse, fieldName string, acc *rawJSONArrayAccumulator) error {
+	resultValue := reflect.ValueOf(result)
+	if resultValue.Kind() != reflect.Pointer || resultValue.IsNil() {
+		return nil
+	}
+	field := resultValue.Elem().FieldByName(fieldName)
+	if !field.IsValid() || !field.CanSet() || field.Type() != rawJSONMessageType {
+		return nil
 	}
 
-	var dstItems []json.RawMessage
-	if err := json.Unmarshal(dst, &dstItems); err != nil {
-		return nil, fmt.Errorf("parse existing array: %w", err)
+	merged, err := acc.merged()
+	if err != nil {
+		return fmt.Errorf("merge %s: %w", fieldName, err)
 	}
-	var srcItems []json.RawMessage
-	if err := json.Unmarshal(src, &srcItems); err != nil {
-		return nil, fmt.Errorf("parse incoming array: %w", err)
-	}
+	field.Set(reflect.ValueOf(merged))
+	return nil
+}
 
-	merged := make([]json.RawMessage, 0, len(dstItems)+len(srcItems))
-	seen := make(map[string]struct{}, len(dstItems)+len(srcItems))
-	appendUnique := func(items []json.RawMessage) {
-		for _, item := range items {
-			key := rawJSONArrayItemKey(item)
-			if _, ok := seen[key]; ok {
-				continue
-			}
-			seen[key] = struct{}{}
-			merged = append(merged, item)
+// rawJSONArrayAccumulator merges JSON:API arrays such as `included` across
+// pages in linear time. It keeps the raw items collected so far alongside the
+// identity set used for deduplication, instead of reparsing and remarshaling
+// the accumulated array once per page.
+//
+// A lone payload is retained verbatim and never parsed, so a single-page
+// response keeps Apple's array exactly as it arrived.
+type rawJSONArrayAccumulator struct {
+	sole     json.RawMessage
+	items    []json.RawMessage
+	seen     map[string]struct{}
+	expanded bool
+}
+
+// add records one page's array. The first non-empty payload is only parsed once
+// a second payload arrives and the arrays actually have to be merged.
+func (a *rawJSONArrayAccumulator) add(payload json.RawMessage) error {
+	if len(payload) == 0 {
+		return nil
+	}
+	if !a.expanded && a.sole == nil {
+		a.sole = append(json.RawMessage(nil), payload...)
+		return nil
+	}
+	if !a.expanded {
+		if err := a.appendUnique(a.sole, "parse existing array"); err != nil {
+			return err
 		}
+		a.sole = nil
+		a.expanded = true
 	}
-	appendUnique(dstItems)
-	appendUnique(srcItems)
+	return a.appendUnique(payload, "parse incoming array")
+}
 
-	result, err := json.Marshal(merged)
+// merged reports the aggregated array, marshaling the collected items once.
+func (a *rawJSONArrayAccumulator) merged() (json.RawMessage, error) {
+	if !a.expanded {
+		return a.sole, nil
+	}
+
+	merged, err := json.Marshal(a.items)
 	if err != nil {
 		return nil, fmt.Errorf("marshal merged array: %w", err)
 	}
-	return result, nil
+	return merged, nil
+}
+
+func (a *rawJSONArrayAccumulator) appendUnique(payload json.RawMessage, stage string) error {
+	var items []json.RawMessage
+	if err := json.Unmarshal(payload, &items); err != nil {
+		return fmt.Errorf("%s: %w", stage, err)
+	}
+
+	if a.items == nil {
+		a.items = make([]json.RawMessage, 0, len(items))
+	}
+	if a.seen == nil {
+		a.seen = make(map[string]struct{}, len(items))
+	}
+	for _, item := range items {
+		key := rawJSONArrayItemKey(item)
+		if _, ok := a.seen[key]; ok {
+			continue
+		}
+		a.seen[key] = struct{}{}
+		a.items = append(a.items, item)
+	}
+	return nil
 }
 
 // rawJSONArrayItemKey follows JSON:API's resource identity rule when an item

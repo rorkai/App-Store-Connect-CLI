@@ -1477,3 +1477,24 @@ jq '[.data[] | {id: .id, name: .attributes.referenceName}]' subscription-groups.
 * [Subscriptions](https://sosumi.ai/documentation/appstoreconnectapi/subscription)
 * [Subscription Prices](https://sosumi.ai/documentation/appstoreconnectapi/subscriptionprice)
 * [Subscription Offers](https://sosumi.ai/documentation/appstoreconnectapi/subscriptionoffer)
+
+## Organization Markets (API 4.5)
+
+Configure an existing subscription for the App Store, Apple School Manager, or
+Apple Business Manager:
+
+```bash
+asc subscriptions update --id "SUB_ID" --market-settings APP_STORE,APPLE_SCHOOL,APPLE_BUSINESS --multi-seat-status ENABLED
+asc subscriptions update --id "SUB_ID" --multi-seat-status DISABLED
+asc subscriptions view --id "SUB_ID" --fields marketSettings,multiSeatStatus
+```
+
+`--market-settings` replaces the market list, so include every market you want to
+retain. Its values are `APP_STORE`, `APPLE_SCHOOL`, and `APPLE_BUSINESS`.
+`--multi-seat-status` accepts `ENABLED` or `DISABLED`. Either flag can be used on
+its own; omitted settings remain unchanged. Both reject empty or unsupported
+values before authentication.
+
+These attributes are supported by the update API. Use `subscriptions update`
+after creation. JSON, table, and Markdown reads show the settings, and sparse
+subscription fields accept `marketSettings` and `multiSeatStatus`.

@@ -133,7 +133,7 @@ Examples:
 func AppClipInvocationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	invocationID := fs.String("invocation-id", "", "Invocation ID")
+	invocationID := shared.BindResourceIDFlag(fs, "invocation-id", "betaAppClipInvocations", "Invocation ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -255,7 +255,7 @@ Examples:
 func AppClipInvocationsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	invocationID := fs.String("invocation-id", "", "Invocation ID")
+	invocationID := shared.BindResourceIDFlag(fs, "invocation-id", "betaAppClipInvocations", "Invocation ID")
 	url := fs.String("url", "", "Invocation URL")
 	output := shared.BindOutputFlags(fs)
 
@@ -310,7 +310,7 @@ Examples:
 func AppClipInvocationsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	invocationID := fs.String("invocation-id", "", "Invocation ID")
+	invocationID := shared.BindResourceIDFlag(fs, "invocation-id", "betaAppClipInvocations", "Invocation ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

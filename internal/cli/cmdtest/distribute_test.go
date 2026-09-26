@@ -88,7 +88,7 @@ func TestDistributeApplyWellFormedUnequalConfirmationExitsUsage(t *testing.T) {
 func TestDistributeInspectRequiresIPAAndRejectsInvalidOutput(t *testing.T) {
 	assertUsageExit(t, []string{"distribute", "inspect"}, "--ipa is required")
 	assertUsageExit(t, []string{"distribute", "inspect", "--ipa", "missing.ipa", "--output", "yaml"}, `--output must be one of`)
-	assertUsageExit(t, []string{"distribute", "inspect", "unexpected", "--ipa", "missing.ipa"}, "does not accept positional arguments")
+	assertUsageExit(t, []string{"distribute", "inspect", "unexpected", "--ipa", "missing.ipa"}, `unexpected argument "unexpected"`)
 }
 
 func TestDistributePrepareRejectsCredentialSourceURLBeforeFilesystemAccess(t *testing.T) {
@@ -101,7 +101,7 @@ func TestDistributePrepareRejectsCredentialSourceURLBeforeFilesystemAccess(t *te
 	assertUsageExit(t, []string{
 		"distribute", "prepare", "--ipa", "missing.ipa", "--source-url", "https://:443/path",
 	}, "must be an absolute HTTPS URL")
-	assertUsageExit(t, []string{"distribute", "prepare", "unexpected", "--ipa", "missing.ipa"}, "does not accept positional arguments")
+	assertUsageExit(t, []string{"distribute", "prepare", "unexpected", "--ipa", "missing.ipa"}, `unexpected argument "unexpected"`)
 }
 
 func TestDistributeInspectJSONPrivacyAndExplicitDisclosure(t *testing.T) {

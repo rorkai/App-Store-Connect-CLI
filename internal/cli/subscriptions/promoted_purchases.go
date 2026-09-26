@@ -21,6 +21,7 @@ func SubscriptionsPromotedPurchasesCommand() *ffcli.Command {
 			ProductSingular:    "a subscription",
 			ProductPlural:      "subscriptions",
 			OwnerIDFlag:        "subscription-id",
+			OwnerIDType:        "subscriptions",
 			OwnerIDUsage:       "Subscription ID, product ID, or exact current name",
 			OwnerIDPlaceholder: "SUBSCRIPTION_SELECTOR",
 			ResolveOwnerID: func(ctx context.Context, client *asc.Client, selector string) (string, error) {
