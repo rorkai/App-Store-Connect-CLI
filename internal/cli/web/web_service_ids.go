@@ -521,9 +521,6 @@ func WebServiceIDsDomainsSetCommand() *ffcli.Command {
 	domain := fs.String("domain", "", "Domain to associate, comma-separated")
 	returnURL := fs.String("return-url", "", "Return URL, comma-separated")
 	confirm := fs.Bool("confirm", false, "Confirm the domain update")
-	_ = bindWebSessionFlags(fs)
-	_ = bindDeveloperPortalFlags(fs)
-	_ = shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -561,7 +558,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			fmt.Fprintln(os.Stderr, "Error: web service-ids domains set is not available: no accepted write request has been captured")
-			return errors.New("web service-ids domains set is not available: no accepted write request has been captured")
+			return shared.NewReportedError(errors.New("web service-ids domains set is not available: no accepted write request has been captured"))
 		},
 	}
 }
