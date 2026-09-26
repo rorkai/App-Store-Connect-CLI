@@ -144,8 +144,8 @@ func TestBuildEventWithContextEmitsOnlyLowCardinalityClassifications(t *testing.
 	if !ok {
 		t.Fatal("expected event")
 	}
-	if ev.SchemaVersion != 4 {
-		t.Fatalf("SchemaVersion = %d, want 4", ev.SchemaVersion)
+	if ev.SchemaVersion != 5 {
+		t.Fatalf("SchemaVersion = %d, want 5", ev.SchemaVersion)
 	}
 	if ev.InvocationShape != InvocationShapeLeaf || ev.ErrorKind == nil || *ev.ErrorKind != ErrorKindUnknownFlag ||
 		ev.FailureStage == nil || *ev.FailureStage != FailureStageParse {

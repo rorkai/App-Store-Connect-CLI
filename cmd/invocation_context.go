@@ -700,6 +700,7 @@ func parseFailureContext(analysis invocationAnalysis) telemetry.EventContext {
 		FailureStage:     telemetry.FailureStageParse,
 		FailureParameter: parameter,
 		OutcomeKind:      telemetry.OutcomeUsageError,
+		AttemptedChild:   attemptedChildToken(analysis),
 	}
 }
 
@@ -729,6 +730,7 @@ func validationFailureContext(analysis invocationAnalysis, err error) telemetry.
 		FailureParameter: failureParameterFromError(err),
 		DiagnosticCode:   diagnosticCodeFromError(err),
 		OutcomeKind:      telemetry.OutcomeUsageError,
+		AttemptedChild:   attemptedChildToken(analysis),
 	}
 }
 
@@ -744,6 +746,7 @@ func runtimeFailureContext(analysis invocationAnalysis, err error, exitCode int)
 		DiagnosticCode:   diagnosticCodeFromError(err),
 		HTTPStatus:       httpStatusFromError(err),
 		PublicStorefront: isPublicStorefrontError(err),
+		AttemptedChild:   attemptedChildToken(analysis),
 	}
 	if diagnostic, ok := shared.DiagnosticFromError(err); ok {
 		eventContext.FailureParameter = diagnostic.Parameter
@@ -882,6 +885,13 @@ func hasDefinedFlags(flagSet *flag.FlagSet) bool {
 	found := false
 	flagSet.VisitAll(func(*flag.Flag) { found = true })
 	return found
+}
+
+func attemptedChildToken(analysis invocationAnalysis) string {
+	if analysis.shape != telemetry.InvocationShapeUnknownChild {
+		return ""
+	}
+	return telemetry.ClassifyAttemptedChild(analysis.unknownToken)
 }
 
 func printUnknownSubcommandSuggestion(analysis invocationAnalysis, commandName string) {
