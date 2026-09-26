@@ -2,9 +2,11 @@ package signing
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
@@ -13,6 +15,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+	"github.com/aws/smithy-go"
+	transporthttp "github.com/aws/smithy-go/transport/http"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const (
@@ -63,6 +68,7 @@ type AWSSecretsManagerStore struct {
 	prefix         string
 	maxArtifacts   int
 	requestContext RequestContextFunc
+	observed       map[string][sha256.Size]byte
 }
 
 // NewAWSSecretsManagerStore validates the locator and resolves credentials
@@ -88,7 +94,7 @@ func NewAWSSecretsManagerStore(ctx context.Context, options AWSSecretsManagerOpt
 		configuration, err := config.LoadDefaultConfig(loadCtx, config.WithRegion(region))
 		cancel()
 		if err != nil {
-			return nil, fmt.Errorf("load AWS configuration: %w", err)
+			return nil, fmt.Errorf("load AWS configuration: %w", sanitizedAWSSecretsError(err))
 		}
 		api = secretsmanager.NewFromConfig(configuration)
 	}
@@ -98,6 +104,7 @@ func NewAWSSecretsManagerStore(ctx context.Context, options AWSSecretsManagerOpt
 		prefix:         prefix,
 		maxArtifacts:   options.MaxArtifacts,
 		requestContext: options.RequestContext,
+		observed:       make(map[string][sha256.Size]byte),
 	}
 	if store.maxArtifacts <= 0 {
 		store.maxArtifacts = awsMaxRemoteArtifacts
@@ -126,11 +133,12 @@ func (s *AWSSecretsManagerStore) Fetch(ctx context.Context, store ArtifactStore)
 	if err := ValidateEncryptedRepositoryPaths(relPaths); err != nil {
 		return fmt.Errorf("aws secrets manager: %w", err)
 	}
+	observed := make(map[string][sha256.Size]byte, len(names))
 	for _, relPath := range relPaths {
 		name := names[relPath]
 		output, err := s.getSecretValue(ctx, name)
 		if err != nil {
-			return fmt.Errorf("aws secrets manager: read secret %s: %w", name, err)
+			return fmt.Errorf("aws secrets manager: read secret %s: %w", name, sanitizedAWSSecretsError(err))
 		}
 		if output == nil || output.SecretString == nil {
 			return fmt.Errorf("aws secrets manager: secret %s has no string value", name)
@@ -152,7 +160,9 @@ func (s *AWSSecretsManagerStore) Fetch(ctx context.Context, store ArtifactStore)
 		if err := store.WriteEncryptedArtifact(relPath, ciphertext); err != nil {
 			return fmt.Errorf("aws secrets manager: store %s: %w", relPath, err)
 		}
+		observed[name] = sha256.Sum256([]byte(encoded))
 	}
+	s.observed = observed
 	return nil
 }
 
@@ -217,24 +227,27 @@ func (s *AWSSecretsManagerStore) Publish(ctx context.Context, store ArtifactStor
 			// A new version per push would consume the account's secret
 			// version quota even when the ciphertext did not change.
 			if unchanged {
+				s.observed[secret.name] = sha256.Sum256([]byte(secret.encoded))
 				continue
 			}
 			if err := s.putSecretValue(ctx, secret.name, secret.encoded); err != nil {
-				return fmt.Errorf("aws secrets manager: update secret %s: %w", secret.name, err)
+				return fmt.Errorf("aws secrets manager: update secret %s: %w", secret.name, sanitizedAWSSecretsError(err))
 			}
+			s.observed[secret.name] = sha256.Sum256([]byte(secret.encoded))
 			continue
 		}
 		err := s.createSecret(ctx, secret.name, secret.encoded)
 		if err == nil {
+			s.observed[secret.name] = sha256.Sum256([]byte(secret.encoded))
 			continue
 		}
 		var exists *types.ResourceExistsException
 		if !errors.As(err, &exists) {
-			return fmt.Errorf("aws secrets manager: create secret %s: %w", secret.name, err)
+			return fmt.Errorf("aws secrets manager: create secret %s: %w", secret.name, sanitizedAWSSecretsError(err))
 		}
-		if err := s.putSecretValue(ctx, secret.name, secret.encoded); err != nil {
-			return fmt.Errorf("aws secrets manager: update secret %s: %w", secret.name, err)
-		}
+		// ListSecrets can lag creates. A collision is not permission to
+		// overwrite ciphertext that was never fetched and validated.
+		return fmt.Errorf("aws secrets manager: secret %s appeared during publication; retry after fetching the current artifacts", secret.name)
 	}
 	return nil
 }
@@ -248,6 +261,9 @@ func (s *AWSSecretsManagerStore) getSecretValue(ctx context.Context, name string
 }
 
 func (s *AWSSecretsManagerStore) createSecret(ctx context.Context, name, encoded string) error {
+	if err := readonly.Check(ctx, http.MethodPost, "aws-secrets-manager://"+s.region+"/"+name); err != nil {
+		return err
+	}
 	requestCtx, cancel := boundedRequestContext(s.requestContext, ctx)
 	defer cancel()
 	_, err := s.api.CreateSecret(requestCtx, &secretsmanager.CreateSecretInput{
@@ -259,6 +275,9 @@ func (s *AWSSecretsManagerStore) createSecret(ctx context.Context, name, encoded
 }
 
 func (s *AWSSecretsManagerStore) putSecretValue(ctx context.Context, name, encoded string) error {
+	if err := readonly.Check(ctx, http.MethodPost, "aws-secrets-manager://"+s.region+"/"+name); err != nil {
+		return err
+	}
 	requestCtx, cancel := boundedRequestContext(s.requestContext, ctx)
 	defer cancel()
 	_, err := s.api.PutSecretValue(requestCtx, &secretsmanager.PutSecretValueInput{
@@ -271,16 +290,22 @@ func (s *AWSSecretsManagerStore) putSecretValue(ctx context.Context, name, encod
 func (s *AWSSecretsManagerStore) hasSecretValue(ctx context.Context, name, encoded string) (bool, error) {
 	output, err := s.getSecretValue(ctx, name)
 	if err != nil {
-		var missing *types.ResourceNotFoundException
-		if errors.As(err, &missing) {
-			return false, nil
-		}
-		return false, fmt.Errorf("aws secrets manager: read secret %s: %w", name, err)
+		return false, fmt.Errorf("aws secrets manager: read secret %s: %w", name, sanitizedAWSSecretsError(err))
 	}
 	if output == nil || output.SecretString == nil {
-		return false, nil
+		return false, fmt.Errorf("aws secrets manager: secret %s has no string value", name)
 	}
-	return strings.TrimSpace(*output.SecretString) == encoded, nil
+	current := strings.TrimSpace(*output.SecretString)
+	if current == encoded {
+		return true, nil
+	}
+	// A second listing may reveal an artifact the initial fetch missed, or
+	// another writer may have changed it. Never replace unvalidated bytes.
+	previous, observed := s.observed[name]
+	if !observed || previous != sha256.Sum256([]byte(current)) {
+		return false, fmt.Errorf("aws secrets manager: secret %s changed since fetch; retry after fetching the current artifacts", name)
+	}
+	return false, nil
 }
 
 func (s *AWSSecretsManagerStore) secretName(relPath string) (string, error) {
@@ -315,7 +340,7 @@ func (s *AWSSecretsManagerStore) listPrefixedSecrets(ctx context.Context) (map[s
 		})
 		cancel()
 		if err != nil {
-			return nil, fmt.Errorf("aws secrets manager: list secrets: %w", err)
+			return nil, fmt.Errorf("aws secrets manager: list secrets: %w", sanitizedAWSSecretsError(err))
 		}
 		if output == nil {
 			return nil, errors.New("aws secrets manager: list secrets returned no response")
@@ -343,4 +368,35 @@ func (s *AWSSecretsManagerStore) listPrefixedSecrets(ctx context.Context) (map[s
 		nextToken = output.NextToken
 	}
 	return nil, fmt.Errorf("aws secrets manager: list secrets exceeded %d pages", awsMaxListPages)
+}
+
+// SDK errors may contain malformed credential_process stdout, including secret
+// keys and session tokens. Expose only stable classifications, never raw text.
+func sanitizedAWSSecretsError(err error) error {
+	if errors.Is(err, readonly.ErrRefused) {
+		return err
+	}
+	if errors.Is(err, context.Canceled) {
+		return context.Canceled
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return context.DeadlineExceeded
+	}
+	var apiError smithy.APIError
+	if errors.As(err, &apiError) {
+		switch code := apiError.ErrorCode(); code {
+		case "AccessDeniedException", "DecryptionFailure", "EncryptionFailure", "InternalServiceError",
+			"InvalidNextTokenException", "InvalidParameterException", "InvalidRequestException",
+			"LimitExceededException", "ResourceExistsException", "ResourceNotFoundException",
+			"ThrottlingException", "UnrecognizedClientException", "ExpiredTokenException",
+			"InvalidSignatureException", "RequestExpired", "IncompleteSignature",
+			"MissingAuthenticationToken", "ValidationException", "ServiceUnavailable":
+			return errors.New(code)
+		}
+	}
+	var responseError *transporthttp.ResponseError
+	if errors.As(err, &responseError) {
+		return fmt.Errorf("HTTP %d", responseError.HTTPStatusCode())
+	}
+	return errors.New("AWS request or credential resolution failed")
 }

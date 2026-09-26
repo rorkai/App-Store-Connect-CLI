@@ -72,9 +72,6 @@ func providedSigningSyncFlags(fs *flag.FlagSet) map[string]bool {
 
 func parseSigningSyncStorage(fs *flag.FlagSet, flags *signingSyncStorageFlags, repoURL, branch string) (signingSyncStorageSelection, error) {
 	kind := strings.ToLower(strings.TrimSpace(*flags.storage))
-	if kind == "" {
-		kind = signingSyncStorageGit
-	}
 	provided := providedSigningSyncFlags(fs)
 	selection := signingSyncStorageSelection{
 		kind:            kind,

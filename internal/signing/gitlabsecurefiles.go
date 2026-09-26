@@ -20,6 +20,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const (
@@ -256,7 +258,11 @@ func (s *GitLabSecureFilesStore) replace(ctx context.Context, existing gitLabSec
 		return err
 	}
 	if uploadErr := s.upload(ctx, name, ciphertext); uploadErr != nil {
-		if restoreErr := s.upload(ctx, name, previous); restoreErr != nil {
+		// Recovery must survive cancellation of the command that deleted
+		// the old file, but still has a bounded lifetime.
+		recoveryCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), defaultRemoteRequestTimeout)
+		defer cancel()
+		if restoreErr := s.upload(recoveryCtx, name, previous); restoreErr != nil {
 			return fmt.Errorf("%w; restoring the previous secure file %s also failed: %w", uploadErr, name, restoreErr)
 		}
 		return fmt.Errorf("%w; the previous secure file %s was restored", uploadErr, name)
@@ -463,6 +469,9 @@ func (s *GitLabSecureFilesStore) do(
 	body []byte,
 	operation string,
 ) (*http.Response, context.CancelFunc, error) {
+	if err := readonly.Check(ctx, method, readonly.Target(endpoint.String())); err != nil {
+		return nil, nil, err
+	}
 	budget := s.requestContext
 	if body != nil {
 		budget = s.uploadContext

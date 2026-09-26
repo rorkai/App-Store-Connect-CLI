@@ -56,9 +56,6 @@ Example:
 			}
 
 			selectedStorage := strings.ToLower(strings.TrimSpace(*storage))
-			if selectedStorage == "" {
-				selectedStorage = signingSyncStorageGit
-			}
 			if selectedStorage != signingSyncStorageGit {
 				return shared.UsageErrorf("signing sync rotate-password supports only --storage %s", signingSyncStorageGit)
 			}

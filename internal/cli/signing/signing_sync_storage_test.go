@@ -263,6 +263,14 @@ func TestSigningSyncRotatePasswordRejectsNonGitStorage(t *testing.T) {
 }
 
 func TestSigningSyncStorageTransportLocatorsDescribeBackend(t *testing.T) {
+	// Constructing the AWS transport must not read the operator's profiles.
+	t.Setenv("AWS_CONFIG_FILE", filepath.Join(t.TempDir(), "config"))
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "credentials"))
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
+	t.Setenv("AWS_ACCESS_KEY_ID", "AKIAEXAMPLE")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "example-secret")
+	t.Setenv("AWS_SESSION_TOKEN", "")
 	git := signingSyncGitTransport{repoURL: "https://token:secret@example.com/team/certs.git", branch: "main"}
 	if strings.Contains(git.Locator(), "secret") {
 		t.Fatalf("git locator leaks credentials: %q", git.Locator())
@@ -417,5 +425,31 @@ func TestNewSigningSyncStoreOmitsRepositoryForRemoteStorage(t *testing.T) {
 	gitStore := newSigningSyncStore(signingSyncGitTransport{}, t.TempDir(), "git@github.com:team/certs.git", "release")
 	if gitStore.RepoURL != "git@github.com:team/certs.git" || gitStore.Branch != "release" {
 		t.Fatalf("git store = %+v, want the repository and branch preserved", gitStore)
+	}
+}
+
+func TestSigningSyncRejectsEmptyStorage(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		newCommand func() *ffcli.Command
+		args       []string
+		want       string
+	}{
+		{"push", syncPushCommand, []string{"--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE"}, `unsupported --storage ""; use git, gitlab-secure-files, or aws-secrets-manager`},
+		{"pull", syncPullCommand, nil, `unsupported --storage ""; use git, gitlab-secure-files, or aws-secrets-manager`},
+		{"rotate-password", syncRotatePasswordCommand, nil, "signing sync rotate-password supports only --storage git"},
+	} {
+		for _, value := range []string{"", "   "} {
+			t.Run(tc.name+"/"+strconv.Quote(value), func(t *testing.T) {
+				args := append(append([]string{}, tc.args...), "--storage="+value)
+				stdout, stderr, err := runSigningSyncCommandForStorage(t, tc.newCommand(), args)
+				if err == nil || !errors.Is(err, flag.ErrHelp) || err.Error() != tc.want {
+					t.Fatalf("error = %v, want usage error %q", err, tc.want)
+				}
+				if stdout != "" || stderr != "Error: "+tc.want+"\n" {
+					t.Fatalf("stdout=%q stderr=%q, want only the usage diagnostic", stdout, stderr)
+				}
+			})
+		}
 	}
 }

@@ -102,8 +102,9 @@ validator already satisfies.
 Secure file names are unique per project and the API has no replace operation,
 so an artifact whose content changed is deleted and re-uploaded. The previous
 ciphertext is downloaded and checksum-verified first and is re-uploaded if the
-replacement upload fails, so a transient failure cannot leave the artifact
-missing. An artifact whose published sha256 checksum already matches the local
+replacement upload fails. Recovery uses its own bounded context so canceling
+the command does not also cancel restoration. A failed restoration is reported;
+GitLab does not provide an atomic replacement transaction. An artifact whose published sha256 checksum already matches the local
 ciphertext is skipped, so unchanged pushes perform no deletion. Files outside
 the configured prefix are never listed into scope, replaced, or deleted, and no
 cleanup of unknown files is performed.
@@ -119,10 +120,29 @@ occurrence is redacted.
 
 One secret holds one encrypted artifact. The secret string is the ciphertext in
 standard base64 so the SDK's string secret round-trips losslessly. `CreateSecret`
-publishes a new artifact, and `PutSecretValue` updates an existing one, also as
-the fallback when a concurrent writer already created the secret. An existing
+publishes a new artifact, and `PutSecretValue` updates an existing one. A create
+collision fails with a refetch instruction: the service listing can lag a new
+secret, so a collision must never overwrite ciphertext the invocation did not
+fetch and validate. Before updating an existing secret, the current ciphertext
+must match the last successful fetch or publication by this store instance;
+a changed or newly visible secret fails with a refetch instruction. An existing
 secret whose value already matches is skipped so repeated pushes do not consume
 the account's secret version quota. No secret is deleted.
+
+These checks detect changes observed before a write, but AWS `PutSecretValue`
+has no compare-and-swap condition: another writer can still race between the
+check and update. GitLab replacement likewise has no whole-store transaction.
+Serialize writers to a shared prefix. A multi-artifact failure can leave a
+partially published store; neither backend promises atomic publication.
+
+AWS errors preserve recognized service error codes, HTTP status, cancellation,
+and read-only refusals. Raw SDK and credential-process messages are omitted
+because malformed credential-process output can contain credentials.
+
+The global `--read-only` and `ASC_READ_ONLY` modes allow remote fetches and local
+encryption/decryption but refuse GitLab uploads/deletes and AWS creates/updates
+before the remote mutation request. AWS listing and retrieval remain permitted
+even though the SDK transports those reads as HTTP POSTs.
 
 An artifact whose base64 encoding exceeds 60 KiB fails before any AWS call and
 explains the limit rather than truncating. Secret names are validated against

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials/processcreds"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 )
@@ -359,6 +361,8 @@ func TestAWSSecretsManagerBoundsEachRequestWithTheSuppliedBudget(t *testing.T) {
 }
 
 func TestAWSSecretsManagerBoundsCredentialDiscovery(t *testing.T) {
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_SESSION_TOKEN", "")
 	t.Setenv("AWS_CONFIG_FILE", filepath.Join(t.TempDir(), "config"))
 	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "credentials"))
 	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
@@ -423,6 +427,120 @@ func TestNewAWSSecretsManagerStoreValidatesInputs(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("error = %q, want it to mention %q", err, tt.want)
+			}
+		})
+	}
+}
+
+// ListSecrets can lag creates; a create collision must not overwrite an
+// artifact that this invocation never fetched and validated locally.
+type staleListSecretsManager struct{ *stubSecretsManager }
+
+func (s *staleListSecretsManager) ListSecrets(context.Context, *secretsmanager.ListSecretsInput, ...func(*secretsmanager.Options)) (*secretsmanager.ListSecretsOutput, error) {
+	return &secretsmanager.ListSecretsOutput{}, nil
+}
+
+func TestAWSSecretsManagerRefusesUnfetchedCreateCollision(t *testing.T) {
+	api := &staleListSecretsManager{newStubSecretsManager()}
+	remote := newAWSTestStore(t, api)
+	source := newLocalArtifactStore(t)
+	relPath := "certs/distribution/serial.cer"
+	previous := []byte("existing artifact encrypted with a different password")
+	name := awsTestPrefix + "/" + relPath + EncryptedArtifactSuffix
+	api.secrets[name] = base64.StdEncoding.EncodeToString(previous)
+	if err := remote.Fetch(context.Background(), source); err != nil {
+		t.Fatal(err)
+	}
+	if err := source.WriteEncryptedFile(relPath, []byte("certificate"), "new-password"); err != nil {
+		t.Fatal(err)
+	}
+	if err := remote.Publish(context.Background(), source); err == nil {
+		t.Fatal("Publish succeeded after silently overwriting an unfetched artifact")
+	}
+	stored, _ := api.storedValue(name)
+	if stored != base64.StdEncoding.EncodeToString(previous) {
+		t.Fatal("existing artifact was overwritten")
+	}
+	_, puts, _ := api.calls()
+	if len(puts) != 0 {
+		t.Fatalf("unexpected PutSecretValue calls: %v", puts)
+	}
+}
+
+func TestAWSSecretsManagerRefusesChangedFetchSnapshot(t *testing.T) {
+	for _, fetched := range []bool{false, true} {
+		t.Run(fmt.Sprintf("fetched=%v", fetched), func(t *testing.T) {
+			api := newStubSecretsManager()
+			remote := newAWSTestStore(t, api)
+			source := newLocalArtifactStore(t)
+			relPath := "certs/distribution/serial.cer"
+			name := awsTestPrefix + "/" + relPath + EncryptedArtifactSuffix
+			if fetched {
+				api.secrets[name] = base64.StdEncoding.EncodeToString([]byte("fetched ciphertext"))
+			}
+			if err := remote.Fetch(context.Background(), source); err != nil {
+				t.Fatal(err)
+			}
+			changed := base64.StdEncoding.EncodeToString([]byte("another writer's ciphertext"))
+			api.secrets[name] = changed
+			if err := source.ReplaceEncryptedFile(relPath, []byte("wanted certificate"), awsTestPassword); err != nil {
+				t.Fatal(err)
+			}
+			if err := remote.Publish(context.Background(), source); err == nil {
+				t.Fatal("Publish overwrote ciphertext absent from the fetch snapshot")
+			}
+			value, _ := api.storedValue(name)
+			if value != changed {
+				t.Fatal("remote ciphertext changed")
+			}
+			_, puts, _ := api.calls()
+			if len(puts) != 0 {
+				t.Fatalf("unexpected puts: %v", puts)
+			}
+		})
+	}
+}
+
+type failingListSecretsManager struct {
+	*stubSecretsManager
+	err error
+}
+
+func (s failingListSecretsManager) ListSecrets(context.Context, *secretsmanager.ListSecretsInput, ...func(*secretsmanager.Options)) (*secretsmanager.ListSecretsOutput, error) {
+	return nil, s.err
+}
+
+func TestAWSSecretsManagerDoesNotExposeCredentialErrors(t *testing.T) {
+	const secretKey = "canary-secret-access-key"
+	const sessionToken = "canary-session-token"
+	malformedOutput := `{"SecretAccessKey":"` + secretKey + `","SessionToken":"` + sessionToken + `"`
+	// Exercise the actual SDK signing path. Credential resolution fails before
+	// any request can leave the process, as for malformed credential_process stdout.
+	client := secretsmanager.NewFromConfig(aws.Config{
+		Region:           awsTestRegion,
+		RetryMaxAttempts: 1,
+		Credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
+			return aws.Credentials{}, &processcreds.ProviderError{Err: fmt.Errorf("parse failed of process output: %s", malformedOutput)}
+		}),
+	})
+	for _, tc := range []struct {
+		name string
+		api  SecretsManagerAPI
+		want string
+	}{
+		{"credential process", client, "list secrets"},
+		{"service message", failingListSecretsManager{newStubSecretsManager(), &types.InvalidRequestException{Message: aws.String(malformedOutput)}}, "InvalidRequestException"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := newAWSTestStore(t, tc.api).Fetch(context.Background(), newLocalArtifactStore(t))
+			if err == nil {
+				t.Fatal("Fetch succeeded")
+			}
+			if strings.Contains(err.Error(), secretKey) || strings.Contains(err.Error(), sessionToken) {
+				t.Fatal("public error exposes credential values")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error lacks safe operation/code %q: %v", tc.want, err)
 			}
 		})
 	}

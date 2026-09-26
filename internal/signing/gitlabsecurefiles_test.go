@@ -373,6 +373,71 @@ func TestGitLabSecureFilesRestoresPreviousArtifactWhenReplacementFails(t *testin
 	}
 }
 
+func TestGitLabSecureFilesRestoresPreviousArtifactWhenReplacementIsCanceled(t *testing.T) {
+	fake, server := newFakeGitLabServer(t)
+	remote := newGitLabTestStore(t, server)
+
+	source := newLocalArtifactStore(t)
+	relPath := "certs/distribution/serial.cer"
+	if err := source.WriteEncryptedFile(relPath, []byte("certificate-one"), gitLabTestPassword); err != nil {
+		t.Fatalf("WriteEncryptedFile() error: %v", err)
+	}
+	if err := remote.Publish(context.Background(), source); err != nil {
+		t.Fatalf("Publish() error: %v", err)
+	}
+	name := gitLabTestPrefix + "/" + relPath + EncryptedArtifactSuffix
+	original, ok := fake.storedContent(name)
+	if !ok {
+		t.Fatalf("secure file %q was not stored", name)
+	}
+
+	if err := source.ReplaceEncryptedFile(relPath, []byte("certificate-two"), gitLabTestPassword); err != nil {
+		t.Fatalf("ReplaceEncryptedFile() error: %v", err)
+	}
+	replacement, err := source.ReadEncryptedArtifact(relPath)
+	if err != nil {
+		t.Fatalf("ReadEncryptedArtifact() error: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	fake.mu.Lock()
+	fake.failCreate = func(_ string, content []byte) bool {
+		if bytes.Equal(content, replacement) {
+			cancel()
+			return true
+		}
+		return false
+	}
+	fake.mu.Unlock()
+
+	err = remote.Publish(ctx, source)
+	if err == nil {
+		t.Fatal("Publish() error = nil, want the failed replacement reported")
+	}
+	if !strings.Contains(err.Error(), "restored") {
+		t.Fatalf("error = %q, want the restoration reported", err)
+	}
+	restored, ok := fake.storedContent(name)
+	if !ok {
+		t.Fatal("previous secure file was not restored")
+	}
+	if !bytes.Equal(restored, original) {
+		t.Fatal("restored secure file does not match the previous ciphertext")
+	}
+
+	destination := newLocalArtifactStore(t)
+	if err := remote.Fetch(context.Background(), destination); err != nil {
+		t.Fatalf("Fetch() error: %v", err)
+	}
+	plaintext, err := destination.ReadEncryptedFile(relPath, gitLabTestPassword)
+	if err != nil {
+		t.Fatalf("ReadEncryptedFile() error: %v", err)
+	}
+	if string(plaintext) != "certificate-one" {
+		t.Fatalf("decrypted artifact = %q, want the preserved content", plaintext)
+	}
+}
+
 func TestGitLabSecureFilesFetchIgnoresOtherPrefixes(t *testing.T) {
 	fake, server := newFakeGitLabServer(t)
 	remote := newGitLabTestStore(t, server)
