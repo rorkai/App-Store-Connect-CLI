@@ -17,8 +17,11 @@ func TestWebICloudContainersCommandHierarchy(t *testing.T) {
 	if command.Name != "icloud-containers" || command.UsageFunc == nil {
 		t.Fatalf("unexpected command: %+v", command)
 	}
-	if len(command.Subcommands) != 1 || command.Subcommands[0].Name != "list" || command.Subcommands[0].UsageFunc == nil {
-		t.Fatalf("subcommands = %+v, want list with usage", command.Subcommands)
+	if len(command.Subcommands) != 2 || command.Subcommands[0].Name != "list" || command.Subcommands[1].Name != "create" {
+		t.Fatalf("subcommands = %+v, want list and create", command.Subcommands)
+	}
+	if command.Subcommands[0].UsageFunc == nil || command.Subcommands[1].UsageFunc == nil {
+		t.Fatal("iCloud container subcommands must set UsageFunc")
 	}
 	if command.Subcommands[0].FlagSet.Lookup("paginate") != nil {
 		t.Fatal("iCloud container list must not advertise --paginate")
@@ -34,6 +37,54 @@ func TestWebICloudContainersCommandHierarchy(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("web command did not register icloud-containers")
+	}
+}
+
+func TestWebICloudContainersCreateRefusesBeforeAnyRequest(t *testing.T) {
+	command := WebICloudContainersCreateCommand()
+	if err := command.FlagSet.Parse([]string{
+		"--identifier", "iCloud.com.example.app",
+		"--name", "Example",
+		"--confirm",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	stdout, stderr := captureWebCommandOutput(t, func() {
+		err := command.Exec(context.Background(), command.FlagSet.Args())
+		if err == nil || errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected a non-usage refusal, got %v", err)
+		}
+		if !strings.Contains(err.Error(), "no accepted write request has been captured") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, "no accepted write request has been captured") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestWebICloudContainersCreateRequiresConfirm(t *testing.T) {
+	command := WebICloudContainersCreateCommand()
+	if err := command.FlagSet.Parse([]string{
+		"--identifier", "iCloud.com.example.app",
+		"--name", "Example",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	stdout, stderr := captureWebCommandOutput(t, func() {
+		err := command.Exec(context.Background(), command.FlagSet.Args())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected usage error, got %v", err)
+		}
+	})
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, "--confirm is required") {
+		t.Fatalf("stderr = %q", stderr)
 	}
 }
 

@@ -174,7 +174,7 @@ the App Store Connect web-client source captured for issue #2299:
 
 - `asc web icloud-containers list` reads the modern Developer Portal collection through the cookie-authenticated web session. The logical request is `GET /services-account/v1/cloudContainers?filter[AND][hidden]=false` (or `true` with `--hidden`); Apple's browser transport sends it as `POST` with `X-HTTP-Method-Override: GET`.
 - The request body carries the selected `teamId` and `urlEncodedQueryParams=limit=1000&offset=0&sort=name`. The command uses this bounded first collection and has no `--paginate` flag. Apple response envelopes are preserved for JSON output, including `links` and `meta.paging` when present. A warning on stderr identifies an incomplete collection when Apple supplies a continuation link or a paging total larger than the returned rows; the CLI does not invent or follow a next-page contract.
-- Resource rows expose Apple's observed `identifier`, `hidden`, `prefix`, `canEdit`, `name`, `canDelete`, and `responseId` attributes along with the opaque resource `id` and `type`. No detail or create/rename/delete contract is assumed from this list response.
+- Resource rows expose Apple's observed `identifier`, `hidden`, `prefix`, `canEdit`, `name`, `canDelete`, and `responseId` attributes along with the opaque resource `id` and `type`. No detail or create/rename/delete contract is assumed from this list response. `asc web icloud-containers create` validates `--identifier`, `--name`, and `--confirm`, then stops. It does not open a session or send a request.
 
 ## Web-session Resolution Center
 
