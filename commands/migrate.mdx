@@ -12,6 +12,80 @@ asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastl
 asc migrate validate --fastlane-dir ./fastlane
 ```
 
+App Clip default-experience files use `metadata/<locale>/app_clip/subtitle.txt`,
+`metadata/<locale>/app_clip/header_image.png`, and `metadata/app_clip/action.txt`
+(`OPEN`, `PLAY`, or `VIEW`). App Preview videos use
+`app_previews/<locale>/<device_type>/*.mp4`, `*.mov`, or `*.m4v`, with an optional
+`<name>.poster_frame.txt` sidecar (`HH:MM:SS:FF` or `HH:MM:SS.mmm`).
+
+```bash theme={null}
+asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane
+asc migrate validate --fastlane-dir ./fastlane
+asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane --dry-run
+asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane --confirm
+```
+
+Use `--skip-app-clip` or `--skip-previews` on import to leave those assets alone.
+Imports update the experience linked to the selected version. Creating a missing
+experience requires exactly one App Clip on the app; ambiguous apps fail before
+any changes. Failed uploads report surviving reservations and completed changes.
+
+Migrate dry-run reports the selected local asset inputs; it does not compare
+remote checksums or determine which uploads will be skipped. Canonical
+`metadata push --dry-run` includes the remote asset comparison.
+
+Preview exports include `order.json` per device folder to preserve provider order
+without renaming videos. Imports accept that sidecar or use filename order when
+it is absent. Remote-only previews are retained after the imported files; an
+import that would exceed three videos fails before mutations.
+When source checksums differ, imports compare a same-named delivered preview in
+that version's locale and device set before reusing its ID. This can download
+media during preflight, including canonical metadata dry-run. Unchanged files
+are skipped; edited files still require available capacity.
+Duplicate-content files within one locale and device folder are rejected before
+importing.
+
+Preview validation requires `ffprobe` on `PATH`; no tool is installed automatically.
+Validation checks duration, dimensions, file size, device type, and poster timecode
+before upload. App Clip header images must be PNG images at 1800 by 1200 pixels.
+See Apple's [App Preview specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/app-preview-specifications)
+and [default App Clip requirements](https://developer.apple.com/help/app-store-connect/offer-app-clip-experiences/offer-a-default-app-clip-experience).
+
+Export downloads Apple's delivered media. Those renditions are not guaranteed to
+be byte-identical to the original uploaded files.
+Imports compare an existing App Clip header with its delivered PNG when the
+source checksum differs and delivery is available. Unchanged exported headers
+keep their existing ID; edited headers still replace the old image.
+
+On macOS and Linux, exports record the selected app, version, asset scopes, and
+file hashes in `.asc/store-assets-export.json` beneath the output directory.
+A successful repeat export removes recorded, unchanged files that are no longer
+remote, including videos, poster sidecars, and ordering files. Unselected files are preserved. Locally edited and unrecorded legacy files
+are preserved with warnings. Keep the
+inventory with the exported tree; a destination owned by another app, version,
+or layout requires a separate output directory. Empty asset directories and
+unrelated files do not request an App Clip; an explicit empty `subtitle.txt`
+still does.
+
+A partial export retains prior and pending ownership for retry. A replacement
+may be absent if publication fails after safe removal; the inventory is recovery
+evidence and must not be deleted. Metadata pulls still require `--force` to
+replace existing requested files, including when resuming a partial export. Migrate exports retain their existing overwrite
+behavior. Windows exports warn that owned cleanup is unavailable; an existing
+inventory that needs an update fails before output writes. Repeated Windows
+exports do not guarantee removal of stale assets.
+
+For canonical JSON metadata, opt into the same asset folders with
+`asc metadata pull --include localizations,app-clip,previews` and
+`asc metadata push --include localizations,app-clip,previews`. Paths are relative to
+`--dir`: `<locale>/app_clip/`, `app_clip/action.txt`, and `app_previews/`.
+The default `localizations` scope continues to process JSON localizations only.
+Canonical metadata pushes that replace an existing App Clip header require
+`--allow-deletes --confirm`; dry-run lists the replacement under `deletes`.
+When combining JSON localizations and previews, a planned localization deletion
+that would remove a local preview's parent is rejected before changes. Keep that
+locale's version JSON file, or exclude previews when intentionally deleting it.
+
 ## Subcommands
 
 * `import` - Import metadata from fastlane directory structure
@@ -353,8 +427,11 @@ writes the result document to stdout and exits non-zero:
 absent when none did, as above, where the failure happened inside the first
 stage.
 
-A failure before the first change prints nothing to stdout and only reports the
-error, so an empty stdout means nothing was applied. Review information that
+Asset-stage failures include `assetResults` on stdout even when no mutation
+succeeded (`status: "failed"`). A replaced header records `previousId` and
+`previousDeleted` if its deletion succeeded before reservation or upload failed.
+Other stages retain their existing behavior: a failure before the first change
+prints nothing to stdout and only reports the error. Review information that
 already matched and screenshots that already exist are not changes, so a failure
 after them is a plain error too. The screenshot stage can still create a
 localization for a screenshot-only locale before it fails with nothing to

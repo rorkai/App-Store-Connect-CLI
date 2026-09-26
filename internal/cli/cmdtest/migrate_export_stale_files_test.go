@@ -37,6 +37,10 @@ func TestMigrateExportRemovesStaleKnownMetadataFiles(t *testing.T) {
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
+			return migrateJSONResponse(http.StatusOK, `{"data":null}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_EN/appPreviewSets":
+			return migrateJSONResponse(http.StatusOK, `{"data":[]}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID":
 			return migrateJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
@@ -67,8 +71,8 @@ func TestMigrateExportRemovesStaleKnownMetadataFiles(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("migrate export error: %v", runErr)
 	}
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
+	if stderr != "Warning: version has no App Clip default experience\n" {
+		t.Fatalf("stderr = %q, want only the missing App Clip warning", stderr)
 	}
 	var result struct {
 		TotalFiles int `json:"totalFiles"`

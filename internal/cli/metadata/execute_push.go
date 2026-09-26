@@ -9,6 +9,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/storeassets"
 )
 
 // PushExecutionOptions controls metadata push planning and apply behavior.
@@ -87,13 +88,27 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		return PushPlanResult{}, nil, shared.UsageError(err.Error())
 	}
 
-	localBundle, err := loadLocalMetadata(dirValue, versionValue)
+	clip, previews, cleanup, err := loadStoreAssetInputs(ctx, dirValue, includes)
 	if err != nil {
 		return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 	}
+	defer cleanup()
+	if err := requireConfirmedStoreAssets(opts, clip, previews); err != nil {
+		return PushPlanResult{}, nil, err
+	}
+	localBundle := localMetadataBundle{}
+	if includesScope(includes, includeLocalizations) {
+		localBundle, err = loadLocalMetadataWithAssets(dirValue, versionValue, clip != nil || len(previews) > 0)
+		if err != nil {
+			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
+		}
+	}
+
 	if err := validateDefaultClearFields(localBundle, versionValue); err != nil {
 		return PushPlanResult{}, nil, shared.UsageError(err.Error())
 	}
+
+	localizationsSelected := localBundle.appInfoManaged || localBundle.versionManaged
 
 	client, err := shared.GetASCClient()
 	if err != nil {
@@ -142,8 +157,8 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		}
 	}
 
-	// An absent scope directory leaves that scope unmanaged, so its remote
-	// localizations are not fetched and can never be planned as deletes.
+	// Only managed JSON scopes participate in localization changes. Preview
+	// uploads also need version localization IDs, but must not plan their deletion.
 	var remoteAppInfoItems []asc.Resource[asc.AppInfoLocalizationAttributes]
 	if localBundle.appInfoManaged {
 		remoteAppInfoItems, err = fetchAppInfoLocalizations(ctx, client, appInfoIDValue)
@@ -152,7 +167,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		}
 	}
 	var remoteVersionItems []asc.Resource[asc.AppStoreVersionLocalizationAttributes]
-	if localBundle.versionManaged {
+	if localBundle.versionManaged || len(previews) > 0 {
 		remoteVersionItems, err = fetchVersionLocalizations(ctx, client, versionIDValue)
 		if err != nil {
 			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
@@ -174,10 +189,25 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		})
 	}
 
-	remoteVersion := remoteVersionItemsToVersionMap(remoteVersionItems)
+	// Preview uploads need localization IDs even when JSON version metadata is
+	// unmanaged. Keep those IDs out of the localization mutation plan.
+	managedVersionItems := remoteVersionItems
+	if !localBundle.versionManaged {
+		managedVersionItems = nil
+	}
+	remoteVersion := remoteVersionItemsToVersionMap(managedVersionItems)
 
 	localAppInfo := applyDefaultAppInfoFallback(localBundle.appInfo, localBundle.defaultAppInfo, remoteAppInfo, opts.AllowDeletes)
 	localVersion := applyDefaultVersionFallback(localBundle.version, localBundle.defaultVersion, remoteVersion, opts.AllowDeletes)
+	if opts.AllowDeletes {
+		for _, preview := range previews {
+			_, remoteExists := remoteVersion[preview.Locale]
+			_, localExists := localVersion[preview.Locale]
+			if remoteExists && !localExists {
+				return PushPlanResult{}, nil, shared.UsageErrorf("version localization %q is required by local previews but would be deleted; add version/%s/%s.json to retain it, or exclude previews before deleting it", preview.Locale, versionValue, preview.Locale)
+			}
+		}
+	}
 	if err := validateVersionClearOnlyLocales(localVersion, remoteVersion); err != nil {
 		return PushPlanResult{}, nil, shared.UsageError(err.Error())
 	}
@@ -245,6 +275,12 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		APICalls:  apiCalls,
 	}
 
+	assetPlan, err := storeassets.PrepareImport(ctx, client, resolvedAppID, versionIDValue, clip, previews)
+	if err != nil {
+		return PushPlanResult{}, warnings, fmt.Errorf("%s: %w", errorPrefix, err)
+	}
+	addStoreAssetChanges(&result, assetPlan)
+
 	if strings.TrimSpace(opts.ReviewDir) != "" {
 		if err := VerifyApprovedMetadataPlan(opts, result, opts.ReviewDir); err != nil {
 			return PushPlanResult{}, warnings, err
@@ -276,22 +312,52 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		}
 	}
 
-	actions, applyErr := applyMetadataPlan(
-		ctx,
-		client,
-		appInfoIDValue,
-		versionIDValue,
-		versionValue,
-		localAppInfo,
-		localVersion,
-		remoteAppInfoItems,
-		remoteVersionItems,
-		opts.AllowDeletes,
-		metadataIfExistsOptions{mode: ifExistsMode, prefix: errorPrefix, lateAppInfoIDs: lateAppInfoIDs},
-	)
+	var actions []ApplyAction
+	var applyErr error
+	if localizationsSelected {
+		actions, applyErr = applyMetadataPlan(
+			ctx,
+			client,
+			appInfoIDValue,
+			versionIDValue,
+			versionValue,
+			localAppInfo,
+			localVersion,
+			remoteAppInfoItems,
+			managedVersionItems,
+			opts.AllowDeletes,
+			metadataIfExistsOptions{mode: ifExistsMode, prefix: errorPrefix, lateAppInfoIDs: lateAppInfoIDs},
+		)
+	}
+
 	result.Actions = actions
-	result.Total = len(actions)
-	for _, action := range actions {
+	if applyErr == nil {
+		localeIDs := map[string]string{}
+		for _, item := range remoteVersionItems {
+			localeIDs[item.Attributes.Locale] = item.ID
+		}
+		for _, action := range actions {
+			if action.Scope == versionDirName && (action.Status == metadataActionStatusSucceeded || action.Status == metadataActionStatusSkipped) && action.LocalizationID != "" {
+				localeIDs[action.Locale] = action.LocalizationID
+			}
+		}
+		receipts, assetErr := assetPlan.Apply(ctx, client, localeIDs)
+		appendStoreAssetActions(&result, receipts)
+		if assetErr != nil {
+			applyErr = assetErr
+			hasFailure := false
+			for _, receipt := range receipts {
+				if receipt.Status == "failed" {
+					hasFailure = true
+				}
+			}
+			if !hasFailure {
+				result.Actions = append(result.Actions, ApplyAction{Scope: "store-assets", Action: "apply", Status: "failed", Error: shared.SanitizeTerminal(assetErr.Error())})
+			}
+		}
+	}
+	result.Total = len(result.Actions)
+	for _, action := range result.Actions {
 		switch action.Status {
 		case metadataActionStatusFailed:
 			result.Failed++

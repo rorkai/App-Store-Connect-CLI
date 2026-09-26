@@ -819,3 +819,13 @@ func writeDownloadedFile(path string, reader io.Reader, overwrite bool) (int64, 
 		},
 	)
 }
+
+// ResolveImageAssetDownloadURL expands an ASC delivery template for an exported image.
+func ResolveImageAssetDownloadURL(asset *asc.ImageAsset, fileName string) (string, error) {
+	return resolveImageAssetDownloadURL(asset, fileName)
+}
+
+// DownloadMediaURL downloads an unauthenticated media URL using the asset transfer path.
+func DownloadMediaURL(ctx context.Context, url, outputPath string, overwrite bool) (int64, string, error) {
+	return downloadURLToFile(ctx, url, outputPath, overwrite)
+}

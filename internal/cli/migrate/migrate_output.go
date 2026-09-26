@@ -2,18 +2,24 @@ package migrate
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func printMigrateImportResultMarkdown(result *MigrateImportResult) error {
+	defer renderMigrateStoreAssets(result, asc.RenderMarkdown)
 	if result.DryRun {
 		fmt.Println("## Dry Run - No changes made")
 		fmt.Println()
 	}
-	if result.Status == migratePartialStatus {
-		fmt.Printf("## Partial Import - failed at %s\n\n", result.FailureStage)
+	if result.Status == migratePartialStatus || result.Status == "failed" {
+		if result.Status == migratePartialStatus {
+			fmt.Printf("## Partial Import - failed at %s\n\n", result.FailureStage)
+		} else {
+			fmt.Printf("## Failed Import - failed at %s\n\n", result.FailureStage)
+		}
 		if result.Failure != "" {
 			fmt.Printf("**Failure:** %s\n\n", result.Failure)
 		}
@@ -164,12 +170,17 @@ func printMigrateImportResultMarkdown(result *MigrateImportResult) error {
 }
 
 func printMigrateImportResultTable(result *MigrateImportResult) error {
+	defer renderMigrateStoreAssets(result, asc.RenderTable)
 	if result.DryRun {
 		fmt.Println("DRY RUN - No changes made")
 		fmt.Println()
 	}
-	if result.Status == migratePartialStatus {
-		fmt.Printf("PARTIAL IMPORT - failed at %s\n", result.FailureStage)
+	if result.Status == migratePartialStatus || result.Status == "failed" {
+		if result.Status == migratePartialStatus {
+			fmt.Printf("PARTIAL IMPORT - failed at %s\n", result.FailureStage)
+		} else {
+			fmt.Printf("FAILED IMPORT - failed at %s\n", result.FailureStage)
+		}
 		if result.Failure != "" {
 			fmt.Printf("Failure: %s\n", result.Failure)
 		}
@@ -300,6 +311,16 @@ func printMigrateImportResultTable(result *MigrateImportResult) error {
 }
 
 func printMigrateExportResultMarkdown(result *MigrateExportResult) error {
+	if result.Failure != "" {
+		fmt.Printf("Failure: %s\n", result.Failure)
+	}
+	if len(result.AssetFiles) > 0 {
+		rows := [][]string{}
+		for _, path := range result.AssetFiles {
+			rows = append(rows, []string{path})
+		}
+		asc.RenderMarkdown([]string{"Asset file"}, rows)
+	}
 	fmt.Printf("**Version ID:** %s\n\n", result.VersionID)
 	fmt.Printf("**Output Directory:** %s\n\n", result.OutputDir)
 	fmt.Println("### Exported Locales")
@@ -312,6 +333,16 @@ func printMigrateExportResultMarkdown(result *MigrateExportResult) error {
 }
 
 func printMigrateExportResultTable(result *MigrateExportResult) error {
+	if result.Failure != "" {
+		fmt.Printf("Failure: %s\n", result.Failure)
+	}
+	if len(result.AssetFiles) > 0 {
+		rows := [][]string{}
+		for _, path := range result.AssetFiles {
+			rows = append(rows, []string{path})
+		}
+		asc.RenderTable([]string{"Asset file"}, rows)
+	}
 	fmt.Printf("Version ID: %s\n", result.VersionID)
 	fmt.Printf("Output Dir: %s\n\n", result.OutputDir)
 	headers := []string{"Locale"}
@@ -414,4 +445,50 @@ func printMigrateValidateResultTable(result *MigrateValidateResult) error {
 	}
 
 	return nil
+}
+
+func renderMigrateStoreAssets(result *MigrateImportResult, render func([]string, [][]string)) {
+	rows := [][]string{}
+	if result.DryRun {
+		if result.AppClip != nil {
+			if result.AppClip.Action != "" {
+				rows = append(rows, []string{"app_clip", "", "action.txt", result.AppClip.Action, "local input", ""})
+			}
+			locales := map[string]bool{}
+			for locale := range result.AppClip.Subtitles {
+				locales[locale] = true
+			}
+			for locale := range result.AppClip.HeaderImages {
+				locales[locale] = true
+			}
+			ordered := make([]string, 0, len(locales))
+			for locale := range locales {
+				ordered = append(ordered, locale)
+			}
+			sort.Strings(ordered)
+			for _, locale := range ordered {
+				if value, exists := result.AppClip.Subtitles[locale]; exists {
+					rows = append(rows, []string{"app_clip_subtitle", locale, "subtitle.txt", value, "local input", ""})
+				}
+				if path := result.AppClip.HeaderImages[locale]; path != "" {
+					rows = append(rows, []string{"app_clip_header", locale, path, "import", "local input", ""})
+				}
+			}
+		}
+		for _, preview := range result.Previews {
+			rows = append(rows, []string{"preview", preview.Locale, preview.Path, "import", "local input", ""})
+		}
+	} else {
+		for _, item := range result.AssetResults {
+			detail := item.Error
+			if item.PreviousDeleted {
+				detail += " previous header deleted: " + item.PreviousID
+			}
+			rows = append(rows, []string{item.Kind, item.Locale, item.Path, item.Action, item.Status, detail})
+		}
+	}
+	if len(rows) > 0 {
+		fmt.Println("Store assets:")
+		render([]string{"Kind", "Locale", "File", "Action", "Status", "Details"}, rows)
+	}
 }

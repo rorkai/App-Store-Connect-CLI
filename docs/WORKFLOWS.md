@@ -6,6 +6,21 @@ Use the high-level workflow surfaces deliberately:
 - `asc publish testflight`: canonical high-level TestFlight publish path
 - `asc workflow`: user-defined orchestration for repo-specific pipelines
 
+To include store assets in a canonical metadata round-trip, select the asset scopes explicitly:
+
+```bash
+asc metadata pull --app "APP_ID" --version "1.2.3" --dir ./metadata --include localizations,app-clip,previews
+asc metadata push --app "APP_ID" --version "1.2.3" --dir ./metadata --include localizations,app-clip,previews --dry-run
+asc metadata push --app "APP_ID" --version "1.2.3" --dir ./metadata --include localizations,app-clip,previews --confirm
+```
+
+App Clip files are stored at `app_clip/action.txt` and `<locale>/app_clip/` beneath
+`--dir`; previews use `app_previews/<locale>/<device_type>/`. `asc migrate` uses the
+same App Clip layout beneath its resolved `metadata/` directory and previews
+beneath the selected Fastlane directory. Existing JSON and Fastlane text metadata
+formats are unchanged. Preview validation needs `ffprobe` on `PATH`. Exported media
+is Apple's delivered rendition, which may differ from the original upload bytes.
+
 `asc workflow` lets you compose existing `asc` commands and shell commands into
 repeatable release pipelines once you know which top-level path you want.
 

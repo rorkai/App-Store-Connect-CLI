@@ -44,7 +44,7 @@ func TestMetadataPullValidationErrors(t *testing.T) {
 		{
 			name:    "invalid include",
 			args:    []string{"metadata", "pull", "--app", "app-1", "--version", "1.2.3", "--dir", "./metadata", "--include", "screenshots"},
-			wantErr: "Error: --include supports only \"localizations\"",
+			wantErr: "Error: --include supports localizations, app-clip, and previews",
 		},
 	}
 

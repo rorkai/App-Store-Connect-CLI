@@ -22,6 +22,8 @@ func TestMigrateExportPreservesAppInfoPrivacyPolicyURL(t *testing.T) {
 	const privacyURL = "https://example.com/privacy?locale=en-US#policy"
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
+			return migrateJSONResponse(http.StatusOK, `{"data":null}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID":
 			return migrateJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":

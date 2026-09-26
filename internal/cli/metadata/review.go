@@ -97,7 +97,7 @@ func MetadataPlanCommand() *ffcli.Command {
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Metadata root directory (required)")
-	include := fs.String("include", includeLocalizations, "Included metadata scopes (comma-separated)")
+	include := fs.String("include", includeLocalizations, "Included scopes: localizations,app-clip,previews (comma-separated)")
 	allowDeletes := fs.Bool("allow-deletes", false, "Plan destructive delete operations (disables default locale fallback for missing locales)")
 	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
 	reviewDir := fs.String("review-dir", defaultMetadataReviewDir, "Directory for metadata review artifacts")
@@ -159,13 +159,13 @@ func MetadataApproveCommand() *ffcli.Command {
 	reviewDir := fs.String("review-dir", defaultMetadataReviewDir, "Directory containing metadata review artifacts")
 	all := fs.Bool("all", false, "Approve every planned metadata change")
 	key := fs.String("key", "", "Approve specific plan key(s), comma-separated")
-	scope := fs.String("scope", "", "Approve all changes in scope(s): app-info, version")
+	scope := fs.String("scope", "", "Approve all changes in scope(s): app-info, version, store-assets")
 	note := fs.String("note", "", "Optional reviewer note written to approved.json")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "approve",
-		ShortUsage: `asc metadata approve [--review-dir ".asc/metadata/review"] (--all | --key "KEY" | --scope app-info,version)`,
+		ShortUsage: `asc metadata approve [--review-dir ".asc/metadata/review"] (--all | --key "KEY" | --scope app-info,version,store-assets)`,
 		ShortHelp:  "Approve a metadata review plan.",
 		LongHelp: `Approve a metadata review plan by writing approved.json.
 
@@ -598,11 +598,12 @@ func selectApprovedMetadataKeys(items []PlanItem, opts MetadataApproveOptions) (
 	allowedScopes := map[string]struct{}{
 		appInfoDirName: {},
 		versionDirName: {},
+		"store-assets": {},
 	}
 	scopeSet := make(map[string]struct{}, len(scopes))
 	for _, scope := range scopes {
 		if _, ok := allowedScopes[scope]; !ok {
-			return nil, "", shared.UsageErrorf("--scope must be one of %s, %s", appInfoDirName, versionDirName)
+			return nil, "", shared.UsageErrorf("--scope must be one of %s, %s, store-assets", appInfoDirName, versionDirName)
 		}
 		scopeSet[scope] = struct{}{}
 	}

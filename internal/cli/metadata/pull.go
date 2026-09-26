@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -13,12 +14,15 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/storeassets"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 const includeLocalizations = "localizations"
 
 // PullResult is the structured output artifact for metadata pull.
 type PullResult struct {
+	Failure   string   `json:"failure,omitempty"`
 	AppID     string   `json:"appId"`
 	AppInfoID string   `json:"appInfoId"`
 	Version   string   `json:"version"`
@@ -40,7 +44,7 @@ func MetadataPullCommand() *ffcli.Command {
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Output root directory (required)")
 	force := fs.Bool("force", false, "Overwrite existing metadata files in --dir")
-	include := fs.String("include", includeLocalizations, "Included metadata scopes (comma-separated)")
+	include := fs.String("include", includeLocalizations, "Included scopes: localizations,app-clip,previews (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -49,7 +53,9 @@ func MetadataPullCommand() *ffcli.Command {
 		ShortHelp:  "Pull metadata from App Store Connect into canonical files.",
 		LongHelp: `Pull metadata from App Store Connect into canonical files.
 
-Phase 1 supports localization metadata for app-info and app-store versions.
+The default scope is localizations. Add --include localizations,app-clip,previews to transfer
+App Clip metadata, header images, and App Preview videos. Media uses locale/app_clip,
+app_clip/action.txt, and app_previews below --dir.
 
 When --version is omitted, the app's newest active editable App Store version is used
 (PREPARE_FOR_SUBMISSION, DEVELOPER_REJECTED, REJECTED, METADATA_REJECTED,
@@ -127,27 +133,33 @@ Examples:
 				}
 			}
 
-			appInfoIDValue, err := resolveMetadataPullAppInfoID(
-				requestCtx,
-				client,
-				resolvedAppID,
-				strings.TrimSpace(*appInfoID),
-				versionValue,
-				platformValue,
-				dirValue,
-				versionStateValue,
-			)
-			if err != nil {
-				return fmt.Errorf("metadata pull: %w", err)
-			}
+			var appInfoIDValue string
+			var appInfoItems []asc.Resource[asc.AppInfoLocalizationAttributes]
+			var versionItems []asc.Resource[asc.AppStoreVersionLocalizationAttributes]
+			if includesScope(includes, includeLocalizations) {
+				appInfoIDValue, err = resolveMetadataPullAppInfoID(
+					requestCtx,
+					client,
+					resolvedAppID,
+					strings.TrimSpace(*appInfoID),
+					versionValue,
+					platformValue,
+					dirValue,
+					versionStateValue,
+				)
+				if err != nil {
+					return fmt.Errorf("metadata pull: %w", err)
+				}
 
-			appInfoItems, err := fetchAppInfoLocalizations(ctx, client, appInfoIDValue)
-			if err != nil {
-				return fmt.Errorf("metadata pull: %w", err)
-			}
-			versionItems, err := fetchVersionLocalizations(ctx, client, versionIDValue)
-			if err != nil {
-				return fmt.Errorf("metadata pull: %w", err)
+				appInfoItems, err = fetchAppInfoLocalizations(ctx, client, appInfoIDValue)
+				if err != nil {
+					return fmt.Errorf("metadata pull: %w", err)
+				}
+				versionItems, err = fetchVersionLocalizations(ctx, client, versionIDValue)
+				if err != nil {
+					return fmt.Errorf("metadata pull: %w", err)
+				}
+
 			}
 
 			appInfoByLocale := make(map[string]AppInfoLocalization, len(appInfoItems))
@@ -194,6 +206,23 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("metadata pull: %w", err)
 			}
+			assetFiles, assetWarnings, err := storeassets.ExportPlan(ctx, client, versionIDValue, ".", includesScope(includes, "app-clip"), includesScope(includes, "previews"))
+			if err != nil {
+				return fmt.Errorf("metadata pull: %w", err)
+			}
+			for _, warning := range assetWarnings {
+				fmt.Fprintln(os.Stderr, "Warning:", warning)
+			}
+			assetRoot, err := rootfs.New(dirValue)
+			if err != nil {
+				return err
+			}
+			defer assetRoot.Close()
+			assetExport, err := storeassets.PrepareExport(assetRoot, assetFiles, storeassets.ExportOptions{AppID: resolvedAppID, VersionID: versionIDValue, MetadataPrefix: ".", Clip: includesScope(includes, "app-clip"), Previews: includesScope(includes, "previews"), Overwrite: *force})
+			if err != nil {
+				return fmt.Errorf("metadata pull: %w", err)
+			}
+
 			if !*force {
 				if err := ensureNoExistingPullTargets(plans); err != nil {
 					return err
@@ -206,6 +235,22 @@ Examples:
 			files := make([]string, 0, len(plans))
 			for _, plan := range plans {
 				files = append(files, plan.Path)
+			}
+
+			assetWritten, cleanupWarnings, assetErr := assetExport.Write(ctx)
+			for _, warning := range cleanupWarnings {
+				fmt.Fprintln(os.Stderr, "Warning:", warning)
+			}
+			for _, path := range assetWritten {
+				parts := strings.Split(filepath.ToSlash(path), "/")
+				if len(parts) > 1 {
+					if parts[0] == "app_previews" && len(parts) > 2 {
+						localeSet[parts[1]] = struct{}{}
+					} else if parts[0] != "app_clip" {
+						localeSet[parts[0]] = struct{}{}
+					}
+				}
+				files = append(files, filepath.Join(dirValue, path))
 			}
 
 			locales := make([]string, 0, len(localeSet))
@@ -226,13 +271,23 @@ Examples:
 				Files:     files,
 			}
 
-			return shared.PrintOutputWithRenderers(
+			if assetErr != nil {
+				result.Failure = shared.SanitizeTerminal(assetErr.Error())
+			}
+			printErr := shared.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error { return printPullResultTable(result) },
 				func() error { return printPullResultMarkdown(result) },
 			)
+			if printErr != nil {
+				return printErr
+			}
+			if assetErr != nil {
+				return fmt.Errorf("metadata pull: partial export: %w", assetErr)
+			}
+			return nil
 		},
 	}
 }
@@ -257,8 +312,8 @@ func parseIncludes(value string) ([]string, error) {
 	unique := make(map[string]struct{})
 	for _, item := range includes {
 		normalized := strings.ToLower(strings.TrimSpace(item))
-		if normalized != includeLocalizations {
-			return nil, fmt.Errorf("--include supports only %q", includeLocalizations)
+		if normalized != includeLocalizations && normalized != "app-clip" && normalized != "previews" {
+			return nil, fmt.Errorf("--include supports localizations, app-clip, and previews")
 		}
 		unique[normalized] = struct{}{}
 	}
@@ -381,6 +436,9 @@ func fetchVersionLocalizations(ctx context.Context, client *asc.Client, versionI
 }
 
 func printPullResultTable(result PullResult) error {
+	if result.Failure != "" {
+		fmt.Printf("Failure: %s\n", result.Failure)
+	}
 	fmt.Printf("App ID: %s\n", result.AppID)
 	fmt.Printf("Version: %s\n", result.Version)
 	fmt.Printf("Dir: %s\n", result.Dir)
@@ -399,6 +457,9 @@ func printPullResultTable(result PullResult) error {
 }
 
 func printPullResultMarkdown(result PullResult) error {
+	if result.Failure != "" {
+		fmt.Printf("**Failure:** %s\n\n", result.Failure)
+	}
 	fmt.Printf("**App ID:** %s\n\n", result.AppID)
 	fmt.Printf("**Version:** %s\n\n", result.Version)
 	fmt.Printf("**Dir:** %s\n\n", result.Dir)

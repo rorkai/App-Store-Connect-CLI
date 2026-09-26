@@ -87,25 +87,26 @@ type ApplyAction struct {
 
 // PushPlanResult is the push dry-run output artifact.
 type PushPlanResult struct {
-	AppID                string        `json:"appId"`
-	AppInfoID            string        `json:"appInfoId"`
-	Version              string        `json:"version"`
-	VersionID            string        `json:"versionId"`
-	Dir                  string        `json:"dir"`
-	DryRun               bool          `json:"dryRun"`
-	Applied              bool          `json:"applied,omitempty"`
-	Includes             []string      `json:"includes"`
-	Adds                 []PlanItem    `json:"adds"`
-	Updates              []PlanItem    `json:"updates"`
-	Deletes              []PlanItem    `json:"deletes"`
-	APICalls             []PlanAPICall `json:"apiCalls,omitempty"`
-	Actions              []ApplyAction `json:"actions,omitempty"`
-	Total                int           `json:"total,omitempty"`
-	Succeeded            int           `json:"succeeded,omitempty"`
-	Skipped              int           `json:"skipped,omitempty"`
-	Failed               int           `json:"failed,omitempty"`
-	FailureArtifactPath  string        `json:"failureArtifactPath,omitempty"`
-	FailureArtifactError string        `json:"failureArtifactError,omitempty"`
+	AssetResults         []asc.StoreAssetResult `json:"assetResults,omitempty"`
+	AppID                string                 `json:"appId"`
+	AppInfoID            string                 `json:"appInfoId"`
+	Version              string                 `json:"version"`
+	VersionID            string                 `json:"versionId"`
+	Dir                  string                 `json:"dir"`
+	DryRun               bool                   `json:"dryRun"`
+	Applied              bool                   `json:"applied,omitempty"`
+	Includes             []string               `json:"includes"`
+	Adds                 []PlanItem             `json:"adds"`
+	Updates              []PlanItem             `json:"updates"`
+	Deletes              []PlanItem             `json:"deletes"`
+	APICalls             []PlanAPICall          `json:"apiCalls,omitempty"`
+	Actions              []ApplyAction          `json:"actions,omitempty"`
+	Total                int                    `json:"total,omitempty"`
+	Succeeded            int                    `json:"succeeded,omitempty"`
+	Skipped              int                    `json:"skipped,omitempty"`
+	Failed               int                    `json:"failed,omitempty"`
+	FailureArtifactPath  string                 `json:"failureArtifactPath,omitempty"`
+	FailureArtifactError string                 `json:"failureArtifactError,omitempty"`
 }
 
 type metadataPushFailureArtifact struct {
@@ -169,10 +170,10 @@ func newMetadataMutationCommand(cfg metadataMutationCommandConfig) *ffcli.Comman
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Metadata root directory (required)")
-	include := fs.String("include", includeLocalizations, "Included metadata scopes (comma-separated)")
+	include := fs.String("include", includeLocalizations, "Included scopes: localizations,app-clip,previews (comma-separated)")
 	dryRun := fs.Bool("dry-run", false, "Preview changes without mutating App Store Connect")
 	allowDeletes := fs.Bool("allow-deletes", false, "Allow destructive delete operations when applying changes (disables default locale fallback for missing locales)")
-	confirm := fs.Bool("confirm", false, "Confirm destructive operations (required for deletes, field clears, or --review-dir)")
+	confirm := fs.Bool("confirm", false, "Confirm mutations (required for deletes, field clears, --review-dir, or asset scopes)")
 	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
 	var reviewDir *string
 	if cfg.name == "apply" {
@@ -200,11 +201,13 @@ Examples:
   asc metadata %s --app "APP_ID" --version "1.2.3" --dir "./metadata" --allow-deletes --confirm%s
 
 Notes:
+  - Add --include localizations,app-clip,previews to include store assets; applying assets requires --confirm.
+  - Preview validation requires ffprobe on PATH (provided by FFmpeg).
   - default.json fallback is applied only when --allow-deletes is not set.
   - with --allow-deletes, remote locales missing locally are planned as deletes.
   - a missing app-info/ or version/<version>/ directory leaves that scope unmanaged;
     an existing directory manages every locale in that scope.
-  - --dir must contain at least one metadata .json file; an empty tree is rejected.
+  - --dir must contain at least one metadata .json file or selected store asset; an empty tree is rejected.
   - applying an explicit null field clear requires --confirm.
   - omitted fields are treated as no-op; they do not imply deletion.`,
 			cfg.verbTitle,
@@ -375,6 +378,10 @@ func MetadataPushCommand() *ffcli.Command {
 }
 
 func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
+	return loadLocalMetadataWithAssets(dir, version, false)
+}
+
+func loadLocalMetadataWithAssets(dir, version string, allowEmpty bool) (localMetadataBundle, error) {
 	localAppInfo := make(map[string]appInfoLocalPatch)
 	localVersion := make(map[string]versionLocalPatch)
 	var defaultAppInfo *appInfoLocalPatch
@@ -457,7 +464,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 		}
 	}
 
-	if filesSeen == 0 {
+	if filesSeen == 0 && !allowEmpty {
 		return localMetadataBundle{}, shared.UsageError("no metadata .json files found")
 	}
 	return localMetadataBundle{
