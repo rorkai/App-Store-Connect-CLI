@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.33.5
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.5
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.2
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.0
 	github.com/aws/smithy-go v1.28.2
 	github.com/bitrise-io/go-pkcs12 v0.1.0
 	github.com/bitrise-io/go-utils/v2 v2.0.0-alpha.39

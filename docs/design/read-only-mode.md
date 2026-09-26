@@ -60,6 +60,7 @@ target)` runs immediately before the request is built in:
 | Developer Portal | `web.Client.doDeveloperPortalHTTP` |
 | Apple Ads | `appleads.Client.requestOnce`, `appleads.Client.UploadPlatformAsset` |
 | StoreKit retention messaging | `storekit.Client.request` |
+| Encrypted signing remote stores | `signing.GitLabSecureFilesStore.do`, AWS `createSecret` and `putSecretValue` |
 | Ad hoc distribution object store | `distribution.S3Store.Ensure` and `ReplaceCorrupt` |
 | Slack notifications | `asc notify slack` |
 | GitHub | `asc snitch` issue creation, Wall of Apps submission |
