@@ -397,7 +397,18 @@ func (c *Client) SetDeveloperServiceIDDomains(ctx context.Context, r DeveloperSe
 			}
 			data, ok := relation["data"]
 			if !ok {
-				return nil, fmt.Errorf("capability relationship %s is unresolved", key)
+				// Apple includes navigation links for these relationships even when
+				// no linkage was requested. They are not writable relationship data.
+				// Preserve explicit data above; never replace an absent value with null.
+				switch key {
+				case "appGroups", "associatedBundleIds", "bundleId", "certificates",
+					"cloudContainers", "identityMerchantIds", "macBundleId",
+					"mediaSharingProtocolIds", "merchantIds", "parentBundleId",
+					"relatedAppConsentBundleIds":
+					continue
+				default:
+					return nil, fmt.Errorf("capability relationship %s is unresolved", key)
+				}
 			}
 			links[key], err = json.Marshal(map[string]json.RawMessage{"data": data})
 			if err != nil {

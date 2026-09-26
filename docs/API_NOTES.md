@@ -468,8 +468,13 @@ the App Store Connect web-client source captured for issue #2299:
   `limit=2147483647` despite populated capability linkage. This specific
   placeholder is accepted only with resolved references and no next page;
   positive count mismatches and missing or unreferenced included capabilities fail.
-  The browser write and persistent readback were verified on disposable identifiers,
-  which were deleted afterward. CLI-to-Apple verification remains pending.
+  Capability relationships may also contain navigation-only links without `data`
+  (for example, `appGroups` and `bundleId`). Known navigation-only relationships
+  are omitted from the PATCH; explicit relationship data is preserved, and unknown
+  unresolved relationships fail before writing.
+  Live CLI verification on 2026-09-27 confirmed an update, unchanged repeat, and
+  two-domain/two-return-URL replacement with the existing primary App ID preserved.
+  The disposable Services ID and parent App ID were deleted afterward.
   Website Push ID lifecycle and iCloud container reads use the separate
   captured workflows documented below.
 

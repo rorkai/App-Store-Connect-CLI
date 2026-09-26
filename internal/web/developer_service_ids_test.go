@@ -250,6 +250,12 @@ func TestSetDeveloperServiceIDDomainsUpdatesOnlyAuthInputsAndVerifies(t *testing
 				if err := json.Unmarshal(capability.Attributes, &attributes); err != nil {
 					t.Fatalf("decode capability attributes: %v", err)
 				}
+				if _, ok := capability.Relationships["appGroups"]; ok && capabilityLink.Data.ID == "APPLE_ID_AUTH" {
+					t.Fatal("PATCH must omit navigation-only appGroups relationship")
+				}
+				if _, ok := capability.Relationships["bundleId"]; ok {
+					t.Fatal("PATCH must omit navigation-only bundleId relationship")
+				}
 				switch capabilityLink.Data.ID {
 				case "APPLE_ID_AUTH":
 					var inputs []struct {
@@ -285,6 +291,9 @@ func TestSetDeveloperServiceIDDomainsUpdatesOnlyAuthInputsAndVerifies(t *testing
 						t.Fatalf("primary app relationship changed: %+v", appConsentLink.Data)
 					}
 				case "PUSH_NOTIFICATIONS":
+					if string(capability.Relationships["appGroups"]) != `{"data":[]}` {
+						t.Fatalf("explicit relationship data changed: %s", capability.Relationships["appGroups"])
+					}
 					if string(attributes["settings"]) != `[{"key":"OTHER","value":"two"}]` {
 						t.Fatalf("unrelated capability settings changed: %s", attributes["settings"])
 					}
@@ -685,8 +694,8 @@ func serviceIDDetailFixtureWithRelationships(name, platform, relationships strin
 func serviceIDDetailCapabilityGraphFixture(name string, reverse bool) string {
 	marker := "preflight"
 	references := `[{"type":"bundleIdCapabilities","id":"cap-1"},{"type":"bundleIdCapabilities","id":"cap-2"}]`
-	capabilityOne := `{"type":"bundleIdCapabilities","id":"cap-1","attributes":{"enabled":true,"settings":[{"key":"KEEP","value":"one"},{"key":"SECOND","value":"two"}],"inputs":[{"key":"APPLE_ID_AUTH_WEB_DOMAIN","values":[{"value":"old.example.com"}]},{"key":"APPLE_ID_AUTH_WEB_RETURN_URL","values":[{"value":"https://old.example.com/callback"}]},{"key":"OTHER_AUTH_INPUT","values":[{"value":"keep"}]}],"providerOpaque":"stable-one"},"relationships":{"capability":{"data":{"type":"capabilities","id":"APPLE_ID_AUTH"},"links":{"related":"/capability/preflight"},"meta":{"request":"preflight"}},"appConsentBundleId":{"data":{"type":"bundleIds","id":"consent-1"},"links":{"related":"/consent/preflight"},"meta":{"request":"preflight"}}},"links":{"self":"/bundleIdCapabilities/cap-1/preflight"},"meta":{"request":"preflight"}}`
-	capabilityTwo := `{"type":"bundleIdCapabilities","id":"cap-2","attributes":{"enabled":false,"settings":[{"key":"OTHER","value":"two"}],"inputs":[{"key":"UNRELATED_INPUT","values":[{"value":"preserve"}]}],"providerOpaque":"stable-two"},"relationships":{"capability":{"data":{"type":"capabilities","id":"PUSH_NOTIFICATIONS"},"links":{"related":"/capability/preflight"},"meta":{"request":"preflight"}},"appConsentBundleId":{"data":{"type":"bundleIds","id":"consent-2"},"links":{"related":"/consent/preflight"},"meta":{"request":"preflight"}}},"links":{"self":"/bundleIdCapabilities/cap-2/preflight"},"meta":{"request":"preflight"}}`
+	capabilityOne := `{"type":"bundleIdCapabilities","id":"cap-1","attributes":{"enabled":true,"settings":[{"key":"KEEP","value":"one"},{"key":"SECOND","value":"two"}],"inputs":[{"key":"APPLE_ID_AUTH_WEB_DOMAIN","values":[{"value":"old.example.com"}]},{"key":"APPLE_ID_AUTH_WEB_RETURN_URL","values":[{"value":"https://old.example.com/callback"}]},{"key":"OTHER_AUTH_INPUT","values":[{"value":"keep"}]}],"providerOpaque":"stable-one"},"relationships":{"appGroups":{"meta":{"paging":{"total":0,"limit":2147483647}},"links":{"related":"/appGroups"}},"bundleId":{"links":{"related":"/bundleId"}},"capability":{"data":{"type":"capabilities","id":"APPLE_ID_AUTH"},"links":{"related":"/capability/preflight"},"meta":{"request":"preflight"}},"appConsentBundleId":{"data":{"type":"bundleIds","id":"consent-1"},"links":{"related":"/consent/preflight"},"meta":{"request":"preflight"}}},"links":{"self":"/bundleIdCapabilities/cap-1/preflight"},"meta":{"request":"preflight"}}`
+	capabilityTwo := `{"type":"bundleIdCapabilities","id":"cap-2","attributes":{"enabled":false,"settings":[{"key":"OTHER","value":"two"}],"inputs":[{"key":"UNRELATED_INPUT","values":[{"value":"preserve"}]}],"providerOpaque":"stable-two"},"relationships":{"appGroups":{"data":[],"links":{"related":"/appGroups"}},"capability":{"data":{"type":"capabilities","id":"PUSH_NOTIFICATIONS"},"links":{"related":"/capability/preflight"},"meta":{"request":"preflight"}},"appConsentBundleId":{"data":{"type":"bundleIds","id":"consent-2"},"links":{"related":"/consent/preflight"},"meta":{"request":"preflight"}}},"links":{"self":"/bundleIdCapabilities/cap-2/preflight"},"meta":{"request":"preflight"}}`
 	included := "[" + capabilityOne + "," + capabilityTwo + "]"
 	if reverse {
 		marker = "postwrite"
@@ -717,6 +726,7 @@ func TestSetDeveloperServiceIDDomainsRejectsUnsafePreflight(t *testing.T) {
 		old         string
 		replacement string
 	}{
+		{"unknown relationship", `"appGroups":`, `"unrecognizedRelation":`},
 		{"disabled", "\"enabled\":true", "\"enabled\":false"},
 		{"null input value", `"value":"preserve"`, `"value":null`},
 		{"unknown value field", `{"value":"preserve"}`, `{"value":"preserve","opaque":true}`},
