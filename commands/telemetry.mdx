@@ -127,8 +127,8 @@ process and changes the next time `asc` starts.
 are derived inside the CLI and never contain stderr, error text, flag values,
 or positional values. `failure_parameter` is limited to a sanitized public
 long flag name such as `--app`. `diagnostic_code` is limited to the CLI's
-low-cardinality allowlist, such as `required_input_missing` or
-`file_invalid_format`.
+low-cardinality allowlist, such as `required_input_missing`,
+`file_invalid_format`, or `dsym_not_ready`.
 
 `outcome_kind` separates success, expected negative validation results, usage errors,
 authentication and API failures, transport failures, cancellations, and

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestSubscriptionsPricingMonthlyCommitmentHelp(t *testing.T) {
@@ -35,6 +36,15 @@ func TestSubscriptionsPricingMonthlyCommitmentHelp(t *testing.T) {
 	monthlyUsage := monthlyCmd.UsageFunc(monthlyCmd)
 	if !strings.Contains(monthlyUsage, "App Store Connect API 4.4") {
 		t.Fatalf("expected monthly-commitment help to mention App Store Connect API 4.4, got %q", monthlyUsage)
+	}
+
+	availabilityEditCmd := findSubcommand(root, "subscriptions", "pricing", "availability", "edit")
+	if availabilityEditCmd == nil {
+		t.Fatal("expected availability edit command")
+	}
+	availabilityEditUsage := availabilityEditCmd.UsageFunc(availabilityEditCmd)
+	if !strings.Contains(availabilityEditUsage, "--confirm") || !strings.Contains(availabilityEditUsage, "monthly-commitment") {
+		t.Fatalf("expected availability edit help to document monthly confirmation, got %q", availabilityEditUsage)
 	}
 }
 
@@ -67,6 +77,11 @@ func TestSubscriptionsPricingMonthlyCommitmentValidationErrors(t *testing.T) {
 			wantErr: "--available-in-new-territories is not supported for MONTHLY plan availability",
 		},
 		{
+			name:    "enable requires confirm",
+			args:    []string{"subscriptions", "pricing", "monthly-commitment", "enable", "--subscription-id", "sub-1", "--price", "9.99", "--price-territory", "Norway", "--territories", "Norway"},
+			wantErr: "--confirm is required to enable monthly-commitment billing",
+		},
+		{
 			name:    "disable missing territories",
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "disable", "--subscription-id", "sub-1"},
 			wantErr: "--territories is required",
@@ -75,6 +90,11 @@ func TestSubscriptionsPricingMonthlyCommitmentValidationErrors(t *testing.T) {
 			name:    "disable treats subcommand name as flag value",
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "disable", "--subscription-id", "sub-1", "--territories", "list"},
 			wantErr: "territory \"list\" could not be mapped",
+		},
+		{
+			name:    "disable requires confirm",
+			args:    []string{"subscriptions", "pricing", "monthly-commitment", "disable", "--subscription-id", "sub-1", "--territories", "Norway"},
+			wantErr: "--confirm is required to disable monthly-commitment billing",
 		},
 		{
 			name:    "list missing subscription",
@@ -140,6 +160,16 @@ func TestSubscriptionsPricingMonthlyCommitmentUsageExitCodes(t *testing.T) {
 			wantErr: "territory \"list\" could not be mapped",
 		},
 		{
+			name:    "enable missing confirm returns usage",
+			args:    []string{"subscriptions", "pricing", "monthly-commitment", "enable", "--subscription-id", "sub-1", "--price", "9.99", "--price-territory", "Norway", "--territories", "Norway"},
+			wantErr: "--confirm is required to enable monthly-commitment billing",
+		},
+		{
+			name:    "disable missing confirm returns usage",
+			args:    []string{"subscriptions", "pricing", "monthly-commitment", "disable", "--subscription-id", "sub-1", "--territories", "Norway"},
+			wantErr: "--confirm is required to disable monthly-commitment billing",
+		},
+		{
 			name:    "list invalid plan type returns usage",
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list", "--subscription-id", "sub-1", "--plan-type", "annual"},
 			wantErr: "--plan-type must be one of: MONTHLY, UPFRONT",
@@ -159,12 +189,59 @@ func TestSubscriptionsPricingMonthlyCommitmentUsageExitCodes(t *testing.T) {
 			args:    []string{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "monthly-commitment", "--available-in-new-territories"},
 			wantErr: "--available-in-new-territories is not supported for MONTHLY plan availability",
 		},
+		{
+			name:    "availability edit monthly commitment requires confirm",
+			args:    []string{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "monthly-commitment"},
+			wantErr: "--confirm is required for monthly-commitment availability changes",
+		},
+		{
+			name:    "availability edit monthly commitment rejects confirm false",
+			args:    []string{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "monthly-commitment", "--confirm=false"},
+			wantErr: "--confirm is required for monthly-commitment availability changes",
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assertUsageExit(t, test.args, test.wantErr)
 		})
+	}
+}
+
+func TestSubscriptionsPricingAvailabilityEditMonthlyCommitmentRequiresConfirmationBeforeClient(t *testing.T) {
+	clientRequested := false
+	restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+		clientRequested = true
+		return nil, errors.New("client factory must not be called")
+	})
+	t.Cleanup(restore)
+
+	for _, args := range [][]string{
+		{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "monthly-commitment"},
+		{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "monthly-commitment", "--confirm=false"},
+		{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "monthly-commitment", "--confirm", "false"},
+	} {
+		clientRequested = false
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+
+		stdout, stderr := captureOutput(t, func() {
+			if err := root.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected usage error, got %v", err)
+			}
+		})
+		if stdout != "" {
+			t.Fatalf("expected empty stdout, got %q", stdout)
+		}
+		if !strings.Contains(stderr, "--confirm is required for monthly-commitment availability changes") {
+			t.Fatalf("expected missing confirmation diagnostic, got %q", stderr)
+		}
+		if clientRequested {
+			t.Fatal("client factory called before confirmation validation")
+		}
 	}
 }
 
@@ -256,7 +333,7 @@ func TestSubscriptionsPricingMonthlyCommitmentDisableFiltersExcludedTerritories(
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "pricing", "monthly-commitment", "disable",
+			"subscriptions", "pricing", "monthly-commitment", "disable", "--confirm",
 			"--subscription-id", "8000000001",
 			"--territories", "United States,Norway,Singapore",
 		}); err != nil {
@@ -318,7 +395,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableRejectsPriceOutsideRange(t *
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "pricing", "monthly-commitment", "enable",
+			"subscriptions", "pricing", "monthly-commitment", "enable", "--confirm",
 			"--subscription-id", "8000000001",
 			"--price", "15.01",
 			"--price-territory", "Norway",
@@ -386,7 +463,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableValidatesAllUpfrontPricesBef
 	root.FlagSet.SetOutput(io.Discard)
 
 	if err := root.Parse([]string{
-		"subscriptions", "pricing", "monthly-commitment", "enable",
+		"subscriptions", "pricing", "monthly-commitment", "enable", "--confirm",
 		"--subscription-id", "8000000001",
 		"--price", "10.00",
 		"--price-territory", "Norway",
@@ -468,7 +545,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableValidatesPreservedUpfrontPri
 	root.FlagSet.SetOutput(io.Discard)
 
 	if err := root.Parse([]string{
-		"subscriptions", "pricing", "monthly-commitment", "enable",
+		"subscriptions", "pricing", "monthly-commitment", "enable", "--confirm",
 		"--subscription-id", "8000000001",
 		"--price", "10.00",
 		"--price-territory", "Norway",
@@ -551,7 +628,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableValidatesEachTerritoryPriceR
 	root.FlagSet.SetOutput(io.Discard)
 
 	if err := root.Parse([]string{
-		"subscriptions", "pricing", "monthly-commitment", "enable",
+		"subscriptions", "pricing", "monthly-commitment", "enable", "--confirm",
 		"--subscription-id", "8000000001",
 		"--price", "10.00",
 		"--price-territory", "Norway",
@@ -645,7 +722,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableValidatesAllMonthlyPricesBef
 	root.FlagSet.SetOutput(io.Discard)
 
 	if err := root.Parse([]string{
-		"subscriptions", "pricing", "monthly-commitment", "enable",
+		"subscriptions", "pricing", "monthly-commitment", "enable", "--confirm",
 		"--subscription-id", "8000000001",
 		"--price", "10.00",
 		"--price-territory", "Norway",
@@ -760,7 +837,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *test
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "pricing", "monthly-commitment", "enable",
+			"subscriptions", "pricing", "monthly-commitment", "enable", "--confirm",
 			"--subscription-id", "8000000001",
 			"--price", "10.00",
 			"--price-territory", "Norway",
@@ -821,6 +898,7 @@ func TestSubscriptionsPricingAvailabilityEditMonthlyCommitmentOmitsAvailableInNe
 		"--subscription-id", "8000000001",
 		"--billing-mode", "monthly-commitment",
 		"--territories", "Norway",
+		"--confirm", "true",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -869,6 +947,7 @@ func TestSubscriptionsPricingAvailabilityEditMonthlyCommitmentUpdatesExistingPla
 		"--subscription-id", "8000000001",
 		"--billing-mode", "monthly-commitment",
 		"--territories", "Norway",
+		"--confirm",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -959,7 +1038,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableSkipsEquivalentMonthlyPrice(
 	root.FlagSet.SetOutput(io.Discard)
 
 	if err := root.Parse([]string{
-		"subscriptions", "pricing", "monthly-commitment", "enable",
+		"subscriptions", "pricing", "monthly-commitment", "enable", "--confirm",
 		"--subscription-id", "8000000001",
 		"--price", "10.00",
 		"--price-territory", "Norway",
@@ -1045,7 +1124,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableDoesNotReuseFutureMonthlyPri
 	root.FlagSet.SetOutput(io.Discard)
 
 	if err := root.Parse([]string{
-		"subscriptions", "pricing", "monthly-commitment", "enable",
+		"subscriptions", "pricing", "monthly-commitment", "enable", "--confirm",
 		"--subscription-id", "8000000001",
 		"--price", "10.00",
 		"--price-territory", "Norway",
@@ -1175,7 +1254,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableOmitsPlanTypeOnUpdate(t *tes
 	root.FlagSet.SetOutput(io.Discard)
 
 	if err := root.Parse([]string{
-		"subscriptions", "pricing", "monthly-commitment", "enable",
+		"subscriptions", "pricing", "monthly-commitment", "enable", "--confirm",
 		"--subscription-id", "8000000001",
 		"--price", "10.00",
 		"--price-territory", "Norway",

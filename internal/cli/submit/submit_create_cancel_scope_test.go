@@ -29,7 +29,8 @@ func TestPrepareReviewSubmissionForCreateDoesNotCancelSubmissionForAnotherVersio
 							"data": {"type": "appStoreVersions", "id": "version-2"}
 						}
 					}
-				}]
+				}],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/other-version-submission/items":
 			return submitJSONResponse(http.StatusOK, `{
@@ -41,7 +42,8 @@ func TestPrepareReviewSubmissionForCreateDoesNotCancelSubmissionForAnotherVersio
 							"data": {"type": "appStoreVersions", "id": "version-2"}
 						}
 					}
-				}]
+				}],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/other-version-submission/items"}
 			}`)
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
@@ -86,7 +88,8 @@ func TestPrepareReviewSubmissionForCreateDoesNotCancelUnprovenSubmission(t *test
 					"type": "reviewSubmissions",
 					"id": "unproven-submission",
 					"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
-				}]
+				}],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/unproven-submission/items":
 			return submitJSONResponse(http.StatusBadRequest, `{"errors":[{"status":"400","title":"Invalid request"}]}`)

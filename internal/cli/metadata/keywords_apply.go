@@ -158,7 +158,7 @@ func applyMetadataKeywordChanges(
 		}
 
 		remoteFields := cloneStringMap(remoteState.fields)
-		adds, updates := countIntentChanges(keywordPlanFields, localPatch.setFields, remoteFields)
+		adds, updates := countIntentChanges(keywordPlanFields, localPatch.setFields, localPatch.clearFields, remoteFields)
 		if adds == 0 && updates == 0 {
 			continue
 		}

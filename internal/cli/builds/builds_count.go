@@ -17,7 +17,7 @@ import (
 func BuildsCountCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("count", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID env)")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID env)")
 	version := fs.String("version", "", "Filter by marketing version string (CFBundleShortVersionString)")
 	buildNumber := fs.String("build-number", "", "Filter by build number (CFBundleVersion)")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS")

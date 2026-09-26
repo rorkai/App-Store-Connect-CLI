@@ -434,6 +434,29 @@ func TestAssetsScreenshotsUploadCommandRequiresUploadMode(t *testing.T) {
 	}
 }
 
+func TestAssetsScreenshotsUploadCommandRejectsInvalidConcurrency(t *testing.T) {
+	cmd := AssetsScreenshotsUploadCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--concurrency", "9"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if runErr == nil || !strings.Contains(runErr.Error(), "--concurrency must be between 1 and 8") {
+		t.Fatalf("expected invalid concurrency error, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "--concurrency must be between 1 and 8") {
+		t.Fatalf("expected invalid concurrency diagnostic, got %q", stderr)
+	}
+}
+
 func TestAssetsScreenshotsUploadCommandRejectsMaxScreenshotsWithResume(t *testing.T) {
 	cmd := AssetsScreenshotsUploadCommand()
 	cmd.FlagSet.SetOutput(io.Discard)

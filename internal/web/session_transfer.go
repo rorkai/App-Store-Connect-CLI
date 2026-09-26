@@ -256,6 +256,9 @@ func ExportSessionBundle(username string) (*SessionBundle, bool, error) {
 	if len(bundle.Cookies) == 0 {
 		return nil, false, ErrSessionBundleUnusable
 	}
+	if err := bundle.Validate(); err != nil {
+		return nil, false, fmt.Errorf("exported web session bundle is invalid: %w", err)
+	}
 	bundle.ExpiresAt = earliestBundleExpiry(bundle.Cookies)
 	return bundle, true, nil
 }
@@ -277,6 +280,11 @@ func exportBundleCookies(sess persistedSession, now time.Time) []SessionBundleCo
 			if !usable {
 				continue
 			}
+			base, err := url.Parse(canonical)
+			if err != nil || !cookieDomainStorableForOrigin(base, cookie) {
+				continue
+			}
+			cookie = narrowCookieDomainForOrigin(base, cookie)
 			if strings.TrimSpace(cookie.Name) == "" || isExpiredCookie(cookie, now) {
 				continue
 			}
@@ -302,7 +310,19 @@ func exportBundleCookies(sess persistedSession, now time.Time) []SessionBundleCo
 		if cookies[i].URL != cookies[j].URL {
 			return cookies[i].URL < cookies[j].URL
 		}
-		return cookies[i].Name < cookies[j].Name
+		if cookies[i].Name != cookies[j].Name {
+			return cookies[i].Name < cookies[j].Name
+		}
+		if cookies[i].Path != cookies[j].Path {
+			return cookies[i].Path < cookies[j].Path
+		}
+		if normalizedCookieDomain(cookies[i].Domain) != normalizedCookieDomain(cookies[j].Domain) {
+			return normalizedCookieDomain(cookies[i].Domain) < normalizedCookieDomain(cookies[j].Domain)
+		}
+		if cookies[i].Value != cookies[j].Value {
+			return cookies[i].Value < cookies[j].Value
+		}
+		return cookieExpiry(cookies[i].Expires).Before(cookieExpiry(cookies[j].Expires))
 	})
 	return cookies
 }

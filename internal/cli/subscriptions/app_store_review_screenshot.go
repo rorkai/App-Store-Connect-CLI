@@ -39,7 +39,7 @@ Examples:
 func SubscriptionsAppStoreReviewScreenshotGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-store-review-screenshot view", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)

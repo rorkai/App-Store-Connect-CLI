@@ -77,11 +77,11 @@ func XcodeCloudRunCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", xcodeCloudAppFlagUsage)
 	workflowName := fs.String("workflow", "", "Workflow name to trigger")
-	workflowID := fs.String("workflow-id", "", "Workflow ID to trigger (alternative to --workflow)")
+	workflowID := shared.BindResourceIDFlag(fs, "workflow-id", "ciWorkflows", "Workflow ID to trigger (alternative to --workflow)")
 	branch := fs.String("branch", "", "Branch or tag name to build")
-	gitReferenceID := fs.String("git-reference-id", "", "Git reference ID to build (alternative to --branch)")
-	pullRequestID := fs.String("pull-request-id", "", "Pull request ID to build")
-	sourceRunID := fs.String("source-run-id", "", "Source build run ID to rerun")
+	gitReferenceID := shared.BindResourceIDFlag(fs, "git-reference-id", "scmGitReferences", "Git reference ID to build (alternative to --branch)")
+	pullRequestID := shared.BindResourceIDFlag(fs, "pull-request-id", "scmPullRequests", "Pull request ID to build")
+	sourceRunID := shared.BindResourceIDFlag(fs, "source-run-id", "ciBuildRuns", "Source build run ID to rerun")
 	clean := fs.Bool("clean", false, "Request a clean build")
 	wait := fs.Bool("wait", false, "Wait for build to complete")
 	doctor := fs.Bool("doctor", false, "After waiting, diagnose the completed run and inspect failure logs")
@@ -343,7 +343,7 @@ Examples:
 func XcodeCloudStatusCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("status", flag.ExitOnError)
 
-	runID := fs.String("run-id", "", "Build run ID to check")
+	runID := shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", "Build run ID to check")
 	wait := fs.Bool("wait", false, "Wait for build to complete")
 	pollInterval := fs.Duration("poll-interval", 10*time.Second, "Poll interval when waiting")
 	timeout := fs.Duration("timeout", 0, "Timeout for Xcode Cloud requests (0 = use ASC_TIMEOUT or 30m default)")

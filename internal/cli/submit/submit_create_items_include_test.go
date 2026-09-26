@@ -16,7 +16,7 @@ func TestSummarizeReviewSubmissionItemsRejectsRepeatedPaginationURL(t *testing.T
 		pageReads++
 		return submitJSONResponse(http.StatusOK, `{
 			"data": [],
-			"links": {"next": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-1/items?cursor=same"}
+			"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-1/items", "next": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-1/items?cursor=same"}
 		}`)
 	}))
 
@@ -62,7 +62,7 @@ func TestPrepareReviewSubmissionForCreateTreatsWhitespaceNextAsTerminal(t *testi
 	requests := 0
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests++
-		return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"next":"  \t  "}}`)
+		return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions","next":"  \t  "}}`)
 	}))
 
 	prepared, err := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
@@ -104,6 +104,7 @@ func respondLikeAppStoreConnectItems(req *http.Request) (*http.Response, error) 
 						}
 					}
 				}],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-1/items"},
 				"meta": {"paging": {"total": 1, "limit": 200}}
 			}`)
 		}
@@ -115,6 +116,7 @@ func respondLikeAppStoreConnectItems(req *http.Request) (*http.Response, error) 
 			"id": "item-1",
 			"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissionItems/item-1"}
 		}],
+		"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-1/items"},
 		"meta": {"paging": {"total": 1, "limit": 200}}
 	}`)
 }

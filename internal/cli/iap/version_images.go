@@ -24,7 +24,7 @@ func IAPVersionImagesCommand() *ffcli.Command {
 
 func IAPVersionImagesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images list", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	imageFields := fs.String("image-fields", "", "fields[inAppPurchaseImages] (comma-separated)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -82,7 +82,7 @@ func IAPVersionImagesListCommand() *ffcli.Command {
 
 func IAPVersionImagesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images create", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	filePath := fs.String("file", "", "Path to image file")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
@@ -141,7 +141,7 @@ func IAPVersionImagesCreateCommand() *ffcli.Command {
 
 func IAPVersionImagesViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images view", flag.ExitOnError)
-	id := fs.String("image-id", "", "Image ID")
+	id := shared.BindResourceIDFlag(fs, "image-id", "inAppPurchaseImages", "Image ID")
 	imageFields := fs.String("image-fields", "", "fields[inAppPurchaseImages] (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
@@ -176,7 +176,7 @@ func IAPVersionImagesViewCommand() *ffcli.Command {
 
 func IAPVersionImagesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images update", flag.ExitOnError)
-	id := fs.String("image-id", "", "Image ID")
+	id := shared.BindResourceIDFlag(fs, "image-id", "inAppPurchaseImages", "Image ID")
 	uploaded := fs.String("uploaded", "", "Set upload completion state: true or false")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
@@ -215,7 +215,7 @@ func IAPVersionImagesUpdateCommand() *ffcli.Command {
 
 func IAPVersionImagesDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images delete", flag.ExitOnError)
-	id := fs.String("image-id", "", "Image ID")
+	id := shared.BindResourceIDFlag(fs, "image-id", "inAppPurchaseImages", "Image ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{

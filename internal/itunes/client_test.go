@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestGetRatings_Success(t *testing.T) {
@@ -554,6 +556,86 @@ func TestGetAllRatings_NonRetryableStorefrontFailureDoesNotOverrideCountryDeadli
 	_, err := client.GetAllRatings(context.Background(), "123", len(AllCountries()), newCountryContext)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("GetAllRatings() error = %v, want context.DeadlineExceeded", err)
+	}
+}
+
+func TestGetAllRatings_CancelsQueuedCountriesWhenRetryDelayCannotFitCountryDeadline(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "3")
+	t.Setenv("ASC_BASE_DELAY", "1ms")
+	t.Setenv("ASC_MAX_DELAY", "1s")
+
+	var requests atomic.Int32
+	var countryContexts atomic.Int32
+	client := &Client{
+		BaseURL: "https://example.test",
+		HTTPClient: &http.Client{
+			Transport: ratingsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests.Add(1)
+				return &http.Response{
+					StatusCode: http.StatusTooManyRequests,
+					Header:     http.Header{"Retry-After": {"1"}},
+					Body:       http.NoBody,
+					Request:    req,
+				}, nil
+			}),
+		},
+	}
+
+	newCountryContext := func(parent context.Context) (context.Context, context.CancelFunc) {
+		countryContexts.Add(1)
+		return context.WithTimeout(parent, 50*time.Millisecond)
+	}
+
+	_, err := client.GetAllRatings(context.Background(), "123", 1, newCountryContext)
+	if errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("GetAllRatings() error = %v, want terminal retry marker without expired-context classification", err)
+	}
+	var statusError interface{ HTTPStatusCode() int }
+	if !errors.As(err, &statusError) {
+		t.Fatalf("GetAllRatings() error %T does not retain HTTP status: %v", err, err)
+	}
+	if got := statusError.HTTPStatusCode(); got != http.StatusTooManyRequests {
+		t.Fatalf("HTTPStatusCode() = %d, want %d", got, http.StatusTooManyRequests)
+	}
+	if !asc.IsRetryDelayExceeded(err) {
+		t.Fatalf("GetAllRatings() error = %v, want retry-delay-exceeded marker", err)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("requests = %d, want 1 after the first country cancels queued work", got)
+	}
+	if got := countryContexts.Load(); got != 1 {
+		t.Fatalf("country context factory called %d times, want 1 after cancellation", got)
+	}
+}
+
+func TestRatingsRetryableStopCausePreservesPreferredStatusAndRetryDelayMarker(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, retryErr := asc.WithRetry(ctx, func() (struct{}, error) {
+		return struct{}{}, &asc.RetryableError{
+			Err:                     &httpStatusError{operation: "lookup", statusCode: http.StatusTooManyRequests},
+			RetryAfter:              time.Second,
+			PreserveErrorOnDeadline: true,
+		}
+	}, asc.RetryOptions{MaxRetries: 3, BaseDelay: time.Millisecond, MaxDelay: time.Second})
+	marker := unwrapRetryableError(retryErr)
+	if !asc.IsRetryDelayExceeded(marker) {
+		t.Fatalf("marker = %v, want retry-delay-exceeded error", marker)
+	}
+
+	cause := ratingsRetryableStopCause(map[int]error{
+		http.StatusServiceUnavailable: &httpStatusError{operation: "lookup", statusCode: http.StatusServiceUnavailable},
+	}, marker)
+	if !asc.IsRetryDelayExceeded(cause) {
+		t.Fatalf("cause = %v, want retry-delay-exceeded marker", cause)
+	}
+	var statusError interface{ HTTPStatusCode() int }
+	if !errors.As(cause, &statusError) {
+		t.Fatalf("cause %T does not retain HTTP status: %v", cause, cause)
+	}
+	if got := statusError.HTTPStatusCode(); got != http.StatusServiceUnavailable {
+		t.Fatalf("HTTPStatusCode() = %d, want preferred %d", got, http.StatusServiceUnavailable)
 	}
 }
 

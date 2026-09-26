@@ -39,6 +39,7 @@ Local workflow:
 App Store workflow:
   asc screenshots list --version-localization "VERSION_LOCALIZATION_ID"
   asc screenshots list --version-id "VERSION_ID" --locale "en-US"
+  asc screenshots list --app "123456789" --version "1.2.3"
   asc screenshots sizes
   asc screenshots sizes --all
   asc screenshots validate --path "./screenshots/iphone" --device-type "IPHONE_65"

@@ -42,7 +42,7 @@ Examples:
 func PerformanceDiagnosticsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("diagnostics list", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID to list diagnostics for")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to list diagnostics for")
 	diagnosticType := fs.String("diagnostic-type", "", "Diagnostic type filter (comma-separated: "+strings.Join(diagnosticSignatureTypeList(), ", ")+")")
 	fields := fs.String("fields", "", "Fields to return (comma-separated: "+strings.Join(diagnosticSignatureFieldList(), ", ")+")")
 	limit := fs.Int("limit", 0, "Limit number of signatures (max 200)")

@@ -112,3 +112,33 @@ func TestPaginateEach_TypedNilNextPage(t *testing.T) {
 		t.Fatalf("expected ErrNilPaginationPage, got %v", err)
 	}
 }
+
+func TestPaginateEachWithMaxPagesStopsBeforeFetchingBeyondLimit(t *testing.T) {
+	firstPage := makeAppsPage(1, 1, 2)
+	fetchCalls := 0
+	consumedPages := 0
+
+	err := PaginateEachWithMaxPages(context.Background(), firstPage, func(_ context.Context, nextURL string) (PaginatedResponse, error) {
+		fetchCalls++
+		if nextURL != "page=2" {
+			t.Fatalf("nextURL = %q, want page=2", nextURL)
+		}
+		return &AppsResponse{
+			Data:  makeAppsPage(2, 1, 2).Data,
+			Links: Links{Next: "page=3"},
+		}, nil
+	}, func(_ PaginatedResponse) error {
+		consumedPages++
+		return nil
+	}, 2)
+
+	if err == nil || !strings.Contains(err.Error(), "page 3") || !strings.Contains(err.Error(), "2-page safety limit") {
+		t.Fatalf("expected page-limit error for page 3, got %v", err)
+	}
+	if fetchCalls != 1 {
+		t.Fatalf("fetchNext calls = %d, want 1", fetchCalls)
+	}
+	if consumedPages != 2 {
+		t.Fatalf("consumed pages = %d, want 2 before limit rejection", consumedPages)
+	}
+}

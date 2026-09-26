@@ -1021,6 +1021,18 @@ func TestSigningSyncPushRejectsIdentityFlagConflictsBeforeSecretsOrClient(t *tes
 			args: []string{"--private-key", "key.pem"},
 			want: "--identity-sha256 is required with --private-key to select one App Store Connect certificate",
 		},
+		{
+			name: "create certificate with identity",
+			args: []string{
+				"--create-missing",
+				"--create-missing-certificate",
+				"--identity",
+				"identity.p12",
+				"--identity-password-file",
+				"password",
+			},
+			want: "--create-missing-certificate cannot be combined with --identity, --private-key, or --identity-sha256",
+		},
 	}
 
 	for _, tt := range tests {

@@ -153,6 +153,69 @@ asc signing fetch \
 
 The command does not overwrite output files. This prevents a failed write from silently replacing a known profile or certificate.
 
+When the team has no active certificate, one non-interactive fetch can create the
+private key, CSR, certificate, profile, and password-protected PKCS#12 identity:
+
+```bash  theme={null}
+asc signing fetch \
+  --bundle-id com.example.app \
+  --profile-type IOS_APP_STORE \
+  --create-missing \
+  --create-missing-certificate \
+  --identity-password-file .asc/secrets/distribution-p12-password \
+  --output .asc/signing/app-store \
+  --format json \
+  --pretty
+```
+
+The identity password must come from a protected 0600-or-more-restrictive file;
+it is never accepted as a flag value. One trailing LF or CRLF is removed, and
+the remaining password must not be empty. Use `--key-out`, `--csr-out`, or
+`--p12-out` to select different local paths, and `--force` only when replacing
+those three generated identity files is intentional. Each selected parent is
+retained as a rooted filesystem anchor from preflight through publication, so
+the command refuses symlinked destinations and parent substitutions. It also
+refuses existing profile, certificate, or metadata output paths before creating
+a certificate. If a certificate request has an ambiguous transport failure,
+the JSON receipt is partial and reports `certificateCreationState: "unknown"`;
+do not replace the preserved key or CSR until the account is checked for a
+matching certificate.
+
+### App extensions
+
+`--match-extensions` also fetches a profile for every registered bundle ID that extends `--bundle-id` with a dotted suffix, such as `com.example.app.widget` or `com.example.app.clip`. Wildcard identifiers never match.
+
+```bash  theme={null}
+asc signing fetch \
+  --bundle-id com.example.app \
+  --profile-type IOS_APP_STORE \
+  --match-extensions \
+  --output ./signing
+```
+
+When more than one bundle ID matches, the JSON receipt lists `matchedBundleIds`, one entry in `results` per fetched target, and `failures` for targets that could not be fetched. A certificate shared by several targets is written once and listed for each target. A failed target removes only the files it wrote; if it had already created a profile, its `failures` entry reports `profileId` and `profileCreationState` (`created`, or `unknown` when the create request may have reached App Store Connect). The command exits 1 after finishing the remaining targets. `--match-extensions` cannot be combined with `--create-missing-certificate`; create the certificate with a single-bundle fetch first. `signing sync push --bundle-id ID --match-extensions` expands to the same targets (at most 32) and cannot be combined with `--targets-file`.
+
+### Stale profiles
+
+`asc signing fetch` never selects an active profile whose expiration date has passed. To remove expired or `INVALID` profiles for the bundle ID and profile type before matching, preview the plan first, then confirm:
+
+```bash  theme={null}
+asc signing fetch \
+  --bundle-id com.example.app \
+  --profile-type IOS_APP_STORE \
+  --delete-stale-profiles \
+  --dry-run
+
+asc signing fetch \
+  --bundle-id com.example.app \
+  --profile-type IOS_APP_STORE \
+  --delete-stale-profiles \
+  --confirm \
+  --create-missing
+```
+
+`--dry-run` prints the plan and exits without deleting, creating, or writing anything. `--confirm` and `--dry-run` require `--delete-stale-profiles`, and `--delete-stale-profiles` requires one of them; each rule is a usage error (exit 2) checked before any request. Every page of profiles is read before the first deletion. The JSON receipt's `staleProfiles` lists `planned`, `deleted` (only profiles Apple confirmed deleted), and `failed` with each error. If any deletion fails, the command stops before fetching or creating anything. The receipt is printed even when a later step of the fetch fails, because deletions cannot be undone. With `--match-extensions`, every matched bundle ID is planned before any deletion, each entry in `results` (or `failures`) carries its own `staleProfiles`, and a failed deletion for any target stops the whole run before anything is fetched or created.
+
 ### Common profile types
 
 | Profile type | Use | Inferred certificate type | Devices when creating |
@@ -247,6 +310,20 @@ Do not print the private key or store it in shell history. The certificate finge
 ## Share a usable signing identity
 
 `signing sync push` fetches the chosen certificate and profile, verifies the local private identity against them, encrypts the assets, and publishes one Git commit. It works in a temporary clone and removes that clone after the run.
+
+The same `--create-missing --create-missing-certificate --identity-password-file PATH`
+flags can create the identity before the
+profile is created. This works with both `--bundle-id` and `--targets-file`;
+the generated identity is propagated into the profile and encrypted-repository
+preflight so the profile is never created without a publishable identity.
+
+If certificate or profile creation succeeds but repository publication fails,
+JSON output includes a partial receipt with the known certificate IDs and
+`publicationState: "unknown"`. Treat an unknown state as requiring inspection
+before retrying because App Store Connect or Git may already contain part of
+the requested change. With `--targets-file`, the receipt also records
+certificate and profile creation state per target; an ambiguous attempt is
+reported as `"unknown"` even when an earlier target completed successfully.
 
 ### What the encrypted store protects
 

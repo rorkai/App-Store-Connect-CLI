@@ -13,14 +13,17 @@ Localization commands manage App Store metadata for different languages and regi
 List localization metadata for an app or version.
 
 <ParamField path="--version" type="string">
-  App Store version ID. When omitted for version localizations, the `--app`'s
-  newest active editable App Store version (`PREPARE_FOR_SUBMISSION`,
+  App Store version ID. With `--app` (or `ASC_APP_ID`), a version string such
+  as `1.2.3` is also accepted and resolved on the app; pass `--platform` when
+  the same version string exists on more than one platform. A value that is not
+  a numeric version string is always treated as a version ID. When omitted for
+  version localizations, the `--app`'s newest active editable App Store version
+  (`PREPARE_FOR_SUBMISSION`,
   `DEVELOPER_REJECTED`, `REJECTED`, `METADATA_REJECTED`, `READY_FOR_REVIEW`,
   `WAITING_FOR_REVIEW`, or `INVALID_BINARY`) is used, then a
   `DEVELOPER_REMOVED_FROM_SALE` version, and finally the live version. The
   selected version is reported on stderr. Ignored for `--next`
-  continuations, which already carry their version. This flag accepts an App
-  Store version ID, not the display version string.
+  continuations, which already carry their version.
 </ParamField>
 
 <ParamField path="--app" type="string">
@@ -33,10 +36,10 @@ List localization metadata for an app or version.
 </ParamField>
 
 <ParamField path="--platform" type="string">
-  Platform used to pick the default version when `--version` is omitted:
-  `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`. Required when the app has candidate
-  versions on more than one platform. Only valid with `--type version` and
-  without `--version` or `--next`.
+  Platform used to pick the version when `--version` is omitted or is a version
+  string with `--app`: `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`. Required when
+  the app has candidate versions on more than one platform. Only valid with
+  `--type version`, and not with a version ID or `--next`.
 </ParamField>
 
 <ParamField path="--type" type="string" default="version">
@@ -44,10 +47,12 @@ List localization metadata for an app or version.
 </ParamField>
 
 <ParamField path="--app-info-fields" type="string">
-  Sparse app-info fields for `--type app-info`: the deprecated API 4.4.1
-  `kidsAgeBand` selector. Automatically includes `appInfo`. Prefer
-  `asc age-rating view` for current age-rating data. This flag is rejected for
-  other localization types and cannot be combined with `--next`.
+  Legacy sparse app-info fields for `--type app-info`: `kidsAgeBand`. API 4.5
+  removed this property from `AppInfo`. The CLI forwards the selector for
+  compatibility and emits a deprecation warning on stderr. Automatically
+  includes `appInfo`. Use `asc age-rating view` for current age-rating data.
+  This flag is rejected for other localization types and cannot be combined
+  with `--next`.
 </ParamField>
 
 <ParamField path="--locale" type="string">
@@ -66,9 +71,14 @@ List localization metadata for an app or version.
   Automatically fetch all pages (aggregate results)
 </ParamField>
 
+Table and markdown output include an `ID` column with each localization's
+resource ID, the value `--version-localization` and `--localization-id` flags
+expect. JSON output is Apple's unmodified envelope.
+
 **Examples:**
 
 ```bash  theme={null}
+asc localizations list --app "APP_ID" --version "1.2.3" --output table
 asc localizations list --version "VERSION_ID"
 asc localizations list --app "APP_ID"
 asc localizations list --app "APP_ID" --platform IOS
@@ -255,12 +265,21 @@ Create a new version localization.
   Canonical App Store Connect locale code to create
 </ParamField>
 
+<ParamField path="--if-exists" type="string" default="fail">
+  Duplicate-locale behavior: `fail` returns the conflict, `skip` leaves the
+  existing localization unchanged, or `update` applies the supplied metadata
+  fields to it. Only the recognized duplicate-locale conflict is handled.
+</ParamField>
+
 Use canonical App Store Connect locale identifiers for `--locale`. Common
 accepted forms include `en-US`, `es-MX`, `de-DE`, `ja`, `ar-SA`, `zh-Hans`, and
 `zh-Hant`.
 
 Run `asc localizations supported-locales --version "VERSION_ID"` to inspect the
 shared CLI locale catalog for that version before creating a new locale.
+
+When `--if-exists update` is used without metadata fields, it behaves like
+`skip` and does not send an empty update request.
 
 Common failures:
 
@@ -272,7 +291,9 @@ Common failures:
 
 ```bash  theme={null}
 asc localizations create --version "VERSION_ID" --locale "ja"
+asc localizations create --version "VERSION_ID" --locale "ja" --if-exists skip
 asc localizations create --version "VERSION_ID" --locale "ar-SA" --description "Arabic app" --keywords "arabic,productivity"
+asc localizations create --version "VERSION_ID" --locale "zh-Hans" --description "Simplified Chinese app" --if-exists update
 asc localizations create --version "VERSION_ID" --locale "zh-Hans" --description "Simplified Chinese app" --keywords "simplified,chinese"
 ```
 
@@ -302,6 +323,24 @@ Update localization metadata.
   Exact App Store Connect locale value to update
 </ParamField>
 
+<ParamField path="--clear-promotional-text" type="boolean">
+  Clear promotional text on a version localization
+</ParamField>
+
+<ParamField path="--clear-subtitle" type="boolean">
+  Clear the subtitle on an app-info localization
+</ParamField>
+
+<ParamField path="--clear-privacy-policy-url" type="boolean">
+  Clear the privacy policy URL on an app-info localization
+</ParamField>
+
+<ParamField path="--confirm" type="boolean">
+  Required when clearing a localization field
+</ParamField>
+
+Do not combine a clear flag with its matching set flag in one update.
+
 Use the exact App Store Connect locale already present on the app or version
 when you pass `--locale`. If update fails with a locale mismatch, run
 `asc localizations list` and reuse the `locale` value returned by ASC.
@@ -327,7 +366,9 @@ Common failures:
 ```bash  theme={null}
 asc localizations update --version "VERSION_ID" --locale "en-US" --description "New description"
 asc localizations update --version "VERSION_ID" --locale "en-US" --keywords "new,keywords"
+asc localizations update --version "VERSION_ID" --locale "en-US" --clear-promotional-text --confirm
 asc localizations update --app "APP_ID" --type app-info --locale "ar-SA" --subtitle "Arabic subtitle"
+asc localizations update --app "APP_ID" --type app-info --locale "ar-SA" --clear-subtitle --confirm
 ```
 
 ***

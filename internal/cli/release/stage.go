@@ -19,7 +19,7 @@ func ReleaseStageCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	version := fs.String("version", "", "App Store version string (required)")
-	buildID := fs.String("build-id", "", "Build ID to attach (required)")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to attach (required)")
 	metadataDir := fs.String("metadata-dir", "", "Metadata directory to apply")
 	allowDeletes := fs.Bool("allow-deletes", false, "Allow destructive delete operations when applying --metadata-dir (disables default locale fallback for missing locales)")
 	routingCoverageFile := fs.String("routing-coverage-file", "", "Routing app coverage GeoJSON file to reconcile before readiness")

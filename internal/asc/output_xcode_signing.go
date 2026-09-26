@@ -23,8 +23,33 @@ type XcodeSigningPlanOutput struct {
 	Files                   []XcodeSigningPlanFileOutput      `json:"files"`
 	Changes                 []XcodeSigningSettingChangeOutput `json:"changes"`
 	MissingOptionalIncludes []string                          `json:"missingOptionalIncludes,omitempty"`
+	ProfilePaths            []string                          `json:"profilePaths,omitempty"`
+	Configuration           string                            `json:"configuration,omitempty"`
+	ExportMethod            string                            `json:"exportMethod,omitempty"`
+	SkipTargets             []string                          `json:"skipTargets,omitempty"`
+	Inferences              []XcodeSigningPlanInferenceOutput `json:"inferences,omitempty"`
+	ExportOptions           *XcodeSigningPlanExportOptions    `json:"exportOptions,omitempty"`
 	Blockers                []string                          `json:"blockers"`
 	Warnings                []string                          `json:"warnings"`
+}
+
+// XcodeSigningPlanInferenceOutput records the profile chosen for one target.
+type XcodeSigningPlanInferenceOutput struct {
+	Target            string `json:"target"`
+	Configuration     string `json:"configuration"`
+	BundleID          string `json:"bundleId"`
+	ProfilePath       string `json:"profilePath"`
+	ProfileUUID       string `json:"profileUuid"`
+	CertificateSHA256 string `json:"certificateSha256"`
+	Match             string `json:"match"`
+}
+
+// XcodeSigningPlanExportOptions is the export-options payload in plan output.
+type XcodeSigningPlanExportOptions struct {
+	Method               string            `json:"method,omitempty"`
+	SigningStyle         string            `json:"signingStyle,omitempty"`
+	TeamID               string            `json:"teamID,omitempty"`
+	ProvisioningProfiles map[string]string `json:"provisioningProfiles,omitempty"`
 }
 
 // XcodeSigningPlanTargetOutput describes one target in a signing plan.

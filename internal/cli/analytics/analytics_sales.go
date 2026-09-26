@@ -96,7 +96,7 @@ Examples:
 				return fmt.Errorf("analytics sales: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
 			defer cancel()
 
 			download, err := client.GetSalesReport(requestCtx, asc.SalesReportParams{

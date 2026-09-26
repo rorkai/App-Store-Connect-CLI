@@ -32,6 +32,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
 
@@ -1860,6 +1861,13 @@ func (c *Client) doRequestBaseWithHTTPClient(client *http.Client, ctx context.Co
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	fullURL := strings.TrimSpace(path)
+	if !strings.HasPrefix(fullURL, "https://") && !strings.HasPrefix(fullURL, "http://") {
+		fullURL = strings.TrimRight(baseURL, "/") + path
+	}
+	if err := readonly.Check(ctx, method, readonly.Target(fullURL)); err != nil {
+		return nil, err
+	}
 	if err := c.waitForRateLimit(ctx); err != nil {
 		return nil, err
 	}
@@ -1873,10 +1881,6 @@ func (c *Client) doRequestBaseWithHTTPClient(client *http.Client, ctx context.Co
 		reqBody = bytes.NewReader(jsonBody)
 	}
 
-	fullURL := strings.TrimSpace(path)
-	if !strings.HasPrefix(fullURL, "https://") && !strings.HasPrefix(fullURL, "http://") {
-		fullURL = strings.TrimRight(baseURL, "/") + path
-	}
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

@@ -137,6 +137,59 @@ func TestExportSessionBundleUsesLastCachedSessionWithoutAppleID(t *testing.T) {
 	}
 }
 
+func TestExportSessionBundleNarrowsLegacyParentDomainCookie(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey("user@example.com")
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: "user@example.com",
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{
+				Name: "myacinfo", Value: "legacy-token", Path: "/olympus", Domain: ".apple.com",
+				Expires: time.Now().UTC().Add(time.Hour),
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile() error = %v", err)
+	}
+
+	bundle, ok, err := ExportSessionBundle("user@example.com")
+	if err != nil || !ok || bundle == nil {
+		t.Fatalf("ExportSessionBundle() = (%+v, %t, %v), want exported legacy session", bundle, ok, err)
+	}
+	if len(bundle.Cookies) != 1 || bundle.Cookies[0].Domain != "" {
+		t.Fatalf("exported legacy cookie = %#v, want narrowed host-only domain", bundle.Cookies)
+	}
+	if err := bundle.Validate(); err != nil {
+		t.Fatalf("narrowed legacy bundle failed validation: %v", err)
+	}
+}
+
+func TestExportSessionBundleRejectsDuplicateLegacyCookieAliases(t *testing.T) {
+	withFileSessionCache(t)
+	now := time.Now().UTC()
+	key := webSessionCacheKey("user@example.com")
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: now,
+		UserEmail: "user@example.com",
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "myacinfo", Value: "same", Path: "/olympus", Expires: now.Add(time.Hour)},
+				{Name: "myacinfo", Value: "same", Path: "/olympus", Domain: ".apple.com", Expires: now.Add(time.Hour)},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile() error = %v", err)
+	}
+
+	bundle, ok, err := ExportSessionBundle("user@example.com")
+	if ok || bundle != nil || !errors.Is(err, ErrSessionCookieDuplicate) {
+		t.Fatalf("ExportSessionBundle() = (%+v, %t, %v), want duplicate-cookie rejection", bundle, ok, err)
+	}
+}
+
 func TestExportBundleCookiesDoesNotResetPersistedMaxAge(t *testing.T) {
 	now := time.Date(2026, time.September, 17, 3, 0, 0, 0, time.UTC)
 	updatedAt := now.Add(-30 * time.Second)
@@ -1213,11 +1266,11 @@ func TestImportSessionBundleRestoresKeychainMirrorAfterFilePersistenceFails(t *t
 	previousKeychainRaw := append([]byte(nil), keychainItem.Data...)
 
 	previousWrite := sessionFileWrite
-	sessionFileWrite = func(path string, data []byte, perm os.FileMode) error {
+	sessionFileWrite = func(path string, file *os.File, data []byte, perm os.FileMode) error {
 		if strings.HasSuffix(path, ".tmp") && strings.Contains(filepath.Base(path), "session-") {
 			return errors.New("file replacement refused")
 		}
-		return previousWrite(path, data, perm)
+		return previousWrite(path, file, data, perm)
 	}
 	t.Cleanup(func() { sessionFileWrite = previousWrite })
 
@@ -1349,15 +1402,16 @@ func TestImportSessionBundleRestoresPriorStateWhenLastPointerWriteFailsAfterSess
 
 	previousWrite := sessionFileWrite
 	sessionWriteSucceeded := false
-	sessionFileWrite = func(path string, data []byte, perm os.FileMode) error {
-		if filepath.Base(path) == "last.json.tmp" {
+	sessionFileWrite = func(path string, file *os.File, data []byte, perm os.FileMode) error {
+		base := filepath.Base(path)
+		if strings.Contains(base, "last.json-") {
 			if !sessionWriteSucceeded {
 				return errors.New("injected before session rename")
 			}
 			return errors.New("injected last-session pointer write failure")
 		}
-		err := previousWrite(path, data, perm)
-		if err == nil && filepath.Base(path) == "session-"+key+".json.tmp" {
+		err := previousWrite(path, file, data, perm)
+		if err == nil && strings.Contains(base, "session-"+key+".json-") {
 			sessionWriteSucceeded = true
 		}
 		return err

@@ -49,7 +49,7 @@ Examples:
 func SubscriptionsPricePointsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points list", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	territory := fs.String("territory", "", "Filter by territory (accepts alpha-2, alpha-3, or exact English country name) to reduce results")
 	price := fs.String("price", "", "Filter by exact customer price (e.g., 4.99)")
@@ -331,7 +331,7 @@ func filterSubscriptionPricePoints(resp *asc.SubscriptionPricePointsResponse, pf
 func SubscriptionsPricePointsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points view", flag.ExitOnError)
 
-	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
+	pricePointID := shared.BindResourceIDFlag(fs, "price-point-id", "subscriptionPricePoints", "Subscription price point ID")
 	fields := fs.String("fields", "", "Subscription price point fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
@@ -389,8 +389,11 @@ var subscriptionPricePointFields = subscriptionPricePointFieldsList()
 func buildSubscriptionPricePointEqualizationsCommand(name string, adjusted bool) *ffcli.Command {
 	flagSetName := "price-points " + name
 	fs := flag.NewFlagSet(flagSetName, flag.ExitOnError)
-	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
+	pricePointID := shared.BindResourceIDFlag(fs, "price-point-id", "subscriptionPricePoints", "Subscription price point ID")
 	territory := fs.String("territory", "", "Filter by territory IDs or names (comma-separated)")
+	// Comma-separated ID filters stay bare-ID: the self-link normalizer takes a
+	// single resource URL, so binding it here would accept one link but reject a
+	// list of them with a message about single resources.
 	subscriptionIDs := fs.String("subscription-id", "", "Filter by subscription IDs (comma-separated)")
 	upfrontPricePointIDUsage := "Filter by upfront price point IDs (comma-separated)"
 	if adjusted {

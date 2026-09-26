@@ -128,6 +128,36 @@ func TestShellQuoteUsesPlatformRendering(t *testing.T) {
 	}
 }
 
+func TestShellQuoteForOSUsesRequestedPlatformRendering(t *testing.T) {
+	tests := []struct {
+		goos string
+		want string
+	}{
+		{goos: "darwin", want: "'My Key'"},
+		{goos: "linux", want: "'My Key'"},
+		{goos: "windows", want: `"My Key"`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.goos, func(t *testing.T) {
+			got, ok := ShellQuoteForOS("My Key", test.goos)
+			if !ok || got != test.want {
+				t.Fatalf("ShellQuoteForOS(%q, %q) = (%q, %t), want (%q, true)", "My Key", test.goos, got, ok, test.want)
+			}
+		})
+	}
+}
+
+func TestShellQuoteForOSRejectsValuesItCannotRenderExactly(t *testing.T) {
+	for _, goos := range []string{"darwin", "linux", "windows"} {
+		for _, value := range []string{"line\nnext", "a\x1b[31mred", "a\u202eb", "a\xffb"} {
+			if got, ok := ShellQuoteForOS(value, goos); ok || got != "" {
+				t.Fatalf("ShellQuoteForOS(%q, %q) = (%q, %t), want (\"\", false)", value, goos, got, ok)
+			}
+		}
+	}
+}
+
 func TestShellQuoteRejectsValuesItCannotRenderExactly(t *testing.T) {
 	tests := []struct {
 		name  string

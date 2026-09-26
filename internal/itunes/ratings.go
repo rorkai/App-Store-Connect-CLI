@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 // AppRatings contains rating statistics for an app in a single country.
@@ -151,7 +153,8 @@ func (c *Client) GetAllRatings(
 		wg                 sync.WaitGroup
 		deadlineOnce       sync.Once
 		countryDeadlineErr error
-		retryableDeadline  bool
+		retryableStop      bool
+		retryDelayStopErr  error
 		httpFailureCount   int
 		httpFailures       = make(map[int]error)
 		results            []*AppRatings
@@ -189,18 +192,22 @@ func (c *Client) GetAllRatings(
 				// deadline; keep it instead of misclassifying it as a deadline failure.
 				var statusError interface{ HTTPStatusCode() int }
 				if errors.As(err, &statusError) && isRetryablePublicStatus(statusError.HTTPStatusCode()) {
-					reachedDeadline := errors.Is(err, context.DeadlineExceeded) || errors.Is(countryErr, context.DeadlineExceeded)
+					isRetryDelayStop := asc.IsRetryDelayExceeded(err)
+					stopQueuedWork := isRetryDelayStop || errors.Is(err, context.DeadlineExceeded) || errors.Is(countryErr, context.DeadlineExceeded)
 					mu.Lock()
 					httpFailureCount++
 					status := statusError.HTTPStatusCode()
 					if _, exists := httpFailures[status]; !exists {
 						httpFailures[status] = err
 					}
-					if reachedDeadline {
-						retryableDeadline = true
+					if stopQueuedWork {
+						retryableStop = true
+					}
+					if isRetryDelayStop && retryDelayStopErr == nil {
+						retryDelayStopErr = err
 					}
 					mu.Unlock()
-					if reachedDeadline {
+					if stopQueuedWork {
 						cancelWork()
 					}
 					return
@@ -250,8 +257,8 @@ func (c *Client) GetAllRatings(
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	if retryableDeadline {
-		return nil, &allRatingsLookupError{appID: appID, cause: preferredRatingsHTTPError(httpFailures)}
+	if retryableStop {
+		return nil, &allRatingsLookupError{appID: appID, cause: ratingsRetryableStopCause(httpFailures, retryDelayStopErr)}
 	}
 	if countryDeadlineErr != nil {
 		return nil, countryDeadlineErr
@@ -297,6 +304,17 @@ func (c *Client) GetAllRatings(
 		Histogram:     histogram,
 		ByCountry:     byCountry,
 	}, nil
+}
+
+func ratingsRetryableStopCause(failures map[int]error, retryDelayStopErr error) error {
+	preferred := preferredRatingsHTTPError(failures)
+	if retryDelayStopErr == nil {
+		return preferred
+	}
+	if preferred == nil {
+		return retryDelayStopErr
+	}
+	return errors.Join(preferred, retryDelayStopErr)
 }
 
 func preferredRatingsHTTPError(failures map[int]error) error {

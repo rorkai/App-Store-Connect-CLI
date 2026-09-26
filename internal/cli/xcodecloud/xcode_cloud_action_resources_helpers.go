@@ -65,8 +65,8 @@ func newXcodeCloudActionResourceListCommand(config xcodeCloudActionResourceListC
 		runUsage = "Build run ID to resolve a single action from"
 	}
 
-	actionID := fs.String("action-id", "", actionUsage)
-	runID := fs.String("run-id", "", runUsage)
+	actionID := shared.BindResourceIDFlag(fs, "action-id", "ciBuildActions", actionUsage)
+	runID := shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", runUsage)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

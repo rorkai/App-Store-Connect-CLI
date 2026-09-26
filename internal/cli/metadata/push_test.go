@@ -13,6 +13,58 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
+func TestHandleMetadataExistingConflictUpdatesAfterRequestScopedMatchTimeout(t *testing.T) {
+	updated := false
+	outcome := handleMetadataExistingConflict(context.Background(), metadataCreateConflict{
+		options: metadataIfExistsOptions{mode: "update", prefix: "metadata push"},
+		scope:   versionDirName,
+		locale:  "ja",
+		version: "1.2.3",
+		lookup:  func(context.Context) (string, bool, error) { return "existing", true, nil },
+		update: func(context.Context, string) (string, error) {
+			updated = true
+			return "existing", nil
+		},
+		readback: func(context.Context) (string, bool, error) {
+			return "", false, context.DeadlineExceeded
+		},
+	}, "existing")
+
+	if outcome.err != nil || !outcome.handled {
+		t.Fatalf("outcome = %+v, want a handled successful update", outcome)
+	}
+	if !updated {
+		t.Fatal("expected PATCH update to proceed after the optional request-scoped timeout")
+	}
+	if outcome.action.Action != "update" || outcome.action.Status != metadataActionStatusSucceeded || !outcome.action.AlreadyExists {
+		t.Fatalf("action = %+v, want successful update of an existing localization", outcome.action)
+	}
+}
+
+func TestHandleMetadataExistingConflictUpdatesReplacementLocalizationID(t *testing.T) {
+	patchedID := ""
+	outcome := handleMetadataExistingConflict(context.Background(), metadataCreateConflict{
+		options: metadataIfExistsOptions{mode: "update", prefix: "metadata push"},
+		scope:   versionDirName,
+		locale:  "ja",
+		version: "1.2.3",
+		update: func(_ context.Context, id string) (string, error) {
+			patchedID = id
+			return id, nil
+		},
+		readback: func(context.Context) (string, bool, error) {
+			return "replacement", false, nil
+		},
+	}, "stale")
+
+	if outcome.err != nil || !outcome.handled {
+		t.Fatalf("outcome = %+v, want a handled successful update", outcome)
+	}
+	if patchedID != "replacement" {
+		t.Fatalf("PATCH localization ID = %q, want refreshed replacement ID", patchedID)
+	}
+}
+
 func TestExecutePushPrefixesLocalMetadataReadErrors(t *testing.T) {
 	for _, commandName := range []string{"push", "apply"} {
 		t.Run(commandName, func(t *testing.T) {
@@ -167,7 +219,7 @@ func TestApplyAppInfoChangesIgnoresRemoteOnlyEmptyLocalization(t *testing.T) {
 		},
 	}
 	for _, allowDeletes := range []bool{false, true} {
-		actions, err := applyAppInfoChanges(context.Background(), nil, "appinfo-1", map[string]appInfoLocalPatch{}, remote, allowDeletes)
+		actions, err := applyAppInfoChanges(context.Background(), nil, "appinfo-1", map[string]appInfoLocalPatch{}, remote, allowDeletes, metadataIfExistsOptions{})
 		if err != nil || len(actions) != 0 {
 			t.Fatalf("allowDeletes=%t: expected empty remote locale no-op, actions=%+v err=%v", allowDeletes, actions, err)
 		}

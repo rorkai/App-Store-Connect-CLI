@@ -193,3 +193,8 @@ func editDistance(a, b string) int {
 
 	return prev[len(b)]
 }
+
+// Distance exposes the suggestion edit-distance metric to API operation lookup.
+func Distance(a, b string) int {
+	return editDistance(a, b)
+}

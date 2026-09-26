@@ -50,13 +50,21 @@ var (
 func SigningKeychainCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("keychain", flag.ExitOnError)
 	return &ffcli.Command{
-		Name:        "keychain",
-		ShortUsage:  "asc signing keychain <subcommand> [flags]",
-		ShortHelp:   "Manage dedicated local signing keychains.",
-		LongHelp:    "Manage dedicated local signing keychains without changing the default keychain.",
-		FlagSet:     fs,
-		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{SigningKeychainInstallCommand()},
+		Name:       "keychain",
+		ShortUsage: "asc signing keychain <subcommand> [flags]",
+		ShortHelp:  "Manage dedicated local signing keychains.",
+		LongHelp:   "Manage dedicated local signing keychains without changing the default keychain.",
+		FlagSet:    fs,
+		UsageFunc:  shared.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			SigningKeychainListCommand(),
+			SigningKeychainInstallCommand(),
+			SigningKeychainUnlockCommand(),
+			SigningKeychainLockCommand(),
+			SigningKeychainSetTimeoutCommand(),
+			SigningKeychainSetPartitionListCommand(),
+			SigningKeychainDeleteCommand(),
+		},
 		Exec: func(context.Context, []string) error {
 			return flag.ErrHelp
 		},

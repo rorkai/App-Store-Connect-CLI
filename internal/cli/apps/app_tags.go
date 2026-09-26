@@ -143,6 +143,10 @@ Examples:
 				return shared.MissingRequiredUsageError("--app")
 			}
 
+			if appTagTerritoriesRequested(fieldsValue, includeValues, *next) {
+				warnAppTagTerritoryDeprecation()
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-tags list: %w", err)
@@ -263,6 +267,10 @@ Examples:
 			if *territoryLimit != 0 && !includeTerritories {
 				fmt.Fprintf(os.Stderr, "Error: --territory-limit requires --include territories\n\n")
 				return flag.ErrHelp
+			}
+
+			if appTagTerritoriesRequested(fieldsValue, includeValues, "") {
+				warnAppTagTerritoryDeprecation()
 			}
 
 			client, err := shared.GetASCClient()
@@ -398,8 +406,10 @@ func AppTagsTerritoriesCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "territories",
 		ShortUsage: "asc app-tags territories --id TAG_ID [flags]",
-		ShortHelp:  "List territories for an app tag.",
+		ShortHelp:  "List territories for an app tag (deprecated in API 4.5).",
 		LongHelp: `List territories for an app tag.
+
+Deprecated in API 4.5. Requests remain available for compatibility and emit a stderr warning.
 
 Examples:
   asc app-tags territories --id "TAG_ID"
@@ -424,6 +434,8 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("app-tags territories: %w", err)
 			}
+
+			warnAppTagTerritoryDeprecation()
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -481,8 +493,10 @@ func AppTagsTerritoriesRelationshipsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "territories-links",
 		ShortUsage: "asc app-tags territories-links --id TAG_ID [flags]",
-		ShortHelp:  "List territory relationships for an app tag.",
+		ShortHelp:  "List territory relationships for an app tag (deprecated in API 4.5).",
 		LongHelp: `List territory relationships for an app tag.
+
+Deprecated in API 4.5. Requests remain available for compatibility and emit a stderr warning.
 
 Examples:
   asc app-tags territories-links --id "TAG_ID"
@@ -501,6 +515,8 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("app-tags territories-links: %v", err)
 			}
+
+			warnAppTagTerritoryDeprecation()
 
 			client, err := shared.GetASCClient()
 			if err != nil {

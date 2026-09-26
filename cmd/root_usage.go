@@ -45,6 +45,7 @@ var rootUsageGroups = []rootCommandGroup{
 		commands: []string{
 			"testflight", "builds", "build-bundles",
 			"build-localizations", "xcode", "distribute",
+			"ipa-info", "pkg-info",
 			"sandbox",
 		},
 	},
@@ -70,7 +71,7 @@ var rootUsageGroups = []rootCommandGroup{
 	},
 	{
 		title:    "UTILITY COMMANDS",
-		commands: []string{"system-status", "diff", "capabilities", "search", "snitch", "version", "completion", "schema", "telemetry"},
+		commands: []string{"system-status", "diff", "capabilities", "search", "snitch", "version", "completion", "schema", "api", "telemetry"},
 	},
 }
 

@@ -616,12 +616,31 @@ func TestCertificatesCreateCommand_PassTypeRequirementSurvivesNonCanonicalSpelli
 	}
 }
 
-func TestCertificatesCreateCommand_HelpOmitsApplePayTypes(t *testing.T) {
-	usage := CertificatesCreateCommand().FlagSet.Lookup("certificate-type").Usage
-	if strings.Contains(usage, "APPLE_PAY") {
-		t.Fatalf("--certificate-type help offers Apple Pay types the command rejects: %q", usage)
+func TestCertificatesCreateCommand_HelpListsEveryCreatableType(t *testing.T) {
+	cmd := CertificatesCreateCommand()
+	usage := cmd.FlagSet.Lookup("certificate-type").Usage
+	for _, value := range []string{"APPLE_PAY_MERCHANT_IDENTITY", "MAC_INSTALLER_DISTRIBUTION"} {
+		if !strings.Contains(usage, value) {
+			t.Fatalf("--certificate-type help should list %q, got %q", value, usage)
+		}
 	}
-	if !strings.Contains(usage, "MAC_INSTALLER_DISTRIBUTION") {
-		t.Fatalf("--certificate-type help should list the creatable types, got %q", usage)
+	merchantFlag := cmd.FlagSet.Lookup("merchant-id")
+	if merchantFlag == nil {
+		t.Fatal("expected --merchant-id on certificates create")
+	}
+	if !strings.Contains(merchantFlag.Usage, "APPLE_PAY") {
+		t.Fatalf("--merchant-id help should explain the Apple Pay requirement, got %q", merchantFlag.Usage)
+	}
+}
+
+func TestMerchantIDCertificatesCreateCommand_OmitsPassTypeFlag(t *testing.T) {
+	cmd := MerchantIDCertificatesCreateCommand()
+	if cmd.FlagSet.Lookup("pass-type-id") != nil {
+		t.Fatal("merchant ID certificate create must not offer --pass-type-id")
+	}
+	for _, name := range []string{"merchant-id", "certificate-type", "csr", "generate-csr", "key-out", "csr-out"} {
+		if cmd.FlagSet.Lookup(name) == nil {
+			t.Fatalf("expected --%s on merchant-ids certificates create", name)
+		}
 	}
 }

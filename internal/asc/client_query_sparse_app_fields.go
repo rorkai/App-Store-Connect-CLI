@@ -5,6 +5,7 @@ import (
 )
 
 type appQuery struct {
+	fields                  []string
 	appInfoFields           []string
 	inAppPurchaseFields     []string
 	subscriptionGroupFields []string
@@ -41,6 +42,7 @@ type CiProductAppOption func(*ciProductAppQuery)
 
 func buildAppQuery(query *appQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[apps]", query.fields)
 	addCSV(values, "fields[appInfos]", query.appInfoFields)
 	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
 	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
@@ -68,6 +70,11 @@ func buildCiProductAppQuery(query *ciProductAppQuery) string {
 	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
 	addCSV(values, "include", query.include)
 	return values.Encode()
+}
+
+// WithAppFields sets fields[apps] for an app detail request.
+func WithAppFields(fields []string) AppOption {
+	return func(q *appQuery) { q.fields = normalizeList(fields) }
 }
 
 // WithAppInAppPurchaseFields sets fields[inAppPurchases].

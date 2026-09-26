@@ -85,7 +85,7 @@ func ReviewStatusCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID)")
 	version := fs.String("version", "", "App Store version string to inspect")
-	versionID := fs.String("version-id", "", "App Store version ID to inspect")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID to inspect")
 	platform := fs.String("platform", "", "Platform filter: IOS, MAC_OS, TV_OS, VISION_OS")
 	output := shared.BindOutputFlags(fs)
 
@@ -147,7 +147,7 @@ func ReviewDoctorCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID)")
 	version := fs.String("version", "", "App Store version string to diagnose")
-	versionID := fs.String("version-id", "", "App Store version ID to diagnose")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID to diagnose")
 	platform := fs.String("platform", "", "Platform filter: IOS, MAC_OS, TV_OS, VISION_OS")
 	output := shared.BindOutputFlags(fs)
 

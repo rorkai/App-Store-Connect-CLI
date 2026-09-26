@@ -133,13 +133,24 @@ asc certificates list --certificate-type MAC_INSTALLER_DISTRIBUTION
 * `APPLE_PAY_RSA` - Apple Pay payment processing (RSA)
 
 <Note>
-  Apple Pay certificates are created against a merchant ID, and `asc certificates create`
-  sends only the `passTypeId` relationship. It rejects these four types with exit code 2
-  rather than generating a CSR for a request App Store Connect refuses. Use
-  `asc merchant-ids certificates list --merchant-id "MERCHANT_ID"` to inspect existing
-  Apple Pay certificates, and create new ones in the Apple Developer portal. `asc certificates list --certificate-type
-  APPLE_PAY` still works.
+  Apple Pay certificates are created against a merchant ID. Pass `--merchant-id` with
+  these four types, either through `asc certificates create` or
+  `asc merchant-ids certificates create`. Without `--merchant-id` the command exits with
+  code 2 before generating a CSR, and `--merchant-id` is rejected for every other
+  certificate type.
 </Note>
+
+```bash  theme={null}
+asc certificates create --certificate-type APPLE_PAY_MERCHANT_IDENTITY \
+  --merchant-id "MERCHANT_ID" \
+  --csr ./merchant.csr
+
+asc merchant-ids certificates create --merchant-id "MERCHANT_ID" \
+  --certificate-type APPLE_PAY_RSA \
+  --generate-csr \
+  --key-out ./signing/merchant.key \
+  --csr-out ./signing/merchant.csr
+```
 
 ## Create Certificate
 

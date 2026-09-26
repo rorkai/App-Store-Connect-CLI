@@ -328,7 +328,9 @@ func validateAPIKeyP8(decoded []byte) error {
 }
 
 // IsAPIKeyDownloadRetryable reports whether a newly created key download may
-// succeed after Apple's API-key resource finishes propagating.
+// be retried because Apple's API-key resource is still propagating. Transport
+// and body-read failures are not retried: those can occur after the one-time
+// P8 has already been served.
 func IsAPIKeyDownloadRetryable(err error) bool {
 	if err == nil {
 		return false
@@ -338,7 +340,10 @@ func IsAPIKeyDownloadRetryable(err error) bool {
 	}
 	var apiErr *APIError
 	if !errors.As(err, &apiErr) {
-		return true
+		// A dropped connection or a failed body read can happen after Apple
+		// already served the one-time P8. Only a classified API error is proof
+		// that the download did not complete.
+		return false
 	}
 	switch apiErr.Status {
 	case http.StatusNotFound, http.StatusConflict, http.StatusTooManyRequests:

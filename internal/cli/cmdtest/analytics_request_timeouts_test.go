@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,55 +26,62 @@ func TestAnalyticsViewRefreshesTimeoutForEachRequest(t *testing.T) {
 		instancesNextURL = "https://api.appstoreconnect.apple.com/v1/analyticsReports/report-1/instances?cursor=instances-next"
 		segmentsNextURL  = "https://api.appstoreconnect.apple.com/v1/analyticsReportInstances/instance-1/segments?cursor=segments-next"
 	)
-	var deadlines []time.Time
-	requestCount := 0
+	var (
+		deadlines    []time.Time
+		requestCount int
+		requestMu    sync.Mutex
+	)
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestMu.Lock()
 		requestCount++
+		requestMu.Unlock()
 		deadline := requireAnalyticsRequestDeadline(t, req)
+		requestMu.Lock()
 		deadlines = append(deadlines, deadline)
+		requestMu.Unlock()
 		if req.Header.Get("Authorization") == "" {
 			t.Fatal("expected App Store Connect request authorization")
 		}
 		time.Sleep(analyticsTimeoutRequestDelay)
 
-		switch requestCount {
-		case 1:
+		switch {
+		case strings.HasPrefix(req.URL.Path, "/v1/analyticsReportRequests/") && strings.HasSuffix(req.URL.Path, "/reports") && req.URL.Query().Get("cursor") == "" && req.URL.Query().Get("limit") == "200":
 			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports", "limit=200")
 			return analyticsViewJSONResponse(`{
 				"data":[{"type":"analyticsReports","id":"report-1","attributes":{"name":"App Sessions"}}],
 				"links":{"next":"` + reportsNextURL + `"}
 			}`), nil
-		case 2:
+		case req.URL.String() == reportsNextURL:
 			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports", "cursor=reports-next")
 			return analyticsViewJSONResponse(`{
 				"data":[{"type":"analyticsReports","id":"report-2","attributes":{"name":"Store Discovery"}}],
 				"links":{}
 			}`), nil
-		case 3:
+		case req.URL.Path == "/v1/analyticsReports/report-1/instances" && req.URL.Query().Get("cursor") == "":
 			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReports/report-1/instances", "limit=200")
 			return analyticsViewJSONResponse(`{
 				"data":[{"type":"analyticsReportInstances","id":"instance-1","attributes":{"processingDate":"2024-01-20"}}],
 				"links":{"next":"` + instancesNextURL + `"}
 			}`), nil
-		case 4:
+		case req.URL.String() == instancesNextURL:
 			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReports/report-1/instances", "cursor=instances-next")
 			return analyticsViewJSONResponse(`{
 				"data":[{"type":"analyticsReportInstances","id":"instance-2","attributes":{"processingDate":"2024-01-21"}}],
 				"links":{}
 			}`), nil
-		case 5:
+		case req.URL.Path == "/v1/analyticsReportInstances/instance-1/segments" && req.URL.Query().Get("cursor") == "":
 			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReportInstances/instance-1/segments", "limit=200")
 			return analyticsViewJSONResponse(`{
 				"data":[{"type":"analyticsReportSegments","id":"segment-1"}],
 				"links":{"next":"` + segmentsNextURL + `"}
 			}`), nil
-		case 6:
+		case req.URL.String() == segmentsNextURL:
 			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReportInstances/instance-1/segments", "cursor=segments-next")
 			return analyticsViewJSONResponse(`{"data":[{"type":"analyticsReportSegments","id":"segment-2"}],"links":{}}`), nil
-		case 7:
+		case req.URL.Path == "/v1/analyticsReportInstances/instance-2/segments":
 			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReportInstances/instance-2/segments", "limit=200")
 			return analyticsViewJSONResponse(`{"data":[],"links":{}}`), nil
-		case 8:
+		case req.URL.Path == "/v1/analyticsReports/report-2/instances":
 			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReports/report-2/instances", "limit=200")
 			return analyticsViewJSONResponse(`{"data":[],"links":{}}`), nil
 		default:
@@ -99,10 +107,13 @@ func TestAnalyticsViewRefreshesTimeoutForEachRequest(t *testing.T) {
 	if !strings.Contains(stdout, `"id":"instance-1"`) || !strings.Contains(stdout, `"id":"report-2"`) {
 		t.Fatalf("analytics view output lost selected resources: %s", stdout)
 	}
-	if requestCount != 8 {
-		t.Fatalf("request count = %d, want 8", requestCount)
+	requestMu.Lock()
+	gotRequests := requestCount
+	requestMu.Unlock()
+	if gotRequests != 8 {
+		t.Fatalf("request count = %d, want 8", gotRequests)
 	}
-	assertAnalyticsDeadlinesRefresh(t, deadlines)
+	assertAnalyticsDeadlinesArePerRequest(t, deadlines)
 }
 
 func TestAnalyticsViewWarnsWhenReportsHaveAnotherPage(t *testing.T) {
@@ -334,6 +345,23 @@ func requireAnalyticsRequestAuth(t *testing.T, req *http.Request, want bool) {
 	}
 	if !want && got != "" {
 		t.Fatalf("unexpected authorization on report transfer: %q", got)
+	}
+}
+
+func assertAnalyticsDeadlinesArePerRequest(t *testing.T, deadlines []time.Time) {
+	t.Helper()
+	if len(deadlines) < 2 {
+		t.Fatalf("deadline count = %d, want at least 2", len(deadlines))
+	}
+	seen := make(map[time.Time]int, len(deadlines))
+	for index, deadline := range deadlines {
+		if deadline.IsZero() {
+			t.Fatalf("request %d has no deadline", index+1)
+		}
+		if previous, ok := seen[deadline]; ok {
+			t.Fatalf("request %d reused deadline from request %d (%s)", index+1, previous, deadline.Format(time.RFC3339Nano))
+		}
+		seen[deadline] = index + 1
 	}
 }
 

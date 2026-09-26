@@ -44,7 +44,7 @@ Examples:
 func CustomPageLocalizationsPreviewSetsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations preview-sets list", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -143,7 +143,7 @@ Examples:
 func CustomPageLocalizationsScreenshotSetsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations screenshot-sets list", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

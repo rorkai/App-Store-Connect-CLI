@@ -248,7 +248,7 @@ Examples:
 					continue
 				}
 
-				downloadCtx, cancel := shared.ContextWithTimeout(ctx)
+				downloadCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
 				written, contentType, unchanged, err := downloadScreenshotURLToFile(downloadCtx, item.URL, item.OutputPath, *overwrite)
 				cancel()
 				if err != nil {

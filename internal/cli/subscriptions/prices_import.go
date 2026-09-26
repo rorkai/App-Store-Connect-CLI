@@ -131,7 +131,7 @@ var subscriptionPricesImportKnownColumns = map[string]string{
 func SubscriptionsPricesImportCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices import", flag.ExitOnError)
 
-	subID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	inputPath := fs.String("input", "", "Input CSV file path (required)")
 	startDate := fs.String("start-date", "", "Default start date (YYYY-MM-DD) for rows without start_date")

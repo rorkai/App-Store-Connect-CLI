@@ -166,6 +166,10 @@ func IsSigningInputError(err error) bool {
 type SigningPlanOptions struct {
 	ProjectPath           string
 	SettingsFilePath      string
+	ProfilePaths          []string
+	Configuration         string
+	ExportMethod          string
+	SkipTargets           []string
 	StateDir              string
 	PlanPath              string
 	ReceiptPath           string
@@ -182,19 +186,25 @@ type SigningApplyOptions struct {
 // are intentionally additive: the plan records enough provenance to reject a
 // stale or redirected apply before touching the project.
 type SigningPlan struct {
-	SchemaVersion         int                    `json:"schemaVersion"`
-	Command               string                 `json:"command"`
-	GeneratedAt           string                 `json:"generatedAt"`
-	PlanHash              string                 `json:"planHash"`
-	Ready                 bool                   `json:"ready"`
-	ProjectPath           string                 `json:"projectPath"`
-	SettingsFilePath      string                 `json:"settingsFilePath"`
-	PlanPath              string                 `json:"planPath"`
-	ReceiptPath           string                 `json:"receiptPath"`
-	AllowExternalXCConfig bool                   `json:"allowExternalXCConfig"`
-	Desired               []SigningPlanTarget    `json:"desired"`
-	Files                 []SigningPlanFile      `json:"files"`
-	Changes               []SigningSettingChange `json:"changes"`
+	SchemaVersion         int                       `json:"schemaVersion"`
+	Command               string                    `json:"command"`
+	GeneratedAt           string                    `json:"generatedAt"`
+	PlanHash              string                    `json:"planHash"`
+	Ready                 bool                      `json:"ready"`
+	ProjectPath           string                    `json:"projectPath"`
+	SettingsFilePath      string                    `json:"settingsFilePath"`
+	PlanPath              string                    `json:"planPath"`
+	ReceiptPath           string                    `json:"receiptPath"`
+	AllowExternalXCConfig bool                      `json:"allowExternalXCConfig"`
+	ProfilePaths          []string                  `json:"profilePaths,omitempty"`
+	Configuration         string                    `json:"configuration,omitempty"`
+	ExportMethod          string                    `json:"exportMethod,omitempty"`
+	SkipTargets           []string                  `json:"skipTargets,omitempty"`
+	Inferences            []SigningPlanInference    `json:"inferences,omitempty"`
+	ExportOptions         *SigningPlanExportOptions `json:"exportOptions,omitempty"`
+	Desired               []SigningPlanTarget       `json:"desired"`
+	Files                 []SigningPlanFile         `json:"files"`
+	Changes               []SigningSettingChange    `json:"changes"`
 	// MissingOptionalIncludes records bounded lexical paths for optional
 	// xcconfig includes that were absent during planning. Apply rechecks these
 	// assertions before any ordinary write and immediately before publishing a
@@ -346,21 +356,37 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 	if strings.TrimSpace(opts.ProjectPath) == "" {
 		return nil, fmt.Errorf("--project is required")
 	}
-	settingsPath, err := canonicalSigningPath(opts.SettingsFilePath, "settings file")
-	if err != nil {
-		return nil, err
+	var settingsPath string
+	var settings *signingSettingsManifest
+	if strings.TrimSpace(opts.SettingsFilePath) != "" {
+		var pathErr error
+		settingsPath, pathErr = canonicalSigningPath(opts.SettingsFilePath, "settings file")
+		if pathErr != nil {
+			return nil, pathErr
+		}
+		var readErr error
+		settings, readErr = readSigningSettingsManifest(settingsPath)
+		if readErr != nil {
+			return nil, readErr
+		}
 	}
-	settings, err := readSigningSettingsManifest(settingsPath)
-	if err != nil {
-		return nil, err
+	if settings == nil && len(opts.ProfilePaths) == 0 {
+		return nil, fmt.Errorf("--settings-file or --profile is required")
 	}
-
 	project, err := openSigningStructuredVersionProject(opts.ProjectPath)
 	if err != nil {
 		return nil, err
 	}
 	if err := validateSigningProjectFile(project); err != nil {
 		return nil, err
+	}
+	var inference *signingProfileInference
+	if len(opts.ProfilePaths) > 0 {
+		inference, err = inferSigningSettings(project, opts, settings)
+		if err != nil {
+			return nil, err
+		}
+		settings = inference.manifest
 	}
 
 	stateDir := opts.StateDir
@@ -389,6 +415,9 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 	}
 	if err := validateSigningArtifactPaths(planPath, receiptPath, project.pbxprojPath, settingsPath); err != nil {
 		return nil, newSigningInputError(err)
+	}
+	if settings == nil || len(settings.Targets) == 0 {
+		return blockedSigningProfilePlan(opts, project, settingsPath, planPath, receiptPath, inference)
 	}
 
 	requests, desired, err := normalizeSigningRequests(settings)
@@ -471,6 +500,7 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 			if inputErr != nil {
 				return nil, inputErr
 			}
+			inputPaths = appendSigningProfileInputs(inputPaths, inference)
 			protectedConfigPaths = appendUniqueSigningPaths(protectedConfigPaths, externalEntitlementPaths...)
 			// Direct external entitlement values are not readable through this
 			// workflow, but their prospective path still came from the project
@@ -498,6 +528,7 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 			for _, path := range blockedExternalPaths {
 				plan.Blockers = append(plan.Blockers, signingXCConfigCollectionBlocker(project, path, opts.AllowExternalXCConfig))
 			}
+			recordSigningProfileInference(plan, inference, opts)
 			plan.Ready = false
 			plan.PlanHash = signingPlanHash(plan)
 			return &signingPlanBuild{plan: plan, project: project}, nil
@@ -508,6 +539,7 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 	if err != nil {
 		return nil, err
 	}
+	inputPaths = appendSigningProfileInputs(inputPaths, inference)
 	protectedConfigPaths = appendUniqueSigningPaths(protectedConfigPaths, externalEntitlementPaths...)
 	// See the error branch above: an external direct-entitlement path is not
 	// content-authorized, but it is an explicitly discovered path whose
@@ -535,6 +567,7 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 	inputBlockers = append(inputBlockers, inputPathBlockers...)
 	if len(inputBlockers) > 0 {
 		plan.Blockers = append(plan.Blockers, inputBlockers...)
+		recordSigningProfileInference(plan, inference, opts)
 		plan.Ready = false
 		plan.PlanHash = signingPlanHash(plan)
 		return &signingPlanBuild{plan: plan, project: project}, nil
@@ -546,6 +579,7 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 		plan.Blockers = append(plan.Blockers, signingXCConfigCollectionBlocker(project, path, opts.AllowExternalXCConfig))
 	}
 	if len(blockedExternalPaths) > 0 || len(externalEntitlementPaths) > 0 {
+		recordSigningProfileInference(plan, inference, opts)
 		plan.Ready = false
 		plan.PlanHash = signingPlanHash(plan)
 		return &signingPlanBuild{plan: plan, project: project}, nil
@@ -649,7 +683,14 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 		files[key] = SigningPlanFile{Path: path, SHA256: digest, Source: source}
 	}
 	addFile(project.pbxprojPath, "pbxproj")
-	addFile(settingsPath, "settings")
+	if settingsPath != "" {
+		addFile(settingsPath, "settings")
+	}
+	if inference != nil {
+		for _, path := range inference.paths {
+			addFile(path, "profile")
+		}
+	}
 	for _, operation := range operations {
 		if operation.Source == "xcconfig" {
 			addFile(operation.Path, "xcconfig")
@@ -675,8 +716,7 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 	if len(plan.Files) > signingPlanMaxFiles {
 		plan.Blockers = append(plan.Blockers, fmt.Sprintf("signing plan source graph contains %d files, exceeding the limit of %d", len(plan.Files), signingPlanMaxFiles))
 	}
-	sort.Strings(plan.Blockers)
-	sort.Strings(plan.Warnings)
+	recordSigningProfileInference(plan, inference, opts)
 	plan.Ready = len(plan.Blockers) == 0
 	plan.PlanHash = signingPlanHash(plan)
 
@@ -2806,7 +2846,12 @@ func signingProjectInputPaths(
 	externalEntitlementPaths := make([]string, 0)
 	inputBlockers := make([]string, 0)
 	uncertainEntitlementConfigurations := make(map[string]bool)
-	paths := []string{project.pbxprojPath, settingsPath}
+	paths := make([]string, 0, 2)
+	if strings.TrimSpace(settingsPath) != "" {
+		paths = append(paths, project.pbxprojPath, settingsPath)
+	} else {
+		paths = []string{project.pbxprojPath}
+	}
 	selectedIDs := make(map[string]bool, len(requests))
 	for _, request := range requests {
 		configuration, err := signingConfigurationFor(project, request.target, request.configuration)
@@ -4147,6 +4192,10 @@ func ApplySigningPlan(opts SigningApplyOptions) (*SigningApplyResult, error) {
 	built, err := buildSigningPlan(SigningPlanOptions{
 		ProjectPath:           plan.ProjectPath,
 		SettingsFilePath:      plan.SettingsFilePath,
+		ProfilePaths:          plan.ProfilePaths,
+		Configuration:         plan.Configuration,
+		ExportMethod:          plan.ExportMethod,
+		SkipTargets:           plan.SkipTargets,
 		PlanPath:              plan.PlanPath,
 		ReceiptPath:           plan.ReceiptPath,
 		AllowExternalXCConfig: plan.AllowExternalXCConfig,

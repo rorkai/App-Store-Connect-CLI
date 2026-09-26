@@ -84,7 +84,7 @@ Examples:
 func AppClipAdvancedExperienceImagesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Advanced experience ID to attach after upload (optional)")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipAdvancedExperiences", "Advanced experience ID to attach after upload (optional)")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
 	output := shared.BindOutputFlags(fs)
 

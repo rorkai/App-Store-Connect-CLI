@@ -607,3 +607,98 @@ func TestAppEventsCreateScheduleFlagsStillValidateRFC3339(t *testing.T) {
 		t.Fatalf("expected RFC3339 validation error, got %q", stderr)
 	}
 }
+
+func TestAppEventsSubmitReportsPartialCreateWithoutAddingOrSubmitting(t *testing.T) {
+	requests := 0
+	client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissions" {
+			t.Fatalf("unexpected request %d: %s %s", requests, req.Method, req.URL.Path)
+		}
+		return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-partial"},"errors":[{"status":"500","detail":"partial response"}]}`)
+	}))
+
+	restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"app-events", "submit",
+			"--event-id", "event-1",
+			"--app", "app-123",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil || !strings.Contains(runErr.Error(), "sub-partial") ||
+		!strings.Contains(runErr.Error(), "asc submit cancel --id sub-partial --confirm") {
+		t.Fatalf("run error = %v, want partial submission ID and cancellation guidance", runErr)
+	}
+	if requests != 1 {
+		t.Fatalf("requests = %d, want only the create request", requests)
+	}
+	if stdout != "" || stderr != "" {
+		t.Fatalf("stdout = %q, stderr = %q, want no command output", stdout, stderr)
+	}
+}
+
+func TestAppEventsSubmitCleanCreateStillAddsAndSubmits(t *testing.T) {
+	requests := 0
+	client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		switch requests {
+		case 1:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissions" {
+				t.Fatalf("unexpected create request: %s %s", req.Method, req.URL.Path)
+			}
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-clean"}}`)
+		case 2:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissionItems" {
+				t.Fatalf("unexpected item request: %s %s", req.Method, req.URL.Path)
+			}
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-clean"}}`)
+		case 3:
+			if req.Method != http.MethodPatch || req.URL.Path != "/v1/reviewSubmissions/sub-clean" {
+				t.Fatalf("unexpected submit request: %s %s", req.Method, req.URL.Path)
+			}
+			return jsonResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"sub-clean","attributes":{"submittedDate":"2026-09-18T00:00:00Z"}}}`)
+		default:
+			t.Fatalf("unexpected extra request %d: %s %s", requests, req.Method, req.URL.Path)
+			return nil, nil
+		}
+	}))
+
+	restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"app-events", "submit",
+			"--event-id", "event-1",
+			"--app", "app-123",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if requests != 3 {
+		t.Fatalf("requests = %d, want create, add, and submit", requests)
+	}
+	if !strings.Contains(stdout, `"submissionId":"sub-clean"`) || stderr != "" {
+		t.Fatalf("stdout = %q, stderr = %q, want successful submission output", stdout, stderr)
+	}
+}

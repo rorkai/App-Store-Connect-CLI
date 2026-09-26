@@ -151,6 +151,10 @@ asc analytics requests --app "123456789" --paginate
 
 Retrieve available analytics reports and instances for a request.
 
+When viewing all reports without `--instance-id`, report-instance requests use
+bounded parallelism while preserving report order. If one request fails, the
+remaining sibling requests are canceled and the original failure is returned.
+
 ```bash  theme={null}
 asc analytics view --request-id "REQUEST_ID"
 ```

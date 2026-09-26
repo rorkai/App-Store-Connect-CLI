@@ -84,10 +84,11 @@ type AppInfoSetBatchResult struct {
 }
 
 func appStoreVersionLocalizationsRows(resp *AppStoreVersionLocalizationsResponse) ([]string, [][]string) {
-	headers := []string{"Locale", "Whats New", "Keywords"}
+	headers := []string{"ID", "Locale", "Whats New", "Keywords"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{
+			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.WhatsNew),
 			compactWhitespace(item.Attributes.Keywords),
@@ -125,10 +126,11 @@ func betaBuildLocalizationsRows(resp *BetaBuildLocalizationsResponse) ([]string,
 }
 
 func appInfoLocalizationsRows(resp *AppInfoLocalizationsResponse) ([]string, [][]string) {
-	headers := []string{"Locale", "Name", "Subtitle", "Privacy Policy URL"}
+	headers := []string{"ID", "Locale", "Name", "Subtitle", "Privacy Policy URL"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{
+			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Name),
 			compactWhitespace(item.Attributes.Subtitle),

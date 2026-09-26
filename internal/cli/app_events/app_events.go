@@ -200,7 +200,7 @@ Examples:
 func AppEventsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	eventID := fs.String("event-id", "", "App event ID")
+	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -384,7 +384,7 @@ Examples:
 func AppEventsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	eventID := fs.String("event-id", "", "App event ID")
+	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	name := fs.String("name", "", "Reference name")
 	eventType := fs.String("event-type", "", "Event type: "+strings.Join(asc.ValidAppEventBadges, ", "))
 	start := fs.String("start", "", "Event start time (RFC3339)")
@@ -528,7 +528,7 @@ Examples:
 func AppEventsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	eventID := fs.String("event-id", "", "App event ID")
+	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

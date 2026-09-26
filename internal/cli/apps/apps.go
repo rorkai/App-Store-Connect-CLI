@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -24,7 +25,7 @@ func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *strin
 	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next = fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	appInfoFields = fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated by Apple; prefer asc age-rating view)")
+	appInfoFields = fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated; removed from API 4.5; prefer asc age-rating view)")
 	iapFields = fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
 	subscriptionGroupFields = fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
 	return
@@ -177,8 +178,9 @@ Examples:
 func AppsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps view", flag.ExitOnError)
 
-	id := fs.String("id", "", "App Store Connect app ID")
-	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated by Apple; prefer asc age-rating view)")
+	id := shared.BindResourceIDFlag(fs, "id", "apps", "App Store Connect app ID")
+	fields := fs.String("fields", "", "App attribute fields to return, comma-separated: "+strings.Join(appAttributeFields, ", "))
+	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated; removed from API 4.5; prefer asc age-rating view)")
 	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
 	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
 	output := shared.BindOutputFlags(fs)
@@ -192,7 +194,8 @@ func AppsGetCommand() *ffcli.Command {
 Examples:
   asc apps view --id "APP_ID"
   asc apps view --id "APP_ID" --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
-  asc apps view --id "APP_ID" --output table`,
+  asc apps view --id "APP_ID" --output table
+  asc apps view --id "APP_ID" --fields "subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox" --output json`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -200,6 +203,10 @@ Examples:
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError("--id")
+			}
+			fieldValues, err := normalizeSparseField(fs, *fields, appAttributeFields, "--fields")
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 			appInfoFieldValues, err := normalizeSparseField(fs, *appInfoFields, appInfoSparseFields441, "--app-info-fields")
 			if err != nil {
@@ -213,6 +220,8 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+
+			shared.WarnDeprecatedAppInfoFields(appInfoFieldValues, "")
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -232,7 +241,11 @@ Examples:
 			if len(groupFieldValues) > 0 {
 				includeValues = addInclude(includeValues, "subscriptionGroups")
 			}
+			if len(fieldValues) > 0 {
+				fieldValues = append(fieldValues, includeValues...)
+			}
 			opts := []asc.AppOption{
+				asc.WithAppFields(fieldValues),
 				asc.WithAppAppInfoFields(appInfoFieldValues),
 				asc.WithAppInAppPurchaseFields(iapFieldValues),
 				asc.WithAppSubscriptionGroupFields(groupFieldValues),
@@ -252,22 +265,29 @@ Examples:
 func AppsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps update", flag.ExitOnError)
 
-	id := fs.String("id", "", "App Store Connect app ID")
+	id := shared.BindResourceIDFlag(fs, "id", "apps", "App Store Connect app ID")
 	bundleID := fs.String("bundle-id", "", "Update bundle ID")
 	primaryLocale := fs.String("primary-locale", "", "Update primary locale (e.g., en-US)")
 	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
+	subscriptionStatusURL := fs.String("subscription-status-url", "", "Production App Store Server Notifications HTTPS URL (sets version V2)")
+	sandboxSubscriptionStatusURL := fs.String("sandbox-subscription-status-url", "", "Sandbox App Store Server Notifications HTTPS URL (sets version V2)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
-		ShortUsage: "asc apps update --id APP_ID [--bundle-id BUNDLE_ID] [--primary-locale LOCALE] [--content-rights DECLARATION]",
-		ShortHelp:  "Update an app's bundle ID, primary locale, or content rights declaration.",
-		LongHelp: `Update an app's bundle ID, primary locale, or content rights declaration.
+		ShortUsage: "asc apps update --id APP_ID [--bundle-id BUNDLE_ID] [--primary-locale LOCALE] [--content-rights DECLARATION] [--subscription-status-url URL] [--sandbox-subscription-status-url URL]",
+		ShortHelp:  "Update app metadata and App Store Server Notifications URLs.",
+		LongHelp: `Update app metadata and App Store Server Notifications URLs.
+
+Notification URLs must use HTTPS without credentials or fragments. Each supplied
+URL is configured for version V2. Omitted endpoints and other fields stay unchanged.
 
 Examples:
   asc apps update --id "APP_ID" --bundle-id "com.example.app"
   asc apps update --id "APP_ID" --primary-locale "en-US"
-  asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"`,
+  asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"
+  asc apps update --id "APP_ID" --subscription-status-url "https://example.com/notifications"
+  asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -295,8 +315,26 @@ Examples:
 					return flag.ErrHelp
 				}
 			}
-			if attrs.BundleID == nil && attrs.PrimaryLocale == nil && attrs.ContentRightsDeclaration == nil {
-				fmt.Fprintln(os.Stderr, "Error: --bundle-id, --primary-locale, or --content-rights is required")
+			if _, provided := appFlagWasProvided(fs, "subscription-status-url"); provided {
+				value, err := validateNotificationURL(*subscriptionStatusURL)
+				if err != nil {
+					return shared.UsageErrorf("--subscription-status-url: %v", err)
+				}
+				version := asc.SubscriptionStatusURLVersionV2
+				attrs.SubscriptionStatusURL = &value
+				attrs.SubscriptionStatusURLVersion = &version
+			}
+			if _, provided := appFlagWasProvided(fs, "sandbox-subscription-status-url"); provided {
+				value, err := validateNotificationURL(*sandboxSubscriptionStatusURL)
+				if err != nil {
+					return shared.UsageErrorf("--sandbox-subscription-status-url: %v", err)
+				}
+				version := asc.SubscriptionStatusURLVersionV2
+				attrs.SubscriptionStatusURLForSandbox = &value
+				attrs.SubscriptionStatusURLVersionForSandbox = &version
+			}
+			if attrs.BundleID == nil && attrs.PrimaryLocale == nil && attrs.ContentRightsDeclaration == nil && attrs.SubscriptionStatusURL == nil && attrs.SubscriptionStatusURLForSandbox == nil {
+				fmt.Fprintln(os.Stderr, "Error: at least one update field is required (--bundle-id, --primary-locale, --content-rights, --subscription-status-url, --sandbox-subscription-status-url)")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -380,6 +418,8 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 		return shared.UsageError(err.Error())
 	}
 
+	shared.WarnDeprecatedAppInfoFields(appInfoFieldValues, next)
+
 	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("apps: %w", err)
@@ -448,4 +488,19 @@ func csvContainsEmptyValue(value string) bool {
 		}
 	}
 	return false
+}
+
+func validateNotificationURL(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || strings.Contains(value, "#") {
+		return "", fmt.Errorf("must be an absolute HTTPS URL without credentials or fragments")
+	}
+	return value, nil
+}
+
+// These attributes are supported by GET /v1/apps/{id} and decoded by AppAttributes.
+var appAttributeFields = []string{
+	"name", "bundleId", "sku", "primaryLocale", "contentRightsDeclaration",
+	"subscriptionStatusUrl", "subscriptionStatusUrlVersion", "subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox",
 }

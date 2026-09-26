@@ -39,7 +39,7 @@ Examples:
 func BetaNotificationsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

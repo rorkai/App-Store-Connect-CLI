@@ -46,7 +46,7 @@ Examples:
 func AppClipDefaultExperienceLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Default experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -131,7 +131,7 @@ Examples:
 func AppClipDefaultExperienceLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appClipDefaultExperienceLocalizations", "Localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -173,7 +173,7 @@ Examples:
 func AppClipDefaultExperienceLocalizationsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Default experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
 	subtitle := fs.String("subtitle", "", "Subtitle")
 	output := shared.BindOutputFlags(fs)
@@ -234,7 +234,7 @@ Examples:
 func AppClipDefaultExperienceLocalizationsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appClipDefaultExperienceLocalizations", "Localization ID")
 	subtitle := fs.String("subtitle", "", "Subtitle")
 	output := shared.BindOutputFlags(fs)
 
@@ -295,7 +295,7 @@ Examples:
 func AppClipDefaultExperienceLocalizationsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appClipDefaultExperienceLocalizations", "Localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
@@ -346,7 +346,7 @@ Examples:
 func AppClipDefaultExperienceLocalizationHeaderImageRelationshipCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("header-image-relationship", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appClipDefaultExperienceLocalizations", "Localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

@@ -808,13 +808,22 @@ func (c *Client) DeleteBuildUpload(ctx context.Context, id string) error {
 }
 
 // GetBuildUpload retrieves a build upload by ID.
-func (c *Client) GetBuildUpload(ctx context.Context, id string) (*BuildUploadResponse, error) {
+func (c *Client) GetBuildUpload(ctx context.Context, id string, opts ...BuildUploadOption) (*BuildUploadResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, fmt.Errorf("id is required")
 	}
 
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/buildUploads/%s", id), nil)
+	query := &buildUploadQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+	path := fmt.Sprintf("/v1/buildUploads/%s", id)
+	if queryString := buildBuildUploadQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
 	}

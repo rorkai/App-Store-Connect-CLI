@@ -86,10 +86,10 @@ func TestCertificatesCreate_AcceptsSupportedCertificateTypeCasing(t *testing.T) 
 	}
 }
 
-// The four APPLE_PAY types are valid CertificateType values, but Apple requires
-// a merchantId relationship that `asc certificates create` cannot send, so the
-// command must reject them before --generate-csr writes key material to disk.
-func TestCertificatesCreate_RejectsApplePayTypesBeforeGeneratingFiles(t *testing.T) {
+// The four APPLE_PAY types require a merchantId relationship, so the command
+// must reject them without --merchant-id before --generate-csr writes key
+// material to disk.
+func TestCertificatesCreate_RejectsApplePayTypesWithoutMerchantIDBeforeGeneratingFiles(t *testing.T) {
 	for _, certificateType := range []string{
 		"APPLE_PAY",
 		"APPLE_PAY_MERCHANT_IDENTITY",
@@ -126,11 +126,8 @@ func TestCertificatesCreate_RejectsApplePayTypesBeforeGeneratingFiles(t *testing
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if !strings.Contains(stderr, "merchant ID relationship") {
-				t.Fatalf("expected the merchant ID explanation on stderr, got %q", stderr)
-			}
-			if !strings.Contains(stderr, "asc merchant-ids certificates list") {
-				t.Fatalf("expected the merchant ID next step on stderr, got %q", stderr)
+			if !strings.Contains(stderr, "Error: --merchant-id is required with --certificate-type "+certificateType) {
+				t.Fatalf("expected the missing merchant ID error on stderr, got %q", stderr)
 			}
 			if _, err := os.Stat(keyOut); !errors.Is(err, os.ErrNotExist) {
 				t.Fatalf("private key should not be generated, stat error: %v", err)
@@ -160,7 +157,7 @@ func TestCertificatesCreate_ApplePayGuardLeavesOtherTypesAlone(t *testing.T) {
 		}
 	})
 
-	if strings.Contains(stderr, "merchant ID relationship") {
+	if strings.Contains(stderr, "Error: --merchant-id") {
 		t.Fatalf("Apple Pay guard should not reject DEVELOPER_ID_APPLICATION_G2, got %q", stderr)
 	}
 	if !strings.Contains(stderr, "Error: --csr is required") {

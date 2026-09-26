@@ -263,6 +263,7 @@ func reviewItemsAddCommand(name, errorPrefix, shortUsage, examples string) *ffcl
 	itemTypeValues := strings.Join(reviewSubmissionItemTypeList(), ", ")
 	itemType := fs.String("item-type", "", fmt.Sprintf("Item type: %s (required)", itemTypeValues))
 	itemID := fs.String("item-id", "", "Item ID (required)")
+	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -270,6 +271,13 @@ func reviewItemsAddCommand(name, errorPrefix, shortUsage, examples string) *ffcl
 		ShortUsage: shortUsage,
 		ShortHelp:  "Add an item to a review submission.",
 		LongHelp: `Add an item to a review submission.
+
+--if-exists controls what happens when App Store Connect answers 409 because
+the item is already on the submission. fail (default) returns the error. skip
+reads the existing item back, prints it, and exits 0. update is not supported:
+a submission item carries no inputs to re-apply, so skip is the idempotent
+form. Any other 409, including STATE_ERROR for a submission that is no longer
+editable, keeps failing.
 
 Examples:
   ` + examples,
@@ -297,6 +305,11 @@ Examples:
 				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--item-type")
 			}
 
+			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip)
+			if err != nil {
+				return err
+			}
+
 			client, err := reviewItemsClientFactory()
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
@@ -305,9 +318,22 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.CreateReviewSubmissionItem(requestCtx, strings.TrimSpace(*submissionID), normalizedType, strings.TrimSpace(*itemID))
+			submissionValue := strings.TrimSpace(*submissionID)
+			itemValue := strings.TrimSpace(*itemID)
+			resp, err := client.CreateReviewSubmissionItem(requestCtx, submissionValue, normalizedType, itemValue)
 			if err != nil {
-				return fmt.Errorf("%s: %w", errorPrefix, err)
+				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, reviewItemsAddExistsCodes, func() (*asc.ReviewSubmissionItemResponse, bool, error) {
+					return findExistingReviewSubmissionItem(requestCtx, client, submissionValue, normalizedType, itemValue)
+				})
+				if resolveErr != nil {
+					return fmt.Errorf("%s: %w", errorPrefix, resolveErr)
+				}
+				if !handled {
+					return fmt.Errorf("%s: %w", errorPrefix, err)
+				}
+				resp = existing
+				fmt.Fprintf(os.Stderr, "%s: %s %s is already on submission %s as item %s; left unchanged (--if-exists %s)\n",
+					errorPrefix, normalizedType, itemValue, submissionValue, existing.Data.ID, ifExistsMode)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -534,4 +560,156 @@ func removedReviewSubmissionItemTypeGuidance(value string) (string, bool) {
 
 func reviewSubmissionItemTypeList() []string {
 	return asc.ReviewSubmissionItemTypeNames()
+}
+
+// reviewItemsAddExistsCodes lists the Apple 409 codes accepted as "this item is
+// already on the submission" on POST /v1/reviewSubmissionItems. The duplicate
+// is rejected on the linked resource's relationship. STATE_ERROR.* (the
+// submission is no longer editable, or already submitted) is not on the list
+// and keeps failing; the read-back is what finally proves the item is there.
+var reviewItemsAddExistsCodes = []string{
+	"ENTITY_ERROR.RELATIONSHIP.INVALID",
+	"ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS",
+	"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE",
+}
+
+// reviewSubmissionItemRelationshipName maps an item type to the relationship
+// name the items endpoint uses for it. include= (not fields=) is what makes
+// App Store Connect materialise the linkage, so the caller needs this name.
+func reviewSubmissionItemRelationshipName(itemType asc.ReviewSubmissionItemType) string {
+	switch itemType {
+	case asc.ReviewSubmissionItemTypeAppStoreVersion:
+		return "appStoreVersion"
+	case asc.ReviewSubmissionItemTypeAppCustomProductPageVersion:
+		return "appCustomProductPageVersion"
+	case asc.ReviewSubmissionItemTypeAppEvent:
+		return "appEvent"
+	case asc.ReviewSubmissionItemTypeAppStoreVersionExperiment:
+		return "appStoreVersionExperiment"
+	case asc.ReviewSubmissionItemTypeAppStoreVersionExperimentV2:
+		return "appStoreVersionExperimentV2"
+	case asc.ReviewSubmissionItemTypeBackgroundAssetVersion:
+		return "backgroundAssetVersion"
+	case asc.ReviewSubmissionItemTypeGameCenterAchievementVersion:
+		return "gameCenterAchievementVersion"
+	case asc.ReviewSubmissionItemTypeGameCenterActivityVersion:
+		return "gameCenterActivityVersion"
+	case asc.ReviewSubmissionItemTypeGameCenterChallengeVersion:
+		return "gameCenterChallengeVersion"
+	case asc.ReviewSubmissionItemTypeGameCenterLeaderboardSetVersion:
+		return "gameCenterLeaderboardSetVersion"
+	case asc.ReviewSubmissionItemTypeGameCenterLeaderboardVersion:
+		return "gameCenterLeaderboardVersion"
+	case asc.ReviewSubmissionItemTypeInAppPurchaseVersion:
+		return "inAppPurchaseVersion"
+	case asc.ReviewSubmissionItemTypeSubscriptionVersion:
+		return "subscriptionVersion"
+	case asc.ReviewSubmissionItemTypeSubscriptionGroupVersion:
+		return "subscriptionGroupVersion"
+	default:
+		return ""
+	}
+}
+
+// reviewSubmissionItemLinkedID returns the linked resource ID an item carries
+// for the given item type. A relationship pointer can be non-nil with an empty
+// Data.ID when Apple includes the key as "data":null for a type the item does
+// not actually carry, so callers must compare real IDs.
+func reviewSubmissionItemLinkedID(item asc.ReviewSubmissionItemResource, itemType asc.ReviewSubmissionItemType) string {
+	if item.Relationships == nil {
+		return ""
+	}
+	relationship := func(rel *asc.Relationship) string {
+		if rel == nil {
+			return ""
+		}
+		return strings.TrimSpace(rel.Data.ID)
+	}
+	switch itemType {
+	case asc.ReviewSubmissionItemTypeAppStoreVersion:
+		return relationship(item.Relationships.AppStoreVersion)
+	case asc.ReviewSubmissionItemTypeAppCustomProductPageVersion:
+		return relationship(item.Relationships.AppCustomProductPageVersion)
+	case asc.ReviewSubmissionItemTypeAppEvent:
+		return relationship(item.Relationships.AppEvent)
+	case asc.ReviewSubmissionItemTypeAppStoreVersionExperiment:
+		return relationship(item.Relationships.AppStoreVersionExperiment)
+	case asc.ReviewSubmissionItemTypeAppStoreVersionExperimentV2:
+		return relationship(item.Relationships.AppStoreVersionExperimentV2)
+	case asc.ReviewSubmissionItemTypeBackgroundAssetVersion:
+		return relationship(item.Relationships.BackgroundAssetVersion)
+	case asc.ReviewSubmissionItemTypeGameCenterAchievementVersion:
+		return relationship(item.Relationships.GameCenterAchievementVersion)
+	case asc.ReviewSubmissionItemTypeGameCenterActivityVersion:
+		return relationship(item.Relationships.GameCenterActivityVersion)
+	case asc.ReviewSubmissionItemTypeGameCenterChallengeVersion:
+		return relationship(item.Relationships.GameCenterChallengeVersion)
+	case asc.ReviewSubmissionItemTypeGameCenterLeaderboardSetVersion:
+		return relationship(item.Relationships.GameCenterLeaderboardSetVersion)
+	case asc.ReviewSubmissionItemTypeGameCenterLeaderboardVersion:
+		return relationship(item.Relationships.GameCenterLeaderboardVersion)
+	case asc.ReviewSubmissionItemTypeInAppPurchaseVersion:
+		return relationship(item.Relationships.InAppPurchaseVersion)
+	case asc.ReviewSubmissionItemTypeSubscriptionVersion:
+		return relationship(item.Relationships.SubscriptionVersion)
+	case asc.ReviewSubmissionItemTypeSubscriptionGroupVersion:
+		return relationship(item.Relationships.SubscriptionGroupVersion)
+	default:
+		return ""
+	}
+}
+
+// findExistingReviewSubmissionItem reads back the item a 409 conflict referred
+// to, keyed by the submission and the linked resource ID. It reports
+// found=false when the submission carries no such item so the caller can
+// surface the original conflict.
+func findExistingReviewSubmissionItem(
+	ctx context.Context,
+	client *asc.Client,
+	submissionID string,
+	itemType asc.ReviewSubmissionItemType,
+	itemID string,
+) (*asc.ReviewSubmissionItemResponse, bool, error) {
+	relationshipName := reviewSubmissionItemRelationshipName(itemType)
+	if relationshipName == "" {
+		return nil, false, fmt.Errorf("no relationship name for item type %q", itemType)
+	}
+	opts := []asc.ReviewSubmissionItemsOption{
+		asc.WithReviewSubmissionItemsInclude([]string{relationshipName}),
+		asc.WithReviewSubmissionItemsLimit(200),
+	}
+	// The read-back is mutation evidence (a match turns the 409 into success),
+	// so every page goes through the strict JSON:API envelope validation the
+	// submit and background-asset preflights use.
+	firstPage, err := client.GetReviewSubmissionItemsStrict(ctx, submissionID, opts...)
+	if err != nil {
+		return nil, false, err
+	}
+	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetReviewSubmissionItemsStrict(ctx, submissionID, asc.WithReviewSubmissionItemsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	items, ok := allPages.(*asc.ReviewSubmissionItemsResponse)
+	if !ok {
+		return nil, false, fmt.Errorf("unexpected review submission items response type: %T", allPages)
+	}
+	for _, candidate := range items.Data {
+		// A REMOVED item is historical: the resource is detached from the
+		// submission, so it is not proof the requested item is present. The
+		// same exclusion is applied in background_assets_submit.go when it
+		// decides which versions are already attached.
+		if strings.EqualFold(strings.TrimSpace(candidate.Attributes.State), "REMOVED") {
+			continue
+		}
+		if reviewSubmissionItemLinkedID(candidate, itemType) == itemID {
+			// Apple exposes no GET /v1/reviewSubmissionItems/{id} (only POST,
+			// PATCH and DELETE), so the collection item is the only
+			// representation available and the single-resource envelope has to
+			// be built from it. The resource object itself is Apple's, verbatim.
+			return &asc.ReviewSubmissionItemResponse{Data: candidate}, true, nil
+		}
+	}
+	return nil, false, nil
 }

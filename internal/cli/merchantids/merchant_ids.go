@@ -173,7 +173,7 @@ Examples:
 func MerchantIDsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	merchantID := fs.String("merchant-id", "", "Merchant ID")
+	merchantID := shared.BindResourceIDFlag(fs, "merchant-id", "merchantIds", "Merchant ID")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(merchantIDFieldsList(), ", "))
 	certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
 	include := fs.String("include", "", "Include related resources: "+strings.Join(merchantIDIncludeList(), ", "))
@@ -302,7 +302,7 @@ Examples:
 func MerchantIDsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	merchantID := fs.String("merchant-id", "", "Merchant ID")
+	merchantID := shared.BindResourceIDFlag(fs, "merchant-id", "merchantIds", "Merchant ID")
 	name := fs.String("name", "", "Merchant ID name")
 	clearName := fs.Bool("clear-name", false, "Clear the merchant ID name")
 	output := shared.BindOutputFlags(fs)
@@ -360,7 +360,7 @@ Examples:
 func MerchantIDsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	merchantID := fs.String("merchant-id", "", "Merchant ID")
+	merchantID := shared.BindResourceIDFlag(fs, "merchant-id", "merchantIds", "Merchant ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

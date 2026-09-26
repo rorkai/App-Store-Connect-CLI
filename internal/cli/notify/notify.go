@@ -19,6 +19,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
 
@@ -203,6 +204,10 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			// Name only the host: Slack webhook paths are the secret.
+			if err := readonly.Check(requestCtx, http.MethodPost, urlsanitize.RedactURLHostForError(webhookURL)); err != nil {
+				return err
+			}
 			req, err := http.NewRequestWithContext(requestCtx, "POST", webhookURL, bytes.NewReader(body))
 			if err != nil {
 				return fmt.Errorf("notify slack: failed to create request: %w", newSanitizedWebhookError("request creation", webhookURL, err))

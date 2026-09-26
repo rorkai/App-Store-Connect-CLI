@@ -22,7 +22,7 @@ const offerCodesMaxLimit = 200
 func OfferCodesGenerateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("generate", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Subscription offer code ID (required)")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Subscription offer code ID (required)")
 	quantity := fs.Int("quantity", 0, "Number of one-time use codes to generate (required)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD) (required)")
 	outputPath := fs.String("output", "", "Output file path for offer codes")
@@ -118,7 +118,7 @@ Examples:
 func OfferCodesValuesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("values", flag.ExitOnError)
 
-	id := fs.String("batch-id", "", "One-time use offer code batch ID (required)")
+	id := shared.BindResourceIDFlag(fs, "batch-id", "subscriptionOfferCodeOneTimeUseCodes", "One-time use offer code batch ID (required)")
 	outputPath := fs.String("output", "", "Output file path for offer codes")
 	outputFormat := fs.String("format", "text", "Output file format: text, csv")
 

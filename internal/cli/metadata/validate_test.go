@@ -90,6 +90,89 @@ func TestValidateDirAcceptsArabicKeywordsWithinCharacterLimit(t *testing.T) {
 	}
 }
 
+func TestValidateDirAcceptsExplicitClearOnlyLocalizations(t *testing.T) {
+	dir := t.TempDir()
+	version := "1.2.3"
+
+	if err := os.MkdirAll(filepath.Join(dir, appInfoDirName), 0o755); err != nil {
+		t.Fatalf("mkdir app-info: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, versionDirName, version), 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, appInfoDirName, "en-US.json"), []byte(`{"subtitle":null}`), 0o644); err != nil {
+		t.Fatalf("write app-info clear-only file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, versionDirName, version, "en-US.json"), []byte(`{"promotionalText":null}`), 0o644); err != nil {
+		t.Fatalf("write version clear-only file: %v", err)
+	}
+
+	result, err := validateDir(dir)
+	if err != nil {
+		t.Fatalf("validateDir() error: %v", err)
+	}
+	if !result.Valid || len(result.Issues) != 0 {
+		t.Fatalf("expected explicit clear-only files to validate offline, got %+v", result)
+	}
+}
+
+func TestValidateDirAcceptsExplicitMixedClearAndSetLocalizations(t *testing.T) {
+	dir := t.TempDir()
+	version := "1.2.3"
+
+	if err := os.MkdirAll(filepath.Join(dir, appInfoDirName), 0o755); err != nil {
+		t.Fatalf("mkdir app-info: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, versionDirName, version), 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, appInfoDirName, "en-US.json"), []byte(`{"privacyPolicyUrl":"https://example.com/privacy","subtitle":null}`), 0o644); err != nil {
+		t.Fatalf("write app-info mixed patch: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, versionDirName, version, "en-US.json"), []byte(`{"description":"Updated description","promotionalText":null}`), 0o644); err != nil {
+		t.Fatalf("write version mixed patch: %v", err)
+	}
+
+	result, err := validateDir(dir)
+	if err != nil {
+		t.Fatalf("validateDir() error: %v", err)
+	}
+	if !result.Valid || len(result.Issues) != 0 {
+		t.Fatalf("expected mixed clear-and-set patches to validate offline, got %+v", result)
+	}
+}
+
+func TestValidateDirRejectsClearFieldsInDefaultFiles(t *testing.T) {
+	dir := t.TempDir()
+	version := "1.2.3"
+
+	if err := os.MkdirAll(filepath.Join(dir, appInfoDirName), 0o755); err != nil {
+		t.Fatalf("mkdir app-info: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, versionDirName, version), 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, appInfoDirName, "default.json"), []byte(`{"name":"Default Name","subtitle":null}`), 0o644); err != nil {
+		t.Fatalf("write app-info default file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, versionDirName, version, "default.json"), []byte(`{"description":"Default description","promotionalText":null}`), 0o644); err != nil {
+		t.Fatalf("write version default file: %v", err)
+	}
+
+	result, err := validateDir(dir)
+	if err != nil {
+		t.Fatalf("validateDir() error: %v", err)
+	}
+	if result.Valid || result.ErrorCount != 2 {
+		t.Fatalf("expected two default clear errors, got %+v", result)
+	}
+	for _, issue := range result.Issues {
+		if issue.Severity == issueSeverityError && !strings.Contains(issue.Message, "cannot be cleared in default.json") {
+			t.Fatalf("unexpected default clear issue: %+v", issue)
+		}
+	}
+}
+
 func longHTTPSURL(length int) string {
 	const prefix = "https://example.com/"
 	return prefix + strings.Repeat("a", length-len(prefix))

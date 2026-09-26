@@ -70,6 +70,19 @@ type APIError struct {
 	Detail           string
 	StatusCode       int // HTTP status code that triggered this error (0 if unknown)
 	AssociatedErrors map[string][]APIAssociatedError
+	// AllCodes lists the code of every entry in Apple's errors[] array, in
+	// response order, with Code as the first element. Apple can report several
+	// causes for one status: a duplicate versionString on
+	// POST /v1/appStoreVersions arrives as ENTITY_ERROR.RELATIONSHIP.INVALID
+	// followed by ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE. Callers that
+	// classify a response by code must consult this slice so a cause reported
+	// after the first is not lost. It is empty when the body carried no
+	// parsable errors[] array.
+	AllCodes []string
+	// AllDetails lists every detail from Apple's errors[] array in response
+	// order, including empty details. Callers that classify a response by its
+	// diagnostic text must consult this slice so a later cause is not lost.
+	AllDetails []string
 	// Remediation is operator guidance for error codes whose cause is an
 	// account-level state that no API key permission can satisfy. It is
 	// appended to Error() so the guidance travels with the error itself.

@@ -53,7 +53,7 @@ func MigrateImportCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("migrate import", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	versionID := fs.String("version-id", "", "App Store version ID (required unless Deliverfile app_version + platform)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required unless Deliverfile app_version + platform)")
 	fastlaneDir := fs.String("fastlane-dir", "", "Path to fastlane directory (optional)")
 	dryRun := fs.Bool("dry-run", false, "Preview changes without uploading")
 	confirm := fs.Bool("confirm", false, "Confirm uploading the imported metadata and screenshots (required unless --dry-run)")
@@ -429,7 +429,7 @@ func MigrateExportCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("migrate export", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	outputDir := fs.String("output-dir", "", "Output directory for fastlane structure (required)")
 	output := shared.BindOutputFlags(fs)
 
@@ -484,6 +484,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}
+			defer root.Close()
 			if err := root.MkdirAll("metadata", 0o755); err != nil {
 				return fmt.Errorf("migrate export: failed to create directory: %w", err)
 			}
@@ -759,12 +760,38 @@ func readMetadataFile(root rootfs.Root, name string) (string, error) {
 // permissions, matching the previous in-place write.
 func writeAndCount(root rootfs.Root, name, content string) (int, error) {
 	if content == "" {
+		if err := removeEmptyExportFile(root, name); err != nil {
+			return 0, err
+		}
 		return 0, nil
 	}
 	if err := root.WriteFilePreservingMode(name, []byte(content+"\n"), 0o644); err != nil {
 		return 0, err
 	}
 	return 1, nil
+}
+
+// removeEmptyExportFile removes an old export only after rootfs captures and
+// rechecks the exact rooted regular file identity. A missing destination is
+// already in the desired state; symlinks, directories, replacements, and
+// other identity changes remain errors so an empty provider value cannot
+// delete an unrelated target.
+func removeEmptyExportFile(root rootfs.Root, name string) error {
+	identity, err := root.CaptureFile(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	err = root.RemoveFileIfSameIdentity(name, identity)
+	if errors.Is(err, rootfs.ErrFileIdentityMutationUnsupported) {
+		// Preserve the historical Windows behavior until rootfs can provide an
+		// identity-safe deletion primitive there. Empty values remain skipped,
+		// rather than turning a repeat export into a command failure.
+		return nil
+	}
+	return err
 }
 
 // printMigrateOutput handles output for migrate-specific result types.

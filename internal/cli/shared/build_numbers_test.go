@@ -356,6 +356,30 @@ func TestFindPreReleaseVersionIDsDeduplicatesAndSkipsBlankIDs(t *testing.T) {
 	}
 }
 
+func TestFindPreReleaseVersionIDsWithMaxPagesStopsBeforeFetchingBeyondLimit(t *testing.T) {
+	calls := 0
+	client := newBuildWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/v1/preReleaseVersions" {
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+		calls++
+		return buildWaitJSONResponse(fmt.Sprintf(
+			`{"data":[],"links":{"next":"/v1/preReleaseVersions?cursor=%d"}}`,
+			calls,
+		))
+	})
+
+	_, err := FindPreReleaseVersionIDsWithMaxPages(
+		context.Background(), client, "app-1", "1.2.3", "IOS", 2,
+	)
+	if err == nil || !strings.Contains(err.Error(), "page 3") || !strings.Contains(err.Error(), "2-page safety limit") {
+		t.Fatalf("expected page-limit error for page 3, got %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("requests = %d, want 2 before limit rejection", calls)
+	}
+}
+
 func TestResolveLatestBuildSelectionCarriesEveryEquivalentUploadVersion(t *testing.T) {
 	tests := []struct {
 		name       string

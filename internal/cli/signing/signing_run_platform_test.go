@@ -818,6 +818,30 @@ func TestRemoveSigningRunProfileRefusesReplacement(t *testing.T) {
 	}
 }
 
+func TestRemoveSigningRunProfileSupportsFullInputLimit(t *testing.T) {
+	installDir := t.TempDir()
+	previous := signingRunProfileInstallDirFn
+	signingRunProfileInstallDirFn = func(context.Context) (string, error) { return installDir, nil }
+	t.Cleanup(func() { signingRunProfileInstallDirFn = previous })
+	const uuid = "A7EFEF21-3432-404F-A488-083800B570FF"
+	data := bytes.Repeat([]byte("p"), (8<<20)+1)
+	digestBytes := sha256.Sum256(data)
+	digest := hex.EncodeToString(digestBytes[:])
+
+	installed, err := installSigningRunProfile(context.Background(), uuid, data, digest, func(signingRunProfileInstall) error {
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("installSigningRunProfile() error: %v", err)
+	}
+	if err := removeSigningRunProfile(installed); err != nil {
+		t.Fatalf("removeSigningRunProfile() error for profile above default identity limit: %v", err)
+	}
+	if _, err := os.Stat(installed.Path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("profile stat error = %v, want profile removed", err)
+	}
+}
+
 func TestRemoveSigningRunStagedProfileQuarantinesBeforeRemoval(t *testing.T) {
 	installDir := t.TempDir()
 	path := filepath.Join(installDir, ".asc-signing-run-profile-staged")

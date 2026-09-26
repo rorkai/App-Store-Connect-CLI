@@ -47,7 +47,7 @@ Examples:
 func ExperimentTreatmentsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiment-treatments list", flag.ExitOnError)
 
-	experimentID := fs.String("experiment-id", "", "Experiment ID")
+	experimentID := shared.BindResourceIDFlag(fs, "experiment-id", "appStoreVersionExperiments", "Experiment ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -137,7 +137,7 @@ Examples:
 func ExperimentTreatmentsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiment-treatments view", flag.ExitOnError)
 
-	treatmentID := fs.String("treatment-id", "", "Treatment ID")
+	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -179,7 +179,7 @@ Examples:
 func ExperimentTreatmentsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiment-treatments create", flag.ExitOnError)
 
-	experimentID := fs.String("experiment-id", "", "Experiment ID")
+	experimentID := shared.BindResourceIDFlag(fs, "experiment-id", "appStoreVersionExperiments", "Experiment ID")
 	name := fs.String("name", "", "Treatment name")
 	appIconName := fs.String("app-icon-name", "", "App icon asset name")
 	output := shared.BindOutputFlags(fs)
@@ -230,7 +230,7 @@ Examples:
 func ExperimentTreatmentsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiment-treatments update", flag.ExitOnError)
 
-	treatmentID := fs.String("treatment-id", "", "Treatment ID")
+	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
 	name := fs.String("name", "", "Update treatment name")
 	appIconName := fs.String("app-icon-name", "", "Update app icon asset name")
 	output := shared.BindOutputFlags(fs)
@@ -290,7 +290,7 @@ Examples:
 func ExperimentTreatmentsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiment-treatments delete", flag.ExitOnError)
 
-	treatmentID := fs.String("treatment-id", "", "Treatment ID")
+	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

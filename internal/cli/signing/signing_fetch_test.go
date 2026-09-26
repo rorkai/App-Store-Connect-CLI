@@ -347,6 +347,29 @@ func TestEnsureOutputPathsAreFreeReportsCollisions(t *testing.T) {
 	}
 }
 
+func TestEnsureOutputPathsAreFreeValidatesParentsAndDistinctPaths(t *testing.T) {
+	dir := t.TempDir()
+
+	missingParent := filepath.Join(dir, "missing", "identity.p12")
+	if err := ensureOutputPathsAreFree([]string{missingParent}); err == nil || !strings.Contains(err.Error(), "parent") {
+		t.Fatalf("missing parent error = %v, want parent validation failure", err)
+	}
+
+	parentFile := filepath.Join(dir, "not-a-directory")
+	if err := os.WriteFile(parentFile, []byte("file"), 0o600); err != nil {
+		t.Fatalf("write parent file: %v", err)
+	}
+	nonDirectoryParent := filepath.Join(parentFile, "identity.p12")
+	if err := ensureOutputPathsAreFree([]string{nonDirectoryParent}); err == nil || !strings.Contains(err.Error(), "not a directory") {
+		t.Fatalf("non-directory parent error = %v, want type validation failure", err)
+	}
+
+	duplicate := filepath.Join(dir, "duplicate.p12")
+	if err := ensureOutputPathsAreFree([]string{duplicate, duplicate}); err == nil || !strings.Contains(err.Error(), "distinct") {
+		t.Fatalf("duplicate path error = %v, want distinct-path validation failure", err)
+	}
+}
+
 func TestFindActiveProfilesUseBundleIDRelationship(t *testing.T) {
 	widgetProfileContent := base64.StdEncoding.EncodeToString([]byte("application-identifier=TEAM.com.example.signing.profile.widget"))
 	mainProfileContent := base64.StdEncoding.EncodeToString([]byte("application-identifier=TEAM.com.example.signing.profile"))

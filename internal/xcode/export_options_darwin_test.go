@@ -31,12 +31,65 @@ import (
 	"howett.net/plist"
 )
 
-func TestManualExportOptionsResolverMethodUsesLegacyAdHocProfileClassification(t *testing.T) {
-	if got := manualExportOptionsResolverMethod(exportOptionsMethodReleaseTesting); got != legacyexportoptions.MethodAdHoc {
-		t.Fatalf("release-testing resolver method = %q, want %q", got, legacyexportoptions.MethodAdHoc)
+func TestManualExportOptionsResolverMethodMatchesInstalledProfileClassification(t *testing.T) {
+	appStoreProfile := profileutil.PlistData{"Platform": []any{"iOS"}}
+	adHocProfile := profileutil.PlistData{
+		"Platform":           []any{"iOS"},
+		"ProvisionedDevices": []any{"00008140-000000000000001C"},
+		"Entitlements":       map[string]any{"get-task-allow": false},
 	}
-	if got := manualExportOptionsResolverMethod(exportOptionsMethodAppStoreConnect); got != legacyexportoptions.MethodAppStoreConnect {
-		t.Fatalf("app-store-connect resolver method = %q, want %q", got, legacyexportoptions.MethodAppStoreConnect)
+	tests := []struct {
+		method  string
+		profile profileutil.PlistData
+	}{
+		{method: exportOptionsMethodAppStoreConnect, profile: appStoreProfile},
+		{method: exportOptionsMethodReleaseTesting, profile: adHocProfile},
+	}
+	for _, test := range tests {
+		t.Run(test.method, func(t *testing.T) {
+			certificate := certificateutil.CertificateInfoModel{
+				CommonName: "iPhone Distribution: Example (TEAM123)",
+				TeamID:     "TEAM123",
+				Serial:     "DIST-SERIAL",
+			}
+			installed := profileutil.ProvisioningProfileInfoModel{
+				UUID:                  "PROFILE-UUID",
+				Name:                  "Example Distribution",
+				BundleID:              "com.example.demo",
+				TeamID:                "TEAM123",
+				Type:                  profileutil.ProfileTypeIos,
+				ExportType:            test.profile.GetExportMethod(),
+				ExpirationDate:        time.Now().Add(time.Hour),
+				DeveloperCertificates: []certificateutil.CertificateInfoModel{certificate},
+				Entitlements:          plistutil.PlistData{"com.apple.developer.team-identifier": "TEAM123"},
+			}
+			var group any
+			var groupErr error
+			if _, err := captureBitriseStdout(func() error {
+				resolved, err := exportoptionsgenerator.NewCodeSignGroupProvider(log.NewLogger()).DetermineCodesignGroup(
+					[]certificateutil.CertificateInfoModel{certificate},
+					[]profileutil.ProvisioningProfileInfoModel{installed},
+					nil,
+					map[string]plistutil.PlistData{"com.example.demo": {"com.apple.developer.team-identifier": "TEAM123"}},
+					manualExportOptionsResolverMethod(test.method),
+					"TEAM123",
+					false,
+				)
+				if resolved != nil {
+					group = resolved.BundleIDProfileMap()["com.example.demo"].UUID
+				}
+				groupErr = err
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if groupErr != nil {
+				t.Fatalf("DetermineCodesignGroup() error: %v", groupErr)
+			}
+			if group != "PROFILE-UUID" {
+				t.Fatalf("resolver method %q did not match a profile classified as %q; resolved profile = %v", manualExportOptionsResolverMethod(test.method), installed.ExportType, group)
+			}
+		})
 	}
 }
 
@@ -1428,4 +1481,82 @@ func testInstalledIdentityCertificate(t *testing.T, commonName string) (certific
 		t.Fatal(err)
 	}
 	return certificateutil.NewCertificateInfo(*certificate, nil), pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+}
+
+func TestGenerateManualExportOptionsReportsResolverReasonWhenNoProfileMatches(t *testing.T) {
+	archivePath := writeExportOptionsTestArchive(t, "TEAM123")
+	originalReader := readArchiveExportInfoFn
+	originalGenerator := generateBitriseApplicationExportOptionsFn
+	readArchiveExportInfoFn = func(string) (exportoptionsgenerator.ArchiveInfo, error) {
+		return exportoptionsgenerator.ArchiveInfo{
+			AppBundleID: "com.example.demo",
+			EntitlementsByBundleID: map[string]plistutil.PlistData{
+				"com.example.demo.widget": {},
+				"com.example.demo":        {},
+			},
+		}, nil
+	}
+	generateBitriseApplicationExportOptionsFn = func(exportoptionsgenerator.ArchiveInfo, legacyexportoptions.Method, exportoptionsgenerator.Opts) (legacyexportoptions.ExportOptions, error) {
+		fmt.Fprintln(os.Stdout, "Resolving code signing groups...")
+		fmt.Fprintln(os.Stdout, "\x1b[33;1mNo profile available to sign (com.example.demo) target!\x1b[0m")
+		fmt.Fprintln(os.Stdout, "\x1b[31;1mFailed to find code signing groups\x1b[0m")
+		return legacyexportoptions.NewAppStoreOptions(), nil
+	}
+	t.Cleanup(func() {
+		readArchiveExportInfoFn = originalReader
+		generateBitriseApplicationExportOptionsFn = originalGenerator
+	})
+
+	_, err := generateManualExportOptions(t.Context(), archivePath, "TEAM123", exportOptionsMethodAppStoreConnect)
+	if err == nil {
+		t.Fatal("expected missing profile mapping error")
+	}
+	message := err.Error()
+	for _, want := range []string{
+		"manual export options require provisioning profile mappings",
+		"com.example.demo, com.example.demo.widget",
+		`method "app-store-connect"`,
+		`team "TEAM123"`,
+		"No profile available to sign (com.example.demo) target!",
+		"Failed to find code signing groups",
+		"--export-options",
+	} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("error %q does not contain %q", message, want)
+		}
+	}
+	if strings.Contains(message, "\x1b[") || strings.Contains(message, "Resolving code signing groups") {
+		t.Fatalf("error should contain only sanitized resolver warnings and errors: %q", message)
+	}
+}
+
+func TestGenerateManualExportOptionsReleaseTestingDiagnosticOmitsAppClip(t *testing.T) {
+	archivePath := writeExportOptionsTestArchive(t, "TEAM123")
+	originalReader := readArchiveExportInfoFn
+	originalGenerator := generateBitriseApplicationExportOptionsFn
+	readArchiveExportInfoFn = func(string) (exportoptionsgenerator.ArchiveInfo, error) {
+		return exportoptionsgenerator.ArchiveInfo{
+			AppBundleID:     "com.example.demo",
+			AppClipBundleID: "com.example.demo.clip",
+			EntitlementsByBundleID: map[string]plistutil.PlistData{
+				"com.example.demo":      {},
+				"com.example.demo.clip": {},
+			},
+		}, nil
+	}
+	generateBitriseApplicationExportOptionsFn = func(exportoptionsgenerator.ArchiveInfo, legacyexportoptions.Method, exportoptionsgenerator.Opts) (legacyexportoptions.ExportOptions, error) {
+		return legacyexportoptions.NewNonAppStoreOptions(legacyexportoptions.MethodAdHoc), nil
+	}
+	t.Cleanup(func() {
+		readArchiveExportInfoFn = originalReader
+		generateBitriseApplicationExportOptionsFn = originalGenerator
+	})
+
+	_, err := generateManualExportOptions(t.Context(), archivePath, "TEAM123", exportOptionsMethodReleaseTesting)
+	if err == nil {
+		t.Fatal("expected missing profile mapping error")
+	}
+	if !strings.Contains(err.Error(), "bundle IDs com.example.demo for method") || strings.Contains(err.Error(), "com.example.demo.clip") {
+		t.Fatalf("release-testing diagnostic must list only exported targets, got %q", err.Error())
+	}
 }

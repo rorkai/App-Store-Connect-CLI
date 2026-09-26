@@ -77,6 +77,8 @@ func setGameCenterLeaderboardSetMembers(ctx context.Context, setID string, leade
 func listGameCenterLeaderboardSetMemberIDs(ctx context.Context, setID string, listFn func(context.Context, string, ...GCLeaderboardSetMembersOption) (*GameCenterLeaderboardsResponse, error)) ([]string, error) {
 	ids := make([]string, 0)
 	nextURL := ""
+	page := 1
+	seenNext := make(map[string]struct{})
 
 	for {
 		opts := []GCLeaderboardSetMembersOption{WithGCLeaderboardSetMembersLimit(200)}
@@ -100,6 +102,12 @@ func listGameCenterLeaderboardSetMemberIDs(ctx context.Context, setID string, li
 		if nextURL == "" {
 			break
 		}
+		nextIdentity := PaginationURLIdentity(nextURL)
+		if _, ok := seenNext[nextIdentity]; ok {
+			return nil, fmt.Errorf("page %d: %w", page+1, ErrRepeatedPaginationURL)
+		}
+		seenNext[nextIdentity] = struct{}{}
+		page++
 	}
 
 	return ids, nil

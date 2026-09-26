@@ -598,8 +598,8 @@ func TestIsAPIKeyDownloadRetryable(t *testing.T) {
 	if IsAPIKeyDownloadRetryable(nil) {
 		t.Fatal("expected nil error not to be retryable")
 	}
-	if !IsAPIKeyDownloadRetryable(fmt.Errorf("temporary transport failure")) {
-		t.Fatal("expected generic transport error to be retryable")
+	if IsAPIKeyDownloadRetryable(fmt.Errorf("temporary transport failure")) {
+		t.Fatal("expected generic transport error not to be retryable")
 	}
 	if IsAPIKeyDownloadRetryable(fmt.Errorf("download failed: %w", ErrAPIKeyResponseInvalid)) {
 		t.Fatal("expected invalid download response not to be retryable")

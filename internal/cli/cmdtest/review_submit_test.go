@@ -345,8 +345,12 @@ func TestReviewSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	requests := newRequestLog(20)
+	itemAdded := false
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests.Add(req.Method + " " + req.URL.Path)
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/review-sub-1/items" && !itemAdded {
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/review-sub-1/items"}}`)
+		}
 		if resp, err, ok := respondToFinalReviewSubmissionValidation(req); ok {
 			return resp, err
 		}
@@ -383,10 +387,11 @@ func TestReviewSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 			if req.URL.Query().Get("filter[platform]") != "IOS" {
 				t.Fatalf("expected filter[platform]=IOS, got %q", req.URL.Query().Get("filter[platform]"))
 			}
-			return jsonResponse(http.StatusOK, `{"data":[],"links":{}}`)
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			itemAdded = true
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-sub-1":
 			return jsonResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-04-08T00:00:00Z"}}}`)

@@ -83,6 +83,17 @@ func unwrapRetryableError(err error) error {
 	if err == nil {
 		return nil
 	}
+	// A retry delay that cannot fit the request context is already a terminal
+	// diagnosis. Preserve its terminal marker and retryable provider status for
+	// callers that use the error to cancel queued storefront work, while keeping
+	// the public error text compatible with a direct storefront status failure.
+	if asc.IsRetryDelayExceeded(err) {
+		var statusErr *httpStatusError
+		if errors.As(err, &statusErr) {
+			return &publicRetryDelayExceededError{status: statusErr, cause: err}
+		}
+		return err
+	}
 	// An explicit cancellation is operator intent, not an exhausted storefront
 	// retry. Keep the shared cancellation wrapper so errors.Is still observes
 	// context.Canceled instead of reducing it to Apple's last HTTP status.
@@ -93,6 +104,23 @@ func unwrapRetryableError(err error) error {
 		return retryErr.Err
 	}
 	return err
+}
+
+// publicRetryDelayExceededError exposes both the provider status and the
+// terminal marker of a retry diagnosis. Its Error method
+// intentionally stays the same as the historical storefront status error so
+// direct public reads do not gain internal retry wording.
+type publicRetryDelayExceededError struct {
+	status *httpStatusError
+	cause  error
+}
+
+func (e *publicRetryDelayExceededError) Error() string {
+	return e.status.Error()
+}
+
+func (e *publicRetryDelayExceededError) Unwrap() []error {
+	return []error{e.status, e.cause}
 }
 
 // isRetryablePublicStatus reports whether replaying the request could succeed:

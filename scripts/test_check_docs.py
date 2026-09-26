@@ -327,6 +327,60 @@ class WebsiteCommandChecksTest(unittest.TestCase):
             errors = check_website_commands.collect_errors(website, index)
             self.assertEqual(errors, [])
 
+    def test_website_command_checks_profile_placement(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={"--profile": False, "--debug": True},
+                subcommands={"apps"},
+            ),
+            ("apps",): check_website_commands.CommandSpec(
+                path=("apps",),
+                usage="asc apps list [flags]",
+                flags={"--output": False},
+                subcommands={"list"},
+            ),
+            ("apps", "list"): check_website_commands.CommandSpec(
+                path=("apps", "list"),
+                usage="asc apps list [flags]",
+                flags={"--output": False},
+                subcommands=set(),
+            ),
+            ("search",): check_website_commands.CommandSpec(
+                path=("search",),
+                usage="asc search <query> [flags]",
+                flags={"--output": False},
+                subcommands=set(),
+            ),
+        }
+        index[()] = check_website_commands.CommandSpec(
+            path=(),
+            usage="asc <subcommand> [flags]",
+            flags={"--profile": False, "--debug": True},
+            subcommands={"apps", "search"},
+        )
+        cases = {
+            "asc apps list --profile prod": [],
+            "asc apps list --profile=prod": [],
+            "asc apps --profile prod list --output json": [],
+            "asc apps --profile=list list": [],
+            "asc search QUERY --profile=prod": ["appears after positional arguments"],
+            "asc apps list --profile": ["missing value for flag '--profile'"],
+            "asc apps list --debug": ["must appear before the top-level command"],
+            # A separated value that names a subcommand needs the inline form.
+            "asc apps --profile list": ["names a subcommand of 'apps'"],
+        }
+        for example, expected in cases.items():
+            with self.subTest(example=example):
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    website = Path(tmpdir)
+                    (website / "index.mdx").write_text(f"```bash\n{example}\n```\n")
+                    errors = check_website_commands.collect_errors(website, index)
+                    self.assertEqual(len(errors), len(expected), errors)
+                    for fragment, error in zip(expected, errors):
+                        self.assertIn(fragment, error)
+
     def test_website_command_checks_accept_command_passthrough(self) -> None:
         index = {
             (): check_website_commands.CommandSpec(
@@ -545,7 +599,7 @@ class WebsiteCommandChecksTest(unittest.TestCase):
             (): check_website_commands.CommandSpec(
                 path=(),
                 usage="asc <subcommand> [flags]",
-                flags={"--profile": False},
+                flags={"--strict-auth": True},
                 subcommands={"apps"},
             ),
             ("apps",): check_website_commands.CommandSpec(
@@ -563,7 +617,7 @@ class WebsiteCommandChecksTest(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as tmpdir:
             website = Path(tmpdir)
-            (website / "index.mdx").write_text("```bash\nasc apps list --profile prod\n```\n")
+            (website / "index.mdx").write_text("```bash\nasc apps list --strict-auth\n```\n")
             errors = check_website_commands.collect_errors(website, index)
             self.assertEqual(len(errors), 1)
             self.assertIn("must appear before", errors[0])

@@ -45,7 +45,7 @@ func successfulVersionCreateWarnings(
 ) []shared.SubmitReadinessCreateWarning {
 	succeeded := make(map[string]struct{})
 	for _, action := range actions {
-		if action.Scope != versionDirName || action.Status != "succeeded" || hasRemoteVersionLocalization(remote, action.Locale) {
+		if action.Scope != versionDirName || action.Status != metadataActionStatusSucceeded || action.AlreadyExists || action.reconciledDuplicate || hasRemoteVersionLocalization(remote, action.Locale) {
 			continue
 		}
 		succeeded[action.Locale] = struct{}{}

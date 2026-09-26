@@ -5,6 +5,25 @@
 The `app-tags` command works with the `appTags` resources attached to an app in
 App Store Connect.
 
+
+## API 4.5 territory deprecation
+
+[Apple's API 4.5 release notes](https://developer.apple.com/documentation/appstoreconnectapi/app-store-connect-api-4-5-release-notes)
+deprecate the app-tag `territories` relationship and both territory endpoints.
+Territory-related list parameters are also deprecated. The published OpenAPI
+snapshot still exposes these operations and parameters.
+
+For compatibility, the CLI continues forwarding existing requests and emits
+one warning on stderr per invocation. This includes `list` and `view` territory
+selections, `territories`, `territories-links`, and territory parameters in
+continuation URLs. JSON stdout, pagination, and API errors are unchanged.
+
+Use `asc app-tags list --app "APP_ID"` or `view` without territory selections
+for core tag data. Remove `territories` from `--fields` and omit `--include
+territories`, `--territory-fields`, and `--territory-limit`. Apple does not name
+a replacement for territory lookups in these release notes. Tag linkage IDs
+(`links`) and visibility updates remain supported without a deprecation warning.
+
 Apple describes app tags as glanceable terms that help people quickly
 understand an app or game's essential qualities. They are generated from your
 App Store Connect metadata, AI/LLMs, and human curation, and you choose which
@@ -14,7 +33,7 @@ Each tag resource currently exposes:
 
 * `name` - the label returned by App Store Connect
 * `visibleInAppStore` - whether that tag is currently visible in the storefront
-* `territories` - the storefront territories linked to that tag
+* `territories` - the legacy storefront relationship, deprecated in API 4.5
 
 ## Where They Show Up
 
@@ -31,7 +50,6 @@ Use this command group when you want to answer:
 
 * Which tags are attached to an app?
 * Which of those tags are visible in the App Store?
-* Which territories are linked to a specific tag?
 * Do I need full tag resources or just linkage IDs?
 
 ## Usage
@@ -46,7 +64,6 @@ asc app-tags <subcommand> [flags]
 asc app-tags list --app "APP_ID"
 asc app-tags view --app "APP_ID" --id "TAG_ID"
 asc app-tags update --id "TAG_ID" --visible-in-app-store=false --confirm
-asc app-tags territories --id "TAG_ID"
 asc app-tags links --app "APP_ID"
 ```
 
@@ -55,12 +72,12 @@ asc app-tags links --app "APP_ID"
 * `list` returns full `appTags` resources for an app.
 * `view` returns one full `appTags` resource by tag ID.
 * `update` mutates the tag's `visibleInAppStore` value.
-* `territories` returns full territory resources linked to a tag.
-* `territories-links` returns territory relationship IDs only.
+* `territories` returns full territory resources linked to a tag (deprecated).
+* `territories-links` returns territory relationship IDs only (deprecated).
 * `links` returns app-tag relationship IDs only for an app.
 
 If you are starting from scratch, begin with `list` to discover tag IDs, then
-use `view`, `territories`, or `update` against one specific tag.
+use `view` or `update` against one specific tag.
 
 ## Common Flow
 
@@ -69,7 +86,6 @@ use `view`, `territories`, or `update` against one specific tag.
 ```bash  theme={null}
 asc app-tags list --app "APP_ID"
 asc app-tags list --app "APP_ID" --visible-in-app-store true
-asc app-tags list --app "APP_ID" --include territories --territory-fields currency
 ```
 
 <ParamField path="--app" type="string" required>
@@ -81,16 +97,18 @@ asc app-tags list --app "APP_ID" --include territories --territory-fields curren
 </ParamField>
 
 <ParamField path="--include" type="string">
-  Include related resources. `territories` is the useful value here.
+  Include related resources. The `territories` value is deprecated in API 4.5
+  and emits a warning on stderr.
 </ParamField>
 
 <ParamField path="--territory-fields" type="string">
-  Territory fields to include when `--include territories` is set. Currently:
-  `currency`
+  Deprecated in API 4.5. Selects territory fields when `--include territories`
+  is set; the supported field is `currency`. Emits a warning on stderr.
 </ParamField>
 
 <ParamField path="--territory-limit" type="integer">
-  Maximum included territories per tag when `--include territories` is set
+  Deprecated in API 4.5. Limits included territories per tag when
+  `--include territories` is set. Emits a warning on stderr.
 </ParamField>
 
 <ParamField path="--sort" type="string">
@@ -101,7 +119,6 @@ asc app-tags list --app "APP_ID" --include territories --territory-fields curren
 
 ```bash  theme={null}
 asc app-tags view --app "APP_ID" --id "TAG_ID"
-asc app-tags view --app "APP_ID" --id "TAG_ID" --include territories --territory-fields currency
 ```
 
 Use `view` when you already know the tag ID and want the full resource payload.
@@ -129,16 +146,23 @@ set without deleting the underlying tag resource.
   Required for mutations
 </ParamField>
 
-### 4. Inspect linked territories
+### 4. Legacy territory lookups (deprecated)
+
+These compatibility examples use API 4.5-deprecated territory selectors and
+endpoints. Each invocation emits one deprecation warning on stderr. Omit
+territory selections and lookups in new workflows.
 
 ```bash  theme={null}
+asc app-tags list --app "APP_ID" --include territories --territory-fields currency
+asc app-tags view --app "APP_ID" --id "TAG_ID" --include territories --territory-fields currency
 asc app-tags territories --id "TAG_ID"
 asc app-tags territories --id "TAG_ID" --fields currency
+asc app-tags territories --id "TAG_ID" --paginate
 asc app-tags territories-links --id "TAG_ID"
 ```
 
-Use `territories` for full territory resources and `territories-links` when you
-only need the relationship IDs.
+The legacy `territories` command returns full territory resources;
+`territories-links` returns relationship IDs.
 
 ### 5. Inspect tag linkages for an app
 
@@ -157,7 +181,6 @@ The collection-style subcommands support standard pagination:
 ```bash  theme={null}
 asc app-tags list --app "APP_ID" --paginate
 asc app-tags list --next "<links.next>"
-asc app-tags territories --id "TAG_ID" --paginate
 asc app-tags links --app "APP_ID" --paginate
 ```
 

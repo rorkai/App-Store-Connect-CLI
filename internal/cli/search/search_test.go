@@ -1,10 +1,46 @@
 package search
 
 import (
+	"flag"
 	"slices"
 	"strings"
 	"testing"
 )
+
+func TestParseInterspersedSearchFlagsPreservesErrorPrecedence(t *testing.T) {
+	t.Run("escaped profile query", func(t *testing.T) {
+		fs := flag.NewFlagSet("search", flag.ContinueOnError)
+		fs.Int("limit", defaultLimit, "")
+		args := []string{"--profile", "staging"}
+
+		got, err := parseInterspersedSearchFlags(fs, args)
+		if err != nil || !slices.Equal(got, args) {
+			t.Fatalf("parseInterspersedSearchFlags() = %q, %v, want escaped query unchanged", got, err)
+		}
+	})
+
+	t.Run("earlier invalid value", func(t *testing.T) {
+		fs := flag.NewFlagSet("search", flag.ContinueOnError)
+		fs.Int("limit", defaultLimit, "")
+
+		_, err := parseInterspersedSearchFlags(fs, []string{
+			"query", "--limit", "nope", "--profile", "staging",
+		})
+		if err == nil || !strings.Contains(err.Error(), `invalid value "nope" for --limit`) {
+			t.Fatalf("parseInterspersedSearchFlags() error = %v, want the invalid-limit error", err)
+		}
+	})
+
+	t.Run("misplaced root profile", func(t *testing.T) {
+		fs := flag.NewFlagSet("search", flag.ContinueOnError)
+		fs.Int("limit", defaultLimit, "")
+
+		_, err := parseInterspersedSearchFlags(fs, []string{"query", "--profile", "staging"})
+		if err == nil || err.Error() != "`--profile` must appear before positional arguments" {
+			t.Fatalf("parseInterspersedSearchFlags() error = %v, want the profile-placement error", err)
+		}
+	})
+}
 
 func TestScoreCommandDocSkipsSelfReferentialAliases(t *testing.T) {
 	doc := commandDoc{

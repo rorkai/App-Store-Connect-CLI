@@ -42,8 +42,8 @@ type subscriptionPriceDeriveResolution struct {
 func SubscriptionsPricingDeriveCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("subscriptions pricing derive", flag.ExitOnError)
 
-	sourceSubscriptionID := fs.String("source-subscription-id", "", "Source subscription ID, product ID, or exact current name (required)")
-	targetSubscriptionID := fs.String("target-subscription-id", "", "Target subscription ID, product ID, or exact current name (required)")
+	sourceSubscriptionID := shared.BindResourceIDFlag(fs, "source-subscription-id", "subscriptions", "Source subscription ID, product ID, or exact current name (required)")
+	targetSubscriptionID := shared.BindResourceIDFlag(fs, "target-subscription-id", "subscriptions", "Target subscription ID, product ID, or exact current name (required)")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env; required when either subscription selector is a product ID or name)")
 	multiplier := fs.String("multiplier", "", "Positive decimal multiplied by each source territory price (required)")
 	rounding := fs.String("round", string(subscriptionPriceDeriveNearest), "Price-point resolution: exact, nearest, up, or down")
