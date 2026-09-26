@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/storeassets"
 )
 
 // PushExecutionOptions controls metadata push planning and apply behavior.
@@ -74,10 +76,23 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		return PushPlanResult{}, nil, shared.UsageError(err.Error())
 	}
 
-	localBundle, err := loadLocalMetadata(dirValue, versionValue)
+	clip, previews, cleanup, err := loadStoreAssetInputs(ctx, dirValue, includes)
 	if err != nil {
 		return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 	}
+	defer cleanup()
+	if err := requireConfirmedStoreAssets(opts, clip, previews); err != nil {
+		return PushPlanResult{}, nil, err
+	}
+	localBundle := localMetadataBundle{}
+	if includesScope(includes, includeLocalizations) {
+		localBundle, err = loadLocalMetadataWithAssets(dirValue, versionValue, clip != nil || len(previews) > 0)
+		if err != nil {
+			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
+		}
+	}
+
+	localizationsSelected := includesScope(includes, includeLocalizations) && (len(localBundle.appInfo) > 0 || len(localBundle.version) > 0 || localBundle.defaultAppInfo != nil || localBundle.defaultVersion != nil)
 
 	client, err := shared.GetASCClient()
 	if err != nil {
@@ -100,30 +115,35 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	}
 	versionIDValue := resolvedVersion.id
 	versionStateValue := resolvedVersion.state
-	appInfoIDValue, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (string, error) {
-		return resolveMetadataPushAppInfoID(
-			requestCtx,
-			client,
-			opts.CommandName,
-			resolvedAppID,
-			strings.TrimSpace(opts.AppInfoID),
-			versionValue,
-			platformValue,
-			dirValue,
-			versionStateValue,
-		)
-	})
-	if err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return PushPlanResult{}, nil, err
+	var appInfoIDValue string
+	var remoteAppInfoItems []asc.Resource[asc.AppInfoLocalizationAttributes]
+	if localizationsSelected {
+		appInfoIDValue, err = shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (string, error) {
+			return resolveMetadataPushAppInfoID(
+				requestCtx,
+				client,
+				opts.CommandName,
+				resolvedAppID,
+				strings.TrimSpace(opts.AppInfoID),
+				versionValue,
+				platformValue,
+				dirValue,
+				versionStateValue,
+			)
+		})
+		if err != nil {
+			if errors.Is(err, flag.ErrHelp) {
+				return PushPlanResult{}, nil, err
+			}
+			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 		}
-		return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
+
+		remoteAppInfoItems, err = fetchAppInfoLocalizations(ctx, client, appInfoIDValue)
+		if err != nil {
+			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
+		}
 	}
 
-	remoteAppInfoItems, err := fetchAppInfoLocalizations(ctx, client, appInfoIDValue)
-	if err != nil {
-		return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
-	}
 	remoteVersionItems, err := fetchVersionLocalizations(ctx, client, versionIDValue)
 	if err != nil {
 		return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
@@ -145,6 +165,9 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	}
 
 	remoteVersion := remoteVersionItemsToVersionMap(remoteVersionItems)
+	if !localizationsSelected {
+		remoteVersion = map[string]VersionLocalization{}
+	}
 
 	localAppInfo := applyDefaultAppInfoFallback(localBundle.appInfo, localBundle.defaultAppInfo, remoteAppInfo, opts.AllowDeletes)
 	localVersion := applyDefaultVersionFallback(localBundle.version, localBundle.defaultVersion, remoteVersion, opts.AllowDeletes)
@@ -201,6 +224,12 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		APICalls:  apiCalls,
 	}
 
+	assetPlan, err := storeassets.PrepareImport(ctx, client, resolvedAppID, versionIDValue, clip, previews)
+	if err != nil {
+		return PushPlanResult{}, warnings, fmt.Errorf("%s: %w", errorPrefix, err)
+	}
+	addStoreAssetChanges(&result, assetPlan)
+
 	if strings.TrimSpace(opts.ReviewDir) != "" {
 		if err := VerifyApprovedMetadataPlan(opts, result, opts.ReviewDir); err != nil {
 			return PushPlanResult{}, warnings, err
@@ -220,21 +249,51 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		}
 	}
 
-	actions, applyErr := applyMetadataPlan(
-		ctx,
-		client,
-		appInfoIDValue,
-		versionIDValue,
-		versionValue,
-		localAppInfo,
-		localVersion,
-		remoteAppInfoItems,
-		remoteVersionItems,
-		opts.AllowDeletes,
-	)
+	var actions []ApplyAction
+	var applyErr error
+	if localizationsSelected {
+		actions, applyErr = applyMetadataPlan(
+			ctx,
+			client,
+			appInfoIDValue,
+			versionIDValue,
+			versionValue,
+			localAppInfo,
+			localVersion,
+			remoteAppInfoItems,
+			remoteVersionItems,
+			opts.AllowDeletes,
+		)
+	}
+
 	result.Actions = actions
-	result.Total = len(actions)
-	for _, action := range actions {
+	if applyErr == nil {
+		localeIDs := map[string]string{}
+		for _, item := range remoteVersionItems {
+			localeIDs[item.Attributes.Locale] = item.ID
+		}
+		for _, action := range actions {
+			if action.Scope == versionDirName && action.Status == "succeeded" && action.LocalizationID != "" {
+				localeIDs[action.Locale] = action.LocalizationID
+			}
+		}
+		receipts, assetErr := assetPlan.Apply(ctx, client, localeIDs)
+		appendStoreAssetActions(&result, receipts)
+		if assetErr != nil {
+			applyErr = assetErr
+			hasFailure := false
+			for _, receipt := range receipts {
+				if receipt.Status == "failed" {
+					hasFailure = true
+				}
+			}
+			if !hasFailure {
+				result.Actions = append(result.Actions, ApplyAction{Scope: "store-assets", Action: "apply", Status: "failed", Error: shared.SanitizeTerminal(assetErr.Error())})
+			}
+		}
+	}
+	result.Total = len(result.Actions)
+	for _, action := range result.Actions {
 		if action.Status == "failed" {
 			result.Failed++
 			continue

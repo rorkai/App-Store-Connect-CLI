@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/storeassets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -29,6 +31,9 @@ func MigrateCommand() *ffcli.Command {
 		LongHelp: `Migrate metadata from/to fastlane directory structure.
 
 This enables transitioning from fastlane's deliver tool to asc.
+
+App Preview validation requires ffprobe on PATH (provided by FFmpeg).
+Headers must be PNG at 1800 x 1200; previews are checked for size, dimensions, and duration.
 
 Examples:
   asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane --confirm
@@ -56,7 +61,7 @@ func MigrateImportCommand() *ffcli.Command {
 	versionID := fs.String("version-id", "", "App Store version ID (required unless Deliverfile app_version + platform)")
 	fastlaneDir := fs.String("fastlane-dir", "", "Path to fastlane directory (optional)")
 	dryRun := fs.Bool("dry-run", false, "Preview changes without uploading")
-	confirm := fs.Bool("confirm", false, "Confirm uploading the imported metadata and screenshots (required unless --dry-run)")
+	confirm := fs.Bool("confirm", false, "Confirm uploading the imported metadata, screenshots, and assets (required unless --dry-run)")
 	skipScreenshots := fs.Bool("skip-screenshots", false, "Skip screenshot discovery and upload")
 	skipAppClip := fs.Bool("skip-app-clip", false, "Skip App Clip metadata and header images")
 	skipPreviews := fs.Bool("skip-previews", false, "Skip App Preview videos")
@@ -86,7 +91,10 @@ or conventional metadata/ and screenshots/ directories:
   │   │   ├── release_notes.txt   (Version)
   │   │   ├── promotional_text.txt (Version)
   │   │   ├── support_url.txt     (Version)
-  │   │   └── marketing_url.txt   (Version)
+  │   │   ├── marketing_url.txt   (Version)
+  │   │   └── app_clip/
+  │   │       ├── subtitle.txt
+  │   │       └── header_image.png
   │   ├── review_information/
   │   │   ├── first_name.txt
   │   │   ├── last_name.txt
@@ -96,9 +104,6 @@ or conventional metadata/ and screenshots/ directories:
   │   │   ├── demo_password.txt
   │   │   ├── demo_required.txt
   │   │   └── notes.txt
-  │   │   └── app_clip/
-  │   │       ├── subtitle.txt
-  │   │       └── header_image.png
   │   └── app_clip/action.txt
   ├── app_previews/
   │   └── en-US/
@@ -109,6 +114,9 @@ or conventional metadata/ and screenshots/ directories:
   │   ├── en-US/
   │   │   ├── iphone_65_1.png
   │   │   └── ...
+
+App Preview validation requires ffprobe on PATH (provided by FFmpeg).
+Headers must be PNG at 1800 x 1200; previews must be 15-30 seconds.
 
 Examples:
   asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane --confirm
@@ -198,15 +206,37 @@ Examples:
 				}
 				if present {
 					appClip = &layout
+					defer appClip.Close()
 				}
 			}
 			var previews []PreviewLayout
-			if fastlaneRoot := strings.TrimSpace(*fastlaneDir); fastlaneRoot != "" && !*skipPreviews {
+			fastlaneRoot := strings.TrimSpace(*fastlaneDir)
+			if fastlaneRoot == "" {
+				fastlaneRoot = workDir
+				if inputs.DeliverfilePath != "" {
+					fastlaneRoot = filepath.Dir(inputs.DeliverfilePath)
+				}
+			}
+			if !*skipPreviews {
 				previews, err = readPreviewLayout(fastlaneRoot)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
 			}
+
+			if *skipAppClip {
+				skipped = append(skipped, SkippedItem{Path: filepath.Join(fastlaneRoot, "metadata", "app_clip"), Reason: "skipped by --skip-app-clip"})
+			}
+			if *skipPreviews {
+				skipped = append(skipped, SkippedItem{Path: filepath.Join(fastlaneRoot, "app_previews"), Reason: "skipped by --skip-previews"})
+			}
+
+			defer storeassets.ClosePreviews(previews)
+			cleanupAssets, err := storeassets.Validate(ctx, appClip, previews)
+			if err != nil {
+				return fmt.Errorf("migrate import: %w", err)
+			}
+			defer cleanupAssets()
 
 			var screenshotPlan []ScreenshotPlan
 			var skippedScreenshots []SkippedItem
@@ -220,6 +250,26 @@ Examples:
 			}
 
 			locales := collectLocales(localizations, appInfoLocs, screenshotPlan)
+			localeSet := map[string]bool{}
+			for _, locale := range locales {
+				localeSet[locale] = true
+			}
+			if appClip != nil {
+				for locale := range appClip.Subtitles {
+					localeSet[locale] = true
+				}
+				for locale := range appClip.HeaderImages {
+					localeSet[locale] = true
+				}
+			}
+			for _, preview := range previews {
+				localeSet[preview.Locale] = true
+			}
+			locales = locales[:0]
+			for locale := range localeSet {
+				locales = append(locales, locale)
+			}
+			sort.Strings(locales)
 			metadataFiles := buildMetadataFilePlans(localizations)
 			appInfoFiles := buildAppInfoFilePlans(appInfoLocs)
 
@@ -307,8 +357,12 @@ Examples:
 				return fmt.Errorf("migrate import: %w", err)
 			}
 
+			assetPlan, err := storeassets.PrepareImport(ctx, client, resolvedAppID, resolvedVersionID, appClip, previews)
+			if err != nil {
+				return fmt.Errorf("migrate import: %w", err)
+			}
 			localeToID := make(map[string]string)
-			if len(localizations) > 0 || len(screenshotPlan) > 0 {
+			if len(localizations) > 0 || len(screenshotPlan) > 0 || len(previews) > 0 {
 				existingCtx, cancelExisting := migrateRequestContext(ctx)
 				existingLocs, err := fetchVersionLocalizationsForPlan(existingCtx, client, strings.TrimSpace(resolvedVersionID))
 				cancelExisting()
@@ -344,10 +398,13 @@ Examples:
 			completedStages := make([]string, 0, 4)
 			var createWarnings []shared.SubmitReadinessCreateWarning
 			reportPartialFailure := func(stage string, failure error) error {
-				if !migrateImportAppliedAnything(result) {
+				if !migrateImportAppliedAnything(result) && stage != "store_assets" {
 					return failure
 				}
 				result.Status = migratePartialStatus
+				if !migrateImportAppliedAnything(result) {
+					result.Status = "failed"
+				}
 				result.FailureStage = stage
 				result.Failure = shared.SanitizeTerminal(failure.Error())
 				result.CompletedStages = append([]string(nil), completedStages...)
@@ -400,6 +457,11 @@ Examples:
 				completedStages = append(completedStages, migrateStageScreenshots)
 			}
 
+			result.AssetResults, err = assetPlan.Apply(ctx, client, localeToID)
+			if err != nil {
+				return reportPartialFailure("store_assets", err)
+			}
+
 			shared.WarnIncludeSensitive(os.Stderr, *includeSensitive)
 			if err := printMigrateOutput(presentableImportResult(result, *includeSensitive), *output.Output, *output.Pretty); err != nil {
 				return err
@@ -415,6 +477,11 @@ Examples:
 func migrateImportAppliedAnything(result *MigrateImportResult) bool {
 	if result == nil {
 		return false
+	}
+	for _, item := range result.AssetResults {
+		if item.PreviousDeleted || (item.Status == "applied" || (item.ID != "" && (item.Action == "upload" || item.Action == "create"))) {
+			return true
+		}
 	}
 	return len(result.Uploaded) > 0 ||
 		len(result.AppInfoUploaded) > 0 ||
@@ -509,6 +576,14 @@ Examples:
 				return fmt.Errorf("migrate export: %w", err)
 			}
 
+			assetPlan, assetWarnings, err := storeassets.ExportPlan(ctx, client, strings.TrimSpace(*versionID), "metadata", true, true)
+			if err != nil {
+				return fmt.Errorf("migrate export: %w", err)
+			}
+			for _, warning := range assetWarnings {
+				fmt.Fprintln(os.Stderr, "Warning: "+warning)
+			}
+
 			// Create output directory structure beneath the operator-selected root
 			root, err := newMigrateExportRoot(*outputDir)
 			if err != nil {
@@ -591,13 +666,24 @@ Examples:
 				}
 			}
 
+			assetFiles, exportErr := storeassets.WriteExport(ctx, root, assetPlan, true)
+			totalFiles += len(assetFiles)
 			result := &MigrateExportResult{
 				VersionID:  strings.TrimSpace(*versionID),
 				OutputDir:  *outputDir,
 				Locales:    exported,
 				TotalFiles: totalFiles,
+				AssetFiles: assetFiles,
 			}
 
+			if exportErr != nil {
+				result.Status = "partial"
+				result.Failure = shared.SanitizeTerminal(exportErr.Error())
+				if printErr := printMigrateOutput(result, *output.Output, *output.Pretty); printErr != nil {
+					return errors.Join(exportErr, printErr)
+				}
+				return fmt.Errorf("migrate export: %w", exportErr)
+			}
 			return printMigrateOutput(result, *output.Output, *output.Pretty)
 		},
 	}
@@ -663,6 +749,7 @@ const (
 
 // MigrateImportResult is the result of a migrate import operation.
 type MigrateImportResult struct {
+	AssetResults         []asc.StoreAssetResult        `json:"assetResults,omitempty"`
 	DryRun               bool                          `json:"dryRun"`
 	Status               string                        `json:"status,omitempty"`
 	FailureStage         string                        `json:"failureStage,omitempty"`
@@ -691,6 +778,9 @@ type MigrateImportResult struct {
 
 // MigrateExportResult is the result of a migrate export operation.
 type MigrateExportResult struct {
+	Status     string   `json:"status,omitempty"`
+	Failure    string   `json:"failure,omitempty"`
+	AssetFiles []string `json:"assetFiles,omitempty"`
 	VersionID  string   `json:"versionId"`
 	OutputDir  string   `json:"outputDir"`
 	Locales    []string `json:"locales"`
@@ -960,7 +1050,7 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			continue
 		}
 
-		if dirName == "review_information" || dirName == "default" {
+		if dirName == "review_information" || dirName == "default" || dirName == "app_clip" {
 			continue // Skip special directories
 		}
 
@@ -1025,6 +1115,31 @@ func readFastlaneMetadataFromLocaleDirs(metadataDir string, localeDirs []fastlan
 			*field.field = value
 		}
 
+		// A locale introduced only for App Clip files is not a request to
+		// create or patch an ordinary App Store version localization.
+		directory, err := root.OpenDir(filepath.Join(prefix, ld.DirName))
+		if err != nil {
+			return nil, err
+		}
+		entries, readErr := directory.ReadDir(-1)
+		directory.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		hasClip, hasVersionFile := false, false
+		for _, entry := range entries {
+			if entry.Name() == "app_clip" {
+				hasClip = true
+			}
+			for _, field := range fields {
+				if entry.Name() == field.file {
+					hasVersionFile = true
+				}
+			}
+		}
+		if hasClip && !hasVersionFile {
+			continue
+		}
 		localizations = append(localizations, loc)
 	}
 	return localizations, nil
@@ -1150,13 +1265,29 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("migrate validate: %w", err)
 				}
-				if _, _, err := readAppClipLayout(metadataDir); err != nil {
+
+			}
+			var clip *AppClipLayout
+			if metadataDir != "" {
+				layout, present, err := readAppClipLayout(metadataDir)
+				if err != nil {
 					return fmt.Errorf("migrate validate: %w", err)
 				}
+				if present {
+					clip = &layout
+					defer clip.Close()
+				}
 			}
-			if _, err := readPreviewLayout(*fastlaneDir); err != nil {
+			previews, err := readPreviewLayout(*fastlaneDir)
+			if err != nil {
 				return fmt.Errorf("migrate validate: %w", err)
 			}
+			defer storeassets.ClosePreviews(previews)
+			cleanup, err := storeassets.Validate(ctx, clip, previews)
+			if err != nil {
+				return fmt.Errorf("migrate validate: %w", err)
+			}
+			defer cleanup()
 
 			// Validate and collect issues
 			var issues []ValidationIssue

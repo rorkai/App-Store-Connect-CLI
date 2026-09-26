@@ -1200,3 +1200,6 @@ func waitForPreviewDelivery(ctx context.Context, client *asc.Client, previewID s
 		return resp.Data.Attributes.AssetDeliveryState, nil
 	})
 }
+
+// ValidPreviewFrameTimeCode reports whether a timecode matches the upload contract.
+func ValidPreviewFrameTimeCode(tc string) bool { return isValidPreviewFrameTimeCode(tc) }
