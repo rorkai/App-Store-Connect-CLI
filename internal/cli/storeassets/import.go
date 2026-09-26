@@ -40,6 +40,7 @@ type PreviewLayout struct {
 // experience and resolves missing-target ambiguity before any mutation.
 type ImportPlan struct {
 	previewGroups map[string]*previewGroup
+	headerMatches map[string]bool
 	Clip          *AppClipLayout
 	Previews      []PreviewLayout
 	Experience    asc.Resource[asc.AppClipDefaultExperienceAttributes]
@@ -50,7 +51,7 @@ type ImportPlan struct {
 }
 
 func PrepareImport(ctx context.Context, client *asc.Client, appID, versionID string, clip *AppClipLayout, previews []PreviewLayout) (*ImportPlan, error) {
-	plan := &ImportPlan{Clip: clip, Previews: previews, VersionID: versionID, Localizations: map[string]asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes]{}, Headers: map[string]asc.Resource[asc.AppClipHeaderImageAttributes]{}}
+	plan := &ImportPlan{headerMatches: map[string]bool{}, Clip: clip, Previews: previews, VersionID: versionID, Localizations: map[string]asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes]{}, Headers: map[string]asc.Resource[asc.AppClipHeaderImageAttributes]{}}
 	if clip == nil {
 		return preparePreviews(ctx, client, plan)
 	}
@@ -88,6 +89,8 @@ func PrepareImport(ctx context.Context, client *asc.Client, appID, versionID str
 		if loc.ID == "" {
 			continue
 		}
+		// Absence is also an expected target state and must be rechecked before writes.
+		plan.Headers[locale] = asc.Resource[asc.AppClipHeaderImageAttributes]{}
 		header, err := request(ctx, func(c context.Context) (*asc.AppClipHeaderImageResponse, error) {
 			return client.GetAppClipDefaultExperienceLocalizationHeaderImage(c, loc.ID)
 		})
@@ -96,12 +99,32 @@ func PrepareImport(ctx context.Context, client *asc.Client, appID, versionID str
 		}
 		if header != nil {
 			plan.Headers[locale] = header.Data
+			current := header.Data
+			matches := current.ID != "" && strings.EqualFold(current.Attributes.SourceFileChecksum, clip.headerChecksums[locale])
+			asset := current.Attributes.ImageAsset
+			// Missing template/dimensions mean delivery is unavailable. Invalid
+			// URLs and failures fetching an available rendition still fail closed.
+			deliveryAvailable := asset != nil && strings.TrimSpace(asset.TemplateURL) != "" && asset.Width > 0 && asset.Height > 0
+			if !matches && current.ID != "" && deliveryAvailable {
+				mediaURL, err := assets.ResolveImageAssetDownloadURL(asset, "header_image.png")
+				if err != nil {
+					return nil, fmt.Errorf("app clip header %s has an invalid delivery URL (URL omitted)", current.ID)
+				}
+				matches, err = matchesDeliveredMedia(ctx, clip.stagedHeaders[locale], mediaURL, 1<<30)
+				if err != nil {
+					return nil, fmt.Errorf("verify delivered App Clip header %s: %w", current.ID, err)
+				}
+			}
+			plan.headerMatches[locale] = matches
 		}
 	}
 	return preparePreviews(ctx, client, plan)
 }
 
 func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID map[string]string) ([]asc.StoreAssetResult, error) {
+	if err := p.checkHeaderTargets(ctx, client); err != nil {
+		return nil, err
+	}
 	if err := p.checkPreviewMatches(ctx, client); err != nil {
 		return nil, err
 	}
@@ -188,6 +211,10 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 			}
 			if path := p.Clip.HeaderImages[locale]; path != "" {
 				current := p.Headers[locale]
+				if p.headerMatches[locale] {
+					record("app_clip_header", locale, path, current.ID, "skip", nil)
+					continue
+				}
 				id, action, deleted, err := uploadHeader(ctx, client, locID, p.Clip.stagedHeaders[locale], current)
 				record("app_clip_header", locale, path, id, action, err)
 				if deleted {

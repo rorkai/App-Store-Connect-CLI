@@ -53,6 +53,9 @@ and [default App Clip requirements](https://developer.apple.com/help/app-store-c
 
 Export downloads Apple's delivered media. Those renditions are not guaranteed to
 be byte-identical to the original uploaded files.
+Imports compare an existing App Clip header with its delivered PNG when the
+source checksum differs and delivery is available. Unchanged exported headers
+keep their existing ID; edited headers still replace the old image.
 
 For canonical JSON metadata, opt into the same asset folders with
 `asc metadata pull --include localizations,app-clip,previews` and

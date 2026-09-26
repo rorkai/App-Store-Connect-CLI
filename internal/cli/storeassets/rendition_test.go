@@ -26,7 +26,7 @@ func TestDeliveredPreviewComparisonBoundsUnknownLength(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusOK, Body: body, ContentLength: -1, Header: http.Header{}}, nil
 	})}
 	t.Cleanup(func() { http.DefaultClient = previous })
-	match, err := matchesDeliveredPreview(context.Background(), path, "https://media.example/video")
+	match, err := matchesDeliveredMedia(context.Background(), path, "https://media.example/video", maxPreviewBytes)
 	if err != nil || match {
 		t.Fatalf("match=%v err=%v", match, err)
 	}

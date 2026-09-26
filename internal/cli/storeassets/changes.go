@@ -39,7 +39,7 @@ func (p *ImportPlan) Changes() []asc.StoreAssetChange {
 			if p.Clip.HeaderImages[locale] != "" {
 				current := p.Headers[locale]
 				checksum := p.Clip.headerChecksums[locale]
-				if current.ID == "" || !strings.EqualFold(current.Attributes.SourceFileChecksum, checksum) {
+				if current.ID == "" || (!p.headerMatches[locale] && !strings.EqualFold(current.Attributes.SourceFileChecksum, checksum)) {
 					action := "upload"
 					if current.ID != "" {
 						action = "replace"

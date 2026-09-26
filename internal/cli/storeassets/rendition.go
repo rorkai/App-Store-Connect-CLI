@@ -42,7 +42,7 @@ func resolvePreviewMatch(ctx context.Context, client *asc.Client, preview *Previ
 			}
 			mediaURL = strings.TrimSpace(detail.Data.Attributes.VideoURL)
 		}
-		match, err := matchesDeliveredPreview(ctx, preview.stagedPath, mediaURL)
+		match, err := matchesDeliveredMedia(ctx, preview.stagedPath, mediaURL, maxPreviewBytes)
 		if err != nil {
 			return fmt.Errorf("verify delivered preview %s: %w", item.ID, err)
 		}
@@ -88,7 +88,7 @@ func (p *ImportPlan) checkPreviewMatches(ctx context.Context, client *asc.Client
 
 // Stream at most the staged size plus one sentinel byte, never materializing a
 // remote file. Both digests and lengths must agree; local edits remain uploads.
-func matchesDeliveredPreview(ctx context.Context, stagedPath, mediaURL string) (bool, error) {
+func matchesDeliveredMedia(ctx context.Context, stagedPath, mediaURL string, maxBytes int64) (bool, error) {
 	root, err := rootfs.New(filepath.Dir(stagedPath))
 	if err != nil {
 		return false, err
@@ -103,18 +103,18 @@ func matchesDeliveredPreview(ctx context.Context, stagedPath, mediaURL string) (
 	if err != nil {
 		return false, err
 	}
-	if !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > maxPreviewBytes {
-		return false, fmt.Errorf("preview comparison requires a nonempty regular file of at most %d bytes", maxPreviewBytes)
+	if !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > maxBytes {
+		return false, fmt.Errorf("media comparison requires a nonempty regular file of at most %d bytes", maxBytes)
 	}
 	parsed, err := url.Parse(mediaURL)
 	if err != nil || !validPreviewMediaURL(parsed) {
-		return false, fmt.Errorf("preview has no valid HTTP media URL")
+		return false, fmt.Errorf("asset has no valid HTTP media URL")
 	}
 	bounded, cancel := shared.ContextWithUploadTimeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
 	req, err := http.NewRequestWithContext(bounded, http.MethodGet, mediaURL, nil)
 	if err != nil {
-		return false, fmt.Errorf("cannot request delivered preview (URL omitted)")
+		return false, fmt.Errorf("cannot request delivered media (URL omitted)")
 	}
 	req.Header.Set("Accept", "*/*")
 	client := *http.DefaultClient
@@ -131,19 +131,19 @@ func matchesDeliveredPreview(ctx context.Context, stagedPath, mediaURL string) (
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("delivered preview request failed (URL omitted)")
+		return false, fmt.Errorf("delivered media request failed (URL omitted)")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return false, fmt.Errorf("delivered preview request returned HTTP %d", resp.StatusCode)
+		return false, fmt.Errorf("delivered media request returned HTTP %d", resp.StatusCode)
 	}
-	if resp.ContentLength > maxPreviewBytes {
-		return false, fmt.Errorf("delivered preview exceeds %d bytes", maxPreviewBytes)
+	if resp.ContentLength > maxBytes {
+		return false, fmt.Errorf("delivered media exceeds %d bytes", maxBytes)
 	}
 	remoteHash := sha256.New()
 	n, err := io.Copy(remoteHash, io.LimitReader(resp.Body, info.Size()+1))
 	if err != nil {
-		return false, fmt.Errorf("delivered preview read failed (URL omitted)")
+		return false, fmt.Errorf("delivered media read failed (URL omitted)")
 	}
 	if n != info.Size() {
 		return false, nil
