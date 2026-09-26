@@ -37,11 +37,12 @@ type AgeRatingDeclarationAttributes struct {
 	ViolenceRealisticProlongedGraphicOrSadistic *string `json:"violenceRealisticProlongedGraphicOrSadistic,omitempty"`
 
 	// Age rating overrides and metadata
-	KidsAgeBand               *string `json:"kidsAgeBand,omitempty"`
-	AgeRatingOverride         *string `json:"ageRatingOverride,omitempty"`
-	AgeRatingOverrideV2       *string `json:"ageRatingOverrideV2,omitempty"`
-	KoreaAgeRatingOverride    *string `json:"koreaAgeRatingOverride,omitempty"`
-	DeveloperAgeRatingInfoURL *string `json:"developerAgeRatingInfoUrl,omitempty"`
+	KidsAgeBand                    *string         `json:"kidsAgeBand,omitempty"`
+	AgeRatingOverride              *string         `json:"ageRatingOverride,omitempty"`
+	AgeRatingOverrideV2            *string         `json:"ageRatingOverrideV2,omitempty"`
+	GracRatingClassificationNumber *NullableString `json:"gracRatingClassificationNumber,omitempty"`
+	KoreaAgeRatingOverride         *string         `json:"koreaAgeRatingOverride,omitempty"`
+	DeveloperAgeRatingInfoURL      *string         `json:"developerAgeRatingInfoUrl,omitempty"`
 
 	// Deprecated fields (kept for backward compatibility with older API responses)
 	SeventeenPlus *bool `json:"seventeenPlus,omitempty"`

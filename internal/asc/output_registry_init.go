@@ -228,6 +228,8 @@ func registerAllOutputRenderers() {
 	registerRowsWithSingleResourceAdapter(buildUploadsRows)
 	registerRows(buildsNextBuildNumberRows)
 	registerRows(dsymDownloadResultRows)
+	registerRows(artifactIPAInfoRows)
+	registerRows(artifactPKGInfoRows)
 	registerRows(buildWaitResultRows)
 	registerRows(xcodeJUnitResultRows)
 	registerRows(xcodeTestDestinationsRows)

@@ -235,13 +235,13 @@ available with a deprecation warning.
 
 <ParamField path="--age-rating-fields" type="string">
   Sparse fields for the included age-rating declaration:
-  `socialMedia`, `socialMediaAgeRestricted`. Automatically includes
-  `ageRatingDeclaration`.
+  `socialMedia`, `socialMediaAgeRestricted`, `gracRatingClassificationNumber`.
+  Automatically includes `ageRatingDeclaration`.
 </ParamField>
 
 ```bash  theme={null}
 asc apps info list --app "APP_ID" --fields kidsAgeBand
-asc apps info list --app "APP_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted
+asc apps info list --app "APP_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted,gracRatingClassificationNumber
 ```
 
 <Note>

@@ -99,8 +99,8 @@ func TestAppTagsListOutputAndQueryOptions(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if stderr != "Warning: App-tag territories are deprecated in API 4.5; remove territory selections and lookups. Requests are still forwarded for compatibility.\n" {
+		t.Fatalf("expected one deprecation warning, got %q", stderr)
 	}
 
 	var out struct {
@@ -439,8 +439,8 @@ func TestAppTagsListPaginateWithFiltersUsesQueryOptions(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if stderr != "Warning: App-tag territories are deprecated in API 4.5; remove territory selections and lookups. Requests are still forwarded for compatibility.\n" {
+		t.Fatalf("expected one deprecation warning, got %q", stderr)
 	}
 	if !strings.Contains(stdout, `"id":"tag-page-1"`) || !strings.Contains(stdout, `"id":"tag-page-2"`) {
 		t.Fatalf("expected both paginated tags in output, got %q", stdout)

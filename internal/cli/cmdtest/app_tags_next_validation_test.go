@@ -128,8 +128,12 @@ func runAppTagsPaginateFromNext(
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	wantStderr := ""
+	if len(argsPrefix) > 1 && (argsPrefix[1] == "territories" || argsPrefix[1] == "territories-links") {
+		wantStderr = "Warning: App-tag territories are deprecated in API 4.5; remove territory selections and lookups. Requests are still forwarded for compatibility.\n"
+	}
+	if stderr != wantStderr {
+		t.Fatalf("stderr=%q, want %q", stderr, wantStderr)
 	}
 	for _, id := range wantIDs {
 		needle := `"id":"` + id + `"`
