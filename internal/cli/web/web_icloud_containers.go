@@ -164,9 +164,6 @@ func WebICloudContainersCreateCommand() *ffcli.Command {
 	identifier := fs.String("identifier", "", "iCloud container identifier (for example iCloud.com.example.app)")
 	name := fs.String("name", "", "Container display name")
 	confirm := fs.Bool("confirm", false, "Confirm creation")
-	_ = bindWebSessionFlags(fs)
-	_ = bindDeveloperPortalFlags(fs)
-	_ = shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -200,7 +197,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			fmt.Fprintln(os.Stderr, "Error: web icloud-containers create is not available: no accepted write request has been captured")
-			return errors.New("web icloud-containers create is not available: no accepted write request has been captured")
+			return shared.NewReportedError(errors.New("web icloud-containers create is not available: no accepted write request has been captured"))
 		},
 	}
 }
