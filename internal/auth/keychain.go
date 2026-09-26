@@ -282,7 +282,10 @@ func ValidateKeyFile(path string) error {
 }
 
 func validateKeyFileForOS(path, goos string) error {
-	file, err := os.Open(path)
+	if info, err := os.Lstat(path); err == nil && info.IsDir() {
+		return newPrivateKeyError(PrivateKeyInvalidFormat, errors.New("private key path is a directory"))
+	}
+	file, err := rootfs.OpenFile(path)
 	if err != nil {
 		return newPrivateKeyError(privateKeyAccessErrorKind(err), fmt.Errorf("failed to open key file: %w", err))
 	}
@@ -291,9 +294,6 @@ func validateKeyFileForOS(path, goos string) error {
 	info, err := file.Stat()
 	if err != nil {
 		return newPrivateKeyError(privateKeyAccessErrorKind(err), fmt.Errorf("failed to stat key file: %w", err))
-	}
-	if info.IsDir() {
-		return newPrivateKeyError(PrivateKeyInvalidFormat, errors.New("private key path is a directory"))
 	}
 	if filePermissionsTooPermissiveForOS(info.Mode(), goos) {
 		if command, safe := FilePermissionRemediationCommand(path); safe {
@@ -337,9 +337,17 @@ func validateKeyFileForOS(path, goos string) error {
 
 // LoadPrivateKey loads the private key from the file
 func LoadPrivateKey(path string) (*ecdsa.PrivateKey, error) {
-	data, err := os.ReadFile(path)
+	file, err := rootfs.OpenFile(path)
 	if err != nil {
 		return nil, newPrivateKeyError(privateKeyAccessErrorKind(err), fmt.Errorf("failed to read key file: %w", err))
+	}
+	data, readErr := io.ReadAll(file)
+	closeErr := file.Close()
+	if readErr != nil {
+		return nil, newPrivateKeyError(privateKeyAccessErrorKind(readErr), fmt.Errorf("failed to read key file: %w", readErr))
+	}
+	if closeErr != nil {
+		return nil, newPrivateKeyError(privateKeyAccessErrorKind(closeErr), fmt.Errorf("failed to close key file: %w", closeErr))
 	}
 	return LoadPrivateKeyFromPEM(data)
 }
@@ -742,9 +750,17 @@ func loadPrivateKeyPEMForStorage(path string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
-	data, err := os.ReadFile(path)
+	file, err := rootfs.OpenFile(path)
 	if err != nil {
 		return "", err
+	}
+	data, readErr := io.ReadAll(file)
+	closeErr := file.Close()
+	if readErr != nil {
+		return "", readErr
+	}
+	if closeErr != nil {
+		return "", closeErr
 	}
 	return string(data), nil
 }
@@ -916,10 +932,13 @@ func resolveMigrationPrivateKeyDir(raw, configPath string) (string, error) {
 func migrationPrivateKeyPath(cred Credential, privateKeyDir string, configName string) (string, bool, error) {
 	currentPath := cred.PrivateKeyPath
 	if currentPath != "" {
-		info, err := os.Stat(currentPath)
+		if info, err := os.Lstat(currentPath); err == nil && info.IsDir() {
+			return "", false, fmt.Errorf("profile %q private key path is a directory: %s", cred.Name, currentPath)
+		}
+		file, err := rootfs.OpenFile(currentPath)
 		if err == nil {
-			if info.IsDir() {
-				return "", false, fmt.Errorf("profile %q private key path is a directory: %s", cred.Name, currentPath)
+			if closeErr := file.Close(); closeErr != nil {
+				return "", false, fmt.Errorf("profile %q private key file could not be closed: %w", cred.Name, closeErr)
 			}
 			return currentPath, false, nil
 		}

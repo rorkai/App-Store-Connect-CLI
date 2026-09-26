@@ -28,6 +28,8 @@ func subscriptionFieldsList() []string {
 		"name",
 		"productId",
 		"familySharable",
+		"marketSettings",
+		"multiSeatStatus",
 		"state",
 		"subscriptionPeriod",
 		"reviewNote",

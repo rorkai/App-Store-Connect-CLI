@@ -109,6 +109,33 @@ func TestWriteAndCount_EmptyContent(t *testing.T) {
 	}
 }
 
+func TestWriteAndCount_EmptyContentRemovesExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.txt")
+	if err := os.WriteFile(path, []byte("obsolete\n"), 0o644); err != nil {
+		t.Fatalf("write stale file: %v", err)
+	}
+
+	count, err := writeAndCount(mustMigrateRoot(t, dir), "test.txt", "")
+	if err != nil {
+		t.Fatalf("writeAndCount() error: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("writeAndCount() = %d, want 0", count)
+	}
+	if runtime.GOOS == "windows" {
+		if got, err := os.ReadFile(path); err != nil {
+			t.Fatalf("read stale file: %v", err)
+		} else if string(got) != "obsolete\n" {
+			t.Fatalf("stale file = %q, want unchanged", got)
+		}
+		return
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("stale file still exists, stat error = %v", err)
+	}
+}
+
 func TestWriteAndCount_WritesContent(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.txt")

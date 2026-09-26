@@ -127,7 +127,7 @@ Examples:
 func PromotedPurchasesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	id := fs.String("promoted-purchase-id", "", "Promoted purchase ID")
+	id := shared.BindResourceIDFlag(fs, "promoted-purchase-id", "promotedPurchases", "Promoted purchase ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -275,7 +275,7 @@ Examples:
 func PromotedPurchasesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	id := fs.String("promoted-purchase-id", "", "Promoted purchase ID")
+	id := shared.BindResourceIDFlag(fs, "promoted-purchase-id", "promotedPurchases", "Promoted purchase ID")
 	var visibleForAllUsers shared.OptionalBool
 	fs.Var(&visibleForAllUsers, "visible-for-all-users", "Visible for all users: true or false")
 	var enabled shared.OptionalBool
@@ -336,7 +336,7 @@ Examples:
 func PromotedPurchasesDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	id := fs.String("promoted-purchase-id", "", "Promoted purchase ID")
+	id := shared.BindResourceIDFlag(fs, "promoted-purchase-id", "promotedPurchases", "Promoted purchase ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

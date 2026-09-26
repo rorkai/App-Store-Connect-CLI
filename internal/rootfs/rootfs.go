@@ -640,7 +640,21 @@ func OpenFile(path string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return root.OpenFile(relative)
+	file, openErr := root.OpenFile(relative)
+	closeErr := root.Close()
+	if openErr != nil || closeErr != nil {
+		if file != nil {
+			closeErr = errors.Join(closeErr, file.Close())
+		}
+		if openErr == nil {
+			return nil, closeErr
+		}
+		if closeErr == nil {
+			return nil, openErr
+		}
+		return nil, errors.Join(openErr, closeErr)
+	}
+	return file, nil
 }
 
 // CheckContainedPath verifies an operator-supplied path through the same

@@ -199,6 +199,9 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 			missingLocales = append(missingLocales, item.Locale)
 		}
 	}
+	if cfg.SingleLocale && len(missingLocales) == 1 {
+		return zero, screenshotVersionLocalizationLocaleError(cfg.VersionID, missingLocales[0], localizationsResp.Data)
+	}
 	if len(missingLocales) > 0 {
 		sort.Strings(missingLocales)
 		return zero, fmt.Errorf("no matching App Store version localizations found for locales: %s", strings.Join(missingLocales, ", "))

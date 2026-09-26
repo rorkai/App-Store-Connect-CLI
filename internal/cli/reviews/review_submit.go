@@ -34,8 +34,8 @@ func ReviewSubmitCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	version := fs.String("version", "", "App Store version string")
-	versionID := fs.String("version-id", "", "App Store version ID")
-	buildID := fs.String("build-id", "", "Build ID to attach")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to attach")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required unless --dry-run)")
 	dryRun := fs.Bool("dry-run", false, "Preview the review submission flow without mutating")

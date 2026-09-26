@@ -191,6 +191,40 @@ func TestMigrateExportRefusesSymlinkedDestinationFile(t *testing.T) {
 	}
 }
 
+func TestMigrateExportEmptyContentRefusesSymlinkedDestinationFile(t *testing.T) {
+	outputDir := t.TempDir()
+	sentinelPath := filepath.Join(t.TempDir(), "sentinel.txt")
+	writeMigrateContainmentFile(t, sentinelPath, "original")
+
+	localeDir := filepath.Join(outputDir, "metadata", "en-US")
+	if err := os.MkdirAll(localeDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	destination := filepath.Join(localeDir, "description.txt")
+	if err := os.Symlink(sentinelPath, destination); err != nil {
+		t.Fatalf("Symlink() error = %v", err)
+	}
+
+	root, err := newMigrateExportRoot(outputDir)
+	if err != nil {
+		t.Fatalf("newMigrateExportRoot() error = %v", err)
+	}
+	defer root.Close()
+	written, err := writeAndCount(root, filepath.Join("metadata", "en-US", "description.txt"), "")
+	if err == nil {
+		t.Fatal("writeAndCount() error = nil, want symlink rejection")
+	}
+	if written != 0 {
+		t.Fatalf("writeAndCount() = %d, want 0", written)
+	}
+	if _, err := os.Lstat(destination); err != nil {
+		t.Fatalf("destination after refusal: %v", err)
+	}
+	if got := readMigrateContainmentFile(t, sentinelPath); got != "original" {
+		t.Fatalf("sentinel content = %q, want %q", got, "original")
+	}
+}
+
 func TestMigrateExportRejectsTraversingLocale(t *testing.T) {
 	outputDir := t.TempDir()
 	root, err := newMigrateExportRoot(outputDir)

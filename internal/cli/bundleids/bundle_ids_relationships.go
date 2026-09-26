@@ -41,7 +41,7 @@ Examples:
 func BundleIDsAppGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	id := fs.String("id", "", "Bundle ID")
+	id := shared.BindResourceIDFlag(fs, "id", "bundleIds", "Bundle ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -106,7 +106,7 @@ Examples:
 func BundleIDsProfilesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	id := fs.String("id", "", "Bundle ID")
+	id := shared.BindResourceIDFlag(fs, "id", "bundleIds", "Bundle ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

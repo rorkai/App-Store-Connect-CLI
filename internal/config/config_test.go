@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -452,5 +453,66 @@ func TestLoadAtRejectsMaxDelayBelowBaseDelay(t *testing.T) {
 	}
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
+	}
+}
+
+func TestLoadAtRejectsSpecialFileWithoutReadingIt(t *testing.T) {
+	info, err := os.Lstat(os.DevNull)
+	if err != nil {
+		t.Fatalf("Lstat(%q) error: %v", os.DevNull, err)
+	}
+	if info.Mode().IsRegular() {
+		t.Skipf("%s is a regular file on this platform", os.DevNull)
+	}
+
+	_, err = LoadAt(os.DevNull)
+	if err == nil {
+		t.Fatal("expected special-file rejection, got nil")
+	}
+	if !strings.Contains(err.Error(), "not a regular file") {
+		t.Fatalf("LoadAt(%q) error = %v, want regular-file rejection", os.DevNull, err)
+	}
+}
+
+func TestLoadAtRejectsSymlinkWithoutFollowingIt(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.json")
+	link := filepath.Join(dir, "config.json")
+	if err := os.WriteFile(target, []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("WriteFile(target) error: %v", err)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	_, err := LoadAt(link)
+	if err == nil {
+		t.Fatal("expected symlink rejection, got nil")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("LoadAt(%q) error = %v, want symlink rejection", link, err)
+	}
+}
+
+func TestLoadAtRejectsSymlinkedParentWithoutFollowingIt(t *testing.T) {
+	dir := t.TempDir()
+	targetDir := filepath.Join(dir, "target")
+	if err := os.Mkdir(targetDir, 0o700); err != nil {
+		t.Fatalf("Mkdir(target) error: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(targetDir, "config.json"), []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("WriteFile(target config) error: %v", err)
+	}
+	linkDir := filepath.Join(dir, "linked")
+	if err := os.Symlink(targetDir, linkDir); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	_, err := LoadAt(filepath.Join(linkDir, "config.json"))
+	if err == nil {
+		t.Fatal("expected symlinked-parent rejection, got nil")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("LoadAt() error = %v, want symlink rejection", err)
 	}
 }

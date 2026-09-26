@@ -41,7 +41,7 @@ var (
 		return shared.ResolveAppIDWithLookup(ctx, client, appID)
 	}
 	waitForPublishBuildProcessingFn = func(ctx context.Context, client *asc.Client, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
-		return client.WaitForBuildProcessing(ctx, buildID, pollInterval)
+		return shared.WaitForBuildProcessingWithDetails(ctx, client, "", buildID, pollInterval)
 	}
 	applyPublishVersionMetadataFn = applyPublishVersionMetadata
 )

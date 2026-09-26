@@ -25,7 +25,8 @@ asc <subcommand> [flags]
 
 - `--api-debug` - Enable HTTP debug logging to stderr (redacts sensitive values)
 - `--debug` - Enable debug logging to stderr
-- `--profile` - Use named authentication profile
+- `--profile` - Use named authentication profile (accepted before or after the command name)
+- `--read-only` - Refuse every mutating request (POST/PATCH/PUT/DELETE) before it is sent; ASC_READ_ONLY=1 has the same effect (default: false)
 - `--report` - Report format for CI output (e.g., junit)
 - `--report-file` - Path to write CI report file
 - `--retry-log` - Enable retry logging to stderr (overrides ASC_RETRY_LOG/config when set)
@@ -146,6 +147,7 @@ asc <subcommand> [flags]
 - `version` - Print version information and exit.
 - `completion` - Print shell completion scripts.
 - `schema` - Inspect App Store Connect API endpoint schemas at runtime.
+- `api` - Send an authenticated raw request to the App Store Connect API.
 - `telemetry` - Manage CLI telemetry settings.
 
 ## Scripting Tips
@@ -155,6 +157,7 @@ asc <subcommand> [flags]
 - Use `--output json` for explicit machine-readable output.
 - Use `--paginate` on list commands to fetch all pages automatically.
 - Use `--limit` and `--next` for manual pagination control.
+- Any flag that takes a value accepts `@env:NAME` or `@file:PATH` to read it from the environment or a file; escape a literal leading `@` as `@@`. `--output` and the root `--profile`, `--report`, and `--report-file` are always read literally.
 - Prefer explicit flags and deterministic outputs in CI scripts.
 
 ## High-Signal Examples
@@ -189,6 +192,12 @@ ASC_BYPASS_KEYCHAIN=1 asc notarization validate --file ./MyApp.dmg --output json
 
 # Run local Xcode tests with structured results
 asc xcode test --project App.xcodeproj --scheme App --destination 'platform=iOS Simulator,name=iPhone 17 Pro' --output json
+
+# List local Xcode test destinations without changing Simulator state
+asc xcode test-destinations --platform iOS --available-only --output json
+
+# Convert an existing Xcode result bundle to JUnit
+asc xcode test junit --xcresult ./Test.xcresult --report-file ./junit.xml --output json
 
 # Plan, confirm, resume, check status, and live-verify a private ad hoc distribution run
 asc distribute plan --archive-path ./App.xcarchive --config .asc/distribution.json --plan .asc/distribution/plan.json --state-dir .asc/distribution/runs --output json

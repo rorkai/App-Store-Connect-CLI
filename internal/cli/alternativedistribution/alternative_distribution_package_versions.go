@@ -46,7 +46,7 @@ Examples:
 func AlternativeDistributionPackageVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	packageID := fs.String("package-id", "", "Alternative distribution package ID")
+	packageID := shared.BindResourceIDFlag(fs, "package-id", "alternativeDistributionPackages", "Alternative distribution package ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -120,7 +120,7 @@ Examples:
 func AlternativeDistributionPackageVersionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Alternative distribution package version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "alternativeDistributionPackageVersions", "Alternative distribution package version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -162,7 +162,7 @@ Examples:
 func AlternativeDistributionPackageVersionsDeltasCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("deltas", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Alternative distribution package version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "alternativeDistributionPackageVersions", "Alternative distribution package version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -236,7 +236,7 @@ Examples:
 func AlternativeDistributionPackageVersionsVariantsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("variants", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Alternative distribution package version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "alternativeDistributionPackageVersions", "Alternative distribution package version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

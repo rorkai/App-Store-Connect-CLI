@@ -115,7 +115,7 @@ Examples:
 func AlternativeDistributionDomainsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	domainID := fs.String("domain-id", "", "Alternative distribution domain ID")
+	domainID := shared.BindResourceIDFlag(fs, "domain-id", "alternativeDistributionDomains", "Alternative distribution domain ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -206,7 +206,7 @@ Examples:
 func AlternativeDistributionDomainsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	domainID := fs.String("domain-id", "", "Alternative distribution domain ID")
+	domainID := shared.BindResourceIDFlag(fs, "domain-id", "alternativeDistributionDomains", "Alternative distribution domain ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

@@ -73,7 +73,7 @@ func IAPPricesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("summary", flag.ExitOnError)
 
 	appID := fs.String("app", "", iapLookupAppUsage)
-	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	territory := fs.String("territory", "", "Territory filter (accepts alpha-2, alpha-3, or exact English country name)")
 	output := shared.BindOutputFlags(fs)
 

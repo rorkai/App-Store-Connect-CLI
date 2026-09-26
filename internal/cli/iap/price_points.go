@@ -43,7 +43,7 @@ Examples:
 func IAPPricePointsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points list", flag.ExitOnError)
 
-	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	appID := addIAPLookupAppFlag(fs)
 	territory := fs.String("territory", "", "Territory input (accepts alpha-2, alpha-3, or exact English country name)")
 	price := fs.String("price", "", "Filter by exact customer price (e.g., 4.99)")

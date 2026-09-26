@@ -55,9 +55,9 @@ Examples:
 func AppsInfoViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps info view", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	infoID := fs.String("info-id", "", "App Info ID (optional override)")
-	versionID := fs.String("version-id", "", "App Store version ID (optional override)")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
+	infoID := shared.BindResourceIDFlag(fs, "info-id", "appInfos", "App Info ID (optional override)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional override)")
 	version := fs.String("version", "", "App Store version string (optional)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (required with --version)")
 	state := fs.String("state", "", "Filter by app store state(s), comma-separated")
@@ -66,7 +66,7 @@ func AppsInfoViewCommand() *ffcli.Command {
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	include := fs.String("include", "", "Include related resources: "+strings.Join(appInfoIncludeList(), ", "))
-	fields := fs.String("fields", "", "Sparse app info fields: kidsAgeBand (deprecated by Apple; prefer asc age-rating view)")
+	fields := fs.String("fields", "", "Sparse app info fields: kidsAgeBand (deprecated; removed from API 4.5; prefer asc age-rating view)")
 	ageRatingFields := fs.String("age-rating-fields", "", "Sparse fields for included age rating declaration: socialMedia, socialMediaAgeRestricted")
 	output := shared.BindOutputFlags(fs)
 
@@ -170,6 +170,8 @@ Examples:
 				}
 			}
 
+			shared.WarnDeprecatedAppInfoFields(fieldValues, "")
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("apps info view: %w", err)
@@ -249,8 +251,8 @@ Examples:
 func AppsInfoEditCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps info edit", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	versionID := fs.String("version-id", "", "App Store version ID (optional override)")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional override)")
 	version := fs.String("version", "", "App Store version string (optional)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (required with --version)")
 	state := fs.String("state", "", "Filter by app store state(s), comma-separated")

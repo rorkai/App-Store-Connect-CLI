@@ -76,7 +76,7 @@ func buildSubscriptionsPricingSummaryCommand(
 	fs := flag.NewFlagSet(name, flag.ExitOnError)
 
 	appID := fs.String("app", "", subscriptionLookupAppUsage)
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	territory := fs.String("territory", "USA", "Territory for pricing (accepts alpha-2, alpha-3, or exact English country name)")
 	output := shared.BindOutputFlags(fs)
 

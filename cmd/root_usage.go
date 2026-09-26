@@ -70,7 +70,7 @@ var rootUsageGroups = []rootCommandGroup{
 	},
 	{
 		title:    "UTILITY COMMANDS",
-		commands: []string{"system-status", "diff", "capabilities", "search", "snitch", "version", "completion", "schema", "telemetry"},
+		commands: []string{"system-status", "diff", "capabilities", "search", "snitch", "version", "completion", "schema", "api", "telemetry"},
 	},
 }
 

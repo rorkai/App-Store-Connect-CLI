@@ -21,7 +21,7 @@ func TestEncryptionDeclarationsExemptDeclare_RejectsPositionalArgs(t *testing.T)
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "encryption declarations exempt-declare does not accept positional arguments") {
+	if !strings.Contains(stderr, `unexpected argument "extra"`) {
 		t.Fatalf("expected positional-args error, got %q", stderr)
 	}
 }

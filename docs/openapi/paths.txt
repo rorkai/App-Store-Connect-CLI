@@ -334,6 +334,7 @@ GET /v1/apps/{id}/inAppPurchasesV2
 GET /v1/apps/{id}/marketplaceSearchDetail
 GET /v1/apps/{id}/metrics/betaTesterUsages
 GET /v1/apps/{id}/perfPowerMetrics
+GET /v1/apps/{id}/performanceOverviews
 GET /v1/apps/{id}/preReleaseVersions
 GET /v1/apps/{id}/promotedPurchases
 GET /v1/apps/{id}/relationships/accessibilityDeclarations
@@ -593,6 +594,7 @@ GET /v1/gameCenterChallenges/{id}/versions
 GET /v1/gameCenterDetails/{id}
 GET /v1/gameCenterDetails/{id}/achievementReleases
 GET /v1/gameCenterDetails/{id}/activityReleases
+GET /v1/gameCenterDetails/{id}/blockedPlayers
 GET /v1/gameCenterDetails/{id}/challengeReleases
 GET /v1/gameCenterDetails/{id}/gameCenterAchievements
 GET /v1/gameCenterDetails/{id}/gameCenterAchievementsV2
@@ -610,6 +612,7 @@ GET /v1/gameCenterDetails/{id}/metrics/classicMatchmakingRequests
 GET /v1/gameCenterDetails/{id}/metrics/ruleBasedMatchmakingRequests
 GET /v1/gameCenterDetails/{id}/relationships/achievementReleases
 GET /v1/gameCenterDetails/{id}/relationships/activityReleases
+GET /v1/gameCenterDetails/{id}/relationships/blockedPlayers
 GET /v1/gameCenterDetails/{id}/relationships/challengeReleases
 GET /v1/gameCenterDetails/{id}/relationships/gameCenterAchievements
 GET /v1/gameCenterDetails/{id}/relationships/gameCenterAchievementsV2
@@ -895,6 +898,8 @@ GET /v2/gameCenterLeaderboardVersions/{id}
 GET /v2/gameCenterLeaderboardVersions/{id}/localizations
 GET /v2/gameCenterLeaderboardVersions/{id}/relationships/localizations
 GET /v2/gameCenterLeaderboards/{id}
+GET /v2/gameCenterLeaderboards/{id}/gameCenterScoreModerations
+GET /v2/gameCenterLeaderboards/{id}/relationships/gameCenterScoreModerations
 GET /v2/gameCenterLeaderboards/{id}/relationships/versions
 GET /v2/gameCenterLeaderboards/{id}/versions
 GET /v2/inAppPurchaseImages/{id}
@@ -998,6 +1003,7 @@ PATCH /v1/gameCenterChallengeLocalizations/{id}
 PATCH /v1/gameCenterChallenges/{id}
 PATCH /v1/gameCenterChallenges/{id}/relationships/leaderboard
 PATCH /v1/gameCenterChallenges/{id}/relationships/leaderboardV2
+PATCH /v1/gameCenterDetailPlayers/{id}
 PATCH /v1/gameCenterDetails/{id}
 PATCH /v1/gameCenterDetails/{id}/relationships/challengesMinimumPlatformVersions
 PATCH /v1/gameCenterDetails/{id}/relationships/gameCenterAchievements
@@ -1030,6 +1036,7 @@ PATCH /v1/gameCenterMatchmakingQueues/{id}
 PATCH /v1/gameCenterMatchmakingRuleSets/{id}
 PATCH /v1/gameCenterMatchmakingRules/{id}
 PATCH /v1/gameCenterMatchmakingTeams/{id}
+PATCH /v1/gameCenterScoreModerations/{id}
 PATCH /v1/inAppPurchaseAppStoreReviewScreenshots/{id}
 PATCH /v1/inAppPurchaseImages/{id}
 PATCH /v1/inAppPurchaseLocalizations/{id}

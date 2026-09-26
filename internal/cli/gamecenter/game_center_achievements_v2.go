@@ -47,7 +47,7 @@ func GameCenterAchievementsV2ListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	groupID := fs.String("group-id", "", "Game Center group ID")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -166,7 +166,7 @@ Examples:
 func GameCenterAchievementVersionsV2ListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	achievementID := fs.String("achievement-id", "", "Game Center achievement ID")
+	achievementID := shared.BindResourceIDFlag(fs, "achievement-id", "gameCenterAchievements", "Game Center achievement ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -283,7 +283,7 @@ Examples:
 func GameCenterAchievementVersionsV2CreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	achievementID := fs.String("achievement-id", "", "Game Center achievement ID")
+	achievementID := shared.BindResourceIDFlag(fs, "achievement-id", "gameCenterAchievements", "Game Center achievement ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -353,7 +353,7 @@ Examples:
 func GameCenterAchievementLocalizationsV2ListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Game Center achievement version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterAchievementVersions", "Game Center achievement version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -470,7 +470,7 @@ Examples:
 func GameCenterAchievementLocalizationsV2CreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Game Center achievement version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterAchievementVersions", "Game Center achievement version ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
 	name := fs.String("name", "", "Achievement name")
 	beforeEarned := fs.String("before-earned-description", "", "Description shown before earning")
@@ -695,7 +695,7 @@ Examples:
 func GameCenterAchievementImagesV2UploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("upload", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Game Center achievement localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
 	filePath := fs.String("file", "", "Path to the image file to upload")
 	output := shared.BindOutputFlags(fs)
 
@@ -747,7 +747,7 @@ func GameCenterAchievementImagesV2GetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Game Center achievement image ID")
-	localizationID := fs.String("localization-id", "", "Game Center achievement localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

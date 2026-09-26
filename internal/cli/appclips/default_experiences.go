@@ -52,7 +52,7 @@ Examples:
 func AppClipDefaultExperiencesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	appClipID := fs.String("app-clip-id", "", "App Clip ID")
+	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -135,7 +135,7 @@ Examples:
 func AppClipDefaultExperiencesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Default experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	include := fs.String("include", "", "Include relationships: "+strings.Join(appClipDefaultExperienceIncludeList(), ", "))
 	output := shared.BindOutputFlags(fs)
 
@@ -183,10 +183,10 @@ Examples:
 func AppClipDefaultExperiencesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	appClipID := fs.String("app-clip-id", "", "App Clip ID")
+	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
 	action := fs.String("action", "", "Action (OPEN, VIEW, PLAY)")
-	releaseVersionID := fs.String("release-version-id", "", "Release with App Store version ID")
-	templateID := fs.String("template-id", "", "Existing default experience ID to use as a template")
+	releaseVersionID := shared.BindResourceIDFlag(fs, "release-version-id", "appStoreVersions", "Release with App Store version ID")
+	templateID := shared.BindResourceIDFlag(fs, "template-id", "appClipDefaultExperiences", "Existing default experience ID to use as a template")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -254,9 +254,9 @@ Examples:
 func AppClipDefaultExperiencesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Default experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	action := fs.String("action", "", "Action (OPEN, VIEW, PLAY)")
-	releaseVersionID := fs.String("release-version-id", "", "Release with App Store version ID")
+	releaseVersionID := shared.BindResourceIDFlag(fs, "release-version-id", "appStoreVersions", "Release with App Store version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -320,7 +320,7 @@ Examples:
 func AppClipDefaultExperiencesDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Default experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
@@ -371,7 +371,7 @@ Examples:
 func AppClipDefaultExperienceReviewDetailCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-detail", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Default experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -413,7 +413,7 @@ Examples:
 func AppClipDefaultExperienceReleaseWithAppStoreVersionCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("release-with-app-store-version", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Default experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

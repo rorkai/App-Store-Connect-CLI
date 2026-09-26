@@ -35,6 +35,31 @@ type XcodeTestResult struct {
 	ExitStatus       *int              `json:"exitStatus,omitempty"`
 }
 
+// XcodeJUnitResult is the receipt for converting an existing xcresult to JUnit.
+type XcodeJUnitResult struct {
+	XCResult   string `json:"xcresult"`
+	ReportFile string `json:"reportFile"`
+	Tests      int    `json:"tests"`
+	Passed     int    `json:"passed"`
+	Failures   int    `json:"failures"`
+	Skipped    int    `json:"skipped"`
+}
+
+// XcodeTestDestination is one destination string for asc xcode test --destination.
+type XcodeTestDestination struct {
+	Name              string `json:"name"`
+	UDID              string `json:"udid,omitempty"`
+	Runtime           string `json:"runtime"`
+	State             string `json:"state"`
+	DestinationString string `json:"destinationString"`
+	Available         bool   `json:"available"`
+}
+
+// XcodeTestDestinationsResult lists local destinations without mutating Simulator state.
+type XcodeTestDestinationsResult struct {
+	Destinations []XcodeTestDestination `json:"destinations"`
+}
+
 // XcodeTestSummary is the structured test aggregate in an Xcode result
 // receipt.
 type XcodeTestSummary struct {
@@ -172,6 +197,40 @@ func formatXcodeTestFailure(failure XcodeTestFailure) string {
 		return identifier
 	}
 	return identifier + ": " + message
+}
+
+func xcodeJUnitResultRows(result *XcodeJUnitResult) ([]string, [][]string) {
+	headers := []string{"XCResult", "Report", "Tests", "Passed", "Failures", "Skipped"}
+	if result == nil {
+		return headers, nil
+	}
+	return headers, [][]string{{
+		result.XCResult,
+		result.ReportFile,
+		strconv.Itoa(result.Tests),
+		strconv.Itoa(result.Passed),
+		strconv.Itoa(result.Failures),
+		strconv.Itoa(result.Skipped),
+	}}
+}
+
+func xcodeTestDestinationsRows(result *XcodeTestDestinationsResult) ([]string, [][]string) {
+	headers := []string{"Name", "UDID", "Runtime", "State", "Destination", "Available"}
+	if result == nil {
+		return headers, nil
+	}
+	rows := make([][]string, 0, len(result.Destinations))
+	for _, destination := range result.Destinations {
+		rows = append(rows, []string{
+			destination.Name,
+			destination.UDID,
+			destination.Runtime,
+			destination.State,
+			destination.DestinationString,
+			strconv.FormatBool(destination.Available),
+		})
+	}
+	return headers, rows
 }
 
 func truncateUTF8ToBytes(value string, maxBytes int) string {

@@ -17,7 +17,7 @@ import (
 func AppEventsRelationshipsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("links", flag.ExitOnError)
 
-	eventID := fs.String("event-id", "", "App event ID")
+	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

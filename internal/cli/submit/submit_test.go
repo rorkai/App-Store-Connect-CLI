@@ -339,7 +339,8 @@ func TestSubmitStatusCommand_ByVersionIDUsesReviewSubmissionsForCurrentSubmissio
 							}
 						}
 					}
-				]
+				],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions"}
 			}`)
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
@@ -422,7 +423,7 @@ func TestSubmitStatusCommand_ByVersionIDFallsBackToLegacyRelationshipAndVersionS
 				}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
-			return submitJSONResponse(http.StatusOK, `{"data":[]}`)
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-123/reviewSubmissions"}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
 			return submitJSONResponse(http.StatusOK, `{
 				"data": {
@@ -757,7 +758,7 @@ func TestSubmitCancelCommand_ByVersionIDAttemptsReviewCancelThenFallsBackToLegac
 			}`)
 		// Modern: find review submissions for app — return empty (no active submission)
 		case req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/reviewSubmissions"):
-			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`)
 		// Legacy: version submission lookup
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
 			return submitJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-submission-123"}}`)
@@ -835,8 +836,9 @@ func TestSubmitCancelCommand_ByVersionIDIgnoresStaleEnvAppIDForModernLookup(t *t
 							"data": {"type": "appStoreVersions", "id": "version-123"}
 						}
 					}
-				}]
-			}`)
+					}],
+					"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}
+				}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
 			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-123"}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/wrong-app/reviewSubmissions":
@@ -1028,7 +1030,8 @@ func TestSubmitCancelCommand_ByVersionIDVersionLookupErrorFallsBackToExplicitApp
 							"data": {"type": "appStoreVersions", "id": "version-lookup-error"}
 						}
 					}
-				}]
+				}],
+				"links": {"self": "/v1/apps/app-123/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
 			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-123"}}`)
@@ -1248,7 +1251,8 @@ func TestSubmitCancelCommand_ByVersionIDTreatsCancelingModernSubmissionAsSuccess
 							"data": {"type": "appStoreVersions", "id": "version-123"}
 						}
 					}
-				}]
+				}],
+				"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
 			t.Fatalf("did not expect cancel attempt for already CANCELING submission")
@@ -1322,7 +1326,8 @@ func TestSubmitCancelCommand_ByVersionIDModernConflictSurfacesModernError(t *tes
 							"data": {"type": "appStoreVersions", "id": "version-123"}
 						}
 					}
-				}]
+				}],
+				"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
 			return submitJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
@@ -1387,7 +1392,8 @@ func TestSubmitCancelCommand_ByVersionIDModernConflictRefreshesCancelingStateToS
 							"data": {"type": "appStoreVersions", "id": "version-123"}
 						}
 					}
-				}]
+				}],
+				"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
 			return submitJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
@@ -1530,7 +1536,7 @@ func TestSubmitCancelCommand_ByVersionIDLegacyForbiddenSurfacesError(t *testing.
 				}
 			}`)
 		case req.Method == http.MethodGet && path == "/v1/apps/app-1/reviewSubmissions":
-			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}}`)
 		case req.Method == http.MethodGet && path == "/v1/appStoreVersions/version-forbidden/appStoreVersionSubmission":
 			return submitJSONResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden"}]}`)
 		default:
@@ -1595,8 +1601,9 @@ func TestSubmitCancelCommand_ByVersionIDIgnoresHistoricalCompleteReviewSubmissio
 							"data": {"type": "appStoreVersions", "id": "version-123"}
 						}
 					}
-				}]
-			}`)
+					}],
+					"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}
+				}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
 			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
 		default:
@@ -1739,7 +1746,8 @@ func TestFindReviewSubmissionForVersion_FallsBackToSubmissionItems(t *testing.T)
 							"state": "READY_FOR_REVIEW"
 						}
 					}
-				]
+				],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/review-submission-123/items":
 			if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got != "appStoreVersion" {
@@ -1762,7 +1770,8 @@ func TestFindReviewSubmissionForVersion_FallsBackToSubmissionItems(t *testing.T)
 							}
 						}
 					}
-				]
+				],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/review-submission-123/items"}
 			}`)
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
@@ -1821,7 +1830,8 @@ func TestFindReviewSubmissionForVersion_ContinuesAfterPerSubmissionLookupErrors(
 							}
 						}
 					}
-				]
+				],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/broken-submission/items":
 			return submitJSONResponse(http.StatusForbidden, `{
@@ -1887,7 +1897,8 @@ func TestFindReviewSubmissionForVersion_PrefersCurrentSubmissionOverHistoricalMa
 							}
 						}
 					}
-				]
+				],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions"}
 			}`)
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
@@ -1920,7 +1931,8 @@ func TestFindReviewSubmissionForVersion_PropagatesUnexpectedLookupErrors(t *test
 							"state": "WAITING_FOR_REVIEW"
 						}
 					}
-				]
+				],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/broken-submission/items":
 			return submitJSONResponse(http.StatusInternalServerError, `{
@@ -2172,7 +2184,8 @@ func TestPrepareReviewSubmissionForCreateSkipsMixedTargetVersionSubmission(t *te
 							"data": {"type": "appStoreVersions", "id": "version-1"}
 						}
 					}
-				}]
+				}],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/mixed-submission/items":
 			if got := req.URL.Query().Get("limit"); got != "200" {
@@ -2193,8 +2206,9 @@ func TestPrepareReviewSubmissionForCreateSkipsMixedTargetVersionSubmission(t *te
 						"type": "reviewSubmissionItems",
 						"id": "other-item"
 					}
-				]
-			}`)
+					],
+					"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/mixed-submission/items"}
+				}`)
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 		}
@@ -2251,10 +2265,11 @@ func TestPrepareReviewSubmissionForCreateTreatsEmptyItemsAsMissingVersion(t *tes
 							"data": {"type": "appStoreVersions", "id": "version-1"}
 						}
 					}
-				}]
-			}`)
+					}],
+					"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}
+				}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/empty-items-submission/items":
-			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/empty-items-submission/items"}}`)
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 		}
@@ -2295,6 +2310,7 @@ func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testi
 			return submitJSONResponse(http.StatusOK, `{
 				"data": [],
 				"links": {
+					"self": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions",
 					"next": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=page-2"
 				}
 			}`)
@@ -2313,7 +2329,7 @@ func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testi
 						}
 					}
 				}],
-				"links": {}
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-submission/items":
 			return submitJSONResponse(http.StatusOK, `{
@@ -2325,7 +2341,8 @@ func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testi
 							"data": {"type": "appStoreVersions", "id": "version-1"}
 						}
 					}
-				}]
+				}],
+				"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/existing-submission/items"}
 			}`)
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())

@@ -189,7 +189,7 @@ Examples:
 func PassTypeIDsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	passTypeID := fs.String("pass-type-id", "", "Pass type ID")
+	passTypeID := shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass type ID")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(passTypeIDFieldsList(), ", "))
 	certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(passTypeIDIncludeList(), ", "))
@@ -325,7 +325,7 @@ Examples:
 func PassTypeIDsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	passTypeID := fs.String("pass-type-id", "", "Pass type ID")
+	passTypeID := shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass type ID")
 	name := fs.String("name", "", "Pass type name")
 	output := shared.BindOutputFlags(fs)
 
@@ -376,7 +376,7 @@ Examples:
 func PassTypeIDsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	passTypeID := fs.String("pass-type-id", "", "Pass type ID")
+	passTypeID := shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass type ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

@@ -25,6 +25,7 @@ func LocalizationsCreateCommand() *ffcli.Command {
 	promotionalText := fs.String("promotional-text", "", "Promotional text")
 	supportURL := fs.String("support-url", "", "Support URL")
 	marketingURL := fs.String("marketing-url", "", "Marketing URL")
+	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -48,7 +49,16 @@ Examples:
   asc localizations create --version "VERSION_ID" --locale "ja"
   asc localizations create --version "VERSION_ID" --locale "ar-SA" --description "Arabic app" --keywords "arabic,productivity"
   asc localizations create --version "VERSION_ID" --locale "zh-Hans" --description "Simplified Chinese app" --keywords "simplified,chinese"
-  asc localizations create --version "VERSION_ID" --locale "de-DE" --description "Meine App" --support-url "https://example.com/support"`,
+  asc localizations create --version "VERSION_ID" --locale "de-DE" --description "Meine App" --support-url "https://example.com/support"
+  asc localizations create --version "VERSION_ID" --locale "ja" --description "日本語" --if-exists update
+
+--if-exists controls what happens when App Store Connect answers 409 because
+the locale already exists on that version. fail (default) returns the error.
+skip reads the existing localization back, prints it unchanged, and exits 0.
+update applies the same fields to the existing localization with
+PATCH /v1/appStoreVersionLocalizations/{id}; when no metadata field was
+supplied there is nothing to apply, so update behaves like skip. Any other
+409 keeps failing.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -73,6 +83,11 @@ Examples:
 			}
 			localeValue = normalizedLocale
 
+			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
+			if err != nil {
+				return err
+			}
+
 			attrs := asc.AppStoreVersionLocalizationAttributes{
 				Locale:          localeValue,
 				Description:     strings.TrimSpace(*description),
@@ -95,21 +110,56 @@ Examples:
 			defer cancel()
 
 			resp, err := client.CreateAppStoreVersionLocalization(requestCtx, vid, attrs)
+			created := err == nil
 			if err != nil {
-				return fmt.Errorf("localizations create: failed to create: %w", err)
+				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, localizationsCreateExistsCodes, func() (*asc.AppStoreVersionLocalizationResponse, bool, error) {
+					return findExistingVersionLocalization(requestCtx, client, vid, localeValue)
+				})
+				if resolveErr != nil {
+					return fmt.Errorf("localizations create: failed to create: %w", resolveErr)
+				}
+				if !handled {
+					return fmt.Errorf("localizations create: failed to create: %w", err)
+				}
+				outcome := "left unchanged"
+				if ifExistsMode == shared.IfExistsUpdate && hasUpdatableVersionLocalizationFields(attrs) {
+					updated, updateErr := client.UpdateAppStoreVersionLocalization(requestCtx, existing.Data.ID, attrs)
+					if updateErr != nil {
+						return fmt.Errorf("localizations create: update existing localization %s: %w", existing.Data.ID, updateErr)
+					}
+					resp = updated
+					outcome = "updated it in place"
+				} else {
+					// The collection item found by the read-back is not Apple's
+					// single-resource envelope, so re-read the localization by ID
+					// and print Apple's own response unmodified.
+					detail, detailErr := client.GetAppStoreVersionLocalization(requestCtx, existing.Data.ID)
+					if detailErr != nil {
+						return fmt.Errorf("localizations create: read existing localization %s: %w", existing.Data.ID, detailErr)
+					}
+					resp = detail
+				}
+				fmt.Fprintf(os.Stderr, "localizations create: locale %s already exists on version %s as %s; %s (--if-exists %s)\n",
+					localeValue, vid, existing.Data.ID, outcome, ifExistsMode)
 			}
 
+			// The create-readiness warning describes a locale that was just
+			// created from these attributes. When --if-exists resolved a
+			// duplicate, nothing was created and the existing localization may
+			// already carry the omitted fields, so the warning would be wrong.
 			submitOpts := shared.SubmitReadinessOptions{}
 			var submitWarningLookupErr error
-			if strings.TrimSpace(attrs.WhatsNew) == "" {
+			if created && strings.TrimSpace(attrs.WhatsNew) == "" {
 				submitOpts, submitWarningLookupErr = shared.ResolveSubmitReadinessOptionsForVersion(requestCtx, client, vid, "", "")
 				if submitWarningLookupErr != nil {
 					submitOpts = shared.SubmitReadinessOptions{}
 				}
 			}
 			warnings := make([]shared.SubmitReadinessCreateWarning, 0, 1)
-			if warning, ok := shared.SubmitReadinessCreateWarningForLocaleWithOptions(localeValue, attrs, shared.SubmitReadinessCreateModeApplied, submitOpts); ok {
-				warnings = append(warnings, warning)
+			if created {
+				if warning, ok := shared.SubmitReadinessCreateWarningForLocaleWithOptions(localeValue, attrs, shared.SubmitReadinessCreateModeApplied, submitOpts); ok {
+					warnings = append(warnings, warning)
+				}
 			}
 
 			if err := shared.PrintOutput(resp, *output.Output, *output.Pretty); err != nil {
@@ -138,4 +188,51 @@ Examples:
 			return err
 		},
 	}
+}
+
+// localizationsCreateExistsCodes lists the Apple 409 codes that mean the locale
+// already exists on POST /v1/appStoreVersionLocalizations. Apple answers the
+// duplicate with ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE on the
+// /data/attributes/locale pointer; the detail names the locale and suggests
+// updating instead. STATE_ERROR.* (version not editable) is not an existence
+// conflict and keeps failing.
+var localizationsCreateExistsCodes = []string{"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE"}
+
+// findExistingVersionLocalization reads back the localization a 409 conflict
+// referred to, keyed by locale. It reports found=false when the version has no
+// such locale so the caller can surface the original conflict.
+func findExistingVersionLocalization(ctx context.Context, client *asc.Client, versionID, locale string) (*asc.AppStoreVersionLocalizationResponse, bool, error) {
+	firstPage, err := client.GetAppStoreVersionLocalizations(ctx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
+	if err != nil {
+		return nil, false, err
+	}
+	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetAppStoreVersionLocalizations(ctx, versionID, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	localizations, ok := allPages.(*asc.AppStoreVersionLocalizationsResponse)
+	if !ok {
+		return nil, false, fmt.Errorf("unexpected localizations response type: %T", allPages)
+	}
+	for _, candidate := range localizations.Data {
+		if strings.EqualFold(strings.TrimSpace(candidate.Attributes.Locale), locale) {
+			return &asc.AppStoreVersionLocalizationResponse{Data: candidate}, true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+// hasUpdatableVersionLocalizationFields reports whether the caller supplied any
+// attribute the PATCH can carry. A locale-only create has nothing to update, so
+// --if-exists update resolves it like skip instead of sending an empty PATCH
+// that a non-editable localization could reject.
+func hasUpdatableVersionLocalizationFields(attrs asc.AppStoreVersionLocalizationAttributes) bool {
+	return strings.TrimSpace(attrs.Description) != "" ||
+		strings.TrimSpace(attrs.Keywords) != "" ||
+		strings.TrimSpace(attrs.WhatsNew) != "" ||
+		strings.TrimSpace(attrs.PromotionalText) != "" ||
+		strings.TrimSpace(attrs.SupportURL) != "" ||
+		strings.TrimSpace(attrs.MarketingURL) != ""
 }

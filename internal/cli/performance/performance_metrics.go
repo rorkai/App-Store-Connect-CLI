@@ -102,7 +102,7 @@ Examples:
 func PerformanceMetricsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("metrics view", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID to fetch metrics for")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to fetch metrics for")
 	platform := fs.String("platform", "", "Platform filter (IOS)")
 	metricType := fs.String("metric-type", "", "Metric types (comma-separated: "+strings.Join(perfPowerMetricTypeList(), ", ")+")")
 	deviceType := fs.String("device-type", "", "Device types (comma-separated, e.g., iPhone15,2)")

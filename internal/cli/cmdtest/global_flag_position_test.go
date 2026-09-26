@@ -22,15 +22,15 @@ func TestMisplacedGlobalFlagExplainsRootPlacement(t *testing.T) {
 		},
 		{
 			name:        "separate value",
-			args:        []string{"apps", "list", "--profile", "work"},
+			args:        []string{"apps", "list", "--report", "junit"},
 			commandName: "asc apps list",
-			flagName:    "--profile",
+			flagName:    "--report",
 		},
 		{
 			name:        "inline value",
-			args:        []string{"apps", "list", "--profile=work"},
+			args:        []string{"apps", "list", "--report-file=results.xml"},
 			commandName: "asc apps list",
-			flagName:    "--profile",
+			flagName:    "--report-file",
 		},
 		{
 			name:        "nested command",
@@ -85,7 +85,7 @@ func TestNonGlobalFlagSuggestionIsUnchanged(t *testing.T) {
 
 func TestMalformedGlobalFlagGuidanceDoesNotPromiseValueCorrection(t *testing.T) {
 	for _, args := range [][]string{
-		{"apps", "list", "--profile"},
+		{"apps", "list", "--report"},
 		{"apps", "list", "--debug=maybe"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {

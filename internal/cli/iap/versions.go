@@ -108,7 +108,7 @@ Examples:
 
 func IAPVersionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions create", flag.ExitOnError)
-	iapID := fs.String("iap-id", "", "In-app purchase ID")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "create", ShortUsage: `asc iap versions create --iap-id "IAP_ID"`, ShortHelp: "Create an in-app purchase version.",
@@ -224,7 +224,7 @@ func iapVersionQueryOptions(stateValue, includeValue string, limit, imagesLimit,
 
 func IAPVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions list", flag.ExitOnError)
-	iapID := fs.String("iap-id", "", "In-app purchase ID")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID")
 	state, include, limit, imagesLimit, localizationsLimit, next, paginate := bindIAPVersionQueryFlags(fs)
 	fieldFlags := bindIAPVersionFieldFlags(fs)
 	output := shared.BindOutputFlags(fs)
@@ -285,7 +285,7 @@ Examples:
 
 func IAPVersionsViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions view", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	include := fs.String("include", "", "Include relationships: inAppPurchase,image,images,localizations")
 	imagesLimit := fs.Int("images-limit", 0, "Maximum included images (1-50)")
 	localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
@@ -343,7 +343,7 @@ func IAPVersionsViewCommand() *ffcli.Command {
 
 func IAPVersionImageCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions image", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	imageFields := fs.String("image-fields", "", "fields[inAppPurchaseImages] (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
@@ -378,7 +378,7 @@ func IAPVersionImageCommand() *ffcli.Command {
 
 func IAPVersionSubmitCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions submit", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	submissionID := fs.String("submission", "", "Review submission ID")
 	confirm := fs.Bool("confirm", false, "Confirm adding the version to review")
 	output := shared.BindOutputFlags(fs)
@@ -428,7 +428,7 @@ func IAPVersionLinksCommand() *ffcli.Command {
 
 func iapVersionImageLinkageCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions links image", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "image", ShortUsage: `asc iap versions links image --version-id "VERSION_ID"`, ShortHelp: "View the primary image linkage.", LongHelp: "View the primary image linkage.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
@@ -459,12 +459,14 @@ func iapVersionImageLinkageCommand() *ffcli.Command {
 func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 	fs := flag.NewFlagSet("versions links "+name, flag.ExitOnError)
 	idFlag := "version-id"
+	idType := "inAppPurchaseVersions"
 	idHelp := "In-app purchase version ID"
 	if parentIAP {
 		idFlag = "iap-id"
+		idType = "inAppPurchases"
 		idHelp = "In-app purchase ID"
 	}
-	id := fs.String(idFlag, "", idHelp)
+	id := shared.BindResourceIDFlag(fs, idFlag, idType, idHelp)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages")

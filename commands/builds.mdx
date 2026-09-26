@@ -84,7 +84,15 @@ combined with `--dry-run`.
 asc builds expire --build-id BUILD_ID --confirm
 asc builds expire-all --app APP_ID --older-than 90d --dry-run
 asc builds expire-all --app APP_ID --keep-latest 5 --confirm
+asc builds expire-all --app APP_ID --version 1.2.3 --keep-latest 1 --confirm
 ```
+
+`asc builds expire-all` always requires `--older-than` or `--keep-latest`. Add
+`--version` to narrow the candidates to one marketing version
+(CFBundleShortVersionString) before those selectors apply, so the example above
+expires the earlier builds of `1.2.3` and keeps its most recently uploaded
+build. Builds of other versions are left untouched, and candidates are ordered
+newest first by uploaded date.
 
 ## Common workflows
 

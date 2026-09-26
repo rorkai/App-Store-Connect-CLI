@@ -73,7 +73,8 @@ plus --scheme and at least one --destination. The default action is test. Use
 --action test-without-building with an existing --xctestrun file. Test actions
 write a new .xcresult bundle automatically when --result-bundle-path is omitted.
 The test-without-building action rejects project/build controls, including
---configuration and --derived-data-path.
+--configuration and --derived-data-path. Convert an existing result bundle
+with asc xcode test junit.
 
 Xcode diagnostics are written to stderr and the selected structured result
 format is written to stdout. This command never calls App Store Connect or
@@ -86,6 +87,9 @@ Examples:
   asc xcode test --action test-without-building --xctestrun App_iphonesimulator.xctestrun --destination 'platform=iOS Simulator,name=iPhone 17 Pro'`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			XcodeTestJUnitCommand(),
+		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
 				fmt.Fprintln(os.Stderr, "Error: xcode test does not accept positional arguments")

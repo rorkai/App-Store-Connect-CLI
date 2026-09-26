@@ -49,7 +49,7 @@ Examples:
 func LocalizationsSearchKeywordsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations search-keywords list", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "App Store version localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionLocalizations", "App Store version localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -91,7 +91,7 @@ Examples:
 func LocalizationsSearchKeywordsAddCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations search-keywords add", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "App Store version localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionLocalizations", "App Store version localization ID")
 	keywords := fs.String("keywords", "", "Keywords (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
@@ -139,7 +139,7 @@ Examples:
 func LocalizationsSearchKeywordsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations search-keywords delete", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "App Store version localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionLocalizations", "App Store version localization ID")
 	keywords := fs.String("keywords", "", "Keywords (comma-separated)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)

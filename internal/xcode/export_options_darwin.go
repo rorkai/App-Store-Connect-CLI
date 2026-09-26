@@ -4,9 +4,12 @@ package xcode
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"regexp"
+	"sort"
 	"strings"
 	"sync"
 
@@ -22,7 +25,16 @@ import (
 
 var bitriseStdoutCaptureMu sync.Mutex
 
-var readArchiveExportInfoFn = readArchiveExportInfo
+var (
+	readArchiveExportInfoFn                   = readArchiveExportInfo
+	generateBitriseApplicationExportOptionsFn = generateBitriseApplicationExportOptions
+)
+
+// bitriseLogLevelPattern matches the color prefixes Bitrise's logger uses for
+// warning (yellow) and error (red) lines; plain progress lines are skipped.
+var bitriseLogLevelPattern = regexp.MustCompile(`^\x1b\[3[13];1m`)
+
+var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 // buildPlatformExportOptionsPayload uses Bitrise's current typed v2 model on
 // macOS, where xcodebuild and local signing asset resolution are available.
@@ -70,30 +82,80 @@ func generateManualExportOptions(ctx context.Context, archivePath, teamID, metho
 		return manualExportOptions{}, fmt.Errorf("manual signing export options generation only supports iOS, tvOS, and App Store macOS archives; archive platform is %s", platform)
 	}
 	var generated legacyexportoptions.ExportOptions
-	if _, err := captureBitriseStdout(func() error {
+	var bundleIDs []string
+	resolverLog, err := captureBitriseStdout(func() error {
 		archiveInfo, err := readArchiveExportInfoFn(archivePath)
 		if err != nil {
 			return err
 		}
-		generator := exportoptionsgenerator.New(
-			xcodeversion.NewXcodeVersionProvider(command.NewFactory(env.NewRepository())),
-			log.NewLogger(),
-		)
+		for bundleID := range archiveInfo.EntitlementsByBundleID {
+			// Bitrise drops the App Clip target from non-App-Store exports,
+			// so it never needs a matching profile for release-testing.
+			if method == exportOptionsMethodReleaseTesting && bundleID == archiveInfo.AppClipBundleID {
+				continue
+			}
+			bundleIDs = append(bundleIDs, bundleID)
+		}
 		var generateErr error
-		exportMethod := manualExportOptionsResolverMethod(method)
-		generated, generateErr = generator.GenerateApplicationExportOptions(
-			exportoptionsgenerator.ExportProductApp,
+		generated, generateErr = generateBitriseApplicationExportOptionsFn(
 			archiveInfo,
-			// Bitrise v2's generator currently exposes these v1 argument types.
-			exportMethod,
-			legacyexportoptions.SigningStyleManual,
+			manualExportOptionsResolverMethod(method),
 			manualExportOptionsResolverOptions(teamID, method),
 		)
 		return generateErr
-	}); err != nil {
+	})
+	if err != nil {
 		return manualExportOptions{}, err
 	}
-	return manualExportOptionsFromHash(generated.Hash())
+	payload := generated.Hash()
+	if _, found := payload["provisioningProfiles"]; !found {
+		return manualExportOptions{}, manualExportOptionsResolutionError(bundleIDs, method, teamID, resolverLog)
+	}
+	return manualExportOptionsFromHash(payload)
+}
+
+func generateBitriseApplicationExportOptions(archiveInfo exportoptionsgenerator.ArchiveInfo, method legacyexportoptions.Method, opts exportoptionsgenerator.Opts) (legacyexportoptions.ExportOptions, error) {
+	generator := exportoptionsgenerator.New(
+		xcodeversion.NewXcodeVersionProvider(command.NewFactory(env.NewRepository())),
+		log.NewLogger(),
+	)
+	return generator.GenerateApplicationExportOptions(
+		exportoptionsgenerator.ExportProductApp,
+		archiveInfo,
+		// Bitrise v2's generator currently exposes these v1 argument types.
+		method,
+		legacyexportoptions.SigningStyleManual,
+		opts,
+	)
+}
+
+// manualExportOptionsResolutionError explains why no code signing group was
+// found, keeping only the resolver's warning and error lines. Those lines name
+// bundle IDs and targets, never certificate or profile contents.
+func manualExportOptionsResolutionError(bundleIDs []string, method, teamID, resolverLog string) error {
+	sort.Strings(bundleIDs)
+	var reasons []string
+	for _, line := range strings.Split(resolverLog, "\n") {
+		if !bitriseLogLevelPattern.MatchString(line) {
+			continue
+		}
+		if reason := strings.TrimSpace(ansiEscapePattern.ReplaceAllString(line, "")); reason != "" {
+			reasons = append(reasons, reason)
+		}
+	}
+	team := ""
+	if strings.TrimSpace(teamID) != "" {
+		team = fmt.Sprintf(" and team %q", teamID)
+	}
+	message := fmt.Sprintf(
+		"manual export options require provisioning profile mappings: no installed signing certificate and provisioning profile matched bundle IDs %s for method %q%s",
+		strings.Join(bundleIDs, ", "), method, team,
+	)
+	if len(reasons) > 0 {
+		message += " (resolver: " + strings.Join(reasons, "; ") + ")"
+	}
+	message += "; install the distribution certificate with its private key and a matching provisioning profile for every bundle ID, or write an ExportOptions.plist with explicit provisioningProfiles and pass it to asc xcode export --export-options"
+	return errors.New(message)
 }
 
 func readArchiveExportInfo(archivePath string) (exportoptionsgenerator.ArchiveInfo, error) {
@@ -127,14 +189,15 @@ func manualExportOptionsResolverOptions(teamID, method string) exportoptionsgene
 }
 
 // manualExportOptionsResolverMethod adapts ASC's current public Xcode method
-// name to the pinned resolver's profile classification. Bitrise still labels
-// installed ad hoc profiles as MethodAdHoc and filters by exact equality, even
-// though the final ExportOptions.plist must use MethodReleaseTesting.
+// names to the pinned resolver's profile classification. Bitrise still labels
+// installed iOS and tvOS profiles with the pre-Xcode 15.3 names (app-store and
+// ad-hoc) and filters code signing groups by exact equality, even though the
+// final ExportOptions.plist must use app-store-connect or release-testing.
 func manualExportOptionsResolverMethod(method string) legacyexportoptions.Method {
 	if method == exportOptionsMethodReleaseTesting {
 		return legacyexportoptions.MethodAdHoc
 	}
-	return legacyexportoptions.MethodAppStoreConnect
+	return legacyexportoptions.MethodAppStore
 }
 
 // captureBitriseStdout contains upstream status prints so structured CLI

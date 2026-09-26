@@ -128,7 +128,7 @@ Examples:
 func AndroidIosMappingGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	id := fs.String("mapping-id", "", "Mapping ID")
+	id := shared.BindResourceIDFlag(fs, "mapping-id", "androidToIosAppMappingDetails", "Mapping ID")
 	fields := fs.String("fields", "", "Fields to return (comma-separated: "+strings.Join(androidIosMappingFieldsList(), ", ")+")")
 	output := shared.BindOutputFlags(fs)
 
@@ -234,7 +234,7 @@ Examples:
 func AndroidIosMappingUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	id := fs.String("mapping-id", "", "Mapping ID")
+	id := shared.BindResourceIDFlag(fs, "mapping-id", "androidToIosAppMappingDetails", "Mapping ID")
 	packageName := fs.String("android-package-name", "", "Android package name (e.g., com.example.android)")
 	fingerprints := shared.BindOnceCSVFlag(fs, "fingerprints", "Signing key fingerprints (comma-separated)")
 	clearPackageName := fs.Bool("clear-android-package-name", false, "Clear the Android package name")
@@ -319,7 +319,7 @@ Examples:
 func AndroidIosMappingDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	id := fs.String("mapping-id", "", "Mapping ID")
+	id := shared.BindResourceIDFlag(fs, "mapping-id", "androidToIosAppMappingDetails", "Mapping ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

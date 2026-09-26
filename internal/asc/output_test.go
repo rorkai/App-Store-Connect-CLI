@@ -661,3 +661,27 @@ func TestPrintTableAndMarkdown_BuildUploadResultIncludesOperations(t *testing.T)
 		})
 	}
 }
+
+func TestPrintTableAndMarkdown_BuildUploadResultIncludesBuildID(t *testing.T) {
+	uploaded := true
+	resp := &BuildUploadResult{
+		UploadID: "UPLOAD_123",
+		FileID:   "FILE_123",
+		FileName: "app.ipa",
+		FileSize: 1024,
+		Uploaded: &uploaded,
+		BuildID:  "BUILD_123",
+	}
+
+	for _, renderer := range []struct {
+		name string
+		fn   func(any) error
+	}{
+		{name: "table", fn: PrintTable},
+		{name: "markdown", fn: PrintMarkdown},
+	} {
+		t.Run(renderer.name, func(t *testing.T) {
+			assertRenderedNonJSONContains(t, renderer.fn, resp, "Build ID", "BUILD_123")
+		})
+	}
+}

@@ -1250,6 +1250,34 @@ func TestRun_ContextCancellation(t *testing.T) {
 	}
 }
 
+func TestRun_ContextCancellationStillRunsErrorHook(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	def := &Definition{
+		Error: "echo error_hook_ran",
+		Workflows: map[string]Workflow{
+			"test": {Steps: []Step{{Run: "sleep 10"}}},
+		},
+	}
+	opts := runOpts("test")
+
+	result, err := Run(ctx, def, opts)
+	if err == nil {
+		t.Fatal("expected error on cancelled context")
+	}
+	if result.Hooks == nil || result.Hooks.Error == nil {
+		t.Fatalf("expected error hook to be recorded after cancellation, got %+v", result.Hooks)
+	}
+	if result.Hooks.Error.Status != "ok" {
+		t.Fatalf("expected error hook status=ok after cancellation, got %+v", result.Hooks.Error)
+	}
+	stdout := opts.Stdout.(*bytes.Buffer).String()
+	if !strings.Contains(stdout, "error_hook_ran") {
+		t.Fatalf("expected error hook output after cancellation, got %q", stdout)
+	}
+}
+
 func TestRun_UnknownWorkflow(t *testing.T) {
 	def := &Definition{
 		Workflows: map[string]Workflow{

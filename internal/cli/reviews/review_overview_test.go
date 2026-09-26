@@ -413,7 +413,7 @@ func TestSummarizeReviewSubmissionItemsStopsOnRepeatedNextURL(t *testing.T) {
 					"attributes":{"state":"REMOVED"},
 					"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}
 				}],
-				"links":{"next":"/v1/reviewSubmissions/submission-1/items?page=2"}
+				"links":{"self":"/v1/reviewSubmissions/submission-1/items","next":"/v1/reviewSubmissions/submission-1/items?page=2"}
 			}`, requestCount))
 		})},
 	)
@@ -455,7 +455,7 @@ func TestSummarizeReviewSubmissionItemsTreatsWhitespaceNextURLAsEnd(t *testing.T
 					"attributes":{"state":"REMOVED"},
 					"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}
 				}],
-				"links":{"next":" \t\n "}
+				"links":{"self":"/v1/reviewSubmissions/submission-1/items","next":" \t\n "}
 			}`)
 		})},
 	)
@@ -501,7 +501,7 @@ func TestSummarizeReviewSubmissionItemsTrimsPaddedNextURL(t *testing.T) {
 						"attributes":{"state":"REMOVED"},
 						"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}
 					}],
-					"links":{"next":" \t/v1/reviewSubmissions/submission-1/items?page=2 \n "}
+					"links":{"self":"/v1/reviewSubmissions/submission-1/items","next":" \t/v1/reviewSubmissions/submission-1/items?page=2 \n "}
 				}`)
 			}
 			if req.URL.Query().Get("page") != "2" {
@@ -514,7 +514,7 @@ func TestSummarizeReviewSubmissionItemsTrimsPaddedNextURL(t *testing.T) {
 					"attributes":{"state":"APPROVED"},
 					"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}
 				}],
-				"links":{"next":""}
+				"links":{"self":"/v1/reviewSubmissions/submission-1/items","next":""}
 			}`)
 		})},
 	)
@@ -624,7 +624,7 @@ func TestReviewDoctorUsesTimedContextForReadinessReport(t *testing.T) {
 				"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]
 			}`)
 		case "/v1/apps/123456789/reviewSubmissions":
-			return reviewJSONResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`)
+			return reviewJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/123456789/reviewSubmissions","next":""}}`)
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 		}

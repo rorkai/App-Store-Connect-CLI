@@ -43,7 +43,7 @@ Examples:
 func PassTypeIDCertificatesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	passTypeID := fs.String("pass-type-id", "", "Pass type ID (required unless --next is provided)")
+	passTypeID := shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass type ID (required unless --next is provided)")
 	displayName := fs.String("display-name", "", "Filter by display name(s), comma-separated")
 	certificateType := fs.String("certificate-type", "", "Filter by certificate type(s), comma-separated")
 	serialNumber := fs.String("serial-number", "", "Filter by serial number(s), comma-separated")
@@ -166,7 +166,7 @@ Examples:
 func PassTypeIDCertificatesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	passTypeID := fs.String("pass-type-id", "", "Pass type ID (required unless --next is provided)")
+	passTypeID := shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass type ID (required unless --next is provided)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

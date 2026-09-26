@@ -7,7 +7,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-const backgroundAssetsMaxLimit = 200
+const (
+	backgroundAssetsMaxLimit                      = 200
+	backgroundAssetsReviewSubmissionItemsMaxPages = 1000
+)
 
 var backgroundAssetUploadFileAssetTypeValues = []string{
 	string(asc.BackgroundAssetUploadFileAssetTypeAsset),

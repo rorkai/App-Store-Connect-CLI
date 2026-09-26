@@ -15,20 +15,39 @@ const (
 	ContentRightsDeclarationUsesThirdPartyContent       ContentRightsDeclaration = "USES_THIRD_PARTY_CONTENT"
 )
 
+// SubscriptionStatusURLVersion is the App Store Server Notifications payload version.
+type SubscriptionStatusURLVersion string
+
+const (
+	SubscriptionStatusURLVersionV1 SubscriptionStatusURLVersion = "V1"
+	SubscriptionStatusURLVersionV2 SubscriptionStatusURLVersion = "V2"
+)
+
 // AppAttributes describes an app resource.
 type AppAttributes struct {
-	Name                     string                    `json:"name"`
-	BundleID                 string                    `json:"bundleId"`
-	SKU                      string                    `json:"sku"`
-	PrimaryLocale            string                    `json:"primaryLocale,omitempty"`
-	ContentRightsDeclaration *ContentRightsDeclaration `json:"contentRightsDeclaration,omitempty"`
+	Name                                   string                        `json:"name"`
+	BundleID                               string                        `json:"bundleId"`
+	SKU                                    string                        `json:"sku"`
+	PrimaryLocale                          string                        `json:"primaryLocale,omitempty"`
+	ContentRightsDeclaration               *ContentRightsDeclaration     `json:"contentRightsDeclaration,omitempty"`
+	SubscriptionStatusURL                  *string                       `json:"subscriptionStatusUrl,omitempty"`
+	SubscriptionStatusURLVersion           *SubscriptionStatusURLVersion `json:"subscriptionStatusUrlVersion,omitempty"`
+	SubscriptionStatusURLForSandbox        *string                       `json:"subscriptionStatusUrlForSandbox,omitempty"`
+	SubscriptionStatusURLVersionForSandbox *SubscriptionStatusURLVersion `json:"subscriptionStatusUrlVersionForSandbox,omitempty"`
+
+	originalAttributes map[string]json.RawMessage
+	decodedAttributes  map[string]json.RawMessage
 }
 
 // AppUpdateAttributes describes fields for updating an app.
 type AppUpdateAttributes struct {
-	BundleID                 *string                   `json:"bundleId,omitempty"`
-	PrimaryLocale            *string                   `json:"primaryLocale,omitempty"`
-	ContentRightsDeclaration *ContentRightsDeclaration `json:"contentRightsDeclaration,omitempty"`
+	BundleID                               *string                       `json:"bundleId,omitempty"`
+	PrimaryLocale                          *string                       `json:"primaryLocale,omitempty"`
+	ContentRightsDeclaration               *ContentRightsDeclaration     `json:"contentRightsDeclaration,omitempty"`
+	SubscriptionStatusURL                  *string                       `json:"subscriptionStatusUrl,omitempty"`
+	SubscriptionStatusURLVersion           *SubscriptionStatusURLVersion `json:"subscriptionStatusUrlVersion,omitempty"`
+	SubscriptionStatusURLForSandbox        *string                       `json:"subscriptionStatusUrlForSandbox,omitempty"`
+	SubscriptionStatusURLVersionForSandbox *SubscriptionStatusURLVersion `json:"subscriptionStatusUrlVersionForSandbox,omitempty"`
 }
 
 // AppCreateAttributes describes attributes for creating an app.
@@ -285,7 +304,7 @@ func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAtt
 			ID:   appID,
 		},
 	}
-	if attrs.BundleID != nil || attrs.PrimaryLocale != nil || attrs.ContentRightsDeclaration != nil {
+	if attrs != (AppUpdateAttributes{}) {
 		payload.Data.Attributes = &attrs
 	}
 

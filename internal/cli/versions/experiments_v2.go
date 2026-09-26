@@ -40,7 +40,7 @@ Examples:
 func VersionsExperimentsV2ListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiments-v2 list", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

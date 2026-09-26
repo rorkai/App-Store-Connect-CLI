@@ -90,7 +90,7 @@ func AnalyticsRequestsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("requests", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	requestID := fs.String("request-id", "", "Filter by request ID")
+	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Filter by request ID")
 	accessType := fs.String("access-type", "", "Filter by access type: ONGOING, ONE_TIME_SNAPSHOT")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -301,7 +301,7 @@ func analyticsReportRequestReuseResult(appID string, request asc.AnalyticsReport
 func AnalyticsRequestsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	requestID := fs.String("request-id", "", "Analytics report request ID")
+	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Analytics report request ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
@@ -355,8 +355,8 @@ Examples:
 func AnalyticsViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	requestID := fs.String("request-id", "", "Analytics report request ID")
-	instanceID := fs.String("instance-id", "", "Filter by specific instance ID")
+	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Analytics report request ID")
+	instanceID := shared.BindResourceIDFlag(fs, "instance-id", "analyticsReportInstances", "Filter by specific instance ID")
 	processingDate := fs.String("processing-date", "", "Filter instances by processing date (YYYY-MM-DD)")
 	granularity := fs.String("granularity", "", "Filter instances by granularity (comma-separated: DAILY, WEEKLY, MONTHLY)")
 	includeSegments := fs.Bool("include-segments", false, "Include report segments with download URLs")
@@ -458,64 +458,75 @@ Examples:
 			}
 
 			foundInstance := false
-			for _, report := range reports {
-				instances, err := fetchAnalyticsReportInstances(ctx, client, report.ID, instanceOpts...)
+			if strings.TrimSpace(*instanceID) == "" {
+				collected, instanceCount, err := collectAnalyticsReports(ctx, client, reports, instanceOpts, *includeSegments, processingDateFilter)
 				if err != nil {
-					return fmt.Errorf("analytics view: failed to fetch instances: %w", err)
+					return err
 				}
-
-				reportResult := asc.AnalyticsReportGetReport{
-					ID:          report.ID,
-					ReportType:  report.Attributes.ReportType,
-					Name:        report.Attributes.Name,
-					Category:    report.Attributes.Category,
-					Granularity: report.Attributes.Granularity,
+				result.Data = collected
+				if processingDateFilter == "" && len(granularities) == 0 && instanceCount > 20 {
+					fmt.Fprintf(os.Stderr, "analytics view: fetched %d instances without --processing-date or --granularity; narrow the query to avoid a full fan-out\n", instanceCount)
 				}
+			} else {
+				for _, report := range reports {
+					instances, err := fetchAnalyticsReportInstances(ctx, client, report.ID, instanceOpts...)
+					if err != nil {
+						return fmt.Errorf("analytics view: failed to fetch instances: %w", err)
+					}
 
-				for _, instance := range instances {
-					if strings.TrimSpace(*instanceID) != "" && instance.ID != strings.TrimSpace(*instanceID) {
+					reportResult := asc.AnalyticsReportGetReport{
+						ID:          report.ID,
+						ReportType:  report.Attributes.ReportType,
+						Name:        report.Attributes.Name,
+						Category:    report.Attributes.Category,
+						Granularity: report.Attributes.Granularity,
+					}
+
+					for _, instance := range instances {
+						if strings.TrimSpace(*instanceID) != "" && instance.ID != strings.TrimSpace(*instanceID) {
+							continue
+						}
+						instanceResult := asc.AnalyticsReportGetInstance{
+							ID:             instance.ID,
+							ReportDate:     instance.Attributes.ReportDate,
+							ProcessingDate: instance.Attributes.ProcessingDate,
+							Granularity:    instance.Attributes.Granularity,
+							Version:        instance.Attributes.Version,
+						}
+
+						if *includeSegments {
+							segments, err := fetchAnalyticsReportSegments(ctx, client, instance.ID)
+							if err != nil {
+								return fmt.Errorf("analytics view: failed to fetch segments: %w", err)
+							}
+							for _, segment := range segments {
+								instanceResult.Segments = append(instanceResult.Segments, asc.AnalyticsReportGetSegment{
+									ID:                segment.ID,
+									DownloadURL:       segment.Attributes.URL,
+									Checksum:          segment.Attributes.Checksum,
+									SizeInBytes:       segment.Attributes.SizeInBytes,
+									URLExpirationDate: segment.Attributes.URLExpirationDate,
+								})
+							}
+						}
+
+						reportResult.Instances = append(reportResult.Instances, instanceResult)
+					}
+
+					if strings.TrimSpace(*instanceID) != "" {
+						if len(reportResult.Instances) > 0 {
+							result.Data = append(result.Data, reportResult)
+							foundInstance = true
+							break
+						}
 						continue
 					}
-					instanceResult := asc.AnalyticsReportGetInstance{
-						ID:             instance.ID,
-						ReportDate:     instance.Attributes.ReportDate,
-						ProcessingDate: instance.Attributes.ProcessingDate,
-						Granularity:    instance.Attributes.Granularity,
-						Version:        instance.Attributes.Version,
+
+					if processingDateFilter != "" && len(reportResult.Instances) == 0 {
+						continue
 					}
-
-					if *includeSegments {
-						segments, err := fetchAnalyticsReportSegments(ctx, client, instance.ID)
-						if err != nil {
-							return fmt.Errorf("analytics view: failed to fetch segments: %w", err)
-						}
-						for _, segment := range segments {
-							instanceResult.Segments = append(instanceResult.Segments, asc.AnalyticsReportGetSegment{
-								ID:                segment.ID,
-								DownloadURL:       segment.Attributes.URL,
-								Checksum:          segment.Attributes.Checksum,
-								SizeInBytes:       segment.Attributes.SizeInBytes,
-								URLExpirationDate: segment.Attributes.URLExpirationDate,
-							})
-						}
-					}
-
-					reportResult.Instances = append(reportResult.Instances, instanceResult)
+					result.Data = append(result.Data, reportResult)
 				}
-
-				if strings.TrimSpace(*instanceID) != "" {
-					if len(reportResult.Instances) > 0 {
-						result.Data = append(result.Data, reportResult)
-						foundInstance = true
-						break
-					}
-					continue
-				}
-
-				if processingDateFilter != "" && len(reportResult.Instances) == 0 {
-					continue
-				}
-				result.Data = append(result.Data, reportResult)
 			}
 
 			if strings.TrimSpace(*instanceID) != "" && !foundInstance {
@@ -537,9 +548,9 @@ Examples:
 func AnalyticsDownloadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("download", flag.ExitOnError)
 
-	requestID := fs.String("request-id", "", "Analytics report request ID")
-	instanceID := fs.String("instance-id", "", "Analytics report instance ID")
-	segmentID := fs.String("segment-id", "", "Analytics report segment ID (required if multiple)")
+	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Analytics report request ID")
+	instanceID := shared.BindResourceIDFlag(fs, "instance-id", "analyticsReportInstances", "Analytics report instance ID")
+	segmentID := shared.BindResourceIDFlag(fs, "segment-id", "analyticsReportSegments", "Analytics report segment ID (required if multiple)")
 	output := fs.String("output", "", "Output file path (default: analytics_report_{requestId}_{instanceId}.csv.gz)")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .csv")
 	outputFlags := shared.BindMetadataOutputFlags(fs)

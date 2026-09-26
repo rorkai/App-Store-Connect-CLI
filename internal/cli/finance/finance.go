@@ -141,7 +141,7 @@ Examples:
 				return fmt.Errorf("finance reports: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
 			defer cancel()
 
 			download, err := client.DownloadFinanceReport(requestCtx, asc.FinanceReportParams{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"strings"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -109,16 +110,39 @@ func TestPhasedReleaseUpdateCommand_InvalidState(t *testing.T) {
 	}
 }
 
+func TestPhasedReleaseUpdateCompleteRequiresConfirm(t *testing.T) {
+	cmd := PhasedReleaseUpdateCommand()
+	if err := cmd.FlagSet.Parse([]string{"--id", "123", "--state", "COMPLETE"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+	err := cmd.Exec(context.Background(), []string{})
+	if err == nil || !strings.Contains(err.Error(), "--confirm") {
+		t.Fatalf("error = %v, want missing --confirm", err)
+	}
+}
+
 func TestPhasedReleaseUpdateCommand_ValidStates(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	validStates := []string{"ACTIVE", "PAUSED", "COMPLETE", "active", "paused", "complete"}
+	validStates := map[string]bool{
+		"ACTIVE":   false,
+		"PAUSED":   false,
+		"COMPLETE": true,
+		"active":   false,
+		"paused":   false,
+		"complete": true,
+	}
 
-	for _, state := range validStates {
+	for state, needsConfirm := range validStates {
 		t.Run(state, func(t *testing.T) {
 			cmd := PhasedReleaseUpdateCommand()
 
-			if err := cmd.FlagSet.Parse([]string{"--id", "123", "--state", state}); err != nil {
+			args := []string{"--id", "123", "--state", state}
+			if needsConfirm {
+				args = append(args, "--confirm")
+			}
+
+			if err := cmd.FlagSet.Parse(args); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
@@ -178,7 +202,7 @@ func TestPhasedReleaseCommand_FlagDefinitions(t *testing.T) {
 
 	// Test update command flags
 	updateCmd := PhasedReleaseUpdateCommand()
-	expectedUpdateFlags := []string{"id", "state", "output", "pretty"}
+	expectedUpdateFlags := []string{"id", "state", "confirm", "output", "pretty"}
 	for _, name := range expectedUpdateFlags {
 		if updateCmd.FlagSet.Lookup(name) == nil {
 			t.Errorf("update: expected flag --%s to be defined", name)

@@ -17,7 +17,7 @@ import (
 func CategoriesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("categories view", flag.ExitOnError)
 
-	categoryID := fs.String("category-id", "", "App category ID")
+	categoryID := shared.BindResourceIDFlag(fs, "category-id", "appCategories", "App category ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -59,7 +59,7 @@ Examples:
 func CategoriesParentCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("categories parent", flag.ExitOnError)
 
-	categoryID := fs.String("category-id", "", "App category ID")
+	categoryID := shared.BindResourceIDFlag(fs, "category-id", "appCategories", "App category ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -101,7 +101,7 @@ Examples:
 func CategoriesSubcategoriesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("categories subcategories", flag.ExitOnError)
 
-	categoryID := fs.String("category-id", "", "App category ID")
+	categoryID := shared.BindResourceIDFlag(fs, "category-id", "appCategories", "App category ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

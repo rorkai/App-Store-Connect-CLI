@@ -21,6 +21,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -733,6 +734,9 @@ func createIssue(ctx context.Context, token string, entry LogEntry) (*GitHubIssu
 		return nil, err
 	}
 
+	if err := readonly.Check(ctx, http.MethodPost, readonly.Target(issueURL)); err != nil {
+		return nil, err
+	}
 	req, err := http.NewRequestWithContext(ctx, "POST", issueURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -783,6 +787,9 @@ func addIssueLabels(ctx context.Context, token string, issueNumber int, labels [
 		return err
 	}
 
+	if err := readonly.Check(ctx, http.MethodPost, readonly.Target(labelsURL)); err != nil {
+		return err
+	}
 	req, err := http.NewRequestWithContext(ctx, "POST", labelsURL, bytes.NewReader(body))
 	if err != nil {
 		return err

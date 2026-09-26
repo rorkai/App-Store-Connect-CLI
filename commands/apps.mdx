@@ -44,9 +44,11 @@ List apps from App Store Connect.
 </ParamField>
 
 <ParamField path="--app-info-fields" type="string">
-  Sparse fields for included app-info records. API 4.4.1 supports the deprecated
-  `kidsAgeBand` selector. Supplying this flag automatically includes `appInfos`.
-  Prefer `asc age-rating view` for current age-rating data.
+  Legacy sparse fields for included app-info records: `kidsAgeBand`. API 4.5
+  removed this property from `AppInfo`. The CLI forwards the selector for
+  compatibility and emits a deprecation warning on stderr. Supplying this flag
+  automatically includes `appInfos`. Use `asc age-rating view` for current
+  age-rating data.
 </ParamField>
 
 <ParamField path="--iap-fields" type="string">
@@ -104,13 +106,24 @@ asc apps list --paginate
 
 View app details by ID.
 
+Apple omits notification endpoints from its default response. Request them using
+`--fields` to verify the configured URLs and payload versions.
+
+<ParamField path="--fields" type="string">
+  Comma-separated app attributes: `name`, `bundleId`, `sku`, `primaryLocale`,
+  `contentRightsDeclaration`, `subscriptionStatusUrl`, `subscriptionStatusUrlVersion`,
+  `subscriptionStatusUrlForSandbox`, `subscriptionStatusUrlVersionForSandbox`.
+</ParamField>
+
 <ParamField path="--id" type="string" required>
   App Store Connect app ID
 </ParamField>
 
 <ParamField path="--app-info-fields" type="string">
-  Sparse fields for included app-info records: the deprecated `kidsAgeBand`
-  selector. Automatically includes `appInfos`; prefer `asc age-rating view`.
+  Legacy sparse fields for included app-info records: `kidsAgeBand`. API 4.5
+  removed this property from `AppInfo`. The selector is still forwarded with a
+  stderr deprecation warning and automatically includes `appInfos`. Use
+  `asc age-rating view` for current age-rating data.
 </ParamField>
 
 <ParamField path="--iap-fields" type="string">
@@ -133,6 +146,7 @@ View app details by ID.
 asc apps view --id "APP_ID"
 asc apps view --id "APP_ID" --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
 asc apps view --id "APP_ID" --output table
+asc apps view --id "APP_ID" --fields "subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox" --output json
 ```
 
 **Response:**
@@ -205,16 +219,18 @@ asc apps rename --app "APP_ID" --app-info "APP_INFO_ID" --locale "fr-FR" --name 
 
 ### `asc apps info list`
 
-List app-info records for an app. API 4.4.1 adds sparse reads for the app info
-kids age band and the age-rating declaration's social-media fields.
+List app-info records for an app, with optional sparse fields on included
+age-rating declarations. The legacy AppInfo kids-age-band selector remains
+available with a deprecation warning.
 
 <ParamField path="--app" type="string" required>
   App Store Connect app ID (or `ASC_APP_ID`)
 </ParamField>
 
 <ParamField path="--fields" type="string">
-  Sparse app-info fields: `kidsAgeBand`. Apple marks this selector deprecated;
-  prefer `asc age-rating view` for current age-rating data.
+  Legacy sparse app-info fields: `kidsAgeBand`. API 4.5 removed this property
+  from `AppInfo`; the CLI still forwards it with a stderr deprecation warning.
+  Use `asc age-rating view` for current age-rating data.
 </ParamField>
 
 <ParamField path="--age-rating-fields" type="string">
@@ -229,17 +245,16 @@ asc apps info list --app "APP_ID" --age-rating-fields socialMedia,socialMediaAge
 ```
 
 <Note>
-  Apple's production API accepted the API 4.4.1 social-media fields in live
-  testing on July 17, 2026, but still rejected the official
-  `fields[appInfos]=kidsAgeBand` value on app-info detail and collection reads.
-  The CLI exposes the published schema while Apple's rollout catches up.
+  API 4.5 removed `AppInfo.kidsAgeBand` and its sparse-field selectors. The CLI
+  preserves existing selectors for compatibility, but Apple may reject them.
+  Explicit selectors and continuation URLs containing this field emit one
+  deprecation warning on stderr.
 </Note>
 
 <Warning>
-  `kidsAgeBand` remains available because it is present in the official API
-  4.4.1 sparse-field enum, but Apple marks it deprecated. New workflows should
-  read the age-rating declaration with `asc age-rating view`; use its `--fields`
-  flag for the API 4.4.1 social-media fields.
+  Migrate AppInfo selectors to `asc age-rating view --app-info-id "APP_INFO_ID"`.
+  `AgeRatingDeclaration.kidsAgeBand` and the `--kids-age-band` flag on
+  `asc age-rating edit` remain supported.
 </Warning>
 
 ### `asc apps info view`
@@ -257,7 +272,7 @@ asc apps info view --info-id "APP_INFO_ID" --age-rating-fields socialMedia,socia
 
 ### `asc apps update`
 
-Update an app's bundle ID, primary locale, or content rights declaration.
+Update app metadata and App Store Server Notifications URLs.
 
 <ParamField path="--id" type="string" required>
   App Store Connect app ID
@@ -275,12 +290,27 @@ Update an app's bundle ID, primary locale, or content rights declaration.
   Content rights declaration: `DOES_NOT_USE_THIRD_PARTY_CONTENT` or `USES_THIRD_PARTY_CONTENT`
 </ParamField>
 
+<ParamField path="--subscription-status-url" type="string">
+  Production App Store Server Notifications HTTPS URL. Sets notification version V2.
+</ParamField>
+
+<ParamField path="--sandbox-subscription-status-url" type="string">
+  Sandbox App Store Server Notifications HTTPS URL. Sets notification version V2.
+</ParamField>
+
+Notification URLs must be absolute HTTPS URLs without credentials or fragments.
+Each supplied URL is configured for version V2, which delivers signed payloads.
+Omitting an endpoint leaves its URL and version unchanged. Empty URLs are rejected;
+these flags do not remove existing endpoints. Use `asc apps view --id "APP_ID" --fields "subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox" --output json` to read back the configured URLs and versions.
+
 **Examples:**
 
 ```bash  theme={null}
 asc apps update --id "APP_ID" --bundle-id "com.example.app"
 asc apps update --id "APP_ID" --primary-locale "en-US"
 asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"
+asc apps update --id "APP_ID" --subscription-status-url "https://example.com/notifications"
+asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"
 ```
 
 **Response:**

@@ -3,6 +3,7 @@ package auth
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 type DoctorMigrationHints struct {
@@ -182,7 +184,7 @@ var (
 )
 
 func extractAppfileSignal(path string) appfileSignal {
-	data, err := os.ReadFile(path)
+	data, err := readMigrationFile(path)
 	if err != nil {
 		return appfileSignal{}
 	}
@@ -230,7 +232,7 @@ func appfileKeyOrder() []string {
 }
 
 func extractFastfileActions(path string) []string {
-	data, err := os.ReadFile(path)
+	data, err := readMigrationFile(path)
 	if err != nil {
 		return nil
 	}
@@ -414,7 +416,7 @@ func discoverPbxprojFiles(root string) []string {
 }
 
 func extractMarketingVersions(path string) []string {
-	data, err := os.ReadFile(path)
+	data, err := readMigrationFile(path)
 	if err != nil {
 		return nil
 	}
@@ -703,11 +705,27 @@ func relativePath(root, path string) string {
 }
 
 func isFile(path string) bool {
-	info, err := os.Stat(path)
+	file, err := rootfs.OpenFile(path)
 	if err != nil {
 		return false
 	}
-	return !info.IsDir()
+	return file.Close() == nil
+}
+
+func readMigrationFile(path string) ([]byte, error) {
+	file, err := rootfs.OpenFile(path)
+	if err != nil {
+		return nil, err
+	}
+	data, readErr := io.ReadAll(file)
+	closeErr := file.Close()
+	if readErr != nil {
+		return nil, readErr
+	}
+	if closeErr != nil {
+		return nil, closeErr
+	}
+	return data, nil
 }
 
 func hasGitMarker(dir string) bool {

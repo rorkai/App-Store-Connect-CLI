@@ -865,7 +865,7 @@ func removeSigningRunProfileWithHook(install signingRunProfileInstall, afterVeri
 // diagnostics, but it is not sufficient for the final pathname mutation: a
 // same-user process can replace the quarantine entry after that check.
 func removeSigningRunProfileEntry(parentRoot rootfs.Root, name string, install signingRunProfileInstall) error {
-	identity, err := parentRoot.CaptureFile(name)
+	identity, err := parentRoot.CaptureFileLimited(name, signingRunInputLimit)
 	if err != nil {
 		return err
 	}

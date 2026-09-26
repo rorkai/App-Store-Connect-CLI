@@ -24,8 +24,8 @@ const (
 func BuildsWaitCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("wait", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID to wait for")
-	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to wait for")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
 	latest := fs.Bool("latest", false, "Wait for the latest matching build for --app context")
 	version := fs.String("version", "", "Optional marketing version filter (CFBundleShortVersionString) for --app")
 	buildNumber := fs.String("build-number", "", "Select a unique build by build number (CFBundleVersion) for --app context")
@@ -125,6 +125,10 @@ Examples:
 			defer cancel()
 
 			var buildResp *asc.BuildResponse
+			failureContext := shared.BuildProcessingFailureContext{
+				ShortVersion: versionValue,
+				Platform:     normalizedPlatform,
+			}
 			if buildValue != "" {
 				buildResp = &asc.BuildResponse{
 					Data: asc.Resource[asc.BuildAttributes]{
@@ -136,6 +140,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds wait: %w", err)
 				}
+				failureContext.AppID = lookupAppID
 
 				selector := appBuildWaitSelector{
 					Latest:      *latest,
@@ -156,7 +161,7 @@ Examples:
 			}
 
 			waitBuildID := buildResp.Data.ID
-			buildResp, err = waitForBuildProcessingState(requestCtx, client, buildResp.Data.ID, *pollInterval, *failOnInvalid)
+			buildResp, err = waitForBuildProcessingState(requestCtx, client, buildResp.Data.ID, *pollInterval, *failOnInvalid, failureContext)
 			if err != nil {
 				if requestCtx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {
 					return fmt.Errorf("builds wait: timed out waiting for build %s after %s", waitBuildID, (*timeout).Round(time.Second))
@@ -300,10 +305,11 @@ func waitForBuildProcessingState(
 	buildID string,
 	pollInterval time.Duration,
 	failOnInvalid bool,
+	failure shared.BuildProcessingFailureContext,
 ) (*asc.BuildResponse, error) {
 	started := time.Now()
 
-	return asc.PollUntilTolerant(ctx, pollInterval, func(ctx context.Context) (*asc.BuildResponse, bool, error) {
+	buildResp, err := asc.PollUntilTolerant(ctx, pollInterval, func(ctx context.Context) (*asc.BuildResponse, bool, error) {
 		buildResp, err := client.GetBuild(ctx, buildID)
 		if err != nil {
 			return nil, false, err
@@ -325,13 +331,48 @@ func waitForBuildProcessingState(
 		case asc.BuildProcessingStateValid:
 			return buildResp, true, nil
 		case asc.BuildProcessingStateFailed:
-			return nil, false, fmt.Errorf("build processing failed with state %s", state)
+			return nil, false, &terminalBuildProcessingState{build: buildResp, state: state}
 		case asc.BuildProcessingStateInvalid:
 			if failOnInvalid {
-				return nil, false, fmt.Errorf("build processing failed with state %s", state)
+				return nil, false, &terminalBuildProcessingState{build: buildResp, state: state}
 			}
 			return buildResp, true, nil
 		}
 		return nil, false, nil
 	}, asc.PollOptions{Tolerate: asc.IsTransientWaitError})
+
+	// Processing details are fetched after polling stops: the poller reports an
+	// expired context in place of any callback error, so a slow details lookup
+	// inside the callback could turn a FAILED build into a timeout.
+	var terminal *terminalBuildProcessingState
+	if errors.As(err, &terminal) {
+		return nil, buildProcessingFailureError(ctx, client, buildID, terminal.build, terminal.state, failure)
+	}
+	return buildResp, err
+}
+
+// terminalBuildProcessingState stops polling at a failing processing state.
+type terminalBuildProcessingState struct {
+	build *asc.BuildResponse
+	state string
+}
+
+func (e *terminalBuildProcessingState) Error() string {
+	return fmt.Sprintf("build processing failed with state %s", e.state)
+}
+
+func buildProcessingFailureError(
+	ctx context.Context,
+	client *asc.Client,
+	buildID string,
+	buildResp *asc.BuildResponse,
+	state string,
+	failure shared.BuildProcessingFailureContext,
+) error {
+	baseErr := fmt.Errorf("build processing failed with state %s", state)
+	failure.BuildID = buildID
+	if buildResp != nil {
+		failure.BundleVersion = buildResp.Data.Attributes.Version
+	}
+	return shared.EnrichBuildProcessingFailure(ctx, client, failure, baseErr)
 }

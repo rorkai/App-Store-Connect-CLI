@@ -38,7 +38,7 @@ Examples:
 func AppClipDefaultExperienceHeaderImageGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("header-image view", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Default experience localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appClipDefaultExperienceLocalizations", "Default experience localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

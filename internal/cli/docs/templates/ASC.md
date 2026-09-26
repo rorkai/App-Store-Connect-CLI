@@ -30,7 +30,7 @@ Do not memorize flags. Always use `--help` for the current interface.
 - Output formats: `--output json|table|markdown` and `--pretty` for readable JSON.
 - `ASC_DEFAULT_OUTPUT` can pin the default output mode across contexts.
 - Destructive operations require `--confirm`.
-- Profiles: `--profile "NAME"` and `--strict-auth` for auth resolution safety.
+- Profiles: `--profile "NAME"` and `--strict-auth` for auth resolution safety. `--profile` is accepted before or after the command name; every other global flag must come before it.
 - Debugging: `--debug`, `--api-debug`, `--retry-log`.
 
 ## Quick Lookup
@@ -203,6 +203,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `version` - Print version information and exit.
 - `completion` - Print shell completion scripts.
 - `schema` - Inspect App Store Connect API endpoint schemas at runtime.
+- `api` - Send an authenticated raw request to the App Store Connect API.
 - `snitch` - Report CLI friction as a GitHub issue.
 - `telemetry` - Manage CLI telemetry settings.
 
@@ -210,7 +211,8 @@ Use `asc <command> --help` for subcommands and flags.
 
 - `--api-debug` - HTTP request/response logging (redacted)
 - `--debug` - Debug logging
-- `--profile` - Use a named authentication profile
+- `--profile` - Use a named authentication profile (accepted before or after the command name)
+- `--read-only` - Refuse every mutating request before it is sent (see `ASC_READ_ONLY`)
 - `--report` - Report format for CI output
 - `--report-file` - Path to write CI report file
 - `--retry-log` - Enable retry logging
@@ -221,8 +223,9 @@ Use `asc <command> --help` for subcommands and flags.
 
 - `ASC_APP_ID` - Default app ID
 - `ASC_PROFILE` - Default auth profile
+- `ASC_READ_ONLY` - Refuse every mutating request; refusals exit `6`
 - `ASC_TIMEOUT`, `ASC_TIMEOUT_SECONDS` - Request timeout
-- `ASC_UPLOAD_TIMEOUT`, `ASC_UPLOAD_TIMEOUT_SECONDS` - Upload timeout
+- `ASC_UPLOAD_TIMEOUT`, `ASC_UPLOAD_TIMEOUT_SECONDS` - Upload and streamed download timeout
 - `ASC_DEBUG` - Debug output (`api` enables HTTP logs)
 - `ASC_STOREKIT_KEY_ID`, `ASC_STOREKIT_ISSUER_ID`, `ASC_STOREKIT_PRIVATE_KEY_PATH` - StoreKit In-App Purchase API authentication
 - `ASC_STOREKIT_PRIVATE_KEY`, `ASC_STOREKIT_PRIVATE_KEY_B64` - Inline StoreKit private key alternatives

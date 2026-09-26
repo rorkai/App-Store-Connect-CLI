@@ -32,6 +32,7 @@ func TestFileDrivenMutationsRequireConfirm(t *testing.T) {
 	offersCSV := writeBatchImportFile(t, "offers.csv", "territory\nUSA\n")
 	testersCSV := writeBatchImportFile(t, "testers.csv", "email,first_name,last_name,groups\nrita@example.com,Rita,Tester,\n")
 	repliesJSON := writeBatchImportFile(t, "replies.json", `{"replies":[{"response":"Thanks for the feedback.","reviewIds":["REVIEW_1"]}]}`)
+	iapJSON := writeBatchImportFile(t, "iap.json", `{"products":[{"type":"CONSUMABLE","referenceName":"Pro","productId":"com.example.pro"}]}`)
 
 	tests := []struct {
 		name string
@@ -63,6 +64,10 @@ func TestFileDrivenMutationsRequireConfirm(t *testing.T) {
 		{
 			name: "migrate import",
 			args: []string{"migrate", "import", "--app", "123456789", "--version-id", "VERSION_1", "--fastlane-dir", t.TempDir()},
+		},
+		{
+			name: "iap import",
+			args: []string{"iap", "import", "--app", "123456789", "--file", iapJSON},
 		},
 	}
 
@@ -139,6 +144,10 @@ func TestFileDrivenMutationsGateBeforeReadingInput(t *testing.T) {
 		{
 			name: "migrate import",
 			args: []string{"migrate", "import", "--app", "123456789", "--version-id", "VERSION_1", "--fastlane-dir", missingInput},
+		},
+		{
+			name: "iap import",
+			args: []string{"iap", "import", "--app", "123456789", "--file", missingInput},
 		},
 	}
 

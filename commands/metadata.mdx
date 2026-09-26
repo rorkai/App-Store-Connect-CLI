@@ -99,7 +99,8 @@ asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata" --allow-de
 * `--include` - Included metadata scopes (default: `localizations`)
 * `--dry-run` - Preview changes without mutating App Store Connect
 * `--allow-deletes` - Allow destructive delete operations (disables default locale fallback)
-* `--confirm` - Confirm destructive operations (required with `--allow-deletes`)
+* `--confirm` - Confirm destructive operations (required for deletes, field clears, or `--review-dir` applies)
+* `--if-exists` - Behavior when a locale already exists: `fail` (default), `skip`, `update`
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 
@@ -107,7 +108,10 @@ asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata" --allow-de
 
 * `default.json` fallback is applied only when `--allow-deletes` is not set
 * With `--allow-deletes`, remote locales missing locally are planned as deletes
+* A missing `app-info/` or `version/<version>/` directory leaves that scope unmanaged: its remote localizations are not read, planned, or deleted. An existing directory, even an empty one, manages every locale in that scope. A push still requires at least one metadata `.json` file somewhere under `--dir`, so an otherwise empty tree is rejected instead of deleting a whole scope
 * Omitted fields are treated as no-op; they do not imply deletion
+* Explicit `null` clears only supported nullable fields and requires an existing locale when it is the file's only intent
+* `--if-exists skip` records an existing locale as `status: skipped` and leaves it untouched; `--if-exists update` applies the planned fields, including explicit `null` clears, to it instead and requires `--confirm` when a locale planned as a create clears a field. `fail` keeps today's behavior and reports the conflict.
 
 ### metadata validate
 
@@ -180,6 +184,27 @@ metadata has no errors.
 * `supportUrl` - Support URL
 * `whatsNew` - What's new / release notes (4000 characters max)
 
+### Clearing nullable fields
+
+To clear a supported nullable field, set it to JSON `null` in its localization
+file. `subtitle`, `privacyPolicyUrl`, and `promotionalText` support explicit
+clears. Omitted keys leave remote values unchanged; empty strings are not clear
+instructions, and `null` is rejected for fields without clear support.
+An explicit-locale file can combine a clear with other field updates.
+Applying a planned clear requires `--confirm`; dry-run plans do not.
+
+A clear-only file must name a locale that already exists in App Store Connect.
+`metadata plan`, `metadata push`, and `metadata apply` report an error for a
+missing locale instead of silently treating the clear as a successful no-op.
+`metadata validate` accepts these explicit-locale clear-only files offline;
+the remote locale existence check happens during plan, push, or apply.
+
+```json  theme={null}
+{
+  "promotionalText": null
+}
+```
+
 ### Default Locale
 
 **metadata/app-info/default.json:**
@@ -192,6 +217,8 @@ metadata has no errors.
 ```
 
 The `default.json` file provides fallback values for locales not explicitly defined. It is only applied when `--allow-deletes` is not set.
+It cannot contain `null` clear fields because its values fan out to multiple
+locales; put a clear in the corresponding locale-specific file instead.
 
 ## Workflow
 
@@ -304,7 +331,7 @@ With `--allow-deletes`, remove a locale by deleting its file:
 ```bash  theme={null}
 # Remove locale file
 rm metadata/app-info/ja-JP.json
-rm metadata/versions/1.2.3/ja-JP.json
+rm metadata/version/1.2.3/ja-JP.json
 
 # Push with delete confirmation
 asc metadata push \

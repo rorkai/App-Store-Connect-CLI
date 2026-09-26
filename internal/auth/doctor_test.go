@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -104,6 +105,32 @@ func TestDoctorConfigPathRejectsParentSymlinkWithoutUnsafeRecommendation(t *test
 	}
 	if got := info.Mode().Perm(); got != 0o644 {
 		t.Fatalf("config target mode = %#o, want 0644", got)
+	}
+}
+
+func TestDoctorConfigPathRejectsSpecialFileWithoutUnsafeRecommendation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("/dev/null is not a POSIX special file on Windows")
+	}
+	info, err := os.Lstat(os.DevNull)
+	if err != nil {
+		t.Fatalf("Lstat(%q) error: %v", os.DevNull, err)
+	}
+	if info.Mode().IsRegular() {
+		t.Skipf("%s is a regular file on this platform", os.DevNull)
+	}
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", os.DevNull)
+	report := Doctor(DoctorOptions{Fix: true})
+	section := findDoctorSection(t, report, "Storage")
+	if !sectionHasStatus(section, DoctorFail, "not a regular file") {
+		t.Fatalf("expected config special-file rejection, got %#v", section.Checks)
+	}
+	for _, check := range section.Checks {
+		if strings.Contains(check.Recommendation, "chmod") || check.FixApplied {
+			t.Fatalf("unexpected special-file remediation: %#v", check)
+		}
 	}
 }
 

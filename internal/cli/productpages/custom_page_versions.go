@@ -44,7 +44,7 @@ Examples:
 func CustomPageVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-versions list", flag.ExitOnError)
 
-	customPageID := fs.String("custom-page-id", "", "Custom product page ID")
+	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -119,7 +119,7 @@ Examples:
 func CustomPageVersionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-versions view", flag.ExitOnError)
 
-	versionID := fs.String("custom-page-version-id", "", "Custom product page version ID")
+	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -161,7 +161,7 @@ Examples:
 func CustomPageVersionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-versions create", flag.ExitOnError)
 
-	customPageID := fs.String("custom-page-id", "", "Custom product page ID")
+	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
 	deepLink := fs.String("deep-link", "", "Deep link URL")
 	output := shared.BindOutputFlags(fs)
 
@@ -205,7 +205,7 @@ Examples:
 func CustomPageVersionsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-versions update", flag.ExitOnError)
 
-	versionID := fs.String("custom-page-version-id", "", "Custom product page version ID")
+	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
 	deepLink := fs.String("deep-link", "", "Update deep link URL")
 	output := shared.BindOutputFlags(fs)
 

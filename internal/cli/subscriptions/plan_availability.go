@@ -48,7 +48,7 @@ Examples:
 func SubscriptionsPricingPlanAvailabilityShowCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing plan-availability show", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
@@ -116,7 +116,7 @@ Examples:
 func SubscriptionsPricingPlanAvailabilitySetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing plan-availability set", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	planType := fs.String("plan-type", "", "Billing plan: MONTHLY or UPFRONT")
 	territories := shared.BindOnceCSVFlag(fs, "territories", "Complete desired territory list, comma-separated")

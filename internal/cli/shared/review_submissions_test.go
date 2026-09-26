@@ -224,7 +224,7 @@ func TestFetchAllReviewSubmissions_PaginatesAllPages(t *testing.T) {
 			}
 			return reviewSubmissionsSharedJSONResponse(http.StatusOK, `{
 				"data": [{"type":"reviewSubmissions","id":"submission-1","attributes":{"state":"COMPLETE"}}],
-				"links": {"next":"`+nextURL+`"}
+				"links": {"self":"/v1/apps/app-1/reviewSubmissions", "next":"`+nextURL+`"}
 			}`)
 		case 2:
 			if req.URL.Path != "/v1/apps/app-1/reviewSubmissions" {
@@ -235,7 +235,7 @@ func TestFetchAllReviewSubmissions_PaginatesAllPages(t *testing.T) {
 			}
 			return reviewSubmissionsSharedJSONResponse(http.StatusOK, `{
 				"data": [{"type":"reviewSubmissions","id":"submission-2","attributes":{"state":"IN_REVIEW"}}],
-				"links": {}
+				"links": {"self":"/v1/apps/app-1/reviewSubmissions"}
 			}`)
 		default:
 			t.Fatalf("unexpected extra request #%d: %s %s", requestCount, req.Method, req.URL.RequestURI())
@@ -269,7 +269,7 @@ func TestFetchAllReviewSubmissions_ReturnsPaginationErrors(t *testing.T) {
 		case 1:
 			return reviewSubmissionsSharedJSONResponse(http.StatusOK, `{
 				"data": [{"type":"reviewSubmissions","id":"submission-1","attributes":{"state":"COMPLETE"}}],
-				"links": {"next":"`+nextURL+`"}
+				"links": {"self":"/v1/apps/app-1/reviewSubmissions", "next":"`+nextURL+`"}
 			}`)
 		case 2:
 			return reviewSubmissionsSharedJSONResponse(http.StatusBadRequest, `{"errors":[{"status":"400","detail":"boom"}]}`)

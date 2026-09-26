@@ -452,11 +452,26 @@ func findHighestProcessedBuildNumber(
 // "1.2" and "1.2.0" as the same version, so when the requested format matches
 // nothing the equivalent format is tried before reporting no match.
 func FindPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
+	return findPreReleaseVersionIDs(ctx, client, appID, version, platform, 0)
+}
+
+// FindPreReleaseVersionIDsWithMaxPages is the bounded variant used by
+// selectors that must keep their complete lookup within a finite pagination
+// budget. The unbounded FindPreReleaseVersionIDs function remains available
+// for callers whose existing pagination semantics must not change.
+func FindPreReleaseVersionIDsWithMaxPages(ctx context.Context, client *asc.Client, appID, version, platform string, maxPages int) ([]string, error) {
+	if maxPages <= 0 {
+		return nil, fmt.Errorf("max pages must be greater than zero")
+	}
+	return findPreReleaseVersionIDs(ctx, client, appID, version, platform, maxPages)
+}
+
+func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string, maxPages int) ([]string, error) {
 	requestedVersion := strings.TrimSpace(version)
 
 	variants := versionQueryVariants(requestedVersion)
 	if len(variants) == 0 {
-		ids, _, err := findPreReleaseVersionIDsForVersions(ctx, client, appID, nil, platform)
+		ids, _, err := findPreReleaseVersionIDsForVersions(ctx, client, appID, nil, platform, maxPages)
 		return ids, err
 	}
 
@@ -464,7 +479,7 @@ func FindPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, ve
 	// a platform filter, equivalent spellings can legitimately belong to
 	// different platform trains, so every variant is requested together.
 	if strings.TrimSpace(platform) == "" {
-		ids, matchedVersions, err := findPreReleaseVersionIDsForVersions(ctx, client, appID, variants, "")
+		ids, matchedVersions, err := findPreReleaseVersionIDsForVersions(ctx, client, appID, variants, "", maxPages)
 		if err != nil {
 			return nil, err
 		}
@@ -486,7 +501,7 @@ func FindPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, ve
 	// really does have a train under the caller's exact version string keeps
 	// resolving exactly as before.
 	for _, variant := range variants {
-		ids, _, err := findPreReleaseVersionIDsForVersions(ctx, client, appID, []string{variant}, platform)
+		ids, _, err := findPreReleaseVersionIDsForVersions(ctx, client, appID, []string{variant}, platform, maxPages)
 		if err != nil {
 			return nil, err
 		}
@@ -500,7 +515,7 @@ func FindPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, ve
 	return nil, nil
 }
 
-func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client, appID string, versions []string, platform string) ([]string, map[string]struct{}, error) {
+func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client, appID string, versions []string, platform string, maxPages int) ([]string, map[string]struct{}, error) {
 	opts := []asc.PreReleaseVersionsOption{}
 	acceptedVersions := make(map[string]struct{}, len(versions))
 	for _, version := range versions {
@@ -563,18 +578,24 @@ func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client
 		}
 	}
 
-	err = asc.PaginateEach(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+	fetchNext := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := contextWithTimeout(ctx)
 		defer cancel()
 		return client.GetPreReleaseVersions(requestCtx, appID, asc.WithPreReleaseVersionsNextURL(nextURL))
-	}, func(page asc.PaginatedResponse) error {
+	}
+	consumePage := func(page asc.PaginatedResponse) error {
 		resp, ok := page.(*asc.PreReleaseVersionsResponse)
 		if !ok {
 			return fmt.Errorf("unexpected pre-release versions page type %T", page)
 		}
 		appendIDs(resp)
 		return nil
-	})
+	}
+	if maxPages > 0 {
+		err = asc.PaginateEachWithMaxPages(ctx, firstPage, fetchNext, consumePage, maxPages)
+	} else {
+		err = asc.PaginateEach(ctx, firstPage, fetchNext, consumePage)
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to paginate pre-release versions: %w", err)
 	}

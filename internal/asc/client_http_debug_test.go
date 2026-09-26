@@ -114,7 +114,7 @@ func TestDebugLoggingRedactsSignedQuery(t *testing.T) {
 	buf := captureHTTPDebugLog(t, debugEnabled)
 
 	client := newTestClient(t, nil, jsonResponse(http.StatusOK, `{"data":[]}`))
-	_, err := client.doOnce(context.Background(), http.MethodGet, "https://example.com/path?X-Amz-Signature=abc&foo=bar", nil)
+	_, err := client.doOnce(context.Background(), http.MethodGet, "https://example.com/path?X-Amz-Signature=abc&foo=bar", nil, client.httpClient)
 	if err != nil {
 		t.Fatalf("doOnce() error: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestDebugLoggingIncludesRateLimitHeader(t *testing.T) {
 	response.Header.Set("X-Rate-Limit", "user-hour-lim:3500;user-hour-rem:500;")
 	client := newTestClient(t, nil, response)
 
-	data, err := client.doOnce(context.Background(), http.MethodGet, "/v1/apps", nil)
+	data, err := client.doOnce(context.Background(), http.MethodGet, "/v1/apps", nil, client.httpClient)
 	if err != nil {
 		t.Fatalf("doOnce() error: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestDebugLoggingIncludesRateLimitHeaderOnError(t *testing.T) {
 	response.Header.Set("X-Rate-Limit", "user-hour-lim:3500;user-hour-rem:0;")
 	client := newTestClient(t, nil, response)
 
-	_, err := client.doOnce(context.Background(), http.MethodGet, "/v1/apps", nil)
+	_, err := client.doOnce(context.Background(), http.MethodGet, "/v1/apps", nil, client.httpClient)
 	if err == nil {
 		t.Fatal("expected rate limit error")
 	}
@@ -184,7 +184,7 @@ func TestDebugLoggingDisabledDoesNotExposeRateLimitHeader(t *testing.T) {
 	response.Header.Set("X-Rate-Limit", "user-hour-lim:3500;user-hour-rem:500;")
 	client := newTestClient(t, nil, response)
 
-	if _, err := client.doOnce(context.Background(), http.MethodGet, "/v1/apps", nil); err != nil {
+	if _, err := client.doOnce(context.Background(), http.MethodGet, "/v1/apps", nil, client.httpClient); err != nil {
 		t.Fatalf("doOnce() error: %v", err)
 	}
 	if output := buf.String(); output != "" {

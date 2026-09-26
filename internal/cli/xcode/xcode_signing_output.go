@@ -32,6 +32,12 @@ func newXcodeSigningPlanOutput(plan *localxcode.SigningPlan) *asc.XcodeSigningPl
 		Files:                   cloneXcodeSigningPlanFiles(plan.Files),
 		Changes:                 cloneXcodeSigningSettingChanges(plan.Changes),
 		MissingOptionalIncludes: cloneSigningStrings(plan.MissingOptionalIncludes),
+		ProfilePaths:            cloneSigningStrings(plan.ProfilePaths),
+		Configuration:           plan.Configuration,
+		ExportMethod:            plan.ExportMethod,
+		SkipTargets:             cloneSigningStrings(plan.SkipTargets),
+		Inferences:              cloneXcodeSigningPlanInferences(plan.Inferences),
+		ExportOptions:           cloneXcodeSigningPlanExportOptions(plan.ExportOptions),
 		Blockers:                cloneSigningStrings(plan.Blockers),
 		Warnings:                cloneSigningStrings(plan.Warnings),
 	}
@@ -145,6 +151,43 @@ func cloneXcodeSigningFileChanges(values []localxcode.SigningFileChange) []asc.X
 			Source:       value.Source,
 			BeforeSHA256: value.BeforeSHA256,
 			AfterSHA256:  value.AfterSHA256,
+		}
+	}
+	return cloned
+}
+
+func cloneXcodeSigningPlanInferences(values []localxcode.SigningPlanInference) []asc.XcodeSigningPlanInferenceOutput {
+	if values == nil {
+		return nil
+	}
+	cloned := make([]asc.XcodeSigningPlanInferenceOutput, len(values))
+	for index, value := range values {
+		cloned[index] = asc.XcodeSigningPlanInferenceOutput{
+			Target:            value.Target,
+			Configuration:     value.Configuration,
+			BundleID:          value.BundleID,
+			ProfilePath:       value.ProfilePath,
+			ProfileUUID:       value.ProfileUUID,
+			CertificateSHA256: value.CertificateSHA256,
+			Match:             value.Match,
+		}
+	}
+	return cloned
+}
+
+func cloneXcodeSigningPlanExportOptions(options *localxcode.SigningPlanExportOptions) *asc.XcodeSigningPlanExportOptions {
+	if options == nil {
+		return nil
+	}
+	cloned := &asc.XcodeSigningPlanExportOptions{
+		Method:       options.Method,
+		SigningStyle: options.SigningStyle,
+		TeamID:       options.TeamID,
+	}
+	if options.ProvisioningProfiles != nil {
+		cloned.ProvisioningProfiles = make(map[string]string, len(options.ProvisioningProfiles))
+		for key, value := range options.ProvisioningProfiles {
+			cloned.ProvisioningProfiles[key] = value
 		}
 	}
 	return cloned

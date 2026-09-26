@@ -26,4 +26,4 @@ still work in the API (parity checks can surface these gaps).
 4. Run `make check-docs` to verify both generated indexes are current.
 5. Update the "Last synced" date below and commit the snapshot and indexes together.
 
-Last synced: 2026-07-16
+Last synced: 2026-09-26

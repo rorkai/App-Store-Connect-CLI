@@ -117,6 +117,32 @@ func TestValidateImageFileRejectsOversize(t *testing.T) {
 	}
 }
 
+func TestValidateAssetFileInfoRejectsGrowthAfterPathValidation(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "screenshot.png")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create file: %v", err)
+	}
+	defer file.Close()
+	if _, err := file.Write([]byte("image")); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	if err := ValidateImageFile(path); err != nil {
+		t.Fatalf("initial path validation: %v", err)
+	}
+	if err := file.Truncate(maxAssetFileSize + 1); err != nil {
+		t.Fatalf("grow file: %v", err)
+	}
+	info, err := file.Stat()
+	if err != nil {
+		t.Fatalf("stat opened file: %v", err)
+	}
+	if err := ValidateAssetFileInfo(path, info); err == nil || !strings.Contains(err.Error(), "file size exceeds") {
+		t.Fatalf("opened file validation error = %v, want size limit", err)
+	}
+}
+
 func TestValidateAssetFileRejectsOversize(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "large.bin")

@@ -146,6 +146,14 @@ func inspectStorage(options DoctorOptions) DoctorSection {
 		})
 		return DoctorSection{Title: "Storage", Checks: checks}
 	}
+	if !info.Mode().IsRegular() {
+		checks = append(checks, DoctorCheck{
+			Status:         DoctorFail,
+			Message:        fmt.Sprintf("Config path is not a regular file at %s", configPath),
+			Recommendation: "Configure a regular config file",
+		})
+		return DoctorSection{Title: "Storage", Checks: checks}
+	}
 
 	checks = append(checks, DoctorCheck{
 		Status:  DoctorOK,

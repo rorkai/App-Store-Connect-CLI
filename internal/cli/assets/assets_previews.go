@@ -439,7 +439,7 @@ Examples:
 					continue
 				}
 
-				downloadCtx, cancel := shared.ContextWithTimeout(ctx)
+				downloadCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
 				written, contentType, err := downloadURLToFile(downloadCtx, item.URL, item.OutputPath, *overwrite)
 				cancel()
 				if err != nil {
@@ -831,6 +831,12 @@ func detectPreviewMimeType(path string) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported preview file extension %q; supported extensions are .mov, .m4v, and .mp4", ext)
 	}
+}
+
+// ValidatePreviewFiles checks preview capacity, image contents, and extension
+// before any destructive sync. enforceCapacity rejects more than three files.
+func ValidatePreviewFiles(files []string, enforceCapacity bool) error {
+	return validatePreviewFiles(files, enforceCapacity)
 }
 
 func validatePreviewFiles(files []string, enforceCapacity bool) error {

@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 const (
@@ -393,12 +396,20 @@ func LoadAt(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config: empty path")
 	}
 
-	data, err := os.ReadFile(path)
+	file, err := rootfs.OpenFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to read config: %w", err)
+	}
+	data, readErr := io.ReadAll(file)
+	closeErr := file.Close()
+	if readErr != nil {
+		return nil, fmt.Errorf("failed to read config: %w", readErr)
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("failed to close config: %w", closeErr)
 	}
 
 	var cfg Config

@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -948,6 +950,77 @@ func TestHydrateCookieJarDoesNotResetPersistedMaxAge(t *testing.T) {
 	}
 }
 
+func TestHydrateCookieJarNarrowsLegacyParentDomainCookieToItsOrigin(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	sess := persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{
+				Name: "token", Value: "legacy", Path: "/olympus", Domain: ".apple.com",
+			}},
+		},
+	}
+	if loaded := hydrateCookieJar(jar, sess); loaded != 1 {
+		t.Fatalf("hydrateCookieJar() = %d, want one cookie", loaded)
+	}
+	appEndpoint, _ := url.Parse(olympusSessionURL)
+	developerRoot, _ := url.Parse("https://developer.apple.com/")
+	if got := cookieValue(jar.Cookies(appEndpoint), "token"); got != "legacy" {
+		t.Fatalf("app-store endpoint cookie = %q, want legacy", got)
+	}
+	if got := cookieValue(jar.Cookies(developerRoot), "token"); got != "" {
+		t.Fatalf("developer endpoint received legacy parent-domain cookie %q", got)
+	}
+}
+
+func TestHydrateCookieJarDropsConflictingHostParentAliases(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	now := time.Now().UTC()
+	sess := persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: now,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "token", Value: "host", Path: "/olympus", Expires: now.Add(time.Hour)},
+				{Name: "token", Value: "parent", Path: "/olympus", Domain: ".apple.com", Expires: now.Add(2 * time.Hour)},
+			},
+		},
+	}
+
+	if loaded := hydrateCookieJar(jar, sess); loaded != 0 {
+		t.Fatalf("hydrateCookieJar() = %d, want conflicting host/parent aliases rejected", loaded)
+	}
+}
+
+func TestHydrateCookieJarRejectsEquivalentHostParentAliases(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	now := time.Now().UTC()
+	cookie := pCookie{Name: "token", Value: "same", Path: "/olympus", Expires: now.Add(time.Hour)}
+	parent := cookie
+	parent.Domain = ".apple.com"
+	sess := persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: now,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {cookie, parent},
+		},
+	}
+
+	if loaded := hydrateCookieJar(jar, sess); loaded != 0 {
+		t.Fatalf("hydrateCookieJar() = %d, want aliases with different RFC scopes rejected", loaded)
+	}
+}
+
 func TestSessionCookieTrackingJarScopesUpdatesByOriginAndPath(t *testing.T) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -956,7 +1029,7 @@ func TestSessionCookieTrackingJarScopesUpdatesByOriginAndPath(t *testing.T) {
 	appURL, _ := url.Parse("https://appstoreconnect.apple.com/olympus/v1/session")
 	appRoot, _ := url.Parse("https://appstoreconnect.apple.com/")
 	developerRoot, _ := url.Parse("https://developer.apple.com/")
-	oldExpiry := time.Date(2026, time.September, 18, 3, 0, 0, 0, time.UTC)
+	oldExpiry := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second)
 	appExpiry := oldExpiry.Add(time.Hour)
 	pathExpiry := oldExpiry.Add(2 * time.Hour)
 	for _, target := range []*url.URL{appRoot, developerRoot} {
@@ -1000,7 +1073,7 @@ func TestPreserveCachedCookieDeadlineDropsSessionOnlySameValueUpdate(t *testing.
 		t.Fatalf("cookiejar.New() error: %v", err)
 	}
 	target, _ := url.Parse("https://appstoreconnect.apple.com/")
-	oldExpiry := time.Date(2026, time.September, 18, 3, 0, 0, 0, time.UTC)
+	oldExpiry := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second)
 	jar.SetCookies(target, []*http.Cookie{{Name: "token", Value: "same", Path: "/", Expires: oldExpiry}})
 	tracker := newSessionCookieTrackingJar(jar)
 	tracker.SetCookies(target, []*http.Cookie{{Name: "token", Value: "same", Path: "/"}})
@@ -1009,7 +1082,7 @@ func TestPreserveCachedCookieDeadlineDropsSessionOnlySameValueUpdate(t *testing.
 		t.Fatalf("serializeWithUpdates() error: %v", err)
 	}
 	cached := persistedSession{
-		UpdatedAt: time.Date(2026, time.September, 17, 3, 0, 0, 0, time.UTC),
+		UpdatedAt: oldExpiry.Add(-24 * time.Hour),
 		Cookies:   map[string][]pCookie{target.String(): {{Name: "token", Value: "same", Expires: oldExpiry}}},
 	}
 	preserveCachedCookieDeadlines(&serialized, &cached, updates, oldExpiry.Add(-time.Hour))
@@ -1024,7 +1097,7 @@ func TestPreserveCachedCookieDeadlineUsesLatestPersistentUpdate(t *testing.T) {
 		t.Fatalf("cookiejar.New() error: %v", err)
 	}
 	target, _ := url.Parse("https://appstoreconnect.apple.com/")
-	oldExpiry := time.Date(2026, time.September, 18, 3, 0, 0, 0, time.UTC)
+	oldExpiry := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second)
 	firstExpiry := oldExpiry.Add(time.Hour)
 	latestExpiry := oldExpiry.Add(2 * time.Hour)
 	jar.SetCookies(target, []*http.Cookie{{Name: "token", Value: "same", Path: "/", Expires: oldExpiry}})
@@ -1038,7 +1111,7 @@ func TestPreserveCachedCookieDeadlineUsesLatestPersistentUpdate(t *testing.T) {
 		t.Fatalf("serializeWithUpdates() error: %v", err)
 	}
 	cached := persistedSession{
-		UpdatedAt: time.Date(2026, time.September, 17, 3, 0, 0, 0, time.UTC),
+		UpdatedAt: oldExpiry.Add(-24 * time.Hour),
 		Cookies:   map[string][]pCookie{target.String(): {{Name: "token", Value: "same", Expires: oldExpiry}}},
 	}
 	preserveCachedCookieDeadlines(&serialized, &cached, updates, oldExpiry.Add(-time.Hour))
@@ -1074,7 +1147,7 @@ func TestSerializeCookieJarDropsHostOnlyDomainScopeAmbiguity(t *testing.T) {
 		t.Fatalf("cookiejar.New() error: %v", err)
 	}
 	target, _ := url.Parse("https://appstoreconnect.apple.com/")
-	oldExpiry := time.Date(2026, time.September, 18, 3, 0, 0, 0, time.UTC)
+	oldExpiry := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second)
 	jar.SetCookies(target, []*http.Cookie{
 		{Name: "token", Value: "host", Path: "/", Expires: oldExpiry},
 		{Name: "token", Value: "domain", Domain: ".apple.com", Path: "/", Expires: oldExpiry},
@@ -1099,7 +1172,7 @@ func TestPersistSessionKeepsSessionOnlyUpdateNonPersistable(t *testing.T) {
 		t.Fatalf("cookiejar.New() error: %v", err)
 	}
 	target, _ := url.Parse("https://appstoreconnect.apple.com/")
-	oldExpiry := time.Date(2026, time.September, 18, 3, 0, 0, 0, time.UTC)
+	oldExpiry := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second)
 	firstExpiry := oldExpiry.Add(time.Hour)
 	jar.SetCookies(target, []*http.Cookie{{Name: "token", Value: "same", Path: "/", Expires: oldExpiry}})
 	tracker := newSessionCookieTrackingJar(jar)
@@ -1140,7 +1213,7 @@ func TestPersistSessionKeepsSessionOnlyUpdateNonPersistable(t *testing.T) {
 func TestPersistSessionDoesNotAdvanceBaselineWhenPersistenceFails(t *testing.T) {
 	withFileSessionCache(t)
 	previousWrite := sessionFileWrite
-	sessionFileWrite = func(string, []byte, os.FileMode) error {
+	sessionFileWrite = func(string, *os.File, []byte, os.FileMode) error {
 		return errors.New("injected session-cache write failure")
 	}
 	t.Cleanup(func() { sessionFileWrite = previousWrite })
@@ -1150,7 +1223,7 @@ func TestPersistSessionDoesNotAdvanceBaselineWhenPersistenceFails(t *testing.T) 
 		t.Fatalf("cookiejar.New() error: %v", err)
 	}
 	target, _ := url.Parse("https://appstoreconnect.apple.com/")
-	oldExpiry := time.Date(2026, time.September, 18, 3, 0, 0, 0, time.UTC)
+	oldExpiry := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second)
 	newExpiry := oldExpiry.Add(time.Hour)
 	jar.SetCookies(target, []*http.Cookie{{Name: "token", Value: "same", Path: "/", Expires: oldExpiry}})
 	tracker := newSessionCookieTrackingJar(jar)
@@ -1529,6 +1602,746 @@ func TestTryResumeSessionPersistsRefreshedCookies(t *testing.T) {
 	}
 }
 
+func TestTryResumeSessionPersistsRefreshedOlympusPathCookieWithoutBroadeningScope(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey(webTestSessionEmail)
+	oldExpiry := time.Now().UTC().Add(24 * time.Hour)
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: webTestSessionEmail,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{
+				Name: "myacinfo", Value: "stale-token", Path: "/olympus",
+				Domain: "appstoreconnect.apple.com", Expires: oldExpiry,
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile error: %v", err)
+	}
+
+	previousFetcher := sessionInfoFetcher
+	sessionInfoFetcher = func(ctx context.Context, client *http.Client) (*sessionInfo, error) {
+		endpoint, err := url.Parse(olympusSessionURL)
+		if err != nil {
+			return nil, err
+		}
+		if got := cookieValue(client.Jar.Cookies(endpoint), "myacinfo"); got != "stale-token" {
+			return nil, fmt.Errorf("session endpoint received cookie %q, want stale-token", got)
+		}
+		client.Jar.SetCookies(endpoint, []*http.Cookie{{
+			Name: "myacinfo", Value: "refreshed-token", Path: "/olympus",
+			Domain: "appstoreconnect.apple.com", Expires: time.Now().UTC().Add(72 * time.Hour),
+			Secure: true, HttpOnly: true,
+		}})
+		out := &sessionInfo{}
+		out.Provider.ProviderID = 42
+		out.User.EmailAddress = webTestSessionEmail
+		return out, nil
+	}
+	t.Cleanup(func() { sessionInfoFetcher = previousFetcher })
+
+	resumed, ok, err := TryResumeSession(context.Background(), webTestSessionEmail)
+	if err != nil {
+		t.Fatalf("TryResumeSession error: %v", err)
+	}
+	if !ok || resumed == nil {
+		t.Fatal("expected resumed session")
+	}
+
+	root, _ := url.Parse("https://appstoreconnect.apple.com/")
+	if got := resumed.Client.Jar.Cookies(root); len(got) != 0 {
+		t.Fatalf("path-scoped cookie leaked to app root: %#v", got)
+	}
+
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil {
+		t.Fatalf("readSessionFromFile error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected resumed session in cache")
+	}
+	var got pCookie
+	var found int
+	for _, cookies := range stored.Cookies {
+		for _, cookie := range cookies {
+			if cookie.Name == "myacinfo" {
+				got = cookie
+				found++
+			}
+		}
+	}
+	if found != 1 {
+		t.Fatalf("persisted myacinfo count = %d, want one cookie: %#v", found, stored.Cookies)
+	}
+	if got.Value != "refreshed-token" || got.Path != "/olympus" || got.Domain != "" {
+		t.Fatalf("persisted cookie scope/value = %+v, want refreshed-token at /olympus with a host-only domain", got)
+	}
+}
+
+func TestPersistSessionPreservesUntouchedOlympusPathCookieScope(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey(webTestSessionEmail)
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: webTestSessionEmail,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{
+				Name: "myacinfo", Value: "path-token", Path: "/olympus",
+				Domain: "appstoreconnect.apple.com", Expires: time.Now().UTC().Add(24 * time.Hour),
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile error: %v", err)
+	}
+
+	loaded, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok || loaded == nil {
+		t.Fatalf("LoadCachedSession() = (%+v, %t, %v), want cached session", loaded, ok, err)
+	}
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%t, %v), want cached session", ok, err)
+	}
+	cookies := stored.Cookies["https://appstoreconnect.apple.com/"]
+	if len(cookies) != 1 || cookies[0].Name != "myacinfo" || cookies[0].Value != "path-token" ||
+		cookies[0].Path != "/olympus" || cookies[0].Domain != "" {
+		t.Fatalf("persisted path cookie = %#v, want its original value and narrowed host-only scope", cookies)
+	}
+	root, _ := url.Parse("https://appstoreconnect.apple.com/")
+	if got := loaded.Client.Jar.Cookies(root); len(got) != 0 {
+		t.Fatalf("path-scoped cookie leaked to app root: %#v", got)
+	}
+}
+
+func TestPersistSessionKeepsFreshSessionOnlyOlympusPathCookie(t *testing.T) {
+	withFileSessionCache(t)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	tracker := newSessionCookieTrackingJar(jar)
+	tracker.SetCookies(endpoint, []*http.Cookie{{Name: "myacinfo", Value: "fresh-path", Path: "/olympus"}})
+	session := &AuthSession{
+		Client:    &http.Client{Jar: tracker},
+		UserEmail: webTestSessionEmail,
+	}
+	if err := PersistSession(session); err != nil {
+		t.Fatalf("PersistSession(first) error: %v", err)
+	}
+	if err := PersistSession(session); err != nil {
+		t.Fatalf("PersistSession(second) error: %v", err)
+	}
+
+	stored, ok, err := readSessionFromFile(webSessionCacheKey(webTestSessionEmail))
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%t, %v), want stored session", ok, err)
+	}
+	cookies := stored.Cookies["https://appstoreconnect.apple.com/"]
+	if len(cookies) != 1 || cookies[0].Name != "myacinfo" || cookies[0].Value != "fresh-path" || cookies[0].Path != "/olympus" {
+		t.Fatalf("persisted fresh session-only path cookie = %#v, want one /olympus cookie after repeated saves", cookies)
+	}
+}
+
+func TestPersistSessionDropsSessionOnlyOlympusReplacement(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey(webTestSessionEmail)
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: webTestSessionEmail,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{
+				Name: "myacinfo", Value: "cached-path", Path: "/olympus", Expires: time.Now().UTC().Add(time.Hour),
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile() error: %v", err)
+	}
+	loaded, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok || loaded == nil {
+		t.Fatalf("LoadCachedSession() = (%+v, %t, %v), want cached session", loaded, ok, err)
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	loaded.Client.Jar.SetCookies(endpoint, []*http.Cookie{{Name: "myacinfo", Value: "rotated-path", Path: "/olympus"}})
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession(first) error: %v", err)
+	}
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession(second) error: %v", err)
+	}
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%t, %v), want stored session", ok, err)
+	}
+	if got := stored.Cookies["https://appstoreconnect.apple.com/"]; len(got) != 0 {
+		t.Fatalf("session-only Olympus replacement persisted as %#v, want none", got)
+	}
+}
+
+func TestPersistSessionDoesNotResurrectDeletedOlympusCookieWhenRootValueMatches(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	cached := persistedSession{
+		UpdatedAt: time.Now().UTC(),
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "token", Value: "same", Path: "/", Expires: time.Now().UTC().Add(time.Hour)},
+				{Name: "token", Value: "same", Path: "/olympus", Expires: time.Now().UTC().Add(time.Hour)},
+			},
+		},
+	}
+	hydrateCookieJar(jar, cached)
+	tracker := newSessionCookieTrackingJarWithCached(jar, &cached)
+	endpoint, _ := url.Parse(olympusSessionURL)
+	tracker.SetCookies(endpoint, []*http.Cookie{{Name: "token", Path: "/olympus", MaxAge: -1}})
+
+	serialized, updates, err := tracker.serializeWithUpdates(webTestSessionEmail)
+	if err != nil {
+		t.Fatalf("serializeWithUpdates() error: %v", err)
+	}
+	preserveCachedCookieDeadlines(&serialized, &cached, updates, time.Now().UTC())
+	for _, cookie := range serialized.Cookies["https://appstoreconnect.apple.com/"] {
+		if cookie.Name == "token" && persistedCookiePath(cookie.Path) == "/olympus" {
+			t.Fatalf("deleted Olympus cookie was resurrected: %#v", serialized.Cookies)
+		}
+	}
+}
+
+func TestPersistSessionDoesNotRetainRotatedOlympusCookieWhenRootValueMatches(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	cached := persistedSession{
+		UpdatedAt: time.Now().UTC(),
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "token", Value: "token-a", Path: "/", Expires: time.Now().UTC().Add(time.Hour)},
+				{Name: "token", Value: "token-a", Path: "/olympus", Expires: time.Now().UTC().Add(time.Hour)},
+			},
+		},
+	}
+	hydrateCookieJar(jar, cached)
+	tracker := newSessionCookieTrackingJarWithCached(jar, &cached)
+	endpoint, _ := url.Parse(olympusSessionURL)
+	tracker.SetCookies(endpoint, []*http.Cookie{
+		{Name: "token", Value: "token-b", Path: "/olympus", Expires: time.Now().UTC().Add(2 * time.Hour)},
+	})
+
+	serialized, updates, err := tracker.serializeWithUpdates(webTestSessionEmail)
+	if err != nil {
+		t.Fatalf("serializeWithUpdates() error: %v", err)
+	}
+	preserveCachedCookieDeadlines(&serialized, &cached, updates, time.Now().UTC())
+	var got []pCookie
+	for _, cookie := range serialized.Cookies["https://appstoreconnect.apple.com/"] {
+		if cookie.Name == "token" && persistedCookiePath(cookie.Path) == "/olympus" {
+			got = append(got, cookie)
+		}
+	}
+	if len(got) != 1 || got[0].Value != "token-b" {
+		t.Fatalf("rotated Olympus cookies = %#v, want only token-b", got)
+	}
+}
+
+func TestSessionCookieTrackingJarKeepsRootAndOlympusUpdatesSeparate(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	root, _ := url.Parse("https://appstoreconnect.apple.com/")
+	endpoint, _ := url.Parse(olympusSessionURL)
+	rootExpiry := time.Now().UTC().Add(time.Hour)
+	pathExpiry := rootExpiry.Add(time.Hour)
+	tracker := newSessionCookieTrackingJar(jar)
+	tracker.SetCookies(root, []*http.Cookie{{Name: "token", Value: "same", Path: "/", Expires: rootExpiry}})
+	tracker.SetCookies(endpoint, []*http.Cookie{{Name: "token", Value: "same", Path: "/olympus", Expires: pathExpiry}})
+	serialized, updates, err := tracker.serializeWithUpdates("user@example.com")
+	if err != nil {
+		t.Fatalf("serializeWithUpdates() error: %v", err)
+	}
+	preserveCachedCookieDeadlines(&serialized, nil, updates, time.Now().UTC())
+	cookies := serialized.Cookies[root.String()]
+	if len(cookies) != 2 {
+		t.Fatalf("persisted cookies = %#v, want root and Olympus scopes", cookies)
+	}
+	for _, cookie := range cookies {
+		switch persistedCookiePath(cookie.Path) {
+		case "/":
+			if !cookie.Expires.Equal(rootExpiry) {
+				t.Fatalf("root expiry = %v, want %v", cookie.Expires, rootExpiry)
+			}
+		case "/olympus":
+			if !cookie.Expires.Equal(pathExpiry) {
+				t.Fatalf("Olympus expiry = %v, want %v", cookie.Expires, pathExpiry)
+			}
+		default:
+			t.Fatalf("unexpected persisted path %q", cookie.Path)
+		}
+	}
+}
+
+func TestPersistSessionKeepsUntouchedOlympusScopeWhenRootRenews(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey(webTestSessionEmail)
+	oldExpiry := time.Now().UTC().Add(time.Hour)
+	rootExpiry := oldExpiry.Add(time.Hour)
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: webTestSessionEmail,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "token", Value: "same", Path: "/", Expires: oldExpiry},
+				{Name: "token", Value: "same", Path: "/olympus", Expires: oldExpiry},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile() error: %v", err)
+	}
+	loaded, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok || loaded == nil {
+		t.Fatalf("LoadCachedSession() = (%+v, %t, %v), want cached session", loaded, ok, err)
+	}
+	root, _ := url.Parse("https://appstoreconnect.apple.com/")
+	loaded.Client.Jar.SetCookies(root, []*http.Cookie{{Name: "token", Value: "same", Path: "/", Expires: rootExpiry}})
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession() error: %v", err)
+	}
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%t, %v), want stored session", ok, err)
+	}
+	cookies := stored.Cookies[root.String()]
+	if len(cookies) != 2 {
+		t.Fatalf("persisted cookies = %#v, want root and untouched Olympus scopes", cookies)
+	}
+	for _, cookie := range cookies {
+		switch persistedCookiePath(cookie.Path) {
+		case "/":
+			if !cookie.Expires.Equal(rootExpiry) {
+				t.Fatalf("root expiry = %v, want %v", cookie.Expires, rootExpiry)
+			}
+		case "/olympus":
+			if !cookie.Expires.Equal(oldExpiry) {
+				t.Fatalf("untouched Olympus expiry = %v, want %v", cookie.Expires, oldExpiry)
+			}
+		default:
+			t.Fatalf("unexpected persisted path %q", cookie.Path)
+		}
+	}
+}
+
+func TestPersistSessionPreservesUntouchedOlympusParentDomainCookie(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey(webTestSessionEmail)
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: webTestSessionEmail,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{
+				Name: "myacinfo", Value: "parent-token", Path: "/olympus",
+				Domain: ".apple.com", Expires: time.Now().UTC().Add(24 * time.Hour),
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile error: %v", err)
+	}
+
+	loaded, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok || loaded == nil {
+		t.Fatalf("LoadCachedSession() = (%+v, %t, %v), want cached session", loaded, ok, err)
+	}
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%t, %v), want cached session", ok, err)
+	}
+	cookies := stored.Cookies["https://appstoreconnect.apple.com/"]
+	if len(cookies) != 1 || cookies[0].Value != "parent-token" || cookies[0].Path != "/olympus" ||
+		cookies[0].Domain != "" || cookies[0].ScopeDomain != "apple.com" {
+		t.Fatalf("persisted parent-domain cookie = %#v, want a narrowed host-only Domain with apple.com scope provenance", cookies)
+	}
+	bundle, ok, err := ExportSessionBundle(webTestSessionEmail)
+	if err != nil || !ok || bundle == nil {
+		t.Fatalf("ExportSessionBundle() = (%+v, %t, %v), want the narrowed cached session", bundle, ok, err)
+	}
+	if err := bundle.Validate(); err != nil {
+		t.Fatalf("narrowed exported bundle failed validation: %v", err)
+	}
+}
+
+func TestPersistSessionDoesNotResurrectParentDomainCookieDeletedAfterNarrowing(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey(webTestSessionEmail)
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: webTestSessionEmail,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{
+				Name: "myacinfo", Value: "parent-token", Path: "/olympus",
+				Domain: ".apple.com", Expires: time.Now().UTC().Add(24 * time.Hour),
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile() error: %v", err)
+	}
+
+	loaded, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok || loaded == nil {
+		t.Fatalf("LoadCachedSession() = (%+v, %t, %v), want cached session", loaded, ok, err)
+	}
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession(first) error: %v", err)
+	}
+
+	endpoint, _ := url.Parse(olympusSessionURL)
+	loaded.Client.Jar.SetCookies(endpoint, []*http.Cookie{{
+		Name: "myacinfo", Path: "/olympus", Domain: ".apple.com", MaxAge: -1,
+	}})
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession(second) error: %v", err)
+	}
+
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%t, %v), want stored session", ok, err)
+	}
+	for _, cookie := range stored.Cookies["https://appstoreconnect.apple.com/"] {
+		if cookie.Name == "myacinfo" && persistedCookiePath(cookie.Path) == "/olympus" {
+			t.Fatalf("deleted parent-domain cookie was resurrected after narrowing: %#v", stored.Cookies)
+		}
+	}
+}
+
+func TestPersistSessionDropsSessionOnlyParentDomainReplacementAfterNarrowing(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey(webTestSessionEmail)
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: webTestSessionEmail,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{
+				Name: "myacinfo", Value: "parent-token", Path: "/olympus",
+				Domain: ".apple.com", Expires: time.Now().UTC().Add(24 * time.Hour),
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile() error: %v", err)
+	}
+
+	loaded, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok || loaded == nil {
+		t.Fatalf("LoadCachedSession() = (%+v, %t, %v), want cached session", loaded, ok, err)
+	}
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession(first) error: %v", err)
+	}
+
+	endpoint, _ := url.Parse(olympusSessionURL)
+	loaded.Client.Jar.SetCookies(endpoint, []*http.Cookie{{
+		Name: "myacinfo", Value: "rotated-token", Path: "/olympus", Domain: ".apple.com",
+	}})
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession(second) error: %v", err)
+	}
+
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%t, %v), want stored session", ok, err)
+	}
+	for _, cookie := range stored.Cookies["https://appstoreconnect.apple.com/"] {
+		if cookie.Name == "myacinfo" && persistedCookiePath(cookie.Path) == "/olympus" {
+			t.Fatalf("session-only parent-domain replacement persisted after narrowing: %#v", stored.Cookies)
+		}
+	}
+}
+
+func TestPersistSessionAppliesParentDomainRenewalAfterNarrowing(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey(webTestSessionEmail)
+	oldExpiry := time.Now().UTC().Add(time.Hour)
+	newExpiry := oldExpiry.Add(time.Hour)
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: webTestSessionEmail,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{
+				Name: "myacinfo", Value: "parent-token", Path: "/olympus", Domain: ".apple.com", Expires: oldExpiry,
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile() error: %v", err)
+	}
+	loaded, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok || loaded == nil {
+		t.Fatalf("LoadCachedSession() = (%+v, %t, %v), want cached session", loaded, ok, err)
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	loaded.Client.Jar.SetCookies(endpoint, []*http.Cookie{
+		{Name: "myacinfo", Value: "parent-token", Path: "/olympus", Domain: ".apple.com", Expires: newExpiry},
+	})
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession() error: %v", err)
+	}
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%t, %v), want stored session", ok, err)
+	}
+	cookies := stored.Cookies["https://appstoreconnect.apple.com/"]
+	if len(cookies) != 1 || cookies[0].Domain != "" || cookies[0].ScopeDomain != "apple.com" || !cookies[0].Expires.Equal(newExpiry) {
+		t.Fatalf("renewed parent-domain cookie = %#v, want narrowed cookie with apple.com scope provenance and expiry %v", cookies, newExpiry)
+	}
+}
+
+func TestPersistSessionPreservesHostOnlyCookieWhenParentDomainTombstoneArrives(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	now := time.Now().UTC()
+	cached := persistedSession{
+		UpdatedAt: now,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{
+				Name: "token", Value: "host-only", Path: "/olympus", Expires: now.Add(time.Hour),
+			}},
+		},
+	}
+	if loaded := hydrateCookieJar(jar, cached); loaded != 1 {
+		t.Fatalf("hydrateCookieJar() = %d, want one host-only cookie", loaded)
+	}
+
+	tracker := newSessionCookieTrackingJarWithCached(jar, &cached)
+	endpoint, _ := url.Parse(olympusSessionURL)
+	tracker.SetCookies(endpoint, []*http.Cookie{{
+		Name: "token", Path: "/olympus", Domain: ".apple.com", MaxAge: -1,
+	}})
+	serialized, updates, err := tracker.serializeWithUpdates(webTestSessionEmail)
+	if err != nil {
+		t.Fatalf("serializeWithUpdates() error: %v", err)
+	}
+	preserveCachedCookieDeadlines(&serialized, &cached, updates, now)
+	cookies := serialized.Cookies["https://appstoreconnect.apple.com/"]
+	if len(cookies) != 1 || cookies[0].Name != "token" || cookies[0].Value != "host-only" ||
+		cookies[0].Path != "/olympus" || cookies[0].Domain != "" {
+		t.Fatalf("persisted cookies after parent-domain tombstone = %#v, want untouched host-only cookie", cookies)
+	}
+}
+
+func TestSessionCookieTrackingJarPersistsDefaultOlympusCookiePath(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	tracker := newSessionCookieTrackingJar(jar)
+	endpoint, _ := url.Parse(olympusSessionURL)
+	tracker.SetCookies(endpoint, []*http.Cookie{{Name: "myacinfo", Value: "default-path", Expires: time.Now().UTC().Add(time.Hour)}})
+	serialized, _, err := tracker.serializeWithUpdates("user@example.com")
+	if err != nil {
+		t.Fatalf("serializeWithUpdates() error: %v", err)
+	}
+	cookies := serialized.Cookies["https://appstoreconnect.apple.com/"]
+	if len(cookies) != 1 || cookies[0].Path != "/olympus/v1" {
+		t.Fatalf("default-path cookie = %#v, want /olympus/v1 scope", cookies)
+	}
+}
+
+func TestPreserveCachedCookieDeadlineDoesNotCrossAppleHosts(t *testing.T) {
+	appRoot := "https://appstoreconnect.apple.com/"
+	developerRoot := "https://developer.apple.com/"
+	oldExpiry := time.Date(2026, time.September, 18, 3, 0, 0, 0, time.UTC)
+	newExpiry := oldExpiry.Add(time.Hour)
+	current := persistedSession{Cookies: map[string][]pCookie{
+		appRoot: {{Name: "token", Value: "same", Path: "/", Expires: oldExpiry}},
+	}}
+	updates := map[trackedCookieKey]trackedCookieUpdate{
+		{origin: developerRoot, name: "token", value: "same"}: {
+			cookie: pCookie{Name: "token", Value: "same", Path: "/", Expires: newExpiry},
+		},
+	}
+	preserveCachedCookieDeadlines(&current, nil, updates, oldExpiry.Add(-time.Hour))
+	if got := current.Cookies[appRoot][0].Expires; !got.Equal(oldExpiry) {
+		t.Fatalf("app-store cookie expiry = %v, want unrelated developer update ignored", got)
+	}
+}
+
+func TestPreserveCachedCookieDeadlineDoesNotApplyOlympusUpdateToOtherAppleHost(t *testing.T) {
+	developerRoot := "https://developer.apple.com/"
+	oldExpiry := time.Date(2026, time.September, 18, 3, 0, 0, 0, time.UTC)
+	newExpiry := oldExpiry.Add(time.Hour)
+	current := persistedSession{Cookies: map[string][]pCookie{
+		developerRoot: {{Name: "token", Value: "same", Path: "/", Expires: oldExpiry}},
+	}}
+	updates := map[trackedCookieKey]trackedCookieUpdate{
+		{origin: olympusSessionURL, name: "token", value: "same"}: {
+			cookie: pCookie{Name: "token", Value: "same", Path: "/", Expires: newExpiry},
+		},
+	}
+	preserveCachedCookieDeadlines(&current, &persistedSession{Cookies: map[string][]pCookie{
+		developerRoot: {{Name: "token", Value: "same", Path: "/", Expires: oldExpiry}},
+	}}, updates, oldExpiry.Add(-time.Hour))
+	if got := current.Cookies[developerRoot][0].Expires; !got.Equal(oldExpiry) {
+		t.Fatalf("developer cookie expiry = %v, want unrelated Olympus update ignored", got)
+	}
+}
+
+func TestPreserveTrackedCookieScopesKeepsDistinctRootAndOlympusCookies(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	root, _ := url.Parse("https://appstoreconnect.apple.com/")
+	endpoint, _ := url.Parse(olympusSessionURL)
+	rootExpiry := time.Now().UTC().Add(time.Hour)
+	pathExpiry := rootExpiry.Add(time.Hour)
+	jar.SetCookies(root, []*http.Cookie{{Name: "token", Value: "root", Path: "/", Expires: rootExpiry}})
+	tracker := newSessionCookieTrackingJar(jar)
+	tracker.SetCookies(endpoint, []*http.Cookie{{Name: "token", Value: "path", Path: "/olympus", Expires: pathExpiry}})
+	serialized, updates, err := tracker.serializeWithUpdates("user@example.com")
+	if err != nil {
+		t.Fatalf("serializeWithUpdates() error: %v", err)
+	}
+	preserveCachedCookieDeadlines(&serialized, nil, updates, time.Now().UTC())
+	cookies := serialized.Cookies[root.String()]
+	if len(cookies) != 2 {
+		t.Fatalf("persisted cookies = %#v, want distinct root and Olympus cookies", cookies)
+	}
+	paths := map[string]bool{}
+	for _, cookie := range cookies {
+		paths[persistedCookiePath(cookie.Path)] = true
+	}
+	if !paths["/"] || !paths["/olympus"] {
+		t.Fatalf("persisted paths = %#v, want / and /olympus", cookies)
+	}
+}
+
+func TestPersistedCookieScopeNormalizesLeadingDotDomain(t *testing.T) {
+	root := pCookie{Name: "token", Value: "same", Path: "/olympus", Domain: "appstoreconnect.apple.com"}
+	leadingDot := root
+	leadingDot.Domain = ".appstoreconnect.apple.com"
+	if !persistedCookieListHasScope([]pCookie{root}, leadingDot) {
+		t.Fatal("equivalent leading-dot domain was treated as a distinct cookie scope")
+	}
+}
+
+func TestCachedCookieForProbeRejectsConflictingDeadlinesForSameScope(t *testing.T) {
+	now := time.Now().UTC()
+	cached := persistedSession{
+		UpdatedAt: now,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "token", Value: "same", Path: "/olympus", Domain: "appstoreconnect.apple.com", Expires: now.Add(time.Hour)},
+				{Name: "token", Value: "same", Path: "/olympus", Domain: ".appstoreconnect.apple.com", Expires: now.Add(2 * time.Hour)},
+			},
+		},
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	if _, ok := cachedCookieForProbe(&cached, endpoint, "token", "same"); ok {
+		t.Fatal("same-scope cookies with conflicting deadlines were accepted")
+	}
+}
+
+func TestCachedCookieForProbeRejectsConflictingHostParentAliases(t *testing.T) {
+	now := time.Now().UTC()
+	cached := persistedSession{
+		UpdatedAt: now,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "token", Value: "same", Path: "/olympus", Expires: now.Add(time.Hour)},
+				{Name: "token", Value: "same", Path: "/olympus", Domain: ".apple.com", Expires: now.Add(2 * time.Hour)},
+			},
+		},
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	if _, ok := cachedCookieForProbe(&cached, endpoint, "token", "same"); ok {
+		t.Fatal("host-only and parent-domain aliases with conflicting deadlines were accepted")
+	}
+}
+
+func TestCachedCookieForProbeRejectsEquivalentHostParentAliases(t *testing.T) {
+	now := time.Now().UTC()
+	expires := now.Add(time.Hour)
+	cached := persistedSession{
+		UpdatedAt: now,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "token", Value: "same", Path: "/olympus", Expires: expires},
+				{Name: "token", Value: "same", Path: "/olympus", Domain: ".apple.com", Expires: expires},
+			},
+		},
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	if _, ok := cachedCookieForProbe(&cached, endpoint, "token", "same"); ok {
+		t.Fatal("equivalent host-only and parent-domain aliases were resolved by input order")
+	}
+}
+
+func TestCookieScopeMatchingKeepsHostOnlyAndParentDomainDistinct(t *testing.T) {
+	endpoint, _ := url.Parse(olympusSessionURL)
+	hostOnly := pCookie{Name: "token", Value: "same", Path: "/olympus"}
+	parent := hostOnly
+	parent.Domain = ".apple.com"
+	if cookieScopesMatchForOrigin(endpoint.String(), hostOnly, parent) {
+		t.Fatal("host-only and parent-domain cookies were treated as one RFC scope")
+	}
+	updates := map[trackedCookieKey]trackedCookieUpdate{
+		trackedCookieKeyForCookie(endpoint.String(), parent): {cookie: parent},
+	}
+	if trackedCookieScopeUpdatedForOrigin(updates, endpoint.String(), hostOnly) {
+		t.Fatal("parent-domain renewal was treated as a host-only update")
+	}
+	if _, ok := trackedCookieUpdateForPersistedCookie(updates, endpoint.String(), hostOnly); ok {
+		t.Fatal("parent-domain renewal matched a host-only persisted cookie")
+	}
+}
+
+func TestDropAmbiguousPersistedCookiesRejectsEquivalentRecordsWithDifferentScopeProvenance(t *testing.T) {
+	origin, _ := url.Parse("https://appstoreconnect.apple.com/")
+	now := time.Now().UTC()
+	hostOnly := pCookie{Name: "token", Value: "same", Path: "/olympus", Expires: now.Add(time.Hour)}
+	parent := hostOnly
+	parent.Domain = ".apple.com"
+	got := dropAmbiguousPersistedCookies([]pCookie{
+		hostOnly,
+		narrowCookieDomainForOrigin(origin, parent),
+	})
+	if len(got) != 0 {
+		t.Fatalf("equivalent narrowed aliases = %#v, want differing RFC scopes rejected", got)
+	}
+}
+
+func TestDropAmbiguousPersistedCookiesDropsConflictingRecords(t *testing.T) {
+	origin, _ := url.Parse("https://appstoreconnect.apple.com/")
+	now := time.Now().UTC()
+	hostOnly := pCookie{Name: "token", Value: "host", Path: "/olympus", Expires: now.Add(time.Hour)}
+	parent := hostOnly
+	parent.Value = "parent"
+	parent.Domain = ".apple.com"
+	got := dropAmbiguousPersistedCookies([]pCookie{
+		hostOnly,
+		narrowCookieDomainForOrigin(origin, parent),
+	})
+	if len(got) != 0 {
+		t.Fatalf("conflicting narrowed aliases = %#v, want all records dropped", got)
+	}
+}
+
 func TestTryResumeSessionFailedRefreshPreservesNewerReplacementOnCleanup(t *testing.T) {
 	withFileSessionCache(t)
 	key := webSessionCacheKey(webTestSessionEmail)
@@ -1538,7 +2351,7 @@ func TestTryResumeSessionFailedRefreshPreservesNewerReplacementOnCleanup(t *test
 	}
 
 	previousWrite := sessionFileWrite
-	sessionFileWrite = func(string, []byte, os.FileMode) error {
+	sessionFileWrite = func(string, *os.File, []byte, os.FileMode) error {
 		return errors.New("injected refresh persistence failure")
 	}
 	resumed, ok, err := TryResumeSession(context.Background(), webTestSessionEmail)
@@ -1770,6 +2583,37 @@ func TestReadLastSessionBySelectionKeychainBackendIgnoresBrokenFileMirror(t *tes
 	}
 }
 
+func TestReadLastKeyFromFileRejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	outside := t.TempDir()
+	t.Setenv(webSessionCacheDirEnv, dir)
+
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkdir cache dir: %v", err)
+	}
+	last := persistedLastSession{Version: webSessionCacheVersion, Key: webSessionCacheKey("outside@example.com")}
+	raw, err := json.Marshal(last)
+	if err != nil {
+		t.Fatalf("marshal last marker: %v", err)
+	}
+	targetPath := filepath.Join(outside, "last.json")
+	if err := os.WriteFile(targetPath, raw, 0o600); err != nil {
+		t.Fatalf("write target last marker: %v", err)
+	}
+	cachePath := filepath.Join(dir, "last.json")
+	if err := os.Symlink(targetPath, cachePath); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	key, ok, err := readLastKeyFromFile()
+	if err == nil {
+		t.Fatalf("readLastKeyFromFile() = (%q, %t, nil); want symlink rejection", key, ok)
+	}
+	if key != "" || ok {
+		t.Fatalf("readLastKeyFromFile() = (%q, %t, %v), want no key", key, ok, err)
+	}
+}
+
 func TestTryResumeSessionReturnsExpiredErrorForUnauthorizedCache(t *testing.T) {
 	withArraySessionKeyring(t)
 	t.Setenv(webSessionBackendEnv, "keychain")
@@ -1816,6 +2660,274 @@ func TestTryResumeSessionReturnsExpiredErrorForUnauthorizedCache(t *testing.T) {
 	}
 	if resumed != nil {
 		t.Fatal("did not expect resumed session")
+	}
+}
+
+func TestTryResumeSessionFromSourceFallsBackToKeychainWhenFileSessionIsRejectedByServer(t *testing.T) {
+	withArraySessionKeyring(t)
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "auto")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	key := webSessionCacheKey(webTestSessionEmail)
+	if err := writeSessionToFile(key, webTestPersistedSession(t, "file-token", time.Now().UTC())); err != nil {
+		t.Fatalf("writeSessionToFile() error: %v", err)
+	}
+	if err := writeSessionToKeychain(key, webTestPersistedSession(t, "keychain-token", time.Now().UTC())); err != nil {
+		t.Fatalf("writeSessionToKeychain() error: %v", err)
+	}
+
+	var requests []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := ""
+		if cookie, err := r.Cookie("myacinfo"); err == nil {
+			token = cookie.Value
+		}
+		requests = append(requests, token)
+		switch token {
+		case "file-token":
+			w.WriteHeader(http.StatusUnauthorized)
+		case "keychain-token":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"provider":{"providerId":42},"user":{"emailAddress":"user@example.com"}}`)
+		default:
+			t.Fatalf("unexpected session cookie %q", token)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	previousFetcher := sessionInfoFetcher
+	sessionInfoFetcher = func(ctx context.Context, client *http.Client) (*sessionInfo, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
+		if err != nil {
+			return nil, err
+		}
+		validationURL, err := url.Parse(olympusSessionURL)
+		if err != nil {
+			return nil, err
+		}
+		for _, cookie := range client.Jar.Cookies(validationURL) {
+			req.AddCookie(cookie)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if resp.StatusCode != http.StatusOK {
+			return nil, &sessionInfoStatusError{Status: resp.StatusCode}
+		}
+		var info sessionInfo
+		if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+			return nil, err
+		}
+		return &info, nil
+	}
+	t.Cleanup(func() { sessionInfoFetcher = previousFetcher })
+
+	appleID, source, err := DefaultCachedAppleIDWithSource()
+	if err != nil {
+		t.Fatalf("DefaultCachedAppleIDWithSource() error: %v", err)
+	}
+	if appleID != webTestSessionEmail || source != CachedSessionSourceFile {
+		t.Fatalf("default cache selection = (%q, %v), want (%q, file)", appleID, source, webTestSessionEmail)
+	}
+
+	resumed, ok, err := TryResumeSessionFromSource(context.Background(), appleID, source)
+	if err != nil {
+		t.Fatalf("TryResumeSessionFromSource() error: %v", err)
+	}
+	if !ok || resumed == nil {
+		t.Fatalf("TryResumeSessionFromSource() = (%v, %t, %v), want keychain-backed session", resumed, ok, err)
+	}
+	if resumed.UserEmail != webTestSessionEmail || resumed.ProviderID != 42 {
+		t.Fatalf("resumed session = %+v, want user %q and provider 42", resumed, webTestSessionEmail)
+	}
+	if got, want := strings.Join(requests, ","), "file-token,keychain-token"; got != want {
+		t.Fatalf("server validation sequence = %q, want %q", got, want)
+	}
+
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%v, %t, %v), want refreshed file mirror", stored, ok, err)
+	}
+	if got := persistedMyacinfoCookieValue(stored, "https://appstoreconnect.apple.com/"); got != "keychain-token" {
+		t.Fatalf("refreshed file cookie = %q, want keychain-token", got)
+	}
+}
+
+func TestTryResumeSessionFromSourceHonorsExplicitFileBackend(t *testing.T) {
+	kr := withArraySessionKeyring(t)
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "file")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	key := webSessionCacheKey(webTestSessionEmail)
+	if err := writeSessionToFile(key, webTestPersistedSession(t, "file-token", time.Now().UTC())); err != nil {
+		t.Fatalf("writeSessionToFile() error: %v", err)
+	}
+	if err := writeSessionToKeychain(key, webTestPersistedSession(t, "keychain-token", time.Now().UTC())); err != nil {
+		t.Fatalf("writeSessionToKeychain() error: %v", err)
+	}
+	kr.ResetCounts()
+
+	previousFetcher := sessionInfoFetcher
+	var validationCalls int
+	sessionInfoFetcher = func(context.Context, *http.Client) (*sessionInfo, error) {
+		validationCalls++
+		return nil, &sessionInfoStatusError{Status: http.StatusUnauthorized}
+	}
+	t.Cleanup(func() { sessionInfoFetcher = previousFetcher })
+
+	resumed, ok, err := TryResumeSessionFromSource(context.Background(), webTestSessionEmail, CachedSessionSourceFile)
+	if !errors.Is(err, ErrCachedSessionExpired) || ok || resumed != nil {
+		t.Fatalf("TryResumeSessionFromSource() = (%v, %t, %v), want explicit file expiry", resumed, ok, err)
+	}
+	if validationCalls != 1 {
+		t.Fatalf("validation calls = %d, want 1", validationCalls)
+	}
+	if got := kr.GetCount(webSessionStoreItem); got != 0 {
+		t.Fatalf("explicit file source read keychain %d times, want 0", got)
+	}
+}
+
+func TestTryResumeSessionFromSourceFallsBackToKeychainWhenSelectedFileDisappears(t *testing.T) {
+	withArraySessionKeyring(t)
+	withSessionInfoStub(t)
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "auto")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	key := webSessionCacheKey(webTestSessionEmail)
+	if err := writeSessionToFile(key, webTestPersistedSession(t, "file-token", time.Now().UTC())); err != nil {
+		t.Fatalf("writeSessionToFile() error: %v", err)
+	}
+	if err := writeSessionToKeychain(key, webTestPersistedSession(t, "keychain-token", time.Now().UTC())); err != nil {
+		t.Fatalf("writeSessionToKeychain() error: %v", err)
+	}
+
+	appleID, source, err := DefaultCachedAppleIDWithSource()
+	if err != nil {
+		t.Fatalf("DefaultCachedAppleIDWithSource() error: %v", err)
+	}
+	if appleID != webTestSessionEmail || source != CachedSessionSourceFile {
+		t.Fatalf("default cache selection = (%q, %v), want (%q, file)", appleID, source, webTestSessionEmail)
+	}
+	path, err := webSessionFilePath(key)
+	if err != nil {
+		t.Fatalf("webSessionFilePath() error: %v", err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("remove selected file session: %v", err)
+	}
+
+	resumed, ok, err := TryResumeSessionFromSource(context.Background(), appleID, source)
+	if err != nil || !ok || resumed == nil {
+		t.Fatalf("TryResumeSessionFromSource() = (%v, %t, %v), want keychain fallback", resumed, ok, err)
+	}
+	if resumed.cachedSource != CachedSessionSourceKeychain {
+		t.Fatalf("cached source = %v, want keychain", resumed.cachedSource)
+	}
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%v, %t, %v), want refreshed file mirror", stored, ok, err)
+	}
+	if got := persistedMyacinfoCookieValue(stored, "https://appstoreconnect.apple.com/"); got != "keychain-token" {
+		t.Fatalf("refreshed file cookie = %q, want keychain-token", got)
+	}
+}
+
+func TestTryResumeLastSessionFallsBackToKeychainWhenFileSessionIsRejectedByServer(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		fileUserEmail string
+	}{
+		{name: "matching metadata", fileUserEmail: webTestSessionEmail},
+		{name: "legacy empty metadata", fileUserEmail: ""},
+		{name: "marker key differs from metadata", fileUserEmail: "other@example.com"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			withArraySessionKeyring(t)
+			t.Setenv(webSessionCacheEnabledEnv, "1")
+			t.Setenv(webSessionBackendEnv, "auto")
+			t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+			key := webSessionCacheKey(webTestSessionEmail)
+			fileSession := webTestPersistedSession(t, "file-token", time.Now().UTC())
+			fileSession.UserEmail = tc.fileUserEmail
+			if err := writeSessionToFile(key, fileSession); err != nil {
+				t.Fatalf("writeSessionToFile() error: %v", err)
+			}
+			if err := writeSessionToKeychain(key, webTestPersistedSession(t, "keychain-token", time.Now().UTC())); err != nil {
+				t.Fatalf("writeSessionToKeychain() error: %v", err)
+			}
+
+			var requests []string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				token := ""
+				if cookie, err := r.Cookie("myacinfo"); err == nil {
+					token = cookie.Value
+				}
+				requests = append(requests, token)
+				switch token {
+				case "file-token":
+					w.WriteHeader(http.StatusForbidden)
+				case "keychain-token":
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = io.WriteString(w, `{"provider":{"providerId":42},"user":{"emailAddress":"user@example.com"}}`)
+				default:
+					t.Fatalf("unexpected session cookie %q", token)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			previousFetcher := sessionInfoFetcher
+			sessionInfoFetcher = func(ctx context.Context, client *http.Client) (*sessionInfo, error) {
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
+				if err != nil {
+					return nil, err
+				}
+				validationURL, err := url.Parse(olympusSessionURL)
+				if err != nil {
+					return nil, err
+				}
+				for _, cookie := range client.Jar.Cookies(validationURL) {
+					req.AddCookie(cookie)
+				}
+				resp, err := client.Do(req)
+				if err != nil {
+					return nil, err
+				}
+				defer func() { _ = resp.Body.Close() }()
+				if resp.StatusCode != http.StatusOK {
+					return nil, &sessionInfoStatusError{Status: resp.StatusCode}
+				}
+				var info sessionInfo
+				if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+					return nil, err
+				}
+				return &info, nil
+			}
+			t.Cleanup(func() { sessionInfoFetcher = previousFetcher })
+
+			resumed, ok, err := TryResumeLastSession(context.Background())
+			if err != nil || !ok || resumed == nil {
+				t.Fatalf("TryResumeLastSession() = (%v, %t, %v), want keychain fallback", resumed, ok, err)
+			}
+			if resumed.cachedSource != CachedSessionSourceKeychain {
+				t.Fatalf("cached source = %v, want keychain", resumed.cachedSource)
+			}
+			if got, want := strings.Join(requests, ","), "file-token,keychain-token"; got != want {
+				t.Fatalf("server validation sequence = %q, want %q", got, want)
+			}
+			stored, ok, err := readSessionFromFile(key)
+			if err != nil || !ok {
+				t.Fatalf("readSessionFromFile() = (%v, %t, %v), want refreshed file mirror", stored, ok, err)
+			}
+			if got := persistedMyacinfoCookieValue(stored, "https://appstoreconnect.apple.com/"); got != "keychain-token" {
+				t.Fatalf("refreshed file cookie = %q, want keychain-token", got)
+			}
+		})
 	}
 }
 

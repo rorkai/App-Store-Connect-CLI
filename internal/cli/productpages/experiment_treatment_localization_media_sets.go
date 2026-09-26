@@ -44,7 +44,7 @@ Examples:
 func ExperimentTreatmentLocalizationPreviewSetsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("treatment-localizations preview-sets list", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Treatment localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -145,7 +145,7 @@ Examples:
 func ExperimentTreatmentLocalizationScreenshotSetsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("treatment-localizations screenshot-sets list", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Treatment localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -246,7 +246,7 @@ Examples:
 func ExperimentTreatmentLocalizationScreenshotSetsUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("treatment-localizations screenshot-sets upload", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Treatment localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	output := shared.BindOutputFlags(fs)
@@ -276,7 +276,7 @@ Examples:
 func ExperimentTreatmentLocalizationScreenshotSetsSyncCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("treatment-localizations screenshot-sets sync", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Treatment localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	confirm := fs.Bool("confirm", false, "Confirm sync (deletes existing media in the matching set before upload)")

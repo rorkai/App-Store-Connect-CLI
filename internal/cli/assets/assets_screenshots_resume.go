@@ -29,6 +29,7 @@ type screenshotUploadFailureArtifact struct {
 	OrderedIDs            []string                     `json:"orderedIds,omitempty"`
 	PendingFiles          []string                     `json:"pendingFiles,omitempty"`
 	PendingAssets         []screenshotPendingAsset     `json:"pendingAssets,omitempty"`
+	CleanupFailures       []screenshotPendingAsset     `json:"cleanupFailures,omitempty"`
 	Results               []asc.AssetUploadResultItem  `json:"results,omitempty"`
 	Failures              []asc.AssetUploadFailureItem `json:"failures,omitempty"`
 	Error                 string                       `json:"error,omitempty"`
@@ -115,6 +116,15 @@ func appendScreenshotUploadFailure(result *asc.AppScreenshotUploadResult, progre
 			FilePath: progress.FailedFile,
 			Error:    uploadErr.Error(),
 		})
+	}
+	if len(progress.CleanupFailures) > 0 {
+		result.Failures = append(result.Failures, asc.AssetUploadFailureItem{
+			FileName: "screenshot cleanup",
+			Error:    uploadErr.Error(),
+		})
+		return
+	}
+	if strings.TrimSpace(progress.FailedFile) != "" {
 		return
 	}
 
@@ -125,10 +135,23 @@ func appendScreenshotUploadFailure(result *asc.AppScreenshotUploadResult, progre
 }
 
 func screenshotUploadRetryError(progress screenshotUploadProgress) error {
-	if len(progress.PendingFiles) > 0 {
-		return shared.NewReportedError(fmt.Errorf("screenshots upload: %d file(s) pending retry", len(progress.PendingFiles)))
+	var retryErr error
+	if len(progress.CleanupFailures) > 0 {
+		retryErr = fmt.Errorf("screenshots upload: %d remote asset(s) pending cleanup", len(progress.CleanupFailures))
+	} else if len(progress.PendingFiles) > 0 {
+		retryErr = fmt.Errorf("screenshots upload: %d file(s) pending retry", len(progress.PendingFiles))
+	} else {
+		retryErr = fmt.Errorf("screenshots upload: retry needed to sync screenshot ordering")
 	}
-	return shared.NewReportedError(fmt.Errorf("screenshots upload: retry needed to sync screenshot ordering"))
+	if progress.CleanupError != nil {
+		errList := []error{progress.CleanupError}
+		if progress.UploadError != nil {
+			errList = append(errList, progress.UploadError)
+		}
+		errList = append(errList, shared.NewReportedError(retryErr))
+		return errors.Join(errList...)
+	}
+	return shared.NewReportedError(retryErr)
 }
 
 func prepareAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult]) (screenshotUploadPreparedState, error) {
@@ -312,6 +335,7 @@ func executeAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 		OrderedIDs:            orderedIDs,
 		PendingFiles:          append([]string(nil), progress.PendingFiles...),
 		PendingAssets:         append([]screenshotPendingAsset(nil), progress.PendingAssets...),
+		CleanupFailures:       append([]screenshotPendingAsset(nil), progress.CleanupFailures...),
 		Results:               append([]asc.AssetUploadResultItem(nil), result.Results...),
 		Failures:              append([]asc.AssetUploadFailureItem(nil), result.Failures...),
 		Error:                 uploadErr.Error(),
@@ -346,12 +370,46 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 		return asc.AppScreenshotUploadResult{}, fmt.Errorf("resume artifact %q is missing setId", artifactPath)
 	}
 	canRetrySkippedOrdering := artifact.SkipExisting && len(artifact.Files) > 0 && len(artifact.Results) > 0
-	if len(artifact.PendingFiles) == 0 && len(artifact.OrderedIDs) == 0 && !canRetrySkippedOrdering {
+	if len(artifact.PendingFiles) == 0 && len(artifact.OrderedIDs) == 0 && len(artifact.CleanupFailures) == 0 && !canRetrySkippedOrdering {
 		return asc.AppScreenshotUploadResult{}, fmt.Errorf("resume artifact %q has no pending files or ordering work", artifactPath)
 	}
 
 	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
 	defer cancel()
+
+	if len(artifact.CleanupFailures) > 0 {
+		remainingCleanup, cleanupErr := cleanupScreenshotAssets(uploadCtx, client, artifact.CleanupFailures)
+		if cleanupErr != nil {
+			progress := screenshotUploadProgress{
+				OrderedIDs:      append([]string(nil), artifact.OrderedIDs...),
+				CleanupFailures: remainingCleanup,
+				CleanupError:    cleanupErr,
+			}
+			result := asc.AppScreenshotUploadResult{
+				VersionLocalizationID: artifact.VersionLocalizationID,
+				SetID:                 artifact.SetID,
+				DisplayType:           artifact.DisplayType,
+				Resumed:               true,
+				Results:               append([]asc.AssetUploadResultItem(nil), artifact.Results...),
+			}
+			appendScreenshotUploadFailure(&result, progress, cleanupErr)
+			result.Pending = len(artifact.PendingFiles)
+			result.Total = len(result.Results) + result.Pending
+			finalizeAppScreenshotUploadResult(&result)
+			nextArtifact := artifact
+			nextArtifact.CleanupFailures = append([]screenshotPendingAsset(nil), remainingCleanup...)
+			nextArtifact.Failures = append([]asc.AssetUploadFailureItem(nil), result.Failures...)
+			nextArtifact.Error = cleanupErr.Error()
+			nextArtifact.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
+			writtenPath, artifactErr := persistScreenshotUploadFailureArtifact(artifactPath, nextArtifact)
+			if artifactErr != nil {
+				return result, screenshotUploadArtifactWriteError(cleanupErr, artifactErr)
+			}
+			result.FailureArtifactPath = writtenPath
+			return result, screenshotUploadRetryError(progress)
+		}
+		artifact.CleanupFailures = nil
+	}
 
 	syncAfterUpload := !artifact.SkipExisting || len(artifact.Files) == 0
 	sourceRootPath := strings.TrimSpace(artifact.RootPath)
@@ -412,6 +470,7 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 		OrderedIDs:            append([]string(nil), progress.OrderedIDs...),
 		PendingFiles:          append([]string(nil), progress.PendingFiles...),
 		PendingAssets:         append([]screenshotPendingAsset(nil), progress.PendingAssets...),
+		CleanupFailures:       append([]screenshotPendingAsset(nil), progress.CleanupFailures...),
 		Results:               append([]asc.AssetUploadResultItem(nil), result.Results...),
 		Failures:              append([]asc.AssetUploadFailureItem(nil), result.Failures...),
 		Error:                 uploadErr.Error(),
@@ -486,6 +545,14 @@ func normalizeScreenshotUploadFailureArtifactPaths(artifact screenshotUploadFail
 			return screenshotUploadFailureArtifact{}, err
 		}
 		artifact.PendingAssets[i].FilePath = normalized
+	}
+
+	for i := range artifact.CleanupFailures {
+		normalized, err := normalizeScreenshotUploadArtifactFilePath(artifact.CleanupFailures[i].FilePath)
+		if err != nil {
+			return screenshotUploadFailureArtifact{}, err
+		}
+		artifact.CleanupFailures[i].FilePath = normalized
 	}
 
 	for i := range artifact.Results {

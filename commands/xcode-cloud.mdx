@@ -202,8 +202,9 @@ already contains the complete request query.
 
 ### xcode-cloud products app
 
-Get the app related to an Xcode Cloud product. API 4.4.1 can expose the new
-app-info field and version relationships on included resources:
+Get the app related to an Xcode Cloud product, with optional sparse fields
+on included resources. The legacy AppInfo selector below is forwarded with
+a deprecation warning because API 4.5 removed `AppInfo.kidsAgeBand`:
 
 ```bash  theme={null}
 asc xcode-cloud products app \
@@ -214,8 +215,9 @@ asc xcode-cloud products app \
 ```
 
 * `--id` - Xcode Cloud product ID (required)
-* `--app-info-fields` - Sparse fields for included app info: the deprecated
-  `kidsAgeBand` selector; automatically includes `appInfos`. Prefer
+* `--app-info-fields` - Legacy sparse fields for included app info: `kidsAgeBand`.
+  API 4.5 removed this property; the CLI still forwards it with a stderr
+  deprecation warning and automatically includes `appInfos`. Use
   `asc age-rating view` for current age-rating data
 * `--iap-fields` - Sparse fields for included in-app purchases: `versions`;
   automatically includes `inAppPurchases`

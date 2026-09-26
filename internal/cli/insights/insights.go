@@ -23,7 +23,13 @@ import (
 const (
 	sourceAnalytics = "analytics"
 	sourceSales     = "sales"
+
+	analyticsInstancePageLimit = 200
 )
+
+// analyticsInstanceGranularities covers every documented instance granularity so
+// the processing-date filter alone decides which instances count for a week.
+var analyticsInstanceGranularities = []string{"DAILY", "WEEKLY", "MONTHLY"}
 
 // InsightsCommand returns the insights command group.
 func InsightsCommand() *ffcli.Command {
@@ -758,11 +764,7 @@ func isRenewalSubscriptionState(value string) bool {
 }
 
 func collectAnalyticsMetrics(ctx context.Context, client *asc.Client, appID string, thisWeek, previousWeek reportWeekWindow) ([]weeklyMetric, int, error) {
-	requestsResp, err := client.GetAnalyticsReportRequests(
-		ctx,
-		appID,
-		asc.WithAnalyticsReportRequestsLimit(200),
-	)
+	requestsResp, err := fetchAllAnalyticsReportRequests(ctx, client, appID)
 	if err != nil {
 		if isLikelyForbidden(err) {
 			return analyticsUnavailableMetrics("analytics source is not permitted for the current API key"), 0, nil
@@ -791,13 +793,10 @@ func collectAnalyticsMetrics(ctx context.Context, client *asc.Client, appID stri
 	)
 	thisReportIDs := make(map[string]struct{})
 	lastReportIDs := make(map[string]struct{})
+	processingDates := weekWindowProcessingDates(thisWeek, previousWeek)
 
 	for _, request := range activeRequests {
-		reportsResp, reportsErr := client.GetAnalyticsReports(
-			ctx,
-			request.ID,
-			asc.WithAnalyticsReportsLimit(200),
-		)
+		reportsResp, reportsErr := fetchAllAnalyticsReports(ctx, client, request.ID)
 		if reportsErr != nil {
 			if isLikelyForbidden(reportsErr) {
 				return analyticsUnavailableMetrics("analytics report metadata endpoints are not permitted for the current API key"), requestCount, nil
@@ -809,10 +808,12 @@ func collectAnalyticsMetrics(ctx context.Context, client *asc.Client, appID stri
 		}
 
 		for _, report := range reportsResp.Data {
-			instancesResp, instancesErr := client.GetAnalyticsReportInstances(
+			instances, instancesErr := fetchAnalyticsReportInstances(
 				ctx,
+				client,
 				report.ID,
-				asc.WithAnalyticsReportInstancesLimit(200),
+				asc.WithAnalyticsReportInstancesProcessingDates(processingDates),
+				asc.WithAnalyticsReportInstancesGranularities(analyticsInstanceGranularities),
 			)
 			if instancesErr != nil {
 				if isLikelyForbidden(instancesErr) {
@@ -824,7 +825,7 @@ func collectAnalyticsMetrics(ctx context.Context, client *asc.Client, appID stri
 				return nil, requestCount, instancesErr
 			}
 
-			for _, instance := range instancesResp.Data {
+			for _, instance := range instances {
 				processingDate, ok := parseDateValue(instance.Attributes.ProcessingDate)
 				if !ok {
 					continue
@@ -848,6 +849,106 @@ func collectAnalyticsMetrics(ctx context.Context, client *asc.Client, appID stri
 		unavailableMetric("business_conversion_rate", "percent", "not derivable from analytics metadata alone"),
 	}
 	return metrics, requestCount, nil
+}
+
+func fetchAllAnalyticsReportRequests(ctx context.Context, client *asc.Client, appID string) (*asc.AnalyticsReportRequestsResponse, error) {
+	first, err := client.GetAnalyticsReportRequests(ctx, appID, asc.WithAnalyticsReportRequestsLimit(200))
+	if err != nil {
+		return nil, err
+	}
+
+	paginated, err := asc.PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetAnalyticsReportRequests(ctx, appID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, err
+	}
+	requests, ok := paginated.(*asc.AnalyticsReportRequestsResponse)
+	if !ok || requests == nil {
+		return nil, fmt.Errorf("insights: unexpected analytics report requests pagination response %T", paginated)
+	}
+	return requests, nil
+}
+
+func fetchAllAnalyticsReports(ctx context.Context, client *asc.Client, requestID string) (*asc.AnalyticsReportsResponse, error) {
+	first, err := client.GetAnalyticsReports(ctx, requestID, asc.WithAnalyticsReportsLimit(200))
+	if err != nil {
+		return nil, err
+	}
+
+	paginated, err := asc.PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetAnalyticsReports(ctx, requestID, asc.WithAnalyticsReportsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, err
+	}
+	reports, ok := paginated.(*asc.AnalyticsReportsResponse)
+	if !ok || reports == nil {
+		return nil, fmt.Errorf("insights: unexpected analytics reports pagination response %T", paginated)
+	}
+	return reports, nil
+}
+
+// weekWindowProcessingDates lists every processing date covered by the given
+// comparison windows so App Store Connect filters instances server side.
+func weekWindowProcessingDates(windows ...reportWeekWindow) []string {
+	dates := make([]string, 0, len(windows)*7)
+	seen := make(map[string]struct{}, len(windows)*7)
+	for _, window := range windows {
+		for day := window.start; !day.After(window.end); day = day.AddDate(0, 0, 1) {
+			formatted := day.Format("2006-01-02")
+			if _, exists := seen[formatted]; exists {
+				continue
+			}
+			seen[formatted] = struct{}{}
+			dates = append(dates, formatted)
+		}
+	}
+	return dates
+}
+
+// fetchAnalyticsReportInstances returns every instance page for a report so
+// weekly counts are not truncated when daily and weekly instances share pages.
+func fetchAnalyticsReportInstances(
+	ctx context.Context,
+	client *asc.Client,
+	reportID string,
+	opts ...asc.AnalyticsReportInstancesOption,
+) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
+	var (
+		instances []asc.Resource[asc.AnalyticsReportInstanceAttributes]
+		next      string
+	)
+	seen := make(map[string]struct{})
+
+	for {
+		var (
+			resp *asc.AnalyticsReportInstancesResponse
+			err  error
+		)
+		if next == "" {
+			pageOpts := make([]asc.AnalyticsReportInstancesOption, 0, len(opts)+1)
+			pageOpts = append(pageOpts, asc.WithAnalyticsReportInstancesLimit(analyticsInstancePageLimit))
+			pageOpts = append(pageOpts, opts...)
+			resp, err = client.GetAnalyticsReportInstances(ctx, reportID, pageOpts...)
+		} else {
+			identity := asc.PaginationURLIdentity(next)
+			if _, repeated := seen[identity]; repeated {
+				return nil, fmt.Errorf("insights: detected repeated analytics report instance pagination URL")
+			}
+			seen[identity] = struct{}{}
+			resp, err = client.GetAnalyticsReportInstances(ctx, reportID, asc.WithAnalyticsReportInstancesNextURL(next))
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		instances = append(instances, resp.Data...)
+		if resp.Links.Next == "" {
+			return instances, nil
+		}
+		next = resp.Links.Next
+	}
 }
 
 func analyticsReportRequestIsActive(attributes asc.AnalyticsReportRequestAttributes) bool {

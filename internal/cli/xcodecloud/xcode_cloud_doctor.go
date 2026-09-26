@@ -26,7 +26,7 @@ type xcodeCloudDoctorOptions struct {
 func XcodeCloudDoctorCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
 
-	runID := fs.String("run-id", "", "Build run ID to diagnose")
+	runID := shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", "Build run ID to diagnose")
 	wait := fs.Bool("wait", false, "Wait for the build run to complete before diagnosing it")
 	pollInterval := fs.Duration("poll-interval", 10*time.Second, "Poll interval when waiting")
 	timeout := fs.Duration("timeout", 0, "Timeout for Xcode Cloud requests (0 = use ASC_TIMEOUT or 30m default)")

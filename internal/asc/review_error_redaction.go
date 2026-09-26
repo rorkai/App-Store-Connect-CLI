@@ -57,6 +57,12 @@ func redactSubmittedSecretFromError(err error, secret *string) error {
 		// short submitted password cannot accidentally erase classification.
 		safe.Title = redact(safe.Title)
 		safe.Detail = redact(safe.Detail)
+		if apiError.AllDetails != nil {
+			safe.AllDetails = make([]string, len(apiError.AllDetails))
+			for index, detail := range apiError.AllDetails {
+				safe.AllDetails[index] = redact(detail)
+			}
+		}
 		if apiError.AssociatedErrors != nil {
 			safe.AssociatedErrors = make(map[string][]APIAssociatedError, len(apiError.AssociatedErrors))
 			for resource, entries := range apiError.AssociatedErrors {

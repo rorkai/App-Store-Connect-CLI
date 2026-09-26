@@ -27,7 +27,7 @@ func ValidateTestFlightCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("testflight", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	buildID := fs.String("build-id", "", "Build ID (required)")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID (required)")
 	strict := fs.Bool("strict", false, "Treat warnings as errors (exit non-zero)")
 	output := shared.BindOutputFlags(fs)
 

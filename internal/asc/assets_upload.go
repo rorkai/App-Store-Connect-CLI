@@ -86,10 +86,11 @@ func ValidateAssetFile(path string) error {
 	if err != nil {
 		return err
 	}
-	return validateAssetFileInfo(path, info)
+	return ValidateAssetFileInfo(path, info)
 }
 
-func validateAssetFileInfo(path string, info os.FileInfo) error {
+// ValidateAssetFileInfo checks the metadata of an already opened asset file.
+func ValidateAssetFileInfo(path string, info os.FileInfo) error {
 	if info.Mode()&os.ModeSymlink != 0 {
 		return fmt.Errorf("refusing to read symlink %q", path)
 	}
@@ -148,7 +149,7 @@ func ReadImageDimensionsAndFormat(path string) (ImageDimensions, string, error) 
 	if err != nil {
 		return ImageDimensions{}, "", err
 	}
-	if err := validateAssetFileInfo(path, info); err != nil {
+	if err := ValidateAssetFileInfo(path, info); err != nil {
 		return ImageDimensions{}, "", err
 	}
 	file, err := os.Open(path)

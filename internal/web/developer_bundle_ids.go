@@ -161,7 +161,7 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 		return nil, fmt.Errorf("capability %q is not editable in Developer Portal for this account", req.Capability)
 	}
 
-	current, err := c.loadDeveloperBundleID(ctx, req.BundleID)
+	current, err := c.loadDeveloperBundleIDExact(ctx, req.BundleID)
 	if err != nil {
 		return nil, err
 	}

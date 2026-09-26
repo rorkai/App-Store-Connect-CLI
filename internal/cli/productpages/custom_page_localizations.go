@@ -51,7 +51,7 @@ Examples:
 func CustomPageLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations list", flag.ExitOnError)
 
-	versionID := fs.String("custom-page-version-id", "", "Custom product page version ID")
+	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -126,7 +126,7 @@ Examples:
 func CustomPageLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations view", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -168,7 +168,7 @@ Examples:
 func CustomPageLocalizationsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations create", flag.ExitOnError)
 
-	versionID := fs.String("custom-page-version-id", "", "Custom product page version ID")
+	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
 	locale := fs.String("locale", "", "Localization locale (e.g., en-US)")
 	promotionalText := fs.String("promotional-text", "", "Promotional text")
 	output := shared.BindOutputFlags(fs)
@@ -219,7 +219,7 @@ Examples:
 func CustomPageLocalizationsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations update", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	promotionalText := fs.String("promotional-text", "", "Update promotional text")
 	output := shared.BindOutputFlags(fs)
 
@@ -272,7 +272,7 @@ Examples:
 func CustomPageLocalizationsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations delete", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -123,40 +124,37 @@ func TestAnalyticsViewFiltersPaginateAndPreserveOutput(t *testing.T) {
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
 	requestCount := 0
+	var requestMu sync.Mutex
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestMu.Lock()
 		requestCount++
-		switch requestCount {
-		case 1:
-			if req.URL.Path != "/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports" || req.URL.Query().Get("limit") != "200" {
+		requestMu.Unlock()
+		switch {
+		case req.URL.Path == "/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports" && req.URL.Query().Get("cursor") == "":
+			if req.URL.Query().Get("limit") != "200" {
 				t.Fatalf("unexpected first reports request: %s", req.URL.String())
 			}
 			return analyticsViewJSONResponse(`{
 				"data":[{"type":"analyticsReports","id":"report-1","attributes":{"name":"App Sessions","reportType":"STANDARD","category":"APP_USAGE","granularity":"DAILY"}}],
 				"links":{"self":"https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/11111111-1111-1111-1111-111111111111/reports","next":"` + reportsNextURL + `"}
 			}`), nil
-		case 2:
-			if req.URL.String() != reportsNextURL {
-				t.Fatalf("reports next URL = %q, want %q", req.URL.String(), reportsNextURL)
-			}
+		case req.URL.String() == reportsNextURL:
 			return analyticsViewJSONResponse(`{
 				"data":[{"type":"analyticsReports","id":"report-2","attributes":{"name":"Store Discovery","reportType":"STANDARD","category":"APP_STORE_ENGAGEMENT","granularity":"WEEKLY"}}],
 				"links":{}
 			}`), nil
-		case 3:
+		case req.URL.Path == "/v1/analyticsReports/report-1/instances" && req.URL.Query().Get("cursor") == "":
 			assertAnalyticsInstanceFilters(t, req, "/v1/analyticsReports/report-1/instances")
 			return analyticsViewJSONResponse(`{
 				"data":[{"type":"analyticsReportInstances","id":"instance-1","attributes":{"reportDate":"2024-01-19","processingDate":"2024-01-20","granularity":"DAILY","version":"1.0"}}],
 				"links":{"next":"` + instancesNextURL + `"}
 			}`), nil
-		case 4:
-			if req.URL.String() != instancesNextURL {
-				t.Fatalf("instances next URL = %q, want %q", req.URL.String(), instancesNextURL)
-			}
+		case req.URL.String() == instancesNextURL:
 			return analyticsViewJSONResponse(`{
 				"data":[{"type":"analyticsReportInstances","id":"instance-2","attributes":{"reportDate":"2024-01-19","processingDate":"2024-01-20","granularity":"WEEKLY","version":"1.0"}}],
 				"links":{}
 			}`), nil
-		case 5:
+		case req.URL.Path == "/v1/analyticsReports/report-2/instances":
 			assertAnalyticsInstanceFilters(t, req, "/v1/analyticsReports/report-2/instances")
 			return analyticsViewJSONResponse(`{"data":[],"links":{}}`), nil
 		default:

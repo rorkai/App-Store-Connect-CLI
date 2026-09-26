@@ -22,6 +22,21 @@ func TestPaginateAllRejectsEquivalentRepeatedNextBeforeRefetch(t *testing.T) {
 			firstNext: "/v1/apps?cursor=abc",
 			pageNext:  "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc",
 		},
+		{
+			name:      "reordered query parameters",
+			firstNext: "/v1/apps?cursor=abc&limit=200",
+			pageNext:  "/v1/apps?limit=200&cursor=abc",
+		},
+		{
+			name:      "reordered query parameters across relative and same-host absolute",
+			firstNext: "/v1/apps?cursor=abc&limit=200",
+			pageNext:  "https://api.appstoreconnect.apple.com/v1/apps?limit=200&cursor=abc",
+		},
+		{
+			name:      "empty query marker",
+			firstNext: "/v1/apps",
+			pageNext:  "/v1/apps?",
+		},
 	}
 
 	for _, tt := range tests {
@@ -74,6 +89,21 @@ func TestPaginateEachRejectsEquivalentRepeatedNextBeforeRefetch(t *testing.T) {
 			name:      "relative and same-host absolute",
 			firstNext: "/v1/apps?cursor=abc",
 			pageNext:  "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc",
+		},
+		{
+			name:      "reordered query parameters",
+			firstNext: "/v1/apps?cursor=abc&limit=200",
+			pageNext:  "/v1/apps?limit=200&cursor=abc",
+		},
+		{
+			name:      "reordered query parameters across relative and same-host absolute",
+			firstNext: "/v1/apps?cursor=abc&limit=200",
+			pageNext:  "https://api.appstoreconnect.apple.com/v1/apps?limit=200&cursor=abc",
+		},
+		{
+			name:      "empty query marker",
+			firstNext: "/v1/apps",
+			pageNext:  "/v1/apps?",
 		},
 	}
 

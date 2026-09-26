@@ -43,8 +43,8 @@ monthly subscriptions with a 12-month commitment. The subscription must use
 subscriptionPeriod ONE_YEAR. USA and Singapore are excluded by Apple.
 
 Examples:
-  asc subscriptions pricing monthly-commitment enable --subscription-id "SUB_ID" --price "9.99" --price-territory "Norway" --territories "Norway,Germany,France"
-  asc subscriptions pricing monthly-commitment disable --subscription-id "SUB_ID" --territories "Norway"
+  asc subscriptions pricing monthly-commitment enable --subscription-id "SUB_ID" --price "9.99" --price-territory "Norway" --territories "Norway,Germany,France" --confirm
+  asc subscriptions pricing monthly-commitment disable --subscription-id "SUB_ID" --territories "Norway" --confirm
   asc subscriptions pricing monthly-commitment list --subscription-id "SUB_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -63,12 +63,13 @@ Examples:
 func SubscriptionsPricingMonthlyCommitmentEnableCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing monthly-commitment enable", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	price := fs.String("price", "", "Monthly customer price; total commitment is price x 12")
 	priceTerritory := fs.String("price-territory", "", "Territory used to compare the upfront annual price")
 	territories := fs.String("territories", "", "Territories to enable, comma-separated; USA and Singapore are excluded")
 	availableInNew := fs.Bool("available-in-new-territories", false, "Unsupported for MONTHLY plan availability")
+	confirm := fs.Bool("confirm", false, "Confirm enabling monthly-commitment prices and availability")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -86,7 +87,7 @@ creating MONTHLY subscriptionPrices because Apple rejects the reverse order.
 Each eligible territory must already have an UPFRONT subscription price.
 
 Examples:
-  asc subscriptions pricing monthly-commitment enable --subscription-id "SUB_ID" --price "9.99" --price-territory "Norway" --territories "Norway,Germany,France"`,
+  asc subscriptions pricing monthly-commitment enable --subscription-id "SUB_ID" --price "9.99" --price-territory "Norway" --territories "Norway,Germany,France" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -130,6 +131,9 @@ Examples:
 			printMonthlyCommitmentTerritoryWarning(excluded)
 			if len(territoryIDs) == 0 {
 				return shared.UsageError("no eligible monthly-commitment territories remain after excluding USA and Singapore")
+			}
+			if !*confirm {
+				return shared.UsageError("--confirm is required to enable monthly-commitment billing")
 			}
 
 			client, err := shared.GetASCClient()
@@ -228,9 +232,10 @@ Examples:
 func SubscriptionsPricingMonthlyCommitmentDisableCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing monthly-commitment disable", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	territories := fs.String("territories", "", "Territories to disable, comma-separated; USA and Singapore are excluded")
+	confirm := fs.Bool("confirm", false, "Confirm disabling monthly-commitment availability")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -240,7 +245,7 @@ func SubscriptionsPricingMonthlyCommitmentDisableCommand() *ffcli.Command {
 		LongHelp: `Disable Monthly with 12-Month Commitment availability.
 
 Examples:
-  asc subscriptions pricing monthly-commitment disable --subscription-id "SUB_ID" --territories "Norway"`,
+  asc subscriptions pricing monthly-commitment disable --subscription-id "SUB_ID" --territories "Norway" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -262,6 +267,9 @@ Examples:
 			printMonthlyCommitmentTerritoryWarning(excluded)
 			if len(territoryIDs) == 0 {
 				return shared.UsageError("no eligible monthly-commitment territories remain after excluding USA and Singapore")
+			}
+			if !*confirm {
+				return shared.UsageError("--confirm is required to disable monthly-commitment billing")
 			}
 
 			client, err := shared.GetASCClient()
@@ -304,7 +312,7 @@ Examples:
 func SubscriptionsPricingMonthlyCommitmentListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing monthly-commitment list", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	planType := fs.String("plan-type", "", "Filter by plan type: MONTHLY or UPFRONT")
 	output := shared.BindOutputFlags(fs)

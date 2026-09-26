@@ -129,7 +129,7 @@ Examples:
 func OfferCodesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name (required)")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name (required)")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env; required when --subscription-id uses a product ID or name)")
 	name := fs.String("name", "", "Offer code name (required)")
 	customerEligibilities := fs.String("customer-eligibilities", "", "Customer eligibilities: "+strings.Join(offerCodeCustomerEligibilityValues, ", "))

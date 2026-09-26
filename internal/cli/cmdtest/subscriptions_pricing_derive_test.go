@@ -192,7 +192,7 @@ func TestSubscriptionsPricingDeriveValidationErrors(t *testing.T) {
 				"--multiplier", "10",
 				"--dry-run",
 			},
-			wantErr: "subscriptions pricing derive does not accept positional arguments",
+			wantErr: `unexpected argument "extra"`,
 		},
 	}
 

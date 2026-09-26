@@ -30,7 +30,7 @@ Examples:
   asc app-setup availability edit --app "APP_ID" --territory "USA,GBR" --available true
   asc app-setup availability edit --app "APP_ID" --all-territories --available true
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA"
-  asc app-setup pricing set --app "APP_ID" --free --start-date "2024-03-01"
+  asc app-setup pricing set --app "APP_ID" --free --start-date "YYYY-MM-DD"
   asc app-setup localizations upload --version "VERSION_ID" --path "./localizations"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -336,7 +336,7 @@ func AppSetupPricingCommand() *ffcli.Command {
 
 Examples:
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID"
-  asc app-setup pricing set --app "APP_ID" --free --start-date "2024-03-01"`,
+  asc app-setup pricing set --app "APP_ID" --free --start-date "YYYY-MM-DD"`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupPricingSetCommand(),
@@ -356,12 +356,15 @@ func AppSetupPricingSetCommand() *ffcli.Command {
 		ShortHelp:   "Set app pricing.",
 		LongHelp: `Set app pricing.
 
+--start-date defaults to today's date in UTC when omitted, and the chosen date
+is printed on stderr. Apple requires the start date to be today or later.
+
 Examples:
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA"
-  asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"
-  asc app-setup pricing set --app "APP_ID" --free --start-date "2024-03-01"`,
+  asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "YYYY-MM-DD"
+  asc app-setup pricing set --app "APP_ID" --free --start-date "YYYY-MM-DD"`,
 		ErrorPrefix:           "app-setup pricing set",
-		StartDateHelp:         "Start date (YYYY-MM-DD, default: today)",
+		StartDateHelp:         "Start date (YYYY-MM-DD, default: today in UTC; Apple requires today or later)",
 		StartDateDefaultToday: true,
 		ResolveBaseTerritory:  true,
 	})
