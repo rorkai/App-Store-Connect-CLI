@@ -161,9 +161,12 @@ func setMatrixPrivateAttemptFileACLHandleValue(handle windows.Handle, sddl strin
 }
 
 func reopenMatrixFileForDACL(file *os.File) (windows.Handle, error) {
+	// Metadata-only access does not participate in Windows share checks.
+	// Keep read-data access so omitting FILE_SHARE_DELETE pins the pathname
+	// after the creation handle is closed.
 	handle, _, callErr := matrixReOpenFile.Call(
 		file.Fd(),
-		uintptr(windows.READ_CONTROL|windows.WRITE_DAC),
+		uintptr(windows.FILE_READ_DATA|windows.READ_CONTROL|windows.WRITE_DAC),
 		uintptr(windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE),
 		0,
 	)
@@ -186,7 +189,7 @@ func openMatrixDirectoryForDACL(file *os.File) (windows.Handle, error) {
 	}
 	handle, err := windows.CreateFile(
 		name,
-		windows.READ_CONTROL|windows.WRITE_DAC,
+		windows.FILE_LIST_DIRECTORY|windows.READ_CONTROL|windows.WRITE_DAC,
 		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE,
 		nil,
 		windows.OPEN_EXISTING,
