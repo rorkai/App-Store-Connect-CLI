@@ -776,7 +776,7 @@ func TestStructuredVersion_BumpPreservesEquivalentConditionalPBXProjValues(t *te
 		t.Fatalf("unexpected equivalent-conditional bump: %#v", result)
 	}
 	updated := mustReadVersionTestFile(t, pbxprojPath)
-	if !strings.Contains(updated, `"CURRENT_PROJECT_VERSION" = 43;`) ||
+	if !strings.Contains(updated, `CURRENT_PROJECT_VERSION = 43;`) ||
 		!strings.Contains(updated, `"CURRENT_PROJECT_VERSION[sdk=iphoneos*]" = 43;`) {
 		t.Fatalf("equivalent conditional values were not bumped together: %s", updated)
 	}
