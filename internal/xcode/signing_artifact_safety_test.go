@@ -547,7 +547,7 @@ func TestSigningApplyRejectsSourceChangedAfterPreparation(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "stale") {
 		t.Fatalf("ApplySigningPlan() error = %v, want stale-source rejection", err)
 	}
-	if strings.Contains(mustReadVersionTestFile(t, pbxprojPath), `"CODE_SIGN_STYLE" = Manual;`) {
+	if strings.Contains(mustReadVersionTestFile(t, pbxprojPath), `CODE_SIGN_STYLE = Manual;`) {
 		t.Fatal("source drift after preparation was applied")
 	}
 	if _, statErr := os.Lstat(plan.ReceiptPath); !os.IsNotExist(statErr) {

@@ -6,11 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/bitrise-io/go-plist"
 
 	"github.com/bitrise-io/go-xcode/xcodeproject/serialized"
 	"github.com/bitrise-io/go-xcode/xcodeproject/xcodeproj"
@@ -1707,17 +1711,36 @@ func (project *structuredVersionProject) preparePBXProjWrite(projectRoot rootfs.
 	if err := os.WriteFile(filepath.Join(stagedProjectPath, "project.pbxproj"), original, mode); err != nil {
 		return preparedVersionWrite{}, err
 	}
-	stagedProject := project.project
-	stagedProject.Path = stagedProjectPath
-	if err := stagedProject.Save(); err != nil {
-		return preparedVersionWrite{}, fmt.Errorf("serialize Xcode project: %w", err)
+	var updated []byte
+	if project.project.Format == plist.OpenStepFormat {
+		updated, err = editPBXProjBuildSettings(original, project)
+		if err != nil {
+			return preparedVersionWrite{}, fmt.Errorf("edit Xcode project build settings: %w", err)
+		}
+		if err := os.WriteFile(filepath.Join(stagedProjectPath, "project.pbxproj"), updated, mode); err != nil {
+			return preparedVersionWrite{}, err
+		}
+	} else {
+		stagedProject := project.project
+		stagedProject.Path = stagedProjectPath
+		if err := stagedProject.Save(); err != nil {
+			return preparedVersionWrite{}, fmt.Errorf("serialize Xcode project: %w", err)
+		}
+		updated, err = os.ReadFile(filepath.Join(stagedProjectPath, "project.pbxproj"))
+		if err != nil {
+			return preparedVersionWrite{}, err
+		}
 	}
-	updated, err := os.ReadFile(filepath.Join(stagedProjectPath, "project.pbxproj"))
+	staged, err := xcodeproj.Open(stagedProjectPath)
 	if err != nil {
-		return preparedVersionWrite{}, err
-	}
-	if _, err := xcodeproj.Open(stagedProjectPath); err != nil {
 		return preparedVersionWrite{}, fmt.Errorf("validate staged Xcode project: %w", err)
+	}
+	// go-xcode retains the root source-position annotation; it is not project data.
+	stagedRaw, intendedRaw := maps.Clone(staged.RawProj), maps.Clone(project.project.RawProj)
+	delete(stagedRaw, plist.CustomAnnotationKey)
+	delete(intendedRaw, plist.CustomAnnotationKey)
+	if !reflect.DeepEqual(stagedRaw, intendedRaw) {
+		return preparedVersionWrite{}, fmt.Errorf("staged Xcode project differs from intended build settings")
 	}
 	target.original = original
 	target.updated = updated

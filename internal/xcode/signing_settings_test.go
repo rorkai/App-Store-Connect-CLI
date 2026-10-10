@@ -83,11 +83,11 @@ func TestBuildAndApplySigningPlanForDirectSettings(t *testing.T) {
 	}
 	updated := mustReadVersionTestFile(t, pbxprojPath)
 	for _, expected := range []string{
-		`"CODE_SIGN_STYLE" = Manual;`,
-		`"DEVELOPMENT_TEAM" = ABCDE12345;`,
-		`"CODE_SIGN_IDENTITY" = "Apple Development";`,
-		`"PROVISIONING_PROFILE" = "01234567-89ab-cdef-0123-456789abcdef";`,
-		`"PRODUCT_BUNDLE_IDENTIFIER" = "com.example.demo";`,
+		`CODE_SIGN_STYLE = Manual;`,
+		`DEVELOPMENT_TEAM = ABCDE12345;`,
+		`CODE_SIGN_IDENTITY = "Apple Development";`,
+		`PROVISIONING_PROFILE = "01234567-89ab-cdef-0123-456789abcdef";`,
+		`PRODUCT_BUNDLE_IDENTIFIER = com.example.demo;`,
 	} {
 		if !strings.Contains(updated, expected) {
 			t.Fatalf("applied project is missing %q: %s", expected, updated)
@@ -781,7 +781,7 @@ func TestSigningApplyRejectsReceiptContentChangedAfterPublication(t *testing.T) 
 	if err == nil || !strings.Contains(err.Error(), "verify created file") || !strings.Contains(err.Error(), "rollback failed") {
 		t.Fatalf("ApplySigningPlan() error = %v, want receipt-content rejection with safe rollback uncertainty", err)
 	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); !strings.Contains(after, `"CODE_SIGN_STYLE" = Manual;`) {
+	if after := mustReadVersionTestFile(t, pbxprojPath); !strings.Contains(after, `CODE_SIGN_STYLE = Manual;`) {
 		t.Fatal("receipt-content uncertainty rolled back project changes while the receipt remained")
 	}
 	if after := mustReadVersionTestFile(t, plan.ReceiptPath); after != racingReceipt {
@@ -940,7 +940,7 @@ func TestSigningApplyPreservesReceiptReplacementWhenRollbackIdentityChanges(t *t
 	if !errors.Is(err, injectedErr) || !strings.Contains(err.Error(), "rollback failed") {
 		t.Fatalf("ApplySigningPlan() error = %v, want post-create failure with rollback uncertainty", err)
 	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); !strings.Contains(after, `"CODE_SIGN_STYLE" = Manual;`) {
+	if after := mustReadVersionTestFile(t, pbxprojPath); !strings.Contains(after, `CODE_SIGN_STYLE = Manual;`) {
 		t.Fatal("receipt cleanup uncertainty rolled back project changes")
 	}
 	if after := mustReadVersionTestFile(t, plan.ReceiptPath); !strings.Contains(after, `"completed": true`) {
@@ -1020,7 +1020,7 @@ func TestSigningPlanRejectsStaleProjectBeforeMutation(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "stale") {
 		t.Fatalf("expected stale-plan error, got %v", err)
 	}
-	if strings.Contains(mustReadVersionTestFile(t, pbxprojPath), `"CODE_SIGN_STYLE" = Manual;`) {
+	if strings.Contains(mustReadVersionTestFile(t, pbxprojPath), `CODE_SIGN_STYLE = Manual;`) {
 		t.Fatal("stale apply mutated the project")
 	}
 }
