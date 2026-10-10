@@ -365,6 +365,7 @@ func TestReleaseWorkflowCanRepairExistingNotarizationWithoutReplacingAssets(t *t
 
 	for _, want := range []string{
 		`persist-credentials: false`,
+		`cache: false`,
 		`gh release download "${VERSION}"`,
 		`python3 workflow-source/scripts/verify_release_assets.py --release-dir existing-release --version "${VERSION}"`,
 		`codesign --verify --deep --strict --verbose=2`,
