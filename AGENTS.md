@@ -13,7 +13,7 @@ Repository-maintainer workflows live under `.agents/skills/`:
 - `$watch-asc-pr`: recheck PR comments, checks, head changes, and merge readiness.
 - `$triage-asc-issue`: reproduce, classify, label, and scope an issue.
 - `$review-wall-of-apps-prs`: validate, approve, and merge Wall of Apps submissions safely.
-- `$release-asc-cli`: publish and verify an end-to-end CLI repository release.
+- `$release-asc-cli`: publish and verify an end-to-end CLI repository release, including the release film and the announcement thread.
 - `$sync-asc-skills`: check the external ASC workflow skills for CLI-surface drift.
 
 Use these skills for their matching workflows instead of expanding this always-loaded file with task-specific procedures.

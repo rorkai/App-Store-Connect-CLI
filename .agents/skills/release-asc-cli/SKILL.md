@@ -90,7 +90,7 @@ Migration wording should name the replacement, for example: “App-scoped `--bui
 
 ## Draft the announcement
 
-Read [references/release-announcement.md](references/release-announcement.md) and prepare the announcement copy after the release is visibly published. Create an external Typefully draft only when the request or established context authorizes that write; otherwise return the copy locally. Never schedule or publish the post unless the user explicitly asks.
+Read [references/release-announcement.md](references/release-announcement.md) after the release is visibly published and the website changelog entry exists. Render the release film from the `asc-motion` template, then prepare the announcement thread. Create an external Typefully draft only when the request or established context authorizes that write; otherwise return the copy locally. Never schedule or publish the post unless the user explicitly asks.
 
 ## Clean up and hand off
 
