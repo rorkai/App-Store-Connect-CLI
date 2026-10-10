@@ -42,9 +42,9 @@ https://asccli.sh/changelog
 
 Use this section only when an external draft is authorized. Otherwise include the finished posts in the local handoff without creating a remote draft.
 
-1. Request a media upload for the rendered `.mp4` with alt text that names the version and the beats. Upload the file to the returned presigned URL with `curl -T <file> "<upload_url>"` and no `Content-Type` header; adding one invalidates the signature. Poll the media status until it is `ready`.
-2. If an older text-only draft for the same version exists, rewrite it in place with the thread above instead of creating a second draft; delete any leftover duplicate. Published drafts cannot be edited through the API, so leave those alone.
-3. Resolve the user's social set, enable X, Threads, Bluesky, and Mastodon, disable LinkedIn, attach the media ID to post 1 on every enabled platform, and save as an unscheduled draft only.
+1. Only when a film was rendered: request a media upload for the `.mp4` with alt text that names the version and the beats. Upload the file to the returned presigned URL with `curl -T <file> "<upload_url>"` and no `Content-Type` header; adding one invalidates the signature. Poll the media status until it is `ready`. Without a film, skip this step and post 1 goes out as text.
+2. If an older unpublished draft for the same version exists, rewrite it in place with the thread above instead of creating a second draft. Published drafts cannot be edited through the API, so leave those alone. Do not delete any draft unless the request explicitly authorizes that; report leftover duplicates instead.
+3. Resolve the user's social set, enable X, Threads, Bluesky, and Mastodon, disable LinkedIn, attach the media ID (if any) to post 1 on every enabled platform, and save as an unscheduled draft only.
 4. Verify the returned state is `draft` and return its review URL.
 
 If the Typefully connector is unavailable, preserve the finished posts in the handoff and report the external draft as incomplete, separately from artifact and distribution verification. Never silently publish through another tool.
