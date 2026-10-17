@@ -164,15 +164,15 @@ Examples:
 
 			previewType, err := normalizePreviewType(deviceValue)
 			if err != nil {
-				return fmt.Errorf("video-previews upload: %w", err)
+				return invalidDeviceTypeError(fmt.Errorf("video-previews upload: %w", err))
 			}
 
 			files, err := collectAssetFiles(pathValue)
 			if err != nil {
-				return fmt.Errorf("video-previews upload: %w", err)
+				return ClassifyMediaInputError(fmt.Errorf("video-previews upload: %w", err), "--path")
 			}
 			if err := validatePreviewFiles(files, !*skipExisting); err != nil {
-				return fmt.Errorf("video-previews upload: %w", err)
+				return ClassifyMediaInputError(fmt.Errorf("video-previews upload: %w", err), "--path")
 			}
 
 			client, err := deps.GetClient()
@@ -889,14 +889,14 @@ func ValidatePreviewFiles(files []string, enforceCapacity bool) error {
 
 func validatePreviewFiles(files []string, enforceCapacity bool) error {
 	if enforceCapacity && len(files) > maxPreviewsPerSet {
-		return fmt.Errorf("preview sets accept at most %d files; got %d", maxPreviewsPerSet, len(files))
+		return markMediaInput(fmt.Errorf("preview sets accept at most %d files; got %d", maxPreviewsPerSet, len(files)), shared.DiagnosticInvalidInput)
 	}
 	for _, filePath := range files {
 		if err := asc.ValidateImageFile(filePath); err != nil {
-			return err
+			return markMediaInput(err, shared.DiagnosticFileInvalidFormat)
 		}
 		if _, err := detectPreviewMimeType(filePath); err != nil {
-			return err
+			return markMediaInput(err, shared.DiagnosticFileInvalidFormat)
 		}
 	}
 	return nil

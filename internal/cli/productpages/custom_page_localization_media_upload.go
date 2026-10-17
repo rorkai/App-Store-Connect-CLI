@@ -221,14 +221,14 @@ func executeCustomPagePreviewUpload(
 
 	previewType, err := assets.NormalizePreviewType(trimmedDeviceType)
 	if err != nil {
-		return nil, err
+		return nil, assets.InvalidDeviceTypeError(err)
 	}
 	files, err := collectCustomPageMediaFiles(trimmedPath)
 	if err != nil {
-		return nil, err
+		return nil, assets.ClassifyMediaInputError(err, "--path")
 	}
 	if err := assets.ValidatePreviewFiles(files, true); err != nil {
-		return nil, err
+		return nil, assets.ClassifyMediaInputError(err, "--path")
 	}
 
 	client, err := customPageMediaClientFactory()

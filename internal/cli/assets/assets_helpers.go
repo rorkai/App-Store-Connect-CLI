@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const (
@@ -38,7 +39,7 @@ func CollectAssetFiles(path string) ([]string, error) {
 func collectAssetPaths(path string) ([]string, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
-		return nil, err
+		return nil, markMediaInput(err, shared.DiagnosticFileNotFound)
 	}
 	if !info.IsDir() {
 		return []string{path}, nil
@@ -46,7 +47,7 @@ func collectAssetPaths(path string) ([]string, error) {
 
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		return nil, err
+		return nil, markMediaInput(err, shared.DiagnosticFileNotFound)
 	}
 
 	files := make([]string, 0, len(entries))
@@ -67,11 +68,11 @@ func collectAssetFiles(path string) ([]string, error) {
 	}
 
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no files found in %q", path)
+		return nil, markMediaInput(fmt.Errorf("no files found in %q", path), shared.DiagnosticFileNotFound)
 	}
 	for _, filePath := range files {
 		if err := asc.ValidateImageFile(filePath); err != nil {
-			return nil, err
+			return nil, markMediaInput(err, shared.DiagnosticFileInvalidFormat)
 		}
 	}
 	return files, nil

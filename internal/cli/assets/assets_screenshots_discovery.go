@@ -19,16 +19,16 @@ func collectScreenshotUploadFiles(path string, maxScreenshots int) ([]string, er
 		return nil, err
 	}
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no files found in %q", path)
+		return nil, markMediaInput(fmt.Errorf("no files found in %q", path), shared.DiagnosticFileNotFound)
 	}
 
 	files, err = limitScreenshotUploadFiles(files, maxScreenshots, path)
 	if err != nil {
-		return nil, err
+		return nil, markMediaInput(err, shared.DiagnosticInvalidInput)
 	}
 	for _, filePath := range files {
 		if err := asc.ValidateImageFile(filePath); err != nil {
-			return nil, err
+			return nil, markMediaInput(err, shared.DiagnosticFileInvalidFormat)
 		}
 	}
 	return files, nil

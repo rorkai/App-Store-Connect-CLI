@@ -263,15 +263,15 @@ func ExecuteScreenshotSetUpload[T any](ctx context.Context, opts ScreenshotSetUp
 		if opts.InvalidDeviceTypeIsUsage {
 			return zero, shared.UsageError(err.Error())
 		}
-		return zero, err
+		return zero, invalidDeviceTypeError(err)
 	}
 	apiDisplayType := asc.CanonicalScreenshotDisplayTypeForAPI(displayType)
 	files, err := CollectAssetFiles(trimmedPath)
 	if err != nil {
-		return zero, err
+		return zero, ClassifyMediaInputError(err, "--path")
 	}
 	if err := validateScreenshotDimensions(files, apiDisplayType); err != nil {
-		return zero, err
+		return zero, ClassifyMediaInputError(err, "--path")
 	}
 
 	client, err := opts.ClientFactory()
@@ -944,10 +944,10 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 	if locID != "" {
 		files, err := collectScreenshotUploadFiles(pathValue, opts.MaxScreenshots)
 		if err != nil {
-			return nil, shared.NewValidationError(err)
+			return nil, mediaPathValidationError(err)
 		}
 		if err := validateScreenshotDimensions(files, apiDisplayType); err != nil {
-			return nil, shared.NewValidationError(err)
+			return nil, mediaPathValidationError(err)
 		}
 		client, err := deps.GetClient()
 		if err != nil {
@@ -983,7 +983,7 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 		// scanned like --version-localization uploads, not as a fan-out tree.
 		files, err := collectScreenshotUploadFiles(pathValue, opts.MaxScreenshots)
 		if err != nil {
-			return nil, shared.NewValidationError(err)
+			return nil, mediaPathValidationError(err)
 		}
 		localeAssets = []screenshotLocaleAssetFiles{{Locale: localeValue, Files: files}}
 	} else {
@@ -997,7 +997,7 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 		}
 	}
 	if err := validateScreenshotFanoutAssets(localeAssets, apiDisplayType); err != nil {
-		return nil, shared.NewValidationError(err)
+		return nil, mediaPathValidationError(err)
 	}
 
 	client, err := deps.GetClient()
