@@ -99,7 +99,7 @@ Examples:
 					return xcodeCommandError("xcode build", buildErr)
 				}
 				reportBuildFailure(result, buildErr)
-				return shared.NewStderrReportedError(fmt.Errorf("xcode build: %w", buildErr))
+				return shared.NewStderrReportedError(classifyXcodeLocalFailure(fmt.Errorf("xcode build: %w", buildErr)))
 			}
 			if result == nil {
 				return fmt.Errorf("xcode build: builder returned no result")

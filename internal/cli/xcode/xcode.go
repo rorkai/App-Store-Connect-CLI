@@ -559,7 +559,7 @@ Examples:
 				var err error
 				trimmedAPIKey, trimmedAPIIssuer, p8FilePath, err = resolveAltoolCredentials()
 				if err != nil {
-					return fmt.Errorf("xcode validate: %w", err)
+					return classifyXcodeLocalFailure(fmt.Errorf("xcode validate: %w", err))
 				}
 			}
 
@@ -617,7 +617,30 @@ func xcodeCommandError(command string, err error) error {
 	if errors.As(err, &notFound) {
 		return shared.WithDiagnostic(shared.NewValidationError(wrapped), shared.DiagnosticFileNotFound, notFound.Flag)
 	}
-	return wrapped
+	return classifyXcodeLocalFailure(wrapped)
+}
+
+// classifyXcodeLocalFailure reports failures of the local Xcode toolchain or
+// project selection as validation outcomes instead of asc defects: a project
+// that does not compile or sign, or project flags that do not resolve to one
+// .xcodeproj. Other errors, including timeouts, are returned unchanged.
+func classifyXcodeLocalFailure(err error) error {
+	if err == nil || shared.IsValidationError(err) {
+		return err
+	}
+	var project *localxcode.ProjectSelectionError
+	if errors.As(err, &project) {
+		code := shared.DiagnosticInvalidInput
+		if project.Missing {
+			code = shared.DiagnosticFileNotFound
+		}
+		return shared.WithDiagnostic(shared.NewValidationError(err), code, project.Flag)
+	}
+	var toolFailure *localxcode.CommandFailureError
+	if errors.As(err, &toolFailure) {
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticDependencyFailed, "")
+	}
+	return err
 }
 
 // firstExplicitlyEmptyFlag reports the first of names that the caller supplied

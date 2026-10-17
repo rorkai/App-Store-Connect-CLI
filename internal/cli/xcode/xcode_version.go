@@ -179,7 +179,7 @@ auto policy warns on stderr before running xcodebuild -showBuildSettings. Use
 				BuildSettingsSession:    lookupSession,
 			})
 			if err != nil {
-				return fmt.Errorf("xcode version view: %w", err)
+				return classifyXcodeLocalFailure(fmt.Errorf("xcode version view: %w", err))
 			}
 
 			return shared.PrintOutputWithRenderers(
@@ -296,7 +296,7 @@ Examples:
 					BuildNumber:           "1",
 					AllowExternalXCConfig: *allowExternalXCConfig,
 				}); err != nil {
-					return fmt.Errorf("xcode version edit: validate local mutation: %w", err)
+					return classifyXcodeLocalFailure(fmt.Errorf("xcode version edit: validate local mutation: %w", err))
 				}
 				versionFilter := v
 				if versionFilter == "" {
@@ -309,14 +309,14 @@ Examples:
 						BuildSettingsSession:    lookupSession,
 					})
 					if err != nil {
-						return fmt.Errorf("xcode version edit: resolve local version for remote build selection: %w", err)
+						return classifyXcodeLocalFailure(fmt.Errorf("xcode version edit: resolve local version for remote build selection: %w", err))
 					}
 					versionFilter = resolvedVersion
 				}
 				var err error
 				b, err = runResolveXcodeNextBuildNumber(ctx, remote.options(versionFilter))
 				if err != nil {
-					return fmt.Errorf("xcode version edit: resolve next build number: %w", err)
+					return classifyXcodeLocalFailure(fmt.Errorf("xcode version edit: resolve next build number: %w", err))
 				}
 			}
 
@@ -329,7 +329,7 @@ Examples:
 				AllowExternalXCConfig: *allowExternalXCConfig,
 			})
 			if err != nil {
-				return fmt.Errorf("xcode version edit: %w", err)
+				return classifyXcodeLocalFailure(fmt.Errorf("xcode version edit: %w", err))
 			}
 
 			return shared.PrintOutputRows(result, *output.Output, *output.Pretty,
@@ -424,7 +424,7 @@ Examples:
 					BuildSettingsSession:    lookupSession,
 					AllowExternalXCConfig:   *allowExternalXCConfig,
 				}); err != nil {
-					return fmt.Errorf("xcode version bump: validate local mutation: %w", err)
+					return classifyXcodeLocalFailure(fmt.Errorf("xcode version bump: validate local mutation: %w", err))
 				}
 				versionFilter, err := runGetConsistentMarketingVersion(ctx, localxcode.GetVersionOptions{
 					ProjectDir:              projectInput,
@@ -435,11 +435,11 @@ Examples:
 					BuildSettingsSession:    lookupSession,
 				})
 				if err != nil {
-					return fmt.Errorf("xcode version bump: resolve local version for remote build selection: %w", err)
+					return classifyXcodeLocalFailure(fmt.Errorf("xcode version bump: resolve local version for remote build selection: %w", err))
 				}
 				remoteBuildNumber, err = runResolveXcodeNextBuildNumber(ctx, remote.options(versionFilter))
 				if err != nil {
-					return fmt.Errorf("xcode version bump: resolve next build number: %w", err)
+					return classifyXcodeLocalFailure(fmt.Errorf("xcode version bump: resolve next build number: %w", err))
 				}
 			}
 
@@ -455,7 +455,7 @@ Examples:
 				AllowExternalXCConfig:   *allowExternalXCConfig,
 			})
 			if err != nil {
-				return fmt.Errorf("xcode version bump: %w", err)
+				return classifyXcodeLocalFailure(fmt.Errorf("xcode version bump: %w", err))
 			}
 
 			return shared.PrintOutputRows(result, *output.Output, *output.Pretty,

@@ -3,6 +3,7 @@ package xcode
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -739,6 +740,20 @@ func buildSettingsTargetNames(output string) []string {
 	return targets
 }
 
+// ProjectSelectionError reports that the project flags did not resolve to
+// exactly one Xcode project. Missing distinguishes an absent project from an
+// unusable or ambiguous selection; Flag names the flag to correct.
+type ProjectSelectionError struct {
+	Flag    string
+	Missing bool
+	message string
+	err     error
+}
+
+func (e *ProjectSelectionError) Error() string { return e.message }
+
+func (e *ProjectSelectionError) Unwrap() error { return e.err }
+
 // findXcodeproj resolves an explicit .xcodeproj path or finds one in a project dir.
 // Returns an error if zero or multiple .xcodeproj directories are found.
 func findXcodeproj(projectDir string) (string, error) {
@@ -749,10 +764,15 @@ func findXcodeproj(projectDir string) (string, error) {
 	if strings.HasSuffix(projectDir, ".xcodeproj") {
 		info, err := os.Stat(projectDir)
 		if err != nil {
-			return "", fmt.Errorf("failed to read Xcode project %s: %w", projectDir, err)
+			return "", &ProjectSelectionError{
+				Flag:    "--project",
+				Missing: errors.Is(err, os.ErrNotExist),
+				message: fmt.Sprintf("failed to read Xcode project %s: %v", projectDir, err),
+				err:     err,
+			}
 		}
 		if !info.IsDir() {
-			return "", fmt.Errorf("%s is not an .xcodeproj directory", projectDir)
+			return "", &ProjectSelectionError{Flag: "--project", message: fmt.Sprintf("%s is not an .xcodeproj directory", projectDir)}
 		}
 		resolved, err := resolveProjectParentTraversal(projectDir)
 		if err != nil {
@@ -768,7 +788,12 @@ func findXcodeproj(projectDir string) (string, error) {
 	projectDir = resolvedProjectDir
 	entries, err := os.ReadDir(projectDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to read project directory: %w", err)
+		return "", &ProjectSelectionError{
+			Flag:    "--project-dir",
+			Missing: errors.Is(err, os.ErrNotExist),
+			message: fmt.Sprintf("failed to read project directory: %v", err),
+			err:     err,
+		}
 	}
 	var matches []string
 	for _, entry := range entries {
@@ -778,11 +803,14 @@ func findXcodeproj(projectDir string) (string, error) {
 	}
 	switch len(matches) {
 	case 0:
-		return "", fmt.Errorf("no .xcodeproj found in %s", projectDir)
+		return "", &ProjectSelectionError{Flag: "--project-dir", Missing: true, message: fmt.Sprintf("no .xcodeproj found in %s", projectDir)}
 	case 1:
 		return filepath.Join(projectDir, matches[0]), nil
 	default:
-		return "", fmt.Errorf("multiple .xcodeproj found in %s (%s); use --project to pick one", projectDir, strings.Join(matches, ", "))
+		return "", &ProjectSelectionError{
+			Flag:    "--project",
+			message: fmt.Sprintf("multiple .xcodeproj found in %s (%s); use --project to pick one", projectDir, strings.Join(matches, ", ")),
+		}
 	}
 }
 
