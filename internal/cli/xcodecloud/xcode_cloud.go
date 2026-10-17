@@ -196,12 +196,12 @@ Examples:
 
 					product, err := client.ResolveCiProductForApp(requestCtx, resolvedAppID)
 					if err != nil {
-						return fmt.Errorf("xcode-cloud run: %w", err)
+						return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud run: %w", err))
 					}
 
 					workflow, err := client.ResolveCiWorkflowByName(requestCtx, product.ID, strings.TrimSpace(*workflowName))
 					if err != nil {
-						return fmt.Errorf("xcode-cloud run: %w", err)
+						return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud run: %w", err))
 					}
 
 					resolvedWorkflowID = workflow.ID
@@ -220,7 +220,7 @@ Examples:
 
 						gitRef, err := client.ResolveGitReferenceByName(requestCtx, repo.ID, strings.TrimSpace(*branch))
 						if err != nil {
-							return fmt.Errorf("xcode-cloud run: %w", err)
+							return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud run: %w", err))
 						}
 
 						resolvedGitRefID = gitRef.ID

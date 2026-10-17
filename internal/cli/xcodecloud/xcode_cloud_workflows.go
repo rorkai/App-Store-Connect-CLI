@@ -295,7 +295,7 @@ func xcodeCloudWorkflowsList(ctx context.Context, appID string, limit int, next 
 
 		product, err := client.ResolveCiProductForApp(requestCtx, resolvedAppID)
 		if err != nil {
-			return fmt.Errorf("xcode-cloud workflows: %w", err)
+			return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud workflows: %w", err))
 		}
 		productID = product.ID
 	}

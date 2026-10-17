@@ -826,7 +826,7 @@ func (c *Client) ResolveCiProductForApp(ctx context.Context, appID string) (*CiP
 	}
 
 	if len(resp.Data) == 0 {
-		return nil, fmt.Errorf("no Xcode Cloud product found for app %q (ensure Xcode Cloud is enabled)", appID)
+		return nil, newXcodeCloudLookupError(ErrCiProductNotFound, "no Xcode Cloud product found for app %q (ensure Xcode Cloud is enabled)", appID)
 	}
 
 	if len(resp.Data) > 1 {
@@ -858,7 +858,7 @@ func (c *Client) ResolveCiWorkflowByName(ctx context.Context, productID, workflo
 	allWorkflows := workflows.Data
 
 	if len(allWorkflows) == 0 {
-		return nil, fmt.Errorf("no Xcode Cloud workflows found for product %q", productID)
+		return nil, newXcodeCloudLookupError(ErrCiWorkflowNotFound, "no Xcode Cloud workflows found for product %q", productID)
 	}
 
 	// Find matching workflows by name (case-insensitive)
@@ -876,7 +876,7 @@ func (c *Client) ResolveCiWorkflowByName(ctx context.Context, productID, workflo
 		for _, wf := range allWorkflows {
 			names = append(names, wf.Attributes.Name)
 		}
-		return nil, fmt.Errorf("no workflow named %q found; available: %s", workflowName, strings.Join(names, ", "))
+		return nil, newXcodeCloudLookupError(ErrCiWorkflowNotFound, "no workflow named %q found; available: %s", workflowName, strings.Join(names, ", "))
 	}
 
 	if len(matches) > 1 {
@@ -884,7 +884,7 @@ func (c *Client) ResolveCiWorkflowByName(ctx context.Context, productID, workflo
 		for _, wf := range matches {
 			ids = append(ids, wf.ID)
 		}
-		return nil, fmt.Errorf("multiple workflows named %q found; use --workflow-id with one of: %s", workflowName, strings.Join(ids, ", "))
+		return nil, newXcodeCloudLookupError(ErrCiWorkflowAmbiguous, "multiple workflows named %q found; use --workflow-id with one of: %s", workflowName, strings.Join(ids, ", "))
 	}
 
 	return &matches[0], nil

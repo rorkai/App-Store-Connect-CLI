@@ -47,6 +47,28 @@ func waitForBuildCompletion(ctx context.Context, client *asc.Client, buildRunID 
 	return nil
 }
 
+// classifyXcodeCloudLookupError marks expected name and product lookup
+// misses as validation failures on the flag the caller can change. The
+// message and exit code are unchanged.
+func classifyXcodeCloudLookupError(err error) error {
+	switch {
+	case errors.Is(err, asc.ErrCiProductNotFound):
+		// The app exists but has no Xcode Cloud product until Xcode Cloud is
+		// set up for it, which is a normal state rather than an asc defect.
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticStateNotReady, "--app")
+	case errors.Is(err, asc.ErrCiWorkflowNotFound):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticResourceNotFound, "--workflow")
+	case errors.Is(err, asc.ErrCiWorkflowAmbiguous):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticInvalidInput, "--workflow-id")
+	case errors.Is(err, asc.ErrGitReferenceNotFound):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticResourceNotFound, "--branch")
+	case errors.Is(err, asc.ErrGitReferenceAmbiguous):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticInvalidInput, "--git-reference-id")
+	default:
+		return err
+	}
+}
+
 // buildStatusResult converts a CiBuildRunResponse to XcodeCloudStatusResult.
 func buildStatusResult(resp *asc.CiBuildRunResponse) *asc.XcodeCloudStatusResult {
 	result := &asc.XcodeCloudStatusResult{

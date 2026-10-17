@@ -612,7 +612,7 @@ func (c *Client) ResolveGitReferenceByName(ctx context.Context, repositoryID, re
 	}
 
 	if len(allRefs) == 0 {
-		return nil, fmt.Errorf("no git references found for repository %q", repositoryID)
+		return nil, newXcodeCloudLookupError(ErrGitReferenceNotFound, "no git references found for repository %q", repositoryID)
 	}
 
 	// Find matching references by name
@@ -634,7 +634,7 @@ func (c *Client) ResolveGitReferenceByName(ctx context.Context, repositoryID, re
 	}
 
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("no git reference named %q found; use --git-reference-id to specify directly", refName)
+		return nil, newXcodeCloudLookupError(ErrGitReferenceNotFound, "no git reference named %q found; use --git-reference-id to specify directly", refName)
 	}
 
 	if len(matches) > 1 {
@@ -642,7 +642,7 @@ func (c *Client) ResolveGitReferenceByName(ctx context.Context, repositoryID, re
 		for _, ref := range matches {
 			ids = append(ids, fmt.Sprintf("%s (%s)", ref.ID, ref.Attributes.CanonicalName))
 		}
-		return nil, fmt.Errorf("multiple git references match %q; use --git-reference-id with one of: %s", refName, strings.Join(ids, ", "))
+		return nil, newXcodeCloudLookupError(ErrGitReferenceAmbiguous, "multiple git references match %q; use --git-reference-id with one of: %s", refName, strings.Join(ids, ", "))
 	}
 
 	return &matches[0], nil
