@@ -26,9 +26,14 @@ func waitForBuildCompletion(ctx context.Context, client *asc.Client, buildRunID 
 				return struct{}{}, false, err
 			}
 
-			// Return error for failed builds
+			// A run that completed without succeeding is a CI outcome, not an
+			// asc failure: keep exit code 1 but classify it as expected.
 			if !asc.IsBuildRunSuccessful(resp.Data.Attributes.CompletionStatus) {
-				return struct{}{}, false, fmt.Errorf("build run %s completed with status: %s", buildRunID, resp.Data.Attributes.CompletionStatus)
+				return struct{}{}, false, shared.WithDiagnostic(
+					shared.NewValidationError(fmt.Errorf("build run %s completed with status: %s", buildRunID, resp.Data.Attributes.CompletionStatus)),
+					shared.DiagnosticStateNotReady,
+					"",
+				)
 			}
 			return struct{}{}, true, nil
 		}
