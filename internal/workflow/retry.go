@@ -109,7 +109,7 @@ func (r *runner) executeRunStep(
 					if persistErr := r.persistStep(stepKey, *sr, step.Retry != nil); persistErr != nil {
 						return persistErr
 					}
-					return fmt.Errorf("workflow: %s step %d: %w", workflowName, idx, extractErr)
+					return markError(fmt.Errorf("workflow: %s step %d: %w", workflowName, idx, extractErr), ErrCommandFailed)
 				}
 				sr.Outputs = extracted
 				if strings.TrimSpace(step.Name) != "" {
@@ -156,7 +156,7 @@ func (r *runner) executeRunStep(
 					return persistErr
 				}
 			}
-			return fmt.Errorf("workflow: %s step %d: %s", workflowName, idx, attemptError)
+			return attemptFailureError(ctx, fmt.Errorf("workflow: %s step %d: %s", workflowName, idx, attemptError), failureReason)
 		}
 
 		sr.Status = "retrying"
@@ -179,7 +179,7 @@ func (r *runner) executeRunStep(
 			if persistErr := r.persistStep(stepKey, *sr, step.Retry != nil); persistErr != nil {
 				return persistErr
 			}
-			return fmt.Errorf("workflow: %s step %d: %s", workflowName, idx, sr.Error)
+			return markError(fmt.Errorf("workflow: %s step %d: %s", workflowName, idx, sr.Error), waitErr)
 		}
 	}
 
@@ -204,6 +204,23 @@ func classifyAttemptFailure(ctx context.Context, attemptContextErr, runErr error
 		return "timeout", "step timed out after " + timeout.String()
 	}
 	return "command_failed", runErr.Error()
+}
+
+// attemptFailureError keeps the rendered step error and records why the final
+// attempt failed: a canceled run matches the caller's context error, and a
+// failed command or a command that exceeded its workflow-defined timeout
+// matches ErrCommandFailed. A step timeout deliberately does not match
+// context.DeadlineExceeded: that would attach the ASC_TIMEOUT request hint,
+// which does not control the step's deadline.
+func attemptFailureError(ctx context.Context, err error, failureReason string) error {
+	switch failureReason {
+	case "canceled":
+		return markError(err, ctx.Err())
+	case "command_failed", "timeout":
+		return markError(err, ErrCommandFailed)
+	default:
+		return err
+	}
 }
 
 func attemptStatus(failureReason string) string {

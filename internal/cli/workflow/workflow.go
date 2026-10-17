@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -219,7 +220,7 @@ Examples:
 
 			def, err := wf.Load(absPath)
 			if err != nil {
-				return fmt.Errorf("workflow run: %w", err)
+				return classifyWorkflowLoadError(fmt.Errorf("workflow run: %w", err))
 			}
 
 			params, err := wf.ParseParams(paramArgs)
@@ -249,9 +250,9 @@ Examples:
 			if err != nil {
 				if result != nil {
 					_ = printJSON(os.Stdout, result, *pretty)
-					return shared.NewReportedError(err)
+					return shared.NewReportedError(classifyWorkflowRunError(err))
 				}
-				return fmt.Errorf("workflow run: %w", err)
+				return classifyWorkflowRunError(fmt.Errorf("workflow run: %w", err))
 			}
 
 			return printJSON(os.Stdout, result, *pretty)
@@ -444,6 +445,45 @@ func isRunTailFlagToken(token string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// classifyWorkflowLoadError marks a missing, unreadable, malformed, or
+// invalid workflow file as a user input problem on --file. The message and
+// exit code are unchanged.
+func classifyWorkflowLoadError(err error) error {
+	var validationErr *wf.ValidationError
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticFileNotFound, "--file")
+	case errors.Is(err, os.ErrPermission):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticFilePermissionDenied, "--file")
+	case errors.Is(err, wf.ErrWorkflowParseJSON), errors.As(err, &validationErr):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticFileInvalidFormat, "--file")
+	default:
+		return err
+	}
+}
+
+// classifyWorkflowRunError marks expected workflow run failures: a user
+// command that failed or exceeded its step timeout, an unknown or private
+// workflow name, and a --resume run that does not exist or cannot be resumed.
+// Cancellations already match their context errors. The message and exit code
+// are unchanged.
+func classifyWorkflowRunError(err error) error {
+	switch {
+	case errors.Is(err, wf.ErrCommandFailed):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticDependencyFailed, "")
+	case errors.Is(err, wf.ErrUnknownWorkflow):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticResourceNotFound, "")
+	case errors.Is(err, wf.ErrPrivateWorkflow):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticInvalidInput, "")
+	case errors.Is(err, wf.ErrResumeRunNotFound):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticResourceNotFound, "--resume")
+	case errors.Is(err, wf.ErrResumeRejected):
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticInvalidInput, "--resume")
+	default:
+		return err
 	}
 }
 

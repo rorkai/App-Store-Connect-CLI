@@ -3,6 +3,7 @@ package workflow
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1244,6 +1245,9 @@ func TestRun_ContextCancellation(t *testing.T) {
 	result, err := Run(ctx, def, opts)
 	if err == nil {
 		t.Fatal("expected error on cancelled context")
+	}
+	if !errors.Is(err, context.Canceled) || errors.Is(err, ErrCommandFailed) {
+		t.Fatalf("error = %v, want cancellation rather than a failed command", err)
 	}
 	if result.Status != "error" {
 		t.Fatalf("expected error status, got %q", result.Status)

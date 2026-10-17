@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -608,8 +609,8 @@ func TestRun_CancellationStopsDuringRetryDelay(t *testing.T) {
 	opts := runOpts("main")
 	opts.Stderr = stderr
 	result, err := Run(ctx, def, opts)
-	if err == nil {
-		t.Fatal("expected cancellation")
+	if !errors.Is(err, context.Canceled) || errors.Is(err, ErrCommandFailed) {
+		t.Fatalf("error = %v, want cancellation rather than a failed command", err)
 	}
 	select {
 	case <-stderr.ready:

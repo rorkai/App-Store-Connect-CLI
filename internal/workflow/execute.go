@@ -139,10 +139,10 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 
 	wf, ok := def.Workflows[opts.WorkflowName]
 	if !ok {
-		return nil, fmt.Errorf("workflow: unknown workflow %q", opts.WorkflowName)
+		return nil, markError(fmt.Errorf("workflow: unknown workflow %q", opts.WorkflowName), ErrUnknownWorkflow)
 	}
 	if wf.Private {
-		return nil, fmt.Errorf("workflow: %q is private and cannot be run directly", opts.WorkflowName)
+		return nil, markError(fmt.Errorf("workflow: %q is private and cannot be run directly", opts.WorkflowName), ErrPrivateWorkflow)
 	}
 
 	result := &RunResult{
@@ -168,7 +168,7 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 	} else if hr, hookErr := runHookAndRecord(ctx, def.BeforeAll, env, opts.DryRun, opts.Stdout, opts.Stderr); hr != nil {
 		result.ensureHooks().BeforeAll = hr
 		if hookErr != nil {
-			wrapped := fmt.Errorf("workflow: before_all hook failed: %w", hookErr)
+			wrapped := markCommandError(ctx, fmt.Errorf("workflow: before_all hook failed: %w", hookErr))
 			r.markFailure(wrapped, "before_all")
 			recordErrorHook(ctx, def.Error, env, opts, result)
 			return result, wrapped
@@ -191,7 +191,7 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 	} else if hr, hookErr := runHookAndRecord(ctx, def.AfterAll, env, opts.DryRun, opts.Stdout, opts.Stderr); hr != nil {
 		result.ensureHooks().AfterAll = hr
 		if hookErr != nil {
-			wrapped := fmt.Errorf("workflow: after_all hook failed: %w", hookErr)
+			wrapped := markCommandError(ctx, fmt.Errorf("workflow: after_all hook failed: %w", hookErr))
 			r.markFailure(wrapped, "after_all")
 			recordErrorHook(ctx, def.Error, env, opts, result)
 			return result, wrapped
@@ -243,13 +243,13 @@ func newRunner(def *Definition, opts RunOptions, result *RunResult) (*runner, er
 			return nil, err
 		}
 		if state == nil {
-			return nil, fmt.Errorf("workflow: resume run %q not found", opts.ResumeRunID)
+			return nil, markError(fmt.Errorf("workflow: resume run %q not found", opts.ResumeRunID), ErrResumeRunNotFound)
 		}
 		if len(r.opts.Params) == 0 && len(state.Params) > 0 {
 			r.opts.Params = cloneStringMap(state.Params)
 		}
 		if err := r.validateResumeState(state); err != nil {
-			return nil, err
+			return nil, markError(err, ErrResumeRejected)
 		}
 		r.state = state
 		r.statePath = runFile
