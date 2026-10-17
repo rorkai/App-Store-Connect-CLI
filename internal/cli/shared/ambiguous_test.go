@@ -351,3 +351,14 @@ func TestIsAmbiguousSelectionDetectsStableSelectorAmbiguity(t *testing.T) {
 		t.Fatal("unwrapping must not break the existing sentinel")
 	}
 }
+
+func TestAmbiguousSelectionsAreValidationFailures(t *testing.T) {
+	defaultVersion := fmt.Errorf("localizations list: %w", &AmbiguousDefaultAppStoreVersionError{
+		AppID:      "app-1",
+		Source:     "editable",
+		Candidates: []DefaultAppStoreVersion{{ID: "ver-ios", Platform: "IOS"}, {ID: "ver-mac", Platform: "MAC_OS"}},
+	})
+	if !IsValidationError(defaultVersion) {
+		t.Fatalf("IsValidationError(%v) = false, want true", defaultVersion)
+	}
+}

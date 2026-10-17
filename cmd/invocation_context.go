@@ -838,6 +838,11 @@ func runtimeFailureContext(analysis invocationAnalysis, err error, exitCode int)
 	}
 	if diagnostic, ok := shared.DiagnosticFromError(err); ok {
 		eventContext.FailureParameter = diagnostic.Parameter
+	} else if ambiguous, ok := errors.AsType[*shared.AmbiguousSelectionError](err); ok {
+		// An unwrapped ambiguity names the flag that picks one candidate. Paths
+		// that report it as a usage error keep their own classification above.
+		eventContext.DiagnosticCode = string(shared.DiagnosticInvalidInput)
+		eventContext.FailureParameter = strings.TrimSpace(ambiguous.Flag)
 	}
 	if shared.IsLocalProcessFailure(err) {
 		// A local child status never describes an API result, even when the
