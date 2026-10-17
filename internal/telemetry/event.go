@@ -606,6 +606,7 @@ var knownFailureParameters = map[string]struct{}{
 	"prices":                            {},
 	"priority":                          {},
 	"private-key":                       {},
+	"processing-date":                   {},
 	"product-id":                        {},
 	"product-ids":                       {},
 	"product-type":                      {},

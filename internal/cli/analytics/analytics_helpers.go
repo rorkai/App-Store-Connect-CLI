@@ -579,3 +579,15 @@ func downloadAnalyticsReportToFile(ctx context.Context, client *asc.Client, down
 	}
 	return size, nil
 }
+
+// analyticsNotFoundError classifies a report resource that does not exist for
+// the requested lookup as not found while keeping the rendered message.
+func analyticsNotFoundError(err error, parameter string) error {
+	return shared.WithDiagnostic(shared.NewErrorWithCause(err, asc.ErrNotFound), shared.DiagnosticResourceNotFound, parameter)
+}
+
+// analyticsNotReadyError classifies report data that Apple has not produced
+// yet as an expected state rather than a CLI failure.
+func analyticsNotReadyError(err error) error {
+	return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticStateNotReady, "")
+}

@@ -530,13 +530,13 @@ Examples:
 			}
 
 			if strings.TrimSpace(*instanceID) != "" && !foundInstance {
-				return fmt.Errorf("analytics view: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID))
+				return analyticsNotFoundError(fmt.Errorf("analytics view: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID)), "--instance-id")
 			}
 			if processingDateFilter != "" && len(result.Data) == 0 {
 				if strings.TrimSpace(*next) == "" && !*paginate {
-					return fmt.Errorf("analytics view: no instances found for processing date %q in the first page of reports (use --paginate or --next)", processingDateFilter)
+					return analyticsNotFoundError(fmt.Errorf("analytics view: no instances found for processing date %q in the first page of reports (use --paginate or --next)", processingDateFilter), "--processing-date")
 				}
-				return fmt.Errorf("analytics view: no instances found for processing date %q", processingDateFilter)
+				return analyticsNotFoundError(fmt.Errorf("analytics view: no instances found for processing date %q", processingDateFilter), "--processing-date")
 			}
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
@@ -618,7 +618,7 @@ Examples:
 				}
 			}
 			if !instanceFound {
-				return fmt.Errorf("analytics download: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID))
+				return analyticsNotFoundError(fmt.Errorf("analytics download: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID)), "--instance-id")
 			}
 
 			segments, err := fetchAnalyticsReportSegments(ctx, client, strings.TrimSpace(*instanceID))
@@ -626,7 +626,7 @@ Examples:
 				return fmt.Errorf("analytics download: failed to fetch segments: %w", err)
 			}
 			if len(segments) == 0 {
-				return fmt.Errorf("analytics download: no segments available for instance %q", strings.TrimSpace(*instanceID))
+				return analyticsNotReadyError(fmt.Errorf("analytics download: no segments available for instance %q", strings.TrimSpace(*instanceID)))
 			}
 
 			selectedSegment := segments[0]
@@ -640,7 +640,7 @@ Examples:
 					}
 				}
 				if !found {
-					return fmt.Errorf("analytics download: segment %q not found for instance %q", strings.TrimSpace(*segmentID), strings.TrimSpace(*instanceID))
+					return analyticsNotFoundError(fmt.Errorf("analytics download: segment %q not found for instance %q", strings.TrimSpace(*segmentID), strings.TrimSpace(*instanceID)), "--segment-id")
 				}
 			} else if len(segments) > 1 {
 				candidates := make([]shared.AmbiguousCandidate, 0, len(segments))
@@ -657,7 +657,7 @@ Examples:
 
 			downloadURL := strings.TrimSpace(selectedSegment.Attributes.URL)
 			if downloadURL == "" {
-				return fmt.Errorf("analytics download: segment download URL is empty")
+				return analyticsNotReadyError(errors.New("analytics download: segment download URL is empty"))
 			}
 
 			compressedSize, err := downloadAnalyticsReportToFile(ctx, client, downloadURL, compressedPath)
