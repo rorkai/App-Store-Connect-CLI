@@ -3,6 +3,8 @@ package shared
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"io/fs"
 	"strings"
 	"testing"
 )
@@ -180,6 +182,47 @@ func TestWithDiagnosticRejectsUnboundedCode(t *testing.T) {
 	}
 	if _, ok := DiagnosticFromError(err); ok {
 		t.Fatal("DiagnosticFromError() accepted an unknown code")
+	}
+}
+
+func TestWithLocalFileDiagnosticClassifiesOnlyFilesystemAccessFailures(t *testing.T) {
+	for _, tt := range []struct {
+		name           string
+		cause          error
+		wantValidation bool
+		wantCode       DiagnosticCode
+	}{
+		{name: "missing", cause: fs.ErrNotExist, wantValidation: true, wantCode: DiagnosticFileNotFound},
+		{name: "unreadable", cause: fs.ErrPermission, wantValidation: true, wantCode: DiagnosticFilePermissionDenied},
+		{name: "other", cause: errors.New("too many levels of symbolic links")},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			rendered := fmt.Errorf("command: open input: %w", tt.cause)
+			err := WithLocalFileDiagnostic(rendered, "--path")
+
+			if got, want := err.Error(), rendered.Error(); got != want {
+				t.Fatalf("WithLocalFileDiagnostic().Error() = %q, want %q", got, want)
+			}
+			if !errors.Is(err, tt.cause) {
+				t.Fatalf("WithLocalFileDiagnostic() should preserve the cause chain: %v", err)
+			}
+			if got := IsValidationError(err); got != tt.wantValidation {
+				t.Fatalf("IsValidationError() = %t, want %t", got, tt.wantValidation)
+			}
+			diagnostic, ok := DiagnosticFromError(err)
+			if tt.wantCode == "" {
+				if ok {
+					t.Fatalf("DiagnosticFromError() = %+v, want none", diagnostic)
+				}
+				return
+			}
+			if !ok || diagnostic.Code != tt.wantCode || diagnostic.Parameter != "--path" {
+				t.Fatalf("DiagnosticFromError() = %+v, %t; want %q for --path", diagnostic, ok, tt.wantCode)
+			}
+		})
+	}
+	if err := WithLocalFileDiagnostic(nil, "--path"); err != nil {
+		t.Fatalf("WithLocalFileDiagnostic(nil) = %v, want nil", err)
 	}
 }
 

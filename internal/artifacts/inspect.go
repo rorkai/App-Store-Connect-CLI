@@ -9,10 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/infoplist"
@@ -144,15 +146,46 @@ func InspectIPA(source io.ReaderAt, size int64, includeEntitlements, includeProf
 
 // InspectIPAWithOptions is InspectIPA with optional signature verification
 // against the embedded Apple roots.
+// Inspection failures caused by the IPA's own contents match ErrInvalidArchive.
 func InspectIPAWithOptions(source io.ReaderAt, size int64, options IPAOptions) (IPAManifest, error) {
 	if !options.VerifySignature {
-		return inspectIPA(source, size, options.IncludeEntitlements, options.IncludeProfile, nil)
+		manifest, err := inspectIPA(source, size, options.IncludeEntitlements, options.IncludeProfile, nil)
+		return manifest, markInvalidArchive(err)
 	}
 	policy, err := appleTrustPolicy()
 	if err != nil {
 		return IPAManifest{Status: "unreadable"}, fmt.Errorf("load Apple certificates: %w", err)
 	}
-	return inspectIPAVerifying(source, size, options.IncludeEntitlements, options.IncludeProfile, policy)
+	manifest, err := inspectIPAVerifying(source, size, options.IncludeEntitlements, options.IncludeProfile, policy)
+	return manifest, markInvalidArchive(err)
+}
+
+// ErrInvalidArchive matches an inspection failure caused by the artifact's
+// own contents, such as a malformed archive or unparsable metadata, as
+// opposed to a failure of the inspector itself.
+var ErrInvalidArchive = errors.New("invalid artifact archive")
+
+// invalidArchiveError marks err as ErrInvalidArchive without changing its
+// message or cause chain.
+type invalidArchiveError struct{ err error }
+
+func (e invalidArchiveError) Error() string        { return e.err.Error() }
+func (e invalidArchiveError) Unwrap() error        { return e.err }
+func (e invalidArchiveError) Is(target error) bool { return target == ErrInvalidArchive }
+
+// markInvalidArchive marks err unless it carries an operational read failure
+// from the source, such as EIO, which says nothing about the archive itself.
+func markInvalidArchive(err error) error {
+	if err == nil || isOperationalReadError(err) {
+		return err
+	}
+	return invalidArchiveError{err: err}
+}
+
+func isOperationalReadError(err error) bool {
+	var pathErr *fs.PathError
+	var errno syscall.Errno
+	return errors.As(err, &pathErr) || errors.As(err, &errno)
 }
 
 func inspectIPAVerifying(source io.ReaderAt, size int64, includeEntitlements, includeProfile bool, policy *trustPolicy) (IPAManifest, error) {

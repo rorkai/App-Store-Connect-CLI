@@ -2,6 +2,7 @@ package artifacts
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -144,7 +145,7 @@ func runArtifactInfo(ctx context.Context, args []string, config artifactInfoConf
 		if printErr := shared.PrintOutput(unreadableReceipt(config.Kind, path, config.VerifySignature), config.Output, config.Pretty); printErr != nil {
 			return printErr
 		}
-		return fmt.Errorf("%s: %w", config.Kind, err)
+		return shared.WithLocalFileDiagnostic(fmt.Errorf("%s: %w", config.Kind, err), "--path")
 	}
 	file, err := rootfs.OpenFile(path)
 	if err != nil {
@@ -176,7 +177,11 @@ func runArtifactInfo(ctx context.Context, args []string, config artifactInfoConf
 			if inspectErr == nil {
 				inspectErr = fmt.Errorf("IPA has no embedded profile; code signature was not verified")
 			}
-			return fmt.Errorf("ipa-info: %w", inspectErr)
+			err := fmt.Errorf("ipa-info: %w", inspectErr)
+			if errors.Is(inspectErr, artifacts.ErrInvalidArchive) {
+				return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticFileInvalidFormat, "--path")
+			}
+			return err
 		}
 		return verificationError(config.Kind, manifest.SignatureVerification)
 	case "pkg-info":

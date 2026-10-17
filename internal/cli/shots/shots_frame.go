@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -449,7 +451,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 					return nil
 				})
 				if err != nil {
-					return err
+					return classifyFrameError(err)
 				}
 				return shared.PrintOutput(framed, *output.Output, *output.Pretty)
 			}
@@ -459,12 +461,45 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			}
 			result, err := shotsFrameFn(timeoutCtx, request)
 			if err != nil {
-				return fmt.Errorf("screenshots frame: %w", err)
+				return classifyFrameError(fmt.Errorf("screenshots frame: %w", err))
 			}
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// classifyFrameError marks failures caused by the caller's frame inputs or a
+// missing Koubou install as expected negatives, without changing the message
+// or exit code.
+func classifyFrameError(err error) error {
+	if errors.Is(err, screenshots.ErrKoubouNotFound) {
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticDependencyFailed, "")
+	}
+	var inputErr *screenshots.FrameInputError
+	if !errors.As(err, &inputErr) {
+		return err
+	}
+	parameter := "--input"
+	if inputErr.Input == screenshots.FrameInputConfig {
+		parameter = "--config"
+	}
+	var code shared.DiagnosticCode
+	var pathErr *fs.PathError
+	var errno syscall.Errno
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		code = shared.DiagnosticFileNotFound
+	case errors.Is(err, fs.ErrPermission):
+		code = shared.DiagnosticFilePermissionDenied
+	case errors.As(err, &pathErr), errors.As(err, &errno):
+		// Any other filesystem failure, such as EIO, is operational and
+		// says nothing about the input file.
+		return err
+	default:
+		code = shared.DiagnosticFileInvalidFormat
+	}
+	return shared.WithDiagnostic(shared.NewValidationError(err), code, parameter)
 }
 
 // frameRenderSettings are the render inputs shared by every framed file in

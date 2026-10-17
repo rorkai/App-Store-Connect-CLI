@@ -298,7 +298,7 @@ func prepareMatrixFrameInputInRoot(ctx context.Context, sourceRoot rootfs.Root, 
 		return sourceRoot.OpenFile(name)
 	}()
 	if err != nil {
-		return nil, fmt.Errorf("open frame input: %w", err)
+		return nil, newFrameInputError(FrameInputScreenshot, fmt.Errorf("open frame input: %w", err))
 	}
 	if _, err := sourceFile.Stat(); err != nil {
 		_ = sourceFile.Close()
@@ -306,7 +306,7 @@ func prepareMatrixFrameInputInRoot(ctx context.Context, sourceRoot rootfs.Root, 
 	}
 	if _, err := readMatrixImageDimensions(sourceFile, absInputPath); err != nil {
 		_ = sourceFile.Close()
-		return nil, fmt.Errorf("read input screenshot: %w", err)
+		return nil, newFrameInputError(FrameInputScreenshot, fmt.Errorf("read input screenshot: %w", err))
 	}
 	if _, err := sourceFile.Seek(0, io.SeekStart); err != nil {
 		_ = sourceFile.Close()
@@ -586,7 +586,7 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root, pin
 		}
 		if !pinInput {
 			if err := asc.ValidateImageFile(absInputPath); err != nil {
-				return nil, fmt.Errorf("read input screenshot: %w", err)
+				return nil, newFrameInputError(FrameInputScreenshot, fmt.Errorf("read input screenshot: %w", err))
 			}
 		} else {
 			preparedInput, err = prepareMatrixFrameInput(ctx, absInputPath)
@@ -646,7 +646,7 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root, pin
 		}
 		configPath = absConfigPath
 		if _, err := os.Stat(configPath); err != nil {
-			return nil, fmt.Errorf("read config file: %w", err)
+			return nil, newFrameInputError(FrameInputConfig, fmt.Errorf("read config file: %w", err))
 		}
 		if parsed := parseKoubouConfigMetadata(configPath); parsed != nil {
 			metadata = *parsed
@@ -1167,11 +1167,7 @@ func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerate
 	output, err := cmd.Output()
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
-			return nil, fmt.Errorf(
-				"kou binary not found; install pinned Koubou %s first (%s)",
-				pinnedKoubouVersion,
-				pinnedKoubouInstallCommand(),
-			)
+			return nil, errKoubouNotFound()
 		}
 		errorOutput := strings.TrimSpace(stderr.String())
 		if errorOutput == "" {
@@ -1199,11 +1195,7 @@ func ensurePinnedKoubouVersion(ctx context.Context) (string, error) {
 	kouBinaryPath, err := exec.LookPath("kou")
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
-			return "", fmt.Errorf(
-				"kou binary not found; install pinned Koubou %s first (%s)",
-				pinnedKoubouVersion,
-				pinnedKoubouInstallCommand(),
-			)
+			return "", errKoubouNotFound()
 		}
 		return "", fmt.Errorf("kou lookup failed: %w", err)
 	}
@@ -1228,11 +1220,7 @@ func ensurePinnedKoubouVersion(ctx context.Context) (string, error) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
-			return "", fmt.Errorf(
-				"kou binary not found; install pinned Koubou %s first (%s)",
-				pinnedKoubouVersion,
-				pinnedKoubouInstallCommand(),
-			)
+			return "", errKoubouNotFound()
 		}
 		trimmedOutput := strings.TrimSpace(string(output))
 		if trimmedOutput == "" {

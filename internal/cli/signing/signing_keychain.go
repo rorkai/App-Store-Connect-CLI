@@ -140,7 +140,7 @@ Examples:
 				AddToSearchList:           *addToSearchList,
 			})
 			if err != nil {
-				return err
+				return classifySigningInputError(err)
 			}
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
@@ -178,17 +178,17 @@ func executeSigningKeychainInstallWith(ctx context.Context, options signingKeych
 	}
 	identityData, err := readBoundedSigningRunFile(options.IdentityPath, signingRunInputLimit, true)
 	if err != nil {
-		return nil, fmt.Errorf("signing keychain install: read identity: %w", err)
+		return nil, signingInputReadError("--identity", fmt.Errorf("signing keychain install: read identity: %w", err))
 	}
 	defer clear(identityData)
 	identityPasswordData, err := readBoundedSigningRunFile(options.IdentityPasswordPath, signingRunPasswordLimit, true)
 	if err != nil {
-		return nil, fmt.Errorf("signing keychain install: read identity password: %w", err)
+		return nil, signingInputReadError("--identity-password-file", fmt.Errorf("signing keychain install: read identity password: %w", err))
 	}
 	defer clear(identityPasswordData)
 	keychainPasswordData, err := readBoundedSigningRunFile(options.KeychainPasswordPath, signingRunPasswordLimit, true)
 	if err != nil {
-		return nil, fmt.Errorf("signing keychain install: read keychain password: %w", err)
+		return nil, signingInputReadError("--keychain-password-file", fmt.Errorf("signing keychain install: read keychain password: %w", err))
 	}
 	defer clear(keychainPasswordData)
 

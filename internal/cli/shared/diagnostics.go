@@ -2,6 +2,7 @@ package shared
 
 import (
 	"errors"
+	"io/fs"
 	"strings"
 )
 
@@ -65,6 +66,23 @@ func WithDiagnostic(err error, code DiagnosticCode, parameter string) error {
 			Code:      code,
 			Parameter: strings.TrimSpace(parameter),
 		},
+	}
+}
+
+// WithLocalFileDiagnostic classifies a failure to open the local file named by
+// parameter as an expected-negative validation failure when the file is
+// missing or unreadable. Any other error is returned unchanged. The message
+// and exit code are preserved.
+func WithLocalFileDiagnostic(err error, parameter string) error {
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, fs.ErrNotExist):
+		return WithDiagnostic(NewValidationError(err), DiagnosticFileNotFound, parameter)
+	case errors.Is(err, fs.ErrPermission):
+		return WithDiagnostic(NewValidationError(err), DiagnosticFilePermissionDenied, parameter)
+	default:
+		return err
 	}
 }
 

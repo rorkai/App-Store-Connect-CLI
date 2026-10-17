@@ -188,7 +188,7 @@ Examples:
 			if pathValue != "" {
 				file, err := shared.OpenExistingNoFollow(pathValue)
 				if err != nil {
-					return fmt.Errorf("profiles local install: open input: %w", err)
+					return shared.WithLocalFileDiagnostic(fmt.Errorf("profiles local install: open input: %w", err), "--path")
 				}
 				defer file.Close()
 
@@ -223,16 +223,24 @@ Examples:
 				source = idValue
 			}
 
+			// A --path profile that cannot be parsed is a local input
+			// problem; downloaded content keeps its existing classification.
+			invalidProfile := func(err error) error {
+				if pathValue == "" {
+					return err
+				}
+				return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticFileInvalidFormat, "--path")
+			}
 			parsed, err := parseMobileProvision(content)
 			if err != nil {
-				return fmt.Errorf("profiles local install: %w", err)
+				return invalidProfile(fmt.Errorf("profiles local install: %w", err))
 			}
 			uuid := strings.TrimSpace(parsed.UUID)
 			if uuid == "" {
-				return fmt.Errorf("profiles local install: profile UUID is missing")
+				return invalidProfile(fmt.Errorf("profiles local install: profile UUID is missing"))
 			}
 			if !isValidProfileUUID(uuid) {
-				return fmt.Errorf("profiles local install: invalid profile UUID %q", uuid)
+				return invalidProfile(fmt.Errorf("profiles local install: invalid profile UUID %q", uuid))
 			}
 
 			extension := shared.ProvisioningProfileExtensionForPlatforms(parsed.Platform, "")

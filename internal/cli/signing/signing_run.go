@@ -404,14 +404,14 @@ Examples:
 				return shared.UsageError("a child command is required after --")
 			}
 
-			return executeSigningRunFn(ctx, signingRunOptions{
+			return classifySigningInputError(executeSigningRunFn(ctx, signingRunOptions{
 				IdentityPath:         identity,
 				IdentityPasswordPath: strings.TrimSpace(*identityPasswordPath),
 				ProfilePath:          profile,
 				Purpose:              purposeValue,
 				ReceiptPath:          strings.TrimSpace(*receiptPath),
 				Child:                append([]string(nil), args...),
-			})
+			}))
 		},
 	}
 }
@@ -512,19 +512,19 @@ func withSigningRunInputData(
 ) error {
 	identityData, err := readFile(options.IdentityPath, signingRunInputLimit, true)
 	if err != nil {
-		return fmt.Errorf("signing run: read identity: %w", err)
+		return signingInputReadError("--identity", fmt.Errorf("signing run: read identity: %w", err))
 	}
 	defer clear(identityData)
 	profileData, err := readFile(options.ProfilePath, signingRunInputLimit, false)
 	if err != nil {
-		return fmt.Errorf("signing run: read profile: %w", err)
+		return signingInputReadError("--profile", fmt.Errorf("signing run: read profile: %w", err))
 	}
 	defer clear(profileData)
 	var passwordData []byte
 	if options.IdentityPasswordPath != "" {
 		passwordData, err = readFile(options.IdentityPasswordPath, signingRunPasswordLimit, true)
 		if err != nil {
-			return fmt.Errorf("signing run: read identity password: %w", err)
+			return signingInputReadError("--identity-password-file", fmt.Errorf("signing run: read identity password: %w", err))
 		}
 	}
 	defer clear(passwordData)
@@ -587,20 +587,20 @@ func readBoundedSigningRunFile(path string, limit int64, private bool) ([]byte, 
 		return nil, err
 	}
 	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("%q is not a regular file", path)
+		return nil, signingInputCheckErrorf(errSigningInputUnsupported, "%q is not a regular file", path)
 	}
 	if err := validateSigningRunInputPermissions(path, info, private); err != nil {
 		return nil, err
 	}
 	if info.Size() > limit {
-		return nil, fmt.Errorf("%q exceeds the %d-byte limit", path, limit)
+		return nil, signingInputCheckErrorf(errSigningInputUnsupported, "%q exceeds the %d-byte limit", path, limit)
 	}
 	data, err := io.ReadAll(io.LimitReader(file, limit+1))
 	if err != nil {
 		return nil, err
 	}
 	if int64(len(data)) > limit {
-		return nil, fmt.Errorf("%q exceeds the %d-byte limit", path, limit)
+		return nil, signingInputCheckErrorf(errSigningInputUnsupported, "%q exceeds the %d-byte limit", path, limit)
 	}
 	return data, nil
 }
@@ -852,7 +852,7 @@ func inspectSigningRunInputs(identityData, identityPassword, profileData []byte,
 
 	p7, err := pkcs7.Parse(profileData)
 	if err != nil {
-		return nil, fmt.Errorf("decode signed provisioning profile: %w", err)
+		return nil, signingInputDecodeError("--profile", fmt.Errorf("decode signed provisioning profile: %w", err))
 	}
 	if roots == nil {
 		return nil, fmt.Errorf("load trusted roots for provisioning profile verification")
@@ -861,11 +861,11 @@ func inspectSigningRunInputs(identityData, identityPassword, profileData []byte,
 		return nil, fmt.Errorf("verify profile signature: %w", err)
 	}
 	if len(p7.Content) == 0 {
-		return nil, fmt.Errorf("decode provisioning profile: signed content is empty")
+		return nil, signingInputDecodeError("--profile", fmt.Errorf("decode provisioning profile: signed content is empty"))
 	}
 	var profile signingRunMobileProvision
 	if err := plist.NewDecoder(bytes.NewReader(p7.Content)).Decode(&profile); err != nil {
-		return nil, fmt.Errorf("decode provisioning profile plist: %w", err)
+		return nil, signingInputDecodeError("--profile", fmt.Errorf("decode provisioning profile plist: %w", err))
 	}
 
 	profile.UUID = strings.TrimSpace(profile.UUID)
@@ -959,14 +959,18 @@ func verifySigningRunProfileTrust(profile *pkcs7.PKCS7, _ *x509.CertPool, now ti
 func inspectSigningRunIdentity(identityData, identityPassword []byte, now time.Time) (*signingRunIdentity, error) {
 	privateKeys, certificates, err := pkcs12.DecodeAll(identityData, string(identityPassword))
 	if err != nil {
-		return nil, fmt.Errorf("decode identity: %w", err)
+		err = fmt.Errorf("decode identity: %w", err)
+		if errors.Is(err, pkcs12.ErrIncorrectPassword) {
+			return nil, signingIdentityPasswordError(err)
+		}
+		return nil, signingInputDecodeError("--identity", err)
 	}
 	if len(privateKeys) != 1 {
-		return nil, fmt.Errorf("decode identity: expected exactly one private key, found %d", len(privateKeys))
+		return nil, signingInputDecodeError("--identity", fmt.Errorf("decode identity: expected exactly one private key, found %d", len(privateKeys)))
 	}
 	signer, ok := privateKeys[0].(crypto.Signer)
 	if !ok {
-		return nil, fmt.Errorf("decode identity: private key is not usable for signing")
+		return nil, signingInputDecodeError("--identity", fmt.Errorf("decode identity: private key is not usable for signing"))
 	}
 	privatePublic, err := x509.MarshalPKIXPublicKey(signer.Public())
 	if err != nil {
@@ -985,7 +989,7 @@ func inspectSigningRunIdentity(identityData, identityPassword []byte, now time.T
 			continue
 		}
 		if certificate != nil {
-			return nil, fmt.Errorf("decode identity: multiple certificates match the private key")
+			return nil, signingInputDecodeError("--identity", fmt.Errorf("decode identity: multiple certificates match the private key"))
 		}
 		certificate = candidate
 	}
