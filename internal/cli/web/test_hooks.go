@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -154,4 +155,10 @@ func SetSetDeveloperServiceIDDomains(fn func(context.Context, *webcore.Client, w
 	previous := setDeveloperServiceIDDomainsFn
 	setDeveloperServiceIDDomainsFn = fn
 	return func() { setDeveloperServiceIDDomainsFn = previous }
+}
+
+func SetPromptSelectTrustedPhoneForTesting(fn func([]appleauth.TrustedPhoneNumber) (*appleauth.TrustedPhoneNumber, error)) func() {
+	previous := promptSelectTrustedPhoneFn
+	promptSelectTrustedPhoneFn = fn
+	return func() { promptSelectTrustedPhoneFn = previous }
 }

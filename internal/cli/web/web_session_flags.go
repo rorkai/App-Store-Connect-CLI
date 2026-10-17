@@ -17,6 +17,8 @@ type webSessionFlags struct {
 	flagSet              *flag.FlagSet
 	appleID              *string
 	twoFactorCodeCommand *string
+	twoFactorMethod      *string
+	twoFactorPhoneID     *int
 	providerID           *int64
 	publicProviderID     *string
 	sessionFromEnv       *bool
@@ -27,6 +29,8 @@ func bindWebSessionFlags(fs *flag.FlagSet) webSessionFlags {
 		flagSet:              fs,
 		appleID:              fs.String("apple-id", "", "Apple Account email used to scope a user-owned session cache (defaults to "+webAppleIDEnv+", then the last or only cached session)"),
 		twoFactorCodeCommand: fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required"),
+		twoFactorMethod:      fs.String("two-factor-method", "", "Two-factor verification delivery method: 'sms' (or 'phone') or 'trusted-device'"),
+		twoFactorPhoneID:     fs.Int("two-factor-phone-id", 0, "Specific trusted phone number ID for SMS verification (defaults to "+webTwoFactorPhoneIDEnv+")"),
 		providerID:           fs.Int64("provider-id", 0, "Numeric App Store Connect provider ID to select for this web session"),
 		publicProviderID:     fs.String("public-provider-id", "", "Public App Store Connect provider/team ID to select for this web session"),
 	}
@@ -60,6 +64,15 @@ func resolveWebSessionForCommand(ctx context.Context, flags webSessionFlags) (*w
 		requestCtx, cancel := newWebRequestContext(ctx)
 		return session, requestCtx, cancel, err
 	}
+	var method string
+	if flags.twoFactorMethod != nil {
+		method = *flags.twoFactorMethod
+	}
+	var phoneID int
+	if flags.twoFactorPhoneID != nil {
+		phoneID = *flags.twoFactorPhoneID
+	}
+	ctx = contextWithTwoFactorOptions(ctx, method, phoneID)
 	selection := providerSelectionFromFlags(flags)
 	session, _, err := callResolveSessionForProviderSelection(
 		ctx,

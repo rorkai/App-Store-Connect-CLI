@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -8,6 +9,7 @@ import (
 )
 
 var _ appleauth.SessionState = (*AuthSession)(nil)
+var _ appleauth.TwoFactorSelectionState = (*AuthSession)(nil)
 
 func (s *AuthSession) TwoFactorMethod() string {
 	if s == nil {
@@ -41,6 +43,35 @@ func (s *AuthSession) TwoFactorCodeRequested() bool {
 	return s != nil && s.twoFactorCodeRequested
 }
 
+func (s *AuthSession) RequestedTwoFactorMethod() string {
+	if s == nil {
+		return ""
+	}
+	return s.requestedTwoFactorMethod
+}
+
+func (s *AuthSession) RequestedTwoFactorPhoneID() int {
+	if s == nil {
+		return 0
+	}
+	return s.requestedTwoFactorPhoneID
+}
+
+func (s *AuthSession) SetRequestedTwoFactor(method string, phoneID int) {
+	if s == nil {
+		return
+	}
+	s.requestedTwoFactorMethod = method
+	s.requestedTwoFactorPhoneID = phoneID
+}
+
+func (s *AuthSession) SetSelectPhone(fn func(context.Context, []appleauth.TrustedPhoneNumber) (*appleauth.TrustedPhoneNumber, error)) {
+	if s == nil {
+		return
+	}
+	s.selectPhoneFn = fn
+}
+
 func (s *AuthSession) SetPreparedTwoFactorState(method string, phoneID int, phoneMode, destination string, requested bool) {
 	if s == nil {
 		return
@@ -68,6 +99,14 @@ func wrapWebTwoFactorFlowError(err error) error {
 	}
 	var unsupported *appleauth.UnsupportedTwoFactorMethodError
 	if errors.As(err, &unsupported) {
+		return fmt.Errorf("2fa failed: %w", err)
+	}
+	var ambiguous *appleauth.AmbiguousTrustedPhoneNumberError
+	if errors.As(err, &ambiguous) {
+		return fmt.Errorf("2fa failed: %w", err)
+	}
+	var notFound *appleauth.TrustedPhoneNumberNotFoundError
+	if errors.As(err, &notFound) {
 		return fmt.Errorf("2fa failed: %w", err)
 	}
 	return err

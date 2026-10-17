@@ -138,11 +138,14 @@ type AuthSession struct {
 	persistMu        sync.Mutex
 
 	// Prepared 2FA delivery state so callers can request code delivery before prompting.
-	twoFactorMethod        string
-	twoFactorPhoneID       int
-	twoFactorPhoneMode     string
-	twoFactorDestination   string
-	twoFactorCodeRequested bool
+	twoFactorMethod           string
+	twoFactorPhoneID          int
+	twoFactorPhoneMode        string
+	twoFactorDestination     string
+	twoFactorCodeRequested    bool
+	requestedTwoFactorMethod  string
+	requestedTwoFactorPhoneID int
+	selectPhoneFn             func(context.Context, []appleauth.TrustedPhoneNumber) (*appleauth.TrustedPhoneNumber, error)
 }
 
 // ProviderSelection identifies the App Store Connect provider/team a web
@@ -1582,12 +1585,16 @@ func PrepareTwoFactorChallenge(ctx context.Context, session *AuthSession) (*TwoF
 	if session.ServiceKey == "" || session.AppleIDSessionID == "" || session.SCNT == "" {
 		return nil, fmt.Errorf("session is missing 2fa continuation state")
 	}
-	challenge, err := appleauth.PrepareTwoFactorChallenge(ctx, session, func(ctx context.Context) (*appleauth.AuthOptions, error) {
+	challenge, err := appleauth.PrepareTwoFactorChallengeWithOptions(ctx, session, func(ctx context.Context) (*appleauth.AuthOptions, error) {
 		opts, err := getAuthOptions(ctx, session)
 		if err != nil {
 			return nil, err
 		}
 		return opts.AuthOptions(), nil
+	}, appleauth.TwoFactorOptions{
+		Method:      session.RequestedTwoFactorMethod(),
+		PhoneID:     session.RequestedTwoFactorPhoneID(),
+		SelectPhone: session.selectPhoneFn,
 	})
 	return challenge, wrapWebTwoFactorFlowError(err)
 }

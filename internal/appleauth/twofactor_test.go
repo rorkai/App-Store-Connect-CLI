@@ -410,3 +410,195 @@ func TestSubmitTwoFactorCodeUsesVoicePushModeFromAuthOptions(t *testing.T) {
 		t.Fatalf("expected session to remember voice mode, got %q", session.phoneMode)
 	}
 }
+
+type stubSelectionSessionState struct {
+	stubSessionState
+	requestedMethod  string
+	requestedPhoneID int
+}
+
+func (s *stubSelectionSessionState) RequestedTwoFactorMethod() string { return s.requestedMethod }
+func (s *stubSelectionSessionState) RequestedTwoFactorPhoneID() int { return s.requestedPhoneID }
+
+func TestPrepareTwoFactorChallengeExplicitSMS(t *testing.T) {
+	session := &stubSelectionSessionState{}
+	challenge, err := PrepareTwoFactorChallengeWithOptions(
+		context.Background(),
+		session,
+		func(context.Context) (*AuthOptions, error) {
+			return &AuthOptions{
+				NoTrustedDevices: false,
+				TrustedPhoneNumbers: []TrustedPhoneNumber{
+					{ID: 1, PushMode: "sms", NumberWithDialCode: "+1 (•••) •••-••11"},
+				},
+			}, nil
+		},
+		TwoFactorOptions{Method: "sms"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if challenge.Method != TwoFactorMethodPhone {
+		t.Fatalf("expected method %q, got %q", TwoFactorMethodPhone, challenge.Method)
+	}
+	if !challenge.IsPhoneMethod() {
+		t.Fatal("expected IsPhoneMethod() to be true")
+	}
+	if challenge.PhoneFallbackAvailable {
+		t.Fatal("expected PhoneFallbackAvailable to be false when phone already selected")
+	}
+	if challenge.Destination != "+1 (•••) •••-••11" {
+		t.Fatalf("expected destination +1 (•••) •••-••11, got %q", challenge.Destination)
+	}
+}
+
+func TestPrepareTwoFactorChallengeExplicitPhoneID(t *testing.T) {
+	session := &stubSelectionSessionState{}
+	challenge, err := PrepareTwoFactorChallengeWithOptions(
+		context.Background(),
+		session,
+		func(context.Context) (*AuthOptions, error) {
+			return &AuthOptions{
+				TrustedPhoneNumbers: []TrustedPhoneNumber{
+					{ID: 1, PushMode: "sms", NumberWithDialCode: "+1 (•••) •••-••11"},
+					{ID: 2, PushMode: "sms", NumberWithDialCode: "+1 (•••) •••-••22"},
+				},
+			}, nil
+		},
+		TwoFactorOptions{Method: "sms", PhoneID: 2},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if challenge.Destination != "+1 (•••) •••-••22" {
+		t.Fatalf("expected destination for phone 2, got %q", challenge.Destination)
+	}
+	if session.phoneID != 2 {
+		t.Fatalf("expected session phoneID 2, got %d", session.phoneID)
+	}
+}
+
+func TestPrepareTwoFactorChallengeAmbiguousPhoneError(t *testing.T) {
+	session := &stubSelectionSessionState{}
+	_, err := PrepareTwoFactorChallengeWithOptions(
+		context.Background(),
+		session,
+		func(context.Context) (*AuthOptions, error) {
+			return &AuthOptions{
+				TrustedPhoneNumbers: []TrustedPhoneNumber{
+					{ID: 1, PushMode: "sms", NumberWithDialCode: "+1 (•••) •••-••11"},
+					{ID: 2, PushMode: "sms", NumberWithDialCode: "+1 (•••) •••-••22"},
+				},
+			}, nil
+		},
+		TwoFactorOptions{Method: "sms"},
+	)
+	if err == nil {
+		t.Fatal("expected error for ambiguous phones without selector")
+	}
+	var ambiguous *AmbiguousTrustedPhoneNumberError
+	if !errors.As(err, &ambiguous) {
+		t.Fatalf("expected AmbiguousTrustedPhoneNumberError, got %T: %v", err, err)
+	}
+	if len(ambiguous.Available) != 2 {
+		t.Fatalf("expected 2 available phones, got %d", len(ambiguous.Available))
+	}
+}
+
+func TestPrepareTwoFactorChallengeSelectPhoneCallback(t *testing.T) {
+	session := &stubSelectionSessionState{}
+	called := false
+	challenge, err := PrepareTwoFactorChallengeWithOptions(
+		context.Background(),
+		session,
+		func(context.Context) (*AuthOptions, error) {
+			return &AuthOptions{
+				TrustedPhoneNumbers: []TrustedPhoneNumber{
+					{ID: 1, PushMode: "sms", NumberWithDialCode: "+1 (•••) •••-••11"},
+					{ID: 2, PushMode: "sms", NumberWithDialCode: "+1 (•••) •••-••22"},
+				},
+			}, nil
+		},
+		TwoFactorOptions{
+			Method: "sms",
+			SelectPhone: func(ctx context.Context, phones []TrustedPhoneNumber) (*TrustedPhoneNumber, error) {
+				called = true
+				return &phones[1], nil
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Fatal("expected SelectPhone callback to be invoked")
+	}
+	if challenge.Destination != "+1 (•••) •••-••22" {
+		t.Fatalf("expected destination for phone 2, got %q", challenge.Destination)
+	}
+}
+
+func TestPrepareTwoFactorChallengeUnknownPhoneIDError(t *testing.T) {
+	session := &stubSelectionSessionState{}
+	_, err := PrepareTwoFactorChallengeWithOptions(
+		context.Background(),
+		session,
+		func(context.Context) (*AuthOptions, error) {
+			return &AuthOptions{
+				TrustedPhoneNumbers: []TrustedPhoneNumber{
+					{ID: 1, PushMode: "sms", NumberWithDialCode: "+1 (•••) •••-••11"},
+				},
+			}, nil
+		},
+		TwoFactorOptions{Method: "sms", PhoneID: 99},
+	)
+	if err == nil {
+		t.Fatal("expected error for unknown phone ID")
+	}
+	var notFound *TrustedPhoneNumberNotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("expected TrustedPhoneNumberNotFoundError, got %T: %v", err, err)
+	}
+	if notFound.ID != 99 {
+		t.Fatalf("expected ID 99, got %d", notFound.ID)
+	}
+}
+
+func TestPrepareTwoFactorChallengeNoTrustedPhoneNumbers(t *testing.T) {
+	session := &stubSelectionSessionState{}
+	_, err := PrepareTwoFactorChallengeWithOptions(
+		context.Background(),
+		session,
+		func(context.Context) (*AuthOptions, error) {
+			return &AuthOptions{
+				TrustedPhoneNumbers: nil,
+			}, nil
+		},
+		TwoFactorOptions{Method: "sms"},
+	)
+	if !errors.Is(err, ErrNoTrustedPhoneNumbers) {
+		t.Fatalf("expected ErrNoTrustedPhoneNumbers, got %v", err)
+	}
+}
+
+func TestPrepareTwoFactorChallengeUnsupportedMethod(t *testing.T) {
+	session := &stubSelectionSessionState{}
+	_, err := PrepareTwoFactorChallengeWithOptions(
+		context.Background(),
+		session,
+		func(context.Context) (*AuthOptions, error) {
+			return &AuthOptions{}, nil
+		},
+		TwoFactorOptions{Method: "email"},
+	)
+	if err == nil {
+		t.Fatal("expected error for unsupported method")
+	}
+	var unsupported *UnsupportedTwoFactorMethodError
+	if !errors.As(err, &unsupported) {
+		t.Fatalf("expected UnsupportedTwoFactorMethodError, got %T: %v", err, err)
+	}
+	if unsupported.Method != "email" {
+		t.Fatalf("expected method email, got %q", unsupported.Method)
+	}
+}

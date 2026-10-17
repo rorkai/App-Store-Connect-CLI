@@ -208,6 +208,13 @@ trusted-device code once; Apple then delivers the phone verification code by
 its configured method (including SMS) and `asc` prompts again. Automated flows
 rerun the configured `--two-factor-code-command` after phone fallback.
 
+To request SMS delivery directly instead of defaulting to trusted devices, pass
+`--two-factor-method sms` (or set `ASC_WEB_2FA_METHOD=sms`). If the Apple Account
+has multiple registered phone numbers, select one with `--two-factor-phone-id ID`
+(or `ASC_WEB_2FA_PHONE_ID=ID`), or choose from the interactive prompt in a
+terminal. In automated workflows with `--two-factor-code-command`, `asc`
+requests SMS delivery before invoking the code command.
+
 For a login with no terminal, set `ASC_WEB_PASSWORD` and
 `ASC_WEB_2FA_CODE_COMMAND`. The password variable is consulted after the
 cached session and before the saved-password store and the interactive prompt,

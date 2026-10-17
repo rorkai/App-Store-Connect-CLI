@@ -29,6 +29,8 @@ const (
 	webAppleIDEnv              = "ASC_WEB_APPLE_ID"
 	webDontStorePasswordEnv    = "ASC_WEB_DONT_STORE_PASSWORD"
 	webTwoFactorCodeCommandEnv = "ASC_WEB_2FA_CODE_COMMAND"
+	webTwoFactorMethodEnv      = "ASC_WEB_2FA_METHOD"
+	webTwoFactorPhoneIDEnv     = "ASC_WEB_2FA_PHONE_ID"
 	webTwoFactorCommandTimeout = 60 * time.Second
 	passwordReadPollInterval   = 100 * time.Millisecond
 )
@@ -44,6 +46,7 @@ func webPasswordEnvAssignmentExample() string {
 var (
 	openTTYFn                                = openTTY
 	promptTwoFactorCodeFn                    = promptTwoFactorCodeInteractive
+	promptSelectTrustedPhoneFn               = promptSelectTrustedPhoneInteractive
 	twoFactorPromptAvailableFn               = twoFactorPromptAvailable
 	promptPasswordFn                         = promptPasswordInteractive
 	readTwoFactorCodeFromCommandFn           = readTwoFactorCodeFromCommand
@@ -410,6 +413,123 @@ func twoFactorPromptAvailable() bool {
 
 func twoFactorInputError(err error, code shared.DiagnosticCode) error {
 	return shared.WithDiagnostic(shared.NewValidationError(err), code, "--two-factor-code-command")
+}
+
+func promptSelectTrustedPhoneInteractive(phones []appleauth.TrustedPhoneNumber) (*appleauth.TrustedPhoneNumber, error) {
+	if tty, err := openTTYFn(); err == nil {
+		defer func() { _ = tty.Close() }()
+		return readPhoneSelectionFromTerminal(tty, tty, phones)
+	}
+	if termIsTerminalFn(int(os.Stdin.Fd())) {
+		return readPhoneSelectionFromTerminal(os.Stdin, os.Stderr, phones)
+	}
+	return nil, &appleauth.AmbiguousTrustedPhoneNumberError{Available: phones}
+}
+
+func readPhoneSelectionFromTerminal(reader io.Reader, writer io.Writer, phones []appleauth.TrustedPhoneNumber) (*appleauth.TrustedPhoneNumber, error) {
+	if writer == nil || reader == nil {
+		return nil, &appleauth.AmbiguousTrustedPhoneNumberError{Available: phones}
+	}
+	_, _ = fmt.Fprintln(writer, "Multiple trusted phone numbers available for verification:")
+	for i, phone := range phones {
+		dest := strings.TrimSpace(phone.NumberWithDialCode)
+		if dest != "" {
+			_, _ = fmt.Fprintf(writer, "  %d) %s (id: %d)\n", i+1, dest, phone.ID)
+		} else {
+			_, _ = fmt.Fprintf(writer, "  %d) id: %d\n", i+1, phone.ID)
+		}
+	}
+	_, _ = fmt.Fprintf(writer, "Select a phone number [1-%d] or enter phone ID: ", len(phones))
+	line, err := bufio.NewReader(reader).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("failed to read phone selection: %w", err)
+	}
+	input := strings.TrimSpace(line)
+	if input == "" {
+		return nil, &appleauth.AmbiguousTrustedPhoneNumberError{Available: phones}
+	}
+	idx, err := strconv.Atoi(input)
+	if err == nil {
+		if idx >= 1 && idx <= len(phones) {
+			return &phones[idx-1], nil
+		}
+		for i := range phones {
+			if phones[i].ID == idx {
+				return &phones[i], nil
+			}
+		}
+	}
+	return nil, &appleauth.TrustedPhoneNumberNotFoundError{ID: idx, Available: phones}
+}
+
+func classifyTwoFactorChallengeSetupError(err error) error {
+	if err == nil {
+		return nil
+	}
+	prefix := "2fa challenge setup failed: "
+	msg := err.Error()
+	if strings.HasPrefix(msg, "2fa failed: ") {
+		msg = strings.TrimPrefix(msg, "2fa failed: ")
+	}
+	var ambiguous *appleauth.AmbiguousTrustedPhoneNumberError
+	if errors.As(err, &ambiguous) {
+		return shared.WithDiagnostic(
+			shared.NewValidationError(fmt.Errorf("%s%s", prefix, msg)),
+			shared.DiagnosticRequiredInputMissing,
+			"--two-factor-phone-id",
+		)
+	}
+	var notFound *appleauth.TrustedPhoneNumberNotFoundError
+	if errors.As(err, &notFound) {
+		return shared.WithDiagnostic(
+			shared.NewValidationError(fmt.Errorf("%s%s", prefix, msg)),
+			shared.DiagnosticInvalidInput,
+			"--two-factor-phone-id",
+		)
+	}
+	var unsupported *appleauth.UnsupportedTwoFactorMethodError
+	if errors.As(err, &unsupported) {
+		return shared.WithDiagnostic(
+			shared.NewValidationError(fmt.Errorf("%s%s", prefix, msg)),
+			shared.DiagnosticInvalidInput,
+			"--two-factor-method",
+		)
+	}
+	if errors.Is(err, appleauth.ErrNoTrustedPhoneNumbers) {
+		return shared.WithDiagnostic(
+			shared.NewValidationError(fmt.Errorf("%s%s", prefix, msg)),
+			shared.DiagnosticDependencyFailed,
+			"--two-factor-method",
+		)
+	}
+	return fmt.Errorf("2fa challenge setup failed: %w", err)
+}
+
+type webTwoFactorOptionsContextKey struct{}
+
+type webTwoFactorOptions struct {
+	method  string
+	phoneID int
+}
+
+func contextWithTwoFactorOptions(ctx context.Context, method string, phoneID int) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, webTwoFactorOptionsContextKey{}, webTwoFactorOptions{
+		method:  strings.TrimSpace(method),
+		phoneID: phoneID,
+	})
+}
+
+func twoFactorOptionsFromContext(ctx context.Context) (string, int) {
+	if ctx == nil {
+		return "", 0
+	}
+	if opts, ok := ctx.Value(webTwoFactorOptionsContextKey{}).(webTwoFactorOptions); ok {
+		return opts.method, opts.phoneID
+	}
+	return "", 0
 }
 
 func twoFactorCodeCommandShellArgs(command string) []string {
@@ -806,9 +926,16 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 		if code == "" && command == "" && !twoFactorPromptAvailableFn() {
 			return nil, twoFactorInputError(errNoTwoFactorCodeSource, shared.DiagnosticRequiredInputMissing)
 		}
+		method, phoneID := twoFactorOptionsFromContext(ctx)
+		session.SetRequestedTwoFactor(method, phoneID)
+		if twoFactorPromptAvailableFn() {
+			session.SetSelectPhone(func(ctx context.Context, phones []appleauth.TrustedPhoneNumber) (*appleauth.TrustedPhoneNumber, error) {
+				return promptSelectTrustedPhoneFn(phones)
+			})
+		}
 		challenge, prepErr := prepareTwoFactorChallengeFn(ctx, session)
 		if prepErr != nil {
-			return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
+			return nil, classifyTwoFactorChallengeSetupError(prepErr)
 		}
 
 		writeDeliveryNotice := func(destination string) {
@@ -858,13 +985,13 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 			return code, nil
 		}
 		if code == "" {
-			if command == "" {
+			if command == "" && (challenge == nil || !challenge.IsPhoneMethod()) {
 				writeInitialPhoneFallbackGuidance()
 			}
 			if challenge != nil && challenge.IsPhoneMethod() {
 				challenge, prepErr = ensureTwoFactorCodeRequestedFn(ctx, session)
 				if prepErr != nil {
-					return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
+					return nil, classifyTwoFactorChallengeSetupError(prepErr)
 				}
 				if challenge != nil && challenge.Requested {
 					writeDeliveryNotice(challenge.Destination)
@@ -950,6 +1077,8 @@ type webSessionResolveOptions struct {
 	persistFresh         func(*webcore.AuthSession) error
 	persistAutoReauth    func(*webcore.AuthSession)
 	twoFactorCodeCommand string
+	twoFactorMethod      string
+	twoFactorPhoneID     int
 }
 
 func tryResumeKnownWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, bool, error) {
@@ -1005,6 +1134,36 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 	if command == "" {
 		command = strings.TrimSpace(os.Getenv(webTwoFactorCodeCommandEnv))
 	}
+	resolvedTwoFactorMethod := strings.TrimSpace(opts.twoFactorMethod)
+	resolvedTwoFactorPhoneID := opts.twoFactorPhoneID
+
+	if resolvedTwoFactorMethod == "" {
+		ctxMethod, _ := twoFactorOptionsFromContext(ctx)
+		resolvedTwoFactorMethod = ctxMethod
+	}
+	if resolvedTwoFactorMethod == "" {
+		resolvedTwoFactorMethod = strings.TrimSpace(os.Getenv(webTwoFactorMethodEnv))
+	}
+
+	if resolvedTwoFactorPhoneID == 0 {
+		_, ctxPhoneID := twoFactorOptionsFromContext(ctx)
+		resolvedTwoFactorPhoneID = ctxPhoneID
+	}
+	if resolvedTwoFactorPhoneID == 0 {
+		if envPhone := strings.TrimSpace(os.Getenv(webTwoFactorPhoneIDEnv)); envPhone != "" {
+			parsed, err := strconv.Atoi(envPhone)
+			if err != nil {
+				return nil, "", shared.WithDiagnostic(
+					shared.NewValidationError(fmt.Errorf("invalid %s: %q must be an integer", webTwoFactorPhoneIDEnv, envPhone)),
+					shared.DiagnosticInvalidInput,
+					"--two-factor-phone-id",
+				)
+			}
+			resolvedTwoFactorPhoneID = parsed
+		}
+	}
+
+	ctx = contextWithTwoFactorOptions(ctx, resolvedTwoFactorMethod, resolvedTwoFactorPhoneID)
 	expiredNoticePrinted := false
 	printExpiredNotice := func() {
 		if expiredNoticePrinted {
@@ -1437,11 +1596,14 @@ func resolveSession(ctx context.Context, appleID, password, twoFactorCode string
 	if len(twoFactorCodeCommand) > 0 {
 		command = twoFactorCodeCommand[0]
 	}
+	method, phoneID := twoFactorOptionsFromContext(ctx)
 	return resolveWebSession(ctx, appleID, password, twoFactorCode, webSessionResolveOptions{
 		resolvePassword:      resolveSessionPassword,
 		persistFresh:         persistFreshResolvedSession,
 		persistAutoReauth:    persistAutoReauthResolvedSession,
 		twoFactorCodeCommand: command,
+		twoFactorMethod:      method,
+		twoFactorPhoneID:     phoneID,
 	})
 }
 
@@ -1450,9 +1612,12 @@ func resolveSessionWithoutPersist(ctx context.Context, appleID, password, twoFac
 	if len(twoFactorCodeCommand) > 0 {
 		command = twoFactorCodeCommand[0]
 	}
+	method, phoneID := twoFactorOptionsFromContext(ctx)
 	return resolveWebSession(ctx, appleID, password, twoFactorCode, webSessionResolveOptions{
 		resolvePassword:      resolveSessionPassword,
 		twoFactorCodeCommand: command,
+		twoFactorMethod:      method,
+		twoFactorPhoneID:     phoneID,
 	})
 }
 
@@ -1502,6 +1667,8 @@ func WebAuthLoginCommand() *ffcli.Command {
 
 	appleID := fs.String("apple-id", "", "Apple Account email (defaults to "+webAppleIDEnv+", then the last or only cached session)")
 	twoFactorCodeCommand := fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required")
+	twoFactorMethod := fs.String("two-factor-method", "", "Two-factor verification delivery method: 'sms' (or 'phone') or 'trusted-device'")
+	twoFactorPhoneID := fs.Int("two-factor-phone-id", 0, "Specific trusted phone number ID for SMS verification (defaults to "+webTwoFactorPhoneIDEnv+")")
 	providerID := fs.Int64("provider-id", 0, "Numeric App Store Connect provider ID to select for this web session")
 	publicProviderID := fs.String("public-provider-id", "", "Public App Store Connect provider/team ID to select for this web session")
 	output := shared.BindOutputFlags(fs)
@@ -1529,6 +1696,8 @@ Two-factor input options:
   - secure interactive prompt (default for manual use; needs a terminal)
   - --two-factor-code-command
   - %s environment variable (recommended for automation)
+  - --two-factor-method ('sms' or 'trusted-device'; defaults to %s)
+  - --two-factor-phone-id (specific phone ID for SMS; defaults to %s)
 
 Without a terminal, a fresh sign-in needs a 2FA code command; without one it
 fails before the password is sent, so Apple does not send a code nobody can enter.
@@ -1545,15 +1714,23 @@ Provider selection:
 Examples:
   # Interactive (in a terminal)
   asc web auth login --apple-id "user@example.com"
+  asc web auth login --apple-id "user@example.com" --two-factor-method sms
   asc web auth login --apple-id "user@example.com" --public-provider-id "Z4N6A5FQKW"
 
   # Non-interactive (agents, CI): supply the password and a 2FA code source
-  %s %s='osascript /path/to/get-apple-2fa-code.scpt' asc web auth login --apple-id "user@example.com"`,
+  %s %s='osascript /path/to/get-apple-2fa-code.scpt' asc web auth login --apple-id "user@example.com"
+  %s %s=sms %s=1 %s='osascript /path/to/get-apple-2fa-code.scpt' asc web auth login --apple-id "user@example.com"`,
 			webAppleIDEnv,
 			webPasswordEnvDisplay(),
 			webDontStorePasswordEnv,
 			webTwoFactorCodeCommandEnv,
+			webTwoFactorMethodEnv,
+			webTwoFactorPhoneIDEnv,
 			webPasswordEnvAssignmentExample(),
+			webTwoFactorCodeCommandEnv,
+			webPasswordEnvAssignmentExample(),
+			webTwoFactorMethodEnv,
+			webTwoFactorPhoneIDEnv,
 			webTwoFactorCodeCommandEnv,
 		),
 		FlagSet:   fs,
@@ -1563,6 +1740,7 @@ Examples:
 				ProviderID:       *providerID,
 				PublicProviderID: *publicProviderID,
 			}
+			ctx = contextWithTwoFactorOptions(ctx, *twoFactorMethod, *twoFactorPhoneID)
 			session, source, err := callResolveSessionForProviderSelection(contextForWebSignIn(ctx), *appleID, "", "", *twoFactorCodeCommand, selection)
 			if err != nil {
 				return err
