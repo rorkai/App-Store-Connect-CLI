@@ -114,9 +114,26 @@ func createNewOutputFile(path string, reader io.Reader) (int64, error) {
 	}
 	written, err := root.CreateNewFrom(relative, reader, 0o600)
 	if errors.Is(err, os.ErrExist) {
-		return 0, fmt.Errorf("output file already exists: %w", err)
+		return 0, &OutputFileExistsError{err: err}
 	}
 	return written, err
+}
+
+// OutputFileExistsError reports that a command refused to replace an existing
+// output file. Choosing another path or removing the file is the fix, so it is
+// a validation outcome rather than an asc defect.
+type OutputFileExistsError struct {
+	err error
+}
+
+func (e *OutputFileExistsError) Error() string { return "output file already exists: " + e.err.Error() }
+
+func (e *OutputFileExistsError) Unwrap() error { return e.err }
+
+func (e *OutputFileExistsError) ValidationFailure() bool { return true }
+
+func (e *OutputFileExistsError) Diagnostic() Diagnostic {
+	return Diagnostic{Code: DiagnosticResourceConflict}
 }
 
 func pathWithinOutputRoot(root, path string) bool {
