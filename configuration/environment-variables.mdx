@@ -310,7 +310,7 @@ For `subscriptions offers introductory create`, an explicit request timeout also
   preview, and dSYM download commands. Each file gets its own budget; parent cancellation and earlier
   deadlines still apply. Listing and metadata requests use `ASC_TIMEOUT`.
 
-  Default: `5m`
+  Default: `5m` (`30m` for `asc asset-library videos upload`, which also waits for Apple's video processing)
 </ParamField>
 
 <ParamField path="ASC_UPLOAD_TIMEOUT_SECONDS" type="number">

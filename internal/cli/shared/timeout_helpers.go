@@ -12,3 +12,9 @@ import (
 func ContextWithResolvedTimeout(ctx context.Context, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
 	return withTimeoutContext(ctx, asc.ResolveTimeoutWithDefault(defaultTimeout))
 }
+
+// ContextWithResolvedUploadTimeout returns a context bounded by
+// ASC_UPLOAD_TIMEOUT when configured, or by defaultTimeout otherwise.
+func ContextWithResolvedUploadTimeout(ctx context.Context, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
+	return withTimeoutContext(ctx, asc.ResolveUploadTimeoutWithDefault(defaultTimeout))
+}
