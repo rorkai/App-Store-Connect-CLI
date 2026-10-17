@@ -71,7 +71,7 @@ func ExitCodeFromError(err error) int {
 		errors.Is(err, webcore.ErrTwoFactorCodeRejected) {
 		return ExitAuth
 	}
-	if errors.Is(err, appleads.ErrOAuthCredentialsRejected) {
+	if errors.Is(err, appleads.ErrOAuthCredentialsRejected) || errors.Is(err, appleads.ErrMissingCredentials) {
 		return ExitAuth
 	}
 	if errors.Is(err, asc.ErrNotFound) {

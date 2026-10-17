@@ -24,6 +24,26 @@ const (
 // is stored in the keychain or configuration.
 var ErrDefaultCredentialsNotFound = errors.New("default credentials not found")
 
+// ErrProfileNotFound reports that a named Apple Ads credential profile is not
+// stored in the keychain or configuration.
+var ErrProfileNotFound = errors.New("apple ads profile not found")
+
+// ErrMissingCredentials marks a command that has no usable Apple Ads
+// credential source. The CLI maps it to the authentication exit code.
+var ErrMissingCredentials = errors.New("missing apple ads credentials")
+
+type profileNotFoundError struct {
+	profile string
+}
+
+func (e profileNotFoundError) Error() string {
+	return fmt.Sprintf("credentials not found for profile %q", e.profile)
+}
+
+func (e profileNotFoundError) Is(target error) bool {
+	return target == ErrProfileNotFound
+}
+
 // StoredCredential is an Apple Ads credential with storage metadata.
 type StoredCredential struct {
 	Credentials
@@ -149,7 +169,7 @@ func GetCredentialsWithSource(profile string) (Credentials, string, error) {
 				if cfgCred, err := getCredentialFromConfig(profile); err == nil {
 					return cfgCred.Credentials, "config", nil
 				}
-				return Credentials{}, "", fmt.Errorf("credentials not found for profile %q", profile)
+				return Credentials{}, "", profileNotFoundError{profile: profile}
 			}
 			if cfgCred, err := getCredentialFromConfig(""); err == nil {
 				return cfgCred.Credentials, "config", nil
@@ -562,7 +582,7 @@ func getCredentialFromConfig(profile string) (StoredCredential, error) {
 		return selected, nil
 	}
 	if strings.TrimSpace(profile) != "" {
-		return StoredCredential{}, fmt.Errorf("credentials not found for profile %q", profile)
+		return StoredCredential{}, profileNotFoundError{profile: profile}
 	}
 	return StoredCredential{}, ErrDefaultCredentialsNotFound
 }

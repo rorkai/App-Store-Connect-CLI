@@ -12,6 +12,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleads"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/registry"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
@@ -856,7 +857,7 @@ func runtimeFailureContext(analysis invocationAnalysis, err error, exitCode int)
 		return eventContext
 	}
 	switch {
-	case errors.Is(err, shared.ErrMissingAuth):
+	case errors.Is(err, shared.ErrMissingAuth), errors.Is(err, appleads.ErrMissingCredentials):
 		eventContext.FailureStage = telemetry.FailureStageValidation
 	case shared.IsValidationError(err), errors.Is(err, shared.ErrPending):
 		eventContext.FailureStage = telemetry.FailureStageValidation
@@ -887,7 +888,7 @@ func runtimeOutcomeKind(err error, exitCode int, eventContext telemetry.EventCon
 	switch {
 	case errors.Is(err, context.Canceled):
 		return telemetry.OutcomeCancelled
-	case errors.Is(err, shared.ErrMissingAuth), errors.Is(err, webcore.ErrInvalidAppleAccountCredentials), exitCode == ExitAuth:
+	case errors.Is(err, shared.ErrMissingAuth), errors.Is(err, appleads.ErrMissingCredentials), errors.Is(err, webcore.ErrInvalidAppleAccountCredentials), exitCode == ExitAuth:
 		return telemetry.OutcomeAuthError
 	case shared.IsValidationError(err), errors.Is(err, shared.ErrPending):
 		return telemetry.OutcomeExpectedNegative

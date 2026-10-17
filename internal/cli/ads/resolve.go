@@ -86,6 +86,9 @@ func resolveCredentialsWithSource(flags commonFlags) (appleads.Credentials, stri
 		}
 		credentials, _, err := appleads.GetCredentialsWithSource(profile)
 		if err != nil {
+			if errors.Is(err, appleads.ErrProfileNotFound) || errors.Is(err, config.ErrNotFound) {
+				return appleads.Credentials{}, "", missingAdsCredentialsError(err)
+			}
 			return appleads.Credentials{}, "", err
 		}
 		return credentials, profileSource, nil
@@ -112,7 +115,7 @@ func resolveCredentialsWithSource(flags commonFlags) (appleads.Credentials, stri
 	credentials, _, err := appleads.GetCredentialsWithSource("")
 	if err != nil {
 		if errors.Is(err, appleads.ErrDefaultCredentialsNotFound) || errors.Is(err, config.ErrNotFound) {
-			return appleads.Credentials{}, "", fmt.Errorf("%w; %s", err, adsCredentialsRemediation)
+			return appleads.Credentials{}, "", missingAdsCredentialsError(fmt.Errorf("%w; %s", err, adsCredentialsRemediation))
 		}
 		return appleads.Credentials{}, "", err
 	}
@@ -122,6 +125,14 @@ func resolveCredentialsWithSource(flags commonFlags) (appleads.Credentials, stri
 // adsCredentialsRemediation tells a first-run caller how to authenticate when
 // no Apple Ads credential source is configured.
 const adsCredentialsRemediation = "run 'asc ads auth login' to store Apple Ads credentials, set ASC_ADS_* environment credentials, or pass --ads-profile"
+
+// missingAdsCredentialsError classifies err as missing Apple Ads
+// authentication without changing its message. It deliberately avoids
+// shared.ErrMissingAuth, whose rendered hint points at App Store Connect
+// credentials instead of Apple Ads ones.
+func missingAdsCredentialsError(err error) error {
+	return shared.NewErrorWithCause(err, appleads.ErrMissingCredentials)
+}
 
 func envCredentials() (appleads.Credentials, bool, error) {
 	rawOrgID := os.Getenv("ASC_ADS_ORG_ID")
