@@ -211,3 +211,75 @@ func TestResolveSessionNoAutoLoginUsesOnlyCachedSession(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveSessionPausesAutomaticSigninAfterLockedAppleAccount(t *testing.T) {
+	// #3111: a 403 / -20209 from signin/complete means Apple locked the
+	// account for API sign-in. Nothing asc retries can clear it, so the clean
+	// jar retry is skipped and automatic sign-in pauses for the full cap.
+	start := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+	fixture := newSigninUnavailableFixture(t, true)
+	now := useSigninBackoffStore(t)
+	locked := &webcore.SigninServiceError{
+		Stage:         "signin_complete",
+		Status:        http.StatusForbidden,
+		Codes:         []string{"-20209"},
+		ServiceErrors: []string{`-20209: "This Apple Account has been locked for security reasons. Visit iForgot to reset your account (https://iforgot.apple.com)"`},
+	}
+	webLoginWithClientFn = func(context.Context, *http.Client, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		fixture.cachedAttempts++
+		return nil, locked
+	}
+	webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		fixture.freshAttempts++
+		return nil, locked
+	}
+	wantNotBefore := start.Add(webcore.MaxSigninBackoff).Format(time.RFC3339)
+
+	_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if !errors.Is(err, webcore.ErrAppleAccountLocked) || !shared.IsValidationError(err) {
+		t.Fatalf("first run error = %v, want a validation-class locked-account error", err)
+	}
+	if diagnostic, ok := shared.DiagnosticFromError(err); !ok || diagnostic.Code != shared.DiagnosticStateNotReady {
+		t.Fatalf("diagnostic = %+v, want %s", diagnostic, shared.DiagnosticStateNotReady)
+	}
+	for _, want := range []string{"-20209", "locked for security reasons", "https://iforgot.apple.com", "browser", "will not sign in automatically before " + wantNotBefore, `asc web auth login --apple-id "user@example.com"`} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("first run error = %q, want %q", err, want)
+		}
+	}
+	if fixture.cachedAttempts != 1 || fixture.freshAttempts != 0 {
+		t.Fatalf("attempts: cached = %d, fresh = %d; want one attempt and no clean-jar retry against a locked account", fixture.cachedAttempts, fixture.freshAttempts)
+	}
+	if len(fixture.discarded) != 0 {
+		t.Fatalf("a locked account says nothing about the cache; expected the entry to be kept, got discards %v", fixture.discarded)
+	}
+
+	*now = start.Add(webcore.MaxSigninBackoff - time.Second)
+	_, _, err = resolveSession(context.Background(), "user@example.com", "", "")
+	if fixture.cachedAttempts != 1 || fixture.freshAttempts != 0 {
+		t.Fatalf("attempts during pause: cached = %d, fresh = %d; want no contact with Apple", fixture.cachedAttempts, fixture.freshAttempts)
+	}
+	if !errors.Is(err, errSigninBackoffActive) {
+		t.Fatalf("paused error = %v, want the backoff refusal", err)
+	}
+	for _, want := range []string{"locked", "https://iforgot.apple.com", "until " + wantNotBefore, `asc web auth login --apple-id "user@example.com"`} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("paused error = %q, want %q", err, want)
+		}
+	}
+
+	// The explicit login is never paused, and once Apple accepts it the pause ends.
+	webLoginWithClientFn = func(context.Context, *http.Client, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		fixture.cachedAttempts++
+		return &webcore.AuthSession{UserEmail: "user@example.com"}, nil
+	}
+	if _, _, err := resolveSession(contextForWebSignIn(context.Background()), "user@example.com", "", ""); err != nil {
+		t.Fatalf("explicit login after unlock: %v", err)
+	}
+	if _, _, err := resolveSession(context.Background(), "user@example.com", "", ""); err != nil {
+		t.Fatalf("automatic sign-in after an accepted login: %v", err)
+	}
+	if fixture.cachedAttempts != 3 {
+		t.Fatalf("cached attempts = %d, want the explicit login and the resumed automatic sign-in to reach Apple", fixture.cachedAttempts)
+	}
+}

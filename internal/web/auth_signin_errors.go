@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -13,7 +14,18 @@ import (
 const (
 	signinBodyExcerptMaxBytes = 1024
 	signinRedactedValue       = "[REDACTED]"
+
+	// appleAccountLockedCode is the serviceErrors code Apple's IdMSA sends with
+	// a 403 from signin/complete once it has locked the account for API
+	// sign-in. A browser sign-in to App Store Connect can still succeed, so
+	// only the account owner can clear it, at iforgot.apple.com.
+	appleAccountLockedCode = "-20209"
 )
+
+// ErrAppleAccountLocked reports that Apple has locked the Apple Account for
+// the API sign-in path asc uses. A *SigninServiceError matches it through
+// errors.Is when its stage, status, and code say so.
+var ErrAppleAccountLocked = errors.New("this Apple Account is locked for API sign-in")
 
 // SigninServiceError reports an unexpected response from an Apple IdMSA
 // sign-in stage. It carries only Apple's public service error codes and
@@ -24,8 +36,31 @@ type SigninServiceError struct {
 	Status int
 	// ServiceErrors holds Apple's serviceErrors entries as "code: message".
 	ServiceErrors []string
-	RetryAfter    string
-	RequestID     string
+	// Codes holds the bare serviceErrors codes, in Apple's order.
+	Codes      []string
+	RetryAfter string
+	RequestID  string
+}
+
+// AccountLocked reports a 403 from signin/complete carrying Apple's locked
+// account code. Other 403 refusals, and the same code under a 5xx, are not
+// locks.
+func (e *SigninServiceError) AccountLocked() bool {
+	if e == nil || e.Stage != "signin_complete" || e.Status != http.StatusForbidden {
+		return false
+	}
+	for _, code := range e.Codes {
+		if code == appleAccountLockedCode {
+			return true
+		}
+	}
+	return false
+}
+
+// Is lets errors.Is(err, ErrAppleAccountLocked) recognize a locked account
+// while callers keep Apple's status, message, and request ID.
+func (e *SigninServiceError) Is(target error) bool {
+	return target == ErrAppleAccountLocked && e.AccountLocked()
 }
 
 func (e *SigninServiceError) Error() string {
@@ -73,6 +108,7 @@ func newSigninServiceError(stage string, resp *http.Response, body []byte, sensi
 	err.RetryAfter = sanitizeWebAuthDiagnosticValue(scrubSigninSecrets(resp.Header.Get("Retry-After"), sensitive))
 	err.RequestID = sanitizeWebAuthDiagnosticValue(extractAppleRequestID(resp.Header))
 	err.ServiceErrors = signinServiceErrorSummaries(body, sensitive)
+	err.Codes = boundedWebAuthDiagnosticCodes(extractServiceErrorCodes(body))
 	return err
 }
 

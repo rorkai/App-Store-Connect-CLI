@@ -374,6 +374,44 @@ func TestSigninCompleteKeepsGenericUnauthorizedErrorsForOtherCodes(t *testing.T)
 	}
 }
 
+func TestSigninCompleteReportsLockedAppleAccount(t *testing.T) {
+	// #3111: Apple answers signin/complete with 403 and -20209 once it has
+	// locked the account for API sign-in. Only that pair means locked; other
+	// 403 refusals keep the generic service error.
+	for _, tc := range []struct {
+		name       string
+		body       string
+		wantLocked bool
+	}{
+		{name: "-20209 locked", body: `{"serviceErrors":[{"code":"-20209","message":"This Apple Account has been locked for security reasons. Visit iForgot to reset your account (https://iforgot.apple.com)","suppressDismissal":false}]}`, wantLocked: true},
+		{name: "other 403 code", body: `{"serviceErrors":[{"code":"-20751","message":"Your account cannot sign in at this time."}]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &http.Client{
+				Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+					return &http.Response{
+						StatusCode: http.StatusForbidden,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					}, nil
+				}),
+			}
+
+			err := signinComplete(context.Background(), client, "user@example.com", "m1-proof", "m2-proof", json.RawMessage(`{"v":1}`), "service-key", "hashcash-token")
+			if errors.Is(err, ErrAppleAccountLocked) != tc.wantLocked {
+				t.Fatalf("errors.Is(err, ErrAppleAccountLocked) = %v, want %v for %v", !tc.wantLocked, tc.wantLocked, err)
+			}
+			var serviceErr *SigninServiceError
+			if !errors.As(err, &serviceErr) || serviceErr.Status != http.StatusForbidden {
+				t.Fatalf("error = %v, want the 403 service error with Apple's message", err)
+			}
+			if !strings.Contains(err.Error(), "signin_complete") || !strings.Contains(err.Error(), "403") {
+				t.Fatalf("error = %q, want the stage and status", err)
+			}
+		})
+	}
+}
+
 func TestSigninCompleteReturnsAppleAccountActionRequiredForPreconditionFailed(t *testing.T) {
 	client := &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {

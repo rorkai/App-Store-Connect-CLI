@@ -33,6 +33,9 @@ type SigninBackoff struct {
 	Stage      string    `json:"stage,omitempty"`
 	Status     int       `json:"status,omitempty"`
 	RetryAfter string    `json:"retry_after,omitempty"`
+	// Locked records that Apple reported the account locked for API sign-in
+	// (ErrAppleAccountLocked), which only the account owner can clear.
+	Locked bool `json:"locked,omitempty"`
 	// SucceededAt is when Apple last accepted a sign-in for the account. It
 	// outlives the cooldown it cleared so that a slower process cannot record
 	// a failure it observed before that success.
@@ -42,7 +45,9 @@ type SigninBackoff struct {
 // NewSigninBackoff builds the cooldown for a sign-in 5xx observed at now. A
 // Retry-After from Apple, in seconds or as an HTTP date, sets the cooldown, and
 // one allowing an immediate retry leaves none; without a valid one
-// DefaultSigninBackoff applies. Either is capped at MaxSigninBackoff.
+// DefaultSigninBackoff applies. Either is capped at MaxSigninBackoff. A locked
+// account pauses for the full cap: no retry can unlock it, and the explicit
+// `asc web auth login` that follows the unlock clears the pause.
 func NewSigninBackoff(serviceErr *SigninServiceError, now time.Time) SigninBackoff {
 	backoff := SigninBackoff{Version: signinBackoffVersion, FailedAt: now.UTC()}
 	cooldown := DefaultSigninBackoff
@@ -50,8 +55,12 @@ func NewSigninBackoff(serviceErr *SigninServiceError, now time.Time) SigninBacko
 		backoff.Stage = serviceErr.Stage
 		backoff.Status = serviceErr.Status
 		backoff.RetryAfter = serviceErr.RetryAfter
+		backoff.Locked = serviceErr.AccountLocked()
 		if requested, ok := parseSigninRetryAfter(serviceErr.RetryAfter, now); ok {
 			cooldown = requested
+		}
+		if backoff.Locked {
+			cooldown = MaxSigninBackoff
 		}
 	}
 	backoff.NotBefore = backoff.FailedAt.Add(min(cooldown, MaxSigninBackoff))

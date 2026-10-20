@@ -73,6 +73,18 @@ func checkSigninBackoff(appleID string) error {
 	if !active {
 		return nil
 	}
+	if backoff.Locked {
+		err = fmt.Errorf(
+			"%w: Apple reported %s locked for API sign-in at %s, so asc will not sign in automatically again until %s (in %s). %s",
+			errSigninBackoffActive,
+			shared.SanitizeTerminal(appleID),
+			backoff.FailedAt.UTC().Format(time.RFC3339),
+			notBefore.UTC().Format(time.RFC3339),
+			notBefore.Sub(now).Round(time.Second),
+			appleAccountLockedHint(appleID),
+		)
+		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticStateNotReady, "")
+	}
 	status := "a server error"
 	if backoff.Status > 0 {
 		status = fmt.Sprintf("HTTP %d", backoff.Status)
@@ -90,8 +102,20 @@ func checkSigninBackoff(appleID string) error {
 	return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticStateNotReady, "")
 }
 
+// appleAccountLockedHint tells the account owner how to clear Apple's API
+// sign-in lock (#3111). A browser sign-in to App Store Connect can keep
+// working while the lock stands, so the hint says so.
+func appleAccountLockedHint(appleID string) string {
+	appleID = strings.TrimSpace(appleID)
+	if appleID == "" {
+		appleID = "EMAIL"
+	}
+	return fmt.Sprintf("Apple has locked this Apple Account for security reasons on the sign-in path asc uses; signing in to App Store Connect in a browser can still work and does not clear the lock. Unlock the account at https://iforgot.apple.com (usually by resetting the password), then run `asc web auth login --apple-id %q`", appleID)
+}
+
 // recordSigninBackoff remembers that Apple's sign-in service answered appleID
-// with a 5xx and returns when automatic sign-in may resume. A write failure
+// with a 5xx, or reported the account locked, and returns when automatic
+// sign-in may resume. A write failure
 // only warns: the sign-in error itself is still reported.
 func recordSigninBackoff(appleID string, serviceErr *webcore.SigninServiceError, observedAt time.Time) (time.Time, bool) {
 	appleID = strings.TrimSpace(appleID)
