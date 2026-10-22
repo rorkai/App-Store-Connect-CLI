@@ -275,6 +275,13 @@ func resolveMultipleAppInfoAgeRating(ctx context.Context, client *asc.Client, re
 
 	candidates := asc.AppInfoCandidates(result.response.Data)
 	ageRatingAppInfoID, ok := asc.AutoResolveAppInfoIDByVersionState(candidates, versionState)
+	if !ok && versionUsesNextAppInfo(versionState) {
+		// A version that has not shipped uses the app's one non-live app
+		// info, whatever that info's state is: REJECTED after another
+		// platform's rejection, or IN_REVIEW while another platform is in
+		// review.
+		ageRatingAppInfoID, ok = soleNonLiveAppInfoID(candidates)
+	}
 	if !ok {
 		return fmt.Errorf("failed to fetch age rating declaration: %w", &shared.AmbiguousSelectionError{
 			Kind:        "app info",
@@ -314,6 +321,36 @@ func resolveMultipleAppInfoAgeRating(ctx context.Context, client *asc.Client, re
 	}
 	result.ageRatingDeclaration = mapAgeRatingDeclaration(ageRatingResponse.Data.Attributes)
 	return nil
+}
+
+// versionUsesNextAppInfo reports whether a version is still on its way to
+// release, so its metadata lives on the app's non-live app info.
+func versionUsesNextAppInfo(versionState string) bool {
+	if shared.IsLiveAppStoreVersionState(versionState) {
+		return false
+	}
+	switch strings.ToUpper(strings.TrimSpace(versionState)) {
+	case "", "PREORDER_READY_FOR_SALE", "REPLACED_WITH_NEW_VERSION", "REMOVED_FROM_SALE":
+		return false
+	default:
+		return true
+	}
+}
+
+// soleNonLiveAppInfoID returns the only current app info that is not live.
+// App infos use the same live state spellings as versions.
+func soleNonLiveAppInfoID(candidates []asc.AppInfoCandidate) (string, bool) {
+	selected := ""
+	for _, candidate := range asc.CurrentAppInfoCandidates(candidates) {
+		if shared.IsLiveAppStoreVersionState(candidate.State) {
+			continue
+		}
+		if candidate.ID == "" || selected != "" {
+			return "", false
+		}
+		selected = candidate.ID
+	}
+	return selected, selected != ""
 }
 
 func selectAppInfoResource(resources []asc.Resource[asc.AppInfoAttributes], appInfoID string) (asc.Resource[asc.AppInfoAttributes], bool) {

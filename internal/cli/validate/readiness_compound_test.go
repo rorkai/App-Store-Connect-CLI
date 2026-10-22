@@ -2,12 +2,14 @@ package validate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
@@ -395,5 +397,47 @@ func TestResolveMultipleAppInfoAgeRating_UsesVersionStateSelection(t *testing.T)
 	}
 	if requests != 1 {
 		t.Fatalf("request count = %d, want only the compound app-info request", requests)
+	}
+}
+
+func TestResolveMultipleAppInfoAgeRating_UnreleasedVersionUsesSoleNonLiveAppInfo(t *testing.T) {
+	tests := []struct {
+		name          string
+		nextState     string
+		otherState    string
+		wantAmbiguous bool
+	}{
+		{name: "rejected info after another platform was rejected", nextState: "REJECTED", otherState: "READY_FOR_DISTRIBUTION"},
+		{name: "in-review info while another platform is in review", nextState: "IN_REVIEW", otherState: "READY_FOR_DISTRIBUTION"},
+		{name: "two non-live infos stay ambiguous", nextState: "REJECTED", otherState: "IN_REVIEW", wantAmbiguous: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newBuildsTestClient(t, buildsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Path != "/v1/appInfos/info-next/ageRatingDeclaration" {
+					return buildsJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"UNEXPECTED_REQUEST"}]}`)
+				}
+				return buildsJSONResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"age-next","attributes":{"advertising":true}}}`)
+			}))
+			result := appInfoReadinessData{response: &asc.AppInfosResponse{Data: []asc.Resource[asc.AppInfoAttributes]{
+				{Type: "appInfos", ID: "info-other", Attributes: asc.AppInfoAttributes{"state": tt.otherState}},
+				{Type: "appInfos", ID: "info-next", Attributes: asc.AppInfoAttributes{"state": tt.nextState}},
+			}}}
+
+			err := resolveMultipleAppInfoAgeRating(withReadinessRequestGate(context.Background()), client, &result, "app-1", "PREPARE_FOR_SUBMISSION")
+			if tt.wantAmbiguous {
+				var ambiguous *shared.AmbiguousSelectionError
+				if !errors.As(err, &ambiguous) {
+					t.Fatalf("expected an ambiguous app info error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("resolveMultipleAppInfoAgeRating() error = %v", err)
+			}
+			if result.ageRatingDeclaration == nil || result.ageRatingDeclaration.Advertising == nil || !*result.ageRatingDeclaration.Advertising {
+				t.Fatalf("expected the non-live app info's age rating, got %+v", result.ageRatingDeclaration)
+			}
+		})
 	}
 }
