@@ -37,10 +37,9 @@ Headers must be PNG at 1800 x 1200; previews are checked for size, dimensions, a
 
 Examples:
   asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane --confirm
-  asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane
-  asc migrate metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"`,
+  asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			MigrateImportCommand(),
 			MigrateExportCommand(),
