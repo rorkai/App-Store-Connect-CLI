@@ -597,10 +597,16 @@ func requireFlag(name, value string) error {
 }
 
 func validateUUIDFlag(name, value string) error {
-	if _, err := uuid.Parse(strings.TrimSpace(value)); err != nil {
-		return shared.UsageError(name + " must be a UUID")
+	_, err := parseUUIDFlag(name, value)
+	return err
+}
+
+func parseUUIDFlag(name, value string) (string, error) {
+	parsed, err := uuid.Parse(strings.TrimSpace(value))
+	if err != nil {
+		return "", shared.UsageError(name + " must be a UUID")
 	}
-	return nil
+	return parsed.String(), nil
 }
 
 func usageOrWrap(command string, err error) error {

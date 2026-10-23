@@ -31,6 +31,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			AuthCommand(),
 			TransactionsCommand(),
+			AppTransactionsCommand(),
 			SubscriptionsCommand(),
 			RefundsCommand(),
 			OrdersCommand(),
