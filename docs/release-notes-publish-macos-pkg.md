@@ -1,5 +1,10 @@
 # Prebuilt macOS PKG publishing
 
+> Status: the `--ipa --platform MAC_OS` combination described below was removed
+> in 6.0.0 from `asc publish testflight` and `asc publish appstore`. It now
+> fails with a usage error that names `--pkg` with `--version` and
+> `--build-number`. IPA publishing for iOS, tvOS, and visionOS is unchanged.
+
 `asc publish testflight` and `asc publish appstore` now accept a prebuilt macOS
 installer through `--pkg`. PKG uploads select `MAC_OS` automatically and
 require explicit `--version` and `--build-number` values.

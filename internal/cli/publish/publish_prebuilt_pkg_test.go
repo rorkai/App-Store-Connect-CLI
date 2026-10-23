@@ -3,6 +3,8 @@ package publish
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"os"
@@ -252,24 +254,45 @@ func TestPublishCommandsRejectPKGPlatformMismatches(t *testing.T) {
 	}
 }
 
-func TestPublishMacOSIPARemainsAvailableWithDeprecationWarning(t *testing.T) {
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
-		platform, err := validatePublishPrebuiltArtifactPlatform("Demo.ipa", "", string(asc.PlatformMacOS), true)
-		if err != nil {
-			return err
-		}
-		if platform != string(asc.PlatformMacOS) {
-			t.Fatalf("expected MAC_OS platform, got %q", platform)
-		}
-		return nil
-	})
-	if stdout != "" {
-		t.Fatalf("expected no stdout, got %q", stdout)
+func TestPublishCommandsRejectMacOSIPA(t *testing.T) {
+	const wantErr = "--ipa is not supported with --platform MAC_OS; use --pkg with --version and --build-number"
+	tests := []struct {
+		name    string
+		command func() *ffcli.Command
+		args    []string
+	}{
+		{name: "testflight", command: PublishTestFlightCommand, args: []string{"--app", "123", "--ipa", "Demo.ipa", "--platform", "MAC_OS", "--upload-only"}},
+		{name: "appstore", command: PublishAppStoreCommand, args: []string{"--app", "123", "--ipa", "Demo.ipa", "--platform", "MAC_OS", "--dry-run"}},
 	}
-	for _, want := range []string{"Warning:", "--ipa with --platform MAC_OS is deprecated", "Use --pkg with --version and --build-number"} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("expected warning to contain %q, got %q", want, stderr)
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			restore := overridePublishCommandTestHooks(t)
+			defer restore()
+			validatePublishIPAPathFn = func(string) (os.FileInfo, error) {
+				t.Fatal("expected macOS IPA to be rejected before reading the IPA")
+				return nil, nil
+			}
+
+			cmd := test.command()
+			cmd.FlagSet.SetOutput(io.Discard)
+			if err := cmd.FlagSet.Parse(test.args); err != nil {
+				t.Fatalf("parse flags: %v", err)
+			}
+			var err error
+			stdout, stderr := capturePublishCommandOutput(t, func() error {
+				err = cmd.Exec(context.Background(), nil)
+				return nil
+			})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected usage error, got %v", err)
+			}
+			if stdout != "" {
+				t.Fatalf("expected no stdout, got %q", stdout)
+			}
+			if strings.TrimSpace(stderr) != "Error: "+wantErr {
+				t.Fatalf("expected stderr %q, got %q", "Error: "+wantErr, stderr)
+			}
+		})
 	}
 }
 

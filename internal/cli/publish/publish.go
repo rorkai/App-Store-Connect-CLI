@@ -75,7 +75,7 @@ func PublishTestFlightCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("publish testflight", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
-	ipaPath := fs.String("ipa", "", "Path to prebuilt .ipa file")
+	ipaPath := fs.String("ipa", "", "Path to prebuilt .ipa file (iOS, tvOS, visionOS; use --pkg for macOS)")
 	pkgPath := fs.String("pkg", "", "Path to prebuilt macOS .pkg file (requires --version and --build-number)")
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Existing build ID to distribute (skip upload)")
 	version := fs.String("version", "", "CFBundleShortVersionString (auto-extracted from IPA if not provided; required with --pkg)")
@@ -528,7 +528,7 @@ func PublishAppStoreCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("publish appstore", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
-	ipaPath := fs.String("ipa", "", "Path to prebuilt .ipa file")
+	ipaPath := fs.String("ipa", "", "Path to prebuilt .ipa file (iOS, tvOS, visionOS; use --pkg for macOS)")
 	pkgPath := fs.String("pkg", "", "Path to prebuilt macOS .pkg file (requires --version and --build-number)")
 	version := fs.String("version", "", "App Store version string (defaults to IPA version; required with --pkg)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (auto-extracted from IPA; required with --pkg)")
@@ -1158,8 +1158,7 @@ func validatePublishPKGMetadata(version, buildNumber string) error {
 
 func validatePublishPrebuiltArtifactPlatform(ipaPath, pkgPath, platform string, platformWasSet bool) (string, error) {
 	if strings.TrimSpace(ipaPath) != "" && platform == string(asc.PlatformMacOS) {
-		fmt.Fprintln(os.Stderr, "Warning: --ipa with --platform MAC_OS is deprecated and will be removed in a future major release. Use --pkg with --version and --build-number for macOS uploads.")
-		return platform, nil
+		return "", shared.UsageError("--ipa is not supported with --platform MAC_OS; use --pkg with --version and --build-number")
 	}
 	if strings.TrimSpace(pkgPath) == "" {
 		return platform, nil
