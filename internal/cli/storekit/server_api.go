@@ -41,13 +41,16 @@ Examples:
 
 func SubscriptionsCommand() *ffcli.Command {
 	return groupCommand("subscriptions",
-		"Read auto-renewable subscription statuses with the App Store Server API.",
-		`Read auto-renewable subscription statuses with the App Store Server API.
+		"Read subscription status and extend renewal dates with the App Store Server API.",
+		`Read auto-renewable subscription statuses and extend renewal dates with the
+App Store Server API.
 
 Examples:
   asc storekit subscriptions status --transaction-id 2000000000000001 --environment production
-  asc storekit subscriptions status --transaction-id 2000000000000001 --status 1,4 --environment sandbox`,
-		subscriptionsStatusCommand())
+  asc storekit subscriptions status --transaction-id 2000000000000001 --status 1,4 --environment sandbox
+  asc storekit subscriptions extend --original-transaction-id 2000000000000001 --days 7 --reason 3 --request-id outage-2026-10-01 --environment production --confirm
+  asc storekit subscriptions extension-status --product-id com.example.monthly --request-id 11111111-2222-4333-8444-555555555555 --environment production`,
+		subscriptionsStatusCommand(), extendSubscriptionCommand(), extendAllSubscriptionsCommand(), extensionStatusCommand())
 }
 
 func RefundsCommand() *ffcli.Command {
