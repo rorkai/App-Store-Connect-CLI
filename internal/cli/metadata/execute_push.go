@@ -95,9 +95,17 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	if err := requireConfirmedStoreAssets(opts, clip, previews); err != nil {
 		return PushPlanResult{}, nil, err
 	}
+	settingScopes := selectedMetadataSettingScopes(includes)
+	localSettings := make([]map[string]string, len(settingScopes))
+	for i, scope := range settingScopes {
+		localSettings[i], err = readMetadataSettingFile(dirValue, scope)
+		if err != nil {
+			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
+		}
+	}
 	localBundle := localMetadataBundle{}
 	if includesScope(includes, includeLocalizations) {
-		localBundle, err = loadLocalMetadataWithAssets(dirValue, versionValue, clip != nil || len(previews) > 0)
+		localBundle, err = loadLocalMetadataWithAssets(dirValue, versionValue, clip != nil || len(previews) > 0 || len(settingScopes) > 0)
 		if err != nil {
 			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 		}
@@ -135,7 +143,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	// app info is not resolved: an ambiguous app-info selection must not block
 	// a version-only push.
 	appInfoIDValue := strings.TrimSpace(opts.AppInfoID)
-	if localBundle.appInfoManaged {
+	if localBundle.appInfoManaged || metadataSettingsNeedAppInfo(settingScopes) {
 		appInfoIDValue, err = shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (string, error) {
 			return resolveMetadataPushAppInfoID(
 				requestCtx,
@@ -274,6 +282,26 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	}
 	addStoreAssetChanges(&result, assetPlan)
 
+	settingTarget := metadataSettingTarget{appInfoID: appInfoIDValue, versionID: versionIDValue}
+	var settingPlans []metadataSettingPlan
+	var settingCalls []PlanAPICall
+	for i, scope := range settingScopes {
+		remote, err := scope.fetch(ctx, client, settingTarget)
+		if err != nil {
+			return PushPlanResult{}, warnings, fmt.Errorf("%s: read %s: %w", errorPrefix, scope.name, err)
+		}
+		plan, adds, updates := buildMetadataSettingPlan(scope, localSettings[i], remote)
+		result.Adds = append(result.Adds, adds...)
+		result.Updates = append(result.Updates, updates...)
+		if len(plan.changed) > 0 {
+			settingPlans = append(settingPlans, plan)
+			settingCalls = append(settingCalls, PlanAPICall{Operation: "update", Scope: scope.name, Count: 1})
+		}
+	}
+	sortPlanItems(result.Adds)
+	sortPlanItems(result.Updates)
+	result.APICalls = append(result.APICalls, settingCalls...)
+
 	if strings.TrimSpace(opts.ReviewDir) != "" {
 		if err := VerifyApprovedMetadataPlan(opts, result, opts.ReviewDir); err != nil {
 			return PushPlanResult{}, warnings, err
@@ -329,11 +357,18 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 					versionCalls.update++
 				}
 			}
-			result.APICalls = buildAPICallSummary(appInfoCalls, versionCalls)
+			result.APICalls = append(buildAPICallSummary(appInfoCalls, versionCalls), settingCalls...)
 		}
 	}
 
 	result.Actions = actions
+	if applyErr == nil {
+		for _, plan := range settingPlans {
+			action, err := applyMetadataSettingPlan(ctx, client, settingTarget, plan)
+			result.Actions = append(result.Actions, action)
+			applyErr = errors.Join(applyErr, err)
+		}
+	}
 	if applyErr == nil {
 		localeIDs := map[string]string{}
 		for _, item := range remoteVersionItems {

@@ -44,7 +44,7 @@ func MetadataPullCommand() *ffcli.Command {
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Output root directory (required)")
 	force := fs.Bool("force", false, "Overwrite existing metadata files in --dir")
-	include := fs.String("include", includeLocalizations, "Included scopes: localizations,app-clip,previews (comma-separated)")
+	include := fs.String("include", includeLocalizations, metadataIncludeFlagUsage())
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -56,6 +56,9 @@ func MetadataPullCommand() *ffcli.Command {
 The default scope is localizations. Add --include localizations,app-clip,previews to transfer
 App Clip metadata, header images, and App Preview videos. Media uses locale/app_clip,
 app_clip/action.txt, and app_previews below --dir.
+
+Opt-in scopes write one file each below --dir:
+` + metadataSettingsHelp("  ", false) + `
 
 When --version is omitted, the app's newest active editable App Store version is used
 (PREPARE_FOR_SUBMISSION, DEVELOPER_REJECTED, REJECTED, METADATA_REJECTED,
@@ -136,7 +139,8 @@ Examples:
 			var appInfoIDValue string
 			var appInfoItems []asc.Resource[asc.AppInfoLocalizationAttributes]
 			var versionItems []asc.Resource[asc.AppStoreVersionLocalizationAttributes]
-			if includesScope(includes, includeLocalizations) {
+			settingScopes := selectedMetadataSettingScopes(includes)
+			if includesScope(includes, includeLocalizations) || metadataSettingsNeedAppInfo(settingScopes) {
 				appInfoIDValue, err = resolveMetadataPullAppInfoID(
 					requestCtx,
 					client,
@@ -150,12 +154,12 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("metadata pull: %w", err)
 				}
-
+			}
+			if includesScope(includes, includeLocalizations) {
 				appInfoItems, versionItems, err = fetchMetadataLocalizations(ctx, client, appInfoIDValue, versionIDValue, true, true)
 				if err != nil {
 					return fmt.Errorf("metadata pull: %w", err)
 				}
-
 			}
 
 			appInfoByLocale := make(map[string]AppInfoLocalization, len(appInfoItems))
@@ -201,6 +205,18 @@ Examples:
 			)
 			if err != nil {
 				return fmt.Errorf("metadata pull: %w", err)
+			}
+			settingTarget := metadataSettingTarget{appInfoID: appInfoIDValue, versionID: versionIDValue}
+			for _, scope := range settingScopes {
+				values, err := scope.fetch(ctx, client, settingTarget)
+				if err != nil {
+					return fmt.Errorf("metadata pull: read %s: %w", scope.name, err)
+				}
+				data, err := encodeMetadataSettingFile(scope, values)
+				if err != nil {
+					return fmt.Errorf("metadata pull: %w", err)
+				}
+				plans = append(plans, WritePlan{Path: filepath.Join(dirValue, scope.fileName), Contents: data})
 			}
 			var assetFiles []storeassets.ExportFile
 			var assetWarnings []string
@@ -314,8 +330,8 @@ func parseIncludes(value string) ([]string, error) {
 	unique := make(map[string]struct{})
 	for _, item := range includes {
 		normalized := strings.ToLower(strings.TrimSpace(item))
-		if normalized != includeLocalizations && normalized != "app-clip" && normalized != "previews" {
-			return nil, fmt.Errorf("--include supports localizations, app-clip, and previews")
+		if normalized != includeLocalizations && normalized != "app-clip" && normalized != "previews" && !isMetadataSettingScope(normalized) {
+			return nil, fmt.Errorf("--include supports %s", strings.Join(append([]string{includeLocalizations, "app-clip", "previews"}, metadataSettingScopeNames()...), ", "))
 		}
 		unique[normalized] = struct{}{}
 	}
