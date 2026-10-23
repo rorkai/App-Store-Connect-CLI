@@ -78,7 +78,9 @@ conditional: a push never overwrites an object that changed after it was
 fetched and fails instead, so pull and retry. Endpoints that ignore
 If-Match and If-None-Match lose this protection.
 
-Password rotation supports git and object storage.
+Password rotation supports git and object storage. import re-encrypts an
+existing OpenSSL-encrypted signing repository into any of these stores
+without contacting App Store Connect.
 
 Push --renew-expired replaces an expired profile with a same-name profile, and
 --force-for-new-devices recreates a development or ad hoc profile when its
@@ -122,6 +124,7 @@ Examples:
 			syncPullCommand(),
 			syncRotatePasswordCommand(),
 			syncNukeCommand(),
+			syncImportCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

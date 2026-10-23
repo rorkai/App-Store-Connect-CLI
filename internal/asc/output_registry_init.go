@@ -646,6 +646,7 @@ func registerAllOutputRenderers() {
 	registerRows(capabilityReconcilePlanRows)
 	registerRows(signingSyncRows)
 	registerRows(signingSyncNukeRows)
+	registerRows(signingSyncImportRows)
 	registerRows(signingKeychainInstallRows)
 	registerRows(signingKeychainActionRows)
 	registerRows(signingKeychainListRows)

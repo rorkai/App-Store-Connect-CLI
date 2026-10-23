@@ -310,6 +310,7 @@ func identityCertificateFilter(identity *signingIdentity) func(asc.Resource[asc.
 }
 
 type identityMobileProvision struct {
+	Name                        string         `plist:"Name"`
 	TeamIdentifier              []string       `plist:"TeamIdentifier"`
 	ApplicationIdentifierPrefix []string       `plist:"ApplicationIdentifierPrefix"`
 	Platform                    []string       `plist:"Platform"`
