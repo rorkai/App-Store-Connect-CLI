@@ -14,10 +14,9 @@ import (
 // so an agent taking examples[0] would run the wrong command. Prerequisite
 // invocations belong in the prose above the block.
 //
-// Not covered here: `asc doctor` and `asc migrate metadata ...` share their
-// command objects with `asc auth doctor` and `asc metadata ...`, so their
-// examples document the canonical path on purpose. `asc screenshots download`
-// is excluded while PR #2067 rewrites that file.
+// Not covered here: `asc doctor` shares its command object with `asc auth
+// doctor`, so its examples document the canonical path on purpose. `asc
+// screenshots download` is excluded while PR #2067 rewrites that file.
 func TestSearchExamplesAreFirstPartyForFixedCommands(t *testing.T) {
 	tests := []struct {
 		command string

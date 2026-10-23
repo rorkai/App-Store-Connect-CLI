@@ -1,62 +1,57 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"testing"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
-func TestMigrateMetadataAliasesWarnAndDelegateToMetadataCommand(t *testing.T) {
+func TestMigrateMetadataAliasesAreRemovedWithMigrationGuidance(t *testing.T) {
+	removed := findSubcommand(RootCommand("6.0.0"), "migrate", "metadata")
+	if removed == nil {
+		t.Fatal("asc migrate metadata is not registered")
+	}
+	usage := removed.UsageFunc(removed) + "\n"
+
 	tests := []struct {
-		name          string
-		args          []string
-		wantDeprecate string
-		wantErr       string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:          "pull",
-			args:          []string{"migrate", "metadata", "pull", "--version", "1.2.3", "--dir", "./metadata"},
-			wantDeprecate: "Warning: `asc migrate metadata pull` is deprecated and will be removed in 6.0.0. Use `asc metadata pull`.\n",
-			wantErr:       "Error: --app is required (or set ASC_APP_ID)\n",
+			name:    "pull",
+			args:    []string{"migrate", "metadata", "pull", "--app", "APP_ID", "--version", "1.2.3", "--dir", "./metadata"},
+			wantErr: "Error: `asc migrate metadata pull` was removed in 6.0.0; use `asc metadata pull` instead\n",
 		},
 		{
-			name:          "push",
-			args:          []string{"migrate", "metadata", "push", "--version", "1.2.3", "--dir", "./metadata", "--dry-run"},
-			wantDeprecate: "Warning: `asc migrate metadata push` is deprecated and will be removed in 6.0.0. Use `asc metadata push`.\n",
-			wantErr:       "Error: --app is required (or set ASC_APP_ID)\n",
+			name:    "push",
+			args:    []string{"migrate", "metadata", "push", "--app", "APP_ID", "--version", "1.2.3", "--dir", "./metadata", "--dry-run"},
+			wantErr: "Error: `asc migrate metadata push` was removed in 6.0.0; use `asc metadata push` instead\n",
 		},
 		{
-			name:          "validate",
-			args:          []string{"migrate", "metadata", "validate"},
-			wantDeprecate: "Warning: `asc migrate metadata validate` is deprecated and will be removed in 6.0.0. Use `asc metadata validate`.\n",
-			wantErr:       "Error: --dir is required\n",
+			name:    "validate",
+			args:    []string{"migrate", "metadata", "validate", "--dir", "./metadata"},
+			wantErr: "Error: `asc migrate metadata validate` was removed in 6.0.0; use `asc metadata validate` instead\n",
+		},
+		{
+			name:    "group",
+			args:    []string{"migrate", "metadata"},
+			wantErr: "Error: `asc migrate metadata` was removed in 6.0.0; use `asc metadata` instead\n",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Setenv("ASC_APP_ID", "")
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
+				if code := cmd.Run(test.args, "6.0.0"); code != cmd.ExitUsage {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
 				}
-				runErr = root.Run(context.Background())
 			})
 
-			if !shared.IsReportedUsageError(runErr) {
-				t.Fatalf("expected reported usage error, got %v", runErr)
-			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if want := test.wantDeprecate + test.wantErr; stderr != want {
+			if want := test.wantErr + usage; stderr != want {
 				t.Fatalf("stderr = %q, want %q", stderr, want)
 			}
 		})

@@ -6,8 +6,8 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
-// VisibleUsageFunc renders command help while omitting deprecated commands from
-// nested subcommand listings. Root-level deprecated commands are already hidden
+// VisibleUsageFunc renders command help while omitting deprecated and removed
+// commands from nested subcommand listings. Root-level deprecated commands are already hidden
 // elsewhere; this keeps nested canonical help focused on current surfaces.
 func VisibleUsageFunc(c *ffcli.Command) string {
 	clone := *c
@@ -17,7 +17,8 @@ func VisibleUsageFunc(c *ffcli.Command) string {
 			if sub == nil {
 				continue
 			}
-			if strings.HasPrefix(strings.TrimSpace(sub.ShortHelp), "DEPRECATED:") {
+			shortHelp := strings.TrimSpace(sub.ShortHelp)
+			if strings.HasPrefix(shortHelp, "DEPRECATED:") || strings.HasPrefix(shortHelp, "REMOVED:") {
 				continue
 			}
 			visible = append(visible, sub)

@@ -1,17 +1,17 @@
-# Deprecated `asc migrate metadata` aliases
+# Removed `asc migrate metadata` aliases
 
 `asc migrate metadata pull`, `asc migrate metadata push`, and
-`asc migrate metadata validate` are deprecated and will be removed in 6.0.0.
-They still forward to `asc metadata pull`, `asc metadata push`, and
-`asc metadata validate` with identical flags, stdout, and exit codes, and now
-print one warning line to stderr first:
+`asc migrate metadata validate` were removed in 6.0.0. They were deprecated
+aliases for `asc metadata pull`, `asc metadata push`, and
+`asc metadata validate`, and printed a deprecation warning to stderr during
+the 5.x deprecation window.
+
+Any `asc migrate metadata` invocation now exits with status 2 and names the
+command to use instead:
 
 ```text
-Warning: `asc migrate metadata pull` is deprecated and will be removed in 6.0.0. Use `asc metadata pull`.
+Error: `asc migrate metadata pull` was removed in 6.0.0; use `asc metadata pull` instead
 ```
-
-Help marks the group and each alias as `DEPRECATED:`, and `asc migrate --help`,
-shell completion, and `asc search` no longer list them.
 
 ## Migration
 

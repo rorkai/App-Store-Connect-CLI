@@ -175,8 +175,7 @@ func hiddenCommand(command *ffcli.Command) bool {
 	shortHelp := strings.TrimSpace(command.ShortHelp)
 	return strings.HasPrefix(shortHelp, "DEPRECATED:") ||
 		strings.HasPrefix(shortHelp, "REMOVED:") ||
-		strings.HasPrefix(shortHelp, "Compatibility alias:") ||
-		strings.HasPrefix(shortHelp, "Compatibility aliases ")
+		strings.HasPrefix(shortHelp, "Compatibility alias:")
 }
 
 func flagRequiresValue(commandFlag *flag.Flag) bool {

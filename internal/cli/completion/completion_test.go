@@ -40,7 +40,6 @@ func TestCompletionNodesIncludeNestedCommandsAndVisibleFlags(t *testing.T) {
 				{Name: "old-view", ShortHelp: "DEPRECATED: use view"},
 				{Name: "removed-view", ShortHelp: "REMOVED: use view"},
 				{Name: "compat-view", ShortHelp: "Compatibility alias: use view"},
-				{Name: "compat-views", ShortHelp: "Compatibility aliases for view"},
 			},
 		},
 		{Name: "completion"},
