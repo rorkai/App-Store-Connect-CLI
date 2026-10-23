@@ -9,12 +9,14 @@ subscription status, but none of the actions below.
 These endpoints belong to App Store Server API, not App Store Connect API; they
 are absent from `docs/openapi/latest.json`. Contracts were checked against
 Apple's endpoint documentation and official Node server library on 2026-10-23.
-Both endpoints are available in production and sandbox.
+All four endpoints are available in production and sandbox.
 
 | Command under `asc storekit` | Method and path |
 | --- | --- |
 | `app-transactions view --transaction-id ID` | GET `/inApps/v1/transactions/appTransactions/{anyTransactionId}` |
 | `transactions set-account-token --original-transaction-id ID --app-account-token UUID --confirm` | PUT `/inApps/v1/transactions/{originalTransactionId}/appAccountToken` |
+| `transactions send-consumption --transaction-id ID --customer-consented true --delivery-status DELIVERED --sample-content-provided false --confirm` | PUT `/inApps/v2/transactions/consumption/{transactionId}` |
+| `transactions finish --transaction-id ID --confirm` | POST `/inApps/v1/transactions/{transactionId}/finish` |
 
 Every invocation also selects `--environment production|sandbox` (or the
 existing environment variable). Reads preserve Apple's JSON envelope and support
@@ -29,6 +31,15 @@ and are sent once; the client does not automatically retry them.
 
 - Token updates require a UUID and replace an existing association. They do not
   rewrite past subscription renewals or support FAMILY_SHARED transactions.
+- Consumption uses the current v2 body: required `customerConsented`,
+  `deliveryStatus`, `sampleContentProvided`; optional `consumptionPercentage`
+  (integer milliunits, 0–100000) and `refundPreference`. Require explicit true
+  consent and explicit sample boolean. For non-delivery, a supplied percentage
+  must be zero; omit it for auto-renewable subscriptions. Apple validates
+  product type, which is not supplied to this endpoint. Do not infer consent or fetch a
+  transaction before sending. Send only after CONSUMPTION_REQUEST, within 12h.
+- Finish only after content is delivered; no server finish is needed if the app
+  already calls StoreKit's `finish()`.
 
 ## Verification
 
@@ -49,5 +60,7 @@ mutations are outside this implementation's verification scope.
 - [Apple Server API library](https://github.com/apple/app-store-server-library-node/blob/main/index.ts)
 - [App transaction info](https://developer.apple.com/documentation/appstoreserverapi/get-app-transaction-info)
 - [Account token update](https://developer.apple.com/documentation/appstoreserverapi/set-app-account-token)
+- [Consumption request](https://developer.apple.com/documentation/appstoreserverapi/consumptionrequest)
+- [Finish transaction](https://developer.apple.com/documentation/appstoreserverapi/finish-transaction)
 
 - [App transaction claims](https://github.com/apple/app-store-server-library-node/blob/b71d9c70aa4a4a5efea258d530f50733a7916af3/models/AppTransaction.ts)

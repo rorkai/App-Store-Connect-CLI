@@ -17,7 +17,7 @@ import (
 )
 
 // Regression: each action must wire the caller's flags to the exact Apple
-// endpoint and print Apple's response or a receipt on success.
+// endpoint, preserve false/zero/omitted values, and print receipts only on success.
 func TestStoreKitServerActionsRequestContracts(t *testing.T) {
 	const requestID = "11111111-2222-4333-8444-555555555555"
 	tests := []struct {
@@ -33,6 +33,22 @@ func TestStoreKitServerActionsRequestContracts(t *testing.T) {
 		{
 			name: "account token", method: "PUT", path: "/inApps/v1/transactions/123/appAccountToken", body: `{"appAccountToken":"` + requestID + `"}`, status: 200,
 			args: []string{"transactions", "set-account-token", "--original-transaction-id", "123", "--app-account-token", requestID, "--confirm"}, want: map[string]any{"originalTransactionId": "123", "appAccountToken": requestID, "updated": true},
+		},
+		{
+			name: "consumption omitted percentage", method: "PUT", path: "/inApps/v2/transactions/consumption/123", body: `{"customerConsented":true,"deliveryStatus":"DELIVERED","sampleContentProvided":false,"refundPreference":"GRANT_PRORATED"}`, status: 202,
+			args: []string{"transactions", "send-consumption", "--transaction-id", "123", "--customer-consented", "true", "--delivery-status", "delivered", "--sample-content-provided", "false", "--refund-preference", "grant_prorated", "--confirm"}, want: map[string]any{"transactionId": "123", "submitted": true},
+		},
+		{
+			name: "consumption undelivered subscription", method: "PUT", path: "/inApps/v2/transactions/consumption/123", body: `{"customerConsented":true,"deliveryStatus":"UNDELIVERED_OTHER","sampleContentProvided":false}`, status: 202,
+			args: []string{"transactions", "send-consumption", "--transaction-id", "123", "--customer-consented", "true", "--delivery-status", "UNDELIVERED_OTHER", "--sample-content-provided", "false", "--confirm"}, want: map[string]any{"transactionId": "123", "submitted": true},
+		},
+		{
+			name: "consumption explicit zero", method: "PUT", path: "/inApps/v2/transactions/consumption/123", body: `{"customerConsented":true,"deliveryStatus":"UNDELIVERED_OTHER","sampleContentProvided":true,"consumptionPercentage":0}`, status: 202,
+			args: []string{"transactions", "send-consumption", "--transaction-id", "123", "--customer-consented", "true", "--delivery-status", "UNDELIVERED_OTHER", "--sample-content-provided", "true", "--consumption-percentage", "0", "--confirm"}, want: map[string]any{"transactionId": "123", "submitted": true},
+		},
+		{
+			name: "finish", method: "POST", path: "/inApps/v1/transactions/123/finish", status: 200,
+			args: []string{"transactions", "finish", "--transaction-id", "123", "--confirm"}, want: map[string]any{"transactionId": "123", "finished": true},
 		},
 	}
 	for _, tt := range tests {
@@ -116,6 +132,17 @@ func TestStoreKitServerActionsUsageErrors(t *testing.T) {
 		{"token original required", []string{"transactions", "set-account-token", "--app-account-token", id, "--confirm"}, "--original-transaction-id is required"},
 		{"token uuid", []string{"transactions", "set-account-token", "--original-transaction-id", "1", "--app-account-token", "bad", "--confirm"}, "--app-account-token must be a UUID"},
 		{"token confirm", []string{"transactions", "set-account-token", "--original-transaction-id", "1", "--app-account-token", id}, "--confirm is required"},
+		{"finish confirm", []string{"transactions", "finish", "--transaction-id", "1"}, "--confirm is required"},
+		{"consent required", []string{"transactions", "send-consumption", "--transaction-id", "1", "--delivery-status", "DELIVERED", "--sample-content-provided", "false", "--confirm"}, "--customer-consented must be explicitly true"},
+		{"consent false", []string{"transactions", "send-consumption", "--transaction-id", "1", "--customer-consented", "false", "--delivery-status", "DELIVERED", "--sample-content-provided", "false", "--confirm"}, "--customer-consented must be explicitly true"},
+		{"sample required", []string{"transactions", "send-consumption", "--transaction-id", "1", "--customer-consented", "true", "--delivery-status", "DELIVERED", "--confirm"}, "--sample-content-provided is required"},
+		{"delivery required", []string{"transactions", "send-consumption", "--transaction-id", "1", "--customer-consented", "true", "--sample-content-provided", "false", "--confirm"}, "--delivery-status is required"},
+		{"delivery enum", []string{"transactions", "send-consumption", "--transaction-id", "1", "--customer-consented", "true", "--sample-content-provided", "false", "--delivery-status", "OTHER", "--confirm"}, "--delivery-status must be one of"},
+		{"percentage range", []string{"transactions", "send-consumption", "--transaction-id", "1", "--customer-consented", "true", "--sample-content-provided", "false", "--delivery-status", "DELIVERED", "--consumption-percentage", "100001", "--confirm"}, "--consumption-percentage must be between 0 and 100000"},
+		{"undelivered percentage", []string{"transactions", "send-consumption", "--transaction-id", "1", "--customer-consented", "true", "--sample-content-provided", "false", "--delivery-status", "UNDELIVERED_OTHER", "--consumption-percentage", "1", "--confirm"}, "--consumption-percentage must be 0 when delivery status is not DELIVERED"},
+		{"prorated zero", []string{"transactions", "send-consumption", "--transaction-id", "1", "--customer-consented", "true", "--sample-content-provided", "false", "--delivery-status", "DELIVERED", "--refund-preference", "GRANT_PRORATED", "--consumption-percentage", "0", "--confirm"}, "--consumption-percentage must be between 1 and 99999 for GRANT_PRORATED"},
+		{"prorated full before confirm", []string{"transactions", "send-consumption", "--transaction-id", "1", "--customer-consented", "true", "--sample-content-provided", "false", "--delivery-status", "DELIVERED", "--refund-preference", "GRANT_PRORATED", "--consumption-percentage", "100000"}, "--consumption-percentage must be between 1 and 99999 for GRANT_PRORATED"},
+		{"refund enum", []string{"transactions", "send-consumption", "--transaction-id", "1", "--customer-consented", "true", "--sample-content-provided", "false", "--delivery-status", "DELIVERED", "--refund-preference", "YES", "--confirm"}, "--refund-preference must be one of"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -142,6 +169,8 @@ func TestStoreKitServerActionsHumanOutput(t *testing.T) {
 	}{
 		{"app transaction", "table", `{"signedAppTransactionInfo":"` + storeKitTestJWS(`{"appTransactionId":"123","bundleId":"com.example.app","originalApplicationVersion":"1.0","originalPurchaseDate":1788220800000,"receiptType":"Sandbox"}`) + `"}`, []string{"app-transactions", "view", "--transaction-id", "123"}, []string{"App Transaction ID", "Original App Version", "1.0", "com.example.app", "2026-09-01T00:00:00Z"}, true},
 		{"account token", "markdown", ``, []string{"transactions", "set-account-token", "--original-transaction-id", "123", "--app-account-token", id, "--confirm"}, []string{"|123|" + id + "|true|"}, false},
+		{"consumption", "markdown", ``, []string{"transactions", "send-consumption", "--transaction-id", "123", "--customer-consented", "true", "--delivery-status", "DELIVERED", "--sample-content-provided", "false", "--confirm"}, []string{"|123|true|"}, false},
+		{"finish", "markdown", ``, []string{"transactions", "finish", "--transaction-id", "123", "--confirm"}, []string{"|123|true|"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -177,6 +206,8 @@ func TestStoreKitServerActionsRefuseWritesAndPreserveAPIErrors(t *testing.T) {
 	const id = "11111111-2222-4333-8444-555555555555"
 	writes := [][]string{
 		{"transactions", "set-account-token", "--original-transaction-id", "123", "--app-account-token", id},
+		{"transactions", "finish", "--transaction-id", "123"},
+		{"transactions", "send-consumption", "--transaction-id", "123", "--customer-consented", "true", "--delivery-status", "DELIVERED", "--sample-content-provided", "false"},
 	}
 	for _, args := range writes {
 		t.Run(args[1], func(t *testing.T) {
