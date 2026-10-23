@@ -211,7 +211,7 @@ Examples:
 				targetID,
 				sourcePrices,
 				targetPrices,
-				multiplierValue,
+				func(string) (*big.Rat, bool) { return multiplierValue, true },
 				roundMode,
 				*workers,
 			)
@@ -246,18 +246,6 @@ Examples:
 				return shared.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
-			changes := make([]equalization, 0, result.Summary.Planned)
-			for _, row := range result.Rows {
-				if row.Status != "planned" {
-					continue
-				}
-				changes = append(changes, equalization{
-					Territory:    row.Territory,
-					Price:        row.TargetPrice,
-					PricePointID: row.TargetPricePointID,
-				})
-			}
-
 			attrs := asc.SubscriptionPriceCreateAttributes{
 				StartDate: result.StartDate,
 				PlanType:  asc.SubscriptionPlanTypeUpfront,
@@ -265,31 +253,10 @@ Examples:
 			if *preserved {
 				attrs.Preserved = preserved
 			}
-			fmt.Fprintf(os.Stderr, "Setting %d derived territory price%s (%d worker%s)...\n", len(changes), pluralizeSubscriptionPriceDeriveCount(len(changes)), *workers, pluralizeSubscriptionPriceDeriveCount(*workers))
-			_, failures := applyEqualizedPrices(ctx, client, targetID, changes, *workers, attrs, effectiveAt)
-			failureByTerritory := make(map[string]error, len(failures))
-			for _, failure := range failures {
-				failureByTerritory[strings.ToUpper(strings.TrimSpace(failure.Target.Territory))] = failure.Err
-			}
-			for index := range result.Rows {
-				row := &result.Rows[index]
-				if row.Status != "planned" {
-					continue
-				}
-				if failure := failureByTerritory[row.Territory]; failure != nil {
-					row.Status = "failed"
-					row.Error = failure.Error()
-					continue
-				}
-				row.Status = "applied"
-			}
-			result.Summary = summarizeSubscriptionPriceDeriveRows(result.Rows)
-			appliedCount := result.Summary.Applied
-
-			fmt.Fprintln(os.Stderr, "Verifying derived target prices...")
-			verificationErr := verifySubscriptionPriceDeriveResult(ctx, client, targetID, effectiveAt, territoryID, result)
-			result.Summary = summarizeSubscriptionPriceDeriveRows(result.Rows)
-			result.Summary.Applied = appliedCount
+			var verificationErr error
+			result.Summary, result.Verification, verificationErr = applyAndVerifySubscriptionPriceDeriveRows(
+				ctx, client, targetID, result.Rows, *workers, attrs, effectiveAt, territoryID, "derived territory price", "derived target prices",
+			)
 			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
@@ -325,28 +292,91 @@ func resolveSubscriptionPriceDeriveLookupID(
 	return resolved, nil
 }
 
-func verifySubscriptionPriceDeriveResult(
+func applyAndVerifySubscriptionPriceDeriveRows(
+	ctx context.Context,
+	client *asc.Client,
+	targetSubscriptionID string,
+	rows []asc.SubscriptionPricingDeriveRow,
+	workers int,
+	attrs asc.SubscriptionPriceCreateAttributes,
+	effectiveAt time.Time,
+	territory string,
+	changeNoun string,
+	verifyNoun string,
+) (asc.SubscriptionPricingDeriveSummary, asc.SubscriptionPricingDeriveVerification, error) {
+	planned := countSubscriptionPriceDeriveRows(rows, "planned")
+	fmt.Fprintf(os.Stderr, "Setting %d %s%s (%d worker%s)...\n", planned, changeNoun, pluralizeSubscriptionPriceDeriveCount(planned), workers, pluralizeSubscriptionPriceDeriveCount(workers))
+	applySubscriptionPriceDeriveRows(ctx, client, targetSubscriptionID, rows, workers, attrs, effectiveAt)
+	appliedCount := countSubscriptionPriceDeriveRows(rows, "applied")
+
+	fmt.Fprintf(os.Stderr, "Verifying %s...\n", verifyNoun)
+	verification, err := verifySubscriptionPriceDeriveRows(ctx, client, targetSubscriptionID, effectiveAt, territory, rows)
+	summary := summarizeSubscriptionPriceDeriveRows(rows)
+	summary.Applied = appliedCount
+	return summary, verification, err
+}
+
+func applySubscriptionPriceDeriveRows(
+	ctx context.Context,
+	client *asc.Client,
+	targetSubscriptionID string,
+	rows []asc.SubscriptionPricingDeriveRow,
+	workers int,
+	attrs asc.SubscriptionPriceCreateAttributes,
+	effectiveAt time.Time,
+) {
+	changes := make([]equalization, 0, len(rows))
+	for _, row := range rows {
+		if row.Status != "planned" {
+			continue
+		}
+		changes = append(changes, equalization{
+			Territory:    row.Territory,
+			Price:        row.TargetPrice,
+			PricePointID: row.TargetPricePointID,
+		})
+	}
+	_, failures := applyEqualizedPrices(ctx, client, targetSubscriptionID, changes, workers, attrs, effectiveAt)
+	failureByTerritory := make(map[string]error, len(failures))
+	for _, failure := range failures {
+		failureByTerritory[strings.ToUpper(strings.TrimSpace(failure.Target.Territory))] = failure.Err
+	}
+	for index := range rows {
+		row := &rows[index]
+		if row.Status != "planned" {
+			continue
+		}
+		if failure := failureByTerritory[row.Territory]; failure != nil {
+			row.Status = "failed"
+			row.Error = failure.Error()
+			continue
+		}
+		row.Status = "applied"
+	}
+}
+
+func verifySubscriptionPriceDeriveRows(
 	ctx context.Context,
 	client *asc.Client,
 	targetSubscriptionID string,
 	effectiveAt time.Time,
 	territory string,
-	result *asc.SubscriptionPricingDeriveResult,
-) error {
-	preexistingFailed := countSubscriptionPriceDeriveRows(result.Rows, "failed")
-	if countSubscriptionPriceDeriveRows(result.Rows, "applied") == 0 {
+	rows []asc.SubscriptionPricingDeriveRow,
+) (asc.SubscriptionPricingDeriveVerification, error) {
+	preexistingFailed := countSubscriptionPriceDeriveRows(rows, "failed")
+	if countSubscriptionPriceDeriveRows(rows, "applied") == 0 {
 		status := "completed"
 		if preexistingFailed > 0 {
 			status = "failed"
 		}
-		result.Verification = asc.SubscriptionPricingDeriveVerification{
+		verification := asc.SubscriptionPricingDeriveVerification{
 			Status: status,
 			Failed: preexistingFailed,
 		}
 		if preexistingFailed > 0 {
-			return fmt.Errorf("%d territory update(s) failed before verification", preexistingFailed)
+			return verification, fmt.Errorf("%d territory update(s) failed before verification", preexistingFailed)
 		}
-		return nil
+		return verification, nil
 	}
 
 	resolved, err := fetchResolvedSubscriptionPrices(
@@ -360,17 +390,16 @@ func verifySubscriptionPriceDeriveResult(
 		territory,
 	)
 	if err != nil {
-		for index := range result.Rows {
-			if result.Rows[index].Status == "applied" {
-				result.Rows[index].Status = "failed"
-				result.Rows[index].Error = fmt.Sprintf("verification readback failed: %v", err)
+		for index := range rows {
+			if rows[index].Status == "applied" {
+				rows[index].Status = "failed"
+				rows[index].Error = fmt.Sprintf("verification readback failed: %v", err)
 			}
 		}
-		result.Verification = asc.SubscriptionPricingDeriveVerification{
+		return asc.SubscriptionPricingDeriveVerification{
 			Status: "failed",
-			Failed: countSubscriptionPriceDeriveRows(result.Rows, "failed"),
-		}
-		return fmt.Errorf("verification readback failed: %w", err)
+			Failed: countSubscriptionPriceDeriveRows(rows, "failed"),
+		}, fmt.Errorf("verification readback failed: %w", err)
 	}
 	currentByTerritory := make(map[string]string, len(resolved.Prices))
 	for _, row := range resolved.Prices {
@@ -381,8 +410,8 @@ func verifySubscriptionPriceDeriveResult(
 	}
 	verified := 0
 	failed := preexistingFailed
-	for index := range result.Rows {
-		row := &result.Rows[index]
+	for index := range rows {
+		row := &rows[index]
 		if row.Status != "applied" {
 			continue
 		}
@@ -403,15 +432,15 @@ func verifySubscriptionPriceDeriveResult(
 	if failed > 0 {
 		status = "failed"
 	}
-	result.Verification = asc.SubscriptionPricingDeriveVerification{
+	verification := asc.SubscriptionPricingDeriveVerification{
 		Status:   status,
 		Verified: verified,
 		Failed:   failed,
 	}
 	if failed > 0 {
-		return fmt.Errorf("verification failed for %d territory update(s)", failed)
+		return verification, fmt.Errorf("verification failed for %d territory update(s)", failed)
 	}
-	return nil
+	return verification, nil
 }
 
 func countSubscriptionPriceDeriveRows(rows []asc.SubscriptionPricingDeriveRow, status string) int {
@@ -437,7 +466,7 @@ func buildSubscriptionPriceDerivePlan(
 	targetSubscriptionID string,
 	sourcePrices *shared.ResolvedPricesResult,
 	targetPrices *shared.ResolvedPricesResult,
-	multiplier *big.Rat,
+	multiplierFor func(territory string) (*big.Rat, bool),
 	rounding subscriptionPriceDeriveRounding,
 	workers int,
 ) []asc.SubscriptionPricingDeriveRow {
@@ -488,7 +517,6 @@ func buildSubscriptionPriceDerivePlan(
 					Currency:           strings.TrimSpace(source.Currency),
 					SourcePrice:        strings.TrimSpace(source.CustomerPrice),
 					SourcePricePointID: strings.TrimSpace(source.PricePointID),
-					RequestedMultiple:  formatSubscriptionPriceDeriveExactDecimal(multiplier),
 					Action:             "error",
 					Status:             "unresolved",
 				}
@@ -496,6 +524,14 @@ func buildSubscriptionPriceDerivePlan(
 					row.CurrentTargetPrice = strings.TrimSpace(current.CustomerPrice)
 					row.CurrentTargetPointID = strings.TrimSpace(current.PricePointID)
 				}
+				multiplier, ok := multiplierFor(territory)
+				if !ok {
+					row.Action = "skip"
+					row.Status = "skipped"
+					rows[index] = row
+					continue
+				}
+				row.RequestedMultiple = formatSubscriptionPriceDeriveExactDecimal(multiplier)
 
 				sourcePrice := new(big.Rat)
 				if _, ok := sourcePrice.SetString(row.SourcePrice); !ok || sourcePrice.Sign() <= 0 {
@@ -647,6 +683,8 @@ func summarizeSubscriptionPriceDeriveRows(rows []asc.SubscriptionPricingDeriveRo
 			summary.Unresolved++
 		case "failed":
 			summary.Failed++
+		case "skipped":
+			summary.Skipped++
 		}
 	}
 	return summary

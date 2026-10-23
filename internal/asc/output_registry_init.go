@@ -211,6 +211,15 @@ func registerAllOutputRenderers() {
 		}
 		return nil
 	})
+	registerDirect(func(v *SubscriptionPricingPPPResult, render func([]string, [][]string)) error {
+		h, r := subscriptionPricingPPPSummaryRows(v)
+		render(h, r)
+		if len(v.Rows) > 0 {
+			rh, rr := subscriptionPricingPPPRowRows(v)
+			render(rh, rr)
+		}
+		return nil
+	})
 	registerRows(signingResignResultRows)
 	registerRows(iosArtifactResultRows)
 	registerRows(subscriptionAvailabilityRows)

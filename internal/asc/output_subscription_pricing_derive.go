@@ -11,6 +11,7 @@ type SubscriptionPricingDeriveSummary struct {
 	Verified   int `json:"verified,omitempty"`
 	Unresolved int `json:"unresolved"`
 	Failed     int `json:"failed"`
+	Skipped    int `json:"skipped,omitempty"`
 }
 
 // SubscriptionPricingDeriveRow represents one territory's derived target price.

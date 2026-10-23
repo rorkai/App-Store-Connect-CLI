@@ -28,7 +28,8 @@ Examples:
   asc subscriptions pricing plan-availability show --subscription-id "SUB_ID"
   asc subscriptions pricing monthly-commitment list --subscription-id "SUB_ID"
   asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --dry-run
-  asc subscriptions pricing derive --source-subscription-id "MONTHLY_ID" --target-subscription-id "YEARLY_ID" --multiplier "10" --dry-run`,
+  asc subscriptions pricing derive --source-subscription-id "MONTHLY_ID" --target-subscription-id "YEARLY_ID" --multiplier "10" --dry-run
+  asc subscriptions pricing ppp --subscription-id "SUB_ID" --base-price "9.99" --dry-run`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -40,6 +41,7 @@ Examples:
 			SubscriptionsPricingMonthlyCommitmentCommand(),
 			SubscriptionsPricingEqualizeCommand(),
 			SubscriptionsPricingDeriveCommand(),
+			SubscriptionsPricingPPPCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
