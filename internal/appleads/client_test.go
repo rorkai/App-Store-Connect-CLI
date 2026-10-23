@@ -185,67 +185,6 @@ func TestAccessTokenUsesAppleOAuthClientCredentialsRequest(t *testing.T) {
 	}
 }
 
-func TestRequestSetsBearerAndOrganizationContext(t *testing.T) {
-	seen := []string{}
-	client, err := NewClient(Credentials{AccessToken: "ACCESS", OrgID: "123456"}, WithBaseURL("https://api.searchads.apple.com/api/"), WithHTTPClient(&http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			seen = append(seen, req.Method+" "+req.URL.Path+" "+req.Header.Get("X-AP-Context"))
-			if got := req.Header.Get("Authorization"); got != "Bearer ACCESS" {
-				t.Fatalf("Authorization = %q, want bearer token", got)
-			}
-			return jsonResponse(200, `{"data":[]}`), nil
-		}),
-	}))
-	if err != nil {
-		t.Fatalf("NewClient() error: %v", err)
-	}
-	me, ok := EndpointByCommandPath("me", "view")
-	if !ok {
-		t.Fatal("missing me view endpoint")
-	}
-	if _, err := client.Do(context.Background(), me, nil, nil, nil); err != nil {
-		t.Fatalf("me Do() error: %v", err)
-	}
-	campaigns, ok := EndpointByCommandPath("campaigns", "list")
-	if !ok {
-		t.Fatal("missing campaigns list endpoint")
-	}
-	if _, err := client.Do(context.Background(), campaigns, nil, url.Values{"limit": {"1"}}, nil); err != nil {
-		t.Fatalf("campaigns Do() error: %v", err)
-	}
-	want := []string{
-		"GET /api/v5/me ",
-		"GET /api/v5/campaigns orgId=123456",
-	}
-	if strings.Join(seen, "\n") != strings.Join(want, "\n") {
-		t.Fatalf("requests:\n%s\nwant:\n%s", strings.Join(seen, "\n"), strings.Join(want, "\n"))
-	}
-}
-
-func TestDoPreservesRequiresOrgForExplicitCampaignVersion(t *testing.T) {
-	client, err := NewClient(Credentials{AccessToken: "ACCESS", OrgID: "123456"}, WithHTTPClient(&http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			if got := req.Header.Get("X-AP-Context"); got != "orgId=123456" {
-				t.Fatalf("X-AP-Context = %q, want org context", got)
-			}
-			return jsonResponse(200, `{}`), nil
-		}),
-	}))
-	if err != nil {
-		t.Fatalf("NewClient() error: %v", err)
-	}
-
-	_, err = client.Do(context.Background(), EndpointSpec{
-		Method:      http.MethodGet,
-		Path:        "v5/campaigns",
-		Version:     APIVersionCampaignV5,
-		RequiresOrg: true,
-	}, nil, nil, nil)
-	if err != nil {
-		t.Fatalf("Do() error: %v", err)
-	}
-}
-
 func TestRequestForVersionRoutesPlatformAPIAndAdAccountContext(t *testing.T) {
 	seen := []string{}
 	client, err := NewClient(
@@ -253,6 +192,9 @@ func TestRequestForVersionRoutesPlatformAPIAndAdAccountContext(t *testing.T) {
 		WithPlatformBaseURL("https://api.ads.apple.com/v1/"),
 		WithHTTPClient(&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			seen = append(seen, req.Method+" "+req.URL.String()+" "+req.Header.Get("X-AP-Context"))
+			if got := req.Header.Get("Authorization"); got != "Bearer ACCESS" {
+				t.Fatalf("Authorization = %q, want bearer token", got)
+			}
 			response := jsonResponse(200, `{"result":{}}`)
 			response.Header.Set("RateLimit-Limit", "100")
 			response.Header.Set("RateLimit-Remaining", "99")
@@ -318,28 +260,6 @@ func TestNewClientRejectsUnsafeOrgIDs(t *testing.T) {
 				t.Fatalf("NewClient() error = %v, want invalid organization ID", err)
 			}
 		})
-	}
-}
-
-func TestContextHeaderRejectsUnsafeOrgIDBeforeHTTP(t *testing.T) {
-	requests := 0
-	client, err := NewClient(Credentials{AccessToken: "ACCESS"}, WithHTTPClient(&http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			requests++
-			return jsonResponse(http.StatusOK, `{}`), nil
-		}),
-	}))
-	if err != nil {
-		t.Fatalf("NewClient() error: %v", err)
-	}
-	client.credentials.OrgID = "123;adAccountId=999"
-
-	_, err = client.Request(context.Background(), http.MethodGet, "v5/campaigns", nil, nil, true)
-	if err == nil || !strings.Contains(err.Error(), "invalid organization ID") {
-		t.Fatalf("Request() error = %v, want invalid organization ID", err)
-	}
-	if requests != 0 {
-		t.Fatalf("HTTP requests = %d, want 0", requests)
 	}
 }
 
@@ -427,9 +347,8 @@ func TestRequestForVersionRejectsCrossVersionContextBeforeHTTP(t *testing.T) {
 		path    string
 		context ContextKind
 	}{
-		{version: APIVersionPlatformV1, path: "v1/me", context: ContextOrg},
-		{version: APIVersionCampaignV5, path: "v5/me", context: ContextAdAccount},
-		{version: APIVersionCampaignV5, path: "v5/me", context: ContextAdAccountOptional},
+		{version: "", path: "v1/me", context: ContextNone},
+		{version: "campaign-v5", path: "v5/me", context: ContextNone},
 	}
 	for _, tt := range tests {
 		if _, err := client.RequestForVersion(context.Background(), tt.version, http.MethodGet, tt.path, nil, nil, tt.context); err == nil {
@@ -497,28 +416,6 @@ func TestRequestParsesPlatformErrorAndRateLimitHeaders(t *testing.T) {
 	}
 	if requests != 1 {
 		t.Fatalf("mutation requests = %d, want 1", requests)
-	}
-}
-
-func TestLegacyGetDoesNotGainPlatformRetryBehavior(t *testing.T) {
-	requests := 0
-	client, err := NewClient(Credentials{AccessToken: "ACCESS"}, WithHTTPClient(&http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			requests++
-			return jsonResponse(429, `{"error":{"errors":[{"message":"Slow down","messageCode":"RATE_LIMITED"}]}}`), nil
-		}),
-	}))
-	if err != nil {
-		t.Fatalf("NewClient() error: %v", err)
-	}
-
-	_, err = client.Request(context.Background(), http.MethodGet, "v5/me", nil, nil, false)
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) || apiErr.Version != APIVersionCampaignV5 {
-		t.Fatalf("legacy error = %v, want v5 APIError", err)
-	}
-	if requests != 1 {
-		t.Fatalf("legacy requests = %d, want 1", requests)
 	}
 }
 
@@ -642,7 +539,7 @@ func TestParsePlatformErrorDoesNotRepeatTopLevelDetail(t *testing.T) {
 	}
 }
 
-func TestEmptySuccessBodyIsVersionSpecific(t *testing.T) {
+func TestEmptySuccessBodyReturnsEmptyObject(t *testing.T) {
 	client, err := NewClient(Credentials{AccessToken: "ACCESS"}, WithHTTPClient(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			return jsonResponse(200, ""), nil
@@ -652,16 +549,12 @@ func TestEmptySuccessBodyIsVersionSpecific(t *testing.T) {
 		t.Fatalf("NewClient() error: %v", err)
 	}
 
-	legacy, err := client.Request(context.Background(), http.MethodGet, "v5/me", nil, nil, false)
-	if err != nil {
-		t.Fatalf("legacy request error: %v", err)
-	}
 	platform, err := client.RequestForVersion(context.Background(), APIVersionPlatformV1, http.MethodGet, "v1/me", nil, nil, ContextNone)
 	if err != nil {
 		t.Fatalf("platform request error: %v", err)
 	}
-	if string(legacy) != `{"data":null}` || string(platform) != `{}` {
-		t.Fatalf("empty bodies = legacy %s platform %s", legacy, platform)
+	if string(platform) != `{}` {
+		t.Fatalf("empty body = %s, want {}", platform)
 	}
 }
 
@@ -694,7 +587,7 @@ func TestAdsRetryDelayPrefersRetryAfterThenRateLimitReset(t *testing.T) {
 }
 
 func TestRequestParsesAppleAdsErrorEnvelope(t *testing.T) {
-	client, err := NewClient(Credentials{AccessToken: "ACCESS", OrgID: "123456"}, WithHTTPClient(&http.Client{
+	client, err := NewClient(Credentials{AccessToken: "ACCESS", AdAccountID: "123456"}, WithHTTPClient(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			return jsonResponse(400, `{"error":{"errors":[{"field":"campaignId","message":"Invalid campaign","messageCode":"INVALID_INPUT"}]}}`), nil
 		}),
@@ -702,59 +595,16 @@ func TestRequestParsesAppleAdsErrorEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
-	campaigns, ok := EndpointByCommandPath("campaigns", "view")
+	campaigns, ok := PlatformEndpointByCommandPath("campaigns", "view")
 	if !ok {
 		t.Fatal("missing campaigns view endpoint")
 	}
-	_, err = client.Do(context.Background(), campaigns, map[string]string{"campaignId": "1"}, nil, nil)
+	_, err = client.Do(context.Background(), campaigns, map[string]string{"id": "1"}, nil, nil)
 	if err == nil {
 		t.Fatal("expected API error")
 	}
 	if got := err.Error(); !strings.Contains(got, "HTTP 400: INVALID_INPUT: campaignId: Invalid campaign") {
 		t.Fatalf("error = %q", got)
-	}
-}
-
-func TestPaginateAllAggregatesOffsetPages(t *testing.T) {
-	requestOffsets := []string{}
-	client, err := NewClient(Credentials{AccessToken: "ACCESS", OrgID: "123456"}, WithHTTPClient(&http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			offset := req.URL.Query().Get("offset")
-			requestOffsets = append(requestOffsets, offset)
-			switch offset {
-			case "0":
-				return jsonResponse(200, `{"data":[{"id":1},{"id":2}],"pagination":{"itemsPerPage":2,"startIndex":0,"totalResults":3}}`), nil
-			case "2":
-				return jsonResponse(200, `{"data":[{"id":3}],"pagination":{"itemsPerPage":2,"startIndex":2,"totalResults":3}}`), nil
-			default:
-				t.Fatalf("unexpected offset %q", offset)
-				return nil, nil
-			}
-		}),
-	}))
-	if err != nil {
-		t.Fatalf("NewClient() error: %v", err)
-	}
-	campaigns, ok := EndpointByCommandPath("campaigns", "list")
-	if !ok {
-		t.Fatal("missing campaigns list endpoint")
-	}
-	raw, err := client.PaginateAll(context.Background(), campaigns, nil, nil, 0, 2, nil)
-	if err != nil {
-		t.Fatalf("PaginateAll() error: %v", err)
-	}
-	var parsed struct {
-		Data       []map[string]int `json:"data"`
-		Pagination PageDetail       `json:"pagination"`
-	}
-	if err := json.Unmarshal(raw, &parsed); err != nil {
-		t.Fatalf("Unmarshal() error: %v", err)
-	}
-	if len(parsed.Data) != 3 || parsed.Data[2]["id"] != 3 {
-		t.Fatalf("aggregated data = %+v, want 3 rows ending with id=3", parsed.Data)
-	}
-	if got := strings.Join(requestOffsets, ","); got != "0,2" {
-		t.Fatalf("offsets = %q, want 0,2", got)
 	}
 }
 
@@ -821,37 +671,6 @@ func TestPaginateAllPlatformV1ToleratesMissingTotalCount(t *testing.T) {
 	}
 	if strings.Join(requests, ",") != "0,2" {
 		t.Fatalf("offsets = %v", requests)
-	}
-}
-
-func TestPaginateAllReportsClampedStartOffset(t *testing.T) {
-	client, err := NewClient(Credentials{AccessToken: "ACCESS", OrgID: "123456"}, WithHTTPClient(&http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			if got := req.URL.Query().Get("offset"); got != "0" {
-				t.Fatalf("offset = %q, want 0", got)
-			}
-			return jsonResponse(200, `{"data":[{"id":1}],"pagination":{"itemsPerPage":1,"startIndex":0,"totalResults":1}}`), nil
-		}),
-	}))
-	if err != nil {
-		t.Fatalf("NewClient() error: %v", err)
-	}
-	campaigns, ok := EndpointByCommandPath("campaigns", "list")
-	if !ok {
-		t.Fatal("missing campaigns list endpoint")
-	}
-	raw, err := client.PaginateAll(context.Background(), campaigns, nil, nil, -10, 1, nil)
-	if err != nil {
-		t.Fatalf("PaginateAll() error: %v", err)
-	}
-	var parsed struct {
-		Pagination PageDetail `json:"pagination"`
-	}
-	if err := json.Unmarshal(raw, &parsed); err != nil {
-		t.Fatalf("Unmarshal() error: %v", err)
-	}
-	if parsed.Pagination.StartIndex != 0 {
-		t.Fatalf("StartIndex = %d, want 0", parsed.Pagination.StartIndex)
 	}
 }
 

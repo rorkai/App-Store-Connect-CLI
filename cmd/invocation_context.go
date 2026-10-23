@@ -751,6 +751,8 @@ func shellSafeCommandArg(arg string) string {
 func preservesLegacyChild(analysis invocationAnalysis, commandName string) bool {
 	token := strings.TrimSpace(analysis.unknownToken)
 	switch commandName {
+	case "asc ads":
+		return token == "v5"
 	case "asc apps":
 		return token == "create"
 	case "asc review":

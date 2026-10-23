@@ -126,7 +126,7 @@ func collectDirectPlatformCommandLeaves(root *ffcli.Command) map[string]int {
 		}
 	}
 	for _, subcommand := range root.Subcommands {
-		if subcommand.Name == "auth" || subcommand.Name == "v5" {
+		if subcommand.Name == "auth" {
 			continue
 		}
 		walk(subcommand, []string{subcommand.Name})

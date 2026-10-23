@@ -4,6 +4,8 @@
 
 Add the complete Apple Ads Platform API v1 surface as the default Ads resource tree. Preserve the behavior of Campaign Management API v5 commands under an explicit deprecated namespace until Apple retires v5 on January 26, 2027.
 
+6.0.0 removed that namespace; see `docs/release-notes-apple-ads-v5-removal.md`.
+
 ## Command placement
 
 Platform API v1 commands live directly under `asc ads`. Existing Campaign Management API v5 commands move to `asc ads v5`.

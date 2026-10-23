@@ -3,20 +3,12 @@ package cmd
 import (
 	"flag"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
-
-// inheritedParentFlags lists the commands that read their parent group's
-// flags on purpose (see effectiveCampaignStatusWorkflowFlags in internal/cli/ads).
-var inheritedParentFlags = map[string][]string{
-	"asc ads v5 campaigns pause":  {"ads-profile", "org", "output", "pretty"},
-	"asc ads v5 campaigns resume": {"ads-profile", "org", "output", "pretty"},
-}
 
 // groupFlagsBeforeSubcommandError rejects flags set on a group command when
 // ffcli then dispatched to a subcommand. ffcli parses those flags into the
@@ -46,14 +38,10 @@ func groupFlagsBeforeSubcommandError(root *ffcli.Command) error {
 		path += " " + child.Name
 	}
 
-	inherited := inheritedParentFlags[path]
 	var parts []string
 	for _, g := range groups {
 		var moveAfter, groupOnly []string
 		g.command.FlagSet.Visit(func(f *flag.Flag) {
-			if slices.Contains(inherited, f.Name) {
-				return
-			}
 			if command.FlagSet.Lookup(f.Name) != nil {
 				moveAfter = append(moveAfter, "--"+f.Name)
 			} else {

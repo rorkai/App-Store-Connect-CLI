@@ -336,7 +336,7 @@ func TestRun_ParseErrorWithoutFlagOutputReturnsUsage(t *testing.T) {
 	}
 
 	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{"ads", "v5", "geo"}, "1.0.0"); code != ExitUsage {
+		if code := Run([]string{"ads", "geo"}, "1.0.0"); code != ExitUsage {
 			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
 		}
 	})

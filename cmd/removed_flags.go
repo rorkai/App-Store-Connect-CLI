@@ -250,14 +250,6 @@ var removedFlagRules = []removedFlagRule{
 		commands:    []string{"signing sync push", "signing sync pull"},
 		replacement: "`--password-file` or `ASC_SIGNING_SYNC_PASSWORD`",
 	},
-	{
-		flag: "keyword",
-		commands: []string{
-			"ads v5 campaign-negative-keywords view",
-			"ads v5 ad-group-negative-keywords view",
-		},
-		replacement: "`--negative-keyword`",
-	},
 }
 
 // lookupRemovedFlag returns the rule for a removed alias on the named command.

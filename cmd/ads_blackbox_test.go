@@ -50,28 +50,38 @@ func TestAdsUsageErrorsExitTwoWithBuiltBinary(t *testing.T) {
 	}{
 		{
 			name:       "invalid endpoint output",
-			args:       []string{"ads", "v5", "campaigns", "--output", "xml"},
+			args:       []string{"ads", "campaigns", "find", "--output", "xml"},
 			wantStderr: `(got "xml")`,
 		},
 		{
 			name:       "unexpected endpoint arg",
-			args:       []string{"ads", "v5", "campaigns", "--output", "json", "unexpected"},
-			wantStderr: "unknown command `asc ads v5 campaigns unexpected`",
+			args:       []string{"ads", "campaigns", "view", "--campaign", "1", "--output", "json", "unexpected"},
+			wantStderr: `unexpected argument "unexpected"`,
 		},
 		{
 			name:       "missing destructive confirm",
-			args:       []string{"ads", "v5", "campaigns", "delete", "--campaign", "123"},
+			args:       []string{"ads", "campaigns", "delete", "--campaign", "123"},
 			wantStderr: "--confirm is required",
 		},
 		{
 			name:       "missing required query flag",
-			args:       []string{"ads", "v5", "apps", "search", "--org", "123456", "--output", "json"},
-			wantStderr: "--query is required",
+			args:       []string{"ads", "apps", "search", "--ad-account", "123456", "--output", "json"},
+			wantStderr: "at least one of --query, --cpids, or --return-owned-apps is required",
 		},
 		{
 			name:       "invalid raw api method",
-			args:       []string{"ads", "v5", "api", "request", "--method", "PATCH", "--path", "v5/campaigns"},
+			args:       []string{"ads", "api", "request", "--method", "PATCH", "--path", "v1/campaigns"},
 			wantStderr: "--method must be one of: GET, POST, PUT, DELETE",
+		},
+		{
+			name:       "removed v5 command names v1 replacement",
+			args:       []string{"ads", "v5", "campaigns", "list", "--org", "123456", "--output", "json"},
+			wantStderr: "Error: `asc ads v5 campaigns list` was removed in 6.0.0 after Apple retired Campaign Management API v5 on January 26, 2027. Use `asc ads campaigns find`.",
+		},
+		{
+			name:       "removed v5 namespace without known path",
+			args:       []string{"ads", "v5", "unknown-group"},
+			wantStderr: "Error: `asc ads v5` was removed in 6.0.0 after Apple retired Campaign Management API v5 on January 26, 2027. Use the Platform API v1 commands listed by `asc ads --help`.",
 		},
 	}
 

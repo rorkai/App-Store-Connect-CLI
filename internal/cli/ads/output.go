@@ -7,8 +7,8 @@ import (
 )
 
 // bindAdsRawOutputFlags keeps opaque Apple Ads envelopes lossless. The 99
-// Platform operations and legacy v5 endpoints return heterogeneous nested
-// shapes, so pretending they have a generic table renderer would hide data.
+// Platform operations return heterogeneous nested shapes, so pretending they
+// have a generic table renderer would hide data.
 func bindAdsRawOutputFlags(fs *flag.FlagSet) shared.OutputFlags {
 	return shared.BindOutputFlagsWithAllowed(fs, "output", "json", "Output format: json", "json")
 }

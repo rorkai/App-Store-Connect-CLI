@@ -25,11 +25,6 @@ func TestRunRejectsGroupFlagsBeforeSubcommand(t *testing.T) {
 			wantErr: "Error: --sort must be passed after the subcommand name (asc xcode-cloud build-runs list [flags])",
 		},
 		{
-			name:    "ads profile before list",
-			args:    []string{"ads", "v5", "campaigns", "--ads-profile", "work", "list", "--org", "1"},
-			wantErr: "Error: --ads-profile must be passed after the subcommand name (asc ads v5 campaigns list [flags])",
-		},
-		{
 			name:    "validate flags before testflight",
 			args:    []string{"validate", "--deep", "--strict", "testflight", "--app", "app-1", "--build-id", "build-1"},
 			wantErr: "Error: --strict must be passed after the subcommand name (asc validate testflight [flags]); --deep is only valid for asc validate",
@@ -53,7 +48,7 @@ func TestRunRejectsGroupFlagsBeforeSubcommand(t *testing.T) {
 	}
 }
 
-func TestRunKeepsRootAndInheritedFlagsBeforeSubcommand(t *testing.T) {
+func TestRunKeepsRootFlagsBeforeSubcommand(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 	t.Setenv("ASC_APP_ID", "")
 
@@ -66,11 +61,6 @@ func TestRunKeepsRootAndInheritedFlagsBeforeSubcommand(t *testing.T) {
 			name:    "root flag before group",
 			args:    []string{"--strict-auth", "reviews", "list"},
 			wantErr: "--app is required",
-		},
-		{
-			name:    "ads campaign workflow inherits parent flags",
-			args:    []string{"ads", "v5", "campaigns", "--pretty", "resume", "--campaign", "123", "--confirm", "--output", "table"},
-			wantErr: `(got "table")`,
 		},
 	}
 

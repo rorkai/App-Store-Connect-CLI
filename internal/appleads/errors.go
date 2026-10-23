@@ -117,7 +117,7 @@ func (e *APIError) HTTPStatusCode() int {
 }
 
 func parseError(body []byte, statusCode int) error {
-	return parseErrorForVersion(body, statusCode, nil, APIVersionCampaignV5)
+	return parseErrorForVersion(body, statusCode, nil, "")
 }
 
 func parseErrorForVersion(body []byte, statusCode int, headers http.Header, version APIVersion) error {

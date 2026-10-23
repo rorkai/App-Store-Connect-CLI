@@ -172,11 +172,12 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 
 ## Apple Ads Platform API v1
 
-- Platform API v1 (`https://api.ads.apple.com/v1/`) is the primary `asc ads` surface (since 4.4.0). Legacy Campaign Management API v5 (retiring January 26, 2027) lives under `asc ads v5` with deprecation warnings (`asc ads v5 api request` stays v5; `asc ads api request` is v1).
+- Platform API v1 (`https://api.ads.apple.com/v1/`) is the only `asc ads` transport. Apple retired Campaign Management API v5 on January 26, 2027, and 6.0.0 removed `asc ads v5`; any `asc ads v5 ...` invocation exits 2 with a removal error that names the v1 replacement from the ledger in `internal/cli/ads/v5_removal.go` (see `docs/release-notes-apple-ads-v5-removal.md`).
 - Account-scoped v1 calls send `X-AP-Context: adAccountId=<AD_ACCOUNT_ID>;` resolved from `--ad-account`, `ASC_ADS_AD_ACCOUNT_ID`, profile `ad_account_id`, or root `ads.ad_account_id` when no profile is selected (`--org` / `ASC_ADS_ORG_ID` are never fallbacks).
 - `POST /v1/ad-accounts` omits `X-AP-Context`, whereas `GET`/`PUT /v1/ad-accounts/{id}` require `X-AP-Context: adAccountId=<id>;` matching `{id}`.
 - `asc ads auth login --network`, `asc ads auth status --validate`, and `asc ads auth discover` call `GET /v1/me` (and `GET /v1/acls` for `discover`) without `X-AP-Context` (`ASC_ADS_ACCESS_TOKEN` skips OAuth token exchange).
-- V1 report pagination belongs in the JSON request body (no `--paginate` flag). Negative keywords use a single v1 resource without bulk-delete; product-page countries/devices and custom impression-share report list/view have no one-command v1 replacement. The deprecated `asc ads v5 reports preset` warning follows `--level`: campaigns, ad groups, ads, keywords, and search terms point to their matching `asc ads reports apps` command; the two ad-group-specific keyword levels point to v1's consolidated `keywords` or `search-terms` report.
+- V1 report pagination belongs in the JSON request body (no `--paginate` flag). Negative keywords use a single v1 resource without bulk-delete; product-page countries/devices and custom impression-share report list/view have no one-command v1 replacement. The removed `asc ads v5 reports preset` maps to the `asc ads reports apps` command for its former `--level`; the two ad-group-specific keyword levels map to v1's consolidated `keywords` or `search-terms` report.
+- `--org`, `ASC_ADS_ORG_ID`, and profile `org_id` only feed the selected organization that `asc ads auth status` and `asc ads auth discover` report; no request sends an `orgId` context.
 
 ## Authentication & Rate Limiting
 

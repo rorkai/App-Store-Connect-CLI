@@ -47,63 +47,29 @@ func TestAdsGuideExamplesDispatchRepresentativeCommands(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", configPath)
 	t.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
-	t.Setenv("ASC_ADS_ORG_ID", "123456")
+	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "987654")
 
 	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Host {
 		case "appleid.apple.com":
-			return adsJSONResponse(http.StatusOK, `{"access_token":"ACCESS","token_type":"Bearer","expires_in":3600,"scope":"searchadsorg"}`), nil
-		case "api.searchads.apple.com":
-			if req.Method == http.MethodDelete {
-				return adsJSONResponse(http.StatusNoContent, ``), nil
-			}
-			if strings.Contains(req.URL.RawQuery, "limit=") || strings.Contains(req.URL.Path, "/search/") || strings.Contains(req.URL.Path, "/creatives") || strings.Contains(req.URL.Path, "/campaigns") {
-				return adsJSONResponse(http.StatusOK, `{"data":[{"id":123456789}],"pagination":{"itemsPerPage":1,"startIndex":0,"totalResults":1}}`), nil
-			}
-			return adsJSONResponse(http.StatusOK, `{"data":{"id":123456789}}`), nil
+			return adsJSONResponse(`{"access_token":"ACCESS","token_type":"Bearer","expires_in":3600,"scope":"searchadsorg"}`), nil
 		case "api.ads.apple.com":
 			if req.URL.Path != "/v1/me" {
 				t.Fatalf("unexpected Platform API request %s %s", req.Method, req.URL.String())
 			}
-			return adsJSONResponse(http.StatusOK, `{"result":{"userId":123456789,"orgId":123456}}`), nil
+			return adsJSONResponse(`{"result":{"userId":123456789,"orgId":123456}}`), nil
 		default:
 			t.Fatalf("unexpected host %s for %s %s", req.URL.Host, req.Method, req.URL.String())
 			return nil, nil
 		}
 	}))
 
-	expectedWarnings := map[string]string{
-		`asc ads v5 campaigns --limit 10 --output json`:                                      adsV5ReplacementWarning("v5 campaigns", "campaigns find"),
-		`asc ads v5 acls --output json`:                                                      adsV5ReplacementWarning("v5 acls", "acls list"),
-		`asc ads v5 campaigns list --org "123456" --output json`:                             adsV5ReplacementWarning("v5 campaigns list", "campaigns find"),
-		`asc ads v5 me view`:                                                                 adsV5ReplacementWarning("v5 me view", "me view"),
-		`asc ads v5 campaigns delete --org "123456" --campaign 987654321 --confirm`:          adsV5ReplacementWarning("v5 campaigns delete", "campaigns delete"),
-		`asc ads v5 apps search --org "123456" --query "My App" --limit 10 --output json`:    adsV5ReplacementWarning("v5 apps search", "apps search"),
-		`asc ads v5 product-pages list --org "123456" --adam-id 1234567890 --states VISIBLE`: adsV5ReplacementWarning("v5 product-pages list", "product-pages find"),
-		`asc ads v5 targeting-keywords create-bulk --org "123456" --campaign 987654321 --ad-group 123456789 --file keywords.json --confirm`:    adsV5ReplacementWarning("v5 targeting-keywords create-bulk", "targeting-keywords create-bulk"),
-		`asc ads v5 targeting-keywords delete-bulk --org "123456" --campaign 987654321 --ad-group 123456789 --file keyword-ids.json --confirm`: adsV5NoReplacementWarning("v5 targeting-keywords delete-bulk", "No one-command replacement exists. Query matching keywords with `asc ads targeting-keywords find`, then delete each ID with `asc ads targeting-keywords delete --keyword KEYWORD_ID --confirm`."),
-		`asc ads v5 reports campaigns --org "123456" --file reporting-request.json --output json`:                                              adsV5ReplacementWarning("v5 reports campaigns", "reports apps campaigns"),
-		`asc ads v5 impression-share-reports --org "123456" --limit 50 --output json`:                                                          adsV5NoReplacementWarning("v5 impression-share-reports", "No one-command replacement exists. Use `asc ads insights impression-share find` with an equivalent query payload."),
-		`asc ads v5 api request --method POST --path v5/campaigns/find --org "123456" --file selector.json --output json`:                      adsV5ReplacementWarning("v5 api request", "api request"),
-	}
-
 	for _, commandLine := range []string{
-		`asc ads auth login --name "Marketing" --client-id "SEARCHADS_CLIENT_ID" --team-id "SEARCHADS_TEAM_ID" --key-id "KEY_ID" --private-key ./apple-ads-private-key.pem --org "123456"`,
+		`asc ads auth login --name "Marketing" --client-id "SEARCHADS_CLIENT_ID" --team-id "SEARCHADS_TEAM_ID" --key-id "KEY_ID" --private-key ./apple-ads-private-key.pem --ad-account "987654"`,
 		"asc ads auth status --validate",
 		"asc ads auth doctor",
 		"asc ads auth token --confirm --output json",
-		"asc ads v5 campaigns --limit 10 --output json",
-		`asc ads v5 acls --output json`,
-		`asc ads v5 campaigns list --org "123456" --output json`,
-		`asc ads v5 me view`,
-		`asc ads v5 campaigns delete --org "123456" --campaign 987654321 --confirm`,
-		`asc ads v5 apps search --org "123456" --query "My App" --limit 10 --output json`,
-		`asc ads v5 product-pages list --org "123456" --adam-id 1234567890 --states VISIBLE`,
-		`asc ads v5 targeting-keywords create-bulk --org "123456" --campaign 987654321 --ad-group 123456789 --file keywords.json --confirm`,
-		`asc ads v5 targeting-keywords delete-bulk --org "123456" --campaign 987654321 --ad-group 123456789 --file keyword-ids.json --confirm`,
-		`asc ads v5 reports campaigns --org "123456" --file reporting-request.json --output json`,
-		`asc ads v5 impression-share-reports --org "123456" --limit 50 --output json`,
-		`asc ads v5 api request --method POST --path v5/campaigns/find --org "123456" --file selector.json --output json`,
+		"asc ads me view --output json",
 	} {
 		t.Run(commandLine, func(t *testing.T) {
 			args := adsGuideArgs(t, commandLine, keyPath, payloads)
@@ -111,8 +77,8 @@ func TestAdsGuideExamplesDispatchRepresentativeCommands(t *testing.T) {
 			if err != nil {
 				t.Fatalf("run %q: %v\nstderr: %s", commandLine, err, stderr)
 			}
-			if got, want := stderr, expectedWarnings[commandLine]; got != want {
-				t.Fatalf("stderr = %q, want %q", got, want)
+			if stderr != "" {
+				t.Fatalf("stderr = %q, want empty", stderr)
 			}
 			if strings.Contains(commandLine, "--output json") || strings.Contains(commandLine, " auth token ") {
 				var parsed any
@@ -215,7 +181,7 @@ func adsGuideArgs(t *testing.T, commandLine string, keyPath string, payloads map
 		switch arg {
 		case "./apple-ads-private-key.pem":
 			args[i] = keyPath
-		case "campaign.json", "campaign-update.json", "ad-group.json", "ad.json", "selector.json", "keywords.json", "keyword-ids.json", "negative-keywords.json", "reporting-request.json", "custom-report-request.json":
+		case "campaign.json":
 			args[i] = payloads[arg]
 		}
 	}
@@ -235,16 +201,7 @@ func writeAdsGuidePayloads(t *testing.T, dir string) map[string]string {
 	t.Helper()
 
 	files := map[string]string{
-		"campaign.json":              `{"name":"Brand Campaign","status":"PAUSED"}`,
-		"campaign-update.json":       `{"campaign":{"status":"PAUSED"}}`,
-		"ad-group.json":              `{"name":"Brand Ad Group","status":"PAUSED"}`,
-		"ad.json":                    `{"name":"Brand Ad","status":"PAUSED"}`,
-		"selector.json":              `{"conditions":[{"field":"deleted","operator":"EQUALS","values":["false"]}],"pagination":{"offset":0,"limit":100}}`,
-		"keywords.json":              `[{"text":"example keyword","matchType":"EXACT","status":"PAUSED"}]`,
-		"keyword-ids.json":           `[111111111,222222222]`,
-		"negative-keywords.json":     `[{"text":"free","matchType":"BROAD","status":"ACTIVE"}]`,
-		"reporting-request.json":     `{"startTime":"2026-05-01","endTime":"2026-05-31","returnRowTotals":true,"selector":{"pagination":{"offset":0,"limit":100}}}`,
-		"custom-report-request.json": `{"startTime":"2026-05-01","endTime":"2026-05-31"}`,
+		"campaign.json": `{"name":"Brand Campaign","status":"PAUSED"}`,
 	}
 	paths := make(map[string]string, len(files))
 	for name, body := range files {

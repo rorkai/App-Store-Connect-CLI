@@ -22,13 +22,13 @@ func TestAdsAuthNetworkValidationUsesPlatformV1(t *testing.T) {
 	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/auth/oauth2/token":
-			return adsJSONResponse(200, `{"access_token":"ACCESS","token_type":"Bearer","expires_in":3600}`), nil
+			return adsJSONResponse(`{"access_token":"ACCESS","token_type":"Bearer","expires_in":3600}`), nil
 		case "/v1/me":
 			seenMe++
 			if req.Header.Get("X-AP-Context") != "" {
 				t.Fatalf("v1 me context = %q, want empty", req.Header.Get("X-AP-Context"))
 			}
-			return adsJSONResponse(200, `{"result":{"userId":1001,"orgId":987654}}`), nil
+			return adsJSONResponse(`{"result":{"userId":1001,"orgId":987654}}`), nil
 		default:
 			t.Fatalf("unexpected auth validation request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -54,7 +54,7 @@ func TestAdsAuthNetworkValidationUsesPlatformV1(t *testing.T) {
 		t.Fatalf("validated status stderr=%q error=%v", stderr, err)
 	}
 	if seenMe != 2 {
-		t.Fatalf("v5 me requests = %d, want login and status validation", seenMe)
+		t.Fatalf("v1 me requests = %d, want login and status validation", seenMe)
 	}
 }
 

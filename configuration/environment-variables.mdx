@@ -70,8 +70,9 @@ These variables apply only to `asc ads`. They do not replace `ASC_KEY_ID`,
 <ParamField path="ASC_ADS_ACCESS_TOKEN" type="string">
   Short-lived Apple Ads OAuth access token
 
-  When set, `asc ads` skips token exchange and uses this bearer token. Org-scoped
-  commands still need `--org`, `ASC_ADS_ORG_ID`, or a stored profile org.
+  When set, `asc ads` skips token exchange and uses this bearer token. Scoped
+  commands still need `--ad-account`, `ASC_ADS_AD_ACCOUNT_ID`, or a stored
+  profile ad account.
 </ParamField>
 
 <ParamField path="ASC_ADS_CLIENT_ID" type="string">
@@ -99,14 +100,16 @@ These variables apply only to `asc ads`. They do not replace `ASC_KEY_ID`,
 </ParamField>
 
 <ParamField path="ASC_ADS_ORG_ID" type="string">
-  Default Apple Ads organization ID for org-scoped `asc ads` commands
+  Apple Ads organization ID that `asc ads auth status` and `asc ads auth discover`
+  report as the selected organization. Resource commands use
+  `ASC_ADS_AD_ACCOUNT_ID` instead.
 </ParamField>
 
 <ParamField path="ASC_ADS_AD_ACCOUNT_ID" type="string">
   Default Apple Ads ad account ID for scoped Platform API v1 commands
 
-  An ad account ID is distinct from the legacy organization ID. The CLI does
-  not use `ASC_ADS_ORG_ID` as a fallback for this value.
+  An ad account ID is distinct from the organization ID. The CLI does not use
+  `ASC_ADS_ORG_ID` as a fallback for this value.
 </ParamField>
 
 <ParamField path="ASC_ADS_PROFILE" type="string">
@@ -445,7 +448,7 @@ Credentials are conditional rather than a single linear order. A selected profil
 
 Apple Ads credentials and defaults are resolved in this order:
 
-1. **Command-line flags** (`--ads-profile`, `--org`, `--ad-account`)
+1. **Command-line flags** (`--ads-profile`, `--ad-account`)
 2. **Environment variables** (`ASC_ADS_*`)
 3. **Apple Ads config profile** (`~/.asc/config.json` or `.asc/config.json`)
 4. **Keychain** (for Apple Ads credentials only)
@@ -489,10 +492,9 @@ export ASC_ADS_CLIENT_ID="SEARCHADS_CLIENT_ID"
 export ASC_ADS_TEAM_ID="SEARCHADS_TEAM_ID"
 export ASC_ADS_KEY_ID="KEY_ID"
 export ASC_ADS_PRIVATE_KEY_PATH="$HOME/.asc/apple-ads-private-key.pem"
-export ASC_ADS_ORG_ID="123456"
 export ASC_ADS_AD_ACCOUNT_ID="987654"
 
-asc ads v5 campaigns --output json
+asc ads ad-accounts view --output json
 ```
 
 ### Non-interactive Apple Account web session login

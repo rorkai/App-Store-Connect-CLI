@@ -6,9 +6,8 @@ Use these playbooks when you are operating Apple Ads from `asc` in a terminal,
 CI job, or agent run. The goal is to start read-only, confirm the ad-account context,
 and only mutate resources after the target IDs and payload files are reviewed.
 
-The primary examples use the direct Platform API v1 resource commands under
-`asc ads` with `--ad-account`. The deprecated Campaign Management API v5 tree
-is isolated in the migration and legacy sections below.
+The examples use the Platform API v1 resource commands under `asc ads` with
+`--ad-account`.
 
 ## Setup and Credential Safety
 
@@ -42,15 +41,18 @@ asc ads apps search --ad-account "$ASC_ADS_AD_ACCOUNT_ID" --query "Example" --ou
 ```
 
 Use a read-only API command for CI validation so the run resolves the exported
-`ASC_ADS_*` credentials and org context instead of only listing stored profiles.
+`ASC_ADS_*` credentials and ad account context instead of only listing stored profiles.
 
 Use `ASC_ADS_PRIVATE_KEY_B64` when your CI secret store handles single-line
 values more reliably than PEM blocks. Keep `ASC_ADS_ACCESS_TOKEN` for cases
 where another trusted system already minted a short-lived token.
 
-## Platform API v1 migration
+## Migrating from Campaign Management API v5
 
-For new automation, start with the Apple Ads Platform API v1 command tree:
+Apple retired the Campaign Management API v5 on January 26, 2027, and 6.0.0
+removed the `asc ads v5 ...` namespace. A former v5 invocation exits with status 2
+and names its v1 replacement. Start new automation with the Platform API v1
+command tree:
 
 ```bash  theme={null}
 asc ads me view --output json
@@ -58,17 +60,14 @@ asc ads acls list --output json
 asc ads apps search --ad-account "987654" --query "Example" --output json
 ```
 
-The legacy Campaign Management API v5 commands under `asc ads v5` still run in
-4.4.0 and print a deprecation warning on stderr. Apple retires v5 on January
-26, 2027. A v5 command keeps its existing `--org` context; a v1 command uses
-the separate `--ad-account` context. Do not pass an organization ID where a v1
-ad account ID is required, or assume that the two IDs identify the same thing.
+A v1 command uses the `--ad-account` context. Do not pass an organization ID
+where a v1 ad account ID is required, or assume that the two IDs identify the
+same thing.
 
 V1 query, report, and mutation bodies use the Platform API schemas. Put the
 appropriate v1 object in `--file`; the CLI does not convert a v5 selector,
 reporting request, numeric ID, or response envelope. V1 report pagination stays
-in the request JSON, so do not add the legacy `--paginate` flag to a v1 report
-command:
+in the request JSON:
 
 ```bash  theme={null}
 asc ads reports apps campaigns \
@@ -78,23 +77,16 @@ asc ads reports apps campaigns \
 ```
 
 Platform v1 exposes one `negative-keywords` resource for both campaign and ad
-group scope. Move the scope into the v1 query or mutation body rather than
-looking for separate campaign-negative-keywords and ad-group-negative-keywords
-commands. The v5 `asc ads v5 reports preset` helper remains a warning-producing
-compatibility path; replace it with an explicit v1 report leaf and reviewed
-request file.
+group scope. Move the scope into the v1 query or mutation body.
 
-Seven v5 leaves have no one-command v1 replacement in 4.4.0: product-page
-countries, product-page devices, targeting-keyword bulk delete, campaign
-negative-keyword bulk delete, ad-group negative-keyword bulk delete, and
-impression-share report list and view. Related v1 commands are not drop-in
-replacements for those contracts. In particular, `geo search` is not the v5
-country/device mapping, `insights impression-share` is not the custom report
-list/view API, and v1 has no bulk-delete operation.
-
-For raw calls, keep `asc ads v5 api request` for v5 paths and its `--org` context.
-It remains runnable with a warning and is not rewritten. Use
-`asc ads api request --path v1/... --ad-account ...` for a raw v1 call.
+Seven v5 leaves have no one-command v1 replacement: product-page countries,
+product-page devices, targeting-keyword bulk delete, campaign negative-keyword
+bulk delete, ad-group negative-keyword bulk delete, and impression-share report
+list and view. Related v1 commands are not drop-in replacements for those
+contracts. In particular, `geo search` is not the v5 country/device mapping,
+`insights impression-share` is not the custom report list/view API, and v1 has
+no bulk-delete operation. See [Apple Ads](/commands/ads#migrating-from-campaign-management-api-v5)
+for the full command mapping.
 
 ## Account Access Inspection
 
@@ -173,7 +165,7 @@ questions.
 
 ## Report Workflow
 
-Use Platform API v1 for new report automation. Its body shape differs from v5:
+Platform API v1 reports take a JSON query body:
 
 ```json platform-report.json
 {
@@ -203,46 +195,6 @@ Change `offset` and `pageSize` in the file to fetch another page. Run
 `asc ads reports apps campaigns --help` for body and option guidance; report
 entities do not all accept the same `groupBy` values.
 
-### Legacy v5 report compatibility
-
-The request below is the deprecated v5 shape. Keep it only while existing
-automation migrates:
-
-```json reporting-request.json
-{
-  "startTime": "2026-05-01",
-  "endTime": "2026-05-31",
-  "returnRowTotals": true,
-  "returnGrandTotals": true,
-  "selector": {
-    "pagination": {
-      "offset": 0,
-      "limit": 100
-    },
-    "orderBy": [
-      {
-        "field": "impressions",
-        "sortOrder": "DESCENDING"
-      }
-    ]
-  }
-}
-```
-
-Run the campaign report with an explicit org and output format:
-
-```bash  theme={null}
-asc ads v5 reports campaigns \
-  --org "123456" \
-  --file reporting-request.json \
-  --output json
-```
-
-For ad-group, keyword, search-term, or ad-level reports, first verify the parent
-campaign ID with `asc ads v5 campaigns list`. Report pagination lives inside the
-Apple Ads request body, so update the file's selector pagination rather than
-adding `--paginate`.
-
 ## Raw API Safety
 
 Use `asc ads api request` for Platform API v1 debugging, newly added Apple
@@ -263,22 +215,6 @@ Raw v1 requests only accept Platform API v1 paths or
 `https://api.ads.apple.com/v1/...` URLs. `DELETE` requests and risky mutation
 payloads require `--confirm`; multipart asset upload must use
 `asc ads assets upload`.
-
-For legacy troubleshooting only, keep `asc ads v5 api request` with its v5 path
-and `--org` context:
-
-```bash  theme={null}
-asc ads v5 api request \
-  --method POST \
-  --path v5/campaigns/find \
-  --org "123456" \
-  --file selector.json \
-  --output json
-```
-
-Raw requests only accept Apple Ads v5 paths or Apple Ads API URLs. `DELETE`
-requests require `--confirm`; do not pass it until the command line includes
-the exact target path you intend to delete.
 
 ## Mutation Safety Checklist
 

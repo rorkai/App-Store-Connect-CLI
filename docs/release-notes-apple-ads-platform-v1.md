@@ -1,5 +1,8 @@
 # Apple Ads Platform API v1 and v5 deprecation
 
+> Status: the `asc ads v5` namespace described below was removed in 6.0.0.
+> See `docs/release-notes-apple-ads-v5-removal.md`.
+
 Release 4.4.0 makes Apple Ads Platform API v1 the direct `asc ads` resource
 surface. Campaign Management API v5 remains runnable under `asc ads v5`, but
 Apple retires that API on January 26, 2027 and every v5 leaf now prints a dated

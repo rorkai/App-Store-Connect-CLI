@@ -84,7 +84,7 @@ const (
 // reporting, insights, recommendations, suggestions, and change-history
 // surface. Reporting request pagination remains in the JSON body, so these
 // commands deliberately preserve Apple's raw response envelopes instead of
-// exposing the query-string --paginate behavior used by legacy endpoints.
+// exposing the query-string --paginate behavior used by GET collection endpoints.
 func platformReportsOptimizationEndpointSpecs() []EndpointSpec {
 	platform := func(name, path string, commandPath []string, bodyKind BodyKind, bodyType, responseType string) EndpointSpec {
 		return EndpointSpec{

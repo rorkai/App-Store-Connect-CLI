@@ -20,8 +20,6 @@ import (
 )
 
 const (
-	// BaseURL is the Apple Ads Campaign Management API v5 base URL.
-	BaseURL = "https://api.searchads.apple.com/api/"
 	// PlatformBaseURL is the Apple Ads Platform API v1 base URL.
 	PlatformBaseURL = "https://api.ads.apple.com/v1/"
 )
@@ -30,7 +28,6 @@ const (
 type APIVersion string
 
 const (
-	APIVersionCampaignV5 APIVersion = "campaign-v5"
 	APIVersionPlatformV1 APIVersion = "platform-v1"
 )
 
@@ -39,7 +36,6 @@ type ContextKind uint8
 
 const (
 	ContextNone ContextKind = iota
-	ContextOrg
 	ContextAdAccount
 	ContextAdAccountOptional
 )
@@ -58,10 +54,9 @@ func (r RawResponse) MarshalJSON() ([]byte, error) {
 // ClientOption configures a Client.
 type ClientOption func(*Client)
 
-// Client is an Apple Ads Campaign Management API client.
+// Client is an Apple Ads Platform API client.
 type Client struct {
 	httpClient      *http.Client
-	baseURL         string
 	platformBaseURL string
 	tokenURL        string
 	now             func() time.Time
@@ -86,7 +81,6 @@ func NewClient(credentials Credentials, opts ...ClientOption) (*Client, error) {
 	}
 	client := &Client{
 		httpClient:      &http.Client{Timeout: asc.ResolveTimeout()},
-		baseURL:         BaseURL,
 		platformBaseURL: PlatformBaseURL,
 		tokenURL:        tokenURL,
 		now:             time.Now,
@@ -97,9 +91,6 @@ func NewClient(credentials Credentials, opts ...ClientOption) (*Client, error) {
 	}
 	if client.httpClient == nil {
 		client.httpClient = &http.Client{Timeout: asc.ResolveTimeout()}
-	}
-	if strings.TrimSpace(client.baseURL) == "" {
-		client.baseURL = BaseURL
 	}
 	if strings.TrimSpace(client.platformBaseURL) == "" {
 		client.platformBaseURL = PlatformBaseURL
@@ -128,8 +119,8 @@ func ValidateAdAccountID(value string) error {
 	return nil
 }
 
-// ValidateOrgID rejects values that cannot safely be placed in the legacy
-// Apple Ads organization context header.
+// ValidateOrgID rejects organization IDs that contain header separators or
+// control characters.
 func ValidateOrgID(value string) error {
 	if strings.ContainsRune(value, ';') {
 		return fmt.Errorf("invalid organization ID: semicolons are not allowed")
@@ -179,13 +170,6 @@ func WithHTTPClient(httpClient *http.Client) ClientOption {
 	}
 }
 
-// WithBaseURL configures the Apple Ads API base URL.
-func WithBaseURL(baseURL string) ClientOption {
-	return func(client *Client) {
-		client.baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/") + "/"
-	}
-}
-
 // WithPlatformBaseURL configures the Apple Ads Platform API v1 base URL.
 func WithPlatformBaseURL(baseURL string) ClientOption {
 	return func(client *Client) {
@@ -218,33 +202,16 @@ func (c *Client) Do(ctx context.Context, spec EndpointSpec, pathParams map[strin
 	if err != nil {
 		return nil, err
 	}
-	version := spec.Version
-	contextKind := spec.Context
-	if version == "" {
-		version = APIVersionCampaignV5
-	}
-	if version == APIVersionCampaignV5 && contextKind == ContextNone && spec.RequiresOrg {
-		contextKind = ContextOrg
-	}
 	retrySafe := spec.RetrySafe || spec.Method == http.MethodGet || spec.Method == http.MethodHead
 	if spec.ReadOnlyRequest() {
 		ctx = readonly.WithReadIntent(ctx)
 	}
-	return c.requestForVersion(ctx, version, spec.Method, path, query, body, contextKind, retrySafe)
-}
-
-// Request executes an Apple Ads API request for a relative v5 path.
-func (c *Client) Request(ctx context.Context, method, path string, query url.Values, body json.RawMessage, requiresOrg bool) (RawResponse, error) {
-	contextKind := ContextNone
-	if requiresOrg {
-		contextKind = ContextOrg
-	}
-	return c.RequestForVersion(ctx, APIVersionCampaignV5, method, path, query, body, contextKind)
+	return c.requestForVersion(ctx, spec.Version, spec.Method, path, query, body, spec.Context, retrySafe)
 }
 
 // RequestForVersion executes an Apple Ads request against an explicit API version.
 func (c *Client) RequestForVersion(ctx context.Context, version APIVersion, method, path string, query url.Values, body json.RawMessage, contextKind ContextKind) (RawResponse, error) {
-	retrySafe := version == APIVersionPlatformV1 && (method == http.MethodGet || method == http.MethodHead)
+	retrySafe := method == http.MethodGet || method == http.MethodHead
 	return c.requestForVersion(ctx, version, method, path, query, body, contextKind, retrySafe)
 }
 
@@ -260,7 +227,6 @@ func (c *Client) requestForVersion(ctx context.Context, version APIVersion, meth
 	if err != nil {
 		return nil, err
 	}
-	retrySafe = version == APIVersionPlatformV1 && retrySafe
 	var retryOptions asc.RetryOptions
 	if retrySafe {
 		retryOptions = asc.ResolveRetryOptions()
@@ -308,11 +274,9 @@ func (c *Client) requestOnce(ctx context.Context, version APIVersion, method, re
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if version == APIVersionPlatformV1 {
-		c.rateLimitMu.Lock()
-		c.lastRateLimit = rateLimitFromHeaders(resp.Header)
-		c.rateLimitMu.Unlock()
-	}
+	c.rateLimitMu.Lock()
+	c.lastRateLimit = rateLimitFromHeaders(resp.Header)
+	c.rateLimitMu.Unlock()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -334,20 +298,13 @@ func (c *Client) requestOnce(ctx context.Context, version APIVersion, method, re
 		return nil, apiErr
 	}
 	if len(strings.TrimSpace(string(respBody))) == 0 {
-		if version == APIVersionPlatformV1 {
-			return RawResponse(`{}`), nil
-		}
-		return RawResponse(`{"data":null}`), nil
+		return RawResponse(`{}`), nil
 	}
 	return RawResponse(respBody), nil
 }
 
 func validateVersionContext(version APIVersion, kind ContextKind) error {
 	switch version {
-	case APIVersionCampaignV5:
-		if kind == ContextNone || kind == ContextOrg {
-			return nil
-		}
 	case APIVersionPlatformV1:
 		if kind == ContextNone || kind == ContextAdAccount || kind == ContextAdAccountOptional {
 			return nil
@@ -436,15 +393,6 @@ func (c *Client) contextHeader(kind ContextKind) (string, error) {
 	switch kind {
 	case ContextNone:
 		return "", nil
-	case ContextOrg:
-		orgID := strings.TrimSpace(c.credentials.OrgID)
-		if orgID == "" {
-			return "", fmt.Errorf("org ID is required")
-		}
-		if err := ValidateOrgID(orgID); err != nil {
-			return "", err
-		}
-		return "orgId=" + orgID, nil
 	case ContextAdAccount, ContextAdAccountOptional:
 		if err := ValidateAdAccountID(c.credentials.AdAccountID); err != nil {
 			return "", err
@@ -505,11 +453,7 @@ func (c *Client) requestURLForVersion(version APIVersion, path string, query url
 	if hasPathTraversal(clean) {
 		return "", fmt.Errorf("--path must not contain path traversal")
 	}
-	relPath := clean
-	if version == APIVersionPlatformV1 {
-		relPath = strings.TrimPrefix(clean, relativePrefix)
-	}
-	rel, err := url.Parse(relPath)
+	rel, err := url.Parse(strings.TrimPrefix(clean, relativePrefix))
 	if err != nil {
 		return "", err
 	}
@@ -521,8 +465,7 @@ func (c *Client) requestURLForVersion(version APIVersion, path string, query url
 		return "", err
 	}
 	resolved := base.ResolveReference(rel)
-	if version == APIVersionPlatformV1 &&
-		(resolved.Scheme != base.Scheme || resolved.Host != base.Host || !strings.HasPrefix(resolved.Path, base.Path)) {
+	if resolved.Scheme != base.Scheme || resolved.Host != base.Host || !strings.HasPrefix(resolved.Path, base.Path) {
 		return "", fmt.Errorf("--path must not escape the Apple Ads Platform API v1 base URL")
 	}
 	if len(query) > 0 {
@@ -539,10 +482,6 @@ func (c *Client) requestURLForVersion(version APIVersion, path string, query url
 
 func (c *Client) versionRouting(version APIVersion) (baseURL, relativePrefix, absolutePrefix, description string, err error) {
 	switch version {
-	case APIVersionCampaignV5:
-		baseURL = c.baseURL
-		relativePrefix = "v5/"
-		description = "an Apple Ads v5 URL"
 	case APIVersionPlatformV1:
 		baseURL = c.platformBaseURL
 		relativePrefix = "v1/"
@@ -557,9 +496,6 @@ func (c *Client) versionRouting(version APIVersion) (baseURL, relativePrefix, ab
 		return
 	}
 	absolutePrefix = parsed.Path
-	if version == APIVersionCampaignV5 {
-		absolutePrefix += relativePrefix
-	}
 	return
 }
 

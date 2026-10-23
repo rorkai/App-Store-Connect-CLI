@@ -20,32 +20,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
-func TestAdsV5CommandRegistersEveryLegacyEndpointSpec(t *testing.T) {
-	root := AdsCommand()
-	for _, spec := range appleads.EndpointSpecs() {
-		path := append([]string{"v5"}, spec.CommandPath...)
-		cmd := findCommand(root, path...)
-		if cmd == nil {
-			t.Fatalf("missing command asc ads %s", strings.Join(path, " "))
-		}
-		if cmd.Exec == nil {
-			t.Fatalf("command asc ads %s has no Exec", strings.Join(path, " "))
-		}
-		assertSpecFlags(t, cmd, spec)
-
-		if spec.DefaultListAlias {
-			alias := findCommand(root, "v5", spec.CommandPath[0])
-			if alias == nil {
-				t.Fatalf("missing default list alias asc ads v5 %s", spec.CommandPath[0])
-			}
-			if alias.Exec == nil {
-				t.Fatalf("default list alias asc ads v5 %s has no Exec", spec.CommandPath[0])
-			}
-			assertSpecFlags(t, alias, spec)
-		}
-	}
-}
-
 func TestAdsRootRegistersPlatformV1AsDefault(t *testing.T) {
 	root := AdsCommand()
 	if findCommand(root, "platform") != nil {
@@ -70,9 +44,6 @@ func TestAdsRootRegistersPlatformV1AsDefault(t *testing.T) {
 	if findCommand(root, "api", "request") == nil {
 		t.Fatal("missing root Platform v1 raw request command")
 	}
-	if findCommand(root, "v5", "api", "request") == nil {
-		t.Fatal("missing deprecated v5 raw request command")
-	}
 }
 
 func TestAdsRawResponseCommandsExposeJSONOnlyOutput(t *testing.T) {
@@ -85,10 +56,6 @@ func TestAdsRawResponseCommandsExposeJSONOnlyOutput(t *testing.T) {
 		{path: []string{"api", "request"}},
 		{path: []string{"assets", "upload"}},
 		{path: []string{"campaigns", "pause"}, args: []string{"--campaign", "1"}},
-		{path: []string{"v5", "campaigns", "list"}},
-		{path: []string{"v5", "campaigns", "pause"}, args: []string{"--campaign", "1", "--confirm"}},
-		{path: []string{"v5", "reports", "preset"}},
-		{path: []string{"v5", "api", "request"}},
 	}
 	for _, test := range tests {
 		t.Run(strings.Join(test.path, " "), func(t *testing.T) {
@@ -202,7 +169,6 @@ func TestEndpointHelpDocumentsJSONBodyMetadata(t *testing.T) {
 		specs  []appleads.EndpointSpec
 	}{
 		{prefix: nil, specs: appleads.PlatformEndpointSpecs()},
-		{prefix: []string{"v5"}, specs: appleads.EndpointSpecs()},
 	}
 	for _, group := range specs {
 		for _, spec := range group.specs {
@@ -240,19 +206,6 @@ func TestEndpointHelpUsesMultipartShapeWithoutJSONPrefix(t *testing.T) {
 	}
 	if strings.Contains(help, "JSON multipart") {
 		t.Fatalf("multipart help = %q, must not call multipart JSON", help)
-	}
-}
-
-func TestEndpointHelpKeepsArraySchemaReadable(t *testing.T) {
-	root := AdsCommand()
-	cmd := findCommand(root, "v5", "targeting-keywords", "create-bulk")
-	if cmd == nil {
-		t.Fatal("missing targeting-keywords create-bulk")
-	}
-	for _, want := range []string{"Schema: [Keyword]", "Shape: JSON array", "Required: yes"} {
-		if !strings.Contains(cmd.LongHelp, want) {
-			t.Fatalf("targeting-keywords create-bulk LongHelp = %q, want %q", cmd.LongHelp, want)
-		}
 	}
 }
 
@@ -373,24 +326,6 @@ func TestPlatformNegativeKeywordResourceFlagsAreSemantic(t *testing.T) {
 		}
 		if cmd.FlagSet.Lookup("keyword") != nil {
 			t.Fatalf("negative-keywords %s must not expose the targeting --keyword flag", action)
-		}
-	}
-
-	// 5.0.0 removed the CLI-side hidden --keyword alias; the deprecated v5
-	// tree itself stays (Apple-retirement warnings are owned elsewhere).
-	for _, path := range [][]string{
-		{"v5", "campaign-negative-keywords", "view"},
-		{"v5", "ad-group-negative-keywords", "view"},
-	} {
-		legacy := findCommand(root, path...)
-		if legacy == nil {
-			t.Fatalf("missing deprecated %s command", strings.Join(path, " "))
-		}
-		if legacy.FlagSet.Lookup("negative-keyword") == nil {
-			t.Fatalf("%s missing --negative-keyword", strings.Join(path, " "))
-		}
-		if legacy.FlagSet.Lookup("keyword") != nil {
-			t.Fatalf("%s still registers the removed --keyword alias", strings.Join(path, " "))
 		}
 	}
 }
@@ -596,11 +531,6 @@ func TestPlatformQueryMigrationValidation(t *testing.T) {
 	}
 	if err := validateEndpointBody(createAd, json.RawMessage(`{"conditions":null,"values":null,"orderBy":null}`), true); err != nil {
 		t.Fatalf("non-query body must not use the query migration guard: %v", err)
-	}
-
-	legacyQuery := appleads.EndpointSpec{Version: appleads.APIVersionCampaignV5, Method: "POST", Path: "v5/campaigns/query"}
-	if err := validateEndpointBody(legacyQuery, json.RawMessage(`{"conditions":null,"orderBy":null}`), false); err != nil {
-		t.Fatalf("legacy v5 query body must not use the Platform API migration guard: %v", err)
 	}
 }
 
@@ -1018,7 +948,6 @@ func TestConfirmationHelpDistinguishesOperationalRiskFromDeletion(t *testing.T) 
 	}{
 		{path: []string{"campaigns", "create"}, want: "spend, billing"},
 		{path: []string{"budget-orders", "create"}, want: "spend, billing"},
-		{path: []string{"v5", "targeting-keywords", "create-bulk"}, want: "spend, billing"},
 		{path: []string{"campaigns", "delete"}, want: "Confirm deletion"},
 		{path: []string{"recommendations", "daily-budgets", "apply"}, want: "spend, billing"},
 		{path: []string{"recommendations", "daily-budgets", "dismiss"}, want: "spend, billing"},
@@ -1359,52 +1288,6 @@ func TestPlatformCampaignPauseResumeWorkflowsUseStringIDsAndSafeConfirmation(t *
 	}
 }
 
-func TestAdsCampaignsHelpReadsAsManagementSurface(t *testing.T) {
-	root := AdsCommand()
-	campaigns := findCommand(root, "v5", "campaigns")
-	if campaigns == nil {
-		t.Fatal("missing campaigns command")
-	}
-	if !strings.HasPrefix(campaigns.ShortHelp, "DEPRECATED:") || !strings.Contains(campaigns.ShortHelp, "asc ads campaigns find") {
-		t.Fatalf("campaigns ShortHelp = %q, want deprecated management surface", campaigns.ShortHelp)
-	}
-	if campaigns.FlagSet.Lookup("campaign") != nil {
-		t.Fatal("campaigns list alias should not expose workflow-only --campaign flag")
-	}
-
-	resume := findCommand(root, "v5", "campaigns", "resume")
-	if resume == nil {
-		t.Fatal("missing campaigns resume command")
-	}
-	campaignFlag := resume.FlagSet.Lookup("campaign")
-	if campaignFlag == nil {
-		t.Fatal("resume command missing --campaign flag")
-	}
-	if got := campaignFlag.Usage; got != "Apple Ads campaign ID (required)" {
-		t.Fatalf("resume --campaign usage = %q, want operator-friendly wording", got)
-	}
-	if !strings.Contains(resume.LongHelp, "--campaign CAMPAIGN_ID --confirm --org ORG_ID") {
-		t.Fatalf("resume LongHelp = %q, want campaign ID example", resume.LongHelp)
-	}
-}
-
-func TestAdsCampaignUpdateHelpDocumentsRequiredEnvelope(t *testing.T) {
-	root := AdsCommand()
-	update := findCommand(root, "v5", "campaigns", "update")
-	if update == nil {
-		t.Fatal("missing campaigns update command")
-	}
-
-	for _, want := range []string{
-		`Apple requires a "campaign" envelope for campaign updates.`,
-		`{"campaign":{"status":"PAUSED"}}`,
-	} {
-		if !strings.Contains(update.LongHelp, want) {
-			t.Fatalf("campaigns update LongHelp = %q, want %q", update.LongHelp, want)
-		}
-	}
-}
-
 func TestPlatformConditionalConfirmationAppearsOnceInHelp(t *testing.T) {
 	root := AdsCommand()
 	update := findCommand(root, "ad-accounts", "update")
@@ -1421,7 +1304,10 @@ func TestPlatformConditionalConfirmationAppearsOnceInHelp(t *testing.T) {
 }
 
 func TestCollectQueryValidatesEndpointSpecificLimitsAndEnums(t *testing.T) {
-	customReports, _ := appleads.EndpointByCommandPath("impression-share-reports", "list")
+	customReports := appleads.EndpointSpec{
+		Version:     appleads.APIVersionPlatformV1,
+		QueryParams: []appleads.ParamSpec{{Name: "limit", Flag: "limit", Type: appleads.ParamInt, Max: 50}},
+	}
 	fs, flags := bindEndpointFlags(customReports, "test")
 	if err := fs.Parse([]string{"--limit", "0"}); err != nil {
 		t.Fatalf("Parse() error: %v", err)
@@ -1436,69 +1322,33 @@ func TestCollectQueryValidatesEndpointSpecificLimitsAndEnums(t *testing.T) {
 		t.Fatalf("custom reports limit error = %v, want max 50 error", err)
 	}
 
-	productPages, _ := appleads.EndpointByCommandPath("product-pages", "list")
-	_, flags = bindEndpointFlags(productPages, "test")
-	*flags.pathStrings["adamId"] = "123456789"
-	*flags.queryStrings["states"] = "VISIBLE,PAUSED"
-	if _, err := collectQuery(productPages, flags); err == nil || !strings.Contains(err.Error(), "--states must be one of: HIDDEN, VISIBLE") {
-		t.Fatalf("states error = %v, want enum validation", err)
+	resources, _ := appleads.PlatformEndpointByCommandPath("advertiser-resources", "list")
+	_, flags = bindEndpointFlags(resources, "test")
+	*flags.queryStrings["resourceType"] = "CONTENT_PROVIDER,APP"
+	if _, err := collectQuery(resources, flags); err == nil || !strings.Contains(err.Error(), "--resource-type must be one of: CONTENT_PROVIDER, BUSINESS_BRAND") {
+		t.Fatalf("resource type error = %v, want enum validation", err)
 	}
 }
 
 func TestCollectPathParamsRequiresDocumentedIdentifiers(t *testing.T) {
-	campaign, _ := appleads.EndpointByCommandPath("campaigns", "view")
-	_, flags := bindEndpointFlags(campaign, "test")
-	if _, err := collectPathParams(campaign, flags); err == nil || !strings.Contains(err.Error(), "--campaign is required") {
-		t.Fatalf("path error = %v, want campaign required", err)
+	app, _ := appleads.PlatformEndpointByCommandPath("apps", "view")
+	_, flags := bindEndpointFlags(app, "test")
+	if _, err := collectPathParams(app, flags); err == nil || !strings.Contains(err.Error(), "--adam-id is required") {
+		t.Fatalf("path error = %v, want adam ID required", err)
 	}
 
-	*flags.pathStrings["campaignId"] = "123"
-	params, err := collectPathParams(campaign, flags)
+	*flags.pathStrings["adamId"] = "123"
+	params, err := collectPathParams(app, flags)
 	if err != nil {
 		t.Fatalf("collectPathParams() error: %v", err)
 	}
-	if params["campaignId"] != "123" {
-		t.Fatalf("campaignId = %q, want 123", params["campaignId"])
+	if params["adamId"] != "123" {
+		t.Fatalf("adamId = %q, want 123", params["adamId"])
 	}
 
-	*flags.pathStrings["campaignId"] = "not-a-number"
-	if _, err := collectPathParams(campaign, flags); err == nil || !strings.Contains(err.Error(), "--campaign must be an integer") {
+	*flags.pathStrings["adamId"] = "not-a-number"
+	if _, err := collectPathParams(app, flags); err == nil || !strings.Contains(err.Error(), "--adam-id must be an integer") {
 		t.Fatalf("path error = %v, want integer validation", err)
-	}
-}
-
-func TestRawRequestRequiresOrgGuardrails(t *testing.T) {
-	tests := []struct {
-		name        string
-		path        string
-		requiresOrg bool
-		wantErr     string
-	}{
-		{name: "me does not need org", path: "v5/me", requiresOrg: false},
-		{name: "me with query does not need org", path: "v5/me?fields=id", requiresOrg: false},
-		{name: "acls does not need org", path: "https://api.searchads.apple.com/api/v5/acls", requiresOrg: false},
-		{name: "absolute me with query does not need org", path: "https://api.searchads.apple.com/api/v5/me?fields=id", requiresOrg: false},
-		{name: "campaigns needs org", path: "v5/campaigns", requiresOrg: true},
-		{name: "reject non apple host", path: "https://example.com/api/v5/campaigns", wantErr: "Apple Ads v5 URL"},
-		{name: "reject path traversal", path: "v5/../campaigns", wantErr: "path traversal"},
-		{name: "reject wrong version", path: "v4/campaigns", wantErr: "start with v5/"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			requiresOrg, err := rawRequestRequiresOrg(tt.path)
-			if tt.wantErr != "" {
-				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("error = %v, want contains %q", err, tt.wantErr)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("rawRequestRequiresOrg() error: %v", err)
-			}
-			if requiresOrg != tt.requiresOrg {
-				t.Fatalf("requiresOrg = %t, want %t", requiresOrg, tt.requiresOrg)
-			}
-		})
 	}
 }
 
@@ -1679,7 +1529,7 @@ func TestPlatformOptionalBodyAndUnboundedLimit(t *testing.T) {
 		t.Fatalf("query = %v error = %v", query, err)
 	}
 	if got := appleads.MaxPageLimit(spec); got != 0 {
-		t.Fatalf("MaxPageLimit() = %d, want no v5 cap", got)
+		t.Fatalf("MaxPageLimit() = %d, want no cap", got)
 	}
 }
 
@@ -1756,46 +1606,6 @@ func TestResolveCredentialsPrefersExplicitProfileAndStrictRejectsMixedSources(t 
 	}
 }
 
-func TestResolveClientRequiresOrgForOrgScopedEndpoints(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
-	_, err := resolveClient(context.Background(), commonFlags{}, true)
-	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("resolveClient() error = %v, want usage error", err)
-	}
-
-	org := "123456"
-	client, err := resolveClient(context.Background(), commonFlags{Org: &org}, true)
-	if err != nil {
-		t.Fatalf("resolveClient() with org error: %v", err)
-	}
-	if client == nil {
-		t.Fatal("expected client")
-	}
-}
-
-func TestResolveClientUsesStoredAdsOrgWithAccessToken(t *testing.T) {
-	asc.ResetConfigCacheForTest()
-	t.Cleanup(asc.ResetConfigCacheForTest)
-
-	configPath := filepath.Join(t.TempDir(), "config.json")
-	t.Setenv("ASC_CONFIG_PATH", configPath)
-	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
-	if err := config.SaveAt(configPath, &config.Config{
-		Ads: config.AdsConfig{OrgID: "CONFIG_ORG"},
-	}); err != nil {
-		t.Fatalf("SaveAt() error: %v", err)
-	}
-
-	client, err := resolveClient(context.Background(), commonFlags{}, true)
-	if err != nil {
-		t.Fatalf("resolveClient() error: %v", err)
-	}
-	if client == nil {
-		t.Fatal("expected client")
-	}
-}
-
 func TestEnvCredentialsRejectsInvalidPrivateKeyBase64(t *testing.T) {
 	t.Setenv("ASC_ADS_CLIENT_ID", "CLIENT")
 	t.Setenv("ASC_ADS_TEAM_ID", "TEAM")
@@ -1844,14 +1654,14 @@ func TestResolveCredentialsRejectsPartialEnvBeforeStoredFallback(t *testing.T) {
 }
 
 func TestCollectQueryIncludesAllowedValidValues(t *testing.T) {
-	productPages, _ := appleads.EndpointByCommandPath("product-pages", "list")
-	_, flags := bindEndpointFlags(productPages, "test")
-	*flags.queryStrings["states"] = "HIDDEN,VISIBLE"
-	query, err := collectQuery(productPages, flags)
+	resources, _ := appleads.PlatformEndpointByCommandPath("advertiser-resources", "list")
+	_, flags := bindEndpointFlags(resources, "test")
+	*flags.queryStrings["resourceType"] = "CONTENT_PROVIDER"
+	query, err := collectQuery(resources, flags)
 	if err != nil {
 		t.Fatalf("collectQuery() error: %v", err)
 	}
-	want := url.Values{"states": {"HIDDEN,VISIBLE"}}
+	want := url.Values{"resourceType": {"CONTENT_PROVIDER"}}
 	if query.Encode() != want.Encode() {
 		t.Fatalf("query = %s, want %s", query.Encode(), want.Encode())
 	}
@@ -1875,15 +1685,6 @@ func TestEndpointHelpUsesOperatorFriendlyAuthDiscoveryNames(t *testing.T) {
 		}
 		if cmd.ShortHelp != test.want || !strings.Contains(cmd.LongHelp, test.want) {
 			t.Fatalf("asc ads %s help mismatch: ShortHelp = %q; LongHelp = %q, want content %q", strings.Join(test.path, " "), cmd.ShortHelp, cmd.LongHelp, test.want)
-		}
-
-		legacyPath := append([]string{"v5"}, test.path...)
-		legacy := findCommand(root, legacyPath...)
-		if legacy == nil {
-			t.Fatalf("missing command asc ads %s", strings.Join(legacyPath, " "))
-		}
-		if !strings.HasPrefix(legacy.ShortHelp, "DEPRECATED:") || !strings.Contains(legacy.LongHelp, test.want) {
-			t.Fatalf("asc ads %s help mismatch: ShortHelp = %q, want DEPRECATED prefix; LongHelp = %q, want content %q", strings.Join(legacyPath, " "), legacy.ShortHelp, legacy.LongHelp, test.want)
 		}
 	}
 }
@@ -1933,9 +1734,6 @@ func assertSpecFlags(t *testing.T, cmd *ffcli.Command, spec appleads.EndpointSpe
 		if cmd.FlagSet.Lookup(name) == nil {
 			t.Fatalf("asc ads %s missing --%s", strings.Join(spec.CommandPath, " "), name)
 		}
-	}
-	if spec.RequiresOrg && cmd.FlagSet.Lookup("org") == nil {
-		t.Fatalf("asc ads %s missing --org", strings.Join(spec.CommandPath, " "))
 	}
 	for _, param := range spec.PathParams {
 		if cmd.FlagSet.Lookup(param.Flag) == nil {

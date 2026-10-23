@@ -60,7 +60,7 @@ func TestAdsPlatformAppCampaignReportRequest(t *testing.T) {
 				if !reflect.DeepEqual(body, expectedBody) {
 					t.Fatalf("request body = %#v, want %#v", body, expectedBody)
 				}
-				return adsJSONResponse(200, `{"result":{"row":[{"campaignId":"123"}]},"pagination":{"totalResults":1}}`), nil
+				return adsJSONResponse(`{"result":{"row":[{"campaignId":"123"}]},"pagination":{"totalResults":1}}`), nil
 			}))
 
 			root := RootCommand("dev")
@@ -119,7 +119,7 @@ func TestAdsPlatformSearchTermPopularityUsesRuntimeSortKey(t *testing.T) {
 		if _, ok := body.Sorting[0]["order"]; ok {
 			t.Fatalf("sorting sent documentation-only order key: %#v", body.Sorting)
 		}
-		return adsJSONResponse(200, `{"result":[],"pagination":{"totalResults":0}}`), nil
+		return adsJSONResponse(`{"result":[],"pagination":{"totalResults":0}}`), nil
 	}))
 
 	root := RootCommand("dev")
@@ -157,9 +157,9 @@ func TestAdsPlatformChangeHistoryDetailRequest(t *testing.T) {
 		}
 		switch got := req.URL.Query().Get("offset"); got {
 		case "0":
-			return adsJSONResponse(200, `{"dataType":"ChangeDetail","pagination":{"totalCount":3,"offset":0,"pageSize":2},"result":[{"detailId":"Campaign.444555666.txn_abc123def456","details":[{"transactionId":"txn_abc123def456","changes":[{"field":"name"},{"field":"status"}]}]}]}`), nil
+			return adsJSONResponse(`{"dataType":"ChangeDetail","pagination":{"totalCount":3,"offset":0,"pageSize":2},"result":[{"detailId":"Campaign.444555666.txn_abc123def456","details":[{"transactionId":"txn_abc123def456","changes":[{"field":"name"},{"field":"status"}]}]}]}`), nil
 		case "2":
-			return adsJSONResponse(200, `{"dataType":"ChangeDetail","pagination":{"totalCount":3,"offset":2,"pageSize":2},"result":[{"detailId":"Campaign.444555666.txn_abc123def456","details":[{"transactionId":"txn_abc123def456","changes":[{"field":"dailyBudget"}]}]}]}`), nil
+			return adsJSONResponse(`{"dataType":"ChangeDetail","pagination":{"totalCount":3,"offset":2,"pageSize":2},"result":[{"detailId":"Campaign.444555666.txn_abc123def456","details":[{"transactionId":"txn_abc123def456","changes":[{"field":"dailyBudget"}]}]}]}`), nil
 		default:
 			t.Fatalf("offset = %q", got)
 		}

@@ -19,25 +19,6 @@ type commonFlags struct {
 	AdAccount  *string
 }
 
-func resolveClient(ctx context.Context, flags commonFlags, requiresOrg bool) (*appleads.Client, error) {
-	credentials, err := resolveCredentials(flags)
-	if err != nil {
-		return nil, err
-	}
-	if requiresOrg {
-		orgID, err := resolveOrgID(flags, credentials)
-		if err != nil {
-			return nil, err
-		}
-		if orgID == "" {
-			return nil, shared.UsageError("--org is required (or set ASC_ADS_ORG_ID or an Ads profile org_id)")
-		}
-		credentials.OrgID = orgID
-	}
-	_ = ctx
-	return appleads.NewClient(credentials)
-}
-
 func resolvePlatformClientAndAdAccountID(ctx context.Context, flags commonFlags, contextKind appleads.ContextKind) (*appleads.Client, string, error) {
 	credentials, err := resolveCredentials(flags)
 	if err != nil {
@@ -221,11 +202,6 @@ func normalizeAdAccountIDWithSource(raw, source string) (string, string, error) 
 		return "", "", nil
 	}
 	return trimmed, source, nil
-}
-
-func resolveOrgID(flags commonFlags, credentials appleads.Credentials) (string, error) {
-	orgID, _, err := resolveOrgIDWithSource(flags, credentials)
-	return orgID, err
 }
 
 func resolveOrgIDWithSource(flags commonFlags, credentials appleads.Credentials) (string, string, error) {
