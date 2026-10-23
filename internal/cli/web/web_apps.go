@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -250,7 +249,8 @@ func WebAppsCreateCommand() *ffcli.Command {
 	companyName := fs.String("company-name", "", "Company name (optional)")
 
 	appleID := fs.String("apple-id", "", "Apple Account email (defaults to "+webAppleIDEnv+", then the last or only cached session)")
-	password := fs.String("password", "", "Deprecated: Apple Account password; use a cached web session or "+webPasswordEnv+" instead")
+	fs.String("password", "", "Removed in 6.0.0")
+	shared.HideFlagFromHelp(fs.Lookup("password"))
 	twoFactorCodeCommand := fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required")
 	twoFactorDelivery := bindTwoFactorDeliveryFlags(fs)
 	autoRename := fs.Bool("auto-rename", true, "Retry with unique name suffix if app name is already taken")
@@ -282,7 +282,6 @@ Authentication:
   --apple-id with one of:
     - secure interactive prompt (default and recommended for local use)
     - %s environment variable
-    - --password (deprecated; removed in the next major release)
   Two-factor verification can use --two-factor-code-command
   or %s if a fresh login is required; add --two-factor-method sms
   to have Apple text the code to a trusted phone number.
@@ -319,7 +318,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if flagProvided(fs, "password") {
-				fmt.Fprintf(os.Stderr, "Warning: `asc web apps create --password` is deprecated and will be removed in the next major release. Run `asc web auth login --apple-id EMAIL` once and rerun without it to reuse the cached web session; unattended runs can set %s instead.\n", webPasswordEnv)
+				return shared.WithDiagnostic(shared.UsageErrorf(
+					"`--password` was removed in 6.0.0; run `asc web auth login --apple-id EMAIL` once and rerun without it to reuse the cached web session, or set `%s` for unattended sign-in",
+					webPasswordEnv,
+				), shared.DiagnosticInvalidInput, "--password")
 			}
 			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, webAppCreateIfExistsModes...)
 			if err != nil {
@@ -338,7 +340,6 @@ Examples:
 				Version:              *version,
 				CompanyName:          *companyName,
 				AppleID:              *appleID,
-				Password:             *password,
 				TwoFactorCodeCommand: *twoFactorCodeCommand,
 				AutoRename:           *autoRename,
 				IfExists:             ifExistsMode,

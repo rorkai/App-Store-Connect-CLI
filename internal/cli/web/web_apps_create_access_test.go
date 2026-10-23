@@ -48,12 +48,11 @@ func TestRunAppsCreateAccessLimitedWithoutUserMakesNoHTTP(t *testing.T) {
 	var err error
 	_, stderr := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Name:                     "My App",
-			BundleID:                 "com.example.app",
-			SKU:                      "SKU123",
-			Access:                   "limited",
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Name:     "My App",
+			BundleID: "com.example.app",
+			SKU:      "SKU123",
+			Access:   "limited",
+			Output:   "json",
 		})
 	})
 	if err == nil {
@@ -96,9 +95,8 @@ func TestRunAppsCreateInvalidAccessFailsBeforeWizard(t *testing.T) {
 	var err error
 	_, stderr := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Access:                   "limited",
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Access: "limited",
+			Output: "json",
 		})
 	})
 	if err == nil {
@@ -137,9 +135,8 @@ func TestRunAppsCreateAccessWithMissingNameMakesNoHTTP(t *testing.T) {
 	var err error
 	_, stderr := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Access:                   "full",
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Access: "full",
+			Output: "json",
 		})
 	})
 	if err == nil {
@@ -171,13 +168,12 @@ func TestRunAppsCreateBlankUserMakesNoHTTP(t *testing.T) {
 	var err error
 	_, stderr := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Name:                     "My App",
-			BundleID:                 "com.example.app",
-			SKU:                      "SKU123",
-			Access:                   "limited",
-			Users:                    []string{"user-1", " "},
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Name:     "My App",
+			BundleID: "com.example.app",
+			SKU:      "SKU123",
+			Access:   "limited",
+			Users:    []string{"user-1", " "},
+			Output:   "json",
 		})
 	})
 	if err == nil {
@@ -221,17 +217,17 @@ func TestRunAppsCreateUnknownUserMakesNoCreate(t *testing.T) {
 	}))
 	defer server.Close()
 	setAppCreateASCClient(t, server)
+	stubBundleIDPreflight(t)
 
 	var err error
 	_, stderr := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Name:                     "My App",
-			BundleID:                 "com.example.app",
-			SKU:                      "SKU123",
-			Access:                   "limited",
-			Users:                    []string{"missing-user"},
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Name:     "My App",
+			BundleID: "com.example.app",
+			SKU:      "SKU123",
+			Access:   "limited",
+			Users:    []string{"missing-user"},
+			Output:   "json",
 		})
 	})
 	if err == nil {
@@ -273,17 +269,17 @@ func TestRunAppsCreateAllAppsVisibleUserMakesNoCreate(t *testing.T) {
 	}))
 	defer server.Close()
 	setAppCreateASCClient(t, server)
+	stubBundleIDPreflight(t)
 
 	var err error
 	_, stderr := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Name:                     "My App",
-			BundleID:                 "com.example.app",
-			SKU:                      "SKU123",
-			Access:                   "limited",
-			Users:                    []string{"full-user"},
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Name:     "My App",
+			BundleID: "com.example.app",
+			SKU:      "SKU123",
+			Access:   "limited",
+			Users:    []string{"full-user"},
+			Output:   "json",
 		})
 	})
 	if err == nil {
@@ -327,16 +323,16 @@ func TestRunAppsCreateFullAccessUnauthorizedMakesNoCreate(t *testing.T) {
 	}))
 	defer server.Close()
 	setAppCreateASCClient(t, server)
+	stubBundleIDPreflight(t)
 
 	var err error
 	_, stderr := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Name:                     "My App",
-			BundleID:                 "com.example.app",
-			SKU:                      "SKU123",
-			Access:                   "full",
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Name:     "My App",
+			BundleID: "com.example.app",
+			SKU:      "SKU123",
+			Access:   "full",
+			Output:   "json",
 		})
 	})
 	if err == nil {
@@ -377,12 +373,11 @@ func TestRunAppsCreateOmittingAccessFlagsKeepsCreateBody(t *testing.T) {
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	if err := RunAppsCreate(context.Background(), AppsCreateRunOptions{
-		Name:                     "My App",
-		BundleID:                 "com.example.app",
-		SKU:                      "SKU123",
-		AppleID:                  "user@example.com",
-		Output:                   "json",
-		DisableBundleIDPreflight: true,
+		Name:     "My App",
+		BundleID: "com.example.app",
+		SKU:      "SKU123",
+		AppleID:  "user@example.com",
+		Output:   "json",
 	}); err != nil {
 		t.Fatalf("RunAppsCreate error: %v", err)
 	}
@@ -441,19 +436,19 @@ func TestRunAppsCreateLimitedAccessReceiptUsesRereadNotRequest(t *testing.T) {
 	}))
 	defer server.Close()
 	setAppCreateASCClient(t, server)
+	stubBundleIDPreflight(t)
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	var err error
 	stdout, _ := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Name:                     "My App",
-			BundleID:                 "com.example.app",
-			SKU:                      "SKU123",
-			AppleID:                  "user@example.com",
-			Access:                   "limited",
-			Users:                    []string{"user-1"},
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Name:     "My App",
+			BundleID: "com.example.app",
+			SKU:      "SKU123",
+			AppleID:  "user@example.com",
+			Access:   "limited",
+			Users:    []string{"user-1"},
+			Output:   "json",
 		})
 	})
 	if err != nil {
@@ -534,19 +529,19 @@ func TestRunAppsCreateLimitedAccessRollsBackGrantedUsersWhenLaterGrantFails(t *t
 	}))
 	defer server.Close()
 	setAppCreateASCClient(t, server)
+	stubBundleIDPreflight(t)
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	var err error
 	_, stderr := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Name:                     "My App",
-			BundleID:                 "com.example.app",
-			SKU:                      "SKU123",
-			AppleID:                  "user@example.com",
-			Access:                   "limited",
-			Users:                    []string{"user-1", "user-2"},
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Name:     "My App",
+			BundleID: "com.example.app",
+			SKU:      "SKU123",
+			AppleID:  "user@example.com",
+			Access:   "limited",
+			Users:    []string{"user-1", "user-2"},
+			Output:   "json",
 		})
 	})
 	if err == nil {
@@ -612,19 +607,19 @@ func TestRunAppsCreateLimitedAccessJoinsRollbackErrorWhenCompensationFails(t *te
 	}))
 	defer server.Close()
 	setAppCreateASCClient(t, server)
+	stubBundleIDPreflight(t)
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	var err error
 	_, stderr := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Name:                     "My App",
-			BundleID:                 "com.example.app",
-			SKU:                      "SKU123",
-			AppleID:                  "user@example.com",
-			Access:                   "limited",
-			Users:                    []string{"user-1", "user-2"},
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Name:     "My App",
+			BundleID: "com.example.app",
+			SKU:      "SKU123",
+			AppleID:  "user@example.com",
+			Access:   "limited",
+			Users:    []string{"user-1", "user-2"},
+			Output:   "json",
 		})
 	})
 	if err == nil {
@@ -668,18 +663,18 @@ func TestRunAppsCreateFullAccessDoesNotPostVisibleApps(t *testing.T) {
 	}))
 	defer server.Close()
 	setAppCreateASCClient(t, server)
+	stubBundleIDPreflight(t)
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	var err error
 	stdout, _ := captureOutput(t, func() {
 		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
-			Name:                     "My App",
-			BundleID:                 "com.example.app",
-			SKU:                      "SKU123",
-			AppleID:                  "user@example.com",
-			Access:                   "full",
-			Output:                   "json",
-			DisableBundleIDPreflight: true,
+			Name:     "My App",
+			BundleID: "com.example.app",
+			SKU:      "SKU123",
+			AppleID:  "user@example.com",
+			Access:   "full",
+			Output:   "json",
 		})
 	})
 	if err != nil {
@@ -731,6 +726,15 @@ func setAppCreateASCClient(t *testing.T, server *httptest.Server) {
 	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
 		return client, nil
 	}))
+}
+
+func stubBundleIDPreflight(t *testing.T) {
+	t.Helper()
+	orig := ensureBundleIDFn
+	t.Cleanup(func() { ensureBundleIDFn = orig })
+	ensureBundleIDFn = func(context.Context, string, string, string) (bool, error) {
+		return false, nil
+	}
 }
 
 func newAppCreateTestClient(t *testing.T, server *httptest.Server) *asc.Client {

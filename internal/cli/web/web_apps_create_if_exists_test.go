@@ -135,6 +135,7 @@ func setupIfExistsCreate(t *testing.T, firstBody string, byBundleID, bySKU strin
 	}))
 	t.Cleanup(server.Close)
 	setAppCreateASCClient(t, server)
+	stubBundleIDPreflight(t)
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	return h
 }
@@ -152,14 +153,13 @@ func appsListResponse(id, name, bundleID, sku string) string {
 
 func ifExistsCreateOptions(mode shared.IfExistsMode, autoRename bool) AppsCreateRunOptions {
 	return AppsCreateRunOptions{
-		Name:                     ifExistsTestName,
-		BundleID:                 ifExistsTestBundleID,
-		SKU:                      ifExistsTestSKU,
-		AppleID:                  "user@example.com",
-		Output:                   "json",
-		AutoRename:               autoRename,
-		IfExists:                 mode,
-		DisableBundleIDPreflight: true,
+		Name:       ifExistsTestName,
+		BundleID:   ifExistsTestBundleID,
+		SKU:        ifExistsTestSKU,
+		AppleID:    "user@example.com",
+		Output:     "json",
+		AutoRename: autoRename,
+		IfExists:   mode,
 	}
 }
 
