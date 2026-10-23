@@ -48,6 +48,7 @@ Examples:
   asc reviews ratings --app "123456789"
   asc reviews ratings --app "123456789" --all
   asc reviews summarizations --app "123456789" --platform IOS --territory US
+  asc reviews digest --app "123456789" --since 2026-10-01
   asc reviews respond --review-id "REVIEW_ID" --response "Thanks!"
   asc reviews respond-batch --app "123456789" --file replies.json --dry-run
   asc reviews response view --id "RESPONSE_ID"
@@ -60,6 +61,7 @@ Examples:
 			ReviewsGetCommand(),
 			ReviewsRatingsCommand(),
 			ReviewsSummarizationsCommand(),
+			ReviewsDigestCommand(),
 			ReviewsRespondCommand(),
 			ReviewsRespondBatchCommand(),
 			ReviewsResponseCommand(),

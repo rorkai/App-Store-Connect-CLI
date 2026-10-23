@@ -79,6 +79,7 @@ func registerAllOutputRenderers() {
 	registerRows(betaCrashLogRows)
 	registerRowsWithSingleResourceAdapter(reviewsRows)
 	registerRows(customerReviewSummarizationsRows)
+	registerDirect(customerReviewDigestTables)
 	registerRowsWithSingleResourceAdapter(appsRows)
 	registerDirect(appsPublishedReportTables)
 	registerRows(appRenameResultRows)
