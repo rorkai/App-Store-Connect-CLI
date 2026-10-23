@@ -29,8 +29,11 @@ Keyword workflow:
   - ` + "`asc apps search-keywords set`" + ` updates the supported version-localization ` + "`keywords`" + ` attribute
   - version-localization linkage operations remain under ` + "`asc localizations search-keywords ...`" + `
 
+Opt-in scopes (add to --include for pull, plan, and apply):
+` + metadataSettingsHelp("  ", true) + `
+
 Not yet included in this group:
-  - categories, review information, age ratings, screenshots
+  - review information, age ratings, screenshots
 
 Note: copyright is managed via "asc versions create --copyright" or "asc versions update --copyright".
 
