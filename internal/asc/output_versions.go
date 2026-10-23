@@ -196,6 +196,39 @@ func appStoreVersionPhasedReleaseRows(resp *AppStoreVersionPhasedReleaseResponse
 	return headers, rows
 }
 
+// PhasedReleaseGuardCheck records one health check run by the phased-release guard.
+type PhasedReleaseGuardCheck struct {
+	CurrentDayNumber int    `json:"currentDayNumber"`
+	ExitCode         int    `json:"exitCode"`
+	TimedOut         bool   `json:"timedOut,omitempty"`
+	Action           string `json:"action"`
+}
+
+// PhasedReleaseGuardResult is the receipt for asc versions phased-release guard.
+type PhasedReleaseGuardResult struct {
+	VersionID          string                    `json:"versionId"`
+	PhasedReleaseID    string                    `json:"phasedReleaseId"`
+	DryRun             bool                      `json:"dryRun"`
+	Outcome            string                    `json:"outcome"`
+	PhasedReleaseState PhasedReleaseState        `json:"phasedReleaseState"`
+	CurrentDayNumber   int                       `json:"currentDayNumber"`
+	Checks             []PhasedReleaseGuardCheck `json:"checks"`
+}
+
+func phasedReleaseGuardResultRows(result *PhasedReleaseGuardResult) ([]string, [][]string) {
+	headers := []string{"Version ID", "Phased Release ID", "Outcome", "State", "Current Day", "Checks", "Dry Run"}
+	rows := [][]string{{
+		result.VersionID,
+		result.PhasedReleaseID,
+		result.Outcome,
+		string(result.PhasedReleaseState),
+		fmt.Sprintf("%d", result.CurrentDayNumber),
+		fmt.Sprintf("%d", len(result.Checks)),
+		fmt.Sprintf("%t", result.DryRun),
+	}}
+	return headers, rows
+}
+
 func appStoreVersionPhasedReleaseDeleteResultRows(result *AppStoreVersionPhasedReleaseDeleteResult) ([]string, [][]string) {
 	headers := []string{"Phased Release ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}

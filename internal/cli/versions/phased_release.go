@@ -43,13 +43,15 @@ Examples:
   asc versions phased-release view --version-id "VERSION_ID"
   asc versions phased-release create --version-id "VERSION_ID"
   asc versions phased-release update --id "PHASED_ID" --state PAUSED
-  asc versions phased-release delete --id "PHASED_ID" --confirm`,
+  asc versions phased-release delete --id "PHASED_ID" --confirm
+  asc versions phased-release guard --version-id "VERSION_ID" --confirm -- ./scripts/health-check.sh`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PhasedReleaseGetCommand(),
 			PhasedReleaseCreateCommand(),
 			PhasedReleaseUpdateCommand(),
 			PhasedReleaseDeleteCommand(),
+			PhasedReleaseGuardCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
