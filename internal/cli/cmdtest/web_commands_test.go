@@ -207,15 +207,29 @@ func TestWebAppsCreateMissingRequiredFlags(t *testing.T) {
 	}
 }
 
-func TestWebAppsCreateExposesPasswordCompatibilityFlag(t *testing.T) {
+func TestWebAppsCreatePasswordFlagWarnsAndStaysAccepted(t *testing.T) {
 	root := RootCommand("1.2.3")
-	cmd := findSubcommand(root, "web", "apps", "create")
-	if cmd == nil {
-		t.Fatal("expected web apps create command")
-		return
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"web", "apps", "create", "--name", "My App", "--" + "password", "unused"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
 	}
-	if cmd.FlagSet.Lookup("password") == nil {
-		t.Fatal("expected temporary password compatibility flag on web apps create")
+	wantWarning := "Warning: `asc web apps create --" + "password` is deprecated and will be removed in the next major release. " +
+		"Run `asc web auth login --apple-id EMAIL` once and rerun without it to reuse the cached web session; " +
+		"unattended runs can set " + webPasswordEnvNameForTest() + " instead.\n"
+	if !strings.HasPrefix(stderr, wantWarning) {
+		t.Fatalf("expected deprecation warning first on stderr, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "Error: missing required flags: --bundle-id, --sku") {
+		t.Fatalf("expected validation to continue after the warning, got %q", stderr)
 	}
 }
 
