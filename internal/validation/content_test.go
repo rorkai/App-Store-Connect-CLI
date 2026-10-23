@@ -5,32 +5,48 @@ import (
 	"testing"
 )
 
-func TestContentChecksFlagUnmistakablePlaceholderCopy(t *testing.T) {
+func TestContentChecksFlagRejectionProneCopy(t *testing.T) {
 	tests := []struct {
-		name       string
-		value      string
-		wantQuoted string
+		name         string
+		value        string
+		inKeywords   bool
+		wantID       string
+		wantSeverity Severity
+		wantQuoted   string
 	}{
-		{name: "lorem ipsum sequence", value: "Lorem ipsum dolor sit amet.", wantQuoted: "Lorem ipsum dolor sit amet"},
-		{name: "todo marker", value: "TODO: write the final description.", wantQuoted: "TODO"},
-		{name: "tbd marker", value: "Pricing details TBD.", wantQuoted: "TBD"},
-		{name: "fixme marker", value: "FIXME before submission.", wantQuoted: "FIXME"},
+		{name: "lorem ipsum sequence", value: "Lorem ipsum dolor sit amet.", wantID: "content.placeholder_text", wantQuoted: "Lorem ipsum dolor sit amet"},
+		{name: "todo marker", value: "TODO: write the final description.", wantID: "content.placeholder_text", wantQuoted: "TODO"},
+		{name: "tbd marker", value: "Pricing details TBD.", wantID: "content.placeholder_text", wantQuoted: "TBD"},
+		{name: "fixme marker", value: "FIXME before submission.", wantID: "content.placeholder_text", wantQuoted: "FIXME"},
+		{name: "android platform", value: "Also available on Android devices.", wantID: "content.other_platforms", wantQuoted: "Android"},
+		{name: "store name", value: "Rated five stars on Google Play.", wantID: "content.other_platforms", wantQuoted: "Google Play"},
+		{name: "lowercase android keyword", value: "notes,android,sync", inKeywords: true, wantID: "content.other_platforms", wantQuoted: "android"},
+		{name: "coming soon", value: "New seasonal challenges are coming soon.", wantID: "content.unfinished_features", wantSeverity: SeverityInfo, wantQuoted: "coming soon"},
+		{name: "public beta", value: "Join the public beta today.", wantID: "content.unfinished_features", wantSeverity: SeverityInfo, wantQuoted: "public beta"},
+		{name: "pre-release", value: "This pre-release adds widgets.", wantID: "content.unfinished_features", wantSeverity: SeverityInfo, wantQuoted: "pre-release"},
+		{name: "debug build", value: "This debug build logs every request.", wantID: "content.test_words", wantQuoted: "debug build"},
+		{name: "testing purposes", value: "Uploaded for testing purposes.", wantID: "content.test_words", wantQuoted: "for testing purposes"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			checks := contentChecks(
-				[]VersionLocalization{{ID: "loc-1", Locale: "en-US", Description: test.value}},
-				nil,
-			)
+			loc := VersionLocalization{ID: "loc-1", Locale: "en-US", Description: test.value}
+			if test.inKeywords {
+				loc = VersionLocalization{ID: "loc-1", Locale: "en-US", Keywords: test.value}
+			}
+			checks := contentChecks([]VersionLocalization{loc}, nil)
 			if len(checks) != 1 {
-				t.Fatalf("checks = %+v, want one placeholder warning", checks)
+				t.Fatalf("checks = %+v, want one %s check", checks, test.wantID)
+			}
+			wantSeverity := test.wantSeverity
+			if wantSeverity == "" {
+				wantSeverity = SeverityWarning
 			}
 			check := checks[0]
-			if check.ID != "content.placeholder_text" || check.Severity != SeverityWarning {
-				t.Fatalf("check = %+v, want content.placeholder_text warning", check)
+			if check.ID != test.wantID || check.Severity != wantSeverity {
+				t.Fatalf("check = %+v, want %s %s", check, test.wantID, wantSeverity)
 			}
-			if !strings.Contains(check.Message, test.wantQuoted) || check.Remediation == "" {
+			if !strings.Contains(check.Message, `"`+test.wantQuoted+`"`) || check.Remediation == "" {
 				t.Fatalf("check = %+v, want quoted match and remediation", check)
 			}
 		})
@@ -40,9 +56,15 @@ func TestContentChecksFlagUnmistakablePlaceholderCopy(t *testing.T) {
 func TestContentChecksIgnoreEditoriallyAmbiguousMetadata(t *testing.T) {
 	tests := []string{
 		"Protected by Google reCAPTCHA.",
-		"New seasonal challenges are coming soon.",
+		"Back up your notes to Google Drive.",
 		"Beta Test Timer helps developers coordinate release checks.",
-		"Also available on Android devices.",
+		"Command androids in a robot arena.",
+		"Your android companion learns as you play.",
+		"Sort entries in alphabetical order.",
+		"Log beta blockers and relax with alpha and beta waves.",
+		"Track your test results and latest builds.",
+		"Home testing only takes 15 minutes.",
+		"Some features are not yet available in your region.",
 		"Start a free trial and subscribe when you are ready.",
 		"Manage your todo list and keep to-do items in one place.",
 		"Find your place in line and hold it.",

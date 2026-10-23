@@ -9,9 +9,6 @@ import (
 	"unicode/utf8"
 )
 
-// Placeholder-content lint is deliberately narrow. It flags unmistakable
-// template copy while leaving product, platform, roadmap, and beta wording to
-// App Review instead of guessing at editorial intent.
 var placeholderPhrases = []string{
 	"lorem ipsum dolor sit amet",
 }
@@ -20,9 +17,85 @@ var placeholderPhrases = []string{
 // ordinary product vocabulary, especially "todo" applications.
 var placeholderMarkers = []string{"TODO", "TBD", "FIXME"}
 
-var placeholderPatterns = []*regexp.Regexp{
-	contentPhrasePattern(placeholderPhrases),
-	contentMarkerPattern(placeholderMarkers),
+// Lowercase "android" is a robot in fiction, so outside keywords only the
+// capitalized platform name is matched.
+var otherPlatformMarkers = []string{"Android", "ANDROID"}
+
+var otherPlatformPhrases = []string{
+	"google play",
+	"play store",
+	"galaxy store",
+	"amazon appstore",
+	"amazon app store",
+	"appgallery",
+	"windows phone",
+}
+
+// Bare "beta" is excluded: beta blockers, beta waves, and portfolio beta are
+// legitimate product vocabulary.
+var unfinishedFeaturePhrases = []string{
+	"coming soon",
+	"pre-release",
+	"prerelease",
+	"beta version",
+	"beta build",
+	"beta release",
+	"public beta",
+	"open beta",
+	"closed beta",
+}
+
+var testWordPhrases = []string{
+	"test build",
+	"test version",
+	"debug build",
+	"debug version",
+	"demo build",
+	"demo version",
+	"for testing purposes",
+	"for testing only",
+}
+
+type contentRule struct {
+	id       string
+	severity Severity
+	patterns []*regexp.Regexp
+	// keywordPatterns replace patterns for the comma-separated keywords field.
+	keywordPatterns []*regexp.Regexp
+	message         string
+	remediation     string
+}
+
+var contentRules = []contentRule{
+	{
+		id:          "content.placeholder_text",
+		severity:    SeverityWarning,
+		patterns:    []*regexp.Regexp{contentPhrasePattern(placeholderPhrases), contentMarkerPattern(placeholderMarkers)},
+		message:     "%s contains placeholder text (%s)",
+		remediation: "Replace the placeholder copy with the final listing text",
+	},
+	{
+		id:              "content.other_platforms",
+		severity:        SeverityWarning,
+		patterns:        []*regexp.Regexp{contentMarkerPattern(otherPlatformMarkers), contentPhrasePattern(otherPlatformPhrases)},
+		keywordPatterns: []*regexp.Regexp{contentPhrasePattern(append([]string{"android"}, otherPlatformPhrases...))},
+		message:         "%s mentions another mobile platform or app store (%s)",
+		remediation:     "Remove names of other mobile platforms and app marketplaces from App Store metadata",
+	},
+	{
+		id:          "content.unfinished_features",
+		severity:    SeverityInfo,
+		patterns:    []*regexp.Regexp{contentPhrasePattern(unfinishedFeaturePhrases)},
+		message:     "%s describes unfinished or pre-release functionality (%s)",
+		remediation: "Describe only what this build already does; keep beta and roadmap wording out of App Store metadata",
+	},
+	{
+		id:          "content.test_words",
+		severity:    SeverityWarning,
+		patterns:    []*regexp.Regexp{contentPhrasePattern(testWordPhrases)},
+		message:     "%s describes the app as a test, debug, or demo build (%s)",
+		remediation: "Remove test, debug, and demo wording from App Store metadata; use TestFlight test information instead",
+	},
 }
 
 type contentField struct {
@@ -67,20 +140,26 @@ func contentChecks(versionLocs []VersionLocalization, appInfoLocs []AppInfoLocal
 		if strings.TrimSpace(field.value) == "" {
 			continue
 		}
-		matches := findContentMatches(field.value, placeholderPatterns)
-		if len(matches) == 0 {
-			continue
+		for _, rule := range contentRules {
+			patterns := rule.patterns
+			if field.field == "keywords" && rule.keywordPatterns != nil {
+				patterns = rule.keywordPatterns
+			}
+			matches := findContentMatches(field.value, patterns)
+			if len(matches) == 0 {
+				continue
+			}
+			checks = append(checks, CheckResult{
+				ID:           rule.id,
+				Severity:     rule.severity,
+				Locale:       field.locale,
+				Field:        field.field,
+				ResourceType: field.resourceType,
+				ResourceID:   field.resourceID,
+				Message:      fmt.Sprintf(rule.message, field.label, quoteContentMatches(matches)),
+				Remediation:  rule.remediation,
+			})
 		}
-		checks = append(checks, CheckResult{
-			ID:           "content.placeholder_text",
-			Severity:     SeverityWarning,
-			Locale:       field.locale,
-			Field:        field.field,
-			ResourceType: field.resourceType,
-			ResourceID:   field.resourceID,
-			Message:      fmt.Sprintf("%s contains placeholder text (%s)", field.label, quoteContentMatches(matches)),
-			Remediation:  "Replace the placeholder copy with the final listing text",
-		})
 	}
 
 	return checks

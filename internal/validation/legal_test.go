@@ -42,6 +42,41 @@ func TestLegalChecks_CopyrightAcceptsAppStoreConnectFreeTextForms(t *testing.T) 
 	}
 }
 
+func TestLegalChecks_CopyrightRangeEndingBeforeCurrentYear(t *testing.T) {
+	currentYear := time.Now().Year()
+	tests := []struct {
+		value        string
+		wantOutdated bool
+	}{
+		{value: fmt.Sprintf("2019-%d Acme Inc.", currentYear-1), wantOutdated: true},
+		{value: fmt.Sprintf("© 2019 – %d Acme Inc.", currentYear-2), wantOutdated: true},
+		{value: fmt.Sprintf("2019-%d Acme Inc.", currentYear), wantOutdated: false},
+		{value: "2019 Acme Inc.", wantOutdated: false},
+		{value: fmt.Sprintf("%d-%d Acme Inc.", currentYear-1, currentYear-3), wantOutdated: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.value, func(t *testing.T) {
+			checks := legalChecks(test.value, false, false, nil, nil)
+			var found []CheckResult
+			for _, check := range checks {
+				if check.ID == "legal.format.copyright_year_outdated" {
+					found = append(found, check)
+				}
+			}
+			if !test.wantOutdated {
+				if len(found) != 0 {
+					t.Fatalf("checks = %+v, want no outdated copyright check", checks)
+				}
+				return
+			}
+			if len(found) != 1 || found[0].Severity != SeverityInfo || found[0].Remediation == "" {
+				t.Fatalf("checks = %+v, want one outdated copyright info check with remediation", checks)
+			}
+		})
+	}
+}
+
 func TestLegalChecks_CopyrightYearAdvisesInsteadOfBlocking(t *testing.T) {
 	checks := legalChecks("Acme Inc.", false, false, nil, nil)
 

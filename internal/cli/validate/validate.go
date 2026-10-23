@@ -69,6 +69,8 @@ reported.
 Checks:
   - Metadata length limits
   - Placeholder copy in localized listing fields (warning; --strict to block)
+  - Other-platform and test/debug wording in listing fields (warning; --strict to block)
+  - Unfinished-feature wording in listing fields and stale copyright year ranges (info)
   - Deterministic metadata content and keyword hygiene warnings
   - Optional bounded checks for public metadata URL destinations (--check-urls)
   - Required fields and localizations

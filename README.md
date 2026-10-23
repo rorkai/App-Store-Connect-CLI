@@ -310,9 +310,18 @@ descriptions, keywords, promotional text, or What's New copy still contains an
 unmistakable template marker such as `Lorem ipsum`, `TODO`, `TBD`, or `FIXME`.
 `Lorem ipsum` matches in any letter case. `TODO`, `TBD`, and `FIXME` match only
 in uppercase because their lowercase spellings can be ordinary product wording.
-The warning includes the locale, field, matched text, resource ID, and a
-remediation step. It is advisory by default and becomes blocking only with
-`--strict`:
+The same fields are checked for wording App Review commonly rejects:
+`content.other_platforms` (`Android`, `Google Play`, other app stores) and
+`content.test_words` (`debug build`, `for testing purposes`) are warnings, and
+`content.unfinished_features` (`coming soon`, `public beta`, `pre-release`) is
+informational because roadmap wording can be legitimate copy. Matching respects
+word boundaries, so `androids` never matches, lowercase `android` is matched
+only in keywords, and bare `beta` is ignored because it is ordinary wording in
+health, audio, and finance apps. Each finding includes the locale, field,
+matched text, resource ID, and a remediation step. Warnings are advisory by
+default and become blocking only with `--strict`. A copyright year range that
+ends before the current year is reported as
+`legal.format.copyright_year_outdated` (info):
 
 ```bash
 asc validate --app "123456789" --version "1.2.3" --output json
