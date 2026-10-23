@@ -29,8 +29,15 @@ Keyword workflow:
   - ` + "`asc apps search-keywords set`" + ` updates the supported version-localization ` + "`keywords`" + ` attribute
   - version-localization linkage operations remain under ` + "`asc localizations search-keywords ...`" + `
 
+Opt-in scopes (add to --include for pull, plan, and apply):
+` + metadataSettingsHelp("  ", true) + `
+  review-information never stores demoAccountPassword in clear text: pull writes
+  "@env:ASC_DEMO_ACCOUNT_PASSWORD", and the file must use @env:NAME or @file:PATH
+  (relative to --dir). Plans show <redacted> plus the reference, so an approval
+  binds the reference, not the secret value. Attachments are not managed.
+
 Not yet included in this group:
-  - categories, review information, age ratings, screenshots
+  - categories, age ratings, screenshots
 
 Note: copyright is managed via "asc versions create --copyright" or "asc versions update --copyright".
 

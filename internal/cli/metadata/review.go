@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -97,7 +98,7 @@ func MetadataPlanCommand() *ffcli.Command {
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Metadata root directory (required)")
-	include := fs.String("include", includeLocalizations, "Included scopes: localizations,app-clip,previews (comma-separated)")
+	include := fs.String("include", includeLocalizations, metadataIncludeFlagUsage())
 	allowDeletes := fs.Bool("allow-deletes", false, "Plan destructive delete operations (disables default locale fallback for missing locales)")
 	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
 	reviewDir := fs.String("review-dir", defaultMetadataReviewDir, "Directory for metadata review artifacts")
@@ -159,13 +160,13 @@ func MetadataApproveCommand() *ffcli.Command {
 	reviewDir := fs.String("review-dir", defaultMetadataReviewDir, "Directory containing metadata review artifacts")
 	all := fs.Bool("all", false, "Approve every planned metadata change")
 	key := fs.String("key", "", "Approve specific plan key(s), comma-separated")
-	scope := fs.String("scope", "", "Approve all changes in scope(s): app-info, version, store-assets")
+	scope := fs.String("scope", "", "Approve all changes in scope(s): "+strings.Join(metadataApprovalScopes(), ", "))
 	note := fs.String("note", "", "Optional reviewer note written to approved.json")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "approve",
-		ShortUsage: `asc metadata approve [--review-dir ".asc/metadata/review"] (--all | --key "KEY" | --scope app-info,version,store-assets)`,
+		ShortUsage: `asc metadata approve [--review-dir ".asc/metadata/review"] (--all | --key "KEY" | --scope ` + strings.Join(metadataApprovalScopes(), ",") + `)`,
 		ShortHelp:  "Approve a metadata review plan.",
 		LongHelp: `Approve a metadata review plan by writing approved.json.
 
@@ -595,15 +596,11 @@ func selectApprovedMetadataKeys(items []PlanItem, opts MetadataApproveOptions) (
 	if len(scopes) == 0 {
 		return nil, "", shared.UsageError("--scope must include at least one scope")
 	}
-	allowedScopes := map[string]struct{}{
-		appInfoDirName: {},
-		versionDirName: {},
-		"store-assets": {},
-	}
+	allowedScopes := metadataApprovalScopes()
 	scopeSet := make(map[string]struct{}, len(scopes))
 	for _, scope := range scopes {
-		if _, ok := allowedScopes[scope]; !ok {
-			return nil, "", shared.UsageErrorf("--scope must be one of %s, %s, store-assets", appInfoDirName, versionDirName)
+		if !slices.Contains(allowedScopes, scope) {
+			return nil, "", shared.UsageErrorf("--scope must be one of %s", strings.Join(allowedScopes, ", "))
 		}
 		scopeSet[scope] = struct{}{}
 	}
@@ -615,6 +612,10 @@ func selectApprovedMetadataKeys(items []PlanItem, opts MetadataApproveOptions) (
 	}
 	sort.Strings(approved)
 	return approved, "scope", nil
+}
+
+func metadataApprovalScopes() []string {
+	return append([]string{appInfoDirName, versionDirName, "store-assets"}, metadataSettingScopeNames()...)
 }
 
 func splitReviewCSV(value string) []string {

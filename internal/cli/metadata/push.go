@@ -174,7 +174,7 @@ func newMetadataMutationCommand(cfg metadataMutationCommandConfig) *ffcli.Comman
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Metadata root directory (required)")
-	include := fs.String("include", includeLocalizations, "Included scopes: localizations,app-clip,previews (comma-separated)")
+	include := fs.String("include", includeLocalizations, metadataIncludeFlagUsage())
 	dryRun := fs.Bool("dry-run", false, "Preview changes without mutating App Store Connect")
 	allowDeletes := fs.Bool("allow-deletes", false, "Allow destructive delete operations when applying changes (disables default locale fallback for missing locales)")
 	confirm := fs.Bool("confirm", false, "Confirm mutations (required for deletes, field clears, --review-dir, or asset scopes)")
@@ -206,6 +206,9 @@ Examples:
 
 Notes:
   - Add --include localizations,app-clip,previews to include store assets; applying assets requires --confirm.
+  - Opt-in scopes read one file each below --dir, plan only the fields present, and
+    fail when App Store Connect reads back a different value after apply:
+%s
   - Preview validation requires ffprobe on PATH (provided by FFmpeg).
   - default.json fallback is applied only when --allow-deletes is not set.
   - with --allow-deletes, remote locales missing locally are planned as deletes.
@@ -223,6 +226,7 @@ Notes:
 			cfg.name,
 			cfg.name,
 			reviewExample,
+			metadataSettingsHelp("      ", false),
 		),
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
