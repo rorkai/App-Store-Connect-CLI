@@ -120,6 +120,30 @@ slot or another locale has iPad screenshots. It never blocks, even with
 A `UIDeviceFamily` key that is present but empty or unreadable fails `--ipa`.
 A missing key means iPhone only, as on iOS.
 
+## Check media delivery
+
+`validate` reads the delivery state of every screenshot and app preview on the
+version, locale by locale, plus any asset library placements of type
+`APP_SCREENSHOT`, `IMESSAGE_APP_SCREENSHOT`, or `APP_PREVIEW`. Screenshots use
+`assetDeliveryState`. App previews use `videoDeliveryState`, falling back to the
+deprecated `assetDeliveryState` when Apple returns only that.
+
+| Finding                     | Severity | Meaning                                                                                                                  |
+| --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `media.delivery.failed`     | Error    | Processing failed. The finding includes Apple's error when one is returned.                                              |
+| `media.delivery.pending`    | Warning  | The asset is `AWAITING_UPLOAD`, `UPLOAD_COMPLETE`, `PROCESSING`, or `ASSET_PROCESSING`, or a placement is `INVALID`. |
+| `media.delivery.unverified` | Info     | Apple returned no state, returned a state `asc` doesn't recognize, or the previews or placements for a locale couldn't be read. |
+
+Apple doesn't report when a state last changed, so `pending` can't separate
+media that is stuck from media that is still moving. Validate again after a few
+minutes: an asset in the same state is likely stuck. Use `--strict` when a
+pending finding must fail CI. Unverified findings stay informational and never
+block, because nothing shows the media is wrong.
+
+Each version localization adds two requests, one for app preview sets and one
+for placements, plus more when a response is paged. They count against the same
+read limit as the rest of the report.
+
 ## Check Apple's web-only blockers
 
 The `--deep` mode keeps every public-API check above, then reads an
