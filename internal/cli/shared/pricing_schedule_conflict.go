@@ -31,6 +31,9 @@ type appPriceScheduleConflictInput struct {
 	BaseTerritoryID    string
 	StartDate          string
 	StartDateDefaulted bool
+	// TemporaryPrice marks a request with several manual prices, where the
+	// single-price guidance could blame the wrong flag.
+	TemporaryPrice bool
 }
 
 // explainAppPriceScheduleConflict turns the App Store Connect 409 causes known
@@ -62,6 +65,8 @@ func explainAppPriceScheduleConflict(err error, input appPriceScheduleConflictIn
 	switch {
 	case hasAPIErrorEntry(entries, appPriceScheduleInvalidStartDateCode, "start date in the past"):
 		guidance, diagnostic, parameter = pastStartDateGuidance(input), DiagnosticInvalidInput, "--start-date"
+	case input.TemporaryPrice:
+		return wrapped
 	case hasAPIErrorEntry(entries, appPriceScheduleInvalidStartDateCode, "entire timeline must be covered"):
 		guidance, diagnostic, parameter = futureStartDateGuidance(input), DiagnosticInvalidInput, "--start-date"
 	case hasAPIErrorEntry(entries, appPriceScheduleBaseTerritoryIntervalMissing, ""):

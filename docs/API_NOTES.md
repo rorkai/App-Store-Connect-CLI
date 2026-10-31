@@ -101,6 +101,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
   - Single future `startDate` without covering today: `ENTITY_ERROR.INVALID_START_DATE` (`Entire timeline must be covered for USA...`).
   - Manual price territory mismatching `baseTerritory`: `ENTITY_ERROR.BASE_TERRITORY_INTERVAL_REQUIRED`.
   - Unknown or cross-app price point ID: `ENTITY_ERROR.NOT_FOUND`.
+- A temporary price (`asc pricing schedule create --end-date`) is sent as a contiguous base territory timeline: an optional entry with no `startDate` that ends at the sale start, the sale, and an entry from the sale end with no `endDate`. This follows Apple's `POST /v1/appPriceSchedules` example, where one base territory entry ends on the date the next starts. No live capture exists yet.
 - App Store Connect evaluates "today" and schedule interval boundaries at **US Pacific midnight** (`America/Los_Angeles`) with exclusive end dates, and stores an accepted today `startDate` as `null`. `asc pricing`, `asc app-setup pricing`, `asc iap pricing`, `asc subscriptions pricing`, and `asc validate` all evaluate current/resolved prices and default start dates using the US Pacific date.
 
 ## Developer Portal iCloud containers
