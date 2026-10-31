@@ -131,7 +131,7 @@ deprecated `assetDeliveryState` when Apple returns only that.
 | Finding                     | Severity | Meaning                                                                                                                  |
 | --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `media.delivery.failed`     | Error    | Processing failed. The finding includes Apple's error when one is returned.                                              |
-| `media.delivery.pending`    | Warning  | The asset is `AWAITING_UPLOAD`, `UPLOAD_COMPLETE`, `PROCESSING`, or `ASSET_PROCESSING`.                                  |
+| `media.delivery.pending`    | Warning  | The asset is `AWAITING_UPLOAD`, `UPLOAD_COMPLETE`, `PROCESSING`, or `ASSET_PROCESSING`, or a placement is `INVALID`. |
 | `media.delivery.unverified` | Info     | Apple returned no state, returned a state `asc` doesn't recognize, or the previews or placements for a locale couldn't be read. |
 
 Apple doesn't report when a state last changed, so `pending` can't separate

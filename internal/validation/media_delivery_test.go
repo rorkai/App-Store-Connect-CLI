@@ -96,8 +96,10 @@ func TestMediaDeliveryChecksReportPlacementStates(t *testing.T) {
 	}{
 		{state: "PARENT_PREPARE_FOR_SUBMISSION"},
 		{state: "PARENT_APPROVED"},
+		{state: "ACTIVE"},
 		{state: "FAILED", wantID: CheckMediaDeliveryFailed, wantSeverity: SeverityError},
 		{state: "ASSET_PROCESSING", wantID: CheckMediaDeliveryPending, wantSeverity: SeverityWarning},
+		{state: "INVALID", wantID: CheckMediaDeliveryPending, wantSeverity: SeverityWarning},
 		{state: "", wantID: CheckMediaDeliveryUnverified, wantSeverity: SeverityInfo},
 		{state: "SOMETHING_NEW", wantID: CheckMediaDeliveryUnverified, wantSeverity: SeverityInfo},
 	}

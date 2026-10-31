@@ -38,15 +38,18 @@ func classifySetMediaState(state string) mediaDeliveryClass {
 }
 
 // classifyPlacementState maps AppAssetLibraryPlacementState. The PARENT_ states
-// describe the owning version, which means the asset itself finished.
+// describe the owning version, which means the asset itself finished. Apple
+// also returns ACTIVE and INVALID, which the published schema omits: ACTIVE for
+// a finished placement, INVALID with ASSET_PREPROCESSING_INCOMPLETE for one
+// whose asset never finished.
 func classifyPlacementState(state string) mediaDeliveryClass {
 	normalized := normalizeMediaState(state)
 	switch {
 	case normalized == "FAILED":
 		return mediaDeliveryFailed
-	case normalized == "ASSET_PROCESSING":
+	case normalized == "ASSET_PROCESSING", normalized == "INVALID":
 		return mediaDeliveryPending
-	case strings.HasPrefix(normalized, "PARENT_"):
+	case normalized == "ACTIVE", strings.HasPrefix(normalized, "PARENT_"):
 		return mediaDelivered
 	default:
 		return mediaDeliveryUnknown
@@ -194,19 +197,20 @@ func mediaPlacementCheck(placement MediaPlacement) (CheckResult, bool) {
 		subject += " in group " + group
 	}
 	state := normalizeMediaState(placement.State)
+	details := ""
+	if len(placement.StateDetails) > 0 {
+		details = ": " + strings.Join(placement.StateDetails, "; ")
+	}
 	switch class {
 	case mediaDeliveryFailed:
 		check.ID = CheckMediaDeliveryFailed
 		check.Severity = SeverityError
-		check.Message = subject + " failed processing"
-		if len(placement.StateDetails) > 0 {
-			check.Message += ": " + strings.Join(placement.StateDetails, "; ")
-		}
+		check.Message = subject + " failed processing" + details
 		check.Remediation = "Replace the failed placement, or remove it with `asc localizations placements delete --id \"PLACEMENT_ID\" --confirm`"
 	case mediaDeliveryPending:
 		check.ID = CheckMediaDeliveryPending
 		check.Severity = SeverityWarning
-		check.Message = fmt.Sprintf("%s has not finished processing (%s)", subject, state)
+		check.Message = fmt.Sprintf("%s has not finished processing (%s)%s", subject, state, details)
 		check.Remediation = "Wait for the asset to finish processing, then validate again"
 	case mediaDeliveryUnknown:
 		if state == "" {
