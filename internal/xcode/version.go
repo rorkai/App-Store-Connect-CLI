@@ -253,6 +253,34 @@ func getVersionLegacy(
 	}, nil
 }
 
+// getVersionFallback reads versions when structured parsing cannot resolve
+// them. agvtool only reads project.pbxproj, so JSON projects use xcodebuild.
+func (project *structuredVersionProject) getVersionFallback(
+	ctx context.Context,
+	projectDir string,
+	target string,
+	lookupSession *BuildSettingsLookupSession,
+) (*VersionInfo, error) {
+	if project.xcproj == nil {
+		return getVersionLegacy(ctx, projectDir, target, lookupSession)
+	}
+	resolved, err := readBuildSettings(ctx, projectDir, target, lookupSession)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve build settings: %w", err)
+	}
+	version, build := resolved[marketingVersionSetting], resolved[currentProjectSetting]
+	if version == "" || build == "" {
+		return nil, fmt.Errorf("xcodebuild did not report both %s and %s", marketingVersionSetting, currentProjectSetting)
+	}
+	return &VersionInfo{
+		Version:     version,
+		BuildNumber: build,
+		ProjectDir:  resolvedProjectDir(projectDir),
+		Target:      target,
+		Modern:      true,
+	}, nil
+}
+
 // SetVersion sets the marketing version and/or build number.
 func SetVersion(ctx context.Context, opts SetVersionOptions) (*SetVersionResult, error) {
 	if err := validateVersionMutationValue("--version", opts.Version); err != nil {
@@ -275,6 +303,9 @@ func SetVersion(ctx context.Context, opts SetVersionOptions) (*SetVersionResult,
 	err = fmt.Errorf("%w: selected Xcode configurations do not resolve both MARKETING_VERSION and CURRENT_PROJECT_VERSION", errStructuredVersionUnavailable)
 	if strings.TrimSpace(opts.Target) != "" || strings.TrimSpace(opts.Configuration) != "" {
 		return nil, fmt.Errorf("scoped edits require structured Xcode build settings: %w", err)
+	}
+	if project.xcproj != nil {
+		return nil, errXCProjAgvtoolUnsupported
 	}
 	return setVersionLegacy(ctx, opts)
 }
@@ -303,6 +334,9 @@ func ValidateSetVersion(ctx context.Context, opts SetVersionOptions) error {
 	structuredErr := fmt.Errorf("%w: selected Xcode configurations do not resolve both MARKETING_VERSION and CURRENT_PROJECT_VERSION", errStructuredVersionUnavailable)
 	if strings.TrimSpace(opts.Target) != "" || strings.TrimSpace(opts.Configuration) != "" {
 		return fmt.Errorf("scoped edits require structured Xcode build settings: %w", structuredErr)
+	}
+	if project.xcproj != nil {
+		return errXCProjAgvtoolUnsupported
 	}
 	return validateSetVersionLegacy(ctx)
 }
@@ -388,6 +422,9 @@ func BumpVersion(ctx context.Context, opts BumpVersionOptions) (*BumpVersionResu
 	if strings.TrimSpace(opts.Target) != "" || strings.TrimSpace(opts.Configuration) != "" {
 		return nil, fmt.Errorf("scoped bumps require structured Xcode build settings: %w", err)
 	}
+	if project.xcproj != nil {
+		return nil, errXCProjAgvtoolUnsupported
+	}
 	return bumpVersionLegacy(ctx, opts)
 }
 
@@ -420,6 +457,9 @@ func ValidateBumpVersion(ctx context.Context, opts BumpVersionOptions) error {
 	structuredErr := fmt.Errorf("%w: selected Xcode configurations do not resolve both MARKETING_VERSION and CURRENT_PROJECT_VERSION", errStructuredVersionUnavailable)
 	if strings.TrimSpace(opts.Target) != "" || strings.TrimSpace(opts.Configuration) != "" {
 		return fmt.Errorf("scoped bumps require structured Xcode build settings: %w", structuredErr)
+	}
+	if project.xcproj != nil {
+		return errXCProjAgvtoolUnsupported
 	}
 	if err := validateSetVersionLegacy(ctx); err != nil {
 		return err

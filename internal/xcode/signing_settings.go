@@ -415,7 +415,7 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := validateSigningArtifactPaths(planPath, receiptPath, project.pbxprojPath, settingsPath); err != nil {
+	if err := validateSigningArtifactPaths(planPath, receiptPath, project.projectFilePath, settingsPath); err != nil {
 		return nil, newSigningInputError(err)
 	}
 	if settings == nil || len(settings.Targets) == 0 {
@@ -684,7 +684,7 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 		}
 		files[key] = SigningPlanFile{Path: path, SHA256: digest, Source: source}
 	}
-	addFile(project.pbxprojPath, "pbxproj")
+	addFile(project.projectFilePath, "pbxproj")
 	if settingsPath != "" {
 		addFile(settingsPath, "settings")
 	}
@@ -1633,7 +1633,7 @@ func (resolver *signingSettingResolver) resolveSettingReferenceWithContext(
 	// does the implicit context apply, so a project that assigns one of these
 	// names keeps Xcode's precedence.
 	if value, ok := signingImplicitSettingValue(resolver.project, expansionConfiguration, setting); ok {
-		return value, resolver.project.pbxprojPath, nil
+		return value, resolver.project.projectFilePath, nil
 	}
 	return "", "", fmt.Errorf("setting not found")
 }
@@ -1808,7 +1808,7 @@ func (resolver *signingSettingResolver) xcconfigDependsOnFallback(configuration 
 	withBase, withErr := resolveXCConfigSettingWithBaseReader(
 		path,
 		setting,
-		xcconfigResolvedValue{value: sentinel, path: resolver.project.pbxprojPath, found: true, exact: true},
+		xcconfigResolvedValue{value: sentinel, path: resolver.project.projectFilePath, found: true, exact: true},
 		read,
 		stat,
 	)
@@ -1832,7 +1832,7 @@ func (resolver *signingSettingResolver) expandSettingReferences(configuration *v
 			if strings.Contains(resolved, "$(") || strings.Contains(resolved, "${") {
 				return "", "", fmt.Errorf("incomplete build-setting reference")
 			}
-			return strings.TrimSpace(resolved), resolver.project.pbxprojPath, nil
+			return strings.TrimSpace(resolved), resolver.project.projectFilePath, nil
 		}
 		name := ""
 		if match[2] >= 0 {
@@ -1976,7 +1976,7 @@ func buildSigningPlanOperations(
 			continue
 		}
 		operations = append(operations, signingPlanOperation{
-			SigningSettingChange: signingChange(candidate, project.pbxprojPath, "pbxproj"),
+			SigningSettingChange: signingChange(candidate, project.projectFilePath, "pbxproj"),
 			configuration:        candidate.configuration,
 		})
 	}
@@ -2607,8 +2607,8 @@ func validateSigningProjectFile(project *structuredVersionProject) error {
 		return err
 	}
 	defer root.Close()
-	if err := root.AllowingInternalSymlinks().CheckContained(project.pbxprojPath); err != nil {
-		return fmt.Errorf("refusing to use Xcode project file %s: %w", project.pbxprojPath, err)
+	if err := root.AllowingInternalSymlinks().CheckContained(project.projectFilePath); err != nil {
+		return fmt.Errorf("refusing to use Xcode project file %s: %w", project.projectFilePath, err)
 	}
 	return nil
 }
@@ -2861,9 +2861,9 @@ func signingProjectInputPaths(
 	uncertainEntitlementConfigurations := make(map[string]bool)
 	paths := make([]string, 0, 2)
 	if strings.TrimSpace(settingsPath) != "" {
-		paths = append(paths, project.pbxprojPath, settingsPath)
+		paths = append(paths, project.projectFilePath, settingsPath)
 	} else {
-		paths = []string{project.pbxprojPath}
+		paths = []string{project.projectFilePath}
 	}
 	selectedIDs := make(map[string]bool, len(requests))
 	for _, request := range requests {

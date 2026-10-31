@@ -44,13 +44,15 @@ type versionConfiguration struct {
 }
 
 type structuredVersionProject struct {
-	project        xcodeproj.XcodeProj
-	projectPath    string
-	pbxprojPath    string
-	rootDir        string
-	objects        serialized.Object
-	configurations []*versionConfiguration
-	parentByChild  map[string]string
+	project         xcodeproj.XcodeProj
+	projectPath     string
+	projectFilePath string
+	projectSource   string
+	rootDir         string
+	objects         serialized.Object
+	configurations  []*versionConfiguration
+	parentByChild   map[string]string
+	xcproj          *xcprojModel
 }
 
 type preparedVersionWrite struct {
@@ -126,7 +128,7 @@ func GetVersionScoped(ctx context.Context, opts GetVersionOptions) (*VersionInfo
 	if strings.TrimSpace(opts.Configuration) != "" {
 		return nil, fmt.Errorf("--configuration requires structured MARKETING_VERSION and CURRENT_PROJECT_VERSION settings: %w", err)
 	}
-	return getVersionLegacy(ctx, opts.ProjectDir, opts.Target, lookupSession)
+	return project.getVersionFallback(ctx, opts.ProjectDir, opts.Target, lookupSession)
 }
 
 // GetConsistentMarketingVersion resolves one marketing version across the full selected mutation scope.
@@ -158,7 +160,7 @@ func GetConsistentMarketingVersion(ctx context.Context, opts GetVersionOptions) 
 	if strings.TrimSpace(opts.Configuration) != "" {
 		return "", fmt.Errorf("--configuration requires structured %s settings: %w", marketingVersionSetting, err)
 	}
-	legacy, err := getVersionLegacy(ctx, opts.ProjectDir, opts.Target, lookupSession)
+	legacy, err := project.getVersionFallback(ctx, opts.ProjectDir, opts.Target, lookupSession)
 	if err != nil {
 		return "", err
 	}
@@ -178,6 +180,16 @@ func openStructuredVersionProjectWithPolicy(projectInput string, signingSafety b
 	if err != nil {
 		return nil, err
 	}
+	usesXCProj, err := xcprojFilePresent(projectPath)
+	if err != nil {
+		return nil, err
+	}
+	if usesXCProj {
+		if signingSafety {
+			return nil, errXCProjSigningUnsupported
+		}
+		return openXCProjStructuredProject(projectPath)
+	}
 	if signingSafety {
 		if err := validateStructuredVersionProjectPath(projectPath); err != nil {
 			return nil, err
@@ -185,7 +197,7 @@ func openStructuredVersionProjectWithPolicy(projectInput string, signingSafety b
 	}
 	parsed, err := xcodeproj.Open(projectPath)
 	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", filepath.Join(projectPath, "project.pbxproj"), err)
+		return nil, fmt.Errorf("parse %s: %w", filepath.Join(projectPath, pbxprojFileName), err)
 	}
 	objects, err := parsed.RawProj.Object("objects")
 	if err != nil {
@@ -196,12 +208,13 @@ func openStructuredVersionProjectWithPolicy(projectInput string, signingSafety b
 		return nil, fmt.Errorf("resolve Xcode project path: %w", err)
 	}
 	project := &structuredVersionProject{
-		project:       parsed,
-		projectPath:   absolutePath,
-		pbxprojPath:   filepath.Join(absolutePath, "project.pbxproj"),
-		rootDir:       filepath.Dir(absolutePath),
-		objects:       objects,
-		parentByChild: make(map[string]string),
+		project:         parsed,
+		projectPath:     absolutePath,
+		projectFilePath: filepath.Join(absolutePath, pbxprojFileName),
+		projectSource:   "pbxproj",
+		rootDir:         filepath.Dir(absolutePath),
+		objects:         objects,
+		parentByChild:   make(map[string]string),
 	}
 	project.indexGroupParents()
 	if err := project.indexConfigurations(); err != nil {
@@ -230,7 +243,7 @@ func validateStructuredVersionProjectPath(projectPath string) error {
 	if err := root.CheckContained(absolute); err != nil {
 		return fmt.Errorf("refusing to parse Xcode project %s: %w", absolute, err)
 	}
-	pbxprojPath := filepath.Join(absolute, "project.pbxproj")
+	pbxprojPath := filepath.Join(absolute, pbxprojFileName)
 	if err := root.CheckContained(pbxprojPath); err != nil {
 		return fmt.Errorf("refusing to parse Xcode project file %s: %w", pbxprojPath, err)
 	}
@@ -619,7 +632,7 @@ func (project *structuredVersionProject) expandSettingReferences(configuration *
 	for iteration := 0; iteration < 32; iteration++ {
 		match := referencePattern.FindStringSubmatchIndex(resolved)
 		if match == nil {
-			return strings.TrimSpace(resolved), project.pbxprojPath, nil
+			return strings.TrimSpace(resolved), project.projectFilePath, nil
 		}
 		name := ""
 		if match[2] >= 0 {
@@ -1056,7 +1069,7 @@ func (project *structuredVersionProject) setVersion(opts SetVersionOptions) (*Se
 					}
 					configuration.buildSettings[key] = requested.value
 					pbxprojChanged = true
-					changes = append(changes, versionChangeForConfiguration(configuration, requested.name, oldValue, requested.value, project.pbxprojPath, "pbxproj"))
+					changes = append(changes, versionChangeForConfiguration(configuration, requested.name, oldValue, requested.value, project.projectFilePath, project.projectSource))
 				}
 				continue
 			}
@@ -1101,7 +1114,7 @@ func (project *structuredVersionProject) setVersion(opts SetVersionOptions) (*Se
 					}
 					configuration.buildSettings[requested.name] = requested.value
 					pbxprojChanged = true
-					changes = append(changes, versionChangeForConfiguration(configuration, requested.name, oldValue, requested.value, project.pbxprojPath, "pbxproj"))
+					changes = append(changes, versionChangeForConfiguration(configuration, requested.name, oldValue, requested.value, project.projectFilePath, project.projectSource))
 				} else {
 					handlingErrors[configuration.id] = resolveErr
 				}
@@ -1706,7 +1719,7 @@ func consumersAuthorizeSetting(
 }
 
 func (project *structuredVersionProject) preparePBXProjWrite(projectRoot rootfs.Root, strictIdentity bool) (result preparedVersionWrite, resultErr error) {
-	target, err := project.containedVersionFileTarget(projectRoot, project.pbxprojPath)
+	target, err := project.containedVersionFileTarget(projectRoot, project.projectFilePath)
 	if err != nil {
 		return preparedVersionWrite{}, fmt.Errorf("prepare Xcode project file: %w", err)
 	}
@@ -1719,6 +1732,16 @@ func (project *structuredVersionProject) preparePBXProjWrite(projectRoot rootfs.
 	original, mode, err := readRegularVersionFile(&target)
 	if err != nil {
 		return preparedVersionWrite{}, err
+	}
+	if project.xcproj != nil {
+		updated, err := project.editXCProjBuildSettings(original)
+		if err != nil {
+			return preparedVersionWrite{}, fmt.Errorf("edit Xcode project build settings: %w", err)
+		}
+		target.original = original
+		target.updated = updated
+		target.mode = mode
+		return target, nil
 	}
 	tempRoot, err := os.MkdirTemp("", "asc-xcode-project-stage-*")
 	if err != nil {
