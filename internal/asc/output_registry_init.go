@@ -737,4 +737,5 @@ func registerAllOutputRenderers() {
 	registerRows(notarySubmissionStatusRows)
 	registerRows(notarySubmissionsListRows)
 	registerRows(notarySubmissionLogsRows)
+	registerRows(notarizationLogDownloadResultRows)
 }
