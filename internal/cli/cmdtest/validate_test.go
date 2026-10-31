@@ -1940,15 +1940,15 @@ func TestValidateReportsUpcomingUploadRequirement(t *testing.T) {
 		minOS        string
 		platform     string
 		sdkName      string
-		wantWarnings []string
+		wantFindings []string
 		wantInfos    []string
 		wantAbsent   []string
 	}{
 		{
-			name:         "old target warns and the SDK stays unknown",
+			name:         "old target is reported and the SDK stays unknown",
 			minOS:        "14.0",
 			platform:     "IOS",
-			wantWarnings: []string{validation.CheckUploadRequirementMinOS},
+			wantFindings: []string{validation.CheckUploadRequirementMinOS},
 			wantInfos:    []string{validation.CheckUploadRequirementSDKUnverified},
 		},
 		{
@@ -1963,7 +1963,7 @@ func TestValidateReportsUpcomingUploadRequirement(t *testing.T) {
 			minOS:        "15.0",
 			platform:     "IOS",
 			sdkName:      "iphoneos26.4",
-			wantWarnings: []string{validation.CheckUploadRequirementSDK},
+			wantFindings: []string{validation.CheckUploadRequirementSDK},
 			wantAbsent:   []string{validation.CheckUploadRequirementSDKUnverified},
 		},
 		{
@@ -2008,9 +2008,9 @@ func TestValidateReportsUpcomingUploadRequirement(t *testing.T) {
 			for _, check := range report.Checks {
 				bySeverity[check.ID] = check.Severity
 			}
-			for _, id := range test.wantWarnings {
-				if bySeverity[id] != validation.SeverityWarning {
-					t.Fatalf("%s = %q, want warning in %+v", id, bySeverity[id], report.Checks)
+			for _, id := range test.wantFindings {
+				if _, found := bySeverity[id]; !found {
+					t.Fatalf("missing %s in %+v", id, report.Checks)
 				}
 			}
 			for _, id := range test.wantInfos {

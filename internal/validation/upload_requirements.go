@@ -52,6 +52,15 @@ func (requirement uploadRequirement) timing(now time.Time) string {
 	return "Since " + requirement.effectiveLabel
 }
 
+// severity keeps a build that meets today's rules from failing --strict before
+// the requirement takes effect.
+func (requirement uploadRequirement) severity(now time.Time) Severity {
+	if now.Before(requirement.effective) {
+		return SeverityInfo
+	}
+	return SeverityWarning
+}
+
 // UploadRequirementApplies reports whether the upload requirement names the
 // App Store version platform.
 func UploadRequirementApplies(platform string) bool {
@@ -100,7 +109,7 @@ func deploymentTargetChecks(requirement uploadRequirement, build *Build, now tim
 		check.Remediation = "Confirm the build's deployment target in Xcode"
 	case major < requirement.iosTargetMajor:
 		check.ID = CheckUploadRequirementMinOS
-		check.Severity = SeverityWarning
+		check.Severity = requirement.severity(now)
 		check.Message = fmt.Sprintf("%s; this build targets iOS %s", rule, target)
 		check.Remediation = fmt.Sprintf("Raise the deployment target to iOS %d or later before your next upload", requirement.iosTargetMajor)
 	default:
@@ -126,7 +135,7 @@ func sdkChecks(requirement uploadRequirement, platform, platformSDK string, buil
 	case major < requirement.sdkMajor:
 		checks = append(checks, CheckResult{
 			ID:           CheckUploadRequirementSDK,
-			Severity:     SeverityWarning,
+			Severity:     requirement.severity(now),
 			ResourceType: "build",
 			ResourceID:   buildID,
 			Message:      fmt.Sprintf("%s, uploads to App Store Connect must be built with %s or later; this binary was built with %s", timing, required(platformSDK), sdkName),

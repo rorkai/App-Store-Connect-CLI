@@ -130,9 +130,9 @@ attached build with that rule:
 
 | Finding                                      | Severity | Meaning                                                                       |
 | -------------------------------------------- | -------- | ----------------------------------------------------------------------------- |
-| `build.upload_requirement.min_os`            | Warning  | The build's `minOsVersion` is below iOS 15.                                    |
+| `build.upload_requirement.min_os`            | Info, then Warning | The build's `minOsVersion` is below iOS 15.                          |
 | `build.upload_requirement.min_os_unverified` | Info     | App Store Connect didn't report a readable `minOsVersion`.                     |
-| `build.upload_requirement.sdk`               | Warning  | The IPA passed with `--ipa` was built with an older SDK.                       |
+| `build.upload_requirement.sdk`               | Info, then Warning | The IPA passed with `--ipa` was built with an older SDK.             |
 | `build.upload_requirement.sdk_unverified`    | Info     | The SDK can't be proven, so the requirement isn't reported as met.             |
 
 The public API has no SDK version. `sdkBuild` on a build bundle is a build
@@ -143,7 +143,10 @@ inside the build stays unverified, because `--ipa` reads only the top-level app.
 
 The requirement applies to uploads, so these findings don't mean an
 already-uploaded build will be rejected. Unverified findings stay informational
-and never block, even with `--strict`. The warnings block with `--strict`.
+and never block, even with `--strict`. The two findings marked Info, then
+Warning are informational until April 1, 2027, so a build that is valid today
+doesn't fail `--strict`. From that date they are warnings and block with
+`--strict`.
 
 ## Check Apple's web-only blockers
 

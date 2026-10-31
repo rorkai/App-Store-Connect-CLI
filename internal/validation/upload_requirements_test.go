@@ -17,14 +17,22 @@ func TestUploadRequirementChecks(t *testing.T) {
 		platform string
 		build    *Build
 		sdkName  string
+		now      time.Time
 		want     map[string]Severity
 	}{
 		{name: "no build", platform: "IOS"},
 		{name: "macOS has no listed requirement", platform: "MAC_OS", build: &Build{ID: "b", MinOSVersion: "11.0"}},
 		{
-			name:     "old target warns and unknown SDK stays unverified",
+			name:     "old target is informational before the requirement",
 			platform: "IOS",
 			build:    &Build{ID: "b", MinOSVersion: "14.8"},
+			want:     map[string]Severity{CheckUploadRequirementMinOS: SeverityInfo, CheckUploadRequirementSDKUnverified: SeverityInfo},
+		},
+		{
+			name:     "old target warns once the requirement applies",
+			platform: "IOS",
+			build:    &Build{ID: "b", MinOSVersion: "14.8"},
+			now:      afterUploadRequirement,
 			want:     map[string]Severity{CheckUploadRequirementMinOS: SeverityWarning, CheckUploadRequirementSDKUnverified: SeverityInfo},
 		},
 		{
@@ -46,10 +54,18 @@ func TestUploadRequirementChecks(t *testing.T) {
 			want:     map[string]Severity{CheckUploadRequirementMinOSUnverified: SeverityInfo, CheckUploadRequirementSDKUnverified: SeverityInfo},
 		},
 		{
-			name:     "binary built with an old SDK warns",
+			name:     "binary built with an old SDK is informational before the requirement",
 			platform: "IOS",
 			build:    &Build{ID: "b", MinOSVersion: "15.0"},
 			sdkName:  "iphoneos26.4",
+			want:     map[string]Severity{CheckUploadRequirementSDK: SeverityInfo},
+		},
+		{
+			name:     "binary built with an old SDK warns once the requirement applies",
+			platform: "IOS",
+			build:    &Build{ID: "b", MinOSVersion: "15.0"},
+			sdkName:  "iphoneos26.4",
+			now:      afterUploadRequirement,
 			want:     map[string]Severity{CheckUploadRequirementSDK: SeverityWarning},
 		},
 		{
@@ -95,7 +111,11 @@ func TestUploadRequirementChecks(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			checks := uploadRequirementChecks(test.platform, test.build, test.sdkName, beforeUploadRequirement)
+			now := test.now
+			if now.IsZero() {
+				now = beforeUploadRequirement
+			}
+			checks := uploadRequirementChecks(test.platform, test.build, test.sdkName, now)
 			if len(checks) != len(test.want) {
 				t.Fatalf("checks = %+v, want %v", checks, test.want)
 			}
