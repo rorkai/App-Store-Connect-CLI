@@ -2,6 +2,7 @@ package asc
 
 import (
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -760,12 +761,41 @@ func WithMerchantIDCertificatesFilterCertificateTypes(types string) MerchantIDCe
 	}
 }
 
+// CertificateSerialKey returns the form of a certificate serial number for
+// comparing serials, which ignores case and leading zeros.
+func CertificateSerialKey(serial string) string {
+	return strings.ToUpper(strings.TrimLeft(strings.TrimSpace(serial), "0"))
+}
+
+// withCertificateSerialsWithoutLeadingZeros adds the zero-stripped form of each
+// serial number that starts with a zero, because a listed serial and the value
+// its filter matches can differ by leading zeros. Lists without such a serial
+// are returned unchanged.
+func withCertificateSerialsWithoutLeadingZeros(serials []string) []string {
+	hasLeadingZero := func(serial string) bool { return strings.HasPrefix(serial, "0") }
+	if !slices.ContainsFunc(serials, hasLeadingZero) {
+		return serials
+	}
+	seen := make(map[string]struct{}, 2*len(serials))
+	expanded := make([]string, 0, 2*len(serials))
+	for _, serial := range serials {
+		for _, candidate := range []string{serial, strings.TrimLeft(serial, "0")} {
+			if _, ok := seen[candidate]; ok || candidate == "" {
+				continue
+			}
+			seen[candidate] = struct{}{}
+			expanded = append(expanded, candidate)
+		}
+	}
+	return expanded
+}
+
 // WithMerchantIDCertificatesFilterSerialNumbers filters certificates by serial number (supports CSV).
 func WithMerchantIDCertificatesFilterSerialNumbers(serialNumbers string) MerchantIDCertificatesOption {
 	return func(q *merchantIDCertificatesQuery) {
 		normalized := normalizeCSVString(serialNumbers)
 		if normalized != "" {
-			q.serialNumber = normalized
+			q.serialNumber = strings.Join(withCertificateSerialsWithoutLeadingZeros(strings.Split(normalized, ",")), ",")
 		}
 	}
 }
@@ -962,7 +992,7 @@ func WithPassTypeIDCertificatesFilterCertificateTypes(types []string) PassTypeID
 // WithPassTypeIDCertificatesFilterSerialNumbers filters certificates by serial number(s).
 func WithPassTypeIDCertificatesFilterSerialNumbers(serials []string) PassTypeIDCertificatesOption {
 	return func(q *passTypeIDCertificatesQuery) {
-		q.serialNumbers = normalizeList(serials)
+		q.serialNumbers = withCertificateSerialsWithoutLeadingZeros(normalizeList(serials))
 	}
 }
 
@@ -1047,7 +1077,7 @@ func WithCertificatesFilterDisplayNames(names []string) CertificatesOption {
 // WithCertificatesFilterSerialNumbers filters certificates by serial number(s).
 func WithCertificatesFilterSerialNumbers(serialNumbers []string) CertificatesOption {
 	return func(q *certificatesQuery) {
-		q.serialNumbers = normalizeList(serialNumbers)
+		q.serialNumbers = withCertificateSerialsWithoutLeadingZeros(normalizeList(serialNumbers))
 	}
 }
 
