@@ -85,55 +85,11 @@ Examples:
 		if source == "" {
 			return shared.UsageError("asset-library videos upload: --file is required")
 		}
-		switch strings.ToLower(filepath.Ext(source)) {
-		case ".mp4", ".m4v", ".mov":
-		default:
-			return shared.UsageError("asset-library videos upload: --file must have a .mp4, .m4v, or .mov extension")
-		}
-		file, err := rootfs.OpenFile(source)
-		if err != nil {
-			return shared.UsageErrorf("asset-library videos upload: --file: %v", err)
-		}
-		defer file.Close()
-		info, err := file.Stat()
-		if err != nil {
-			return fmt.Errorf("asset-library videos upload: %w", err)
-		}
-		if err := asc.ValidateAssetFileInfo(source, info); err != nil {
-			return shared.UsageErrorf("asset-library videos upload: %v", err)
-		}
-		if info.Size() > 524288000 {
-			return shared.UsageError("asset-library videos upload: file exceeds 500 MiB")
-		}
-		// Inspect a private staged copy, then upload that same copy so a source-path
-		// replacement cannot change the bytes validated by ffprobe.
-		dir, err := os.MkdirTemp("", "asc-library-video-")
+		staged, err := stageLibraryVideo(ctx, "asset-library videos upload", "--file", source)
 		if err != nil {
 			return err
 		}
-		defer os.RemoveAll(dir)
-		stagedRoot, err := rootfs.New(dir)
-		if err != nil {
-			return err
-		}
-		defer stagedRoot.Close()
-		stagedName := "video" + strings.ToLower(filepath.Ext(source))
-		copied, err := stagedRoot.WriteFrom(stagedName, io.LimitReader(file, info.Size()+1), 0o600)
-		if err != nil {
-			return err
-		}
-		if copied != info.Size() {
-			return fmt.Errorf("asset-library videos upload: source changed while staging")
-		}
-		staged, err := stagedRoot.OpenFile(stagedName)
-		if err != nil {
-			return err
-		}
-		defer staged.Close()
-		properties, err := inspectLibraryVideo(ctx, filepath.Join(dir, stagedName))
-		if err != nil {
-			return shared.UsageErrorf("asset-library videos upload: %v", err)
-		}
+		defer staged.close()
 		client, err := shared.GetASCClient()
 		if err != nil {
 			return fmt.Errorf("asset-library videos upload: %w", err)
@@ -144,15 +100,15 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("asset-library videos upload: read specifications: %w", err)
 		}
-		if err := matchLibraryVideoSpec(reference, selected, properties, info.Size(), filepath.Ext(source)); err != nil {
+		if err := matchLibraryVideoSpec(reference, selected, staged.properties, staged.size, filepath.Ext(source)); err != nil {
 			return shared.UsageErrorf("asset-library videos upload: %v", err)
 		}
-		if _, err := staged.Seek(0, io.SeekStart); err != nil {
+		if _, err := staged.file.Seek(0, io.SeekStart); err != nil {
 			return err
 		}
 		uploadCtx, cancel := libraryVideoUploadContext(ctx)
 		defer cancel()
-		result, uploadErr := client.UploadAssetLibraryVideoWithCategory(uploadCtx, id, filepath.Base(source), staged, info.Size(), selected, selectedReferenceName, shared.ContextWithTimeout)
+		result, uploadErr := client.UploadAssetLibraryVideoWithCategory(uploadCtx, id, filepath.Base(source), staged.file, staged.size, selected, selectedReferenceName, shared.ContextWithTimeout)
 		if uploadErr == nil || result.VideoID != "" {
 			if err := shared.PrintOutput(&result, *output.Output, *output.Pretty); err != nil {
 				return err
@@ -166,6 +122,75 @@ Examples:
 		}
 		return nil
 	}}
+}
+
+// stagedLibraryVideo is a private copy of a video that ffprobe has inspected.
+type stagedLibraryVideo struct {
+	file       *os.File
+	size       int64
+	properties libraryVideoProperties
+	dir        string
+}
+
+func (v *stagedLibraryVideo) close() {
+	if v.file != nil {
+		v.file.Close()
+	}
+	os.RemoveAll(v.dir)
+}
+
+// stageLibraryVideo inspects a private staged copy. Callers upload that same
+// copy so a source-path replacement cannot change the bytes validated by ffprobe.
+func stageLibraryVideo(ctx context.Context, command, flagName, source string) (result *stagedLibraryVideo, err error) {
+	switch strings.ToLower(filepath.Ext(source)) {
+	case ".mp4", ".m4v", ".mov":
+	default:
+		return nil, shared.UsageErrorf("%s: %s must have a .mp4, .m4v, or .mov extension", command, flagName)
+	}
+	file, err := rootfs.OpenFile(source)
+	if err != nil {
+		return nil, shared.UsageErrorf("%s: %s: %v", command, flagName, err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", command, err)
+	}
+	if err := asc.ValidateAssetFileInfo(source, info); err != nil {
+		return nil, shared.UsageErrorf("%s: %v", command, err)
+	}
+	if info.Size() > 524288000 {
+		return nil, shared.UsageErrorf("%s: file exceeds 500 MiB", command)
+	}
+	staged := &stagedLibraryVideo{size: info.Size()}
+	if staged.dir, err = os.MkdirTemp("", "asc-library-video-"); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			staged.close()
+		}
+	}()
+	root, err := rootfs.New(staged.dir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	stagedName := "video" + strings.ToLower(filepath.Ext(source))
+	copied, err := root.WriteFrom(stagedName, io.LimitReader(file, info.Size()+1), 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if copied != info.Size() {
+		return nil, fmt.Errorf("%s: source changed while staging", command)
+	}
+	if staged.file, err = root.OpenFile(stagedName); err != nil {
+		return nil, err
+	}
+	if staged.properties, err = inspectLibraryVideo(ctx, filepath.Join(staged.dir, stagedName)); err != nil {
+		return nil, shared.UsageErrorf("%s: %v", command, err)
+	}
+	return staged, nil
 }
 
 // libraryVideoUploadTimeout bounds a library video upload and Apple's

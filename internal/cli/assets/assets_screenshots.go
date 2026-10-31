@@ -12,6 +12,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assetlibrary"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -107,6 +108,8 @@ type screenshotUploadCommandOptions struct {
 	Confirm               bool
 	DryRun                bool
 	MaxScreenshots        int
+	AssetLibrary          bool
+	PlacementGroup        string
 }
 
 type screenshotUploadDependencies struct {
@@ -757,6 +760,8 @@ func AssetsScreenshotsUploadCommand() *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Show what would be uploaded, skipped, or deleted without making changes")
 	maxScreenshots := fs.Int("max-screenshots", 0, "Upload only the first N sorted screenshots per set; must be 10 or less")
 	concurrency := fs.Int("concurrency", defaultScreenshotUploadConcurrency, "Parallel screenshot uploads within a set (1-10)")
+	assetLibrary := fs.Bool("asset-library", false, "Upload to the Asset Library and place on the localization instead of using a screenshot set (requires --version-localization)")
+	placementGroup := fs.String("placement-group", "", "Placement group to use with --asset-library (defaults to the group Apple publishes for --device-type)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -795,8 +800,19 @@ It is not the locale code such as en-US.
 and therefore requires --confirm. Use --replace --dry-run to preview the
 deletions without --confirm.
 
+--asset-library uses Apple's Asset Library instead of the deprecated screenshot
+sets; screenshot sets stay the default. It requires --version-localization.
+Sorted files are validated, uploaded one at a time, placed in the placement
+group Apple publishes for --device-type, then ordered after the group's existing
+placements. Existing placements are kept. If upload or placement fails, the
+command exits non-zero and prints a receipt with each file's asset and placement
+ID. Nothing is deleted automatically; inspect the placements before retrying.
+Use --dry-run to see the library, group and capacity without changing anything.
+
 Examples:
   asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" --path "./screenshots/en-US" --device-type "IPHONE_65"
+  asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots/duo" --device-type "IPHONE_DUO" --asset-library --dry-run
+  asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots/duo" --device-type "IPHONE_DUO" --asset-library
   asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" --path "./screenshots/en-US" --device-type "IPHONE_65" --replace --confirm
   asc screenshots upload --app "123456789" --version "VERSION_ID" --locale "de-DE" --path "./screenshots/de-DE" --device-type "IPHONE_65" --dry-run
   asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65"
@@ -816,9 +832,15 @@ Examples:
 			if *concurrency < 1 || *concurrency > maxScreenshotUploadConcurrency {
 				return shared.UsageError(fmt.Sprintf("screenshots upload: --concurrency must be between 1 and %d", maxScreenshotUploadConcurrency))
 			}
+			if *assetLibrary && flagWasSet(fs, "concurrency") {
+				return shared.UsageError("--asset-library cannot be combined with --concurrency; library uploads run one at a time to keep file order")
+			}
 			ctx = withScreenshotUploadConcurrency(ctx, *concurrency)
 			resumePath := strings.TrimSpace(*resume)
 			if resumePath != "" {
+				if *assetLibrary || strings.TrimSpace(*placementGroup) != "" {
+					return shared.UsageError("--resume cannot be combined with --asset-library or --placement-group")
+				}
 				if strings.TrimSpace(*locale) != "" {
 					return shared.UsageError("--resume cannot be combined with --locale; the failure artifact already records the localization")
 				}
@@ -865,6 +887,8 @@ Examples:
 				Confirm:               *confirm,
 				DryRun:                *dryRun,
 				MaxScreenshots:        *maxScreenshots,
+				AssetLibrary:          *assetLibrary,
+				PlacementGroup:        strings.TrimSpace(*placementGroup),
 			}, screenshotUploadDependencies{
 				GetClient:        shared.GetASCClient,
 				RequestContext:   shared.ContextWithTimeout,
@@ -882,6 +906,8 @@ Examples:
 					if hasAppScreenshotFanoutUploadResultOutput(*typed) {
 						shouldPrint = true
 					}
+				case *asc.AssetLibraryLocalizationUploadResult:
+					shouldPrint = true
 				}
 				if shouldPrint {
 					if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
@@ -916,6 +942,13 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 	platformValue := strings.TrimSpace(opts.Platform)
 	localeValue := strings.TrimSpace(opts.Locale)
 	appModeRequested := appFlagValue != "" || versionValue != "" || versionIDValue != "" || platformValue != ""
+
+	if err := validateLibraryUploadFlags(opts.AssetLibrary, opts.PlacementGroup, opts.SkipExisting, opts.Replace); err != nil {
+		return nil, err
+	}
+	if opts.AssetLibrary && locID == "" {
+		return nil, shared.UsageError("--asset-library requires --version-localization")
+	}
 
 	if localeValue != "" {
 		if locID != "" {
@@ -1013,6 +1046,21 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 			return nil, err
 		}
 		defer client.CloseUploadConnections()
+
+		if opts.AssetLibrary {
+			placementType := "APP_SCREENSHOT"
+			if strings.HasPrefix(apiDisplayType, "IMESSAGE_") {
+				placementType = "IMESSAGE_APP_SCREENSHOT"
+			}
+			result, err := assetlibrary.UploadToLocalization(ctx, client, assetlibrary.LocalizationUpload{
+				Command: "screenshots upload", LocalizationID: locID, PlacementType: placementType, Slot: apiDisplayType,
+				PlacementGroup: opts.PlacementGroup, Files: files, DryRun: opts.DryRun,
+			})
+			if result == nil {
+				return nil, err
+			}
+			return result, err
+		}
 
 		result, err := deps.ExecuteUpload(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
 			Client:         client,
