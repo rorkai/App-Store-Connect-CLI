@@ -120,6 +120,31 @@ slot or another locale has iPad screenshots. It never blocks, even with
 A `UIDeviceFamily` key that is present but empty or unreadable fails `--ipa`.
 A missing key means iPhone only, as on iOS.
 
+## Check the upcoming upload requirement
+
+Starting April 2027, apps uploaded to App Store Connect must be built with the
+27 SDKs for iOS and iPadOS, tvOS, visionOS, and watchOS, and iOS and iPadOS apps
+must target iOS 15 or later. Apple names the month without a day and lists no
+macOS requirement, so `MAC_OS` versions skip this check. `validate` compares the
+attached build with that rule:
+
+| Finding                                      | Severity | Meaning                                                                       |
+| -------------------------------------------- | -------- | ----------------------------------------------------------------------------- |
+| `build.upload_requirement.min_os`            | Warning  | The build's `minOsVersion` is below iOS 15.                                    |
+| `build.upload_requirement.min_os_unverified` | Info     | App Store Connect didn't report a readable `minOsVersion`.                     |
+| `build.upload_requirement.sdk`               | Warning  | The IPA passed with `--ipa` was built with an older SDK.                       |
+| `build.upload_requirement.sdk_unverified`    | Info     | The SDK can't be proven, so the requirement isn't reported as met.             |
+
+The public API has no SDK version. `sdkBuild` on a build bundle is a build
+identifier, not a version, and Apple publishes no mapping between them, so the
+finding quotes it without interpreting it. Pass `--ipa` on an `IOS` version to
+read `DTSDKName` from the binary and prove the iOS and iPadOS SDK. A watchOS app
+inside the build stays unverified, because `--ipa` reads only the top-level app.
+
+The requirement applies to uploads, so these findings don't mean an
+already-uploaded build will be rejected. Unverified findings stay informational
+and never block, even with `--strict`. The warnings block with `--strict`.
+
 ## Check Apple's web-only blockers
 
 The `--deep` mode keeps every public-API check above, then reads an
@@ -221,8 +246,9 @@ table or Markdown output. The ordinary output shape doesn't change when
 
 <ParamField path="--ipa" type="string">
   Path to the version's `.ipa`. Its `UIDeviceFamily` decides whether
-  `APP_IPAD_PRO_3GEN_129` screenshots are required. Read locally; valid only
-  for `IOS` versions.
+  `APP_IPAD_PRO_3GEN_129` screenshots are required, and its `DTSDKName` proves
+  the SDK for the upcoming upload requirement. Read locally; valid only for
+  `IOS` versions.
 </ParamField>
 
 <ParamField path="--deep" type="boolean">

@@ -14,6 +14,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
+// buildBundlesIncludeLimit is Apple's maximum for limit[buildBundles].
+const buildBundlesIncludeLimit = 50
+
 // ReadinessOptions defines inputs for App Store version readiness validation.
 type ReadinessOptions struct {
 	AppID     string
@@ -124,6 +127,12 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		},
 		func(taskCtx context.Context) error {
 			return populateBuildEncryptionDeclaration(taskCtx, client, attachedBuild)
+		},
+		func(taskCtx context.Context) error {
+			if !validation.UploadRequirementApplies(platform) {
+				return nil
+			}
+			return populateBuildBundles(taskCtx, client, attachedBuild)
 		},
 		func(taskCtx context.Context) error {
 			priceScheduleResp, fetchErr := doReadinessRequest(taskCtx, func(requestCtx context.Context) (*asc.AppPriceScheduleResponse, error) {
@@ -302,6 +311,7 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 	})
 
 	var supportsIPad *bool
+	buildSDKName := ""
 	if opts.IPA != nil {
 		if err := checkLocalIPAMatchesVersion(
 			opts.IPA,
@@ -314,6 +324,7 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		}
 		value := opts.IPA.SupportsIPad()
 		supportsIPad = &value
+		buildSDKName = opts.IPA.SDKName
 	}
 
 	report := validation.Validate(validation.Input{
@@ -330,6 +341,7 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		PrimaryCategoryID:           appInfoData.primaryCategoryID,
 		ContentRightsDeclaration:    contentRightsDeclaration,
 		Build:                       attachedBuild,
+		BuildSDKName:                buildSDKName,
 		PriceScheduleID:             priceScheduleID,
 		PricingFetchSkipReason:      pricingFetchSkipReason,
 		BaseTerritory:               baseTerritory,
@@ -407,6 +419,45 @@ func populateBuildEncryptionDeclaration(ctx context.Context, client *asc.Client,
 
 	build.AppEncryptionDeclarationID = strings.TrimSpace(declarationResp.Data.ID)
 	build.AppEncryptionDeclarationState = strings.TrimSpace(string(declarationResp.Data.Attributes.AppEncryptionDeclarationState))
+	return nil
+}
+
+// populateBuildBundles reads the bundles behind the upload requirement check.
+// The result is evidence only, so a failed read is recorded on the build
+// instead of aborting the report.
+func populateBuildBundles(ctx context.Context, client *asc.Client, build *validation.Build) error {
+	if build == nil || client == nil || len(build.Bundles) > 0 || strings.TrimSpace(build.ID) == "" {
+		return nil
+	}
+
+	response, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.BuildBundlesResponse, error) {
+		return client.GetBuildBundlesForBuild(requestCtx, strings.TrimSpace(build.ID), asc.WithBuildBundlesLimit(buildBundlesIncludeLimit))
+	})
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if errors.Is(err, context.Canceled) {
+			return err
+		}
+		reason, ok := metadataCheckSkipReason(err, "build bundles")
+		if !ok {
+			reason = fmt.Sprintf("Validation skipped build bundles because their App Store Connect data could not be read: %v", err)
+		}
+		build.BundlesUnreadReason = reason
+		return nil
+	}
+
+	for _, bundle := range response.Data {
+		item := validation.BuildBundle{}
+		if bundle.Attributes.BundleType != nil {
+			item.Type = string(*bundle.Attributes.BundleType)
+		}
+		if bundle.Attributes.SDKBuild != nil {
+			item.SDKBuild = *bundle.Attributes.SDKBuild
+		}
+		build.Bundles = append(build.Bundles, item)
+	}
 	return nil
 }
 

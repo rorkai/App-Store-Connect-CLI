@@ -155,6 +155,8 @@ func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
 				return jsonResponse(http.StatusOK, fixture.build)
 			}
 			return jsonResponse(http.StatusNotFound, `{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"resource not found"}]}`)
+		case path == "/v1/builds/build-1":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{}},"included":[{"type":"buildBundles","id":"bundle-1","attributes":{"bundleType":"APP","sdkBuild":"23A339"}}]}`)
 		case path == "/v1/apps/app-1/appPriceSchedule":
 			if fixture.waitForPriceScheduleCtx {
 				<-req.Context().Done()
@@ -1926,6 +1928,102 @@ func TestValidateFailsWhenScreenshotSetIsEmpty(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected screenshots.required.set_nonempty check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateReportsUpcomingUploadRequirement(t *testing.T) {
+	buildWithTarget := func(target string) string {
+		return `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false,"usesNonExemptEncryption":false,"minOsVersion":"` + target + `"}}}`
+	}
+	tests := []struct {
+		name         string
+		minOS        string
+		platform     string
+		sdkName      string
+		wantWarnings []string
+		wantInfos    []string
+		wantAbsent   []string
+	}{
+		{
+			name:         "old target warns and the SDK stays unknown",
+			minOS:        "14.0",
+			platform:     "IOS",
+			wantWarnings: []string{validation.CheckUploadRequirementMinOS},
+			wantInfos:    []string{validation.CheckUploadRequirementSDKUnverified},
+		},
+		{
+			name:       "the binary proves the SDK",
+			minOS:      "15.0",
+			platform:   "IOS",
+			sdkName:    "iphoneos27.0",
+			wantAbsent: []string{validation.CheckUploadRequirementMinOS, validation.CheckUploadRequirementSDK, validation.CheckUploadRequirementSDKUnverified},
+		},
+		{
+			name:         "the binary proves an old SDK",
+			minOS:        "15.0",
+			platform:     "IOS",
+			sdkName:      "iphoneos26.4",
+			wantWarnings: []string{validation.CheckUploadRequirementSDK},
+			wantAbsent:   []string{validation.CheckUploadRequirementSDKUnverified},
+		},
+		{
+			name:       "macOS is not listed",
+			minOS:      "11.0",
+			platform:   "MAC_OS",
+			wantAbsent: []string{validation.CheckUploadRequirementMinOS, validation.CheckUploadRequirementSDKUnverified},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := validValidateFixture()
+			fixture.build = buildWithTarget(test.minOS)
+			fixture.version = strings.ReplaceAll(fixture.version, `"platform":"IOS"`, `"platform":"`+test.platform+`"`)
+			fixture.app = strings.ReplaceAll(fixture.app, `"primaryLocale":"en-US"`, `"primaryLocale":"en-US","bundleId":"`+validateIPABundleID+`"`)
+			client := newValidateTestClient(t, fixture)
+			restore := validate.SetClientFactory(func() (*asc.Client, error) { return client, nil })
+			defer restore()
+
+			args := []string{"validate", "--app", "app-1", "--version-id", "ver-1", "--output", "json"}
+			if test.sdkName != "" {
+				info := validateIPAInfo([]int{1})
+				info["DTSDKName"] = test.sdkName
+				args = append(args, "--ipa", writeValidateIPA(t, info))
+			}
+			root := RootCommand("1.2.3")
+
+			var runErr error
+			stdout, _ := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			var report validation.Report
+			if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+				t.Fatalf("unmarshal report: %v (run error %v)\n%s", err, runErr, stdout)
+			}
+			bySeverity := map[string]validation.Severity{}
+			for _, check := range report.Checks {
+				bySeverity[check.ID] = check.Severity
+			}
+			for _, id := range test.wantWarnings {
+				if bySeverity[id] != validation.SeverityWarning {
+					t.Fatalf("%s = %q, want warning in %+v", id, bySeverity[id], report.Checks)
+				}
+			}
+			for _, id := range test.wantInfos {
+				if bySeverity[id] != validation.SeverityInfo {
+					t.Fatalf("%s = %q, want info in %+v", id, bySeverity[id], report.Checks)
+				}
+			}
+			for _, id := range test.wantAbsent {
+				if _, found := bySeverity[id]; found {
+					t.Fatalf("unexpected %s in %+v", id, report.Checks)
+				}
+			}
+		})
 	}
 }
 

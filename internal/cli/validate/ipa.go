@@ -21,6 +21,7 @@ type LocalIPA struct {
 	Version        string
 	BuildNumber    string
 	DeviceFamilies []int
+	SDKName        string
 }
 
 // SupportsIPad reports whether UIDeviceFamily includes iPad.
@@ -58,6 +59,7 @@ func loadLocalIPA(path string) (*LocalIPA, error) {
 		Version:        strings.TrimSpace(manifest.Version),
 		BuildNumber:    strings.TrimSpace(manifest.BuildNumber),
 		DeviceFamilies: manifest.DeviceFamilies,
+		SDKName:        strings.TrimSpace(manifest.SDKName),
 	}, nil
 }
 
