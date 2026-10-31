@@ -47,6 +47,7 @@ type AppUpdateAttributes struct {
 	SubscriptionStatusURLVersion           *SubscriptionStatusURLVersion `json:"subscriptionStatusUrlVersion,omitempty"`
 	SubscriptionStatusURLForSandbox        *string                       `json:"subscriptionStatusUrlForSandbox,omitempty"`
 	SubscriptionStatusURLVersionForSandbox *SubscriptionStatusURLVersion `json:"subscriptionStatusUrlVersionForSandbox,omitempty"`
+	StreamlinedPurchasingEnabled           *bool                         `json:"streamlinedPurchasingEnabled,omitempty"`
 }
 
 // AppCreateAttributes describes attributes for creating an app.
