@@ -398,9 +398,11 @@ func signingNukeProfileUUIDs(profiles []asc.Resource[asc.ProfileAttributes], sel
 func planSigningNukeFiles(files []decryptedSigningFile, plan signingNukePlan) []string {
 	certificateContents := make([][]byte, 0, len(plan.Certificates))
 	certificateNames := make(map[string]struct{}, len(plan.Certificates))
+	certificateSerials := make(map[string]struct{}, len(plan.Certificates))
 	certificateFingerprints := make(map[string]struct{}, len(plan.Certificates))
 	for _, certificate := range plan.Certificates {
 		certificateNames[safeFileName(certificate.Attributes.SerialNumber, certificate.ID)+".cer"] = struct{}{}
+		certificateSerials[asc.CertificateSerialKey(certificate.Attributes.SerialNumber)] = struct{}{}
 		content, err := base64.StdEncoding.DecodeString(strings.TrimSpace(certificate.Attributes.CertificateContent))
 		if err != nil || len(content) == 0 {
 			continue
@@ -439,7 +441,8 @@ func planSigningNukeFiles(files []decryptedSigningFile, plan signingNukePlan) []
 				selected[canonical] = struct{}{}
 			}
 		case file.Metadata.Version == 0 && strings.HasPrefix(canonical, "certs/") && strings.HasSuffix(strings.ToLower(canonical), ".cer"):
-			if hasSigningNukeKey(certificateNames, path.Base(canonical)) {
+			base := path.Base(canonical)
+			if hasSigningNukeKey(certificateNames, base) || hasSigningNukeKey(certificateSerials, asc.CertificateSerialKey(base[:len(base)-len(".cer")])) {
 				selected[canonical] = struct{}{}
 				continue
 			}

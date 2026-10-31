@@ -373,6 +373,30 @@ func TestPlanSigningNukeFilesKeepsIdentityCoresReferencedByOtherTypes(t *testing
 	}
 }
 
+func TestPlanSigningNukeFilesMatchesEquivalentCertificateSerials(t *testing.T) {
+	certificateFile := func(path string) decryptedSigningFile {
+		return decryptedSigningFile{RelativePath: path, Plaintext: []byte("stored-" + path)}
+	}
+	files := []decryptedSigningFile{
+		certificateFile("certs/distribution/E41.cer"),
+		certificateFile("certs/distribution/00e41.cer"),
+		certificateFile("certs/distribution/E410.cer"),
+		certificateFile("certs/distribution/0F41.cer"),
+	}
+	for _, serial := range []string{"0E41", "E41", "e41"} {
+		t.Run(serial, func(t *testing.T) {
+			plan := signingNukePlan{Certificates: []asc.Resource[asc.CertificateAttributes]{
+				{ID: "cert-1", Attributes: asc.CertificateAttributes{SerialNumber: serial}},
+			}}
+			got := planSigningNukeFiles(files, plan)
+			want := []string{"certs/distribution/00e41.cer", "certs/distribution/E41.cer"}
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("planned = %v, want %v", got, want)
+			}
+		})
+	}
+}
+
 func nukeResourceIDs(resources []asc.SigningSyncNukeResource) []string {
 	ids := make([]string, 0, len(resources))
 	for _, resource := range resources {
