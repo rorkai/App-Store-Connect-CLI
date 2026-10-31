@@ -9,6 +9,7 @@ import (
 	_ "image/jpeg" // Registers JPEG for image.DecodeConfig.
 	_ "image/png"  // Registers PNG for image.DecodeConfig.
 	"io"
+	"math/big"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -213,12 +214,21 @@ func matchLibraryImageSpec(file *os.File, group string, reference []byte, specs 
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	extension := strings.ToLower(strings.TrimPrefix(filepath.Ext(file.Name()), "."))
+	actualRatio := big.NewRat(int64(config.Width), int64(config.Height))
 	var envelope struct {
 		Data []struct {
 			Attributes struct {
 				ImageSpecs []struct {
 					SpecID     string `json:"specId"`
 					Dimensions struct{ MinWidth, MaxWidth, MinHeight, MaxHeight int }
+					Aspect     json.RawMessage `json:"aspectRatio"`
+					Extensions []string        `json:"fileExtensions"`
+					MaxSize    int64           `json:"maxFileSize"`
 				} `json:"imageSpecs"`
 			} `json:"attributes"`
 		} `json:"data"`
@@ -229,7 +239,19 @@ func matchLibraryImageSpec(file *os.File, group string, reference []byte, specs 
 	for _, datum := range envelope.Data {
 		for _, spec := range datum.Attributes.ImageSpecs {
 			dims := spec.Dimensions
-			if specs[spec.SpecID] && config.Width >= dims.MinWidth && config.Width <= dims.MaxWidth && config.Height >= dims.MinHeight && config.Height <= dims.MaxHeight {
+			if !specs[spec.SpecID] || config.Width < dims.MinWidth || config.Width > dims.MaxWidth || config.Height < dims.MinHeight || config.Height > dims.MaxHeight || info.Size() > spec.MaxSize {
+				continue
+			}
+			// Fixed dimensions can be rounded to whole pixels.
+			if dims.MinWidth != dims.MaxWidth || dims.MinHeight != dims.MaxHeight {
+				ratio, err := normalizeLibraryVideoAspectRatio(spec.Aspect)
+				if err != nil || ratio.Cmp(actualRatio) != 0 {
+					continue
+				}
+			}
+			if slices.ContainsFunc(spec.Extensions, func(allowed string) bool {
+				return strings.EqualFold(strings.TrimPrefix(allowed, "."), extension)
+			}) {
 				return nil
 			}
 		}
