@@ -24,6 +24,8 @@ chain, so never grant entitlements from decoded output alone.`
 
 var historyProductTypes = []string{"AUTO_RENEWABLE", "NON_RENEWABLE", "CONSUMABLE", "NON_CONSUMABLE"}
 
+var historyOwnershipTypes = []string{"FAMILY_SHARED", "PURCHASED", "ASSIGNED"}
+
 func TransactionsCommand() *ffcli.Command {
 	return groupCommand("transactions",
 		"Read and manage In-App Purchase transactions with the App Store Server API.",
@@ -33,6 +35,7 @@ Examples:
   asc storekit transactions view --transaction-id 2000000000000001 --environment sandbox
   asc storekit transactions history --transaction-id 2000000000000001 --environment production --paginate
   asc storekit transactions history --transaction-id 2000000000000001 --product-type AUTO_RENEWABLE --sort DESCENDING --environment production
+  asc storekit transactions history --transaction-id 2000000000000001 --ownership-type ASSIGNED --environment production
   asc storekit transactions set-account-token --original-transaction-id 2000000000000001 --app-account-token 11111111-2222-4333-8444-555555555555 --environment sandbox --confirm
   asc storekit transactions send-consumption --transaction-id 2000000000000001 --customer-consented true --delivery-status DELIVERED --sample-content-provided false --environment production --confirm
   asc storekit transactions finish --transaction-id 2000000000000001 --environment production --confirm`,
@@ -132,6 +135,7 @@ func transactionsHistoryCommand() *ffcli.Command {
 	end := fs.String("end", "", "Only purchases before this date (YYYY-MM-DD or RFC3339)")
 	productIDs := fs.String("product-id", "", "Product ID filter (comma-separated)")
 	productTypes := fs.String("product-type", "", "Product type filter (comma-separated): "+strings.Join(historyProductTypes, ", "))
+	ownershipType := fs.String("ownership-type", "", "In-app ownership filter (one value): "+strings.Join(historyOwnershipTypes, ", "))
 	sort := fs.String("sort", "", "Sort by modified date: ASCENDING (Apple's default) or DESCENDING")
 	var revoked shared.OptionalBool
 	fs.Var(&revoked, "revoked", "true for only revoked transactions, false for only non-revoked")
@@ -144,7 +148,7 @@ func transactionsHistoryCommand() *ffcli.Command {
 			if err := validateServerRead(args, flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
 				return err
 			}
-			query, err := transactionHistoryQuery(*start, *end, *productIDs, *productTypes, *sort, revoked)
+			query, err := transactionHistoryQuery(*start, *end, *productIDs, *productTypes, *ownershipType, *sort, revoked)
 			if err != nil {
 				return err
 			}
@@ -455,7 +459,7 @@ func fetchServerPages(fetch func(token string) (json.RawMessage, error), startTo
 	return storekitapi.CollectPages(first, cursor, fetch)
 }
 
-func transactionHistoryQuery(start, end, productIDs, productTypes, sort string, revoked shared.OptionalBool) (storekitapi.TransactionHistoryQuery, error) {
+func transactionHistoryQuery(start, end, productIDs, productTypes, ownershipType, sort string, revoked shared.OptionalBool) (storekitapi.TransactionHistoryQuery, error) {
 	var query storekitapi.TransactionHistoryQuery
 	var err error
 	if query.StartDate, err = parseOptionalTimeFlag("--start", start); err != nil {
@@ -473,6 +477,10 @@ func transactionHistoryQuery(start, end, productIDs, productTypes, sort string, 
 		if !slices.Contains(historyProductTypes, productType) {
 			return query, shared.UsageErrorf("--product-type must be one of: %s", strings.Join(historyProductTypes, ", "))
 		}
+	}
+	query.OwnershipType = strings.ToUpper(strings.TrimSpace(ownershipType))
+	if query.OwnershipType != "" && !slices.Contains(historyOwnershipTypes, query.OwnershipType) {
+		return query, shared.UsageErrorf("--ownership-type must be one of: %s", strings.Join(historyOwnershipTypes, ", "))
 	}
 	query.Sort = strings.ToUpper(strings.TrimSpace(sort))
 	if query.Sort != "" && query.Sort != "ASCENDING" && query.Sort != "DESCENDING" {

@@ -16,12 +16,13 @@ import (
 // TransactionHistoryQuery holds the optional Get Transaction History v2
 // filters. Zero values are omitted from the request.
 type TransactionHistoryQuery struct {
-	StartDate    time.Time
-	EndDate      time.Time
-	ProductIDs   []string
-	ProductTypes []string
-	Sort         string
-	Revoked      *bool
+	StartDate     time.Time
+	EndDate       time.Time
+	ProductIDs    []string
+	ProductTypes  []string
+	OwnershipType string
+	Sort          string
+	Revoked       *bool
 }
 
 func (q TransactionHistoryQuery) values() url.Values {
@@ -37,6 +38,9 @@ func (q TransactionHistoryQuery) values() url.Values {
 	}
 	for _, productType := range q.ProductTypes {
 		values.Add("productType", productType)
+	}
+	if q.OwnershipType != "" {
+		values.Set("inAppOwnershipType", q.OwnershipType)
 	}
 	if q.Sort != "" {
 		values.Set("sort", q.Sort)
