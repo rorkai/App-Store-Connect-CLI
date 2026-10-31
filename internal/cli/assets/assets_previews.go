@@ -16,6 +16,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assetlibrary"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -110,6 +111,8 @@ func assetsPreviewsUploadCommandWithDependencies(deps previewUploadDependencies)
 	replace := fs.Bool("replace", false, "Delete all existing previews from the target set before uploading (requires --confirm)")
 	confirm := fs.Bool("confirm", false, "Confirm the deletions performed by --replace (required with --replace)")
 	dryRun := fs.Bool("dry-run", false, "Show what would be uploaded, skipped, or deleted without making changes")
+	assetLibrary := fs.Bool("asset-library", false, "Upload to the Asset Library and place on the localization instead of using a preview set")
+	placementGroup := fs.String("placement-group", "", "Placement group to use with --asset-library (defaults to the group Apple publishes for --device-type)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -124,7 +127,19 @@ returned as data[].id by:
 It is not the locale code such as en-US.
 Each preview set supports at most three files.
 
+--asset-library uses Apple's Asset Library instead of the deprecated preview
+sets; preview sets stay the default. It requires ffprobe (FFmpeg). Sorted files
+are validated against Apple's current specifications, uploaded one at a time
+(ASC_UPLOAD_TIMEOUT bounds each file, default 30m), placed in the placement
+group Apple publishes for --device-type, then ordered after the group's existing
+placements. Existing placements are kept. If upload or placement fails, the
+command exits non-zero and prints a receipt with each file's asset and placement
+ID. Nothing is deleted automatically; inspect the placements before retrying.
+Use --dry-run to see the library, group and capacity without changing anything.
+
 Examples:
+  asc video-previews upload --version-localization "VERSION_LOCALIZATION_ID" --path "./previews/duo.mp4" --device-type "IPHONE_DUO" --asset-library --dry-run
+  asc video-previews upload --version-localization "VERSION_LOCALIZATION_ID" --path "./previews/duo.mp4" --device-type "IPHONE_DUO" --asset-library
   asc video-previews upload --version-localization "VERSION_LOCALIZATION_ID" --path "./previews/duo.mp4" --device-type "IPHONE_DUO"
   asc video-previews upload --version-localization "VERSION_LOCALIZATION_ID" --path "./previews" --device-type "IPHONE_65"
   asc video-previews upload --version-localization "VERSION_LOCALIZATION_ID" --path "./previews/preview.mov" --device-type "IPHONE_65"
@@ -149,6 +164,9 @@ Examples:
 			if deviceValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --device-type is required")
 				return shared.MissingRequiredUsageError("--device-type")
+			}
+			if err := validateLibraryUploadFlags(*assetLibrary, *placementGroup, *skipExisting, *replace); err != nil {
+				return err
 			}
 			if *skipExisting && *replace {
 				fmt.Fprintln(os.Stderr, "Error: --skip-existing and --replace are mutually exclusive")
@@ -181,6 +199,22 @@ Examples:
 			}
 
 			defer client.CloseUploadConnections()
+
+			if *assetLibrary {
+				result, err := assetlibrary.UploadToLocalization(ctx, client, assetlibrary.LocalizationUpload{
+					Command: "video-previews upload", LocalizationID: locID, PlacementType: "APP_PREVIEW", Slot: previewType,
+					PlacementGroup: strings.TrimSpace(*placementGroup), Files: files, DryRun: *dryRun,
+				})
+				if result != nil {
+					if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
+						return printErr
+					}
+				}
+				if err != nil {
+					return fmt.Errorf("video-previews upload: %w", err)
+				}
+				return nil
+			}
 
 			result, err := uploadPreviews(ctx, client, locID, previewType, files, *skipExisting, *replace, *dryRun)
 			if hasAppPreviewUploadResultOutput(result) {

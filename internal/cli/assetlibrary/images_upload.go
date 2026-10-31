@@ -63,39 +63,11 @@ Examples:
 			if filePath == "" {
 				return shared.UsageError("asset-library images upload: --file is required")
 			}
-			switch strings.ToLower(filepath.Ext(filePath)) {
-			case ".png", ".jpg", ".jpeg":
-			default:
-				return shared.UsageError("asset-library images upload: --file must have a .png, .jpg, or .jpeg extension")
-			}
-			file, err := rootfs.OpenFile(filePath)
+			file, size, err := openLibraryImage("asset-library images upload", "--file", filePath)
 			if err != nil {
-				return shared.UsageErrorf("asset-library images upload: --file: %v", err)
+				return err
 			}
 			defer file.Close()
-			info, err := file.Stat()
-			if err != nil {
-				return fmt.Errorf("asset-library images upload: stat file: %w", err)
-			}
-			if err := asc.ValidateAssetFileInfo(filePath, info); err != nil {
-				return shared.UsageErrorf("asset-library images upload: --file: %v", err)
-			}
-			if info.Size() > 524288000 {
-				return shared.UsageError("asset-library images upload: file exceeds 500 MiB")
-			}
-			format, err := asc.ReadAppStoreImageFormatFrom(file)
-			if err != nil {
-				return shared.UsageErrorf("asset-library images upload: --file: %v", err)
-			}
-			if format != "png" && format != "jpeg" {
-				return shared.UsageError("asset-library images upload: --file must be a PNG or JPEG image")
-			}
-			if err := asc.ValidateImageFormatMatchesExtension(filePath, format); err != nil {
-				return shared.UsageErrorf("asset-library images upload: --file: %v", err)
-			}
-			if _, err := file.Seek(0, io.SeekStart); err != nil {
-				return fmt.Errorf("asset-library images upload: rewind file: %w", err)
-			}
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("asset-library images upload: %w", err)
@@ -105,7 +77,7 @@ Examples:
 			if *progress {
 				uploadCtx = asc.WithAssetLibraryImageUploadProgress(uploadCtx, func(event asc.AssetLibraryImageUploadEvent) { _ = json.NewEncoder(os.Stderr).Encode(event) })
 			}
-			result, uploadErr := client.UploadAssetLibraryImageWithCategory(uploadCtx, id, filepath.Base(filePath), file, info.Size(), selectedCategory, selectedReferenceName, shared.ContextWithTimeout)
+			result, uploadErr := client.UploadAssetLibraryImageWithCategory(uploadCtx, id, filepath.Base(filePath), file, size, selectedCategory, selectedReferenceName, shared.ContextWithTimeout)
 			if uploadErr == nil || result.ImageID != "" {
 				if err := shared.PrintOutput(&result, *output.Output, *output.Pretty); err != nil {
 					return err
@@ -117,4 +89,50 @@ Examples:
 			return nil
 		},
 	}
+}
+
+// openLibraryImage validates an image and returns it rewound for upload.
+func openLibraryImage(command, flagName, filePath string) (*os.File, int64, error) {
+	switch strings.ToLower(filepath.Ext(filePath)) {
+	case ".png", ".jpg", ".jpeg":
+	default:
+		return nil, 0, shared.UsageErrorf("%s: %s must have a .png, .jpg, or .jpeg extension", command, flagName)
+	}
+	file, err := rootfs.OpenFile(filePath)
+	if err != nil {
+		return nil, 0, shared.UsageErrorf("%s: %s: %v", command, flagName, err)
+	}
+	size, err := validateLibraryImage(command, flagName, filePath, file)
+	if err != nil {
+		file.Close()
+		return nil, 0, err
+	}
+	return file, size, nil
+}
+
+func validateLibraryImage(command, flagName, filePath string, file *os.File) (int64, error) {
+	info, err := file.Stat()
+	if err != nil {
+		return 0, fmt.Errorf("%s: stat file: %w", command, err)
+	}
+	if err := asc.ValidateAssetFileInfo(filePath, info); err != nil {
+		return 0, shared.UsageErrorf("%s: %s: %v", command, flagName, err)
+	}
+	if info.Size() > 524288000 {
+		return 0, shared.UsageErrorf("%s: file exceeds 500 MiB", command)
+	}
+	format, err := asc.ReadAppStoreImageFormatFrom(file)
+	if err != nil {
+		return 0, shared.UsageErrorf("%s: %s: %v", command, flagName, err)
+	}
+	if format != "png" && format != "jpeg" {
+		return 0, shared.UsageErrorf("%s: %s must be a PNG or JPEG image", command, flagName)
+	}
+	if err := asc.ValidateImageFormatMatchesExtension(filePath, format); err != nil {
+		return 0, shared.UsageErrorf("%s: %s: %v", command, flagName, err)
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return 0, fmt.Errorf("%s: rewind file: %w", command, err)
+	}
+	return info.Size(), nil
 }

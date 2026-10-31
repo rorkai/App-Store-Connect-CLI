@@ -102,6 +102,7 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 	pricingTerritories := []string(nil)
 	pricingCoverageSkipReason := ""
 	var screenshotSets []validation.ScreenshotSet
+	var mediaDelivery mediaDeliveryData
 	var subscriptions []validation.Subscription
 	subscriptionFetchSkipReason := ""
 	var iaps []validation.IAP
@@ -200,6 +201,11 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		func(taskCtx context.Context) error {
 			var fetchErr error
 			screenshotSets, fetchErr = fetchScreenshotSetsFn(taskCtx, client, versionData.localizations)
+			return fetchErr
+		},
+		func(taskCtx context.Context) error {
+			var fetchErr error
+			mediaDelivery, fetchErr = fetchMediaDelivery(taskCtx, client, versionData.localizations)
 			return fetchErr
 		},
 		func(taskCtx context.Context) error {
@@ -354,6 +360,9 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		AvailabilityFetchSkipReason: availabilityFetchSkipReason,
 		PricingCoverageSkipReason:   pricingCoverageSkipReason,
 		ScreenshotSets:              screenshotSets,
+		PreviewSets:                 mediaDelivery.previewSets,
+		MediaPlacements:             mediaDelivery.placements,
+		MediaReadGaps:               mediaDelivery.gaps,
 		SupportsIPad:                supportsIPad,
 		Subscriptions:               subscriptions,
 		SubscriptionFetchSkipReason: subscriptionFetchSkipReason,

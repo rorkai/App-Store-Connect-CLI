@@ -89,6 +89,7 @@ Status readable means PackageInfo was parsed, or for a product archive the Distr
 signer describes the first listed signing certificate and is null for an unsigned package. An unsigned package still exits 0.
 Signature fields are also reported on an unreadable receipt when the table of contents was read.
 An unreadable package signature prints a warning to stderr and does not change the exit code.
+signer.developerIdAuthorityStatus is set for a Developer ID signer: affected when signer.issuerOrganizationalUnit is Apple Certification Authority, the authority that expires on February 1, 2027, and not-affected when it is G2. An affected package no longer installs from that date, so it prints a warning to stderr; the exit code does not change.
 
 Without --verify-signature, package signatures and certificate chains are not verified and signatureVerification is not-verified.
 With --verify-signature, the check runs offline, with no network or revocation checks. Trust is anchored at the embedded Apple Root CA and Apple Root CA - G3; the embedded WWDR G3, G5, and G6 and Developer ID intermediates and the certificates in the table of contents complete the chain. It verifies:
@@ -195,6 +196,9 @@ func runArtifactInfo(ctx context.Context, args []string, config artifactInfoConf
 		}
 		for _, warning := range manifest.Warnings {
 			fmt.Fprintf(os.Stderr, "Warning: pkg-info: %s\n", warning)
+		}
+		if manifest.Signer != nil && manifest.Signer.DeveloperIDAuthorityStatus == artifacts.DeveloperIDAffected {
+			fmt.Fprintf(os.Stderr, "Warning: pkg-info: signing certificate is from the Developer ID authority that expires on February 1, 2027; from that date this package will no longer install, so re-sign it with a certificate from %s\n", artifacts.DeveloperIDReplacementAuthority)
 		}
 		if inspectErr != nil || manifest.Status != "readable" {
 			if inspectErr == nil {
@@ -343,15 +347,17 @@ func signerReceipt(signer *artifacts.SignerIdentity) *asc.ArtifactSigner {
 		return nil
 	}
 	return &asc.ArtifactSigner{
-		CommonName:        signer.CommonName,
-		TeamID:            signer.TeamID,
-		Organization:      signer.Organization,
-		IssuerCommonName:  signer.IssuerCommonName,
-		SerialNumber:      signer.SerialNumber,
-		NotBefore:         signer.NotBefore,
-		NotAfter:          signer.NotAfter,
-		SHA1Fingerprint:   signer.SHA1Fingerprint,
-		SHA256Fingerprint: signer.SHA256Fingerprint,
+		CommonName:                 signer.CommonName,
+		TeamID:                     signer.TeamID,
+		Organization:               signer.Organization,
+		IssuerCommonName:           signer.IssuerCommonName,
+		IssuerOrganizationalUnit:   signer.IssuerOrganizationalUnit,
+		DeveloperIDAuthorityStatus: signer.DeveloperIDAuthorityStatus,
+		SerialNumber:               signer.SerialNumber,
+		NotBefore:                  signer.NotBefore,
+		NotAfter:                   signer.NotAfter,
+		SHA1Fingerprint:            signer.SHA1Fingerprint,
+		SHA256Fingerprint:          signer.SHA256Fingerprint,
 	}
 }
 

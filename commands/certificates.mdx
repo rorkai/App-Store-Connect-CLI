@@ -43,6 +43,35 @@ asc certificates view --id "CERT_ID"
 asc certificates view --id "CERT_ID" --include passTypeId
 ```
 
+## Check Developer ID Certificates
+
+The original Developer ID Certification Authority expires on February 1, 2027. Certificates it issued stop working on that date, and `.pkg` installers signed with them no longer install. Mac software that is already signed and notarized with a secure timestamp keeps working.
+
+```bash  theme={null}
+# Report every Developer ID Application and KEXT certificate
+asc certificates developer-id-check --output table
+
+# Exit 1 when a certificate needs replacement or review
+asc certificates developer-id-check --strict --output json
+```
+
+Each certificate gets a `status`, and `evidence` names what it rests on:
+
+* `affected` - The issuer in the certificate is the original authority
+* `not-affected` - The issuer is the G2 authority, the type is a `_G2` type, or it expires after February 1, 2027
+* `likely-affected` - The issuer could not be read and it expires on or before February 1, 2027
+* `unknown` - Neither the issuer nor the expiration date could be read
+
+The check exits 0 and prints a warning to stderr when it finds something. With `--strict`, it exits 1 when an unexpired certificate is anything but `not-affected`.
+
+The App Store Connect API does not list Developer ID Installer certificates, so this check cannot see them, and `notChecked` says so. Review them in Certificates, Identifiers & Profiles. To check a package you already signed, read `signer.developerIdAuthorityStatus` from `pkg-info`, which also warns on stderr when the package is affected:
+
+```bash  theme={null}
+asc pkg-info --path ./App.pkg --output json
+```
+
+Create replacements from Developer ID Certification Authority (G2). When asked for a Developer ID Certificate Intermediary, choose the G2 Sub-CA.
+
 ## Certificate Types
 
 ### iOS Certificate Types

@@ -138,6 +138,25 @@ failed run does not reorder the preview set around a partially completed upload;
 use the receipt's IDs for diagnosis and clean up only items that remain or are
 marked `rollback-failed`.
 
+### Upload Through the Asset Library
+
+Apple has deprecated preview sets in favor of the Asset Library, without
+announcing a removal date. Preview sets stay the default. `--asset-library`
+uploads to the library and places the previews on the localization, in sorted
+file order. It requires `ffprobe`, and `--dry-run` shows the library, placement
+group and capacity without changing anything:
+
+```bash  theme={null}
+asc video-previews upload --version-localization "LOC_ID" \
+  --path "./previews/duo.mp4" \
+  --device-type "IPHONE_DUO" \
+  --asset-library
+```
+
+Failure handling matches
+[`asc screenshots upload --asset-library`](/commands/screenshots#upload-through-the-asset-library):
+the receipt keeps every asset and placement ID, and nothing is deleted.
+
 ## Download Video Previews
 
 Download existing app preview videos from App Store Connect:

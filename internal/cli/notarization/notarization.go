@@ -2,6 +2,7 @@ package notarization
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -1642,7 +1643,7 @@ Examples:
 			case asc.NotaryStatusInvalid, asc.NotaryStatusRejected:
 				if shared.ProgressEnabled() {
 					fmt.Fprintf(os.Stderr, "Notarization failed. Status: %s\n", statusResp.Data.Attributes.Status)
-					fmt.Fprintf(os.Stderr, "Run 'asc notarization log --id %s' for details.\n", submissionID)
+					fmt.Fprintf(os.Stderr, "Run 'asc notarization log --id %s --fetch' for details.\n", submissionID)
 				}
 				return shared.NewReportedError(fmt.Errorf("notarization %s: %s", submissionID, statusResp.Data.Attributes.Status))
 			default:
@@ -1709,20 +1710,33 @@ func logCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("notarization log", flag.ExitOnError)
 
 	submissionID := fs.String("id", "", "Submission ID (required)")
+	fetch := fs.Bool("fetch", false, "Fetch the log JSON instead of printing its URL")
+	path := fs.String("path", "", "With --fetch, write the log JSON to this file and print a receipt")
+	overwrite := fs.Bool("overwrite", false, "With --path, replace an existing file")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "log",
-		ShortUsage: "asc notarization log --id \"SUBMISSION_ID\"",
-		ShortHelp:  "Get the developer log URL for a notarization submission.",
-		LongHelp: `Get the developer log URL for a notarization submission.
+		ShortUsage: "asc notarization log --id \"SUBMISSION_ID\" [--fetch [--path ./log.json [--overwrite]]]",
+		ShortHelp:  "Get the developer log URL or content for a notarization submission.",
+		LongHelp: `Get the developer log URL for a notarization submission, or its content.
 
 The log contains detailed information about the notarization result,
 including any issues found during the scan.
 
+By default the command prints the presigned log URL. With --fetch it downloads
+the log and prints it as JSON, whatever the default output format. With --path
+it writes the log to that file instead and prints a receipt, which honors
+--output. The URL must be HTTPS on an Apple host or a signed URL on an AWS host,
+App Store Connect credentials are never sent to it, redirects are not followed,
+and logs over 64 MiB are refused.
+
 Examples:
   asc notarization log --id "SUBMISSION_ID"
-  asc notarization log --id "SUBMISSION_ID" --output table`,
+  asc notarization log --id "SUBMISSION_ID" --output table
+  asc notarization log --id "SUBMISSION_ID" --fetch
+  asc notarization log --id "SUBMISSION_ID" --fetch --path ./log.json
+  asc notarization log --id "SUBMISSION_ID" --fetch --path ./log.json --overwrite`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1730,6 +1744,31 @@ Examples:
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError("--id")
+			}
+
+			provided := map[string]bool{}
+			fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
+			if provided["path"] && !*fetch {
+				return shared.UsageError("--path requires --fetch")
+			}
+			if *overwrite && !provided["path"] {
+				return shared.UsageError("--overwrite requires --path")
+			}
+			if *fetch && !provided["path"] && provided["output"] && shared.NormalizeOutputFormat(*output.Output) != "json" {
+				return shared.UsageError("--fetch prints JSON; use --output json or write to a file with --path")
+			}
+
+			var destination *notarizationLogDestination
+			if provided["path"] {
+				if strings.TrimSpace(*path) == "" || os.IsPathSeparator((*path)[len(*path)-1]) {
+					return shared.UsageError("--path must be a file path")
+				}
+				var err error
+				destination, err = newNotarizationLogDestination(*path, *overwrite)
+				if err != nil {
+					return fmt.Errorf("notarization log: %w", err)
+				}
+				defer destination.root.Close()
 			}
 
 			client, err := shared.GetASCClient()
@@ -1745,9 +1784,61 @@ Examples:
 				return fmt.Errorf("notarization log: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			if !*fetch {
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			}
+
+			downloadCtx, cancelDownload := shared.ContextWithDownloadTimeout(ctx)
+			defer cancelDownload()
+
+			logJSON, err := client.DownloadNotarizationLog(downloadCtx, resp.Data.Attributes.DeveloperLogURL)
+			if err != nil {
+				return fmt.Errorf("notarization log: %w", err)
+			}
+			if destination == nil {
+				return shared.PrintOutput(json.RawMessage(logJSON), "json", *output.Pretty)
+			}
+
+			if err := destination.write(logJSON); err != nil {
+				return fmt.Errorf("notarization log: %w", err)
+			}
+			return shared.PrintOutput(&asc.NotarizationLogDownloadResult{
+				ID:           idValue,
+				OutputPath:   *path,
+				BytesWritten: int64(len(logJSON)),
+			}, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// notarizationLogDestination is a file checked before any request is sent.
+type notarizationLogDestination struct {
+	root  rootfs.Root
+	write func(data []byte) error
+}
+
+func newNotarizationLogDestination(path string, overwrite bool) (*notarizationLogDestination, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	root, err := rootfs.New(filepath.Dir(absolute))
+	if err != nil {
+		return nil, err
+	}
+	name := filepath.Base(absolute)
+	check, write := root.CheckCreateNewFile, root.CreateNewFile
+	if overwrite {
+		check, write = root.CheckWriteFile, root.WriteFile
+	}
+	if err := check(name); err != nil {
+		_ = root.Close()
+		return nil, err
+	}
+	return &notarizationLogDestination{
+		root:  root,
+		write: func(data []byte) error { return write(name, data, 0o600) },
+	}, nil
 }
 
 // listCommand returns the list subcommand.

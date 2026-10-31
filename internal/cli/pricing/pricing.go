@@ -416,18 +416,30 @@ func PricingScheduleCreateCommand() *ffcli.Command {
 		ShortHelp:   "Create an app price schedule.",
 		LongHelp: `Create an app price schedule.
 
+This replaces the app's whole price schedule: App Store Connect drops existing
+scheduled prices and manual prices in other territories, which fall back to
+automatic equalization. Run asc pricing schedule manual-prices to see them first.
+
 --start-date defaults to today's date in US Pacific time when omitted, because
 App Store Connect uses that date as today; the chosen date is printed on
 stderr. Apple requires the start date to be today or later.
 
+--end-date makes the price temporary and requires --return-price-point and
+--confirm. A price stops applying on its end date, in US Pacific time, and the
+return price takes over. The return price must be a base territory price point
+from asc pricing price-points. With a future --start-date, the return price also
+applies from today until the start date, so pass the current price to keep it.
+
 Examples:
   asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "United States" --start-date "YYYY-MM-DD"
   asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "United States"
-  asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "YYYY-MM-DD"`,
+  asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "YYYY-MM-DD"
+  asc pricing schedule create --app "123456789" --price-point "SALE_PRICE_POINT_ID" --base-territory "US" --start-date "YYYY-MM-DD" --end-date "YYYY-MM-DD" --return-price-point "REGULAR_PRICE_POINT_ID" --confirm`,
 		ErrorPrefix:           "pricing schedule create",
 		StartDateHelp:         "Start date (YYYY-MM-DD, default: today in US Pacific time; Apple requires today or later)",
 		StartDateDefaultToday: true,
 		RequireBaseTerritory:  true,
+		TemporaryPrice:        true,
 	})
 }
 

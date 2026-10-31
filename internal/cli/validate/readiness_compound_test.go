@@ -151,8 +151,8 @@ func TestBuildReadinessReport_UsesCompoundReadsWithoutFallbacks(t *testing.T) {
 	for _, count := range requests {
 		totalRequests += count
 	}
-	if totalRequests != 9 {
-		t.Fatalf("compound readiness request count = %d, want 9 (version verification, version, app infos, price schedule, base territory, base price, current price, custom product pages, build bundles)", totalRequests)
+	if totalRequests != 11 {
+		t.Fatalf("compound readiness request count = %d, want 11 (version verification, version, app infos, price schedule, base territory, base price, current price, custom product pages, app preview sets, placements, build bundles)", totalRequests)
 	}
 	if got := requests["/v1/appPriceSchedules/schedule-1/manualPrices"]; got != 2 {
 		t.Fatalf("manual price reads = %d, want 2 (base price presence and deep paid evidence)", got)

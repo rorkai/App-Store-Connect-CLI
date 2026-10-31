@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/x509/pkix"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -220,4 +221,46 @@ func TestRunPKGInfoReportsSignerIdentity(t *testing.T) {
 		"packageSignature":      "unsigned",
 		"signer":                nil,
 	})
+}
+
+func TestRunPKGInfoWarnsAboutTheExpiringDeveloperIDAuthority(t *testing.T) {
+	isolateArtifactCommandEnv(t)
+	info := map[string][]byte{"PackageInfo": []byte(`<pkg-info version="1.0" identifier="com.example.pkg"/>`)}
+	for _, test := range []struct {
+		name        string
+		unit        string
+		wantStatus  string
+		wantWarning bool
+	}{
+		{name: "previous authority", unit: "Apple Certification Authority", wantStatus: "affected", wantWarning: true},
+		{name: "G2 authority", unit: "G2", wantStatus: "not-affected"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			chain := artifactstest.NewChainWithIssuer(t, pkix.Name{CommonName: "Developer ID Certification Authority", OrganizationalUnit: []string{test.unit}})
+			path := filepath.Join(t.TempDir(), "signed.pkg")
+			if err := os.WriteFile(path, artifactstest.Xar(t, info, chain.XarSignature("signature")), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			var exit int
+			stdout, stderr := captureOutput(t, func() { exit = cmd.Run([]string{"pkg-info", "--path", path, "--output", "json"}, "test") })
+			if exit != cmd.ExitSuccess {
+				t.Fatalf("exit=%d stderr=%q", exit, stderr)
+			}
+			var receipt struct {
+				Signer struct {
+					IssuerOrganizationalUnit   string `json:"issuerOrganizationalUnit"`
+					DeveloperIDAuthorityStatus string `json:"developerIdAuthorityStatus"`
+				} `json:"signer"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &receipt); err != nil {
+				t.Fatalf("parse stdout %q: %v", stdout, err)
+			}
+			if receipt.Signer.IssuerOrganizationalUnit != test.unit || receipt.Signer.DeveloperIDAuthorityStatus != test.wantStatus {
+				t.Fatalf("unexpected signer: %+v", receipt.Signer)
+			}
+			if got := strings.Contains(stderr, "will no longer install"); got != test.wantWarning {
+				t.Fatalf("stderr=%q, wantWarning %t", stderr, test.wantWarning)
+			}
+		})
+	}
 }

@@ -40,6 +40,7 @@ func Validate(input Input, strict bool) Report {
 	checks = append(checks, screenshotPresenceChecks(input.PrimaryLocale, input.VersionLocalizations, input.ScreenshotSets)...)
 	checks = append(checks, ipadScreenshotChecks(input.Platform, input.PrimaryLocale, input.VersionLocalizations, input.ScreenshotSets, input.SupportsIPad)...)
 	checks = append(checks, screenshotChecks(input.Platform, input.ScreenshotSets)...)
+	checks = append(checks, mediaDeliveryChecks(input.ScreenshotSets, input.PreviewSets, input.MediaPlacements, input.MediaReadGaps)...)
 	checks = append(checks, subscriptionFetchChecks(input.SubscriptionFetchSkipReason)...)
 	checks = append(checks, subscriptionImageChecks(input.Subscriptions)...)
 	checks = append(checks, subscriptionReviewReadinessChecks(input.Subscriptions)...)

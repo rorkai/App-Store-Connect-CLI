@@ -19,12 +19,14 @@ func TestAppsUpdateNotificationURLs(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
-		want map[string]string
+		want map[string]any
 	}{
-		{"both endpoints", []string{"--subscription-status-url", "https://example.com/production", "--sandbox-subscription-status-url", "https://example.com/sandbox"}, map[string]string{"subscriptionStatusUrl": "https://example.com/production", "subscriptionStatusUrlVersion": "V2", "subscriptionStatusUrlForSandbox": "https://example.com/sandbox", "subscriptionStatusUrlVersionForSandbox": "V2"}},
-		{"production only", []string{"--subscription-status-url", "https://example.com/production"}, map[string]string{"subscriptionStatusUrl": "https://example.com/production", "subscriptionStatusUrlVersion": "V2"}},
-		{"sandbox with metadata", []string{"--sandbox-subscription-status-url", "https://example.com/sandbox?source=apple", "--primary-locale", "en-GB"}, map[string]string{"subscriptionStatusUrlForSandbox": "https://example.com/sandbox?source=apple", "subscriptionStatusUrlVersionForSandbox": "V2", "primaryLocale": "en-GB"}},
-		{"ordinary metadata leaves endpoints unchanged", []string{"--bundle-id", "com.example.app", "--content-rights", "DOES_NOT_USE_THIRD_PARTY_CONTENT"}, map[string]string{"bundleId": "com.example.app", "contentRightsDeclaration": "DOES_NOT_USE_THIRD_PARTY_CONTENT"}},
+		{"both endpoints", []string{"--subscription-status-url", "https://example.com/production", "--sandbox-subscription-status-url", "https://example.com/sandbox"}, map[string]any{"subscriptionStatusUrl": "https://example.com/production", "subscriptionStatusUrlVersion": "V2", "subscriptionStatusUrlForSandbox": "https://example.com/sandbox", "subscriptionStatusUrlVersionForSandbox": "V2"}},
+		{"production only", []string{"--subscription-status-url", "https://example.com/production"}, map[string]any{"subscriptionStatusUrl": "https://example.com/production", "subscriptionStatusUrlVersion": "V2"}},
+		{"sandbox with metadata", []string{"--sandbox-subscription-status-url", "https://example.com/sandbox?source=apple", "--primary-locale", "en-GB"}, map[string]any{"subscriptionStatusUrlForSandbox": "https://example.com/sandbox?source=apple", "subscriptionStatusUrlVersionForSandbox": "V2", "primaryLocale": "en-GB"}},
+		{"ordinary metadata leaves endpoints unchanged", []string{"--bundle-id", "com.example.app", "--content-rights", "DOES_NOT_USE_THIRD_PARTY_CONTENT"}, map[string]any{"bundleId": "com.example.app", "contentRightsDeclaration": "DOES_NOT_USE_THIRD_PARTY_CONTENT"}},
+		{"streamlined purchasing on", []string{"--streamlined-purchasing-enabled", "true"}, map[string]any{"streamlinedPurchasingEnabled": true}},
+		{"streamlined purchasing explicit false", []string{"--streamlined-purchasing-enabled", "false"}, map[string]any{"streamlinedPurchasingEnabled": false}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -42,9 +44,9 @@ func TestAppsUpdateNotificationURLs(t *testing.T) {
 				}
 				var body struct {
 					Data struct {
-						Type       string            `json:"type"`
-						ID         string            `json:"id"`
-						Attributes map[string]string `json:"attributes"`
+						Type       string         `json:"type"`
+						ID         string         `json:"id"`
+						Attributes map[string]any `json:"attributes"`
 					} `json:"data"`
 				}
 				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
@@ -53,7 +55,7 @@ func TestAppsUpdateNotificationURLs(t *testing.T) {
 				if body.Data.Type != "apps" || body.Data.ID != "app-1" || !reflect.DeepEqual(body.Data.Attributes, tt.want) {
 					return nil, fixture.Errorf("unexpected payload: %+v, wanted attributes %v", body.Data, tt.want)
 				}
-				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"apps","id":"app-1","attributes":{"name":"Example","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V1"}}}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
+				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"apps","id":"app-1","attributes":{"name":"Example","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V1","streamlinedPurchasingEnabled":false}}}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
 			})
 			root := RootCommand("test")
 			args := append([]string{"apps", "update", "--id", "app-1", "--output", "json"}, tt.args...)
@@ -78,9 +80,9 @@ func TestAppsUpdateNotificationURLs(t *testing.T) {
 			if output.Data.Type != "apps" || output.Data.ID != "app-1" {
 				t.Fatalf("lost resource envelope: %s", stdout)
 			}
-			for key, want := range map[string]string{"name": "Example", "subscriptionStatusUrl": "https://example.com/production", "subscriptionStatusUrlVersion": "V2", "subscriptionStatusUrlForSandbox": "https://example.com/sandbox", "subscriptionStatusUrlVersionForSandbox": "V1"} {
+			for key, want := range map[string]any{"name": "Example", "subscriptionStatusUrl": "https://example.com/production", "subscriptionStatusUrlVersion": "V2", "subscriptionStatusUrlForSandbox": "https://example.com/sandbox", "subscriptionStatusUrlVersionForSandbox": "V1", "streamlinedPurchasingEnabled": false} {
 				if output.Data.Attributes[key] != want {
-					t.Errorf("output %s=%v, want %s", key, output.Data.Attributes[key], want)
+					t.Errorf("output %s=%v, want %v", key, output.Data.Attributes[key], want)
 				}
 			}
 		})

@@ -47,15 +47,18 @@ var oidUserID = asn1.ObjectIdentifier{0, 9, 2342, 19200300, 100, 1, 1}
 // SignerIdentity describes the leaf certificate embedded in a signature. It is
 // read from the artifact and is not validated against a trust store.
 type SignerIdentity struct {
-	CommonName        string
-	TeamID            string
-	Organization      string
-	IssuerCommonName  string
-	SerialNumber      string
-	NotBefore         string
-	NotAfter          string
-	SHA1Fingerprint   string
-	SHA256Fingerprint string
+	CommonName               string
+	TeamID                   string
+	Organization             string
+	IssuerCommonName         string
+	IssuerOrganizationalUnit string
+	// DeveloperIDAuthorityStatus is set only for Developer ID issuers.
+	DeveloperIDAuthorityStatus string
+	SerialNumber               string
+	NotBefore                  string
+	NotAfter                   string
+	SHA1Fingerprint            string
+	SHA256Fingerprint          string
 }
 
 // ArchitectureSignature is the code signature of one Mach-O architecture
@@ -450,20 +453,26 @@ func signerIdentity(certificate *x509.Certificate) *SignerIdentity {
 	if len(certificate.Subject.Organization) > 0 {
 		organization = certificate.Subject.Organization[0]
 	}
+	issuerUnit := ""
+	if len(certificate.Issuer.OrganizationalUnit) > 0 {
+		issuerUnit = certificate.Issuer.OrganizationalUnit[0]
+	}
 	serial := ""
 	if certificate.SerialNumber != nil {
 		serial = strings.ToUpper(certificate.SerialNumber.Text(16))
 	}
 	return &SignerIdentity{
-		CommonName:        certificate.Subject.CommonName,
-		TeamID:            teamID,
-		Organization:      organization,
-		IssuerCommonName:  certificate.Issuer.CommonName,
-		SerialNumber:      serial,
-		NotBefore:         certificate.NotBefore.UTC().Format(time.RFC3339),
-		NotAfter:          certificate.NotAfter.UTC().Format(time.RFC3339),
-		SHA1Fingerprint:   fmt.Sprintf("%X", sha1Sum),
-		SHA256Fingerprint: fmt.Sprintf("%X", sha256Sum),
+		CommonName:                 certificate.Subject.CommonName,
+		TeamID:                     teamID,
+		Organization:               organization,
+		IssuerCommonName:           certificate.Issuer.CommonName,
+		IssuerOrganizationalUnit:   issuerUnit,
+		DeveloperIDAuthorityStatus: DeveloperIDAuthorityStatus(certificate.Issuer),
+		SerialNumber:               serial,
+		NotBefore:                  certificate.NotBefore.UTC().Format(time.RFC3339),
+		NotAfter:                   certificate.NotAfter.UTC().Format(time.RFC3339),
+		SHA1Fingerprint:            fmt.Sprintf("%X", sha1Sum),
+		SHA256Fingerprint:          fmt.Sprintf("%X", sha256Sum),
 	}
 }
 

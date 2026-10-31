@@ -161,6 +161,9 @@ type Input struct {
 	AvailabilityFetchSkipReason string
 	PricingCoverageSkipReason   string
 	ScreenshotSets              []ScreenshotSet
+	PreviewSets                 []PreviewSet
+	MediaPlacements             []MediaPlacement
+	MediaReadGaps               []MediaReadGap
 	// SupportsIPad reports whether the app binary declares iPad support in
 	// UIDeviceFamily. It is nil when no binary was inspected.
 	SupportsIPad                *bool
@@ -231,6 +234,50 @@ type Screenshot struct {
 	FileName string
 	Width    int
 	Height   int
+	// DeliveryState is the asset's assetDeliveryState state, empty when Apple
+	// did not return one.
+	DeliveryState  string
+	DeliveryErrors []string
+}
+
+// PreviewSet represents an app preview set and its assets.
+type PreviewSet struct {
+	ID             string
+	PreviewType    string
+	Locale         string
+	LocalizationID string
+	Previews       []Preview
+}
+
+// Preview represents an app preview asset.
+type Preview struct {
+	ID       string
+	FileName string
+	// DeliveryState is the videoDeliveryState state, or the deprecated
+	// assetDeliveryState when Apple returned only that. It is empty when Apple
+	// returned neither.
+	DeliveryState  string
+	DeliveryErrors []string
+}
+
+// MediaPlacement represents an asset library placement on a version
+// localization.
+type MediaPlacement struct {
+	ID             string
+	Locale         string
+	PlacementType  string
+	PlacementGroup string
+	State          string
+	StateDetails   []string
+}
+
+// MediaReadGap records version media that could not be read for one
+// localization, so its delivery state is unknown.
+type MediaReadGap struct {
+	Media          string
+	Locale         string
+	LocalizationID string
+	Reason         string
 }
 
 // ReviewDetails represents App Store review details for a version.
