@@ -48,7 +48,7 @@ func ValidateCommand() *ffcli.Command {
 	deep := fs.Bool("deep", false, "Verify IAP attachment through the public API and blockers through a cached Apple web session")
 	checkURLs := fs.Bool("check-urls", false, "Check metadata URL destinations with bounded public HTTP requests")
 	appleID := fs.String("apple-id", "", "Cached Apple web session to use with --deep")
-	ipaPath := fs.String("ipa", "", "Path to the version's .ipa; its UIDeviceFamily decides whether iPad screenshots are required")
+	ipaPath := fs.String("ipa", "", "Path to the version's .ipa; its UIDeviceFamily decides whether iPad screenshots are required, and its DTSDKName proves the SDK")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -78,6 +78,7 @@ Checks:
   - Primary category configured
   - Build attached and processed
   - Build encryption declaration readiness
+  - Attached build against the upload requirement Apple announced for April 2027
   - App content rights declaration
   - Pricing schedule, base territory price (Free counts), and territory availability
   - Screenshot presence and size compatibility

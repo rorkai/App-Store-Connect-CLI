@@ -1,5 +1,7 @@
 package validation
 
+import "time"
+
 // Severity represents the validation severity level.
 type Severity string
 
@@ -179,6 +181,11 @@ type Input struct {
 	// current custom product page localizations.
 	CustomProductPageLocalizations      []CustomProductPageLocalization
 	CustomProductPageKeywordsSkipReason string
+	// BuildSDKName is the binary's DTSDKName, empty when no binary was
+	// inspected.
+	BuildSDKName string
+	// Now is the time date-dependent checks read; zero means the current time.
+	Now time.Time
 }
 
 // CustomProductPageLocalization is one custom product page localization and
@@ -295,6 +302,17 @@ type Build struct {
 	UsesNonExemptEncryption       *bool
 	AppEncryptionDeclarationID    string
 	AppEncryptionDeclarationState string
+	MinOSVersion                  string
+	Bundles                       []BuildBundle
+	// BundlesUnreadReason explains why Bundles could not be read. It is empty
+	// when the read succeeded or was not attempted.
+	BundlesUnreadReason string
+}
+
+// BuildBundle represents one bundle inside a build.
+type BuildBundle struct {
+	Type     string
+	SDKBuild string
 }
 
 // AgeRatingDeclaration represents age rating attributes for validation.

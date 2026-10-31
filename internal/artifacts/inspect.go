@@ -41,7 +41,9 @@ type IPAManifest struct {
 	Version          string
 	BuildNumber      string
 	MinimumOSVersion string
-	Platforms        []string
+	// SDKName is the top-level app's DTSDKName, such as iphoneos26.4.
+	SDKName   string
+	Platforms []string
 	// DeviceFamilies lists the top-level app's UIDeviceFamily values (1 is
 	// iPhone, 2 is iPad). It is nil when the key is absent or unreadable.
 	DeviceFamilies   []int
@@ -124,6 +126,7 @@ type bundlePlist struct {
 	MinimumSystem    string   `plist:"LSMinimumSystemVersion"`
 	Platforms        []string `plist:"CFBundleSupportedPlatforms"`
 	Platform         string   `plist:"DTPlatformName"`
+	SDKName          string   `plist:"DTSDKName"`
 	// DeviceFamily is decoded loosely so an unusual UIDeviceFamily value never
 	// makes the rest of the Info.plist unreadable.
 	DeviceFamily any `plist:"UIDeviceFamily"`
@@ -434,6 +437,7 @@ func manifestFromPlist(parsed bundlePlist) IPAManifest {
 		Version:          parsed.Version,
 		BuildNumber:      parsed.BuildNumber,
 		MinimumOSVersion: firstNonEmpty(parsed.MinimumOSVersion, parsed.MinimumSystem),
+		SDKName:          parsed.SDKName,
 		Platforms:        platforms,
 		DeviceFamilies:   families,
 	}
