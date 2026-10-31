@@ -81,6 +81,7 @@ Checks:
   - App content rights declaration
   - Pricing schedule, base territory price (Free counts), and territory availability
   - Screenshot presence and size compatibility
+  - Screenshot, app preview, and asset library placement delivery per locale
   - Required iPad screenshots for builds that run on iPad (--ipa)
   - Subscription review readiness and promotional image guidance
   - Custom product page search keywords missing from this version's keywords
@@ -404,11 +405,14 @@ func fetchScreenshotSets(ctx context.Context, client *asc.Client, localizations 
 					width = shot.Attributes.ImageAsset.Width
 					height = shot.Attributes.ImageAsset.Height
 				}
+				deliveryState, deliveryErrors := screenshotDeliveryState(shot.Attributes.AssetDeliveryState)
 				screenshots = append(screenshots, validation.Screenshot{
-					ID:       shot.ID,
-					FileName: shot.Attributes.FileName,
-					Width:    width,
-					Height:   height,
+					ID:             shot.ID,
+					FileName:       shot.Attributes.FileName,
+					Width:          width,
+					Height:         height,
+					DeliveryState:  deliveryState,
+					DeliveryErrors: deliveryErrors,
 				})
 			}
 			sort.SliceStable(screenshots, func(i, j int) bool {

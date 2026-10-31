@@ -67,6 +67,9 @@ type validateFixture struct {
 	pricingTerritoriesByQuery  map[string]string
 	screenshotSets             map[string]string
 	screenshotsBySet           map[string]string
+	previewSets                map[string]string
+	placements                 map[string]string
+	placementsStatus           int
 	subscriptionGroups         string
 	subscriptionsByGroup       map[string]string
 	groupLocalizationsByGroup  map[string]string
@@ -215,6 +218,21 @@ func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
 			if body, ok := fixture.screenshotsBySet[setID]; ok {
 				return jsonResponse(http.StatusOK, body)
 			}
+		case strings.HasPrefix(path, "/v1/appStoreVersionLocalizations/") && strings.HasSuffix(path, "/appPreviewSets"):
+			localizationID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/appStoreVersionLocalizations/"), "/appPreviewSets")
+			if body, ok := fixture.previewSets[localizationID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/appStoreVersionLocalizations/") && strings.HasSuffix(path, "/placements"):
+			if fixture.placementsStatus != 0 {
+				return jsonResponse(fixture.placementsStatus, apiErrorJSONForStatus(fixture.placementsStatus))
+			}
+			localizationID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/appStoreVersionLocalizations/"), "/placements")
+			if body, ok := fixture.placements[localizationID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case path == "/v1/apps/app-1/subscriptionGroups":
 			if fixture.subscriptionGroupsStatus != 0 {
 				return jsonResponse(fixture.subscriptionGroupsStatus, apiErrorJSONForStatus(fixture.subscriptionGroupsStatus))
@@ -409,7 +427,7 @@ func validValidateFixture() validateFixture {
 			"ver-loc-1": `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`,
 		},
 		screenshotsBySet: map[string]string{
-			"set-1": `{"data":[{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","fileSize":1024,"imageAsset":{"width":1242,"height":2688}}}]}`,
+			"set-1": `{"data":[{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","fileSize":1024,"imageAsset":{"width":1242,"height":2688},"assetDeliveryState":{"state":"COMPLETE"}}}]}`,
 		},
 		subscriptionGroups: `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`,
 		subscriptionsByGroup: map[string]string{
@@ -1926,6 +1944,97 @@ func TestValidateFailsWhenScreenshotSetIsEmpty(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected screenshots.required.set_nonempty check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateReportsMediaDeliveryPerLocale(t *testing.T) {
+	failedShot := `{"data":[{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","imageAsset":{"width":1242,"height":2688},"assetDeliveryState":{"state":"FAILED","errors":[{"code":"IMAGE_BAD","description":"Corrupt"}]}}}]}`
+	processingPreview := `{"data":[{"type":"appPreviewSets","id":"preview-set-1","attributes":{"previewType":"IPHONE_65"},"relationships":{"appPreviews":{"data":[{"type":"appPreviews","id":"preview-1"}]}}}],"included":[{"type":"appPreviews","id":"preview-1","attributes":{"fileName":"preview.mov","videoDeliveryState":{"state":"PROCESSING"}}}]}`
+	failedPlacement := `{"data":[{"type":"appAssetLibraryPlacements","id":"placement-1","attributes":{"placementType":"APP_SCREENSHOT","state":"FAILED"}}]}`
+
+	tests := []struct {
+		name         string
+		mutate       func(*validateFixture)
+		strict       bool
+		wantCheckID  string
+		wantSeverity validation.Severity
+		wantExit     bool
+	}{
+		{
+			name:         "failed screenshot blocks",
+			mutate:       func(f *validateFixture) { f.screenshotsBySet["set-1"] = failedShot },
+			wantCheckID:  validation.CheckMediaDeliveryFailed,
+			wantSeverity: validation.SeverityError,
+			wantExit:     true,
+		},
+		{
+			name:         "failed placement blocks",
+			mutate:       func(f *validateFixture) { f.placements = map[string]string{"ver-loc-1": failedPlacement} },
+			wantCheckID:  validation.CheckMediaDeliveryFailed,
+			wantSeverity: validation.SeverityError,
+			wantExit:     true,
+		},
+		{
+			name:         "processing preview warns",
+			mutate:       func(f *validateFixture) { f.previewSets = map[string]string{"ver-loc-1": processingPreview} },
+			wantCheckID:  validation.CheckMediaDeliveryPending,
+			wantSeverity: validation.SeverityWarning,
+		},
+		{
+			name:         "processing preview blocks with strict",
+			mutate:       func(f *validateFixture) { f.previewSets = map[string]string{"ver-loc-1": processingPreview} },
+			strict:       true,
+			wantCheckID:  validation.CheckMediaDeliveryPending,
+			wantSeverity: validation.SeverityWarning,
+			wantExit:     true,
+		},
+		{
+			name:         "unreadable placements stay unverified",
+			mutate:       func(f *validateFixture) { f.placementsStatus = http.StatusForbidden },
+			wantCheckID:  validation.CheckMediaDeliveryUnverified,
+			wantSeverity: validation.SeverityWarning,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := validValidateFixture()
+			test.mutate(&fixture)
+			client := newValidateTestClient(t, fixture)
+			restore := validate.SetClientFactory(func() (*asc.Client, error) { return client, nil })
+			defer restore()
+
+			args := []string{"validate", "--app", "app-1", "--version-id", "ver-1", "--output", "json"}
+			if test.strict {
+				args = append(args, "--strict")
+			}
+			root := RootCommand("1.2.3")
+
+			var runErr error
+			stdout, _ := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+			if test.wantExit != (runErr != nil) {
+				t.Fatalf("Exec() error = %v, wantExit %v", runErr, test.wantExit)
+			}
+
+			var report validation.Report
+			if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+				t.Fatalf("unmarshal report: %v\n%s", err, stdout)
+			}
+			for _, check := range report.Checks {
+				if check.ID == test.wantCheckID {
+					if check.Severity != test.wantSeverity || check.Locale != "en-US" {
+						t.Fatalf("check = %+v, want severity %s in en-US", check, test.wantSeverity)
+					}
+					return
+				}
+			}
+			t.Fatalf("missing %s in %+v", test.wantCheckID, report.Checks)
+		})
 	}
 }
 
