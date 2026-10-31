@@ -1038,8 +1038,10 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 		if err != nil {
 			return nil, mediaPathValidationError(err)
 		}
-		if err := validateScreenshotDimensions(files, apiDisplayType); err != nil {
-			return nil, mediaPathValidationError(err)
+		if !opts.AssetLibrary {
+			if err := validateScreenshotDimensions(files, apiDisplayType); err != nil {
+				return nil, mediaPathValidationError(err)
+			}
 		}
 		client, err := deps.GetClient()
 		if err != nil {

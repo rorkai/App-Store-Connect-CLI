@@ -274,6 +274,21 @@ func TestScreenshotsUploadAssetLibraryDryRunWritesNothing(t *testing.T) {
 	}
 }
 
+func TestScreenshotsUploadAssetLibraryValidatesAgainstChosenGroupNotDeviceCatalog(t *testing.T) {
+	setupAuth(t)
+	fake := &libraryUploadFake{t: t}
+	fake.install()
+	file := filepath.Join(t.TempDir(), "large.png")
+	writePNG(t, file, 1320, 2868)
+	stdout, stderr, err := runRootCommand(t, libraryScreenshotArgs(file, "--placement-group", "IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE", "--dry-run"))
+	if err != nil {
+		t.Fatalf("dry run: %v; stderr: %s", err, stderr)
+	}
+	if receipt := decodeLibraryReceipt(t, stdout); receipt.PlacementGroup != "IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE" {
+		t.Fatalf("receipt = %+v", receipt)
+	}
+}
+
 func TestScreenshotsUploadAssetLibraryPartialFailureKeepsReceipt(t *testing.T) {
 	tests := []struct {
 		name     string
