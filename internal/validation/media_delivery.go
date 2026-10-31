@@ -113,7 +113,7 @@ func mediaDeliveryChecks(screenshots []ScreenshotSet, previews []PreviewSet, pla
 	for _, gap := range gaps {
 		checks = append(checks, CheckResult{
 			ID:           CheckMediaDeliveryUnverified,
-			Severity:     SeverityWarning,
+			Severity:     SeverityInfo,
 			Locale:       gap.Locale,
 			ResourceType: "appStoreVersionLocalization",
 			ResourceID:   gap.LocalizationID,
@@ -159,7 +159,7 @@ func mediaSetDeliveryChecks(set mediaSetDescription, assets []mediaSetAsset) []C
 			fmt.Sprintf("Wait for each %s to reach COMPLETE, then validate again. If its state stops changing, delete it with `%s` and upload it again", set.noun, set.deleteCommand))
 	}
 	if labels := grouped[mediaDeliveryUnknown]; len(labels) > 0 {
-		appendCheck(CheckMediaDeliveryUnverified, SeverityWarning, summary(labels, "with an unconfirmed delivery state"),
+		appendCheck(CheckMediaDeliveryUnverified, SeverityInfo, summary(labels, "with an unconfirmed delivery state"),
 			fmt.Sprintf("Confirm each %s finished processing in App Store Connect", set.noun))
 	}
 	return checks
@@ -213,7 +213,7 @@ func mediaPlacementCheck(placement MediaPlacement) (CheckResult, bool) {
 			state = "state not returned"
 		}
 		check.ID = CheckMediaDeliveryUnverified
-		check.Severity = SeverityWarning
+		check.Severity = SeverityInfo
 		check.Message = fmt.Sprintf("%s has an unconfirmed delivery state (%s)", subject, state)
 		check.Remediation = "Confirm the placement finished processing in App Store Connect"
 	default:

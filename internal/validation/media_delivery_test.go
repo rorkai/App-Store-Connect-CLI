@@ -18,8 +18,8 @@ func TestMediaDeliveryChecksClassifiesEveryState(t *testing.T) {
 		{state: "AWAITING_UPLOAD", wantID: CheckMediaDeliveryPending, wantSeverity: SeverityWarning, wantText: "AWAITING_UPLOAD"},
 		{state: "UPLOAD_COMPLETE", wantID: CheckMediaDeliveryPending, wantSeverity: SeverityWarning, wantText: "UPLOAD_COMPLETE"},
 		{state: "PROCESSING", wantID: CheckMediaDeliveryPending, wantSeverity: SeverityWarning, wantText: "PROCESSING"},
-		{state: "", wantID: CheckMediaDeliveryUnverified, wantSeverity: SeverityWarning, wantText: "state not returned"},
-		{state: "SOMETHING_NEW", wantID: CheckMediaDeliveryUnverified, wantSeverity: SeverityWarning, wantText: "SOMETHING_NEW"},
+		{state: "", wantID: CheckMediaDeliveryUnverified, wantSeverity: SeverityInfo, wantText: "state not returned"},
+		{state: "SOMETHING_NEW", wantID: CheckMediaDeliveryUnverified, wantSeverity: SeverityInfo, wantText: "SOMETHING_NEW"},
 	}
 
 	for _, test := range tests {
@@ -98,8 +98,8 @@ func TestMediaDeliveryChecksReportPlacementStates(t *testing.T) {
 		{state: "PARENT_APPROVED"},
 		{state: "FAILED", wantID: CheckMediaDeliveryFailed, wantSeverity: SeverityError},
 		{state: "ASSET_PROCESSING", wantID: CheckMediaDeliveryPending, wantSeverity: SeverityWarning},
-		{state: "", wantID: CheckMediaDeliveryUnverified, wantSeverity: SeverityWarning},
-		{state: "SOMETHING_NEW", wantID: CheckMediaDeliveryUnverified, wantSeverity: SeverityWarning},
+		{state: "", wantID: CheckMediaDeliveryUnverified, wantSeverity: SeverityInfo},
+		{state: "SOMETHING_NEW", wantID: CheckMediaDeliveryUnverified, wantSeverity: SeverityInfo},
 	}
 
 	for _, test := range tests {
@@ -138,8 +138,8 @@ func TestMediaDeliveryChecksNeverPassAnUnreadSource(t *testing.T) {
 		t.Fatalf("expected one finding, got %+v", checks)
 	}
 	check := checks[0]
-	if check.ID != CheckMediaDeliveryUnverified || check.Severity != SeverityWarning {
-		t.Fatalf("check = %s/%s, want an unverified warning", check.ID, check.Severity)
+	if check.ID != CheckMediaDeliveryUnverified || check.Severity != SeverityInfo {
+		t.Fatalf("check = %s/%s, want an unverified info finding", check.ID, check.Severity)
 	}
 	if check.Locale != "ja" || check.ResourceID != "loc-1" || !strings.Contains(check.Message, "asset library placements") {
 		t.Fatalf("check does not name what was unread: %+v", check)

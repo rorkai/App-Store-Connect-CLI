@@ -1992,7 +1992,8 @@ func TestValidateReportsMediaDeliveryPerLocale(t *testing.T) {
 			name:         "unreadable placements stay unverified",
 			mutate:       func(f *validateFixture) { f.placementsStatus = http.StatusForbidden },
 			wantCheckID:  validation.CheckMediaDeliveryUnverified,
-			wantSeverity: validation.SeverityWarning,
+			wantSeverity: validation.SeverityInfo,
+			strict:       true,
 		},
 	}
 

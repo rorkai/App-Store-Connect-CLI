@@ -132,12 +132,13 @@ deprecated `assetDeliveryState` when Apple returns only that.
 | --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `media.delivery.failed`     | Error    | Processing failed. The finding includes Apple's error when one is returned.                                              |
 | `media.delivery.pending`    | Warning  | The asset is `AWAITING_UPLOAD`, `UPLOAD_COMPLETE`, `PROCESSING`, or `ASSET_PROCESSING`.                                  |
-| `media.delivery.unverified` | Warning  | Apple returned no state, returned a state `asc` doesn't recognize, or the previews or placements for a locale couldn't be read. |
+| `media.delivery.unverified` | Info     | Apple returned no state, returned a state `asc` doesn't recognize, or the previews or placements for a locale couldn't be read. |
 
 Apple doesn't report when a state last changed, so `pending` can't separate
 media that is stuck from media that is still moving. Validate again after a few
 minutes: an asset in the same state is likely stuck. Use `--strict` when a
-pending or unverified finding must fail CI.
+pending finding must fail CI. Unverified findings stay informational and never
+block, because nothing shows the media is wrong.
 
 Each version localization adds two requests, one for app preview sets and one
 for placements, plus more when a response is paged. They count against the same
