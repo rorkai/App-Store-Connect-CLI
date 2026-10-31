@@ -240,11 +240,13 @@ func AppsUpdateCommand() *ffcli.Command {
 	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
 	subscriptionStatusURL := fs.String("subscription-status-url", "", "Production App Store Server Notifications HTTPS URL (sets version V2)")
 	sandboxSubscriptionStatusURL := fs.String("sandbox-subscription-status-url", "", "Sandbox App Store Server Notifications HTTPS URL (sets version V2)")
+	var streamlinedPurchasing shared.OptionalBool
+	fs.Var(&streamlinedPurchasing, "streamlined-purchasing-enabled", "Set streamlined purchasing: true or false")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
-		ShortUsage: "asc apps update --id APP_ID [--bundle-id BUNDLE_ID] [--primary-locale LOCALE] [--content-rights DECLARATION] [--subscription-status-url URL] [--sandbox-subscription-status-url URL]",
+		ShortUsage: "asc apps update --id APP_ID [--bundle-id BUNDLE_ID] [--primary-locale LOCALE] [--content-rights DECLARATION] [--subscription-status-url URL] [--sandbox-subscription-status-url URL] [--streamlined-purchasing-enabled true|false]",
 		ShortHelp:  "Update app metadata and App Store Server Notifications URLs.",
 		LongHelp: `Update app metadata and App Store Server Notifications URLs.
 
@@ -256,7 +258,8 @@ Examples:
   asc apps update --id "APP_ID" --primary-locale "en-US"
   asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"
   asc apps update --id "APP_ID" --subscription-status-url "https://example.com/notifications"
-  asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"`,
+  asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"
+  asc apps update --id "APP_ID" --streamlined-purchasing-enabled false`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -302,8 +305,12 @@ Examples:
 				attrs.SubscriptionStatusURLForSandbox = &value
 				attrs.SubscriptionStatusURLVersionForSandbox = &version
 			}
-			if attrs.BundleID == nil && attrs.PrimaryLocale == nil && attrs.ContentRightsDeclaration == nil && attrs.SubscriptionStatusURL == nil && attrs.SubscriptionStatusURLForSandbox == nil {
-				fmt.Fprintln(os.Stderr, "Error: at least one update field is required (--bundle-id, --primary-locale, --content-rights, --subscription-status-url, --sandbox-subscription-status-url)")
+			if streamlinedPurchasing.IsSet() {
+				value := streamlinedPurchasing.Value()
+				attrs.StreamlinedPurchasingEnabled = &value
+			}
+			if attrs == (asc.AppUpdateAttributes{}) {
+				fmt.Fprintln(os.Stderr, "Error: at least one update field is required (--bundle-id, --primary-locale, --content-rights, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled)")
 				return shared.MissingRequiredUsageError("")
 			}
 
