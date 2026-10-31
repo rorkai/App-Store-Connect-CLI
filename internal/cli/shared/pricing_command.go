@@ -26,6 +26,8 @@ type PricingSetCommandConfig struct {
 	StartDateDefaultToday bool
 	RequireBaseTerritory  bool
 	ResolveBaseTerritory  bool
+	// TemporaryPrice adds --end-date, --return-price-point, and --confirm.
+	TemporaryPrice bool
 }
 
 // NewPricingSetCommand builds a pricing set command with shared behavior.
@@ -40,6 +42,12 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 	baseTerritory := fs.String("base-territory", "", "Base territory input (accepts alpha-2, alpha-3, or exact English country name; e.g., US, USA, United States)")
 	startDate := fs.String("start-date", "", config.StartDateHelp)
 	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
+	endDate, returnPricePoint, confirm := new(string), new(string), new(bool)
+	if config.TemporaryPrice {
+		fs.StringVar(endDate, "end-date", "", "Date the price ends (YYYY-MM-DD, US Pacific time, exclusive); requires --return-price-point and --confirm")
+		returnPricePoint = BindResourceIDFlag(fs, "return-price-point", "appPricePoints", "Base territory price point that applies from --end-date, and until --start-date when that is in the future")
+		fs.BoolVar(confirm, "confirm", false, "Confirm replacing the whole price schedule (required with --end-date)")
+	}
 	output := BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -103,6 +111,21 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				normalizedStartDate = normalized
 			}
 
+			returnPricePointValue := strings.TrimSpace(*returnPricePoint)
+			normalizedEndDate, err := validateTemporaryPriceFlags(fs, *endDate, returnPricePointValue, *confirm)
+			if err != nil {
+				return err
+			}
+			if normalizedEndDate != "" {
+				firstDay := normalizedStartDate
+				if startDateDefaulted {
+					firstDay = pricingDefaultStartDate(pricingNow())
+				}
+				if err := validatePricingEndDate(firstDay, normalizedEndDate); err != nil {
+					return err
+				}
+			}
+
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
@@ -155,11 +178,26 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				)
 			}
 
-			resp, err := client.CreateAppPriceSchedule(requestCtx, resolvedAppID, asc.AppPriceScheduleCreateAttributes{
+			attrs := asc.AppPriceScheduleCreateAttributes{
 				PricePointID:    pricePointValue,
 				StartDate:       normalizedStartDate,
 				BaseTerritoryID: baseTerritoryID,
-			})
+			}
+			if normalizedEndDate != "" {
+				if err := validatePricingEndDate(normalizedStartDate, normalizedEndDate); err != nil {
+					return err
+				}
+				attrs.Prices = temporaryPriceTimeline(pricePointValue, returnPricePointValue, normalizedStartDate, normalizedEndDate, pricingDefaultStartDate(pricingNow()))
+				if len(attrs.Prices) == 3 {
+					fmt.Fprintf(
+						os.Stderr,
+						"Note: --return-price-point also applies from today until %s, because --start-date is in the future.\n",
+						normalizedStartDate,
+					)
+				}
+			}
+
+			resp, err := client.CreateAppPriceSchedule(requestCtx, resolvedAppID, attrs)
 			if err != nil {
 				return explainAppPriceScheduleConflict(err, appPriceScheduleConflictInput{
 					ErrorPrefix:        config.ErrorPrefix,
@@ -169,6 +207,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 					BaseTerritoryID:    baseTerritoryID,
 					StartDate:          normalizedStartDate,
 					StartDateDefaulted: startDateDefaulted,
+					TemporaryPrice:     normalizedEndDate != "",
 				})
 			}
 
@@ -193,7 +232,7 @@ func priceSelectionFlag(tier int, price string, free bool) string {
 }
 
 // pricingStartDateLayout is the date-only layout App Store Connect expects for
-// appPrices startDate ("format": "date" in the OpenAPI snapshot).
+// appPrices startDate and endDate ("format": "date" in the OpenAPI snapshot).
 const pricingStartDateLayout = "2006-01-02"
 
 // pricingDefaultStartDate returns today's App Store Connect pricing date (the
@@ -207,11 +246,73 @@ func normalizePricingStartDate(value string) (string, error) {
 	if trimmed == "" {
 		return "", fmt.Errorf("--start-date is required")
 	}
-	parsed, err := time.Parse(pricingStartDateLayout, trimmed)
+	return parsePricingDate("--start-date", trimmed)
+}
+
+func parsePricingDate(flagName, value string) (string, error) {
+	parsed, err := time.Parse(pricingStartDateLayout, value)
 	if err != nil {
-		return "", fmt.Errorf("--start-date must be in YYYY-MM-DD format")
+		return "", fmt.Errorf("%s must be in YYYY-MM-DD format", flagName)
 	}
 	return parsed.Format(pricingStartDateLayout), nil
+}
+
+// validateTemporaryPriceFlags returns the normalized end date, or "" for a
+// price without one.
+func validateTemporaryPriceFlags(fs *flag.FlagSet, endDate, returnPricePoint string, confirm bool) (string, error) {
+	endDateSet := false
+	fs.Visit(func(f *flag.Flag) {
+		endDateSet = endDateSet || f.Name == "end-date"
+	})
+	if !endDateSet {
+		if returnPricePoint != "" {
+			return "", WithDiagnostic(UsageError("--return-price-point requires --end-date"), DiagnosticInvalidInput, "--return-price-point")
+		}
+		if confirm {
+			return "", WithDiagnostic(UsageError("--confirm requires --end-date"), DiagnosticInvalidInput, "--confirm")
+		}
+		return "", nil
+	}
+	normalized, err := parsePricingDate("--end-date", strings.TrimSpace(endDate))
+	if err != nil {
+		return "", WithDiagnostic(UsageError(err.Error()), DiagnosticInvalidInput, "--end-date")
+	}
+	if returnPricePoint == "" {
+		fmt.Fprintln(os.Stderr, "Error: --end-date requires --return-price-point, the price that applies after the end date")
+		return "", MissingRequiredUsageError("--return-price-point")
+	}
+	if !confirm {
+		fmt.Fprintln(os.Stderr, "Error: --confirm is required with --end-date because this replaces the app's whole price schedule, dropping existing scheduled prices and manual prices in other territories")
+		return "", MissingRequiredUsageError("--confirm")
+	}
+	return normalized, nil
+}
+
+func validatePricingEndDate(startDate, endDate string) error {
+	if endDate > startDate {
+		return nil
+	}
+	return WithDiagnostic(
+		UsageError(fmt.Sprintf("--end-date must be after the start date %s", startDate)),
+		DiagnosticInvalidInput,
+		"--end-date",
+	)
+}
+
+// temporaryPriceTimeline builds the base territory timeline around a temporary
+// price. App Store Connect rejects a schedule that does not cover today, and
+// ends one price on the date the next one starts, so the return price fills
+// both sides of the temporary price. The first entry of a future price has no
+// start date, as in Apple's POST /v1/appPriceSchedules example.
+func temporaryPriceTimeline(pricePoint, returnPricePoint, startDate, endDate, today string) []asc.AppPriceSchedulePrice {
+	timeline := make([]asc.AppPriceSchedulePrice, 0, 3)
+	if startDate > today {
+		timeline = append(timeline, asc.AppPriceSchedulePrice{PricePointID: returnPricePoint, EndDate: startDate})
+	}
+	return append(timeline,
+		asc.AppPriceSchedulePrice{PricePointID: pricePoint, StartDate: startDate, EndDate: endDate},
+		asc.AppPriceSchedulePrice{PricePointID: returnPricePoint, StartDate: endDate},
+	)
 }
 
 func requiresExplicitBaseTerritory(config PricingSetCommandConfig, baseTerritory string, tier int, price string, free bool) bool {

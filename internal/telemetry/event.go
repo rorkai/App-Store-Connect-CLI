@@ -632,6 +632,7 @@ var knownFailureParameters = map[string]struct{}{
 	"response":                          {},
 	"response-fields":                   {},
 	"response-state":                    {},
+	"return-price-point":                {},
 	"return-url":                        {},
 	"review-detail":                     {},
 	"review-id":                         {},
