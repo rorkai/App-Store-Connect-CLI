@@ -1,5 +1,7 @@
 package validation
 
+import "time"
+
 // Severity represents the validation severity level.
 type Severity string
 
@@ -159,6 +161,9 @@ type Input struct {
 	AvailabilityFetchSkipReason string
 	PricingCoverageSkipReason   string
 	ScreenshotSets              []ScreenshotSet
+	PreviewSets                 []PreviewSet
+	MediaPlacements             []MediaPlacement
+	MediaReadGaps               []MediaReadGap
 	// SupportsIPad reports whether the app binary declares iPad support in
 	// UIDeviceFamily. It is nil when no binary was inspected.
 	SupportsIPad                *bool
@@ -176,6 +181,11 @@ type Input struct {
 	// current custom product page localizations.
 	CustomProductPageLocalizations      []CustomProductPageLocalization
 	CustomProductPageKeywordsSkipReason string
+	// BuildSDKName is the binary's DTSDKName, empty when no binary was
+	// inspected.
+	BuildSDKName string
+	// Now is the time date-dependent checks read; zero means the current time.
+	Now time.Time
 }
 
 // CustomProductPageLocalization is one custom product page localization and
@@ -227,6 +237,50 @@ type Screenshot struct {
 	FileName string
 	Width    int
 	Height   int
+	// DeliveryState is the asset's assetDeliveryState state, empty when Apple
+	// did not return one.
+	DeliveryState  string
+	DeliveryErrors []string
+}
+
+// PreviewSet represents an app preview set and its assets.
+type PreviewSet struct {
+	ID             string
+	PreviewType    string
+	Locale         string
+	LocalizationID string
+	Previews       []Preview
+}
+
+// Preview represents an app preview asset.
+type Preview struct {
+	ID       string
+	FileName string
+	// DeliveryState is the videoDeliveryState state, or the deprecated
+	// assetDeliveryState when Apple returned only that. It is empty when Apple
+	// returned neither.
+	DeliveryState  string
+	DeliveryErrors []string
+}
+
+// MediaPlacement represents an asset library placement on a version
+// localization.
+type MediaPlacement struct {
+	ID             string
+	Locale         string
+	PlacementType  string
+	PlacementGroup string
+	State          string
+	StateDetails   []string
+}
+
+// MediaReadGap records version media that could not be read for one
+// localization, so its delivery state is unknown.
+type MediaReadGap struct {
+	Media          string
+	Locale         string
+	LocalizationID string
+	Reason         string
 }
 
 // ReviewDetails represents App Store review details for a version.
@@ -251,6 +305,17 @@ type Build struct {
 	UsesNonExemptEncryption       *bool
 	AppEncryptionDeclarationID    string
 	AppEncryptionDeclarationState string
+	MinOSVersion                  string
+	Bundles                       []BuildBundle
+	// BundlesUnreadReason explains why Bundles could not be read. It is empty
+	// when the read succeeded or was not attempted.
+	BundlesUnreadReason string
+}
+
+// BuildBundle represents one bundle inside a build.
+type BuildBundle struct {
+	Type     string
+	SDKBuild string
 }
 
 // AgeRatingDeclaration represents age rating attributes for validation.

@@ -434,6 +434,38 @@ asc screenshots upload --app "123456789" \
   --device-type "IPHONE_65"
 ```
 
+### Upload Through the Asset Library
+
+Apple has deprecated screenshot sets in favor of the Asset Library, without
+announcing a removal date. Screenshot sets stay the default. Add `--asset-library`
+to upload to the library and place the screenshots on a version localization:
+
+```bash  theme={null}
+# See the library, placement group and remaining capacity without changing anything
+asc screenshots upload --version-localization "LOC_ID" \
+  --path "./screenshots/duo" \
+  --device-type "IPHONE_DUO" \
+  --asset-library --dry-run
+
+# Upload the sorted files, place them, and order them after existing placements
+asc screenshots upload --version-localization "LOC_ID" \
+  --path "./screenshots/duo" \
+  --device-type "IPHONE_DUO" \
+  --asset-library
+```
+
+The placement group comes from Apple's reference data for `--device-type`. If
+Apple publishes no single match, the command lists the offered groups; pass one
+with `--placement-group`. Existing placements are kept and count toward the
+group's limit. `--skip-existing`, `--replace` and `--concurrency` do not apply.
+
+Every file is uploaded before any is placed, so a failed upload leaves the
+localization unchanged. If a later step fails, the command exits non-zero and
+the receipt keeps each file's `assetId`, `placementId` and `state`, with
+`complete: false`. Uploaded media is never deleted automatically. Inspect with
+`asc localizations placements list`, then finish with
+`asc localizations placements create` and `reorder`.
+
 ### Download Screenshots
 
 Download existing screenshots from App Store Connect:

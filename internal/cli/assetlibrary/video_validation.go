@@ -144,10 +144,16 @@ func inspectLibraryVideo(ctx context.Context, path string) (libraryVideoProperti
 }
 
 func matchLibraryVideoSpec(raw []byte, category string, p libraryVideoProperties, size int64, extension string) error {
+	return matchLibraryVideoSpecIn(raw, category, nil, p, size, extension)
+}
+
+// matchLibraryVideoSpecIn limits matching to allowed spec IDs when allowed is non-nil.
+func matchLibraryVideoSpecIn(raw []byte, category string, allowed map[string]bool, p libraryVideoProperties, size int64, extension string) error {
 	var envelope struct {
 		Data []struct {
 			Attributes struct {
 				Specs []struct {
+					SpecID     string `json:"specId"`
 					Dimensions struct{ MinWidth, MaxWidth, MinHeight, MaxHeight int }
 					Aspect     json.RawMessage `json:"aspectRatio"`
 					Placements []string        `json:"compatiblePlacementTypes"`
@@ -169,6 +175,9 @@ func matchLibraryVideoSpec(raw []byte, category string, p libraryVideoProperties
 	}
 	for _, item := range envelope.Data {
 		for _, spec := range item.Attributes.Specs {
+			if allowed != nil && !allowed[spec.SpecID] {
+				continue
+			}
 			mimeAllowed := false
 			for _, mimeType := range spec.MIMETypes {
 				if mimeType == p.MIMEType {

@@ -61,6 +61,20 @@ func notarySubmissionsListRows(resp *NotarySubmissionsListResponse) ([]string, [
 	return headers, rows
 }
 
+// NotarizationLogDownloadResult is the receipt for a developer log saved to a
+// file. It omits the log URL, which is presigned.
+type NotarizationLogDownloadResult struct {
+	ID           string `json:"id"`
+	OutputPath   string `json:"outputPath"`
+	BytesWritten int64  `json:"bytesWritten"`
+}
+
+func notarizationLogDownloadResultRows(result *NotarizationLogDownloadResult) ([]string, [][]string) {
+	headers := []string{"ID", "Output Path", "Bytes Written"}
+	rows := [][]string{{result.ID, result.OutputPath, strconv.FormatInt(result.BytesWritten, 10)}}
+	return headers, rows
+}
+
 func notarySubmissionLogsRows(resp *NotarySubmissionLogsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Developer Log URL"}
 	rows := [][]string{{resp.Data.ID, resp.Data.Attributes.DeveloperLogURL}}

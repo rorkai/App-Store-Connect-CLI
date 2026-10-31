@@ -11,10 +11,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -1099,5 +1101,178 @@ func TestResolveNotaryBaseURL(t *testing.T) {
 	client.SetNotaryBaseURL("http://localhost:9999")
 	if got := client.resolveNotaryBaseURL(); got != "http://localhost:9999" {
 		t.Errorf("expected http://localhost:9999, got %s", got)
+	}
+}
+
+const (
+	notaryLogSignature = "asc-sentinel-notary-log-signature"
+	notaryLogTestURL   = "https://notary-artifacts-prod.s3.amazonaws.com/prod/developer_log.json?X-Amz-Signature=" + notaryLogSignature
+)
+
+// newNotaryLogTestClient connects every HTTPS host to a local TLS server, so
+// the real allowed hostnames run over a real connection.
+func newNotaryLogTestClient(t *testing.T, handler http.HandlerFunc) *Client {
+	t.Helper()
+	server := httptest.NewTLSServer(handler)
+	t.Cleanup(server.Close)
+
+	transport := server.Client().Transport.(*http.Transport).Clone()
+	transport.TLSClientConfig.ServerName = "example.com"
+	transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
+	}
+
+	client := newTestNotaryClient(t, "")
+	client.httpClient = &http.Client{Transport: transport}
+	return client
+}
+
+func TestDownloadNotarizationLogSendsNoCredentials(t *testing.T) {
+	const logBody = `{"status":"Accepted","issues":null}`
+
+	tests := []struct {
+		name      string
+		url       string
+		wantQuery string
+	}{
+		{name: "S3 signature v4", url: notaryLogTestURL, wantQuery: "X-Amz-Signature=" + notaryLogSignature},
+		{
+			name:      "S3 signature v2",
+			url:       "https://notary-artifacts-prod.s3.amazonaws.com/log.json?AWSAccessKeyId=key&Signature=sig&Expires=1",
+			wantQuery: "AWSAccessKeyId=key&Signature=sig&Expires=1",
+		},
+		{
+			name:      "Apple host",
+			url:       "https://osxapps-ssl.itunes.apple.com/itunes-assets/developer_log.json?accessKey=key",
+			wantQuery: "accessKey=key",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newNotaryLogTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				if got := r.Header.Get("Authorization"); got != "" {
+					t.Errorf("Authorization = %q, want none", got)
+				}
+				if r.Method != http.MethodGet || r.URL.RawQuery != test.wantQuery {
+					t.Errorf("request = %s ?%s, want GET ?%s", r.Method, r.URL.RawQuery, test.wantQuery)
+				}
+				_, _ = io.WriteString(w, logBody)
+			})
+
+			got, err := client.DownloadNotarizationLog(context.Background(), test.url)
+			if err != nil {
+				t.Fatalf("DownloadNotarizationLog() error: %v", err)
+			}
+			if string(got) != logBody {
+				t.Fatalf("log = %q, want %q", got, logBody)
+			}
+		})
+	}
+}
+
+func TestDownloadNotarizationLogRejectsUnsafeURLs(t *testing.T) {
+	const signed = "?X-Amz-Signature=" + notaryLogSignature
+
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{name: "empty", url: " "},
+		{name: "plain http", url: "http://notary-artifacts-prod.s3.amazonaws.com/log.json" + signed},
+		{name: "untrusted host", url: "https://logs.example.com/log.json" + signed},
+		{name: "allowed name as a prefix", url: "https://s3.amazonaws.com.example.com/log.json" + signed},
+		{name: "allowed name in userinfo", url: "https://s3.amazonaws.com@example.com/log.json" + signed},
+		{name: "userinfo on an allowed host", url: "https://user:pass@notary-artifacts-prod.s3.amazonaws.com/log.json" + signed},
+		{name: "port on an allowed host", url: "https://notary-artifacts-prod.s3.amazonaws.com:8443/log.json" + signed},
+		{name: "unsigned AWS host", url: "https://notary-artifacts-prod.s3.amazonaws.com/log.json"},
+		{name: "CDN outside the expected providers", url: "https://logs.azureedge.net/log.json" + signed},
+		{name: "unparseable", url: "https://notary-artifacts-prod.s3.amazonaws.com/\x7f" + signed},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestNotaryClient(t, "")
+			client.httpClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Errorf("unexpected request to %s", req.URL.Host)
+				return nil, errors.New("unexpected request")
+			})}
+
+			_, err := client.DownloadNotarizationLog(context.Background(), test.url)
+			if err == nil {
+				t.Fatal("expected rejection")
+			}
+			if strings.Contains(err.Error(), notaryLogSignature) {
+				t.Fatalf("error leaks the signature: %v", err)
+			}
+		})
+	}
+}
+
+func TestDownloadNotarizationLogDoesNotFollowRedirects(t *testing.T) {
+	var requests atomic.Int32
+	client := newNotaryLogTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		http.Redirect(w, r, "https://logs.example.com/log.json", http.StatusFound)
+	})
+
+	_, err := client.DownloadNotarizationLog(context.Background(), notaryLogTestURL)
+	if err == nil {
+		t.Fatal("expected redirect failure")
+	}
+	if strings.Contains(err.Error(), notaryLogSignature) {
+		t.Fatalf("error leaks the signature: %v", err)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("requests = %d, want 1", got)
+	}
+}
+
+func TestDownloadNotarizationLogEnforcesSizeLimit(t *testing.T) {
+	client := newNotaryLogTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		chunk := bytes.Repeat([]byte(" "), 1<<20)
+		for written := 0; written <= notaryLogMaxBytes; written += len(chunk) {
+			if _, err := w.Write(chunk); err != nil {
+				return
+			}
+		}
+	})
+
+	got, err := client.DownloadNotarizationLog(context.Background(), notaryLogTestURL)
+	if err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("error = %v, want size limit failure", err)
+	}
+	if got != nil {
+		t.Fatalf("got %d bytes, want none", len(got))
+	}
+}
+
+func TestDownloadNotarizationLogRejectsBadResponses(t *testing.T) {
+	tests := []struct {
+		name    string
+		status  int
+		body    string
+		wantErr string
+	}{
+		{name: "not JSON", status: http.StatusOK, body: "<Error/>", wantErr: "not valid JSON"},
+		{name: "empty body", status: http.StatusOK, wantErr: "not valid JSON"},
+		{name: "expired URL", status: http.StatusForbidden, body: "<Error>" + notaryLogSignature + "</Error>", wantErr: "403"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newNotaryLogTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(test.status)
+				_, _ = io.WriteString(w, test.body)
+			})
+
+			_, err := client.DownloadNotarizationLog(context.Background(), notaryLogTestURL)
+			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("error = %v, want %q", err, test.wantErr)
+			}
+			if strings.Contains(err.Error(), notaryLogSignature) {
+				t.Fatalf("error leaks the signature: %v", err)
+			}
+		})
 	}
 }

@@ -298,6 +298,10 @@ Update app metadata and App Store Server Notifications URLs.
   Sandbox App Store Server Notifications HTTPS URL. Sets notification version V2.
 </ParamField>
 
+<ParamField path="--streamlined-purchasing-enabled" type="boolean">
+  Set streamlined purchasing: `true` or `false`. Omit it to leave the setting unchanged.
+</ParamField>
+
 Notification URLs must be absolute HTTPS URLs without credentials or fragments.
 Each supplied URL is configured for version V2, which delivers signed payloads.
 Omitting an endpoint leaves its URL and version unchanged. Empty URLs are rejected;
@@ -311,6 +315,7 @@ asc apps update --id "APP_ID" --primary-locale "en-US"
 asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"
 asc apps update --id "APP_ID" --subscription-status-url "https://example.com/notifications"
 asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"
+asc apps update --id "APP_ID" --streamlined-purchasing-enabled false
 ```
 
 **Response:**

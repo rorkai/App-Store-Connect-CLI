@@ -39,15 +39,17 @@ type ArtifactArchitecture struct {
 // ArtifactSigner is the leaf certificate read from an artifact signature. It is
 // not validated against a trust store.
 type ArtifactSigner struct {
-	CommonName        string `json:"commonName,omitempty"`
-	TeamID            string `json:"teamId,omitempty"`
-	Organization      string `json:"organization,omitempty"`
-	IssuerCommonName  string `json:"issuerCommonName,omitempty"`
-	SerialNumber      string `json:"serialNumber,omitempty"`
-	NotBefore         string `json:"notBefore,omitempty"`
-	NotAfter          string `json:"notAfter,omitempty"`
-	SHA1Fingerprint   string `json:"sha1Fingerprint,omitempty"`
-	SHA256Fingerprint string `json:"sha256Fingerprint,omitempty"`
+	CommonName                 string `json:"commonName,omitempty"`
+	TeamID                     string `json:"teamId,omitempty"`
+	Organization               string `json:"organization,omitempty"`
+	IssuerCommonName           string `json:"issuerCommonName,omitempty"`
+	IssuerOrganizationalUnit   string `json:"issuerOrganizationalUnit,omitempty"`
+	DeveloperIDAuthorityStatus string `json:"developerIdAuthorityStatus,omitempty"`
+	SerialNumber               string `json:"serialNumber,omitempty"`
+	NotBefore                  string `json:"notBefore,omitempty"`
+	NotAfter                   string `json:"notAfter,omitempty"`
+	SHA1Fingerprint            string `json:"sha1Fingerprint,omitempty"`
+	SHA256Fingerprint          string `json:"sha256Fingerprint,omitempty"`
 }
 
 // ArtifactNestedBundle is an extension or App Clip found in an IPA.

@@ -312,7 +312,11 @@ func editUTF8PBXProjBuildSettings(original []byte, project *structuredVersionPro
 		}
 		edits = append(edits, pbxEdit{start: position, end: position, text: text.String()})
 	}
-	sort.Slice(edits, func(i, j int) bool { return edits[i].start < edits[j].start })
+	return applyProjectEdits(original, edits)
+}
+
+func applyProjectEdits(original []byte, edits []pbxEdit) ([]byte, error) {
+	sort.SliceStable(edits, func(i, j int) bool { return edits[i].start < edits[j].start })
 	var updated bytes.Buffer
 	position := 0
 	for _, edit := range edits {

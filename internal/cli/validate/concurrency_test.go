@@ -167,6 +167,8 @@ func TestBuildReadinessReport_OverlapsSixIndependentReadGroups(t *testing.T) {
 		case "/v1/territories":
 			fmt.Fprint(w, `{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`)
 		case "/v1/appStoreVersionLocalizations/ver-loc-1/appScreenshotSets",
+			"/v1/appStoreVersionLocalizations/ver-loc-1/appPreviewSets",
+			"/v1/appStoreVersionLocalizations/ver-loc-1/placements",
 			"/v1/apps/app-1/subscriptionGroups",
 			"/v1/apps/app-1/inAppPurchasesV2",
 			"/v1/apps/app-1/appCustomProductPages":

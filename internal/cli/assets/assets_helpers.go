@@ -3,6 +3,7 @@ package assets
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -76,6 +77,29 @@ func collectAssetFiles(path string) ([]string, error) {
 		}
 	}
 	return files, nil
+}
+
+// validateLibraryUploadFlags rejects set-only flags on the Asset Library path.
+func validateLibraryUploadFlags(assetLibrary bool, placementGroup string, skipExisting, replace bool) error {
+	if !assetLibrary {
+		if strings.TrimSpace(placementGroup) != "" {
+			return shared.UsageError("--placement-group requires --asset-library")
+		}
+		return nil
+	}
+	if skipExisting {
+		return shared.UsageError("--asset-library cannot be combined with --skip-existing")
+	}
+	if replace {
+		return shared.UsageError("--asset-library cannot be combined with --replace; remove placements with asc localizations placements delete")
+	}
+	return nil
+}
+
+func flagWasSet(fs *flag.FlagSet, name string) bool {
+	found := false
+	fs.Visit(func(f *flag.Flag) { found = found || f.Name == name })
+	return found
 }
 
 func waitForAssetDeliveryState(ctx context.Context, assetID string, fetch func(context.Context) (*asc.AssetDeliveryState, error)) (string, error) {

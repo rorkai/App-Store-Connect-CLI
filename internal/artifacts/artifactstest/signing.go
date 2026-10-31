@@ -45,13 +45,20 @@ type Chain struct {
 // Apple Distribution certificate.
 func NewChain(t testing.TB) Chain {
 	t.Helper()
+	return NewChainWithIssuer(t, pkix.Name{CommonName: IssuerCommonName, Organization: []string{"Test Authority"}})
+}
+
+// NewChainWithIssuer is NewChain with the intermediate's subject chosen by the
+// caller, which becomes the leaf's issuer name.
+func NewChainWithIssuer(t testing.TB, issuer pkix.Name) Chain {
+	t.Helper()
 	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 	caTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: IssuerCommonName, Organization: []string{"Test Authority"}},
+		Subject:               issuer,
 		NotBefore:             NotBefore,
 		NotAfter:              NotBefore.AddDate(5, 0, 0),
 		IsCA:                  true,

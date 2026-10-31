@@ -34,8 +34,9 @@ type AssetDeliveryState struct {
 
 // ErrorDetail describes an asset error detail.
 type ErrorDetail struct {
-	Code    string `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
+	Code        string `json:"code,omitempty"`
+	Message     string `json:"message,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 // AppPreviewSetAttributes describes a preview set resource.
@@ -54,6 +55,7 @@ type AppPreviewAttributes struct {
 	PreviewImage         *ImageAsset         `json:"previewImage,omitempty"`
 	UploadOperations     []UploadOperation   `json:"uploadOperations,omitempty"`
 	AssetDeliveryState   *AssetDeliveryState `json:"assetDeliveryState,omitempty"`
+	VideoDeliveryState   *AppMediaVideoState `json:"videoDeliveryState,omitempty"`
 }
 
 // Response types

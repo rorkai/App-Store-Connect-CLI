@@ -833,6 +833,13 @@ refuses a blocked or changed plan. `--export-options-out` writes an
 `ExportOptions.plist` with the inferred method, team, and per-bundle profile
 names; `--export-method` overrides the inferred method.
 
+`xcode signing plan` and `xcode signing apply` do not support Xcode's JSON
+project format (`project.xcproj`) yet. Both fail before writing anything, so
+manage signing for those projects in Xcode. `xcode version view`, `edit`, and
+`bump` do support it, as long as the project or a referenced xcconfig file
+defines the version settings. `edit` and `bump` change only the affected keys,
+and a value set for one configuration uses `[config=Name]` build setting keys.
+
 Without a plan, manual export inspects the archive and matches locally installed profiles for the main app and embedded targets (`asc xcode export --signing-style manual --team-id TEAM_ID`). An explicit `--export-options` file is authoritative and cannot be combined with `--signing-style`, `--team-id`, or `--method`.
 
 ## Reconcile registered-device profiles for an archive

@@ -27,6 +27,8 @@ const (
 	NotaryBaseURL = "https://appstoreconnect.apple.com"
 	// notarySubmissionsPath is the submissions endpoint path.
 	notarySubmissionsPath = "/notary/v2/submissions"
+	// notaryLogMaxBytes bounds a developer log held in memory.
+	notaryLogMaxBytes = 64 << 20
 	// notaryS3Region is the AWS region for the notary S3 bucket.
 	notaryS3Region = "us-west-2"
 	// notaryS3MaxSingleUploadBytes is the max size for a single PutObject upload.
@@ -309,6 +311,75 @@ func (c *Client) GetNotarizationLogs(ctx context.Context, submissionID string) (
 	}
 
 	return &response, nil
+}
+
+// DownloadNotarizationLog fetches the developer log JSON from the presigned URL
+// in a logs response. The request carries no credentials and follows no
+// redirects.
+func (c *Client) DownloadNotarizationLog(ctx context.Context, logURL string) ([]byte, error) {
+	if err := validateNotaryLogURL(logURL); err != nil {
+		return nil, fmt.Errorf("notarization log download: %w", err)
+	}
+
+	resp, err := c.doStreamNoAuth(ctx, logURL, "application/json")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, notaryLogMaxBytes+1))
+	if err != nil {
+		return nil, newSanitizedNoAuthStreamError("notarization log download", logURL, err)
+	}
+	if len(data) > notaryLogMaxBytes {
+		return nil, fmt.Errorf("notarization log download: log exceeds the %d-byte limit", notaryLogMaxBytes)
+	}
+	if !json.Valid(data) {
+		return nil, errors.New("notarization log download: response is not valid JSON")
+	}
+	return data, nil
+}
+
+// validateNotaryLogURL requires HTTPS on an Apple host, or a signed URL on an
+// AWS host. Its errors never include the URL's query, which is a capability.
+func validateNotaryLogURL(logURL string) error {
+	if strings.TrimSpace(logURL) == "" {
+		return errors.New("empty developer log URL")
+	}
+	parsedURL, err := url.Parse(logURL)
+	if err != nil {
+		// url.Error repeats the whole URL, so the cause is dropped.
+		return errors.New("invalid developer log URL")
+	}
+	if parsedURL.Scheme != "https" {
+		return fmt.Errorf("rejected developer log URL with insecure scheme %q (expected https)", parsedURL.Scheme)
+	}
+	host := strings.ToLower(parsedURL.Hostname())
+	if parsedURL.User != nil {
+		return fmt.Errorf("rejected developer log URL for host %q with embedded credentials", host)
+	}
+	if port := parsedURL.Port(); port != "" && port != "443" {
+		return fmt.Errorf("rejected developer log URL for host %q on port %q", host, port)
+	}
+	if isAllowedAnalyticsHost(host) {
+		return nil
+	}
+	if isAllowedNotaryLogAWSHost(host) {
+		if !hasSignedQuery(parsedURL.Query()) {
+			return fmt.Errorf("rejected developer log URL from AWS host %q without signed query", host)
+		}
+		return nil
+	}
+	return fmt.Errorf("rejected developer log URL from untrusted host %q", host)
+}
+
+func isAllowedNotaryLogAWSHost(host string) bool {
+	for _, allowed := range []string{"amazonaws.com", "cloudfront.net"} {
+		if host == allowed || strings.HasSuffix(host, "."+allowed) {
+			return true
+		}
+	}
+	return false
 }
 
 // ListNotarizations retrieves previous notarization submissions.

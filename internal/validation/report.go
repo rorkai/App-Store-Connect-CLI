@@ -1,6 +1,9 @@
 package validation
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // Validate runs all validation rules and returns a report.
 func Validate(input Input, strict bool) Report {
@@ -27,11 +30,17 @@ func Validate(input Input, strict bool) Report {
 	checks = append(checks, contentRightsChecks(input.AppID, input.ContentRightsDeclaration)...)
 	checks = append(checks, buildChecks(input.Build)...)
 	checks = append(checks, buildSubmissionChecks(input.Build)...)
+	now := input.Now
+	if now.IsZero() {
+		now = time.Now()
+	}
+	checks = append(checks, uploadRequirementChecks(input.Platform, input.Build, input.BuildSDKName, now)...)
 	checks = append(checks, pricingChecks(input.AppID, input.PriceScheduleID, input.BasePriceMissing, input.BaseTerritory, input.PricingFetchSkipReason)...)
 	checks = append(checks, availabilityChecks(input.AppID, input.AvailabilityID, input.AvailableTerritories, input.AvailabilityFetchSkipReason)...)
 	checks = append(checks, screenshotPresenceChecks(input.PrimaryLocale, input.VersionLocalizations, input.ScreenshotSets)...)
 	checks = append(checks, ipadScreenshotChecks(input.Platform, input.PrimaryLocale, input.VersionLocalizations, input.ScreenshotSets, input.SupportsIPad)...)
 	checks = append(checks, screenshotChecks(input.Platform, input.ScreenshotSets)...)
+	checks = append(checks, mediaDeliveryChecks(input.ScreenshotSets, input.PreviewSets, input.MediaPlacements, input.MediaReadGaps)...)
 	checks = append(checks, subscriptionFetchChecks(input.SubscriptionFetchSkipReason)...)
 	checks = append(checks, subscriptionImageChecks(input.Subscriptions)...)
 	checks = append(checks, subscriptionReviewReadinessChecks(input.Subscriptions)...)

@@ -3,6 +3,7 @@ package validate
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -249,6 +250,7 @@ func mapBuild(resource asc.Resource[asc.BuildAttributes]) *validation.Build {
 		ProcessingState:         attrs.ProcessingState,
 		Expired:                 attrs.Expired,
 		UsesNonExemptEncryption: attrs.UsesNonExemptEncryption,
+		MinOSVersion:            strings.TrimSpace(attrs.MinOSVersion),
 	}
 }
 
@@ -264,5 +266,8 @@ func copyBuild(build *validation.Build) *validation.Build {
 		UsesNonExemptEncryption:       build.UsesNonExemptEncryption,
 		AppEncryptionDeclarationID:    strings.TrimSpace(build.AppEncryptionDeclarationID),
 		AppEncryptionDeclarationState: strings.TrimSpace(build.AppEncryptionDeclarationState),
+		MinOSVersion:                  strings.TrimSpace(build.MinOSVersion),
+		Bundles:                       slices.Clone(build.Bundles),
+		BundlesUnreadReason:           strings.TrimSpace(build.BundlesUnreadReason),
 	}
 }

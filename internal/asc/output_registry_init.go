@@ -11,6 +11,7 @@ func registerAllOutputRenderers() {
 	registerRows(storeKitFinishRows)
 	registerRows(assetLibraryImageUploadRows)
 	registerRows(assetLibraryVideoUploadRows)
+	registerRows(assetLibraryLocalizationUploadRows)
 	registerRows(assetLibraryMutationRows)
 	registerRows(creativePlacementCreateResultRows)
 	registerRows(creativePlacementDeleteResultRows)
@@ -281,6 +282,7 @@ func registerAllOutputRenderers() {
 	registerRows(dsymDownloadResultRows)
 	registerRows(artifactIPAInfoRows)
 	registerRows(artifactPKGInfoRows)
+	registerDirect(developerIDCheckTables)
 	registerRows(buildWaitResultRows)
 	registerRows(buildWaitPendingResultRows)
 	registerRows(statusUntilResultRows)
@@ -737,4 +739,5 @@ func registerAllOutputRenderers() {
 	registerRows(notarySubmissionStatusRows)
 	registerRows(notarySubmissionsListRows)
 	registerRows(notarySubmissionLogsRows)
+	registerRows(notarizationLogDownloadResultRows)
 }
