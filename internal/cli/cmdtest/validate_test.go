@@ -1737,6 +1737,53 @@ func TestValidateWarnsWhenPrivacyPolicyURLMissing(t *testing.T) {
 	}
 }
 
+func TestValidateRequiresPrivacyPolicyTextForTVOSVersion(t *testing.T) {
+	const withoutText = `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy"}}]}`
+	const withText = `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy","privacyPolicyText":"We collect nothing."}}]}`
+
+	tests := []struct {
+		name     string
+		platform string
+		appInfo  string
+		want     bool
+	}{
+		{name: "tvOS without text", platform: "TV_OS", appInfo: withoutText, want: true},
+		{name: "tvOS with text", platform: "TV_OS", appInfo: withText, want: false},
+		{name: "iOS without text", platform: "IOS", appInfo: withoutText, want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := validValidateFixture()
+			fixture.versions = strings.Replace(fixture.versions, `"platform":"IOS"`, `"platform":"`+test.platform+`"`, 1)
+			fixture.version = strings.Replace(fixture.version, `"platform":"IOS"`, `"platform":"`+test.platform+`"`, 1)
+			fixture.appInfoLocs = test.appInfo
+
+			client := newValidateTestClient(t, fixture)
+			restore := validate.SetClientFactory(func() (*asc.Client, error) {
+				return client, nil
+			})
+			defer restore()
+
+			root := RootCommand("1.2.3")
+			stdout, _ := captureOutput(t, func() {
+				if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				// A blocking error is reported through the returned error; the report is still printed.
+				_ = root.Run(context.Background())
+			})
+
+			var report validation.Report
+			if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+				t.Fatalf("failed to parse JSON output: %v\n%s", err, stdout)
+			}
+			if got := hasCheckWithID(report.Checks, "legal.required.privacy_policy_text"); got != test.want {
+				t.Fatalf("privacy policy text check present = %v, want %v; checks: %+v", got, test.want, report.Checks)
+			}
+		})
+	}
+}
+
 func TestValidateFailsForNonEditableVersionState(t *testing.T) {
 	fixture := validValidateFixture()
 	fixture.version = `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"WAITING_FOR_REVIEW","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`

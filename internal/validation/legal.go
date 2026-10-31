@@ -151,6 +151,33 @@ func legalChecks(copyright string, hasActiveMonetization bool, hasReviewRelevant
 	return checks
 }
 
+// tvOSPrivacyPolicyTextChecks reports each app info localization of a tvOS
+// version that has no privacy policy text. App Store Connect blocks submission
+// of an Apple TV version until every localization has it; the URL alone is not
+// enough.
+func tvOSPrivacyPolicyTextChecks(platform string, appInfoLocs []AppInfoLocalization) []CheckResult {
+	if strings.ToUpper(strings.TrimSpace(platform)) != "TV_OS" {
+		return nil
+	}
+	var checks []CheckResult
+	for _, loc := range appInfoLocs {
+		if strings.TrimSpace(loc.PrivacyPolicyText) != "" {
+			continue
+		}
+		checks = append(checks, CheckResult{
+			ID:           "legal.required.privacy_policy_text",
+			Severity:     SeverityError,
+			Locale:       loc.Locale,
+			Field:        "privacyPolicyText",
+			ResourceType: "appInfoLocalization",
+			ResourceID:   loc.ID,
+			Message:      "privacy policy text is required for Apple TV",
+			Remediation:  "Set it via: asc localizations update --type app-info --id LOCALIZATION_ID --privacy-policy-text \"...\"",
+		})
+	}
+	return checks
+}
+
 // hasValidLeadingCopyrightYear reports whether the copyright value leads with a
 // four-digit acquisition year, allowing the copyright markers and year ranges
 // App Store Connect accepts (for example "© 2026 Acme" or "2019-2026 Acme").

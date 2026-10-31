@@ -207,6 +207,9 @@ type AppInfoLocalization struct {
 	Subtitle          string
 	PrivacyPolicyURL  string
 	PrivacyChoicesURL string
+	// PrivacyPolicyText is the Apple TV privacy policy; tvOS versions require it
+	// in every localization instead of (or in addition to) the URL.
+	PrivacyPolicyText string
 }
 
 // ScreenshotSet represents a screenshot set and its assets.

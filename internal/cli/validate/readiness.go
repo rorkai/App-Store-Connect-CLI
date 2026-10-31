@@ -292,6 +292,7 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 			Subtitle:          attrs.Subtitle,
 			PrivacyPolicyURL:  attrs.PrivacyPolicyURL,
 			PrivacyChoicesURL: attrs.PrivacyChoicesURL,
+			PrivacyPolicyText: attrs.PrivacyPolicyText,
 		})
 	}
 	sort.SliceStable(appInfoLocalizations, func(i, j int) bool {
