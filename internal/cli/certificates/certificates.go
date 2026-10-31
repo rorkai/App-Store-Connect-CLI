@@ -32,6 +32,7 @@ Examples:
   asc certificates list
   asc certificates list --certificate-type IOS_DISTRIBUTION
   asc certificates view --id "CERT_ID" --include passTypeId
+  asc certificates developer-id-check --output table
   asc certificates export --certificate "./push/push.cer" --private-key "./push/push.key" --password-file "./secrets/push.p12.password" --p12-out "./push/push.p12"
   asc certificates create --certificate-type IOS_DISTRIBUTION --csr "./cert.csr"
   asc certificates create --certificate-type PASS_TYPE_ID --pass-type-id "PASS_TYPE_ID" --csr "./pass.csr"
@@ -44,6 +45,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			CertificatesListCommand(),
 			CertificatesGetCommand(),
+			CertificatesDeveloperIDCheckCommand(),
 			CertificatesCSRCommand(),
 			CertificatesExportCommand(),
 			CertificatesCreateCommand(),

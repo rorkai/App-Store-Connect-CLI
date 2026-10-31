@@ -281,6 +281,7 @@ func registerAllOutputRenderers() {
 	registerRows(dsymDownloadResultRows)
 	registerRows(artifactIPAInfoRows)
 	registerRows(artifactPKGInfoRows)
+	registerDirect(developerIDCheckTables)
 	registerRows(buildWaitResultRows)
 	registerRows(buildWaitPendingResultRows)
 	registerRows(statusUntilResultRows)
