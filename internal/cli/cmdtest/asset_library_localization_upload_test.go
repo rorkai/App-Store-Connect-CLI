@@ -25,7 +25,10 @@ const libraryUploadRefData = `{"data":[{"type":"appAssetLibraryRefData","id":"1"
   {"placementProfileGroupId":"IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE","platform":"IPHONE_APP_STORE","displayClassId":"IPHONE_DYNAMIC_ISLAND_LARGE_DISPLAY"},
   {"placementProfileGroupId":"IPHONE_DUO_PROFILE","platform":"IPHONE_APP_STORE","displayClassId":"IPHONE_DUO"},
   {"placementProfileGroupId":"IMESSAGE_IPHONE_DUO_PROFILE","platform":"IMESSAGE_APP_STORE","displayClassId":"IPHONE_DUO"}],
-"videoSpecs":[{"dimensions":{"minWidth":1398,"maxWidth":1398,"minHeight":2034,"maxHeight":2034},"compatiblePlacementTypes":["APP_PREVIEW"],"frameRates":[{"minFps":30,"maxFps":30}],"duration":{"min":"PT5S","max":"PT30S"},"fileExtensions":[".mp4"],"mimeTypes":["video/mp4"],"maxFileSize":524288000}]}}]}`
+"placementTypes":[{"placementTypeId":"APP_PREVIEW","specMappings":[{"placementGroupId":"IPHONE_DUO_PROFILE","specs":["duo-preview"]},{"placementGroupId":"IPAD_13_PROFILE","specs":["ipad-preview"]}]}],
+"videoSpecs":[
+  {"specId":"duo-preview","dimensions":{"minWidth":1398,"maxWidth":1398,"minHeight":2034,"maxHeight":2034},"compatiblePlacementTypes":["APP_PREVIEW"],"frameRates":[{"minFps":30,"maxFps":30}],"duration":{"min":"PT5S","max":"PT30S"},"fileExtensions":[".mp4"],"mimeTypes":["video/mp4"],"maxFileSize":524288000},
+  {"specId":"ipad-preview","dimensions":{"minWidth":1200,"maxWidth":1200,"minHeight":1600,"maxHeight":1600},"compatiblePlacementTypes":["APP_PREVIEW"],"frameRates":[{"minFps":30,"maxFps":30}],"duration":{"min":"PT5S","max":"PT30S"},"fileExtensions":[".mp4"],"mimeTypes":["video/mp4"],"maxFileSize":524288000}]}}]}`
 
 // libraryUploadFake answers the read chain and records every write. Assets are
 // numbered in reservation order so tests can assert ordering end to end.
@@ -381,25 +384,45 @@ func TestLibraryUploadFlagConflicts(t *testing.T) {
 	}
 }
 
-func TestVideoPreviewsUploadAssetLibraryPlacesDuoPreview(t *testing.T) {
+// libraryPreviewFile writes a video and an ffprobe that reports the dimensions.
+func libraryPreviewFile(t *testing.T, width, height int) string {
+	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX ffprobe fixture")
 	}
-	setupAuth(t)
-	t.Setenv("ASC_UPLOAD_TIMEOUT", "3s")
-	dir := t.TempDir()
-	file := filepath.Join(dir, "preview.mp4")
+	file := filepath.Join(t.TempDir(), "preview.mp4")
 	if err := os.WriteFile(file, []byte("bounded video fixture"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	probe := `#!/bin/sh
-printf '%s' '{"streams":[{"codec_type":"video","codec_name":"h264","width":1398,"height":2034,"avg_frame_rate":"30/1"}],"format":{"duration":"10","format_name":"mov,mp4,m4a,3gp,3g2,mj2","tags":{"major_brand":"isom"}}}'
-`
+	probe := fmt.Sprintf(`#!/bin/sh
+printf '%%s' '{"streams":[{"codec_type":"video","codec_name":"h264","width":%d,"height":%d,"avg_frame_rate":"30/1"}],"format":{"duration":"10","format_name":"mov,mp4,m4a,3gp,3g2,mj2","tags":{"major_brand":"isom"}}}'
+`, width, height)
 	binDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(binDir, "ffprobe"), []byte(probe), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return file
+}
+
+func TestVideoPreviewsUploadAssetLibraryRejectsVideoFromAnotherGroupBeforeUpload(t *testing.T) {
+	setupAuth(t)
+	file := libraryPreviewFile(t, 1200, 1600)
+	fake := &libraryUploadFake{t: t}
+	fake.install()
+	_, _, err := runRootCommand(t, []string{"video-previews", "upload", "--version-localization", "LOC_1", "--path", file, "--device-type", "IPHONE_DUO", "--asset-library", "--dry-run", "--output", "json"})
+	if err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(fake.writes) != 0 {
+		t.Fatalf("writes = %v", fake.writes)
+	}
+}
+
+func TestVideoPreviewsUploadAssetLibraryPlacesDuoPreview(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_UPLOAD_TIMEOUT", "3s")
+	file := libraryPreviewFile(t, 1398, 2034)
 	fake := &libraryUploadFake{t: t}
 	fake.install()
 	stdout, stderr, err := runRootCommand(t, []string{"video-previews", "upload", "--version-localization", "LOC_1", "--path", file, "--device-type", "IPHONE_DUO", "--asset-library", "--output", "json"})

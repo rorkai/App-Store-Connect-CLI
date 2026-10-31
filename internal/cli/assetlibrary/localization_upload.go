@@ -62,7 +62,7 @@ func UploadToLocalization(ctx context.Context, client *asc.Client, upload Locali
 	if total := len(existing) + len(upload.Files); total > maxCount {
 		return nil, fmt.Errorf("placement group %s allows %d placement(s) for %s; the localization has %d and this upload adds %d. Remove placements with asc localizations placements delete, or upload fewer files", group, maxCount, upload.PlacementType, len(existing), len(upload.Files))
 	}
-	files, err := prepareLibraryFiles(ctx, upload, reference)
+	files, err := prepareLibraryFiles(ctx, upload, group, reference)
 	defer func() {
 		for _, file := range files {
 			file.close()
@@ -141,15 +141,22 @@ func placementInspection(result *asc.AssetLibraryLocalizationUploadResult) strin
 	return fmt.Sprintf("asc localizations placements list --localization-id %s --placement-group %s --sort placementGroupPosition", result.VersionLocalizationID, result.PlacementGroup)
 }
 
-func prepareLibraryFiles(ctx context.Context, upload LocalizationUpload, reference []byte) ([]libraryFile, error) {
+func prepareLibraryFiles(ctx context.Context, upload LocalizationUpload, group string, reference []byte) ([]libraryFile, error) {
 	files := make([]libraryFile, 0, len(upload.Files))
+	var videoSpecs map[string]bool
+	if upload.PlacementType == "APP_PREVIEW" {
+		var err error
+		if videoSpecs, err = groupSpecIDs(reference, upload.PlacementType, group); err != nil {
+			return nil, err
+		}
+	}
 	for _, path := range upload.Files {
 		var (
 			file libraryFile
 			err  error
 		)
 		if upload.PlacementType == "APP_PREVIEW" {
-			file, err = prepareLibraryVideo(ctx, upload.Command, path, reference)
+			file, err = prepareLibraryVideo(ctx, upload.Command, path, reference, videoSpecs)
 		} else {
 			file, err = prepareLibraryImage(upload.Command, path)
 		}
@@ -174,12 +181,12 @@ func prepareLibraryImage(command, path string) (libraryFile, error) {
 	}}, nil
 }
 
-func prepareLibraryVideo(ctx context.Context, command, path string, reference []byte) (libraryFile, error) {
+func prepareLibraryVideo(ctx context.Context, command, path string, reference []byte, specs map[string]bool) (libraryFile, error) {
 	staged, err := stageLibraryVideo(ctx, command, "--path", path)
 	if err != nil {
 		return libraryFile{}, err
 	}
-	if err := matchLibraryVideoSpec(reference, nativeMediaCategory, staged.properties, staged.size, filepath.Ext(path)); err != nil {
+	if err := matchLibraryVideoSpecIn(reference, nativeMediaCategory, specs, staged.properties, staged.size, filepath.Ext(path)); err != nil {
 		staged.close()
 		return libraryFile{}, shared.UsageErrorf("%s: %s: %v", command, filepath.Base(path), err)
 	}
@@ -189,6 +196,45 @@ func prepareLibraryVideo(ctx context.Context, command, path string, reference []
 		result, err := client.UploadAssetLibraryVideoWithCategory(uploadCtx, libraryID, filepath.Base(path), staged.file, staged.size, nativeMediaCategory, "", shared.ContextWithTimeout)
 		return result.VideoID, err
 	}}, nil
+}
+
+// groupSpecIDs returns the specifications Apple accepts for a placement group.
+func groupSpecIDs(reference []byte, placementType, group string) (map[string]bool, error) {
+	var envelope struct {
+		Data []struct {
+			Attributes struct {
+				PlacementTypes []struct {
+					ID           string `json:"placementTypeId"`
+					SpecMappings []struct {
+						GroupID string   `json:"placementGroupId"`
+						Specs   []string `json:"specs"`
+					} `json:"specMappings"`
+				} `json:"placementTypes"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(reference, &envelope); err != nil {
+		return nil, fmt.Errorf("invalid asset reference data: %w", err)
+	}
+	specs := map[string]bool{}
+	for _, datum := range envelope.Data {
+		for _, kind := range datum.Attributes.PlacementTypes {
+			if kind.ID != placementType {
+				continue
+			}
+			for _, mapping := range kind.SpecMappings {
+				if mapping.GroupID == group {
+					for _, id := range mapping.Specs {
+						specs[id] = true
+					}
+				}
+			}
+		}
+	}
+	if len(specs) == 0 {
+		return nil, fmt.Errorf("asset reference data maps no specifications to %s for %s", group, placementType)
+	}
+	return specs, nil
 }
 
 // localizationLibraryID follows the localization to its own app, so the
