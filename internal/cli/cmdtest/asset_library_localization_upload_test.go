@@ -25,7 +25,10 @@ const libraryUploadRefData = `{"data":[{"type":"appAssetLibraryRefData","id":"1"
   {"placementProfileGroupId":"IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE","platform":"IPHONE_APP_STORE","displayClassId":"IPHONE_DYNAMIC_ISLAND_LARGE_DISPLAY"},
   {"placementProfileGroupId":"IPHONE_DUO_PROFILE","platform":"IPHONE_APP_STORE","displayClassId":"IPHONE_DUO"},
   {"placementProfileGroupId":"IMESSAGE_IPHONE_DUO_PROFILE","platform":"IMESSAGE_APP_STORE","displayClassId":"IPHONE_DUO"}],
-"placementTypes":[{"placementTypeId":"APP_PREVIEW","specMappings":[{"placementGroupId":"IPHONE_DUO_PROFILE","specs":["duo-preview"]},{"placementGroupId":"IPAD_13_PROFILE","specs":["ipad-preview"]}]}],
+"imageSpecs":[
+  {"specId":"duo-shot","dimensions":{"minWidth":1398,"maxWidth":1398,"minHeight":2034,"maxHeight":2034}},
+  {"specId":"large-shot","dimensions":{"minWidth":1320,"maxWidth":1320,"minHeight":2868,"maxHeight":2868}}],
+"placementTypes":[{"placementTypeId":"APP_SCREENSHOT","specMappings":[{"placementGroupId":"IPHONE_DUO_PROFILE","specs":["duo-shot"]},{"placementGroupId":"IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE","specs":["large-shot"]}]},{"placementTypeId":"APP_PREVIEW","specMappings":[{"placementGroupId":"IPHONE_DUO_PROFILE","specs":["duo-preview"]},{"placementGroupId":"IPAD_13_PROFILE","specs":["ipad-preview"]}]}],
 "videoSpecs":[
   {"specId":"duo-preview","dimensions":{"minWidth":1398,"maxWidth":1398,"minHeight":2034,"maxHeight":2034},"compatiblePlacementTypes":["APP_PREVIEW"],"frameRates":[{"minFps":30,"maxFps":30}],"duration":{"min":"PT5S","max":"PT30S"},"fileExtensions":[".mp4"],"mimeTypes":["video/mp4"],"maxFileSize":524288000},
   {"specId":"ipad-preview","dimensions":{"minWidth":1200,"maxWidth":1200,"minHeight":1600,"maxHeight":1600},"compatiblePlacementTypes":["APP_PREVIEW"],"frameRates":[{"minFps":30,"maxFps":30}],"duration":{"min":"PT5S","max":"PT30S"},"fileExtensions":[".mp4"],"mimeTypes":["video/mp4"],"maxFileSize":524288000}]}}]}`
@@ -325,6 +328,7 @@ func TestScreenshotsUploadAssetLibraryRejectsBeforeAnyWrite(t *testing.T) {
 		want     string
 	}{
 		{name: "group capacity", existing: []string{"a", "b"}, want: "IPHONE_DUO_PROFILE allows 3 placement(s)"},
+		{name: "image does not fit the chosen group", extra: []string{"--placement-group", "IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE"}, want: "does not match a specification of IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE"},
 		{name: "group the version does not offer", extra: []string{"--placement-group", "IMESSAGE_IPHONE_DUO_PROFILE"}, want: `placement group "IMESSAGE_IPHONE_DUO_PROFILE" is not offered`},
 	}
 	for _, test := range tests {

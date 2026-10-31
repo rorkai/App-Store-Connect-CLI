@@ -5,7 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg" // Registers JPEG for image.DecodeConfig.
+	_ "image/png"  // Registers PNG for image.DecodeConfig.
+	"io"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -143,12 +148,9 @@ func placementInspection(result *asc.AssetLibraryLocalizationUploadResult) strin
 
 func prepareLibraryFiles(ctx context.Context, upload LocalizationUpload, group string, reference []byte) ([]libraryFile, error) {
 	files := make([]libraryFile, 0, len(upload.Files))
-	var videoSpecs map[string]bool
-	if upload.PlacementType == "APP_PREVIEW" {
-		var err error
-		if videoSpecs, err = groupSpecIDs(reference, upload.PlacementType, group); err != nil {
-			return nil, err
-		}
+	specs, err := groupSpecIDs(reference, upload.PlacementType, group)
+	if err != nil {
+		return nil, err
 	}
 	for _, path := range upload.Files {
 		var (
@@ -156,9 +158,9 @@ func prepareLibraryFiles(ctx context.Context, upload LocalizationUpload, group s
 			err  error
 		)
 		if upload.PlacementType == "APP_PREVIEW" {
-			file, err = prepareLibraryVideo(ctx, upload.Command, path, reference, videoSpecs)
+			file, err = prepareLibraryVideo(ctx, upload.Command, path, reference, specs)
 		} else {
-			file, err = prepareLibraryImage(upload.Command, path)
+			file, err = prepareLibraryImage(upload.Command, path, group, reference, specs)
 		}
 		if err != nil {
 			return files, err
@@ -168,10 +170,14 @@ func prepareLibraryFiles(ctx context.Context, upload LocalizationUpload, group s
 	return files, nil
 }
 
-func prepareLibraryImage(command, path string) (libraryFile, error) {
+func prepareLibraryImage(command, path, group string, reference []byte, specs map[string]bool) (libraryFile, error) {
 	file, size, err := openLibraryImage(command, "--path", path)
 	if err != nil {
 		return libraryFile{}, err
+	}
+	if err := matchLibraryImageSpec(file, group, reference, specs); err != nil {
+		file.Close()
+		return libraryFile{}, shared.UsageErrorf("%s: %s: %v", command, filepath.Base(path), err)
 	}
 	return libraryFile{path: path, close: func() { file.Close() }, send: func(ctx context.Context, client *asc.Client, libraryID string) (string, error) {
 		uploadCtx, cancel := shared.ContextWithUploadTimeout(ctx)
@@ -196,6 +202,39 @@ func prepareLibraryVideo(ctx context.Context, command, path string, reference []
 		result, err := client.UploadAssetLibraryVideoWithCategory(uploadCtx, libraryID, filepath.Base(path), staged.file, staged.size, nativeMediaCategory, "", shared.ContextWithTimeout)
 		return result.VideoID, err
 	}}, nil
+}
+
+// matchLibraryImageSpec leaves file rewound for upload.
+func matchLibraryImageSpec(file *os.File, group string, reference []byte, specs map[string]bool) error {
+	config, _, err := image.DecodeConfig(file)
+	if err != nil {
+		return fmt.Errorf("read image dimensions: %w", err)
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	var envelope struct {
+		Data []struct {
+			Attributes struct {
+				ImageSpecs []struct {
+					SpecID     string `json:"specId"`
+					Dimensions struct{ MinWidth, MaxWidth, MinHeight, MaxHeight int }
+				} `json:"imageSpecs"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(reference, &envelope); err != nil {
+		return fmt.Errorf("invalid asset reference data: %w", err)
+	}
+	for _, datum := range envelope.Data {
+		for _, spec := range datum.Attributes.ImageSpecs {
+			dims := spec.Dimensions
+			if specs[spec.SpecID] && config.Width >= dims.MinWidth && config.Width <= dims.MaxWidth && config.Height >= dims.MinHeight && config.Height <= dims.MaxHeight {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("%d x %d does not match a specification of %s", config.Width, config.Height, group)
 }
 
 // groupSpecIDs returns the specifications Apple accepts for a placement group.
