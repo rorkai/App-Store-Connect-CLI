@@ -88,37 +88,47 @@ func creativePlacementReorderCommand(resource, prefix, label string) *ffcli.Comm
 			if len(placementIDs) == 0 {
 				return UsageError("placements reorder: --placement-ids is required")
 			}
-			ordered := make([]map[string]string, len(placementIDs))
-			for i, id := range placementIDs {
-				ordered[i] = map[string]string{"type": "appAssetLibraryPlacements", "id": id}
-			}
-			payload, err := json.Marshal(map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacementOrderingRequests", "attributes": map[string]string{"placementGroup": placementGroup}, "relationships": map[string]any{"orderedPlacements": map[string]any{"data": ordered}, creativePlacementRelationship(resource): map[string]any{"data": map[string]string{"type": resource, "id": locID}}}}})
-			if err != nil {
-				return err
-			}
 			client, err := GetASCClient()
 			if err != nil {
 				return fmt.Errorf("placements reorder: %w", err)
 			}
-			requestCtx, cancel := ContextWithTimeout(ctx)
-			defer cancel()
-			response, err := client.RawRequest(requestCtx, "POST", "/v1/appAssetLibraryPlacementOrderingRequests", payload)
+			requestID, err := OrderLibraryPlacements(ctx, client, resource, locID, placementGroup, placementIDs)
 			if err != nil {
 				return fmt.Errorf("placements reorder: %w", err)
 			}
-			var envelope struct {
-				Data struct {
-					ID   string `json:"id"`
-					Type string `json:"type"`
-				} `json:"data"`
-			}
-			if err := json.Unmarshal(response, &envelope); err != nil {
-				return fmt.Errorf("placements reorder: invalid response: %w", err)
-			}
-			if envelope.Data.ID == "" || envelope.Data.Type != "appAssetLibraryPlacementOrderingRequests" {
-				return fmt.Errorf("placements reorder: invalid ordering response")
-			}
-			return PrintOutput(&asc.CreativePlacementReorderResult{ID: envelope.Data.ID, Reordered: true, LocalizationID: locID, PlacementGroup: placementGroup, PlacementIDs: placementIDs}, *output.Output, *output.Pretty)
+			return PrintOutput(&asc.CreativePlacementReorderResult{ID: requestID, Reordered: true, LocalizationID: locID, PlacementGroup: placementGroup, PlacementIDs: placementIDs}, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// OrderLibraryPlacements submits one ordering request for a localization's
+// placement group and returns the request ID.
+func OrderLibraryPlacements(ctx context.Context, client *asc.Client, resource, localizationID, placementGroup string, placementIDs []string) (string, error) {
+	ordered := make([]map[string]string, len(placementIDs))
+	for i, id := range placementIDs {
+		ordered[i] = map[string]string{"type": "appAssetLibraryPlacements", "id": id}
+	}
+	payload, err := json.Marshal(map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacementOrderingRequests", "attributes": map[string]string{"placementGroup": placementGroup}, "relationships": map[string]any{"orderedPlacements": map[string]any{"data": ordered}, creativePlacementRelationship(resource): map[string]any{"data": map[string]string{"type": resource, "id": localizationID}}}}})
+	if err != nil {
+		return "", err
+	}
+	requestCtx, cancel := ContextWithTimeout(ctx)
+	defer cancel()
+	response, err := client.RawRequest(requestCtx, "POST", "/v1/appAssetLibraryPlacementOrderingRequests", payload)
+	if err != nil {
+		return "", err
+	}
+	var envelope struct {
+		Data struct {
+			ID   string `json:"id"`
+			Type string `json:"type"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response, &envelope); err != nil {
+		return "", fmt.Errorf("invalid response: %w", err)
+	}
+	if envelope.Data.ID == "" || envelope.Data.Type != "appAssetLibraryPlacementOrderingRequests" {
+		return "", fmt.Errorf("invalid ordering response")
+	}
+	return envelope.Data.ID, nil
 }

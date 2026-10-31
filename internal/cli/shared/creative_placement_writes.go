@@ -140,33 +140,62 @@ func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *f
 			if err != nil {
 				return err
 			}
-			requestCtx, cancel := ContextWithTimeout(ctx)
-			defer cancel()
-			response, err := client.RawRequest(requestCtx, "POST", "/v1/appAssetLibraryPlacements", payload)
+			placementID, state, err := postLibraryPlacement(ctx, client, payload)
 			if err != nil {
-				return fmt.Errorf("placements "+operation+": %w", err)
-			}
-			var envelope struct {
-				Data struct {
-					ID         string `json:"id"`
-					Type       string `json:"type"`
-					Attributes struct {
-						State string `json:"state"`
-					} `json:"attributes"`
-				} `json:"data"`
-			}
-			if err := json.Unmarshal(response, &envelope); err != nil {
-				return fmt.Errorf("placements "+operation+": invalid response: %w", err)
-			}
-			if envelope.Data.ID == "" || envelope.Data.Type != "appAssetLibraryPlacements" {
-				return fmt.Errorf("placements %s: invalid placement response", operation)
+				return fmt.Errorf("placements %s: %w", operation, err)
 			}
 			if swap {
-				return PrintOutput(&asc.CreativePlacementSwapResult{ID: envelope.Data.ID, Swapped: true, PreviousPlacementID: previousID, LocalizationID: localizationID, ImageID: imageID, VideoID: videoID, PlacementType: placementType, PlacementGroup: placementGroup, State: envelope.Data.Attributes.State}, *output.Output, *output.Pretty)
+				return PrintOutput(&asc.CreativePlacementSwapResult{ID: placementID, Swapped: true, PreviousPlacementID: previousID, LocalizationID: localizationID, ImageID: imageID, VideoID: videoID, PlacementType: placementType, PlacementGroup: placementGroup, State: state}, *output.Output, *output.Pretty)
 			}
-			return PrintOutput(&asc.CreativePlacementCreateResult{ID: envelope.Data.ID, Created: true, LocalizationID: localizationID, ImageID: imageID, VideoID: videoID, PlacementType: placementType, PlacementGroup: placementGroup, State: envelope.Data.Attributes.State}, *output.Output, *output.Pretty)
+			return PrintOutput(&asc.CreativePlacementCreateResult{ID: placementID, Created: true, LocalizationID: localizationID, ImageID: imageID, VideoID: videoID, PlacementType: placementType, PlacementGroup: placementGroup, State: state}, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// CreateLibraryPlacement assigns uploaded library media to one localization.
+// mediaRelationship is "image" or "video".
+func CreateLibraryPlacement(ctx context.Context, client *asc.Client, resource, localizationID, mediaRelationship, mediaID, placementType, placementGroup string) (id, state string, err error) {
+	mediaType := "appAssetLibraryImages"
+	if mediaRelationship == "video" {
+		mediaType = "appAssetLibraryVideos"
+	}
+	relationship := func(resource, id string) map[string]any {
+		return map[string]any{"data": map[string]string{"type": resource, "id": id}}
+	}
+	payload, err := json.Marshal(map[string]any{"data": map[string]any{
+		"type":          "appAssetLibraryPlacements",
+		"attributes":    map[string]string{"placementType": placementType, "placementGroup": placementGroup},
+		"relationships": map[string]any{mediaRelationship: relationship(mediaType, mediaID), creativePlacementRelationship(resource): relationship(resource, localizationID)},
+	}})
+	if err != nil {
+		return "", "", err
+	}
+	return postLibraryPlacement(ctx, client, payload)
+}
+
+func postLibraryPlacement(ctx context.Context, client *asc.Client, payload []byte) (id, state string, err error) {
+	requestCtx, cancel := ContextWithTimeout(ctx)
+	defer cancel()
+	response, err := client.RawRequest(requestCtx, "POST", "/v1/appAssetLibraryPlacements", payload)
+	if err != nil {
+		return "", "", err
+	}
+	var envelope struct {
+		Data struct {
+			ID         string `json:"id"`
+			Type       string `json:"type"`
+			Attributes struct {
+				State string `json:"state"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response, &envelope); err != nil {
+		return "", "", fmt.Errorf("invalid response: %w", err)
+	}
+	if envelope.Data.ID == "" || envelope.Data.Type != "appAssetLibraryPlacements" {
+		return "", "", fmt.Errorf("invalid placement response")
+	}
+	return envelope.Data.ID, envelope.Data.Attributes.State, nil
 }
 
 // existingPlacementGroup reads the placement group of an existing placement.

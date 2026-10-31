@@ -11,6 +11,7 @@ func registerAllOutputRenderers() {
 	registerRows(storeKitFinishRows)
 	registerRows(assetLibraryImageUploadRows)
 	registerRows(assetLibraryVideoUploadRows)
+	registerRows(assetLibraryLocalizationUploadRows)
 	registerRows(assetLibraryMutationRows)
 	registerRows(creativePlacementCreateResultRows)
 	registerRows(creativePlacementDeleteResultRows)
