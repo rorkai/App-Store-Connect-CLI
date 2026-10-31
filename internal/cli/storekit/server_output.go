@@ -73,9 +73,11 @@ type transactionClaims struct {
 	PurchaseDate          int64  `json:"purchaseDate"`
 	ExpiresDate           int64  `json:"expiresDate"`
 	RevocationDate        int64  `json:"revocationDate"`
+	InAppOwnershipType    string `json:"inAppOwnershipType"`
+	RevocationType        string `json:"revocationType"`
 }
 
-var transactionHeaders = []string{"Transaction ID", "Original Transaction ID", "Product ID", "Type", "Purchase Date", "Expires Date", "Revocation Date"}
+var transactionHeaders = []string{"Transaction ID", "Original Transaction ID", "Product ID", "Type", "Purchase Date", "Expires Date", "Revocation Date", "Ownership", "Revocation Type"}
 
 func transactionInfoTable(raw json.RawMessage) ([]string, [][]string, error) {
 	var response struct {
@@ -109,6 +111,7 @@ func transactionRows(tokens []string) ([][]string, error) {
 		rows = append(rows, []string{
 			claims.TransactionID, claims.OriginalTransactionID, claims.ProductID, claims.Type,
 			formatMillis(claims.PurchaseDate), formatMillis(claims.ExpiresDate), formatMillis(claims.RevocationDate),
+			claims.InAppOwnershipType, claims.RevocationType,
 		})
 	}
 	return rows, nil

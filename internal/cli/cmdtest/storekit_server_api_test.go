@@ -68,13 +68,13 @@ func TestStoreKitTransactionsHistoryPaginatesProduction(t *testing.T) {
 
 	stdout, stderr := runStoreKitCommand(t,
 		"storekit", "transactions", "history", "--transaction-id", "2000000000000001",
-		"--product-type", "auto_renewable", "--sort", "descending", "--environment", "production", "--paginate", "--output", "json")
+		"--product-type", "auto_renewable", "--ownership-type", "assigned", "--sort", "descending", "--environment", "production", "--paginate", "--output", "json")
 	if stderr != "" {
 		t.Fatalf("stderr = %q", stderr)
 	}
 	wantQueries := []string{
-		"productType=AUTO_RENEWABLE&sort=DESCENDING",
-		"productType=AUTO_RENEWABLE&revision=rev-1&sort=DESCENDING",
+		"inAppOwnershipType=ASSIGNED&productType=AUTO_RENEWABLE&sort=DESCENDING",
+		"inAppOwnershipType=ASSIGNED&productType=AUTO_RENEWABLE&revision=rev-1&sort=DESCENDING",
 	}
 	if !reflect.DeepEqual(queries, wantQueries) {
 		t.Fatalf("queries = %q, want %q", queries, wantQueries)
@@ -94,7 +94,7 @@ func TestStoreKitTransactionsHistoryPaginatesProduction(t *testing.T) {
 
 func TestStoreKitTransactionsViewDecodeAddsUnverifiedPayload(t *testing.T) {
 	setupStoreKitAuth(t)
-	token := storeKitTestJWS(`{"transactionId":"2000000000000001","productId":"com.example.monthly","purchaseDate":1788220800000}`)
+	token := storeKitTestJWS(`{"transactionId":"2000000000000001","productId":"com.example.monthly","purchaseDate":1788220800000,"inAppOwnershipType":"ASSIGNED","revocationType":"ASSIGNMENT_REVOKE"}`)
 	stubStoreKitTransport(t, func(req *http.Request) string {
 		if req.Method != http.MethodGet || req.URL.Host != "api.storekit-sandbox.apple.com" || req.URL.Path != "/inApps/v1/transactions/2000000000000001" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -110,19 +110,23 @@ func TestStoreKitTransactionsViewDecodeAddsUnverifiedPayload(t *testing.T) {
 	var response struct {
 		SignedTransactionInfo        string `json:"signedTransactionInfo"`
 		SignedTransactionInfoDecoded struct {
-			ProductID string `json:"productId"`
+			ProductID          string `json:"productId"`
+			InAppOwnershipType string `json:"inAppOwnershipType"`
+			RevocationType     string `json:"revocationType"`
 		} `json:"signedTransactionInfoDecoded"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
 		t.Fatalf("invalid JSON output %q: %v", stdout, err)
 	}
-	if response.SignedTransactionInfo != token || response.SignedTransactionInfoDecoded.ProductID != "com.example.monthly" {
+	decoded := response.SignedTransactionInfoDecoded
+	if response.SignedTransactionInfo != token || decoded.ProductID != "com.example.monthly" || decoded.InAppOwnershipType != "ASSIGNED" || decoded.RevocationType != "ASSIGNMENT_REVOKE" {
 		t.Fatalf("response = %#v", response)
 	}
 
 	stdout, stderr = runStoreKitCommand(t,
 		"storekit", "transactions", "view", "--transaction-id", "2000000000000001", "--environment", "sandbox", "--output", "table")
-	if !strings.Contains(stderr, "not signature-verified") || !strings.Contains(stdout, "Product ID") || !strings.Contains(stdout, "com.example.monthly") || !strings.Contains(stdout, "2026-09-01T00:00:00Z") {
+	if !strings.Contains(stderr, "not signature-verified") || !strings.Contains(stdout, "Product ID") || !strings.Contains(stdout, "com.example.monthly") || !strings.Contains(stdout, "2026-09-01T00:00:00Z") ||
+		!strings.Contains(stdout, "Ownership") || !strings.Contains(stdout, "ASSIGNED") || !strings.Contains(stdout, "ASSIGNMENT_REVOKE") {
 		t.Fatalf("table stdout=%q stderr=%q", stdout, stderr)
 	}
 }
@@ -166,6 +170,8 @@ func TestStoreKitServerAPIUsageErrors(t *testing.T) {
 		{"missing transaction", []string{"storekit", "transactions", "view", "--environment", "sandbox"}, "--transaction-id is required"},
 		{"decode table", []string{"storekit", "transactions", "view", "--transaction-id", "1", "--decode", "--output", "table", "--environment", "sandbox"}, "--decode requires --output json"},
 		{"product type", []string{"storekit", "transactions", "history", "--transaction-id", "1", "--product-type", "BUNDLE", "--environment", "sandbox"}, "--product-type must be one of"},
+		{"ownership type", []string{"storekit", "transactions", "history", "--transaction-id", "1", "--ownership-type", "GIFTED", "--environment", "sandbox"}, "--ownership-type must be one of: FAMILY_SHARED, PURCHASED, ASSIGNED"},
+		{"ownership type list", []string{"storekit", "transactions", "history", "--transaction-id", "1", "--ownership-type", "PURCHASED,ASSIGNED", "--environment", "sandbox"}, "--ownership-type must be one of: FAMILY_SHARED, PURCHASED, ASSIGNED"},
 		{"history dates", []string{"storekit", "transactions", "history", "--transaction-id", "1", "--start", "2026-09-02", "--end", "2026-09-01", "--environment", "sandbox"}, "--start must be before --end"},
 		{"status", []string{"storekit", "subscriptions", "status", "--transaction-id", "1", "--status", "6", "--environment", "sandbox"}, "--status values must be integers from 1 to 5"},
 		{"order sandbox", []string{"storekit", "orders", "lookup", "--order-id", "MQXYZ12345", "--environment", "sandbox"}, "orders lookup requires --environment production"},
