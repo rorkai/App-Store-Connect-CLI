@@ -69,5 +69,8 @@ selection, exact signing inputs and Apple payload encodings, intact raw
 authenticator data, PIN isolation, cancellation before submission, one-shot
 assertion submission, and finalization failures. The protocol tests replace
 the signer and use a local HTTP server; they never contact Apple or access a
-physical key. The account owner has completed a live security-key sign-in.
-Physical-device cancellation cleanup still requires hardware validation.
+physical key. The account owner has verified this flow against their own Apple
+Account with registered security keys, using a Ledger Stax over USB on macOS:
+successful sign-in, rejection on the device, Ctrl+C while approval is pending,
+and successful sign-in after each cancellation. Device rejection returned
+`FIDO_ERR_OPERATION_DENIED`; Ctrl+C returned `context canceled`.
