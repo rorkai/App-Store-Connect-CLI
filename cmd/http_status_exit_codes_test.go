@@ -59,6 +59,7 @@ func TestExitCodeFromError_StatusErrorsOutsideASC(t *testing.T) {
 		{name: "web sign-in 401", err: &webcore.SigninServiceError{Status: http.StatusUnauthorized}, expected: ExitAuth},
 		{name: "web sign-in 503", err: &webcore.SigninServiceError{Status: http.StatusServiceUnavailable}, expected: ExitHTTPServiceUnavailable},
 		{name: "web 2fa finalization 403", err: &webcore.TwoFactorFinalizationError{Status: http.StatusForbidden}, expected: ExitAuth},
+		{name: "web security key rejected 401", err: &webcore.SecurityKeyAssertionRejectedError{Status: http.StatusUnauthorized}, expected: ExitAuth},
 		{name: "public storefront 403 stays generic", err: publicStorefrontStatusError{status: http.StatusForbidden}, expected: ExitError},
 	}
 

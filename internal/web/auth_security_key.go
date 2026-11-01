@@ -48,6 +48,13 @@ func (e *SecurityKeyAssertionRejectedError) Error() string {
 	return fmt.Sprintf("security-key verification rejected by Apple (HTTP %d)", e.Status)
 }
 
+func (e *SecurityKeyAssertionRejectedError) HTTPStatusCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.Status
+}
+
 // SubmitSecurityKey completes an already prepared Apple FSA challenge. The PIN
 // is only passed to the authenticator and is never sent to Apple or cached.
 func SubmitSecurityKey(ctx context.Context, session *AuthSession, pin string) error {

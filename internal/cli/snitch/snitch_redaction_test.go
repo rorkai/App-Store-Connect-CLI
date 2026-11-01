@@ -2069,6 +2069,11 @@ status: failed`,
 			want:  `AWS_SECRET_ACCESS_KEY=[REDACTED] MY_CLIENT_SECRET=[REDACTED]`,
 		},
 		{
+			name:  "security key PIN environment assignment",
+			input: `ASC_WEB_SECURITY_KEY_PIN=12345678 asc web auth login --two-factor-method security-key`,
+			want:  `ASC_WEB_SECURITY_KEY_PIN=[REDACTED] asc web auth login --two-factor-method security-key`,
+		},
+		{
 			name:  "secret key environment assignments",
 			input: `SECRET_KEY=framework-secret STRIPE_SECRET_KEY=payment-secret SECRET_KEY_BASE=rails-secret`,
 			want:  `SECRET_KEY=[REDACTED] STRIPE_SECRET_KEY=[REDACTED] SECRET_KEY_BASE=[REDACTED]`,

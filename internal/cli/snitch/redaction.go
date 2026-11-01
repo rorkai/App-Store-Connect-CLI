@@ -23,7 +23,7 @@ const (
 	maxRedactionFieldBytes    = 64 * 1024
 	maxShellRedactionDepth    = 32
 
-	sensitiveAssignmentName     = `(?:_auth|account[_-]?key|api[_-]?key|access[_-]?token|auth[_-]?token|refresh[_-]?token|session[_-]?token|shared[_-]?access[_-]?key|client[_-]?secret|client[_-]?key[_-]?data|app[_-]?secret|webhook[_-]?secret|webhook|signing[_-]?secret|secret[_-]?access[_-]?key|secret[_-]?answer|secret[_-]?key(?:[_-]?base)?|asc[_-]?private[_-]?key(?:[_-]?b64)?|private[_-]?key(?:[_-]?b64)?|password|passphrase|passwd|pwd|secret|token)`
+	sensitiveAssignmentName     = `(?:_auth|account[_-]?key|api[_-]?key|access[_-]?token|auth[_-]?token|refresh[_-]?token|session[_-]?token|shared[_-]?access[_-]?key|client[_-]?secret|client[_-]?key[_-]?data|app[_-]?secret|webhook[_-]?secret|webhook|signing[_-]?secret|secret[_-]?access[_-]?key|secret[_-]?answer|secret[_-]?key(?:[_-]?base)?|security[_-]?key[_-]?pin|asc[_-]?private[_-]?key(?:[_-]?b64)?|private[_-]?key(?:[_-]?b64)?|password|passphrase|passwd|pwd|secret|token)`
 	delimitedPassName           = `_*(?:(?:[a-z0-9]+[_-])+)?pass`
 	sensitivePrefixedName       = `(?:_*(?:[a-z0-9]+[_-])*[a-z0-9]*` + sensitiveAssignmentName + `|` + delimitedPassName + `)`
 	tomlQuotedSensitiveKey      = `(?:"` + sensitivePrefixedName + `"|'` + sensitivePrefixedName + `')`
