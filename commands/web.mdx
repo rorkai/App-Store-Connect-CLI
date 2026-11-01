@@ -297,11 +297,8 @@ Nonempty UTF-8 user handles are passed through. Binary user handles are rejected
 by this CLI before submission to Apple; that limitation can only be detected
 after the key returns its assertion.
 
-Ledger Stax approval, rejection, and Ctrl+C on macOS were verified by the account
-owner on an earlier revision. A fresh retest after the routing/readiness changes
-and comparison with the code flow on `main` remain pending. Live PIN use and
-YubiKey behavior have not been verified. CI builds and tests the native backend
-without a key.
+Security-key login has been tested with a Ledger Stax on macOS. Live PIN use and
+YubiKey behavior have not been verified.
 
 #### Moving a session to another machine or to CI
 

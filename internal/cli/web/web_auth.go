@@ -613,6 +613,25 @@ func securityKeyPINForSignIn(ctx context.Context, preference appleauth.TwoFactor
 	return "", nil
 }
 
+// securityKeyPreflight stops a key sign-in this invocation cannot complete,
+// before a password is requested or sent. Failures are local and say nothing
+// about the cached cookie jar.
+func securityKeyPreflight(ctx context.Context, preference appleauth.TwoFactorPreference) error {
+	if _, err := securityKeyPINForSignIn(ctx, preference); err != nil {
+		return fmt.Errorf("%w: %w", errSecurityKeyPreflight, err)
+	}
+	if preference.Delivery != appleauth.TwoFactorMethodSecurityKey {
+		return nil
+	}
+	if err := checkSecurityKeyFn(ctx); err != nil {
+		if errors.Is(err, securitykey.ErrUnavailable) {
+			err = shared.UsageError(err.Error())
+		}
+		return fmt.Errorf("%w: %w", errSecurityKeyPreflight, err)
+	}
+	return nil
+}
+
 // contextWithPublicAPIAlternative records a sentence naming the App Store
 // Connect API command that answers the same question without a web session, so
 // a missing-session error can point at it.
@@ -849,9 +868,6 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 	if err != nil {
 		return nil, err
 	}
-	if _, err := securityKeyPINForSignIn(ctx, twoFactorPreference); err != nil {
-		return nil, fmt.Errorf("%w: %w", errSecurityKeyPreflight, err)
-	}
 	explicitSignIn := isWebSignIn(ctx)
 	// Credential/keychain prompts may consume the initial command budget.
 	ctx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
@@ -860,13 +876,8 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 	if explicitSignIn {
 		ctx = contextForWebSignIn(ctx)
 	}
-	if twoFactorPreference.Delivery == appleauth.TwoFactorMethodSecurityKey {
-		if err := checkSecurityKeyFn(ctx); err != nil {
-			if errors.Is(err, securitykey.ErrUnavailable) {
-				err = shared.UsageError(err.Error())
-			}
-			return nil, fmt.Errorf("%w: %w", errSecurityKeyPreflight, err)
-		}
+	if err := securityKeyPreflight(ctx, twoFactorPreference); err != nil {
+		return nil, err
 	}
 	session, err := withWebSpinnerValue(progressMessage, func() (*webcore.AuthSession, error) {
 		return loginFn(ctx, webcore.LoginCredentials{
@@ -1507,6 +1518,9 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 		resolvedPassword = resolveNonInteractiveWebPassword(resolvedAppleID, password, skipStoredPassword)
 	}
 	if !webPasswordProvided(resolvedPassword.value) {
+		if err := securityKeyPreflight(ctx, twoFactorPreference); err != nil {
+			return nil, "", err
+		}
 		promptedPassword, err := opts.resolvePassword(ctx, "")
 		if err != nil {
 			return nil, "", err
@@ -1579,7 +1593,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 	loginWithPromptedFreshFallback := func(candidate resolvedWebPassword) (*webcore.AuthSession, error) {
 		session, twoFactorStarted, err := login(candidate)
 		blockedByTwoFactor := twoFactorStarted && !webcore.IsStaleSessionAfterTwoFactor(err)
-		if err == nil || candidate.source != webPasswordSourcePrompted || expiredCachedSession == nil || blockedByTwoFactor || errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) || errors.Is(err, webcore.ErrAppleAccountLocked) {
+		if err == nil || candidate.source != webPasswordSourcePrompted || expiredCachedSession == nil || blockedByTwoFactor || errors.Is(err, errSecurityKeyPreflight) || errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) || errors.Is(err, webcore.ErrAppleAccountLocked) {
 			return session, err
 		}
 		// Match the non-interactive reauth path: a non-credential failure can

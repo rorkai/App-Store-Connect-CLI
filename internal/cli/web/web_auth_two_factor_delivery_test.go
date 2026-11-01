@@ -194,6 +194,8 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 		unavailableBackend    bool
 		noPIN                 bool
 		preflightError        error
+		preflightFailCall     int
+		wantChecks            int
 		wantError             string
 		submitError           error
 		wantSource            string
@@ -210,7 +212,9 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 		{name: "environment key method no key fresh", methodFromEnv: true, noPIN: true, preflightError: errors.New("no security key found"), wantError: "no security key found"},
 		{name: "environment key method no key expired", cache: "expired", methodFromEnv: true, noPIN: true, preflightError: errors.New("no security key found"), wantError: "no security key found"},
 		{name: "explicit expired finalization failure", explicit: true, cache: "expired", submitError: &webcore.TwoFactorFinalizationError{Status: 401}, wantLogin: 2, wantSubmit: 2},
-		{name: "explicit expired prompted finalization failure", explicit: true, cache: "expired", promptedPassword: true, submitError: &webcore.TwoFactorFinalizationError{Status: 401}, wantLogin: 2, wantSubmit: 2},
+		{name: "explicit expired prompted finalization failure", explicit: true, cache: "expired", promptedPassword: true, submitError: &webcore.TwoFactorFinalizationError{Status: 401}, wantChecks: 3, wantLogin: 2, wantSubmit: 2},
+		{name: "missing key stops before password prompt", explicit: true, cache: "expired", promptedPassword: true, preflightError: errors.New("no security key found"), wantError: "no security key found"},
+		{name: "key removed after prompt does not retry fresh", explicit: true, cache: "expired", promptedPassword: true, preflightError: errors.New("no security key found"), preflightFailCall: 2, wantChecks: 2, wantError: "no security key found"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			configureFreshPasswordLoginTest(t)
@@ -234,7 +238,13 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 			})
 			securityKeyAvailableFn = func() bool { return !tc.unavailableBackend }
 			preflightCalls, deleteCalls := 0, 0
-			checkSecurityKeyFn = func(context.Context) error { preflightCalls++; return tc.preflightError }
+			checkSecurityKeyFn = func(context.Context) error {
+				preflightCalls++
+				if tc.preflightFailCall != 0 && preflightCalls != tc.preflightFailCall {
+					return nil
+				}
+				return tc.preflightError
+			}
 			deleteStaleWebSessionFn = func(string, *webcore.AuthSession) (bool, error) { deleteCalls++; return true, nil }
 			var status strings.Builder
 			twoFactorStatusWriter = &status
@@ -278,9 +288,10 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 				ctx = contextWithTwoFactorPreference(ctx, appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorMethodSecurityKey})
 			}
 			password := "secret"
+			promptCalls := 0
 			if tc.promptedPassword {
 				password = ""
-				promptPasswordFn = func(context.Context) (string, error) { return "secret", nil }
+				promptPasswordFn = func(context.Context) (string, error) { promptCalls++; return "secret", nil }
 			}
 			_, source, err := resolveSession(ctx, "user@example.com", password, "")
 			if tc.wantSource != "" {
@@ -304,6 +315,12 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 			wantChecks := tc.wantLogin
 			if tc.preflightError != nil {
 				wantChecks = 1
+			}
+			if tc.wantChecks != 0 {
+				wantChecks = tc.wantChecks
+			}
+			if tc.preflightError != nil && tc.preflightFailCall == 0 && promptCalls != 0 {
+				t.Fatal("password prompt ran before the failed device check")
 			}
 			if preflightCalls != wantChecks || (tc.wantLogin == 0 && deleteCalls != 0) {
 				t.Fatalf("device checks = %d, want %d; cached deletions = %d", preflightCalls, wantChecks, deleteCalls)
