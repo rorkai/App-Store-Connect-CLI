@@ -11,6 +11,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/securitykey"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -55,6 +56,41 @@ func stubTwoFactorDeliveryLogin(t *testing.T) (*appleauth.TwoFactorPreference, *
 
 func readStubTwoFactorCode(context.Context, string) (string, error) {
 	return "123456", nil
+}
+
+func TestSecurityKeyLoginReservesTouchAndFinalizationBudgets(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "30s")
+	t.Setenv("ASC_TIMEOUT_SECONDS", "")
+	stubTwoFactorDeliveryLogin(t)
+	originalSubmit, originalPromptAvailable := submitSecurityKeyFn, twoFactorPromptAvailableFn
+	t.Cleanup(func() {
+		submitSecurityKeyFn, twoFactorPromptAvailableFn = originalSubmit, originalPromptAvailable
+	})
+	twoFactorPromptAvailableFn = func() bool { return false }
+	var signInDeadline time.Time
+	webLoginFn = func(ctx context.Context, _ webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		signInDeadline, _ = ctx.Deadline()
+		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+	}
+	prepareTwoFactorChallengeFn = func(context.Context, *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		return &webcore.TwoFactorChallenge{Method: appleauth.TwoFactorMethodSecurityKey}, nil
+	}
+	submitted := false
+	submitSecurityKeyFn = func(ctx context.Context, _ *webcore.AuthSession, _ string) error {
+		submitted = true
+		deadline, ok := ctx.Deadline()
+		if !ok || deadline.Before(signInDeadline.Add(securitykey.AssertionTimeout)) {
+			t.Fatal("security-key sign-in did not reserve the hardware touch budget in addition to the HTTP request budget")
+		}
+		return nil
+	}
+	ctx := contextWithTwoFactorPreference(context.Background(), appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorMethodSecurityKey})
+	if _, err := loginWithOptionalTwoFactor(ctx, "user@example.com", "secret", "", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !submitted {
+		t.Fatal("non-terminal security-key login did not reach assertion submission")
+	}
 }
 
 func TestLoginWithOptionalTwoFactorAppliesPreferenceLayeredOverTimeout(t *testing.T) {
@@ -160,13 +196,14 @@ func TestLoginWithOptionalTwoFactorRejectedPhoneCodeGuidanceFollowsDeliveryMode(
 }
 
 func TestResolveTwoFactorPreference(t *testing.T) {
-	tests := []struct {
+	type testCase struct {
 		name    string
 		method  string
 		phoneID int
 		env     map[string]string
 		want    appleauth.TwoFactorPreference
-	}{
+	}
+	tests := []testCase{
 		{name: "default"},
 		{name: "explicit auto", method: "auto"},
 		{name: "sms flag", method: "sms", want: appleauth.TwoFactorPreference{Delivery: "sms"}},
@@ -175,6 +212,10 @@ func TestResolveTwoFactorPreference(t *testing.T) {
 		{name: "flag phone overrides env phone", method: "sms", phoneID: 5, env: map[string]string{webTwoFactorPhoneIDEnv: "4"}, want: appleauth.TwoFactorPreference{Delivery: "sms", PhoneID: 5}},
 		{name: "auto flag overrides env sms", method: "auto", env: map[string]string{webTwoFactorMethodEnv: "sms"}},
 	}
+	if securitykey.Available() {
+		tests = append(tests, testCase{name: "security key flag", method: "security-key", want: appleauth.TwoFactorPreference{Delivery: "security-key"}})
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(webTwoFactorMethodEnv, "")

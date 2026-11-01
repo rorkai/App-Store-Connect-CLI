@@ -14,6 +14,7 @@ import (
 const (
 	TwoFactorMethodTrustedDevice = "trusted-device"
 	TwoFactorMethodPhone         = "phone"
+	TwoFactorMethodSecurityKey   = "security-key"
 )
 
 // TwoFactorDeliverySMS asks Apple to text the verification code to a trusted
@@ -103,6 +104,7 @@ type TwoFactorChallenge struct {
 	Destination            string
 	Requested              bool
 	PhoneFallbackAvailable bool
+	SecurityKey            *SecurityKeyChallenge
 }
 
 // IsPhoneMethod reports whether the challenge uses Apple phone-code delivery.
@@ -119,12 +121,14 @@ type TrustedPhoneNumber struct {
 type AuthOptions struct {
 	NoTrustedDevices    bool
 	TrustedPhoneNumbers []TrustedPhoneNumber
+	SecurityKey         *SecurityKeyChallenge
 }
 
 type AuthOptionsResponse struct {
-	NoTrustedDevices    bool                 `json:"noTrustedDevices"`
-	TrustedDevices      []map[string]any     `json:"trustedDevices"`
-	TrustedPhoneNumbers []TrustedPhoneNumber `json:"trustedPhoneNumbers"`
+	FSAChallenge        *SecurityKeyChallenge `json:"fsaChallenge"`
+	NoTrustedDevices    bool                  `json:"noTrustedDevices"`
+	TrustedDevices      []map[string]any      `json:"trustedDevices"`
+	TrustedPhoneNumbers []TrustedPhoneNumber  `json:"trustedPhoneNumbers"`
 	SecurityCode        struct {
 		Length int `json:"length"`
 	} `json:"securityCode"`
@@ -136,6 +140,7 @@ func (opts *AuthOptionsResponse) AuthOptions() *AuthOptions {
 	}
 	shared := &AuthOptions{
 		NoTrustedDevices: opts.NoTrustedDevices,
+		SecurityKey:      opts.FSAChallenge,
 	}
 	if len(opts.TrustedPhoneNumbers) == 0 {
 		return shared
@@ -213,6 +218,15 @@ func PrepareTwoFactorChallenge(ctx context.Context, session SessionState, getAut
 	opts, err := getAuthOptions(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if opts.SecurityKey != nil {
+		if session.TwoFactorPreference().Delivery == TwoFactorDeliverySMS {
+			return nil, fmt.Errorf("security key required by Apple; SMS verification is unavailable for this challenge")
+		}
+		return &TwoFactorChallenge{Method: TwoFactorMethodSecurityKey, SecurityKey: opts.SecurityKey}, nil
+	}
+	if session.TwoFactorPreference().Delivery == TwoFactorMethodSecurityKey {
+		return nil, fmt.Errorf("security-key challenge not offered by Apple for this account")
 	}
 
 	if session.TwoFactorPreference().Delivery == TwoFactorDeliverySMS {

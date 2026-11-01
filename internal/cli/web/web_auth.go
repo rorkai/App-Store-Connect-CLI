@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime"
 	"strconv"
 	"strings"
@@ -20,7 +21,9 @@ import (
 	"golang.org/x/term"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/securitykey"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -59,6 +62,7 @@ var (
 	ensureTwoFactorCodeRequestedFn           = webcore.EnsureTwoFactorCodeRequested
 	persistWebSessionFn                      = webcore.PersistSession
 	submitTwoFactorCodeFn                    = webcore.SubmitTwoFactorCode
+	submitSecurityKeyFn                      = webcore.SubmitSecurityKey
 	signalProcessInterruptFn                 = signalProcessInterrupt
 	termReadPasswordFn                       = term.ReadPassword
 	termIsTerminalFn                         = term.IsTerminal
@@ -848,7 +852,7 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 		}
 		// Stop before asking Apple for the challenge, which can deliver a code
 		// to the account's devices or phone that nobody here can enter.
-		if code == "" && command == "" && !twoFactorPromptAvailableFn() {
+		if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && code == "" && command == "" && !twoFactorPromptAvailableFn() {
 			return nil, twoFactorInputError(errNoTwoFactorCodeSource, shared.DiagnosticRequiredInputMissing)
 		}
 		session.SetTwoFactorPreference(twoFactorPreference)
@@ -859,6 +863,25 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 				return nil, fmt.Errorf("2fa challenge setup failed: %w; pass --two-factor-phone-id or set %s", prepErr, webTwoFactorPhoneIDEnv)
 			}
 			return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
+		}
+
+		if challenge != nil && challenge.Method == appleauth.TwoFactorMethodSecurityKey {
+			if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey {
+				return nil, fmt.Errorf("security key required by Apple; retry with --two-factor-method security-key")
+			}
+			if twoFactorStatusWriter != nil {
+				_, _ = fmt.Fprintln(twoFactorStatusWriter, "Touch your security key to complete Apple sign-in.")
+			}
+			interruptCtx, stopInterrupt := signal.NotifyContext(shared.ContextWithoutTimeout(ctx), os.Interrupt)
+			defer stopInterrupt()
+			// Waiting for physical touch must not consume the HTTP budget used
+			// to verify the assertion and establish the trusted session.
+			verifyCtx, verifyCancel := shared.ContextWithTimeoutDuration(interruptCtx, securitykey.AssertionTimeout+asc.ResolveTimeout())
+			defer verifyCancel()
+			if err := submitSecurityKeyFn(verifyCtx, session, os.Getenv("ASC_WEB_SECURITY_KEY_PIN")); err != nil {
+				return nil, fmt.Errorf("security-key sign-in failed: %w", err)
+			}
+			return session, nil
 		}
 
 		writeDeliveryNotice := func(destination string) {
@@ -1149,6 +1172,9 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 	command := strings.TrimSpace(opts.twoFactorCodeCommand)
 	if command == "" {
 		command = strings.TrimSpace(os.Getenv(webTwoFactorCodeCommandEnv))
+	}
+	if twoFactorPreference.Delivery == appleauth.TwoFactorMethodSecurityKey && (twoFactorCode != "" || command != "") {
+		return nil, "", shared.UsageError("--two-factor-method security-key cannot be combined with a verification code or 2FA code command; unset ASC_WEB_2FA_CODE_COMMAND")
 	}
 	expiredNoticePrinted := false
 	printExpiredNotice := func() {
@@ -1443,7 +1469,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 	// Without a cached cookie jar there is no trusted-device cookie, so Apple
 	// always answers the password step with a 2FA challenge. Refuse before
 	// signing in when nothing here can supply the code.
-	if expiredCachedSession == nil && twoFactorCode == "" && command == "" && !twoFactorPromptAvailableFn() {
+	if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && expiredCachedSession == nil && twoFactorCode == "" && command == "" && !twoFactorPromptAvailableFn() {
 		return nil, "", twoFactorInputError(errNoTwoFactorCodeSource, shared.DiagnosticRequiredInputMissing)
 	}
 
@@ -1714,8 +1740,14 @@ Two-factor input options:
   - --two-factor-code-command
   - %s environment variable (recommended for automation)
 
-Without a terminal, a fresh sign-in needs a 2FA code command; without one it
-fails before the password is sent, so Apple does not send a code nobody can enter.
+Without a terminal, a fresh sign-in needs a 2FA code command or explicit
+--two-factor-method security-key; otherwise it fails before the password is sent.
+
+Security-key sign-in (optional macOS build):
+  - build with CGO_ENABLED=1 go build -tags fido2 after installing libfido2 and pkg-config
+  - --two-factor-method security-key uses one connected USB FIDO2 key
+  - set ASC_WEB_SECURITY_KEY_PIN if the key requires a PIN; it is never saved
+  - touch the key when requested; wrong PINs are never retried automatically
 
 Automatic sign-in:
   - other web commands sign in again on their own when the cached session expires
@@ -1740,6 +1772,9 @@ SMS delivery:
   - asc requests the SMS before prompting or running the 2FA code command
   - Apple may still show a sign-in alert on trusted devices; only the texted
     code completes this sign-in
+
+Security-key example:
+  asc web auth login --apple-id "user@example.com" --two-factor-method security-key
 
 Provider selection:
   - --public-provider-id selects the public App Store Connect provider/team ID

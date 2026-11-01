@@ -10,6 +10,7 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	webcmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/web"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/securitykey"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -354,12 +355,13 @@ func TestWebCommandsRegisterTwoFactorDeliveryFlags(t *testing.T) {
 }
 
 func TestWebAuthLoginRejectsInvalidTwoFactorDelivery(t *testing.T) {
-	tests := []struct {
+	type testCase struct {
 		name       string
 		args       []string
 		env        map[string]string
 		wantStderr string
-	}{
+	}
+	tests := []testCase{
 		{
 			name:       "unsupported method flag",
 			args:       []string{"--two-factor-method", "email"},
@@ -403,6 +405,14 @@ func TestWebAuthLoginRejectsInvalidTwoFactorDelivery(t *testing.T) {
 			wantStderr: "Error: ASC_WEB_2FA_PHONE_ID requires --two-factor-method sms",
 		},
 	}
+	if !securitykey.Available() {
+		tests = append(tests, testCase{
+			name:       "security key unsupported backend",
+			args:       []string{"--two-factor-method", "security-key"},
+			wantStderr: "Error: security-key support requires macOS and a CGO build with -tags fido2",
+		})
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("ASC_WEB_2FA_METHOD", "")

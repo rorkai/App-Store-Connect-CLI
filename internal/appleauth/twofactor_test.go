@@ -88,6 +88,57 @@ func TestNilAuthOptionsResponseReturnsEmptyOptions(t *testing.T) {
 	}
 }
 
+func TestPrepareTwoFactorChallengeRoutesSecurityKeys(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		delivery  string
+		fsa       bool
+		wantError string
+	}{
+		{name: "FSA overrides code metadata", fsa: true},
+		{name: "explicit security key", delivery: TwoFactorMethodSecurityKey, fsa: true},
+		{name: "FSA refuses SMS", delivery: TwoFactorDeliverySMS, fsa: true, wantError: "security key required by Apple; SMS verification is unavailable for this challenge"},
+		{name: "key mode refuses code-only challenge", delivery: TwoFactorMethodSecurityKey, wantError: "security-key challenge not offered by Apple for this account"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := `{"trustedDevices":[{"id":"device"}],"trustedPhoneNumbers":[{"id":7,"pushMode":"sms"}]`
+			if tt.fsa {
+				payload += `,"fsaChallenge":{"challenge":"AQID","keyHandles":["BAUG"],"allowedCredentials":"BAUG"}`
+			}
+			payload += `}`
+			var response AuthOptionsResponse
+			if err := json.Unmarshal([]byte(payload), &response); err != nil {
+				t.Fatal(err)
+			}
+			session := &stubSessionState{preference: TwoFactorPreference{Delivery: tt.delivery}}
+			challenge, err := PrepareTwoFactorChallenge(context.Background(), session, func(context.Context) (*AuthOptions, error) {
+				return response.AuthOptions(), nil
+			})
+			if tt.wantError != "" {
+				if err == nil || err.Error() != tt.wantError {
+					t.Fatalf("challenge error = %v, want %q", err, tt.wantError)
+				}
+				if session.TwoFactorMethod() != "" || session.TwoFactorCodeRequested() {
+					t.Fatal("rejected challenge prepared code delivery")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if challenge.Method != TwoFactorMethodSecurityKey || challenge.SecurityKey == nil {
+				t.Fatalf("challenge = %+v, want security-key continuation", challenge)
+			}
+			if challenge.SecurityKey.Challenge != "AQID" || challenge.SecurityKey.AllowedCredentials != "BAUG" {
+				t.Fatalf("security-key continuation lost: %+v", challenge.SecurityKey)
+			}
+			if challenge.PhoneFallbackAvailable || challenge.Requested {
+				t.Fatal("security-key challenge exposed code delivery")
+			}
+		})
+	}
+}
+
 func TestSubmitTwoFactorCodeRequestsPhoneFallbackBeforeRetry(t *testing.T) {
 	session := &stubSessionState{
 		method:      TwoFactorMethodTrustedDevice,

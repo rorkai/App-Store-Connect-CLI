@@ -9,6 +9,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/securitykey"
 )
 
 const (
@@ -27,7 +28,7 @@ type twoFactorDeliveryFlags struct {
 func bindTwoFactorDeliveryFlags(fs *flag.FlagSet) twoFactorDeliveryFlags {
 	return twoFactorDeliveryFlags{
 		flagSet: fs,
-		method:  fs.String("two-factor-method", "", "2FA code delivery: auto (trusted devices first) or sms (text a trusted phone number); defaults to "+webTwoFactorMethodEnv+", then auto"),
+		method:  fs.String("two-factor-method", "", "2FA method: auto, sms, or security-key (requires a macOS fido2 build); defaults to "+webTwoFactorMethodEnv+", then auto"),
 		phoneID: fs.Int("two-factor-phone-id", 0, "Trusted phone number ID for --two-factor-method sms when the account has several; defaults to "+webTwoFactorPhoneIDEnv),
 	}
 }
@@ -64,9 +65,9 @@ func resolveTwoFactorPreference(methodFlag string, phoneIDFlag int, phoneIDFlagS
 		methodSource = webTwoFactorMethodEnv
 	}
 	switch method {
-	case "", twoFactorMethodAuto, appleauth.TwoFactorDeliverySMS:
+	case "", twoFactorMethodAuto, appleauth.TwoFactorDeliverySMS, appleauth.TwoFactorMethodSecurityKey:
 	default:
-		return appleauth.TwoFactorPreference{}, shared.UsageError(methodSource + " must be one of: auto, sms")
+		return appleauth.TwoFactorPreference{}, shared.UsageError(methodSource + " must be one of: auto, sms, security-key")
 	}
 
 	phoneID := phoneIDFlag
@@ -88,6 +89,12 @@ func resolveTwoFactorPreference(methodFlag string, phoneIDFlag int, phoneIDFlagS
 	if method != appleauth.TwoFactorDeliverySMS {
 		if phoneID != 0 {
 			return appleauth.TwoFactorPreference{}, shared.UsageError(phoneIDSource + " requires --two-factor-method sms")
+		}
+		if method == appleauth.TwoFactorMethodSecurityKey {
+			if !securitykey.Available() {
+				return appleauth.TwoFactorPreference{}, shared.UsageError(securitykey.ErrUnavailable.Error())
+			}
+			return appleauth.TwoFactorPreference{Delivery: method}, nil
 		}
 		return appleauth.TwoFactorPreference{}, nil
 	}
