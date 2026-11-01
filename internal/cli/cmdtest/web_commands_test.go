@@ -409,7 +409,7 @@ func TestWebAuthLoginRejectsInvalidTwoFactorDelivery(t *testing.T) {
 		tests = append(tests, testCase{
 			name:       "security key unsupported backend",
 			args:       []string{"--two-factor-method", "security-key"},
-			wantStderr: "Error: security-key support requires an opt-in macOS or Linux build with CGO_ENABLED=1 and -tags fido2",
+			wantStderr: "Error: security-key support requires an opt-in macOS build with CGO_ENABLED=1 and -tags fido2",
 		})
 	}
 

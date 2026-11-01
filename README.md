@@ -336,21 +336,9 @@ asc web auth login --apple-id "user@example.com"
 asc validate --app "123456789" --version "1.2.3" --deep
 ```
 
-Apple Accounts with registered USB FIDO2 security keys can use an opt-in
-macOS or Linux source build: install libfido2 1.14 or newer and pkg-config, then
-build with `CGO_ENABLED=1 go build -tags fido2 -o build/asc-security-key .`.
-Keep the native libraries installed; on Linux, configure FIDO udev rules for
-hidraw access. Sign in with `./build/asc-security-key web auth login --apple-id
-"user@example.com" --two-factor-method security-key`, with exactly one key
-connected and physical touch/approval. Windows is unavailable and official
-release packaging is unchanged. `ASC_WEB_2FA_METHOD` accepts `auto`, `sms`, or
-`security-key`; `auto` keeps SMS first when Apple reports `noTrustedDevices`,
-even with an FSA challenge. `ASC_WEB_SECURITY_KEY_PIN` is read only by explicit
-`asc web auth login`; automatic reauthentication refuses an environment PIN
-when a key challenge is needed and asks for explicit login. See the
-[build and verification details](docs/design/apple-security-key-login.md).
-Ledger macOS approval, rejection, and Ctrl+C were verified previously; live
-PIN, YubiKey, and Linux hardware behavior remain unverified.
+Apple Accounts with USB security keys can use an [opt-in macOS
+build](commands/web.mdx#security-key-login) with `--two-factor-method security-key`.
+See that guide for setup and verification limits.
 
 Deep validation reuses the file-backed cache without opening a login, Keychain,
 password, or 2FA prompt. It checks App Privacy publication, relevant agreements,

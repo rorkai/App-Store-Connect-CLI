@@ -187,17 +187,19 @@ They do not replace `ASC_KEY_ID`, `ASC_ISSUER_ID`, or the other API credentials.
 
   `auto` (the default) follows Apple's routing: SMS first when
   `noTrustedDevices` is true, including when an FSA challenge is present;
-  otherwise an available FSA challenge selects a security key. Code-only
+  otherwise an FSA challenge stops with guidance to choose `security-key` on a
+  supported build. `auto` does not perform a key assertion. Code-only
   accounts use trusted devices with phone fallback after a rejected code.
   `sms` asks Apple to text a trusted phone number before prompting or running
   the 2FA code command. `--two-factor-method` wins when set; other values fail
   with a usage error before sign-in.
 
-  `security-key` requires an opt-in macOS or Linux build with `CGO_ENABLED=1`
+  `security-key` requires an opt-in macOS build with `CGO_ENABLED=1`
   and `-tags fido2`, installed libfido2 1.14 or newer and pkg-config, exactly one
-  connected registered USB FIDO2 key, and physical touch. Linux also requires
-  udev rules granting the current user access to the key's hidraw device.
-  Windows is unavailable; official release packaging is unchanged. See
+  connected registered USB FIDO2 key, and physical touch. Device readiness is
+  checked before sending a password. Valid cached sessions do not require the
+  backend or an attached key, even with this variable exported. Official release
+  packaging is unchanged. See
   [Security-key login](/commands/web#security-key-login).
 </ParamField>
 

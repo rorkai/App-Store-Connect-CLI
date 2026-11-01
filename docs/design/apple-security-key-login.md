@@ -5,11 +5,11 @@ The initial implementation adds explicit USB FIDO2 authentication to
 
 ## Local build and use
 
-Security-key support is an opt-in source build for macOS and Linux. Install
+Security-key support is an opt-in source build for macOS. Install
 libfido2 **1.14 or newer**, pkg-config, and a C compiler for the host architecture.
 Version 1.14 is the minimum for the raw authenticator-data accessors Apple needs.
-The native libraries must remain installed when running the binary. Windows is
-unavailable. Release binaries and their native dependency packaging are unchanged;
+The native libraries must remain installed when running the binary. Release
+binaries and their native dependency packaging are unchanged;
 this change does not bundle or enable libfido2 in official releases.
 
 On macOS:
@@ -19,19 +19,6 @@ brew install libfido2 pkg-config
 pkg-config --atleast-version=1.14.0 libfido2
 CGO_ENABLED=1 go build -tags fido2 -o build/asc-security-key .
 ```
-
-On Linux (Debian/Ubuntu package names):
-
-```bash
-sudo apt-get install libfido2-dev pkg-config build-essential
-pkg-config --atleast-version=1.14.0 libfido2
-CGO_ENABLED=1 go build -tags fido2 -o build/asc-security-key .
-```
-
-Linux also requires distribution or vendor FIDO udev rules that grant the
-current user access to the key's `/dev/hidraw*` device. Install/configure those
-rules and reconnect the key before signing in; building successfully does not
-establish hardware permissions.
 
 ```bash
 ./build/asc-security-key web auth login --apple-id "user@example.com" --two-factor-method security-key
@@ -53,24 +40,30 @@ reusing a stale PIN and exhausting the key's attempts. Verify the PIN before
 another explicit login. Code commands and phone selection cannot be combined
 with security-key mode.
 
-Builds without `(darwin || linux) && cgo && fido2` return an explicit
-unsupported-backend usage error before an explicit security-key sign-in.
+Builds without `darwin && cgo && fido2` return an explicit
+unsupported-backend usage error only when key sign-in is needed. Valid cached
+sessions remain usable with `ASC_WEB_2FA_METHOD=security-key`. Key mode performs
+read-only discovery/opening before sending credentials, without an assertion,
+PIN, or touch request. No device, ambiguous devices, or a non-FIDO2 device stop
+the sign-in locally. `Sign` rechecks the device after Apple issues a challenge.
 
 ## Protocol and ownership
 
 `internal/appleauth` recognizes `fsaChallenge` from Apple's web auth options.
 Automatic routing preserves Apple's SMS-first path when `noTrustedDevices` is
-true, even if an FSA challenge is present. Otherwise it selects an FSA challenge
-when available. Explicit key mode refuses a code-only challenge; explicit SMS
+true, even if an FSA challenge is present. Otherwise an FSA challenge is detected
+and `auto` asks the operator to retry with explicit `--two-factor-method security-key`;
+it does not sign automatically. Explicit key mode refuses a code-only challenge; explicit SMS
 retains the phone-code path when Apple makes it available.
 Explicit key mode also refuses phone-priority options without requesting a code;
 use `auto` or `sms` when Apple reports `noTrustedDevices`.
 
 `internal/securitykey` is a narrow Go adapter over libfido2 using pkg-config.
 It requests user presence, leaves user verification at the device default,
-and passes a PIN only when supplied. Native operations have a maximum
-60-second budget, further bounded by the context deadline. Cancellation sends
-CTAP cancel; cleanup waits for the cancellation callback before freeing the
+and passes a PIN only when supplied. Native communications have a maximum
+60-second budget, further bounded by the context deadline; OS enumeration is
+synchronous. Assertion cancellation sends CTAP cancel; cleanup waits for the
+cancellation callback before freeing the
 device. Multiple connected keys produce an ambiguity error.
 
 `internal/web` follows XcodesLoginKit's private Apple protocol. It hashes the
@@ -78,7 +71,10 @@ exact client-data JSON (`webauthn.get`, RP `apple.com`, origin
 `https://idmsa.apple.com`, `crossOrigin: true`) and signs only Apple's allowed
 credentials. The verification body uses Apple's flat standard-base64 fields,
 including raw authenticator data of its actual length. Absent user handles
-become empty strings; non-UTF-8 handles are explicitly unsupported.
+become empty strings; non-UTF-8 handles are explicitly unsupported by this CLI,
+without asserting that Apple rejects them. This can only be checked after the
+authenticator returns its assertion. A missing credential ID falls back to the
+sole allowed credential; ambiguous or nonmatching IDs are rejected.
 
 The assertion is submitted once to `POST
 https://idmsa.apple.com/appleauth/auth/verify/security/key`, carrying the
@@ -90,9 +86,9 @@ the public App Store Connect OpenAPI snapshot.
 
 ## Verification scope
 
-CI builds with and without the native backend. Native macOS and Linux jobs
-install libfido2 and pkg-config, enforce the minimum library version, compile
-with `-tags fido2`, and run focused tagged tests without hardware. These feed
+CI builds with and without the native backend. The native macOS job
+installs libfido2 and pkg-config, enforces the minimum library version, compiles
+with `-tags fido2`, and runs focused tagged tests without hardware. It feeds
 the existing required build gate. The repository's formatting, lint,
 documentation, and full-test checklist still applies.
 Regression tests cover FSA routing through decoded auth options, preservation
@@ -107,6 +103,9 @@ successful sign-in, rejection on the device, Ctrl+C while approval is pending,
 and successful sign-in after each cancellation. Device rejection returned
 `FIDO_ERR_OPERATION_DENIED`; Ctrl+C returned `context canceled`.
 
-Live PIN entry, YubiKey behavior, and Linux hardware access have **not** been
+Live PIN entry and YubiKey behavior have **not** been
 verified. Native builds and cancellation tests
 do not establish those hardware results.
+
+A fresh Ledger sign-in and Ctrl+C retest, plus the legacy code-flow comparison
+on `main`, remain pending after the routing/readiness changes.

@@ -28,7 +28,7 @@ type twoFactorDeliveryFlags struct {
 func bindTwoFactorDeliveryFlags(fs *flag.FlagSet) twoFactorDeliveryFlags {
 	return twoFactorDeliveryFlags{
 		flagSet: fs,
-		method:  fs.String("two-factor-method", "", "2FA method: auto, sms, or security-key (requires an opt-in macOS or Linux fido2 build); defaults to "+webTwoFactorMethodEnv+", then auto"),
+		method:  fs.String("two-factor-method", "", "2FA method: auto, sms, or security-key (requires an opt-in macOS fido2 build); defaults to "+webTwoFactorMethodEnv+", then auto"),
 		phoneID: fs.Int("two-factor-phone-id", 0, "Trusted phone number ID for --two-factor-method sms when the account has several; defaults to "+webTwoFactorPhoneIDEnv),
 	}
 }

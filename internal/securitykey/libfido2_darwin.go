@@ -1,4 +1,4 @@
-//go:build (darwin || linux) && cgo && fido2
+//go:build darwin && cgo && fido2
 
 package securitykey
 

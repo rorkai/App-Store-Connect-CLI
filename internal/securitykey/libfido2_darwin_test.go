@@ -1,4 +1,4 @@
-//go:build (darwin || linux) && cgo && fido2
+//go:build darwin && cgo && fido2
 
 package securitykey
 
@@ -12,7 +12,7 @@ import (
 // cancelled request must stop before discovering or opening a physical key.
 func TestSignCancelledBeforeDeviceDiscovery(t *testing.T) {
 	if !Available() {
-		t.Fatal("tagged macOS and Linux builds must include the native security-key signer")
+		t.Fatal("tagged macOS builds must include the native security-key signer")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

@@ -331,7 +331,6 @@ def assert_optimized_workflow_text(path: Path, workflow: str, test_job: str) -> 
     # Native backend failures must block the existing platform build gate.
     for name, runner, install in (
         ("security-key macOS", "macos-latest", "brew install libfido2 pkg-config"),
-        ("security-key Linux", "ubuntu-latest", "sudo apt-get install -y libfido2-dev pkg-config"),
     ):
         entry = re.search(
             rf"          - name: {re.escape(name)}\n(.*?)(?=\n          - name:|\n    steps:)",
@@ -394,7 +393,6 @@ def assert_optimized_workflow_rejects_weakened_checks() -> None:
             "CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build",
             "CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build",
             "brew install libfido2 pkg-config",
-            "sudo apt-get install -y libfido2-dev pkg-config",
             "pkg-config --atleast-version=1.14.0 libfido2",
             "export CGO_ENABLED=1",
             "go build -tags fido2",

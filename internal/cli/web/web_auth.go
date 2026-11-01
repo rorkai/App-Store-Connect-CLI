@@ -1784,7 +1784,7 @@ Two-factor input options:
 Without a terminal, a fresh sign-in needs a 2FA code command or explicit
 --two-factor-method security-key; otherwise it fails before the password is sent.
 
-Security-key sign-in (opt-in build on macOS and Linux):
+Security-key sign-in (opt-in build on macOS):
   - build with CGO_ENABLED=1 go build -tags fido2 after installing libfido2 and pkg-config
   - --two-factor-method security-key uses one connected USB FIDO2 key
   - set ASC_WEB_SECURITY_KEY_PIN for this explicit login if the key requires a PIN; it is never saved
