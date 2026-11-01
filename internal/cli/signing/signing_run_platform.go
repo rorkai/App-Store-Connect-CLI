@@ -525,7 +525,7 @@ func createSigningRunKeychain(ctx context.Context, keychainPath string, password
 }
 
 func importSigningRunIdentity(ctx context.Context, keychainPath string, keychainPassword, identityData, importPassword []byte, expectedSHA1 string) error {
-	if err := importPKCS12WithSecurityFramework(keychainPath, identityData, importPassword); err != nil {
+	if err := importLegacyPKCS12WithSecurityFramework(keychainPath, identityData, importPassword); err != nil {
 		return fmt.Errorf("import identity: %w", err)
 	}
 	if err := withSigningRunPartitionPasswordInput(keychainPassword, func(stdin []byte) error {
