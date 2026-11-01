@@ -83,9 +83,14 @@ func SubmitSecurityKey(ctx context.Context, session *AuthSession, pin string) er
 	if err != nil {
 		return err
 	}
+	credentialID := assertion.CredentialID
+	// CTAP2.0 permits omission when the allow-list identifies exactly one key.
+	if len(credentialID) == 0 && len(credentials) == 1 {
+		credentialID = credentials[0]
+	}
 	allowed := false
 	for _, credential := range credentials {
-		if bytes.Equal(credential, assertion.CredentialID) {
+		if bytes.Equal(credential, credentialID) {
 			allowed = true
 			break
 		}
@@ -94,15 +99,16 @@ func SubmitSecurityKey(ctx context.Context, session *AuthSession, pin string) er
 		return fmt.Errorf("security key returned an invalid assertion")
 	}
 	// Match the XcodesLoginKit protocol: absent user handles are empty, while
-	// present handles must be UTF-8. Do not silently corrupt a binary handle.
+	// this CLI supports present handles only as UTF-8. This is a local limitation,
+	// not proof that Apple rejects opaque binary user handles.
 	if !utf8.Valid(assertion.UserID) {
-		return fmt.Errorf("security key returned a binary user handle unsupported by Apple's sign-in protocol")
+		return fmt.Errorf("security key returned a binary user handle; this CLI requires UTF-8")
 	}
 	encode := base64.StdEncoding.EncodeToString
 	payload := securityKeyResponse{
 		Challenge: encode(challenge), ClientData: encode(clientData),
 		SignatureData: encode(assertion.Signature), AuthenticatorData: encode(assertion.AuthenticatorData),
-		UserHandle: string(assertion.UserID), CredentialID: encode(assertion.CredentialID), RPID: "apple.com",
+		UserHandle: string(assertion.UserID), CredentialID: encode(credentialID), RPID: "apple.com",
 	}
 	// Consume continuation state before sending. An interrupted request may
 	// already have been accepted, so this assertion must never be replayed.

@@ -24,17 +24,27 @@ import (
 // data, with raw authenticator bytes intact and no replay after submission.
 func TestSubmitSecurityKeyAppleProtocol(t *testing.T) {
 	for _, tt := range []struct {
-		name             string
-		verifyStatus     int
-		trustStatus      int
-		signError        error
-		wantError        string
-		wantRequests     []string
-		wantRejected     bool
-		wantFinalization bool
-		transportErrorAt string
+		name                 string
+		verifyStatus         int
+		trustStatus          int
+		signError            error
+		wantError            string
+		wantRequests         []string
+		wantRejected         bool
+		wantFinalization     bool
+		transportErrorAt     string
+		omitCredentialID     bool
+		multipleCredentials  bool
+		foreignCredentialID  bool
+		userHandle           []byte
+		preSubmissionFailure bool
 	}{
 		{name: "accepted", verifyStatus: 204, trustStatus: 204, wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust", "GET /olympus/v1/session"}},
+		{name: "omitted singleton credential", omitCredentialID: true, verifyStatus: 204, trustStatus: 204, wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust", "GET /olympus/v1/session"}},
+		{name: "omitted ambiguous credential", omitCredentialID: true, multipleCredentials: true, preSubmissionFailure: true, wantError: "invalid assertion"},
+		{name: "foreign credential is not replaced", foreignCredentialID: true, preSubmissionFailure: true, wantError: "invalid assertion"},
+		{name: "nonempty UTF-8 user handle", userHandle: []byte("user-\u00e9\u2713"), verifyStatus: 204, trustStatus: 204, wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust", "GET /olympus/v1/session"}},
+		{name: "binary user handle", userHandle: []byte{0xff, 0xfe}, preSubmissionFailure: true, wantError: "binary user handle"},
 		{name: "assertion rejected", verifyStatus: 401, wantRejected: true, wantError: "security-key verification rejected by Apple (HTTP 401)", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
 		{name: "bad assertion", verifyStatus: 400, wantRejected: true, wantError: "security-key verification rejected by Apple (HTTP 400)", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
 		{name: "server failed", verifyStatus: 503, wantError: "HTTP 503", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
@@ -50,18 +60,32 @@ func TestSubmitSecurityKeyAppleProtocol(t *testing.T) {
 			const clientData = `{"type":"webauthn.get","challenge":"-_8","origin":"https://idmsa.apple.com","crossOrigin":true}`
 			const pin = "PIN-never-sent-to-Apple"
 			credential := []byte{0xfb, 0xff, 1}
+			credentials := [][]byte{credential}
+			if tt.multipleCredentials {
+				credentials = append(credentials, []byte{2, 3, 4})
+			}
+			encodedCredentials := make([]string, 0, len(credentials))
+			for _, id := range credentials {
+				encodedCredentials = append(encodedCredentials, base64.StdEncoding.EncodeToString(id))
+			}
 			authData := bytes.Repeat([]byte{0x41}, 48)
 			signature := []byte{0xfb, 0xff, 2}
 			signCalls := 0
 			signSecurityKeyFn = func(ctx context.Context, request securitykey.Request, gotPIN string) (*securitykey.Assertion, error) {
 				signCalls++
-				if gotPIN != pin || request.RelyingParty != "apple.com" || request.ClientDataHash != sha256.Sum256([]byte(clientData)) || !reflect.DeepEqual(request.CredentialIDs, [][]byte{credential}) {
+				if gotPIN != pin || request.RelyingParty != "apple.com" || request.ClientDataHash != sha256.Sum256([]byte(clientData)) || !reflect.DeepEqual(request.CredentialIDs, credentials) {
 					t.Fatal("signer did not receive the Apple RP, exact client-data hash, decoded allow-list, and PIN")
 				}
 				if tt.signError != nil {
 					return nil, tt.signError
 				}
-				return &securitykey.Assertion{CredentialID: credential, AuthenticatorData: authData, Signature: signature}, nil
+				returnedID := credential
+				if tt.omitCredentialID {
+					returnedID = nil
+				} else if tt.foreignCredentialID {
+					returnedID = []byte{0xff}
+				}
+				return &securitykey.Assertion{CredentialID: returnedID, AuthenticatorData: authData, Signature: signature, UserID: tt.userHandle}, nil
 			}
 			var mu sync.Mutex
 			var requests []string
@@ -90,7 +114,7 @@ func TestSubmitSecurityKeyAppleProtocol(t *testing.T) {
 						t.Error(err)
 					}
 					encode := base64.StdEncoding.EncodeToString
-					want := map[string]string{"challenge": "+/8=", "clientData": encode([]byte(clientData)), "signatureData": encode(signature), "authenticatorData": encode(authData), "credentialID": "+/8B", "userHandle": "", "rpId": "apple.com"}
+					want := map[string]string{"challenge": "+/8=", "clientData": encode([]byte(clientData)), "signatureData": encode(signature), "authenticatorData": encode(authData), "credentialID": "+/8B", "userHandle": string(tt.userHandle), "rpId": "apple.com"}
 					if !reflect.DeepEqual(payload, want) {
 						t.Errorf("Apple assertion payload = %#v, want %#v", payload, want)
 					}
@@ -121,7 +145,7 @@ func TestSubmitSecurityKeyAppleProtocol(t *testing.T) {
 			})
 			session := &AuthSession{
 				Client: client, ServiceKey: "widget", AppleIDSessionID: "session", SCNT: "continuation",
-				securityKeyChallenge: &appleauth.SecurityKeyChallenge{Challenge: "-_8", AllowedCredentials: "+/8B"},
+				securityKeyChallenge: &appleauth.SecurityKeyChallenge{Challenge: "-_8", AllowedCredentials: strings.Join(encodedCredentials, ",")},
 			}
 			err = SubmitSecurityKey(context.Background(), session, pin)
 			if tt.wantError == "" {
@@ -148,7 +172,7 @@ func TestSubmitSecurityKeyAppleProtocol(t *testing.T) {
 			if tt.wantFinalization && finalization.HTTPStatusCode() != tt.trustStatus {
 				t.Fatalf("finalization status = %d, want %d", finalization.HTTPStatusCode(), tt.trustStatus)
 			}
-			if tt.signError == nil {
+			if tt.signError == nil && !tt.preSubmissionFailure {
 				if err := SubmitSecurityKey(context.Background(), session, pin); err == nil || err.Error() != "a prepared security-key challenge is required" {
 					t.Fatalf("consumed assertion could be replayed: %v", err)
 				}
