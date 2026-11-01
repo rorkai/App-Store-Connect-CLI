@@ -90,18 +90,26 @@ func TestNilAuthOptionsResponseReturnsEmptyOptions(t *testing.T) {
 
 func TestPrepareTwoFactorChallengeRoutesSecurityKeys(t *testing.T) {
 	for _, tt := range []struct {
-		name      string
-		delivery  string
-		fsa       bool
-		wantError string
+		name             string
+		delivery         string
+		fsa              bool
+		noTrustedDevices bool
+		wantMethod       string
+		wantError        string
 	}{
-		{name: "FSA overrides code metadata", fsa: true},
-		{name: "explicit security key", delivery: TwoFactorMethodSecurityKey, fsa: true},
-		{name: "FSA refuses SMS", delivery: TwoFactorDeliverySMS, fsa: true, wantError: "security key required by Apple; SMS verification is unavailable for this challenge"},
+		{name: "FSA overrides code metadata", fsa: true, wantMethod: TwoFactorMethodSecurityKey},
+		{name: "explicit security key", delivery: TwoFactorMethodSecurityKey, fsa: true, wantMethod: TwoFactorMethodSecurityKey},
+		{name: "FSA preserves explicit SMS", delivery: TwoFactorDeliverySMS, fsa: true, wantMethod: TwoFactorMethodPhone},
+		{name: "FSA preserves automatic phone routing without trusted devices", fsa: true, noTrustedDevices: true, wantMethod: TwoFactorMethodPhone},
+		{name: "FSA preserves explicit SMS without trusted devices", delivery: TwoFactorDeliverySMS, fsa: true, noTrustedDevices: true, wantMethod: TwoFactorMethodPhone},
+		{name: "explicit key refuses phone-priority auth options", delivery: TwoFactorMethodSecurityKey, fsa: true, noTrustedDevices: true, wantError: "security-key verification is unavailable because Apple auth options prioritize phone verification; use auto or sms"},
 		{name: "key mode refuses code-only challenge", delivery: TwoFactorMethodSecurityKey, wantError: "security-key challenge not offered by Apple for this account"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			payload := `{"trustedDevices":[{"id":"device"}],"trustedPhoneNumbers":[{"id":7,"pushMode":"sms"}]`
+			payload := fmt.Sprintf(`{"noTrustedDevices":%t,"trustedPhoneNumbers":[{"id":7,"pushMode":"sms","numberWithDialCode":"+1 (•••) •••-••66"}]`, tt.noTrustedDevices)
+			if !tt.noTrustedDevices {
+				payload += `,"trustedDevices":[{"id":"device"}]`
+			}
 			if tt.fsa {
 				payload += `,"fsaChallenge":{"challenge":"AQID","keyHandles":["BAUG"],"allowedCredentials":"BAUG"}`
 			}
@@ -118,7 +126,7 @@ func TestPrepareTwoFactorChallengeRoutesSecurityKeys(t *testing.T) {
 				if err == nil || err.Error() != tt.wantError {
 					t.Fatalf("challenge error = %v, want %q", err, tt.wantError)
 				}
-				if session.TwoFactorMethod() != "" || session.TwoFactorCodeRequested() {
+				if challenge != nil || session.method != "" || session.phoneID != 0 || session.phoneMode != "" || session.destination != "" || session.requested {
 					t.Fatal("rejected challenge prepared code delivery")
 				}
 				return
@@ -126,14 +134,18 @@ func TestPrepareTwoFactorChallengeRoutesSecurityKeys(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if challenge.Method != TwoFactorMethodSecurityKey || challenge.SecurityKey == nil {
-				t.Fatalf("challenge = %+v, want security-key continuation", challenge)
+			if challenge.Method != tt.wantMethod {
+				t.Fatalf("challenge = %+v, want method %q", challenge, tt.wantMethod)
 			}
-			if challenge.SecurityKey.Challenge != "AQID" || challenge.SecurityKey.AllowedCredentials != "BAUG" {
+			if tt.wantMethod == TwoFactorMethodPhone {
+				if challenge.SecurityKey != nil || challenge.Destination != "+1 (•••) •••-••66" || session.method != TwoFactorMethodPhone || session.phoneID != 7 || session.phoneMode != TwoFactorDeliverySMS || session.destination != challenge.Destination {
+					t.Fatalf("phone challenge = %+v, session = %+v, want prepared SMS delivery to phone 7", challenge, session)
+				}
+			} else if challenge.SecurityKey == nil || challenge.SecurityKey.Challenge != "AQID" || challenge.SecurityKey.AllowedCredentials != "BAUG" {
 				t.Fatalf("security-key continuation lost: %+v", challenge.SecurityKey)
 			}
 			if challenge.PhoneFallbackAvailable || challenge.Requested {
-				t.Fatal("security-key challenge exposed code delivery")
+				t.Fatalf("challenge unexpectedly requested code delivery or offered fallback: %+v", challenge)
 			}
 		})
 	}

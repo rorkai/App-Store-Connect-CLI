@@ -219,14 +219,13 @@ func PrepareTwoFactorChallenge(ctx context.Context, session SessionState, getAut
 	if err != nil {
 		return nil, err
 	}
-	if opts.SecurityKey != nil {
-		if session.TwoFactorPreference().Delivery == TwoFactorDeliverySMS {
-			return nil, fmt.Errorf("security key required by Apple; SMS verification is unavailable for this challenge")
-		}
-		return &TwoFactorChallenge{Method: TwoFactorMethodSecurityKey, SecurityKey: opts.SecurityKey}, nil
-	}
 	if session.TwoFactorPreference().Delivery == TwoFactorMethodSecurityKey {
-		return nil, fmt.Errorf("security-key challenge not offered by Apple for this account")
+		if opts.SecurityKey == nil {
+			return nil, fmt.Errorf("security-key challenge not offered by Apple for this account")
+		}
+		if opts.NoTrustedDevices {
+			return nil, fmt.Errorf("security-key verification is unavailable because Apple auth options prioritize phone verification; use auto or sms")
+		}
 	}
 
 	if session.TwoFactorPreference().Delivery == TwoFactorDeliverySMS {
@@ -266,6 +265,11 @@ func PrepareTwoFactorChallenge(ctx context.Context, session SessionState, getAut
 			Requested:              false,
 			PhoneFallbackAvailable: false,
 		}, nil
+	}
+
+	// Preserve SMS-first routing before choosing a security-key challenge.
+	if opts.SecurityKey != nil {
+		return &TwoFactorChallenge{Method: TwoFactorMethodSecurityKey, SecurityKey: opts.SecurityKey}, nil
 	}
 
 	session.SetPreparedTwoFactorState(TwoFactorMethodTrustedDevice, phoneID, phoneMode, destination, false)
