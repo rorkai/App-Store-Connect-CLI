@@ -73,11 +73,10 @@ device. Multiple connected keys produce an ambiguity error.
 exact client-data JSON (`webauthn.get`, RP `apple.com`, origin
 `https://idmsa.apple.com`, `crossOrigin: true`) and signs only Apple's allowed
 credentials. The verification body uses Apple's flat standard-base64 fields,
-including raw authenticator data of its actual length. Absent user handles
-become empty strings; non-UTF-8 handles are explicitly unsupported by this CLI,
-without asserting that Apple rejects them. This can only be checked after the
-authenticator returns its assertion. A missing credential ID falls back to the
-sole allowed credential; ambiguous or nonmatching IDs are rejected.
+including raw authenticator data of its actual length. Absent and non-UTF-8
+user handles become empty strings, as in XcodesLoginKit. A missing credential ID
+falls back to the sole allowed credential; ambiguous or nonmatching IDs are
+rejected.
 
 The assertion is submitted once to `POST
 https://idmsa.apple.com/appleauth/auth/verify/security/key`, carrying the

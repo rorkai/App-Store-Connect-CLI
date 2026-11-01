@@ -98,17 +98,17 @@ func SubmitSecurityKey(ctx context.Context, session *AuthSession, pin string) er
 	if !allowed || len(assertion.AuthenticatorData) < 37 || len(assertion.Signature) == 0 {
 		return fmt.Errorf("security key returned an invalid assertion")
 	}
-	// Match the XcodesLoginKit protocol: absent user handles are empty, while
-	// this CLI supports present handles only as UTF-8. This is a local limitation,
-	// not proof that Apple rejects opaque binary user handles.
+	// Match the XcodesLoginKit protocol: absent and non-UTF-8 user handles are
+	// sent empty, since this JSON field cannot carry raw bytes.
+	userHandle := string(assertion.UserID)
 	if !utf8.Valid(assertion.UserID) {
-		return fmt.Errorf("security key returned a binary user handle; this CLI requires UTF-8")
+		userHandle = ""
 	}
 	encode := base64.StdEncoding.EncodeToString
 	payload := securityKeyResponse{
 		Challenge: encode(challenge), ClientData: encode(clientData),
 		SignatureData: encode(assertion.Signature), AuthenticatorData: encode(assertion.AuthenticatorData),
-		UserHandle: string(assertion.UserID), CredentialID: encode(credentialID), RPID: "apple.com",
+		UserHandle: userHandle, CredentialID: encode(credentialID), RPID: "apple.com",
 	}
 	// Consume continuation state before sending. An interrupted request may
 	// already have been accepted, so this assertion must never be replayed.

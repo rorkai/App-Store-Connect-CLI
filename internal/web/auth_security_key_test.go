@@ -37,14 +37,15 @@ func TestSubmitSecurityKeyAppleProtocol(t *testing.T) {
 		multipleCredentials  bool
 		foreignCredentialID  bool
 		userHandle           []byte
+		submittedHandle      string
 		preSubmissionFailure bool
 	}{
 		{name: "accepted", verifyStatus: 204, trustStatus: 204, wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust", "GET /olympus/v1/session"}},
 		{name: "omitted singleton credential", omitCredentialID: true, verifyStatus: 204, trustStatus: 204, wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust", "GET /olympus/v1/session"}},
 		{name: "omitted ambiguous credential", omitCredentialID: true, multipleCredentials: true, preSubmissionFailure: true, wantError: "invalid assertion"},
 		{name: "foreign credential is not replaced", foreignCredentialID: true, preSubmissionFailure: true, wantError: "invalid assertion"},
-		{name: "nonempty UTF-8 user handle", userHandle: []byte("user-\u00e9\u2713"), verifyStatus: 204, trustStatus: 204, wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust", "GET /olympus/v1/session"}},
-		{name: "binary user handle", userHandle: []byte{0xff, 0xfe}, preSubmissionFailure: true, wantError: "binary user handle"},
+		{name: "nonempty UTF-8 user handle", userHandle: []byte("user-\u00e9\u2713"), submittedHandle: "user-\u00e9\u2713", verifyStatus: 204, trustStatus: 204, wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust", "GET /olympus/v1/session"}},
+		{name: "binary user handle is sent empty", userHandle: []byte{0xff, 0xfe}, verifyStatus: 204, trustStatus: 204, wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust", "GET /olympus/v1/session"}},
 		{name: "assertion rejected", verifyStatus: 401, wantRejected: true, wantError: "security-key verification rejected by Apple (HTTP 401)", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
 		{name: "bad assertion", verifyStatus: 400, wantRejected: true, wantError: "security-key verification rejected by Apple (HTTP 400)", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
 		{name: "server failed", verifyStatus: 503, wantError: "HTTP 503", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
@@ -114,7 +115,7 @@ func TestSubmitSecurityKeyAppleProtocol(t *testing.T) {
 						t.Error(err)
 					}
 					encode := base64.StdEncoding.EncodeToString
-					want := map[string]string{"challenge": "+/8=", "clientData": encode([]byte(clientData)), "signatureData": encode(signature), "authenticatorData": encode(authData), "credentialID": "+/8B", "userHandle": string(tt.userHandle), "rpId": "apple.com"}
+					want := map[string]string{"challenge": "+/8=", "clientData": encode([]byte(clientData)), "signatureData": encode(signature), "authenticatorData": encode(authData), "credentialID": "+/8B", "userHandle": tt.submittedHandle, "rpId": "apple.com"}
 					if !reflect.DeepEqual(payload, want) {
 						t.Errorf("Apple assertion payload = %#v, want %#v", payload, want)
 					}

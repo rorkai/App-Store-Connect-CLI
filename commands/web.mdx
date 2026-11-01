@@ -293,9 +293,8 @@ reauthentication refuses an environment PIN when a key challenge is needed and
 asks you to run `asc web auth login` explicitly. Verify the PIN before trying
 again, since repeated explicit logins with a wrong PIN can lock the key.
 
-Nonempty UTF-8 user handles are passed through. Binary user handles are rejected
-by this CLI before submission to Apple; that limitation can only be detected
-after the key returns its assertion.
+Nonempty UTF-8 user handles are passed through. Binary user handles are sent
+empty, matching XcodesLoginKit.
 
 Security-key login has been tested with a Ledger Stax on macOS. Live PIN use and
 YubiKey behavior have not been verified.
