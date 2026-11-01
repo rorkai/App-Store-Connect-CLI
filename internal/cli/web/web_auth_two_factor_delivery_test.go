@@ -149,6 +149,9 @@ func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
 				if !errors.Is(err, securitykey.ErrUnavailable) || strings.Contains(err.Error(), "retry with --two-factor-method") {
 					t.Fatalf("unavailable backend error = %v, want build guidance without an unusable retry", err)
 				}
+				if diagnostic, _ := shared.DiagnosticFromError(err); diagnostic.Code != shared.DiagnosticConflictingInput {
+					t.Fatalf("diagnostic = %+v, want %q so telemetry can count blocked sign-ins", diagnostic, shared.DiagnosticConflictingInput)
+				}
 			} else if tc.wantError == "" {
 				if err != nil {
 					t.Fatal(err)

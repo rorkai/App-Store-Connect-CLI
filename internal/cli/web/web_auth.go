@@ -916,14 +916,16 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 
 		if challenge != nil && challenge.Method == appleauth.TwoFactorMethodSecurityKey {
 			if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && !securityKeyAvailableFn() {
-				return nil, fmt.Errorf("security key required by Apple: %w; after installing a supported build, run 'asc web auth login --two-factor-method security-key' explicitly", securitykey.ErrUnavailable)
+				err := fmt.Errorf("security key required by Apple: %w; after installing a supported build, run 'asc web auth login --two-factor-method security-key' explicitly", securitykey.ErrUnavailable)
+				return nil, shared.WithDiagnostic(err, shared.DiagnosticConflictingInput, "")
 			}
 			pin, err := securityKeyPINForSignIn(ctx, appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorMethodSecurityKey})
 			if err != nil {
 				return nil, err
 			}
 			if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey {
-				return nil, fmt.Errorf("security key required by Apple; retry with --two-factor-method security-key")
+				err := errors.New("security key required by Apple; retry with --two-factor-method security-key")
+				return nil, shared.WithDiagnostic(err, shared.DiagnosticConflictingInput, "")
 			}
 			if twoFactorStatusWriter != nil {
 				_, _ = fmt.Fprintln(twoFactorStatusWriter, "Touch your security key to complete Apple sign-in.")

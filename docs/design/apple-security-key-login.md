@@ -49,7 +49,8 @@ the sign-in locally. `Sign` rechecks the device after Apple issues a challenge.
 
 ## Protocol and ownership
 
-`internal/appleauth` recognizes `fsaChallenge` from Apple's web auth options.
+`internal/appleauth` recognizes `fsaChallenge` from Apple's web auth options. An
+empty or malformed value is ignored, so the code flow continues in every build.
 Automatic routing preserves Apple's SMS-first path when `noTrustedDevices` is
 true, even if an FSA challenge is present. Otherwise an FSA challenge is detected
 and `auto` asks the operator to retry with explicit `--two-factor-method security-key`;

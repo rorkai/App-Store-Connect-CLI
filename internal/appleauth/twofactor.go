@@ -125,10 +125,10 @@ type AuthOptions struct {
 }
 
 type AuthOptionsResponse struct {
-	FSAChallenge        *SecurityKeyChallenge `json:"fsaChallenge"`
-	NoTrustedDevices    bool                  `json:"noTrustedDevices"`
-	TrustedDevices      []map[string]any      `json:"trustedDevices"`
-	TrustedPhoneNumbers []TrustedPhoneNumber  `json:"trustedPhoneNumbers"`
+	FSAChallenge        json.RawMessage      `json:"fsaChallenge"`
+	NoTrustedDevices    bool                 `json:"noTrustedDevices"`
+	TrustedDevices      []map[string]any     `json:"trustedDevices"`
+	TrustedPhoneNumbers []TrustedPhoneNumber `json:"trustedPhoneNumbers"`
 	SecurityCode        struct {
 		Length int `json:"length"`
 	} `json:"securityCode"`
@@ -140,7 +140,7 @@ func (opts *AuthOptionsResponse) AuthOptions() *AuthOptions {
 	}
 	shared := &AuthOptions{
 		NoTrustedDevices: opts.NoTrustedDevices,
-		SecurityKey:      opts.FSAChallenge,
+		SecurityKey:      parseSecurityKeyChallenge(opts.FSAChallenge),
 	}
 	if len(opts.TrustedPhoneNumbers) == 0 {
 		return shared
