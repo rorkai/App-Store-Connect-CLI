@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -1217,5 +1218,78 @@ func TestSigningRunDisposableKeychainSmoke(t *testing.T) {
 	}
 	if !reflect.DeepEqual(after, original) {
 		t.Fatalf("keychain search list changed: before=%v after=%v", original, after)
+	}
+}
+
+func TestSigningRunLegacyImportDoesNotExpandChain(t *testing.T) {
+	if os.Getenv("ASC_SIGNING_RUN_LIVE_TEST") != "1" {
+		t.Skip("set ASC_SIGNING_RUN_LIVE_TEST=1 to exercise disposable macOS keychains")
+	}
+	ctx := context.Background()
+	unlock, err := acquireSigningRunLock(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := unlock(); err != nil {
+			t.Error(err)
+		}
+	})
+	before, err := keychainSearchList(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := newSigningRunFixture(t, signingRunFixtureOptions{codeSigningLeaf: true})
+	identity, err := inspectSigningRunIdentity(fixture.identity, []byte(fixture.password), fixture.now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	issuerKeychain := filepath.Join(directory, "issuer.keychain-db")
+	keychain := filepath.Join(directory, "identity.keychain-db")
+	issuer := filepath.Join(directory, "issuer.cer")
+	t.Cleanup(func() {
+		for _, path := range []string{keychain, issuerKeychain} {
+			if err := deleteSigningRunKeychain(ctx, path); err != nil {
+				t.Error(err)
+			}
+		}
+		after, err := keychainSearchList(ctx)
+		if err != nil || !reflect.DeepEqual(after, before) {
+			t.Errorf("keychain search list changed: before=%v after=%v error=%v", before, after, err)
+		}
+	})
+	for _, path := range []string{issuerKeychain, keychain} {
+		if _, err := createPersistentSigningKeychain(ctx, path, []byte("disposable-keychain-password")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(issuer, fixture.trustAnchor, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, err := runSigningUtility(ctx, nil, "import", issuer, "-k", issuerKeychain); err != nil {
+		t.Fatal(utilityFailure("install disposable issuer certificate", stderr, err))
+	}
+	if err := removeKeychainSearchEntry(ctx, keychain); err != nil {
+		t.Fatal(err)
+	}
+	paths, err := keychainSearchList(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(paths, issuerKeychain) {
+		if err := setKeychainSearchList(ctx, append(paths, issuerKeychain)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := importLegacyPKCS12WithSecurityFramework(keychain, fixture.identity, []byte(fixture.password)); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, err := runSigningUtility(ctx, nil, "find-certificate", "-a", "-Z", keychain)
+	if err != nil {
+		t.Fatal(utilityFailure("read imported certificates", stderr, err))
+	}
+	if fingerprints := parseSigningRunCertificateFingerprints(stdout); !reflect.DeepEqual(fingerprints, []string{identity.CertificateSHA1}) {
+		t.Fatalf("legacy import expanded the certificate chain: %v", fingerprints)
 	}
 }
