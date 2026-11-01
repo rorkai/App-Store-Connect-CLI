@@ -1,9 +1,10 @@
-//go:build darwin && cgo && fido2
+//go:build (darwin || linux) && cgo && fido2
 
 package securitykey
 
 /*
 #cgo pkg-config: libfido2
+// Requires libfido2 1.14 or newer for fido_assert_authdata_raw_ptr/len.
 #include <fido.h>
 #include <stdlib.h>
 #include <string.h>
@@ -173,7 +174,7 @@ func setNativeTimeout(ctx context.Context, device *C.fido_dev_t) error {
 func nativeError(stage string, code C.int) error {
 	switch code {
 	case C.FIDO_ERR_PIN_REQUIRED:
-		return fmt.Errorf("security key requires a PIN; set ASC_WEB_SECURITY_KEY_PIN and retry")
+		return fmt.Errorf("security key requires a PIN; set ASC_WEB_SECURITY_KEY_PIN and run asc web auth login explicitly")
 	case C.FIDO_ERR_PIN_INVALID:
 		return fmt.Errorf("security-key PIN is incorrect; no automatic retry was attempted")
 	case C.FIDO_ERR_PIN_BLOCKED, C.FIDO_ERR_PIN_AUTH_BLOCKED:

@@ -328,6 +328,29 @@ def assert_optimized_workflow_text(path: Path, workflow: str, test_job: str) -> 
         command = f"CGO_ENABLED=0 GOOS={os_name} GOARCH={arch} go build"
         assert command in build_platforms, f"{path}: missing cgo-disabled {os_name} {arch} build"
 
+    # Native backend failures must block the existing platform build gate.
+    for name, runner, install in (
+        ("security-key macOS", "macos-latest", "brew install libfido2 pkg-config"),
+        ("security-key Linux", "ubuntu-latest", "sudo apt-get install -y libfido2-dev pkg-config"),
+    ):
+        entry = re.search(
+            rf"          - name: {re.escape(name)}\n(.*?)(?=\n          - name:|\n    steps:)",
+            build_platforms,
+            re.DOTALL,
+        )
+        assert entry is not None, f"{path}: missing native {name} build"
+        command = entry.group(1)
+        for required in (
+            f"runner: {runner}",
+            install,
+            "pkg-config --atleast-version=1.14.0 libfido2",
+            "export CGO_ENABLED=1",
+            "go build -tags fido2",
+            "ASC_BYPASS_KEYCHAIN=1 go test -race -tags fido2 -p=1 -parallel=4 -count=1",
+            "./internal/securitykey ./internal/web ./internal/cli/web ./internal/cli/cmdtest",
+        ):
+            assert required in command, f"{path}: {name} must run {required!r}"
+
     ordinary_build = job_block(workflow, "ordinary-build")
     assert "needs.changes.outputs.scope == 'telemetry'" in ordinary_build
     assert "runner: ubuntu-latest" in ordinary_build
@@ -370,6 +393,13 @@ def assert_optimized_workflow_rejects_weakened_checks() -> None:
             "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build",
             "CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build",
             "CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build",
+            "brew install libfido2 pkg-config",
+            "sudo apt-get install -y libfido2-dev pkg-config",
+            "pkg-config --atleast-version=1.14.0 libfido2",
+            "export CGO_ENABLED=1",
+            "go build -tags fido2",
+            "ASC_BYPASS_KEYCHAIN=1 go test -race -tags fido2 -p=1 -parallel=4 -count=1",
+            "./internal/securitykey ./internal/web ./internal/cli/web ./internal/cli/cmdtest",
             "ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 ./internal/rootfs",
         ):
             assert command in workflow, f"{path}: expected to find {command!r}"

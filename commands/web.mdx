@@ -245,7 +245,7 @@ code completes this sign-in.
 asc web auth login --apple-id "user@example.com" --two-factor-method sms --two-factor-code-command "/path/to/read-apple-sms-code"
 ```
 
-For a login with no terminal, set `ASC_WEB_PASSWORD` and
+For a code-based login with no terminal, set `ASC_WEB_PASSWORD` and
 `ASC_WEB_2FA_CODE_COMMAND`. The password variable is consulted after the
 cached session and before the saved-password store and the interactive prompt,
 and a password supplied that way is used for the login without being saved.
@@ -253,6 +253,57 @@ and a password supplied that way is used for the login without being saved.
 `ASC_WEB_DONT_STORE_PASSWORD=1` disables saved-password reads and writes. The
 web-session and non-interactive-login variables are listed in
 [Web session variables](/configuration/environment-variables#web-session-variables).
+
+#### Security-key login
+
+Security-key authentication is an opt-in source build for macOS and Linux.
+Install libfido2 **1.14 or newer**, pkg-config, and a C compiler; the native
+libraries must remain installed at runtime. Official release packaging is
+unchanged and Windows is unavailable.
+
+On macOS:
+
+```bash
+brew install libfido2 pkg-config
+```
+
+On Linux (Debian/Ubuntu package names):
+
+```bash
+sudo apt-get install libfido2-dev pkg-config build-essential
+```
+
+Then build and sign in:
+
+```bash
+pkg-config --atleast-version=1.14.0 libfido2
+CGO_ENABLED=1 go build -tags fido2 -o build/asc-security-key .
+./build/asc-security-key web auth login --apple-id "user@example.com" --two-factor-method security-key
+```
+
+On Linux, install/configure distribution or vendor FIDO udev rules that grant
+your user access to the key's `/dev/hidraw*` device, then reconnect the key.
+Connect exactly one registered USB FIDO2 key and physically touch or approve it
+when requested. A login without a terminal still needs the key and physical
+approval; it does not need a code command. Code commands and phone selection
+cannot be combined with `security-key`.
+
+`ASC_WEB_2FA_METHOD` accepts `auto`, `sms`, and `security-key`;
+`--two-factor-method` takes precedence. `auto` uses SMS first when Apple reports
+`noTrustedDevices`, even with an FSA challenge. Otherwise an available FSA
+challenge selects the key; code-only accounts retain trusted-device and phone
+fallback behavior.
+
+If the key requires a PIN, supply `ASC_WEB_SECURITY_KEY_PIN` in the environment
+for an explicit `asc web auth login`. It is never saved, printed, or sent to
+Apple, and a wrong PIN is not retried within that login. Automatic
+reauthentication refuses an environment PIN when a key challenge is needed and
+asks you to run `asc web auth login` explicitly. Verify the PIN before trying
+again, since repeated explicit logins with a wrong PIN can lock the key.
+
+Ledger Stax approval, rejection, and Ctrl+C on macOS were verified previously
+by the account owner. Live PIN use, YubiKey behavior, and Linux hardware access
+have not been verified. CI builds and tests the native backend without a key.
 
 #### Moving a session to another machine or to CI
 
