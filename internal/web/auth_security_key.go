@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -37,6 +38,14 @@ type securityKeyResponse struct {
 	UserHandle        string `json:"userHandle"`
 	CredentialID      string `json:"credentialID"`
 	RPID              string `json:"rpId"`
+}
+
+// SecurityKeyAssertionRejectedError reports that Apple rejected an assertion,
+// rather than a device, transport, or session-finalization failure.
+type SecurityKeyAssertionRejectedError struct{ Status int }
+
+func (e *SecurityKeyAssertionRejectedError) Error() string {
+	return fmt.Sprintf("security-key verification rejected by Apple (HTTP %d)", e.Status)
 }
 
 // SubmitSecurityKey completes an already prepared Apple FSA challenge. The PIN
@@ -108,9 +117,19 @@ func SubmitSecurityKey(ctx context.Context, session *AuthSession, pin string) er
 		if status == http.StatusPreconditionFailed {
 			return fmt.Errorf("account acknowledgement required by Apple; sign in at https://appleid.apple.com before retrying")
 		}
-		return fmt.Errorf("security-key verification rejected by Apple (HTTP %d)", status)
+		if status == http.StatusBadRequest || status == http.StatusUnauthorized {
+			return &SecurityKeyAssertionRejectedError{Status: status}
+		}
+		return fmt.Errorf("security-key verification failed (HTTP %d)", status)
 	}
-	return finalizeTwoFactor(ctx, session)
+	// Once Apple accepts the assertion, trust and session-bootstrap failures
+	// must not be reported as rejected authentication, including transport errors.
+	err = finalizeTwoFactor(ctx, session)
+	var finalization *TwoFactorFinalizationError
+	if err != nil && !errors.As(err, &finalization) {
+		return &TwoFactorFinalizationError{Err: err}
+	}
+	return err
 }
 
 func decodeSecurityKeyBase64(value string) ([]byte, error) {

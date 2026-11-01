@@ -32,6 +32,7 @@ const (
 	webAppleIDEnv              = "ASC_WEB_APPLE_ID"
 	webDontStorePasswordEnv    = "ASC_WEB_DONT_STORE_PASSWORD"
 	webTwoFactorCodeCommandEnv = "ASC_WEB_2FA_CODE_COMMAND"
+	webSecurityKeyPINEnv       = "ASC_WEB_SECURITY_KEY_PIN"
 	// webNoAutoLoginEnv opts out of automatic sign-in: only `asc web auth
 	// login` may sign in, and every other web command uses the cached session
 	// or fails without contacting Apple.
@@ -596,6 +597,19 @@ func isWebSignIn(ctx context.Context) bool {
 	return signIn
 }
 
+// securityKeyPINForSignIn permits a PIN only for an explicit auth login. Call
+// before sending credentials when key preference is already known, and again
+// when Apple reveals a key challenge for an automatic delivery preference.
+func securityKeyPINForSignIn(ctx context.Context, preference appleauth.TwoFactorPreference) (string, error) {
+	if isWebSignIn(ctx) {
+		return os.Getenv(webSecurityKeyPINEnv), nil
+	}
+	if preference.Delivery == appleauth.TwoFactorMethodSecurityKey && os.Getenv(webSecurityKeyPINEnv) != "" {
+		return "", fmt.Errorf("automatic security-key sign-in does not use ASC_WEB_SECURITY_KEY_PIN; run 'asc web auth login --two-factor-method security-key' to sign in explicitly")
+	}
+	return "", nil
+}
+
 // contextWithPublicAPIAlternative records a sentence naming the App Store
 // Connect API command that answers the same question without a web session, so
 // a missing-session error can point at it.
@@ -795,8 +809,8 @@ func storedWebPasswordStatus(appleID string) bool {
 	return stored
 }
 
-// twoFactorSubmitFailure describes a failed 2FA submission. Apple accepting the
-// code and then failing the App Store Connect session bootstrap is reported as a
+// twoFactorSubmitFailure describes a failed 2FA submission. Apple accepting a
+// code or key assertion and then failing session bootstrap is reported as a
 // finalization failure carrying the HTTP status, because calling it a
 // verification failure misleads users into retrying a code that was accepted.
 func twoFactorSubmitFailure(err error, afterPhoneDelivery, smsCode bool) error {
@@ -807,6 +821,11 @@ func twoFactorSubmitFailure(err error, afterPhoneDelivery, smsCode bool) error {
 	}
 	if afterPhoneDelivery {
 		stage += " after switching to phone delivery"
+	}
+	var keyRejected *webcore.SecurityKeyAssertionRejectedError
+	if errors.As(err, &keyRejected) {
+		err = fmt.Errorf("%s: Apple rejected the security-key assertion: %w", stage, err)
+		return shared.WithDiagnostic(err, shared.DiagnosticAuthenticationRejected, "")
 	}
 	if !errors.Is(err, webcore.ErrTwoFactorCodeRejected) {
 		return fmt.Errorf("%s: %w", stage, err)
@@ -827,9 +846,17 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 	if err != nil {
 		return nil, err
 	}
+	if _, err := securityKeyPINForSignIn(ctx, twoFactorPreference); err != nil {
+		return nil, err
+	}
+	explicitSignIn := isWebSignIn(ctx)
 	// Credential/keychain prompts may consume the initial command budget.
 	ctx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
+	// Keep explicit-login authority when stripping a caller's timeout values.
+	if explicitSignIn {
+		ctx = contextForWebSignIn(ctx)
+	}
 	session, err := withWebSpinnerValue(progressMessage, func() (*webcore.AuthSession, error) {
 		return loginFn(ctx, webcore.LoginCredentials{
 			Username: appleID,
@@ -866,6 +893,13 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 		}
 
 		if challenge != nil && challenge.Method == appleauth.TwoFactorMethodSecurityKey {
+			if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && !securitykey.Available() {
+				return nil, fmt.Errorf("security key required by Apple: %w; after installing a supported build, run 'asc web auth login --two-factor-method security-key' explicitly", securitykey.ErrUnavailable)
+			}
+			pin, err := securityKeyPINForSignIn(ctx, appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorMethodSecurityKey})
+			if err != nil {
+				return nil, err
+			}
 			if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey {
 				return nil, fmt.Errorf("security key required by Apple; retry with --two-factor-method security-key")
 			}
@@ -878,8 +912,8 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 			// to verify the assertion and establish the trusted session.
 			verifyCtx, verifyCancel := shared.ContextWithTimeoutDuration(interruptCtx, securitykey.AssertionTimeout+asc.ResolveTimeout())
 			defer verifyCancel()
-			if err := submitSecurityKeyFn(verifyCtx, session, os.Getenv("ASC_WEB_SECURITY_KEY_PIN")); err != nil {
-				return nil, fmt.Errorf("security-key sign-in failed: %w", err)
+			if err := submitSecurityKeyFn(verifyCtx, session, pin); err != nil {
+				return nil, twoFactorSubmitFailure(err, false, false)
 			}
 			return session, nil
 		}
@@ -1222,6 +1256,10 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 	// Apple invalidates a code the moment it is submitted, so record which value
 	// the failed attempt burned before the retry asks for a replacement.
 	markTwoFactorCodeConsumed := func() {
+		// A fresh key challenge obtains a new assertion without a verification code.
+		if twoFactorPreference.Delivery == appleauth.TwoFactorMethodSecurityKey {
+			return
+		}
 		twoFactorCodeConsumed = true
 		// The retry raises a brand-new Apple challenge, so a replacement code has
 		// just been delivered. Only a prompted operator has to be told which one
@@ -1496,6 +1534,9 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 		defer cancel()
 		// Stripping the timeout also drops values layered above it.
 		loginCtx = contextWithTwoFactorPreference(loginCtx, twoFactorPreference)
+		if isWebSignIn(ctx) {
+			loginCtx = contextForWebSignIn(loginCtx)
+		}
 		code := twoFactorCode
 		if twoFactorCodeConsumed {
 			code = ""
@@ -1743,10 +1784,11 @@ Two-factor input options:
 Without a terminal, a fresh sign-in needs a 2FA code command or explicit
 --two-factor-method security-key; otherwise it fails before the password is sent.
 
-Security-key sign-in (optional macOS build):
+Security-key sign-in (opt-in build on macOS and Linux):
   - build with CGO_ENABLED=1 go build -tags fido2 after installing libfido2 and pkg-config
   - --two-factor-method security-key uses one connected USB FIDO2 key
-  - set ASC_WEB_SECURITY_KEY_PIN if the key requires a PIN; it is never saved
+  - set ASC_WEB_SECURITY_KEY_PIN for this explicit login if the key requires a PIN; it is never saved
+  - automatic reauthentication never uses the PIN; sign in with asc web auth login when it is configured
   - touch the key when requested; wrong PINs are never retried automatically
 
 Automatic sign-in:

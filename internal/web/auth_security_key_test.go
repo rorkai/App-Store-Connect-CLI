@@ -24,16 +24,23 @@ import (
 // data, with raw authenticator bytes intact and no replay after submission.
 func TestSubmitSecurityKeyAppleProtocol(t *testing.T) {
 	for _, tt := range []struct {
-		name         string
-		verifyStatus int
-		trustStatus  int
-		signError    error
-		wantError    string
-		wantRequests []string
+		name             string
+		verifyStatus     int
+		trustStatus      int
+		signError        error
+		wantError        string
+		wantRequests     []string
+		wantRejected     bool
+		wantFinalization bool
+		transportErrorAt string
 	}{
 		{name: "accepted", verifyStatus: 204, trustStatus: 204, wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust", "GET /olympus/v1/session"}},
-		{name: "assertion rejected", verifyStatus: 401, wantError: "security-key verification rejected by Apple (HTTP 401)", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
-		{name: "accepted but trust failed", verifyStatus: 204, trustStatus: 401, wantError: "2fa trust failed with status 401", wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust"}},
+		{name: "assertion rejected", verifyStatus: 401, wantRejected: true, wantError: "security-key verification rejected by Apple (HTTP 401)", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
+		{name: "bad assertion", verifyStatus: 400, wantRejected: true, wantError: "security-key verification rejected by Apple (HTTP 400)", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
+		{name: "server failed", verifyStatus: 503, wantError: "HTTP 503", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
+		{name: "accepted but trust failed", verifyStatus: 204, trustStatus: 401, wantFinalization: true, wantError: "2fa trust failed with status 401", wantRequests: []string{"POST /appleauth/auth/verify/security/key", "GET /appleauth/auth/2sv/trust"}},
+		{name: "verification transport failed", transportErrorAt: "/appleauth/auth/verify/security/key", wantError: "security-key verification request failed"},
+		{name: "accepted but trust transport failed", verifyStatus: 204, transportErrorAt: "/appleauth/auth/2sv/trust", wantFinalization: true, wantError: "connection reset", wantRequests: []string{"POST /appleauth/auth/verify/security/key"}},
 		{name: "signing cancelled", signError: context.Canceled, wantError: "context canceled"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -105,6 +112,9 @@ func TestSubmitSecurityKeyAppleProtocol(t *testing.T) {
 			client := server.Client()
 			transport := client.Transport
 			client.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				if r.URL.Path == tt.transportErrorAt {
+					return nil, errors.New("connection reset")
+				}
 				req := r.Clone(r.Context())
 				req.URL.Scheme, req.URL.Host = target.Scheme, target.Host
 				return transport.RoundTrip(req)
@@ -124,14 +134,19 @@ func TestSubmitSecurityKeyAppleProtocol(t *testing.T) {
 			} else if err == nil || !strings.Contains(err.Error(), tt.wantError) {
 				t.Fatalf("submit error = %v, want %q", err, tt.wantError)
 			}
+			var rejection *SecurityKeyAssertionRejectedError
+			if errors.As(err, &rejection) != tt.wantRejected {
+				t.Fatalf("rejection classification = %v, want %v: %v", rejection, tt.wantRejected, err)
+			}
 			if tt.signError != nil && !errors.Is(err, tt.signError) {
 				t.Fatalf("signer cancellation was lost: %v", err)
 			}
-			if tt.name == "accepted but trust failed" {
-				var finalization *TwoFactorFinalizationError
-				if !errors.As(err, &finalization) || finalization.HTTPStatusCode() != 401 {
-					t.Fatalf("accepted assertion was not distinguished from finalization failure: %v", err)
-				}
+			var finalization *TwoFactorFinalizationError
+			if errors.As(err, &finalization) != tt.wantFinalization {
+				t.Fatalf("finalization classification = %v, want %v: %v", finalization, tt.wantFinalization, err)
+			}
+			if tt.wantFinalization && finalization.HTTPStatusCode() != tt.trustStatus {
+				t.Fatalf("finalization status = %d, want %d", finalization.HTTPStatusCode(), tt.trustStatus)
 			}
 			if tt.signError == nil {
 				if err := SubmitSecurityKey(context.Background(), session, pin); err == nil || err.Error() != "a prepared security-key challenge is required" {

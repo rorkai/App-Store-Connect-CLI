@@ -2,8 +2,10 @@ package web
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"runtime"
 	"strings"
 	"testing"
@@ -58,38 +60,195 @@ func readStubTwoFactorCode(context.Context, string) (string, error) {
 	return "123456", nil
 }
 
-func TestSecurityKeyLoginReservesTouchAndFinalizationBudgets(t *testing.T) {
-	t.Setenv("ASC_TIMEOUT", "30s")
-	t.Setenv("ASC_TIMEOUT_SECONDS", "")
-	stubTwoFactorDeliveryLogin(t)
-	originalSubmit, originalPromptAvailable := submitSecurityKeyFn, twoFactorPromptAvailableFn
-	t.Cleanup(func() {
-		submitSecurityKeyFn, twoFactorPromptAvailableFn = originalSubmit, originalPromptAvailable
-	})
-	twoFactorPromptAvailableFn = func() bool { return false }
-	var signInDeadline time.Time
-	webLoginFn = func(ctx context.Context, _ webcore.LoginCredentials) (*webcore.AuthSession, error) {
-		signInDeadline, _ = ctx.Deadline()
-		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+// Regression: key errors retain their stage and diagnostic, and automatic
+// sign-in cannot consume an environment PIN even when Apple requires a key.
+func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name                  string
+		explicit              bool
+		pin                   string
+		automaticDiscovery    bool
+		submitError           error
+		wantError             string
+		wantLogin, wantSubmit int
+		wantRejected          bool
+	}{
+		{name: "explicit login honors PIN", explicit: true, pin: "secret-key-PIN", wantLogin: 1, wantSubmit: 1},
+		{name: "automatic without PIN", wantLogin: 1, wantSubmit: 1},
+		{name: "automatic configured PIN stops before password", pin: "secret-key-PIN", wantError: "asc web auth login"},
+		{name: "discovered key needs usable backend guidance", automaticDiscovery: true, wantLogin: 1, wantError: "security key required by Apple"},
+		{name: "discovered key never uses configured PIN", automaticDiscovery: true, pin: "secret-key-PIN", wantLogin: 1, wantError: "asc web auth login"},
+		{name: "cancelled", explicit: true, submitError: context.Canceled, wantLogin: 1, wantSubmit: 1, wantError: "2fa verification failed: context canceled"},
+		{name: "rejected assertion", explicit: true, submitError: &webcore.SecurityKeyAssertionRejectedError{Status: 401}, wantLogin: 1, wantSubmit: 1, wantRejected: true, wantError: "Apple rejected the security-key assertion"},
+		{name: "accepted assertion finalization failed", explicit: true, submitError: &webcore.TwoFactorFinalizationError{Status: 401}, wantLogin: 1, wantSubmit: 1, wantError: "2fa finalization failed"},
+		{name: "device failure", explicit: true, submitError: errors.New("device disconnected"), wantLogin: 1, wantSubmit: 1, wantError: "2fa verification failed: device disconnected"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("ASC_TIMEOUT", "30s")
+			t.Setenv("ASC_TIMEOUT_SECONDS", "")
+			t.Setenv("ASC_WEB_SECURITY_KEY_PIN", tc.pin)
+			stubTwoFactorDeliveryLogin(t)
+			originalSubmit, originalPromptAvailable := submitSecurityKeyFn, twoFactorPromptAvailableFn
+			t.Cleanup(func() { submitSecurityKeyFn, twoFactorPromptAvailableFn = originalSubmit, originalPromptAvailable })
+			twoFactorPromptAvailableFn = func() bool { return tc.automaticDiscovery }
+			var signInDeadline time.Time
+			loginCalls, submitCalls := 0, 0
+			webLoginFn = func(ctx context.Context, _ webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				loginCalls++
+				signInDeadline, _ = ctx.Deadline()
+				return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+			}
+			prepareTwoFactorChallengeFn = func(context.Context, *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+				return &webcore.TwoFactorChallenge{Method: appleauth.TwoFactorMethodSecurityKey}, nil
+			}
+			submitSecurityKeyFn = func(ctx context.Context, _ *webcore.AuthSession, pin string) error {
+				submitCalls++
+				wantPIN := ""
+				if tc.explicit {
+					wantPIN = tc.pin
+				}
+				if pin != wantPIN {
+					t.Fatal("signer received an unauthorized PIN")
+				}
+				deadline, ok := ctx.Deadline()
+				if !ok || deadline.Before(signInDeadline.Add(securitykey.AssertionTimeout)) {
+					t.Fatal("security-key sign-in did not reserve the hardware touch budget in addition to the HTTP request budget")
+				}
+				return tc.submitError
+			}
+			timedCtx, cancel := shared.ContextWithTimeout(context.Background())
+			defer cancel()
+			ctx := timedCtx
+			if tc.explicit {
+				ctx = contextForWebSignIn(ctx)
+			}
+			preference := appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorMethodSecurityKey}
+			if tc.automaticDiscovery {
+				preference = appleauth.TwoFactorPreference{}
+			}
+			ctx = contextWithTwoFactorPreference(ctx, preference)
+			_, err := loginWithOptionalTwoFactor(ctx, "user@example.com", "secret", "", nil, nil)
+			if tc.automaticDiscovery && !securitykey.Available() {
+				if !errors.Is(err, securitykey.ErrUnavailable) || strings.Contains(err.Error(), "retry with --two-factor-method") {
+					t.Fatalf("unavailable backend error = %v, want build guidance without an unusable retry", err)
+				}
+			} else if tc.wantError == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("error = %v, want %q", err, tc.wantError)
+			}
+			if loginCalls != tc.wantLogin || submitCalls != tc.wantSubmit {
+				t.Fatalf("login calls = %d, submit calls = %d; want login %d, submit %d", loginCalls, submitCalls, tc.wantLogin, tc.wantSubmit)
+			}
+			if tc.submitError != nil && !errors.Is(err, tc.submitError) {
+				t.Fatalf("lost original error: %v", err)
+			}
+			diagnostic, _ := shared.DiagnosticFromError(err)
+			if (diagnostic.Code == shared.DiagnosticAuthenticationRejected) != tc.wantRejected {
+				t.Fatalf("diagnostic = %+v, want rejected %v", diagnostic, tc.wantRejected)
+			}
+			if err != nil && (strings.Contains(err.Error(), "verification code") || (tc.pin != "" && strings.Contains(err.Error(), tc.pin))) {
+				t.Fatalf("key error has code guidance or leaked PIN: %v", err)
+			}
+		})
 	}
-	prepareTwoFactorChallengeFn = func(context.Context, *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
-		return &webcore.TwoFactorChallenge{Method: appleauth.TwoFactorMethodSecurityKey}, nil
-	}
-	submitted := false
-	submitSecurityKeyFn = func(ctx context.Context, _ *webcore.AuthSession, _ string) error {
-		submitted = true
-		deadline, ok := ctx.Deadline()
-		if !ok || deadline.Before(signInDeadline.Add(securitykey.AssertionTimeout)) {
-			t.Fatal("security-key sign-in did not reserve the hardware touch budget in addition to the HTTP request budget")
-		}
-		return nil
-	}
-	ctx := contextWithTwoFactorPreference(context.Background(), appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorMethodSecurityKey})
-	if _, err := loginWithOptionalTwoFactor(ctx, "user@example.com", "secret", "", nil, nil); err != nil {
-		t.Fatal(err)
-	}
-	if !submitted {
-		t.Fatal("non-terminal security-key login did not reach assertion submission")
+}
+
+// Regression: PIN policy must survive both session resolver paths, while an
+// already valid session remains usable with a configured PIN.
+func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
+	for _, tc := range []struct {
+		name, cache           string
+		explicit              bool
+		promptedPassword      bool
+		submitError           error
+		wantSource            string
+		wantLogin, wantSubmit int
+	}{
+		{name: "explicit fresh", explicit: true, wantSource: "fresh", wantLogin: 1, wantSubmit: 1},
+		{name: "explicit expired", explicit: true, cache: "expired", wantSource: "auto-reauth", wantLogin: 1, wantSubmit: 1},
+		{name: "automatic fresh"},
+		{name: "automatic expired", cache: "expired"},
+		{name: "automatic valid cache", cache: "valid", wantSource: "cache"},
+		{name: "explicit expired finalization failure", explicit: true, cache: "expired", submitError: &webcore.TwoFactorFinalizationError{Status: 401}, wantLogin: 2, wantSubmit: 2},
+		{name: "explicit expired prompted finalization failure", explicit: true, cache: "expired", promptedPassword: true, submitError: &webcore.TwoFactorFinalizationError{Status: 401}, wantLogin: 2, wantSubmit: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			configureFreshPasswordLoginTest(t)
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_WEB_SESSION_CACHE_DIR", t.TempDir())
+			t.Setenv("ASC_WEB_SECURITY_KEY_PIN", "secret-key-PIN")
+			t.Setenv(webTwoFactorCodeCommandEnv, "")
+			t.Setenv(webTwoFactorMethodEnv, "")
+			t.Setenv(webTwoFactorPhoneIDEnv, "")
+			oldSubmit, oldStatus := submitSecurityKeyFn, twoFactorStatusWriter
+			t.Cleanup(func() { submitSecurityKeyFn, twoFactorStatusWriter = oldSubmit, oldStatus })
+			var status strings.Builder
+			twoFactorStatusWriter = &status
+			cached := &webcore.AuthSession{Client: &http.Client{}, UserEmail: "user@example.com"}
+			tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
+				switch tc.cache {
+				case "valid":
+					return cached, true, nil
+				case "expired":
+					return nil, false, webcore.ErrCachedSessionExpired
+				default:
+					return nil, false, nil
+				}
+			}
+			loadCachedSessionFn = func(string) (*webcore.AuthSession, bool, error) { return cached, true, nil }
+			loginCalls, submitCalls := 0, 0
+			webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				loginCalls++
+				return cached, &webcore.TwoFactorRequiredError{}
+			}
+			webLoginWithClientFn = func(ctx context.Context, _ *http.Client, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				return webLoginFn(ctx, creds)
+			}
+			prepareTwoFactorChallengeFn = func(context.Context, *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+				return &webcore.TwoFactorChallenge{Method: appleauth.TwoFactorMethodSecurityKey}, nil
+			}
+			submitSecurityKeyFn = func(_ context.Context, _ *webcore.AuthSession, pin string) error {
+				submitCalls++
+				if !tc.explicit || pin != "secret-key-PIN" {
+					t.Fatal("session resolution used unauthorized or missing PIN")
+				}
+				return tc.submitError
+			}
+			timedCtx, cancel := shared.ContextWithTimeout(context.Background())
+			defer cancel()
+			ctx := timedCtx
+			if tc.explicit {
+				ctx = contextForWebSignIn(ctx)
+			}
+			ctx = contextWithTwoFactorPreference(ctx, appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorMethodSecurityKey})
+			password := "secret"
+			if tc.promptedPassword {
+				password = ""
+				promptPasswordFn = func(context.Context) (string, error) { return "secret", nil }
+			}
+			_, source, err := resolveSession(ctx, "user@example.com", password, "")
+			if tc.wantSource != "" {
+				if err != nil || source != tc.wantSource {
+					t.Fatalf("source = %q, error = %v; want %q", source, err, tc.wantSource)
+				}
+			} else if tc.submitError != nil {
+				var finalization *webcore.TwoFactorFinalizationError
+				if !errors.As(err, &finalization) || !strings.Contains(err.Error(), "2fa finalization failed") {
+					t.Fatalf("lost finalization error: %v", err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), "asc web auth login") {
+				t.Fatalf("error = %v, want explicit login guidance", err)
+			}
+			if loginCalls != tc.wantLogin || submitCalls != tc.wantSubmit {
+				t.Fatalf("login calls = %d, submit calls = %d; want %d, %d", loginCalls, submitCalls, tc.wantLogin, tc.wantSubmit)
+			}
+			if strings.Contains(status.String(), "verification code") || strings.Contains(status.String(), "secret-key-PIN") || (err != nil && strings.Contains(err.Error(), "secret-key-PIN")) {
+				t.Fatalf("unexpected key status %q, error %v", status.String(), err)
+			}
+		})
 	}
 }
 
