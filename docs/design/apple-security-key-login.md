@@ -55,6 +55,9 @@ true, even if an FSA challenge is present. Otherwise an FSA challenge is detecte
 and `auto` asks the operator to retry with explicit `--two-factor-method security-key`;
 it does not sign automatically. Explicit key mode refuses a code-only challenge; explicit SMS
 retains the phone-code path when Apple makes it available.
+The existing terminal/code-source guards run before FSA discovery. A fresh
+noninteractive `auto` login without either fails before sending credentials;
+explicit key mode is required for a non-terminal key-only sign-in.
 Explicit key mode also refuses phone-priority options without requesting a code;
 use `auto` or `sms` when Apple reports `noTrustedDevices`.
 

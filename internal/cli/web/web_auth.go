@@ -1807,7 +1807,8 @@ Without a terminal, a fresh sign-in needs a 2FA code command or explicit
 Security-key sign-in (opt-in build on macOS):
   - build with CGO_ENABLED=1 go build -tags fido2 after installing libfido2 1.14 or newer and pkg-config
   - --two-factor-method security-key checks one connected USB FIDO2 key before sending the password
-  - auto detects a key challenge and asks for explicit security-key mode; it never signs with the key
+  - auto can detect a key challenge only with a terminal or code source; it never signs with the key
+  - use explicit security-key mode for non-terminal key-only sign-in
   - set ASC_WEB_SECURITY_KEY_PIN for this explicit login if the key requires a PIN; it is never saved
   - automatic reauthentication never uses the PIN; sign in with asc web auth login when it is configured
   - touch the key when requested; wrong PINs are never retried automatically

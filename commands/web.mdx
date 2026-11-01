@@ -278,7 +278,11 @@ be combined with `security-key`.
 Apple reports `noTrustedDevices`. When Apple instead offers an FSA challenge,
 `auto` stops with guidance to select `--two-factor-method security-key` on a
 supported build; it does not obtain a key assertion automatically. Code-only
-accounts retain trusted-device and phone fallback behavior. A valid cached
+accounts retain trusted-device and phone fallback behavior. Detection through
+`auto` requires a terminal or configured code source so sign-in can proceed.
+A fresh noninteractive `auto` login without either stops before sending the
+password; choose explicit `security-key` mode for non-terminal key sign-in.
+A valid cached
 session remains usable without the native backend or an attached key, including
 when `ASC_WEB_2FA_METHOD=security-key` is exported.
 

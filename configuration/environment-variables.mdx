@@ -190,6 +190,9 @@ They do not replace `ASC_KEY_ID`, `ASC_ISSUER_ID`, or the other API credentials.
   otherwise an FSA challenge stops with guidance to choose `security-key` on a
   supported build. `auto` does not perform a key assertion. Code-only
   accounts use trusted devices with phone fallback after a rejected code.
+  FSA detection through `auto` requires a terminal or configured code source;
+  a fresh noninteractive login without either stops before sending the password.
+  Choose `security-key` explicitly for non-terminal key sign-in.
   `sms` asks Apple to text a trusted phone number before prompting or running
   the 2FA code command. `--two-factor-method` wins when set; other values fail
   with a usage error before sign-in.
