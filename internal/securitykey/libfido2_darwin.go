@@ -56,41 +56,12 @@ func Sign(ctx context.Context, request Request, pin string) (*Assertion, error) 
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	const maxDevices = 64
-	devices := C.fido_dev_info_new(maxDevices)
-	if devices == nil {
-		return nil, fmt.Errorf("allocate security-key discovery")
-	}
-	defer C.fido_dev_info_free(&devices, maxDevices)
-	var count C.size_t
-	if code := C.fido_dev_info_manifest(devices, maxDevices, &count); code != C.FIDO_OK {
-		return nil, nativeError("discover security keys", code)
-	}
-	if count == 0 {
-		return nil, fmt.Errorf("no security key found; connect your USB security key and retry")
-	}
-	if count != 1 {
-		return nil, fmt.Errorf("multiple security keys found; leave only the key for this Apple Account connected and retry")
-	}
-	device := C.fido_dev_new()
-	if device == nil {
-		return nil, fmt.Errorf("allocate security-key device")
-	}
-	defer C.fido_dev_free(&device)
-	if err := setNativeTimeout(ctx, device); err != nil {
+	device, err := openDevice(ctx)
+	if err != nil {
 		return nil, err
 	}
-	path := C.fido_dev_info_path(C.fido_dev_info_ptr(devices, 0))
-	if path == nil {
-		return nil, fmt.Errorf("security key has no device path")
-	}
-	if code := C.fido_dev_open(device, path); code != C.FIDO_OK {
-		return nil, nativeError("open security key", code)
-	}
+	defer C.fido_dev_free(&device)
 	defer C.fido_dev_close(device)
-	if !bool(C.fido_dev_is_fido2(device)) {
-		return nil, fmt.Errorf("the connected security key does not support FIDO2")
-	}
 	assertion := C.fido_assert_new()
 	if assertion == nil {
 		return nil, fmt.Errorf("allocate security-key assertion")
@@ -152,6 +123,77 @@ func Sign(ctx context.Context, request Request, pin string) (*Assertion, error) 
 		Signature:         C.GoBytes(unsafe.Pointer(C.fido_assert_sig_ptr(assertion, 0)), C.int(C.fido_assert_sig_len(assertion, 0))),
 		UserID:            C.GoBytes(unsafe.Pointer(C.fido_assert_user_id_ptr(assertion, 0)), C.int(C.fido_assert_user_id_len(assertion, 0))),
 	}, nil
+}
+
+// Check verifies one attached FIDO2 device without an assertion, PIN, or touch.
+func Check(ctx context.Context) error {
+	Available()
+	ctx, cancel := context.WithTimeout(ctx, AssertionTimeout)
+	defer cancel()
+	device, err := openDevice(ctx)
+	if err != nil {
+		return err
+	}
+	defer C.fido_dev_free(&device)
+	defer C.fido_dev_close(device)
+	return nil
+}
+
+func openDevice(ctx context.Context) (*C.fido_dev_t, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	const maxDevices = 64
+	devices := C.fido_dev_info_new(maxDevices)
+	if devices == nil {
+		return nil, fmt.Errorf("allocate security-key discovery")
+	}
+	defer C.fido_dev_info_free(&devices, maxDevices)
+	var count C.size_t
+	if code := C.fido_dev_info_manifest(devices, maxDevices, &count); code != C.FIDO_OK {
+		return nil, nativeError("discover security keys", code)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, fmt.Errorf("no security key found; connect your USB security key and retry")
+	}
+	if count != 1 {
+		return nil, fmt.Errorf("multiple security keys found; leave only the key for this Apple Account connected and retry")
+	}
+	device := C.fido_dev_new()
+	if device == nil {
+		return nil, fmt.Errorf("allocate security-key device")
+	}
+	opened, ready := false, false
+	defer func() {
+		if !ready {
+			if opened {
+				C.fido_dev_close(device)
+			}
+			C.fido_dev_free(&device)
+		}
+	}()
+	if err := setNativeTimeout(ctx, device); err != nil {
+		return nil, err
+	}
+	path := C.fido_dev_info_path(C.fido_dev_info_ptr(devices, 0))
+	if path == nil {
+		return nil, fmt.Errorf("security key has no device path")
+	}
+	if code := C.fido_dev_open(device, path); code != C.FIDO_OK {
+		return nil, nativeError("open security key", code)
+	}
+	opened = true
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if !bool(C.fido_dev_is_fido2(device)) {
+		return nil, fmt.Errorf("the connected security key does not support FIDO2")
+	}
+	ready = true
+	return device, nil
 }
 
 func setNativeTimeout(ctx context.Context, device *C.fido_dev_t) error {

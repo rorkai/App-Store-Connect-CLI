@@ -64,6 +64,9 @@ var (
 	persistWebSessionFn                      = webcore.PersistSession
 	submitTwoFactorCodeFn                    = webcore.SubmitTwoFactorCode
 	submitSecurityKeyFn                      = webcore.SubmitSecurityKey
+	checkSecurityKeyFn                       = securitykey.Check
+	securityKeyAvailableFn                   = securitykey.Available
+	errSecurityKeyPreflight                  = errors.New("security-key preflight failed")
 	signalProcessInterruptFn                 = signalProcessInterrupt
 	termReadPasswordFn                       = term.ReadPassword
 	termIsTerminalFn                         = term.IsTerminal
@@ -847,7 +850,7 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 		return nil, err
 	}
 	if _, err := securityKeyPINForSignIn(ctx, twoFactorPreference); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errSecurityKeyPreflight, err)
 	}
 	explicitSignIn := isWebSignIn(ctx)
 	// Credential/keychain prompts may consume the initial command budget.
@@ -856,6 +859,14 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 	// Keep explicit-login authority when stripping a caller's timeout values.
 	if explicitSignIn {
 		ctx = contextForWebSignIn(ctx)
+	}
+	if twoFactorPreference.Delivery == appleauth.TwoFactorMethodSecurityKey {
+		if err := checkSecurityKeyFn(ctx); err != nil {
+			if errors.Is(err, securitykey.ErrUnavailable) {
+				err = shared.UsageError(err.Error())
+			}
+			return nil, fmt.Errorf("%w: %w", errSecurityKeyPreflight, err)
+		}
 	}
 	session, err := withWebSpinnerValue(progressMessage, func() (*webcore.AuthSession, error) {
 		return loginFn(ctx, webcore.LoginCredentials{
@@ -893,7 +904,7 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 		}
 
 		if challenge != nil && challenge.Method == appleauth.TwoFactorMethodSecurityKey {
-			if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && !securitykey.Available() {
+			if twoFactorPreference.Delivery != appleauth.TwoFactorMethodSecurityKey && !securityKeyAvailableFn() {
 				return nil, fmt.Errorf("security key required by Apple: %w; after installing a supported build, run 'asc web auth login --two-factor-method security-key' explicitly", securitykey.ErrUnavailable)
 			}
 			pin, err := securityKeyPINForSignIn(ctx, appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorMethodSecurityKey})
@@ -1371,6 +1382,9 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			return nil, "", false, err
 		}
 
+		if twoFactorPreference.Delivery == appleauth.TwoFactorMethodSecurityKey && !securityKeyAvailableFn() {
+			return nil, "", false, shared.UsageError(securitykey.ErrUnavailable.Error())
+		}
 		silentPassword := resolveNonInteractiveWebPassword(reauthAppleID, password, skipStoredPassword)
 		if !webPasswordProvided(silentPassword.value) {
 			printExpiredNotice()
@@ -1384,6 +1398,9 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 				opts.persistAutoReauth(session)
 			}
 			return session, "auto-reauth", true, nil
+		}
+		if errors.Is(loginErr, errSecurityKeyPreflight) {
+			return nil, "", false, loginErr
 		}
 		// A post-2FA session bootstrap 401/403 means the reused cookie jar is
 		// stale, not that the code was wrong. Fall through to one fresh login.
@@ -1481,6 +1498,9 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 	}
 	if err := policy.allowSignIn(resolvedAppleID); err != nil {
 		return nil, "", err
+	}
+	if twoFactorPreference.Delivery == appleauth.TwoFactorMethodSecurityKey && !securityKeyAvailableFn() {
+		return nil, "", shared.UsageError(securitykey.ErrUnavailable.Error())
 	}
 	resolvedPassword := fallbackPassword
 	if !webPasswordProvided(resolvedPassword.value) {
@@ -1785,8 +1805,9 @@ Without a terminal, a fresh sign-in needs a 2FA code command or explicit
 --two-factor-method security-key; otherwise it fails before the password is sent.
 
 Security-key sign-in (opt-in build on macOS):
-  - build with CGO_ENABLED=1 go build -tags fido2 after installing libfido2 and pkg-config
-  - --two-factor-method security-key uses one connected USB FIDO2 key
+  - build with CGO_ENABLED=1 go build -tags fido2 after installing libfido2 1.14 or newer and pkg-config
+  - --two-factor-method security-key checks one connected USB FIDO2 key before sending the password
+  - auto detects a key challenge and asks for explicit security-key mode; it never signs with the key
   - set ASC_WEB_SECURITY_KEY_PIN for this explicit login if the key requires a PIN; it is never saved
   - automatic reauthentication never uses the PIN; sign in with asc web auth login when it is configured
   - touch the key when requested; wrong PINs are never retried automatically

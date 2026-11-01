@@ -26,14 +26,17 @@ func stubTwoFactorDeliveryLogin(t *testing.T) (*appleauth.TwoFactorPreference, *
 	origEnsure := ensureTwoFactorCodeRequestedFn
 	origSubmit := submitTwoFactorCodeFn
 	origStatusWriter := twoFactorStatusWriter
+	origCheck := checkSecurityKeyFn
 	t.Cleanup(func() {
 		webLoginFn = origLogin
 		prepareTwoFactorChallengeFn = origPrepare
 		ensureTwoFactorCodeRequestedFn = origEnsure
 		submitTwoFactorCodeFn = origSubmit
 		twoFactorStatusWriter = origStatusWriter
+		checkSecurityKeyFn = origCheck
 	})
 
+	checkSecurityKeyFn = func(context.Context) error { return nil }
 	var (
 		seen     appleauth.TwoFactorPreference
 		loggedIn bool
@@ -69,12 +72,15 @@ func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
 		pin                   string
 		automaticDiscovery    bool
 		submitError           error
+		preflightError        error
 		wantError             string
 		wantLogin, wantSubmit int
 		wantRejected          bool
 	}{
 		{name: "explicit login honors PIN", explicit: true, pin: "secret-key-PIN", wantLogin: 1, wantSubmit: 1},
 		{name: "automatic without PIN", wantLogin: 1, wantSubmit: 1},
+		{name: "missing key stops before password", explicit: true, preflightError: errors.New("no security key found"), wantError: "no security key found"},
+		{name: "cancelled preflight stops before password", explicit: true, preflightError: context.Canceled, wantError: "context canceled"},
 		{name: "automatic configured PIN stops before password", pin: "secret-key-PIN", wantError: "asc web auth login"},
 		{name: "discovered key needs usable backend guidance", automaticDiscovery: true, wantLogin: 1, wantError: "security key required by Apple"},
 		{name: "discovered key never uses configured PIN", automaticDiscovery: true, pin: "secret-key-PIN", wantLogin: 1, wantError: "asc web auth login"},
@@ -92,7 +98,15 @@ func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
 			t.Cleanup(func() { submitSecurityKeyFn, twoFactorPromptAvailableFn = originalSubmit, originalPromptAvailable })
 			twoFactorPromptAvailableFn = func() bool { return tc.automaticDiscovery }
 			var signInDeadline time.Time
-			loginCalls, submitCalls := 0, 0
+			loginCalls, submitCalls, preflightCalls := 0, 0, 0
+			checkSecurityKeyFn = func(context.Context) error {
+				preflightCalls++
+				if loginCalls != 0 {
+					t.Fatal("device check ran after sending the password")
+				}
+				return tc.preflightError
+			}
+
 			webLoginFn = func(ctx context.Context, _ webcore.LoginCredentials) (*webcore.AuthSession, error) {
 				loginCalls++
 				signInDeadline, _ = ctx.Deadline()
@@ -109,6 +123,9 @@ func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
 				}
 				if pin != wantPIN {
 					t.Fatal("signer received an unauthorized PIN")
+				}
+				if tc.preflightError != nil {
+					return tc.preflightError
 				}
 				deadline, ok := ctx.Deadline()
 				if !ok || deadline.Before(signInDeadline.Add(securitykey.AssertionTimeout)) {
@@ -142,6 +159,16 @@ func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
 			if loginCalls != tc.wantLogin || submitCalls != tc.wantSubmit {
 				t.Fatalf("login calls = %d, submit calls = %d; want login %d, submit %d", loginCalls, submitCalls, tc.wantLogin, tc.wantSubmit)
 			}
+			wantChecks := 0
+			if tc.wantSubmit != 0 || tc.preflightError != nil {
+				wantChecks = 1
+			}
+			if preflightCalls != wantChecks {
+				t.Fatalf("device checks = %d, want %d", preflightCalls, wantChecks)
+			}
+			if tc.preflightError != nil && !errors.Is(err, tc.preflightError) {
+				t.Fatalf("lost device check error: %v", err)
+			}
 			if tc.submitError != nil && !errors.Is(err, tc.submitError) {
 				t.Fatalf("lost original error: %v", err)
 			}
@@ -163,6 +190,11 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 		name, cache           string
 		explicit              bool
 		promptedPassword      bool
+		methodFromEnv         bool
+		unavailableBackend    bool
+		noPIN                 bool
+		preflightError        error
+		wantError             string
 		submitError           error
 		wantSource            string
 		wantLogin, wantSubmit int
@@ -172,6 +204,11 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 		{name: "automatic fresh"},
 		{name: "automatic expired", cache: "expired"},
 		{name: "automatic valid cache", cache: "valid", wantSource: "cache"},
+		{name: "environment key method preserves valid cache", cache: "valid", methodFromEnv: true, unavailableBackend: true, wantSource: "cache"},
+		{name: "environment key method unavailable fresh", methodFromEnv: true, unavailableBackend: true, noPIN: true, wantError: "security-key support requires"},
+		{name: "environment key method unavailable expired", cache: "expired", methodFromEnv: true, unavailableBackend: true, noPIN: true, wantError: "security-key support requires"},
+		{name: "environment key method no key fresh", methodFromEnv: true, noPIN: true, preflightError: errors.New("no security key found"), wantError: "no security key found"},
+		{name: "environment key method no key expired", cache: "expired", methodFromEnv: true, noPIN: true, preflightError: errors.New("no security key found"), wantError: "no security key found"},
 		{name: "explicit expired finalization failure", explicit: true, cache: "expired", submitError: &webcore.TwoFactorFinalizationError{Status: 401}, wantLogin: 2, wantSubmit: 2},
 		{name: "explicit expired prompted finalization failure", explicit: true, cache: "expired", promptedPassword: true, submitError: &webcore.TwoFactorFinalizationError{Status: 401}, wantLogin: 2, wantSubmit: 2},
 	} {
@@ -180,11 +217,25 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 			t.Setenv("ASC_WEB_SESSION_CACHE_DIR", t.TempDir())
 			t.Setenv("ASC_WEB_SECURITY_KEY_PIN", "secret-key-PIN")
+			if tc.noPIN {
+				t.Setenv("ASC_WEB_SECURITY_KEY_PIN", "")
+			}
 			t.Setenv(webTwoFactorCodeCommandEnv, "")
 			t.Setenv(webTwoFactorMethodEnv, "")
+			if tc.methodFromEnv {
+				t.Setenv(webTwoFactorMethodEnv, appleauth.TwoFactorMethodSecurityKey)
+			}
 			t.Setenv(webTwoFactorPhoneIDEnv, "")
 			oldSubmit, oldStatus := submitSecurityKeyFn, twoFactorStatusWriter
-			t.Cleanup(func() { submitSecurityKeyFn, twoFactorStatusWriter = oldSubmit, oldStatus })
+			oldCheck, oldAvailable, oldDelete := checkSecurityKeyFn, securityKeyAvailableFn, deleteStaleWebSessionFn
+			t.Cleanup(func() {
+				submitSecurityKeyFn, twoFactorStatusWriter = oldSubmit, oldStatus
+				checkSecurityKeyFn, securityKeyAvailableFn, deleteStaleWebSessionFn = oldCheck, oldAvailable, oldDelete
+			})
+			securityKeyAvailableFn = func() bool { return !tc.unavailableBackend }
+			preflightCalls, deleteCalls := 0, 0
+			checkSecurityKeyFn = func(context.Context) error { preflightCalls++; return tc.preflightError }
+			deleteStaleWebSessionFn = func(string, *webcore.AuthSession) (bool, error) { deleteCalls++; return true, nil }
 			var status strings.Builder
 			twoFactorStatusWriter = &status
 			cached := &webcore.AuthSession{Client: &http.Client{}, UserEmail: "user@example.com"}
@@ -223,7 +274,9 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 			if tc.explicit {
 				ctx = contextForWebSignIn(ctx)
 			}
-			ctx = contextWithTwoFactorPreference(ctx, appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorMethodSecurityKey})
+			if !tc.methodFromEnv {
+				ctx = contextWithTwoFactorPreference(ctx, appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorMethodSecurityKey})
+			}
 			password := "secret"
 			if tc.promptedPassword {
 				password = ""
@@ -239,8 +292,21 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 				if !errors.As(err, &finalization) || !strings.Contains(err.Error(), "2fa finalization failed") {
 					t.Fatalf("lost finalization error: %v", err)
 				}
-			} else if err == nil || !strings.Contains(err.Error(), "asc web auth login") {
-				t.Fatalf("error = %v, want explicit login guidance", err)
+			} else {
+				wantError := tc.wantError
+				if wantError == "" {
+					wantError = "asc web auth login"
+				}
+				if err == nil || !strings.Contains(err.Error(), wantError) {
+					t.Fatalf("error = %v, want %q", err, wantError)
+				}
+			}
+			wantChecks := tc.wantLogin
+			if tc.preflightError != nil {
+				wantChecks = 1
+			}
+			if preflightCalls != wantChecks || (tc.wantLogin == 0 && deleteCalls != 0) {
+				t.Fatalf("device checks = %d, want %d; cached deletions = %d", preflightCalls, wantChecks, deleteCalls)
 			}
 			if loginCalls != tc.wantLogin || submitCalls != tc.wantSubmit {
 				t.Fatalf("login calls = %d, submit calls = %d; want %d, %d", loginCalls, submitCalls, tc.wantLogin, tc.wantSubmit)

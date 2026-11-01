@@ -13,3 +13,6 @@ func Available() bool { return false }
 func Sign(context.Context, Request, string) (*Assertion, error) {
 	return nil, ErrUnavailable
 }
+
+// Check verifies native readiness when the backend is compiled in.
+func Check(context.Context) error { return ErrUnavailable }

@@ -16,6 +16,9 @@ func TestSignCancelledBeforeDeviceDiscovery(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
+	if err := Check(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled device check = %v, want context.Canceled", err)
+	}
 	assertion, err := Sign(ctx, Request{
 		RelyingParty:  "apple.com",
 		CredentialIDs: [][]byte{{1}},

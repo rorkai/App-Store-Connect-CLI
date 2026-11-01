@@ -9,7 +9,6 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/securitykey"
 )
 
 const (
@@ -91,9 +90,6 @@ func resolveTwoFactorPreference(methodFlag string, phoneIDFlag int, phoneIDFlagS
 			return appleauth.TwoFactorPreference{}, shared.UsageError(phoneIDSource + " requires --two-factor-method sms")
 		}
 		if method == appleauth.TwoFactorMethodSecurityKey {
-			if !securitykey.Available() {
-				return appleauth.TwoFactorPreference{}, shared.UsageError(securitykey.ErrUnavailable.Error())
-			}
 			return appleauth.TwoFactorPreference{Delivery: method}, nil
 		}
 		return appleauth.TwoFactorPreference{}, nil
