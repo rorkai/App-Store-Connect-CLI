@@ -15,13 +15,15 @@ type WebAppBundleAppsResult struct {
 
 // WebAppBundleReviewResult is the receipt for submitting a bundle or removing it from review.
 type WebAppBundleReviewResult struct {
-	BundleID      string `json:"bundleId"`
-	PreviousState string `json:"previousState"`
-	State         string `json:"state"`
+	BundleID              string `json:"bundleId"`
+	PreviousState         string `json:"previousState"`
+	State                 string `json:"state"`
+	PreviousInFlightState string `json:"previousInFlightState,omitempty"`
+	InFlightState         string `json:"inFlightState,omitempty"`
 }
 
 func webAppBundleReviewRows(r *WebAppBundleReviewResult) ([]string, [][]string) {
-	return []string{"Bundle ID", "Previous State", "State"}, [][]string{{r.BundleID, r.PreviousState, r.State}}
+	return []string{"Bundle ID", "Previous State", "State", "Previous In-Flight State", "In-Flight State"}, [][]string{{r.BundleID, r.PreviousState, r.State, r.PreviousInFlightState, r.InFlightState}}
 }
 
 func webAppBundleAppsRows(r *WebAppBundleAppsResult) ([]string, [][]string) {

@@ -298,22 +298,24 @@ func TestAppBundleReviewActions(t *testing.T) {
 	type call func(*Client, context.Context, string) (*asc.WebAppBundleReviewResult, error)
 	submit, remove := call((*Client).SubmitAppBundle), call((*Client).RemoveAppBundleFromReview)
 	tests := []struct {
-		name       string
-		run        call
-		flags      string
-		afterFlags string
-		before     string
-		after      string
-		postBody   string
-		wantPath   string
-		wantErr    string
-		wantState  string
-		wantNoPost bool
+		name         string
+		run          call
+		flags        string
+		afterFlags   string
+		before       string
+		after        string
+		postBody     string
+		wantPath     string
+		wantErr      string
+		wantState    string
+		wantInFlight string
+		wantNoPost   bool
 	}{
 		{name: "submit", run: submit, flags: `"canSubmit": true`, before: "prepareForSubmission", after: "waitingForReview", wantPath: "/submit/1501593771", wantState: "waitingForReview"},
 		{name: "remove", run: remove, flags: `"canDevReject": true`, before: "waitingForReview", after: "developerRejected", afterFlags: `"canSubmit": true`, wantPath: "/devreject/1501593771", wantState: "developerRejected"},
 		{name: "remove still in review", run: remove, flags: `"canDevReject": true`, before: "waitingForReview", after: "inReview", afterFlags: `"canDevReject": false`, wantPath: "/devreject/1501593771", wantErr: "readback"},
 		{name: "submit ends somewhere unrelated", run: submit, flags: `"canSubmit": true`, before: "prepareForSubmission", after: "readyForSale", wantPath: "/submit/1501593771", wantErr: "readback"},
+		{name: "submit a new version of a released bundle", run: submit, flags: `"canSubmit": true`, before: "readyForSale", after: "readyForSale", afterFlags: `"inFlightState": "Waiting for Review"`, wantPath: "/submit/1501593771", wantState: "readyForSale", wantInFlight: "Waiting for Review"},
 		{name: "submit not offered", run: submit, flags: `"canDevReject": true`, before: "developerRemovedFromSale", wantErr: "cannot be submitted", wantNoPost: true},
 		{name: "remove not offered", run: remove, flags: `"canSubmit": true`, before: "prepareForSubmission", wantErr: "cannot be removed", wantNoPost: true},
 		{name: "apple refuses", run: submit, flags: `"canSubmit": true`, before: "prepareForSubmission", postBody: `{"data": null, "messages": {"error": ["Missing metadata"]}, "statusCode": "ERROR"}`, wantPath: "/submit/1501593771", wantErr: "Missing metadata"},
@@ -354,7 +356,7 @@ func TestAppBundleReviewActions(t *testing.T) {
 				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
 					t.Fatalf("error = %v, want %q", err, test.wantErr)
 				}
-			} else if err != nil || got.State != test.wantState || got.PreviousState != test.before {
+			} else if err != nil || got.State != test.wantState || got.PreviousState != test.before || got.InFlightState != test.wantInFlight {
 				t.Fatalf("result = %+v, error = %v", got, err)
 			}
 			if test.wantNoPost {

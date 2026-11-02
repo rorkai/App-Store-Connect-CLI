@@ -55,5 +55,11 @@ func (c *Client) changeAppBundleReview(ctx context.Context, bundleID, path strin
 	if !confirmed(updated) {
 		return nil, fmt.Errorf("app bundle readback shows %s, not the requested review change", updated.StateKey)
 	}
-	return &asc.WebAppBundleReviewResult{BundleID: bundleID, PreviousState: current.StateKey, State: updated.StateKey}, nil
+	return &asc.WebAppBundleReviewResult{
+		BundleID:              bundleID,
+		PreviousState:         current.StateKey,
+		State:                 updated.StateKey,
+		PreviousInFlightState: current.InFlightState,
+		InFlightState:         updated.InFlightState,
+	}, nil
 }
