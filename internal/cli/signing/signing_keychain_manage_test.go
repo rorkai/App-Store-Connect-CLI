@@ -254,6 +254,14 @@ func TestSigningKeychainPasswordCommandsStopAfterFailedUnlock(t *testing.T) {
 	}
 }
 
+func TestKeychainSecurityDiagnosticRemovesDeprecatedPasswordPrompt(t *testing.T) {
+	stderr := "(deprecated) password to unlock /tmp/a.keychain-db: security: SecItemCopyMatching: The specified item could not be found in the keychain.\n"
+	want := "security: SecItemCopyMatching: The specified item could not be found in the keychain."
+	if got := keychainSecurityDiagnostic([]byte(stderr), nil); got != want {
+		t.Fatalf("diagnostic = %q", got)
+	}
+}
+
 func TestSigningKeychainSetTimeoutPreservesLockOnSleep(t *testing.T) {
 	passwordFile := writeTestPasswordFile(t, "s3cret\n")
 	keychain := writeTestKeychainFile(t)

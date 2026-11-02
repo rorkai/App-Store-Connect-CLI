@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 // keychainSecurityOutputLimit bounds security output. A login keychain dump of
@@ -26,6 +27,8 @@ func runKeychainUtility(ctx context.Context, utility string, stdin []byte, limit
 	cmd := exec.CommandContext(ctx, utility, args...)
 	cmd.Env = SanitizedChildEnvironment(os.Environ())
 	cmd.Stdin = bytes.NewReader(stdin)
+	// security prompts on a controlling terminal and ignores stdin if it has one.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	stdout := &keychainOutputBuffer{limit: limit}
 	stderr := &keychainOutputBuffer{limit: signingRunDiagnosticLimit}
 	cmd.Stdout = stdout

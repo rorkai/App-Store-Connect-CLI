@@ -1243,6 +1243,8 @@ func runSigningUtility(ctx context.Context, stdin []byte, args ...string) ([]byt
 	cmd := exec.CommandContext(ctx, "/usr/bin/security", args...)
 	cmd.Env = SanitizedChildEnvironment(os.Environ())
 	cmd.Stdin = bytes.NewReader(stdin)
+	// security prompts on a controlling terminal and ignores stdin if it has one.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	stdout := &limitedSigningBuffer{limit: signingRunDiagnosticLimit}
 	stderr := &limitedSigningBuffer{limit: signingRunDiagnosticLimit}
 	cmd.Stdout = stdout

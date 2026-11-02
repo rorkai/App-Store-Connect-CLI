@@ -388,7 +388,7 @@ func keychainSecurityDiagnostic(stderr, secret []byte) string {
 	lines := strings.Split(string(stderr), "\n")
 	kept := lines[:0]
 	for _, line := range lines {
-		if strings.HasPrefix(line, "password to unlock ") {
+		if strings.HasPrefix(strings.TrimPrefix(line, "(deprecated) "), "password to unlock ") {
 			index := strings.Index(line, ": security: ")
 			if index < 0 {
 				continue
