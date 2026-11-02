@@ -110,6 +110,8 @@ func SubscriptionsGroupsListCommand() *ffcli.Command {
 	include := fs.String("include", "", "Include relationships: subscriptions,subscriptionGroupLocalizations,versions")
 	fields := fs.String("fields", "", "Group fields: referenceName,subscriptions,subscriptionGroupLocalizations,versions")
 	versionFields := fs.String("version-fields", "", "Included version fields (comma-separated)")
+	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
+	localizationFields := fs.String("localization-fields", "", "Included localization fields (comma-separated)")
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
 	output := shared.BindOutputFlags(fs)
 
@@ -121,7 +123,8 @@ func SubscriptionsGroupsListCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions groups list --app "APP_ID"
-  asc subscriptions groups list --app "APP_ID" --paginate`,
+  asc subscriptions groups list --app "APP_ID" --paginate
+  asc subscriptions groups list --app "APP_ID" --subscription-fields name,productId,state`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -137,7 +140,7 @@ Examples:
 			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "app") {
 				return shared.UsageError("subscriptions groups list: --next cannot be combined with --app")
 			}
-			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "limit", "include", "fields", "version-fields", "versions-limit") {
+			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "limit", "include", "fields", "version-fields", "subscription-fields", "localization-fields", "versions-limit") {
 				return shared.UsageError("subscriptions groups list: --next cannot be combined with query flags")
 			}
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
@@ -154,6 +157,14 @@ Examples:
 			includedVersionFields, err := shared.NormalizeSelection(*versionFields, subscriptionGroupVersionFields, "--version-fields")
 			if err != nil {
 				return shared.UsageError("subscriptions groups list: " + err.Error())
+			}
+			includedSubscriptionFields, err := normalizeSelectionFlag(fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
+			if err != nil {
+				return err
+			}
+			includedLocalizationFields, err := normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
+			if err != nil {
+				return err
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -176,6 +187,8 @@ Examples:
 				asc.WithSubscriptionGroupsInclude(includes),
 				asc.WithSubscriptionGroupsFields(groupFields),
 				asc.WithSubscriptionGroupsVersionFields(includedVersionFields),
+				asc.WithSubscriptionGroupsSubscriptionFields(includedSubscriptionFields),
+				asc.WithSubscriptionGroupsLocalizationFields(includedLocalizationFields),
 				asc.WithSubscriptionGroupsVersionsLimit(*versionsLimit),
 			}
 
@@ -267,6 +280,8 @@ func SubscriptionsGroupsGetCommand() *ffcli.Command {
 	include := fs.String("include", "", "Include relationships: subscriptions,subscriptionGroupLocalizations,versions")
 	fields := fs.String("fields", "", "Group fields: referenceName,subscriptions,subscriptionGroupLocalizations,versions")
 	versionFields := fs.String("version-fields", "", "Included version fields (comma-separated)")
+	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
+	localizationFields := fs.String("localization-fields", "", "Included localization fields (comma-separated)")
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
 	output := shared.BindOutputFlags(fs)
 
@@ -277,7 +292,8 @@ func SubscriptionsGroupsGetCommand() *ffcli.Command {
 		LongHelp: `View a subscription group by ID.
 
 Examples:
-  asc subscriptions groups view --id "GROUP_ID"`,
+  asc subscriptions groups view --id "GROUP_ID"
+  asc subscriptions groups view --id "GROUP_ID" --localization-fields name,locale,state`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -304,6 +320,14 @@ Examples:
 			if err != nil {
 				return shared.UsageError("subscriptions groups view: " + err.Error())
 			}
+			includedSubscriptionFields, err := normalizeSelectionFlag(fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
+			if err != nil {
+				return err
+			}
+			includedLocalizationFields, err := normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
+			if err != nil {
+				return err
+			}
 
 			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
@@ -318,6 +342,8 @@ Examples:
 				asc.WithSubscriptionGroupsInclude(includes),
 				asc.WithSubscriptionGroupsFields(groupFields),
 				asc.WithSubscriptionGroupsVersionFields(includedVersionFields),
+				asc.WithSubscriptionGroupsSubscriptionFields(includedSubscriptionFields),
+				asc.WithSubscriptionGroupsLocalizationFields(includedLocalizationFields),
 				asc.WithSubscriptionGroupsVersionsLimit(*versionsLimit),
 			)
 			if err != nil {
@@ -441,6 +467,7 @@ func SubscriptionsListCommand() *ffcli.Command {
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env); lists subscriptions across all groups")
 	fields := fs.String("fields", "", "Sparse fields for subscriptions")
 	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
+	relatedFields := bindSubscriptionRelatedFieldFlags(fs)
 	include := fs.String("include", "", "Include relationships (comma-separated): "+strings.Join(subscriptionIncludeList(), ", "))
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -458,6 +485,7 @@ Examples:
   asc subscriptions list --group-id "GROUP_ID"
   asc subscriptions list --group-id "GROUP_ID" --include versions --versions-limit 10
   asc subscriptions list --group-id "GROUP_ID" --include subscriptionLocalizations,appStoreReviewScreenshot
+  asc subscriptions list --group-id "GROUP_ID" --fields name --localization-fields name,locale
   asc subscriptions list --group-id "GROUP_ID" --paginate
   asc subscriptions list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
@@ -497,11 +525,18 @@ Examples:
 			); err != nil {
 				return err
 			}
+			if err := validateNextExclusiveFlags(fs, nextURL, subscriptionRelatedFieldFlagNames()...); err != nil {
+				return err
+			}
 			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionFieldsList())
 			if err != nil {
 				return err
 			}
 			versionFieldValues, err := normalizeSelectionFlag(fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
+			if err != nil {
+				return err
+			}
+			relatedFieldValues, err := subscriptionRelatedFieldValues(fs, relatedFields)
 			if err != nil {
 				return err
 			}
@@ -513,8 +548,8 @@ Examples:
 			if appFlag != "" || (id == "" && nextURL == "") {
 				resolvedAppID = shared.ResolveAppID(*appID)
 			}
-			if resolvedAppID != "" && (strings.TrimSpace(*fields) != "" || strings.TrimSpace(*versionFields) != "" || strings.TrimSpace(*include) != "" || *versionsLimit != 0) {
-				return shared.UsageError("--fields, --version-fields, --include, and --versions-limit require --group-id")
+			if resolvedAppID != "" && (strings.TrimSpace(*fields) != "" || strings.TrimSpace(*versionFields) != "" || strings.TrimSpace(*include) != "" || *versionsLimit != 0 || flagWasProvided(fs, subscriptionRelatedFieldFlagNames()...)) {
+				return shared.UsageError("--fields, --version-fields, --include, --versions-limit, and included resource field flags require --group-id")
 			}
 			if id == "" && resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --group-id or --app is required (or set ASC_APP_ID)")
@@ -542,6 +577,7 @@ Examples:
 				asc.WithSubscriptionsNextURL(nextURL),
 				asc.WithSubscriptionsFields(fieldValues),
 				asc.WithSubscriptionsVersionFields(versionFieldValues),
+				asc.WithSubscriptionsRelatedFields(relatedFieldValues),
 				asc.WithSubscriptionsInclude(includeValues),
 				asc.WithSubscriptionsVersionLimit(*versionsLimit),
 			}
@@ -708,6 +744,7 @@ func SubscriptionsGetCommand() *ffcli.Command {
 	subID := shared.BindResourceIDFlag(fs, "id", "subscriptions", "Subscription ID")
 	fields := fs.String("fields", "", "Sparse fields for subscriptions")
 	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
+	relatedFields := bindSubscriptionRelatedFieldFlags(fs)
 	include := fs.String("include", "", "Include relationships (comma-separated): "+strings.Join(subscriptionIncludeList(), ", "))
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
 	output := shared.BindOutputFlags(fs)
@@ -721,7 +758,8 @@ func SubscriptionsGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions view --id "SUB_ID"
   asc subscriptions view --id "SUB_ID" --include versions --versions-limit 10
-  asc subscriptions view --id "SUB_ID" --include subscriptionLocalizations,appStoreReviewScreenshot`,
+  asc subscriptions view --id "SUB_ID" --include subscriptionLocalizations,appStoreReviewScreenshot
+  asc subscriptions view --id "SUB_ID" --fields name --price-fields startDate,planType`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -744,6 +782,10 @@ Examples:
 			if err != nil {
 				return err
 			}
+			relatedFieldValues, err := subscriptionRelatedFieldValues(fs, relatedFields)
+			if err != nil {
+				return err
+			}
 			includeValues, err := normalizeSelectionFlag(fs, *include, "--include", subscriptionIncludeList())
 			if err != nil {
 				return err
@@ -761,6 +803,7 @@ Examples:
 				requestCtx, id,
 				asc.WithSubscriptionFields(fieldValues),
 				asc.WithSubscriptionIncludedVersionFields(versionFieldValues),
+				asc.WithSubscriptionRelatedFields(relatedFieldValues),
 				asc.WithSubscriptionInclude(includeValues),
 				asc.WithSubscriptionVersionLimit(*versionsLimit),
 			)
