@@ -55,8 +55,10 @@ func (c *Client) GetGameCenterChallenge(ctx context.Context, challengeID string)
 	return &response, nil
 }
 
-// CreateGameCenterChallenge creates a new Game Center challenge.
-func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID string, attrs GameCenterChallengeCreateAttributes, leaderboardID string, groupID string, createInitialVersion bool) (*GameCenterChallengeResponse, error) {
+// CreateGameCenterChallenge creates a new Game Center challenge. leaderboardV2
+// links leaderboardID through the leaderboardV2 relationship instead of the
+// deprecated leaderboard one.
+func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID string, attrs GameCenterChallengeCreateAttributes, leaderboardID string, leaderboardV2 bool, groupID string, createInitialVersion bool) (*GameCenterChallengeResponse, error) {
 	const initialVersionID = "initial-version"
 
 	relationships := &GameCenterChallengeRelationships{}
@@ -72,11 +74,16 @@ func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID strin
 		hasRelationship = true
 	}
 	if strings.TrimSpace(leaderboardID) != "" {
-		relationships.Leaderboard = &Relationship{
+		leaderboard := &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeGameCenterLeaderboards,
 				ID:   strings.TrimSpace(leaderboardID),
 			},
+		}
+		if leaderboardV2 {
+			relationships.LeaderboardV2 = leaderboard
+		} else {
+			relationships.Leaderboard = leaderboard
 		}
 		hasRelationship = true
 	}
@@ -135,16 +142,21 @@ func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID strin
 }
 
 // UpdateGameCenterChallenge updates an existing Game Center challenge.
-func (c *Client) UpdateGameCenterChallenge(ctx context.Context, challengeID string, attrs GameCenterChallengeUpdateAttributes, leaderboardID string) (*GameCenterChallengeResponse, error) {
+// leaderboardV2 links leaderboardID through the leaderboardV2 relationship
+// instead of the deprecated leaderboard one.
+func (c *Client) UpdateGameCenterChallenge(ctx context.Context, challengeID string, attrs GameCenterChallengeUpdateAttributes, leaderboardID string, leaderboardV2 bool) (*GameCenterChallengeResponse, error) {
 	var relationships *GameCenterChallengeUpdateRelationships
 	if strings.TrimSpace(leaderboardID) != "" {
-		relationships = &GameCenterChallengeUpdateRelationships{
-			Leaderboard: &Relationship{
-				Data: ResourceData{
-					Type: ResourceTypeGameCenterLeaderboards,
-					ID:   strings.TrimSpace(leaderboardID),
-				},
+		leaderboard := &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterLeaderboards,
+				ID:   strings.TrimSpace(leaderboardID),
 			},
+		}
+		if leaderboardV2 {
+			relationships = &GameCenterChallengeUpdateRelationships{LeaderboardV2: leaderboard}
+		} else {
+			relationships = &GameCenterChallengeUpdateRelationships{Leaderboard: leaderboard}
 		}
 	}
 

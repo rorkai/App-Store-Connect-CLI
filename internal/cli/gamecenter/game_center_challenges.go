@@ -192,6 +192,7 @@ func GameCenterChallengesCreateCommand() *ffcli.Command {
 	repeatable := fs.String("repeatable", "", "Challenge can be earned multiple times (true/false)")
 	createInitialVersion := fs.String("create-initial-version", "", "Create an initial challenge version inline (true/false)")
 	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Leaderboard ID for the challenge")
+	v2 := fs.Bool("v2", false, "Link --leaderboard-id through the leaderboardV2 relationship")
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
 	output := shared.BindOutputFlags(fs)
 
@@ -204,6 +205,7 @@ func GameCenterChallengesCreateCommand() *ffcli.Command {
 Examples:
   asc game-center challenges create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID"
   asc game-center challenges create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID" --create-initial-version true
+  asc game-center challenges create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID" --v2
   asc game-center challenges create --group-id "GROUP_ID" --reference-name "Weekly" --vendor-id "grp.com.example.weekly" --leaderboard-id "LEADERBOARD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -233,6 +235,11 @@ Examples:
 			}
 			if group != "" && !strings.HasPrefix(vendor, "grp.") {
 				fmt.Fprintln(os.Stderr, "Error: --vendor-id must start with \"grp.\" when using --group-id")
+				return flag.ErrHelp
+			}
+
+			if *v2 && strings.TrimSpace(*leaderboardID) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --v2 requires --leaderboard-id")
 				return flag.ErrHelp
 			}
 
@@ -278,7 +285,7 @@ Examples:
 				}
 			}
 
-			resp, err := client.CreateGameCenterChallenge(requestCtx, gcDetailID, attrs, strings.TrimSpace(*leaderboardID), group, createInitialVersionValue)
+			resp, err := client.CreateGameCenterChallenge(requestCtx, gcDetailID, attrs, strings.TrimSpace(*leaderboardID), *v2, group, createInitialVersionValue)
 			if err != nil {
 				return fmt.Errorf("game-center challenges create: failed to create: %w", err)
 			}
@@ -297,6 +304,7 @@ func GameCenterChallengesUpdateCommand() *ffcli.Command {
 	repeatable := fs.String("repeatable", "", "Challenge can be earned multiple times (true/false)")
 	archived := fs.String("archived", "", "Archive the challenge (true/false)")
 	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Leaderboard ID for the challenge")
+	v2 := fs.Bool("v2", false, "Link --leaderboard-id through the leaderboardV2 relationship")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -307,7 +315,8 @@ func GameCenterChallengesUpdateCommand() *ffcli.Command {
 
 Examples:
   asc game-center challenges update --id "CHALLENGE_ID" --reference-name "New Name"
-  asc game-center challenges update --id "CHALLENGE_ID" --archived true`,
+  asc game-center challenges update --id "CHALLENGE_ID" --archived true
+  asc game-center challenges update --id "CHALLENGE_ID" --leaderboard-id "LEADERBOARD_ID" --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -346,6 +355,11 @@ Examples:
 				hasUpdate = true
 			}
 
+			if *v2 && strings.TrimSpace(*leaderboardID) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --v2 requires --leaderboard-id")
+				return flag.ErrHelp
+			}
+
 			if !hasUpdate && strings.TrimSpace(*leaderboardID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError("")
@@ -359,7 +373,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.UpdateGameCenterChallenge(requestCtx, id, attrs, strings.TrimSpace(*leaderboardID))
+			resp, err := client.UpdateGameCenterChallenge(requestCtx, id, attrs, strings.TrimSpace(*leaderboardID), *v2)
 			if err != nil {
 				return fmt.Errorf("game-center challenges update: failed to update: %w", err)
 			}

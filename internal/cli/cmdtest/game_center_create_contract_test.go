@@ -69,6 +69,30 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			wantBody:     `{"data":{"type":"gameCenterLeaderboardSets","attributes":{"referenceName":"Group Season","vendorIdentifier":"grp.com.example.groupseason"},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"versions":{"data":[{"type":"gameCenterLeaderboardSetVersions","id":"${lbsetVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardSetVersions","id":"${lbsetVer1}"}]}`,
 			wantRequests: 1,
 		},
+		{
+			name:         "challenge without leaderboard",
+			args:         []string{"game-center", "challenges", "create", "--group-id", "group-1", "--reference-name", "Weekly", "--vendor-id", "grp.com.example.weekly"},
+			postPath:     "/v1/gameCenterChallenges",
+			resourceType: "gameCenterChallenges",
+			wantBody:     `{"data":{"type":"gameCenterChallenges","attributes":{"referenceName":"Weekly","vendorIdentifier":"grp.com.example.weekly","challengeType":"LEADERBOARD"},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}}}}}`,
+			wantRequests: 1,
+		},
+		{
+			name:         "challenge leaderboard v1",
+			args:         []string{"game-center", "challenges", "create", "--group-id", "group-1", "--reference-name", "Weekly", "--vendor-id", "grp.com.example.weekly", "--leaderboard-id", "lb-1"},
+			postPath:     "/v1/gameCenterChallenges",
+			resourceType: "gameCenterChallenges",
+			wantBody:     `{"data":{"type":"gameCenterChallenges","attributes":{"referenceName":"Weekly","vendorIdentifier":"grp.com.example.weekly","challengeType":"LEADERBOARD"},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"leaderboard":{"data":{"type":"gameCenterLeaderboards","id":"lb-1"}}}}}`,
+			wantRequests: 1,
+		},
+		{
+			name:         "challenge leaderboard v2",
+			args:         []string{"game-center", "challenges", "create", "--group-id", "group-1", "--reference-name", "Weekly", "--vendor-id", "grp.com.example.weekly", "--leaderboard-id", "lb-1", "--v2"},
+			postPath:     "/v1/gameCenterChallenges",
+			resourceType: "gameCenterChallenges",
+			wantBody:     `{"data":{"type":"gameCenterChallenges","attributes":{"referenceName":"Weekly","vendorIdentifier":"grp.com.example.weekly","challengeType":"LEADERBOARD"},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"leaderboardV2":{"data":{"type":"gameCenterLeaderboards","id":"lb-1"}}}}}`,
+			wantRequests: 1,
+		},
 	}
 
 	for _, test := range tests {
@@ -124,6 +148,61 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			if got := callCount.Load(); got != test.wantRequests {
 				t.Fatalf("request count = %d, want %d", got, test.wantRequests)
 			}
+		})
+	}
+}
+
+func TestGameCenterChallengesUpdateLeaderboardContracts(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		wantBody string
+	}{
+		{
+			name:     "without leaderboard",
+			args:     []string{"--archived", "true"},
+			wantBody: `{"data":{"type":"gameCenterChallenges","id":"ch-1","attributes":{"archived":true}}}`,
+		},
+		{
+			name:     "leaderboard v1",
+			args:     []string{"--leaderboard-id", "lb-1"},
+			wantBody: `{"data":{"type":"gameCenterChallenges","id":"ch-1","attributes":{},"relationships":{"leaderboard":{"data":{"type":"gameCenterLeaderboards","id":"lb-1"}}}}}`,
+		},
+		{
+			name:     "leaderboard v2",
+			args:     []string{"--leaderboard-id", "lb-1", "--v2"},
+			wantBody: `{"data":{"type":"gameCenterChallenges","id":"ch-1","attributes":{},"relationships":{"leaderboardV2":{"data":{"type":"gameCenterLeaderboards","id":"lb-1"}}}}}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodPatch || req.URL.Path != "/v1/gameCenterChallenges/ch-1" {
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+				}
+				body, err := io.ReadAll(req.Body)
+				if err != nil {
+					t.Fatalf("read request body: %v", err)
+				}
+				assertJSONDocumentEqual(t, body, []byte(test.wantBody))
+				return gameCenterCreateResponse(http.StatusOK, `{"data":{"type":"gameCenterChallenges","id":"ch-1","attributes":{}}}`), nil
+			}))
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			args := append([]string{"game-center", "challenges", "update", "--id", "ch-1", "--output", "json"}, test.args...)
+			captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
 		})
 	}
 }

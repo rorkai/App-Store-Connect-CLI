@@ -106,7 +106,7 @@ func TestCreateGameCenterChallenge_WithDetail(t *testing.T) {
 		ChallengeType:    "LEADERBOARD",
 		Repeatable:       &repeatable,
 	}
-	if _, err := client.CreateGameCenterChallenge(context.Background(), "gc-detail-1", attrs, "lb-1", "", false); err != nil {
+	if _, err := client.CreateGameCenterChallenge(context.Background(), "gc-detail-1", attrs, "lb-1", false, "", false); err != nil {
 		t.Fatalf("CreateGameCenterChallenge() error: %v", err)
 	}
 }
@@ -147,7 +147,7 @@ func TestCreateGameCenterChallenge_WithGroup(t *testing.T) {
 		VendorIdentifier: "com.test.weekly",
 		ChallengeType:    "LEADERBOARD",
 	}
-	if _, err := client.CreateGameCenterChallenge(context.Background(), "", attrs, "lb-1", "group-1", false); err != nil {
+	if _, err := client.CreateGameCenterChallenge(context.Background(), "", attrs, "lb-1", false, "group-1", false); err != nil {
 		t.Fatalf("CreateGameCenterChallenge() error: %v", err)
 	}
 }
@@ -190,7 +190,7 @@ func TestCreateGameCenterChallenge_WithInitialVersion(t *testing.T) {
 		ChallengeType:    "LEADERBOARD",
 		Repeatable:       &repeatable,
 	}
-	if _, err := client.CreateGameCenterChallenge(context.Background(), "gc-detail-1", attrs, "lb-1", "", true); err != nil {
+	if _, err := client.CreateGameCenterChallenge(context.Background(), "gc-detail-1", attrs, "lb-1", false, "", true); err != nil {
 		t.Fatalf("CreateGameCenterChallenge() error: %v", err)
 	}
 }
@@ -222,7 +222,7 @@ func TestUpdateGameCenterChallenge(t *testing.T) {
 
 	name := "Updated"
 	attrs := GameCenterChallengeUpdateAttributes{ReferenceName: &name}
-	if _, err := client.UpdateGameCenterChallenge(context.Background(), "ch-1", attrs, "lb-2"); err != nil {
+	if _, err := client.UpdateGameCenterChallenge(context.Background(), "ch-1", attrs, "lb-2", false); err != nil {
 		t.Fatalf("UpdateGameCenterChallenge() error: %v", err)
 	}
 }

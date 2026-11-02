@@ -89,6 +89,16 @@ func TestGameCenterInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "game-center matchmaking queues list: --limit must be between 1 and 200",
 		},
 		{
+			name:    "challenges create v2 without leaderboard",
+			args:    []string{"game-center", "challenges", "create", "--app", "123456789", "--reference-name", "Weekly", "--vendor-id", "com.example.weekly", "--v2"},
+			wantErr: "--v2 requires --leaderboard-id",
+		},
+		{
+			name:    "challenges update v2 without leaderboard",
+			args:    []string{"game-center", "challenges", "update", "--id", "CHALLENGE_ID", "--archived", "true", "--v2"},
+			wantErr: "--v2 requires --leaderboard-id",
+		},
+		{
 			name:    "achievements view without id",
 			args:    []string{"game-center", "achievements", "view"},
 			wantErr: "--id is required",
