@@ -10,7 +10,7 @@ from collections.abc import Iterable
 
 WALL_SOURCE = "docs/wall-of-apps.json"
 OPENAPI_SNAPSHOT = "docs/openapi/latest.json"
-EMBEDDED_GUIDES = {"docs/API_NOTES.md", "docs/WORKFLOWS.md"}
+EMBEDDED_GUIDES = {"docs/API_NOTES.md", "docs/WORKFLOWS.md", "docs/THIRD_PARTY_NOTICES.md"}
 WEBSITE_FILES = {".mintignore", "docs.json"}
 WEBSITE_PREFIXES = (
     ".mintlify/",

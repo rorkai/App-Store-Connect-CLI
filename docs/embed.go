@@ -7,3 +7,6 @@ var APINotesGuide string
 
 //go:embed WORKFLOWS.md
 var WorkflowsGuide string
+
+//go:embed THIRD_PARTY_NOTICES.md
+var ThirdPartyNoticesGuide string

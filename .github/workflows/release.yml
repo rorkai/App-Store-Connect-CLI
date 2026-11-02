@@ -488,6 +488,12 @@ jobs:
           go-version-file: go.mod
           cache: false
 
+      - name: Set up native dependency builder Python
+        if: hashFiles('scripts/build_fido2_deps.py') != ''
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
       - name: Create release directory
         run: mkdir -p release
 
@@ -498,8 +504,13 @@ jobs:
         run: |
           COMMIT=$(git rev-parse --short HEAD)
           DATE=$(git show -s --format=%cI HEAD)
-          MACOSX_DEPLOYMENT_TARGET=13.0 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_macOS_amd64" .
-          MACOSX_DEPLOYMENT_TARGET=13.0 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_macOS_arm64" .
+          if [ -f scripts/build_release_macos.sh ]; then
+            brew install cmake pkg-config
+            RELEASE_DIR=release GOMAXPROCS=3 sh scripts/build_release_macos.sh
+          else
+            MACOSX_DEPLOYMENT_TARGET=13.0 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_macOS_amd64" .
+            MACOSX_DEPLOYMENT_TARGET=13.0 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_macOS_arm64" .
+          fi
 
       - name: Select native release binary for notarization
         run: |

@@ -336,9 +336,9 @@ asc web auth login --apple-id "user@example.com"
 asc validate --app "123456789" --version "1.2.3" --deep
 ```
 
-Apple Accounts with USB security keys can use an [opt-in macOS
-build](commands/web.mdx#security-key-login) with `--two-factor-method security-key`.
-See that guide for setup and verification limits.
+macOS release builds bundle USB security-key support. Use
+`--two-factor-method security-key`; see the [setup guide](commands/web.mdx#security-key-login)
+for source builds and hardware verification limits.
 
 Deep validation reuses the file-backed cache without opening a login, Keychain,
 password, or 2FA prompt. It checks App Privacy publication, relevant agreements,

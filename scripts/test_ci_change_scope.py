@@ -72,7 +72,7 @@ class ChangeScopeTest(unittest.TestCase):
         )
 
     def test_general_go_and_ci_changes_require_full_suite(self) -> None:
-        for path in ("main.go", "internal/asc/client.go", ".github/workflows/pr-checks.yml"):
+        for path in ("main.go", "internal/asc/client.go", ".github/workflows/pr-checks.yml", "docs/THIRD_PARTY_NOTICES.md"):
             with self.subTest(path=path):
                 self.assertEqual(ci_change_scope.classify([path]), "full")
 
