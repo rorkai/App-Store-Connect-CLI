@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -152,26 +153,26 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 	const failedFrame = "poster frame failed: FRAME: frame is out of range"
 	const unfinishedFrame = "timed out waiting for preview preview-1 poster frame"
 	tests := []struct {
-		name          string
-		timeCode      string
-		frameStates   []string
-		uploadTimeout string
-		replace       bool
-		wantFailures  []string
+		name              string
+		timeCode          string
+		frameStates       []string
+		cancelOnFramePoll int
+		replace           bool
+		wantFailures      []string
 	}{
-		{name: "omitted flag sends nothing and ignores frame state", frameStates: []string{"PROCESSING"}, uploadTimeout: "3s"},
-		{name: "requested frame is sent and recorded", timeCode: "00:00:05:00", frameStates: []string{"COMPLETE"}, uploadTimeout: "3s"},
-		{name: "failed frame keeps the delivered preview", timeCode: "00:00:05:00", frameStates: []string{"FAILED"}, uploadTimeout: "3s", wantFailures: []string{failedFrame}},
-		{name: "unfinished frame keeps the delivered preview", timeCode: "00:00:05:00", frameStates: []string{"PROCESSING"}, uploadTimeout: "100ms", wantFailures: []string{unfinishedFrame}},
-		{name: "failed frame after replace keeps the new preview", timeCode: "00:00:05:00", frameStates: []string{"FAILED"}, uploadTimeout: "3s", replace: true, wantFailures: []string{failedFrame}},
-		{name: "unfinished frame does not hide a later file's failure", timeCode: "00:00:05:00", frameStates: []string{"PROCESSING", "FAILED"}, uploadTimeout: "100ms", wantFailures: []string{unfinishedFrame, "preview preview-2 " + failedFrame}},
+		{name: "omitted flag sends nothing and ignores frame state", frameStates: []string{"PROCESSING"}},
+		{name: "requested frame is sent and recorded", timeCode: "00:00:05:00", frameStates: []string{"COMPLETE"}},
+		{name: "failed frame keeps the delivered preview", timeCode: "00:00:05:00", frameStates: []string{"FAILED"}, wantFailures: []string{failedFrame}},
+		{name: "unfinished frame keeps the delivered preview", timeCode: "00:00:05:00", frameStates: []string{"PROCESSING"}, cancelOnFramePoll: 1, wantFailures: []string{unfinishedFrame}},
+		{name: "failed frame after replace keeps the new preview", timeCode: "00:00:05:00", frameStates: []string{"FAILED"}, replace: true, wantFailures: []string{failedFrame}},
+		{name: "unfinished frame does not hide a later file's failure", timeCode: "00:00:05:00", frameStates: []string{"PROCESSING", "FAILED"}, cancelOnFramePoll: 2, wantFailures: []string{unfinishedFrame, "preview preview-2 " + failedFrame}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", "")
-			t.Setenv("ASC_UPLOAD_TIMEOUT", test.uploadTimeout)
+			t.Setenv("ASC_UPLOAD_TIMEOUT", "5m")
 
 			dir := t.TempDir()
 			sizes := make([]int64, len(test.frameStates))
@@ -185,8 +186,13 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 				existing = `{"type":"appPreviews","id":"old-1","attributes":{"fileName":"old.mov"}}`
 			}
 
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			var created []map[string]any
 			var deleted []string
+			orderRead := false
+			firstFilePolls := 0
 			originalTransport := http.DefaultTransport
 			t.Cleanup(func() { http.DefaultTransport = originalTransport })
 			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -196,6 +202,7 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/appPreviewSets/set-1/appPreviews":
 					return statusJSONResponse(`{"data":[` + existing + `],"links":{}}`), nil
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/appPreviewSets/set-1/relationships/appPreviews":
+					orderRead = true
 					return statusJSONResponse(`{"data":[` + strings.Join(linkages, ",") + `],"links":{}}`), nil
 				case req.Method == http.MethodPost && req.URL.Path == "/v1/appPreviews":
 					var body struct {
@@ -221,6 +228,17 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 					if err != nil {
 						t.Fatalf("preview path %s: %v", req.URL.Path, err)
 					}
+					if orderRead {
+						if test.timeCode == "" {
+							t.Fatal("polled a frame without --time-code")
+						}
+						if index == 1 {
+							firstFilePolls++
+							if firstFilePolls == test.cancelOnFramePoll {
+								cancel()
+							}
+						}
+					}
 					return statusJSONResponse(fmt.Sprintf(
 						`{"data":{"type":"appPreviews","id":"preview-%d","attributes":{"assetDeliveryState":{"state":"COMPLETE"},"previewFrameImage":{"state":{"state":%q,"errors":[{"code":"FRAME","description":"frame is out of range"}]}}}}}`,
 						index, test.frameStates[index-1],
@@ -243,7 +261,15 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 				args = append(args, "--replace", "--confirm")
 				wantDeleted = []string{"old-1"}
 			}
-			stdout, stderr, err := runRootCommand(t, args)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			var err error
+			stdout, stderr := captureOutput(t, func() {
+				if parseErr := root.Parse(args); parseErr != nil {
+					t.Fatalf("parse error: %v", parseErr)
+				}
+				err = root.Run(ctx)
+			})
 
 			if !reflect.DeepEqual(deleted, wantDeleted) {
 				t.Fatalf("deleted = %v, want %v", deleted, wantDeleted)
