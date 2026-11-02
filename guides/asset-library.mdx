@@ -36,6 +36,12 @@ Filter by `--category`, `--state`, `--spec-id`, `--reference-name`, or `--id`. F
 
 These filters belong to image/video `list` commands. Do not combine them or a library selector with `--next`: use Apple's next URL unchanged. `--paginate` follows those URLs automatically.
 
+`asc asset-library specs` has its own filters: `--placement-type`, `--placement-profile-group`, `--feature`, and `--spec`. Each accepts comma-separated values, which Apple validates.
+
+```bash theme={null}
+asc asset-library specs --placement-type APP_SCREENSHOT --feature APP_STORE_VERSIONS
+```
+
 ## Upload images and videos
 
 The default upload category is `CREATIVE_ASSETS`, for headers, search creative media, and events. Use `APP_SCREENSHOTS_AND_PREVIEWS` for media showing your app in use.
