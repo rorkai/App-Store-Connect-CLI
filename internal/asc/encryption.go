@@ -71,9 +71,16 @@ type AppEncryptionDeclarationCreateRequest struct {
 
 // AppEncryptionDeclarationBuildsUpdateResult represents CLI output for build assignments.
 type AppEncryptionDeclarationBuildsUpdateResult struct {
-	DeclarationID string   `json:"declarationId"`
-	BuildIDs      []string `json:"buildIds"`
-	Action        string   `json:"action"`
+	DeclarationID string                                 `json:"declarationId"`
+	BuildIDs      []string                               `json:"buildIds"`
+	Action        string                                 `json:"action"`
+	Failures      []AppEncryptionDeclarationBuildFailure `json:"failures,omitempty"`
+}
+
+// AppEncryptionDeclarationBuildFailure records a build that was not assigned.
+type AppEncryptionDeclarationBuildFailure struct {
+	BuildID string `json:"buildId"`
+	Error   string `json:"error"`
 }
 
 // AppEncryptionDeclarationDocumentAttributes describes document attributes.
@@ -225,37 +232,6 @@ func (c *Client) CreateAppEncryptionDeclaration(ctx context.Context, appID strin
 	}
 
 	return &response, nil
-}
-
-// AddBuildsToAppEncryptionDeclaration assigns builds to a declaration.
-func (c *Client) AddBuildsToAppEncryptionDeclaration(ctx context.Context, declarationID string, buildIDs []string) error {
-	declarationID = strings.TrimSpace(declarationID)
-	buildIDs = normalizeList(buildIDs)
-	if declarationID == "" {
-		return fmt.Errorf("declarationID is required")
-	}
-	if len(buildIDs) == 0 {
-		return fmt.Errorf("buildIDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, len(buildIDs)),
-	}
-	for i, id := range buildIDs {
-		payload.Data[i] = RelationshipData{
-			Type: ResourceTypeBuilds,
-			ID:   id,
-		}
-	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/appEncryptionDeclarations/%s/relationships/builds", declarationID)
-	_, err = c.do(ctx, http.MethodPost, path, body)
-	return err
 }
 
 // GetAppEncryptionDeclarationDocument retrieves a document by ID.

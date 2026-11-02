@@ -3,6 +3,7 @@ package encryption
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -553,6 +554,10 @@ func EncryptionDeclarationsAssignBuildsCommand() *ffcli.Command {
 		ShortHelp:  "Assign builds to an encryption declaration.",
 		LongHelp: `Assign builds to an encryption declaration.
 
+Each build is assigned in its own request, so one failed build does not stop
+the others. The result lists assigned builds in buildIds and the rest in
+failures, and the command exits non-zero if any build failed.
+
 Examples:
   asc encryption declarations assign-builds --id "DECL_ID" --build-id "BUILD_ID"
   asc encryption declarations assign-builds --id "DECL_ID" --build-id "BUILD_ID1,BUILD_ID2"`,
@@ -570,27 +575,52 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return shared.MissingRequiredUsageError("--build-id")
 			}
+			for _, buildID := range buildIDs {
+				if _, err := asc.ValidateResourcePathSegment(buildID); err != nil {
+					return shared.UsageErrorf("encryption declarations assign-builds: --build-id: %v", err)
+				}
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("encryption declarations assign-builds: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.AddBuildsToAppEncryptionDeclaration(requestCtx, declarationValue, buildIDs); err != nil {
-				return fmt.Errorf("encryption declarations assign-builds: failed to assign builds: %w", err)
+			assigned := make([]string, 0, len(buildIDs))
+			var failures []asc.AppEncryptionDeclarationBuildFailure
+			var assignErrs []error
+			for _, buildID := range buildIDs {
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				err := client.UpdateBuildAppEncryptionDeclarationRelationship(requestCtx, buildID, declarationValue)
+				cancel()
+				if err != nil {
+					failures = append(failures, asc.AppEncryptionDeclarationBuildFailure{BuildID: buildID, Error: err.Error()})
+					assignErrs = append(assignErrs, fmt.Errorf("build %s: %w", buildID, err))
+					continue
+				}
+				assigned = append(assigned, buildID)
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully assigned %d build(s) to declaration %s\n", len(buildIDs), declarationValue)
+			assignErr := errors.Join(assignErrs...)
+			if len(assigned) == 0 {
+				return fmt.Errorf("encryption declarations assign-builds: failed to assign builds: %w", assignErr)
+			}
+
+			fmt.Fprintf(os.Stderr, "Successfully assigned %d build(s) to declaration %s\n", len(assigned), declarationValue)
 			result := &asc.AppEncryptionDeclarationBuildsUpdateResult{
 				DeclarationID: declarationValue,
-				BuildIDs:      buildIDs,
+				BuildIDs:      assigned,
 				Action:        "assigned",
+				Failures:      failures,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+				return err
+			}
+			if assignErr != nil {
+				return shared.NewReportedError(fmt.Errorf("encryption declarations assign-builds: assigned %d of %d build(s): %w", len(assigned), len(buildIDs), assignErr))
+			}
+			return nil
 		},
 	}
 }

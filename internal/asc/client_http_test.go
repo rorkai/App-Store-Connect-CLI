@@ -11453,33 +11453,6 @@ func TestCreateAppEncryptionDeclaration(t *testing.T) {
 	}
 }
 
-func TestAddBuildsToAppEncryptionDeclaration(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEncryptionDeclarations/decl-1/relationships/builds" {
-			t.Fatalf("expected path /v1/appEncryptionDeclarations/decl-1/relationships/builds, got %s", req.URL.Path)
-		}
-		var payload RelationshipRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if len(payload.Data) != 2 {
-			t.Fatalf("expected 2 relationship items, got %d", len(payload.Data))
-		}
-		if payload.Data[0].Type != ResourceTypeBuilds || payload.Data[0].ID != "build-1" {
-			t.Fatalf("unexpected relationship data: %+v", payload.Data[0])
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.AddBuildsToAppEncryptionDeclaration(context.Background(), "decl-1", []string{"build-1", "build-2"}); err != nil {
-		t.Fatalf("AddBuildsToAppEncryptionDeclaration() error: %v", err)
-	}
-}
-
 func TestGetAppEncryptionDeclarationDocument(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarationDocuments","id":"doc-1","attributes":{"fileName":"export.pdf"}}}`)
 	client := newTestClient(t, func(req *http.Request) {

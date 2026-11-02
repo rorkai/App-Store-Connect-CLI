@@ -111,13 +111,6 @@ func TestRelationshipMutationValidationErrors(t *testing.T) {
 			},
 		},
 		{
-			name:    "AddBuildsToAppEncryptionDeclaration missing buildIDs",
-			wantErr: "buildIDs are required",
-			call: func(client *Client) error {
-				return client.AddBuildsToAppEncryptionDeclaration(ctx, "dec-1", []string{" "})
-			},
-		},
-		{
 			name:    "AddGameCenterActivityAchievements missing activityID",
 			wantErr: "activityID is required",
 			call: func(client *Client) error {

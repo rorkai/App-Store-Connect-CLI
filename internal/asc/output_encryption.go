@@ -95,10 +95,18 @@ func appEncryptionDeclarationDocumentFields(resp *AppEncryptionDeclarationDocume
 
 func appEncryptionDeclarationBuildsUpdateResultRows(result *AppEncryptionDeclarationBuildsUpdateResult) ([]string, [][]string) {
 	headers := []string{"Declaration ID", "Build IDs", "Action"}
-	rows := [][]string{{
+	row := []string{
 		SanitizeTerminalText(result.DeclarationID),
 		SanitizeTerminalText(strings.Join(result.BuildIDs, ",")),
 		SanitizeTerminalText(result.Action),
-	}}
-	return headers, rows
+	}
+	if len(result.Failures) > 0 {
+		failures := make([]string, len(result.Failures))
+		for i, failure := range result.Failures {
+			failures[i] = SanitizeTerminalText(failure.BuildID + ": " + failure.Error)
+		}
+		headers = append(headers, "Failures")
+		row = append(row, strings.Join(failures, "; "))
+	}
+	return headers, [][]string{row}
 }
