@@ -10,7 +10,7 @@ import (
 const AssertionTimeout = time.Minute
 
 // ErrUnavailable identifies a build without the optional native backend.
-var ErrUnavailable = errors.New("security-key support requires an opt-in macOS build with CGO_ENABLED=1 and -tags fido2 (install libfido2 1.14 or newer and pkg-config first)")
+var ErrUnavailable = errors.New("security-key support requires a macOS build with CGO_ENABLED=1 and -tags fido2 (use a bundled release, or install libfido2 1.14 or newer and pkg-config for a source build)")
 
 // Request contains the relying party, hash of the exact client-data JSON, and
 // server-provided credential allow-list. It never creates credentials.
