@@ -224,6 +224,8 @@ func TestSetAppBundleAppsGuards(t *testing.T) {
 		{name: "matching list sends nothing", stateKey: "readyForSale", apps: []string{"1", "2"}},
 		{name: "add after approval", stateKey: "readyForSale", apps: []string{"1", "2", "3"}, wantErr: "only allows reordering"},
 		{name: "remove after approval", stateKey: "developerRemovedFromSale", apps: []string{"1"}, wantErr: "only allows reordering"},
+		{name: "add while released but pending a contract", stateKey: "pendingContract", apps: []string{"1", "2", "3"}, wantErr: "only allows reordering"},
+		{name: "remove after Apple took it off sale", stateKey: "removedFromSale", apps: []string{"1"}, wantErr: "only allows reordering"},
 		{name: "swap after approval", stateKey: "readyForSale", apps: []string{"1", "3"}, wantErr: "only allows reordering"},
 		{name: "reorder in review", stateKey: "inReview", apps: []string{"2", "1"}, wantErr: "remove it from review"},
 		{name: "reorder while a newer version waits for review", stateKey: "readyForSale", flags: `"inFlightState": "Waiting for Review",`, apps: []string{"2", "1"}, wantErr: "remove it from review"},
