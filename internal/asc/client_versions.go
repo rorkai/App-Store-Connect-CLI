@@ -30,12 +30,14 @@ type AppStoreVersionCreateAttributes struct {
 	VersionString string   `json:"versionString"`
 	Copyright     string   `json:"copyright,omitempty"`
 	ReleaseType   string   `json:"releaseType,omitempty"`
+	ReviewType    string   `json:"reviewType,omitempty"`
 }
 
 // AppStoreVersionUpdateAttributes describes app store version update payload attributes.
 type AppStoreVersionUpdateAttributes struct {
 	Copyright           *string `json:"copyright,omitempty"`
 	ReleaseType         *string `json:"releaseType,omitempty"`
+	ReviewType          *string `json:"reviewType,omitempty"`
 	EarliestReleaseDate *string `json:"earliestReleaseDate,omitempty"`
 	VersionString       *string `json:"versionString,omitempty"`
 	// Downloadable is nullable on AppStoreVersionUpdateRequest. A pointer keeps
