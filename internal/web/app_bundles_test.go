@@ -301,6 +301,7 @@ func TestAppBundleReviewActions(t *testing.T) {
 		name       string
 		run        call
 		flags      string
+		afterFlags string
 		before     string
 		after      string
 		postBody   string
@@ -310,7 +311,9 @@ func TestAppBundleReviewActions(t *testing.T) {
 		wantNoPost bool
 	}{
 		{name: "submit", run: submit, flags: `"canSubmit": true`, before: "prepareForSubmission", after: "waitingForReview", wantPath: "/submit/1501593771", wantState: "waitingForReview"},
-		{name: "remove", run: remove, flags: `"canDevReject": true`, before: "waitingForReview", after: "developerRejected", wantPath: "/devreject/1501593771", wantState: "developerRejected"},
+		{name: "remove", run: remove, flags: `"canDevReject": true`, before: "waitingForReview", after: "developerRejected", afterFlags: `"canSubmit": true`, wantPath: "/devreject/1501593771", wantState: "developerRejected"},
+		{name: "remove still in review", run: remove, flags: `"canDevReject": true`, before: "waitingForReview", after: "inReview", afterFlags: `"canDevReject": false`, wantPath: "/devreject/1501593771", wantErr: "readback"},
+		{name: "submit ends somewhere unrelated", run: submit, flags: `"canSubmit": true`, before: "prepareForSubmission", after: "readyForSale", wantPath: "/submit/1501593771", wantErr: "readback"},
 		{name: "submit not offered", run: submit, flags: `"canDevReject": true`, before: "developerRemovedFromSale", wantErr: "cannot be submitted", wantNoPost: true},
 		{name: "remove not offered", run: remove, flags: `"canSubmit": true`, before: "prepareForSubmission", wantErr: "cannot be removed", wantNoPost: true},
 		{name: "apple refuses", run: submit, flags: `"canSubmit": true`, before: "prepareForSubmission", postBody: `{"data": null, "messages": {"error": ["Missing metadata"]}, "statusCode": "ERROR"}`, wantPath: "/submit/1501593771", wantErr: "Missing metadata"},
@@ -335,11 +338,14 @@ func TestAppBundleReviewActions(t *testing.T) {
 					_, _ = w.Write([]byte(`{"data": null, "messages": {"error": null}, "statusCode": "SUCCESS"}`))
 					return
 				}
-				state := test.before
+				state, flags := test.before, test.flags
 				if len(posts) > 0 {
-					state = test.after
+					state, flags = test.after, test.afterFlags
+					if flags == "" {
+						flags = `"canSubmit": false`
+					}
 				}
-				_, _ = w.Write([]byte(`{"data": {"stateKey": "` + state + `", ` + test.flags + `}, "messages": {"error": null}, "statusCode": "SUCCESS"}`))
+				_, _ = w.Write([]byte(`{"data": {"stateKey": "` + state + `", ` + flags + `}, "messages": {"error": null}, "statusCode": "SUCCESS"}`))
 			}))
 			defer server.Close()
 
