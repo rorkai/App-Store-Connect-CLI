@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -1217,5 +1218,92 @@ func TestSigningRunDisposableKeychainSmoke(t *testing.T) {
 	}
 	if !reflect.DeepEqual(after, original) {
 		t.Fatalf("keychain search list changed: before=%v after=%v", original, after)
+	}
+}
+
+func TestSigningRunLegacyImportDoesNotExpandChain(t *testing.T) {
+	if os.Getenv("ASC_SIGNING_RUN_LIVE_TEST") != "1" {
+		t.Skip("set ASC_SIGNING_RUN_LIVE_TEST=1 to exercise disposable macOS keychains")
+	}
+	ctx := context.Background()
+	unlock, err := acquireSigningRunLock(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := unlock(); err != nil {
+			t.Error(err)
+		}
+	})
+	before, err := keychainSearchList(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := newSigningRunFixture(t, signingRunFixtureOptions{codeSigningLeaf: true})
+	identity, err := inspectSigningRunIdentity(fixture.identity, []byte(fixture.password), fixture.now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	issuerKeychain := filepath.Join(directory, "issuer.keychain-db")
+	keychain := filepath.Join(directory, "identity.keychain-db")
+	issuer := filepath.Join(directory, "issuer.cer")
+	t.Cleanup(func() {
+		if err := setKeychainSearchList(ctx, before); err != nil {
+			t.Errorf("restore keychain search list: %v", err)
+		}
+		for _, path := range []string{keychain, issuerKeychain} {
+			if err := deleteSigningRunKeychain(ctx, path); err != nil {
+				t.Error(err)
+			}
+		}
+		after, err := keychainSearchList(ctx)
+		if err != nil || !reflect.DeepEqual(after, before) {
+			t.Errorf("keychain search list changed: before=%v after=%v error=%v", before, after, err)
+		}
+	})
+	keychainPassword := []byte("disposable-keychain-password")
+	if _, err := createPersistentSigningKeychain(ctx, issuerKeychain, keychainPassword); err != nil {
+		t.Fatal(err)
+	}
+	if err := createSigningRunKeychain(ctx, keychain, keychainPassword); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(issuer, fixture.trustAnchor, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, err := runSigningUtility(ctx, nil, "import", issuer, "-k", issuerKeychain); err != nil {
+		t.Fatal(utilityFailure("install disposable issuer certificate", stderr, err))
+	}
+	if err := removeKeychainSearchEntry(ctx, keychain); err != nil {
+		t.Fatal(err)
+	}
+	paths, err := keychainSearchList(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(paths, issuerKeychain) {
+		if err := setKeychainSearchList(ctx, append(paths, issuerKeychain)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Use signing run's own importer so this also guards its routing. Its final
+	// codesign probe depends on trust for the synthetic issuer, which is not under
+	// test. The timeout keeps a terminal password prompt from outliving cleanup.
+	importCtx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	err = importSigningRunIdentity(importCtx, keychain, keychainPassword, fixture.identity, []byte(fixture.password), identity.CertificateSHA1)
+	if err != nil && !strings.HasPrefix(err.Error(), "verify imported signing identity") {
+		t.Fatal(err)
+	}
+	stdout, stderr, err := runSigningUtility(ctx, nil, "find-certificate", "-a", "-Z", keychain)
+	if err != nil {
+		t.Fatal(utilityFailure("read imported certificates", stderr, err))
+	}
+	if fingerprints := parseSigningRunCertificateFingerprints(stdout); !reflect.DeepEqual(fingerprints, []string{identity.CertificateSHA1}) {
+		t.Fatalf("signing run import expanded the certificate chain: %v", fingerprints)
 	}
 }
