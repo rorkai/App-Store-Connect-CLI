@@ -665,8 +665,9 @@ func Login(ctx context.Context, creds LoginCredentials) (*AuthSession, error) {
 }
 
 // LoginWithClient performs Apple ID SRP authentication reusing an existing HTTP
-// client and cookie jar. This is used for best-effort relogin attempts that
-// should preserve Apple trust cookies from a cached session.
+// client. This is used for best-effort relogin attempts that should preserve
+// Apple trust cookies from a cached session. A jar hydrated from the cache
+// contributes only those cookies; see trustedSignInClient.
 func LoginWithClient(ctx context.Context, client *http.Client, creds LoginCredentials) (*AuthSession, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -677,7 +678,56 @@ func LoginWithClient(ctx context.Context, client *http.Client, creds LoginCreden
 	if client.Jar == nil {
 		return nil, fmt.Errorf("client jar is required")
 	}
-	return loginWithHTTPClient(ctx, client, creds)
+	signInClient, cached, err := trustedSignInClient(client)
+	if err != nil {
+		return nil, err
+	}
+	session, err := loginWithHTTPClient(ctx, signInClient, creds)
+	if session != nil {
+		session.cachedSession = cached
+	}
+	return session, err
+}
+
+// trustedSignInClient copies a client hydrated from the session cache onto a
+// jar holding only Apple's trust cookies. The cache narrows Domain cookies to
+// host-only copies, so a myacinfo issued by the new sign-in would land beside
+// the cached one instead of replacing it. The jar sends the older cookie first
+// and Apple reads only the first, rejecting a session it has just accepted.
+func trustedSignInClient(client *http.Client) (*http.Client, *persistedSession, error) {
+	tracked, ok := client.Jar.(*sessionCookieTrackingJar)
+	if !ok {
+		return client, nil, nil
+	}
+	tracked.mu.Lock()
+	cached := tracked.cached
+	tracked.mu.Unlock()
+	if cached == nil {
+		return client, nil, nil
+	}
+
+	trusted := trustCookiesOnly(*cached)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create cookie jar: %w", err)
+	}
+	hydrateCookieJar(jar, trusted)
+	signInClient := *client
+	signInClient.Jar = newSessionCookieTrackingJarWithCached(jar, &trusted)
+	return &signInClient, &trusted, nil
+}
+
+func trustCookiesOnly(sess persistedSession) persistedSession {
+	cookies := make(map[string][]pCookie, len(sess.Cookies))
+	for origin, list := range sess.Cookies {
+		for _, cookie := range list {
+			if isAppleTrustCookieName(cookie.Name) {
+				cookies[origin] = append(cookies[origin], cookie)
+			}
+		}
+	}
+	sess.Cookies = cookies
+	return sess
 }
 
 func ensureSessionCookieTrackingJar(client *http.Client) {
