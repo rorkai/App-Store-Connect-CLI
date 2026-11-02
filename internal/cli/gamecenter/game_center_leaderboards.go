@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -343,6 +345,7 @@ func GameCenterLeaderboardsCreateCommand() *ffcli.Command {
 	submissionType := fs.String("submission-type", "", "Submission type: BEST_SCORE, MOST_RECENT_SCORE")
 	scoreRangeStart := fs.String("score-range-start", "", "Score range start (optional)")
 	scoreRangeEnd := fs.String("score-range-end", "", "Score range end (optional)")
+	bindLeaderboardRecurrenceFlags(fs)
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID (v2 only)")
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
@@ -358,6 +361,7 @@ V2 creates the required initial leaderboard version inline.
 Examples:
   asc game-center leaderboards create --app "APP_ID" --reference-name "High Score" --vendor-id "com.example.highscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE
   asc game-center leaderboards create --app "APP_ID" --reference-name "Time Trial" --vendor-id "com.example.timetrial" --formatter ELAPSED_TIME_CENTISECOND --sort ASC --submission-type BEST_SCORE
+  asc game-center leaderboards create --app "APP_ID" --reference-name "Weekly Score" --vendor-id "com.example.weeklyscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --recurrence-start-date "2026-12-01T00:00:00Z" --recurrence-duration "P7D" --recurrence-rule "RECURRENCE_RULE"
   asc game-center leaderboards create --group-id "GROUP_ID" --reference-name "Group Score" --vendor-id "grp.com.example.groupscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -420,6 +424,11 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			recurrence, err := parseLeaderboardRecurrence(fs)
+			if err != nil {
+				return err
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards create: %w", err)
@@ -439,13 +448,16 @@ Examples:
 			}
 
 			attrs := asc.GameCenterLeaderboardCreateAttributes{
-				ReferenceName:    name,
-				VendorIdentifier: vendor,
-				DefaultFormatter: formatterVal,
-				ScoreSortType:    sortVal,
-				SubmissionType:   submissionVal,
-				ScoreRangeStart:  strings.TrimSpace(*scoreRangeStart),
-				ScoreRangeEnd:    strings.TrimSpace(*scoreRangeEnd),
+				ReferenceName:       name,
+				VendorIdentifier:    vendor,
+				DefaultFormatter:    formatterVal,
+				ScoreSortType:       sortVal,
+				SubmissionType:      submissionVal,
+				ScoreRangeStart:     strings.TrimSpace(*scoreRangeStart),
+				ScoreRangeEnd:       strings.TrimSpace(*scoreRangeEnd),
+				RecurrenceStartDate: recurrence.startDate,
+				RecurrenceDuration:  recurrence.duration,
+				RecurrenceRule:      recurrence.rule,
 			}
 
 			useV2 := *v2 || group != ""
@@ -471,6 +483,7 @@ func GameCenterLeaderboardsUpdateCommand() *ffcli.Command {
 	leaderboardID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboards", "Game Center leaderboard ID")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard")
 	archived := fs.String("archived", "", "Archive the leaderboard (true/false)")
+	bindLeaderboardRecurrenceFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
 
@@ -483,7 +496,8 @@ func GameCenterLeaderboardsUpdateCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards update --id "LEADERBOARD_ID" --reference-name "New Name"
   asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true
-  asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true --v2`,
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true --v2
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --recurrence-duration "P7D" --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -509,6 +523,23 @@ Examples:
 					return flag.ErrHelp
 				}
 				attrs.Archived = &val
+				hasUpdate = true
+			}
+
+			recurrence, err := parseLeaderboardRecurrence(fs)
+			if err != nil {
+				return err
+			}
+			if recurrence.startDate != "" {
+				attrs.RecurrenceStartDate = &recurrence.startDate
+				hasUpdate = true
+			}
+			if recurrence.duration != "" {
+				attrs.RecurrenceDuration = &recurrence.duration
+				hasUpdate = true
+			}
+			if recurrence.rule != "" {
+				attrs.RecurrenceRule = &recurrence.rule
 				hasUpdate = true
 			}
 
@@ -965,4 +996,61 @@ Examples:
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// leaderboardRecurrenceDuration matches the ISO 8601 durations allowed by
+// OpenAPI's "duration" format. It also matches the empty forms "P" and "P1DT",
+// which the caller rejects.
+var leaderboardRecurrenceDuration = regexp.MustCompile(`^P(\d+W|(\d+Y)?(\d+M)?(\d+D)?(T(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?)$`)
+
+// leaderboardRecurrence holds validated recurrence flags. An empty field means
+// the flag was omitted.
+type leaderboardRecurrence struct {
+	startDate string
+	duration  string
+	rule      string
+}
+
+func bindLeaderboardRecurrenceFlags(fs *flag.FlagSet) {
+	fs.String("recurrence-start-date", "", "Recurrence start date (RFC 3339)")
+	fs.String("recurrence-duration", "", "Recurrence duration (ISO 8601, e.g., P7D)")
+	fs.String("recurrence-rule", "", "Recurrence rule")
+}
+
+func parseLeaderboardRecurrence(fs *flag.FlagSet) (leaderboardRecurrence, error) {
+	var recurrence leaderboardRecurrence
+	var err error
+	if recurrence.startDate, err = leaderboardRecurrenceFlagValue(fs, "recurrence-start-date"); err != nil {
+		return recurrence, err
+	}
+	if recurrence.duration, err = leaderboardRecurrenceFlagValue(fs, "recurrence-duration"); err != nil {
+		return recurrence, err
+	}
+	if recurrence.rule, err = leaderboardRecurrenceFlagValue(fs, "recurrence-rule"); err != nil {
+		return recurrence, err
+	}
+
+	if recurrence.startDate != "" {
+		if _, err := time.Parse(time.RFC3339, recurrence.startDate); err != nil {
+			return recurrence, shared.UsageError("--recurrence-start-date must be an RFC 3339 date-time, such as 2026-12-01T00:00:00Z")
+		}
+	}
+	if duration := recurrence.duration; duration != "" &&
+		(duration == "P" || strings.HasSuffix(duration, "T") || !leaderboardRecurrenceDuration.MatchString(duration)) {
+		return recurrence, shared.UsageError("--recurrence-duration must be an ISO 8601 duration, such as P7D or PT12H")
+	}
+
+	return recurrence, nil
+}
+
+func leaderboardRecurrenceFlagValue(fs *flag.FlagSet, name string) (string, error) {
+	provided := false
+	fs.Visit(func(f *flag.Flag) {
+		provided = provided || f.Name == name
+	})
+	value := strings.TrimSpace(fs.Lookup(name).Value.String())
+	if provided && value == "" {
+		return "", shared.UsageErrorf("--%s must not be blank", name)
+	}
+	return value, nil
 }
