@@ -52,6 +52,7 @@ type AppPreviewAttributes struct {
 	PreviewFrameTimeCode string              `json:"previewFrameTimeCode,omitempty"`
 	MimeType             string              `json:"mimeType,omitempty"`
 	VideoURL             string              `json:"videoUrl,omitempty"`
+	PreviewFrameImage    *PreviewFrameImage  `json:"previewFrameImage,omitempty"`
 	PreviewImage         *ImageAsset         `json:"previewImage,omitempty"`
 	UploadOperations     []UploadOperation   `json:"uploadOperations,omitempty"`
 	AssetDeliveryState   *AssetDeliveryState `json:"assetDeliveryState,omitempty"`

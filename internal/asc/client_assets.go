@@ -622,14 +622,15 @@ func (c *Client) GetAppPreview(ctx context.Context, previewID string) (*AppPrevi
 }
 
 // CreateAppPreview creates a preview reservation.
-func (c *Client) CreateAppPreview(ctx context.Context, setID string, fileName string, fileSize int64, mimeType string) (*AppPreviewResponse, error) {
+func (c *Client) CreateAppPreview(ctx context.Context, setID string, fileName string, fileSize int64, mimeType string, previewFrameTimeCode string) (*AppPreviewResponse, error) {
 	payload := AppPreviewCreateRequest{
 		Data: AppPreviewCreateData{
 			Type: ResourceTypeAppPreviews,
 			Attributes: AppPreviewAttributes{
-				FileName: fileName,
-				FileSize: fileSize,
-				MimeType: mimeType,
+				FileName:             fileName,
+				FileSize:             fileSize,
+				MimeType:             mimeType,
+				PreviewFrameTimeCode: previewFrameTimeCode,
 			},
 			Relationships: &AppPreviewRelationships{
 				AppPreviewSet: &Relationship{
