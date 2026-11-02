@@ -123,6 +123,9 @@ func TestWebAppBundlesRejectsBadUsage(t *testing.T) {
 		{"set needs confirm", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2"}, nil, "--confirm is required"},
 		{"set rejects duplicates", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2,1", "--confirm"}, nil, "lists app 1 twice"},
 		{"set rejects names", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,two", "--confirm"}, nil, "numeric app IDs"},
+		{"submit needs id", webAppBundleReviewCommand("submit", "", "", submitWebAppBundleFn), []string{"--confirm"}, nil, "--id is required"},
+		{"submit needs confirm", webAppBundleReviewCommand("submit", "", "", submitWebAppBundleFn), []string{"--id", "1"}, nil, "--confirm is required"},
+		{"remove needs confirm", webAppBundleReviewCommand("remove-from-review", "", "", removeWebAppBundleFromReviewFn), []string{"--id", "1"}, nil, "--confirm is required"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

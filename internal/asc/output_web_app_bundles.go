@@ -13,6 +13,17 @@ type WebAppBundleAppsResult struct {
 	Changed      bool     `json:"changed"`
 }
 
+// WebAppBundleReviewResult is the receipt for submitting a bundle or removing it from review.
+type WebAppBundleReviewResult struct {
+	BundleID      string `json:"bundleId"`
+	PreviousState string `json:"previousState"`
+	State         string `json:"state"`
+}
+
+func webAppBundleReviewRows(r *WebAppBundleReviewResult) ([]string, [][]string) {
+	return []string{"Bundle ID", "Previous State", "State"}, [][]string{{r.BundleID, r.PreviousState, r.State}}
+}
+
 func webAppBundleAppsRows(r *WebAppBundleAppsResult) ([]string, [][]string) {
 	return []string{"Bundle ID", "Previous Apps", "Apps", "Changed"}, [][]string{{r.BundleID, strings.Join(r.PreviousApps, ","), strings.Join(r.Apps, ","), fmt.Sprint(r.Changed)}}
 }
