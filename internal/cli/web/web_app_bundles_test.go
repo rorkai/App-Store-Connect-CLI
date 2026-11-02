@@ -123,6 +123,7 @@ func TestWebAppBundlesRejectsBadUsage(t *testing.T) {
 		{"set needs confirm", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2"}, nil, "--confirm is required"},
 		{"set rejects duplicates", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2,1", "--confirm"}, nil, "lists app 1 twice"},
 		{"set rejects names", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,two", "--confirm"}, nil, "numeric app IDs"},
+		{"set rejects leading zeros", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,01", "--confirm"}, nil, "numeric app IDs"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

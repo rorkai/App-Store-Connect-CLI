@@ -302,7 +302,8 @@ func parseAppBundleAppIDs(raw string) ([]string, error) {
 		if id == "" {
 			continue
 		}
-		if _, err := strconv.ParseUint(id, 10, 64); err != nil {
+		parsed, err := strconv.ParseUint(id, 10, 64)
+		if err != nil || strconv.FormatUint(parsed, 10) != id {
 			return nil, fmt.Errorf("--apps must contain numeric app IDs, got %q", id)
 		}
 		if slices.Contains(ids, id) {
