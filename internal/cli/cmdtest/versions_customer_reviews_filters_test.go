@@ -585,6 +585,120 @@ func TestReviewsViewKeepsSparseEnvelope(t *testing.T) {
 	}
 }
 
+// Read output replays the attributes Apple returned: an empty title on a full
+// read stays, and a key a sparse read left out stays out. Tables read the same
+// response through the typed fields.
+func TestCustomerReviewReadsKeepAppleAttributes(t *testing.T) {
+	const fullAttributes = `{"rating":3,"title":"","body":"","reviewerNickname":"Tester","createdDate":"2026-01-20T00:00:00Z","territory":"USA"}`
+	const sparseAttributes = `{"title":"Slow"}`
+	resource := func(attributes string) string {
+		return `{"type":"customerReviews","id":"review-1","attributes":` + attributes + `}`
+	}
+
+	tests := []struct {
+		name       string
+		args       []string
+		attributes string
+	}{
+		{
+			name:       "app list full read",
+			args:       []string{"reviews", "list", "--app", "app-1"},
+			attributes: fullAttributes,
+		},
+		{
+			name:       "version list full read",
+			args:       []string{"versions", "customer-reviews", "list", "--version-id", "version-1"},
+			attributes: fullAttributes,
+		},
+		{
+			name:       "view full read",
+			args:       []string{"reviews", "view", "--id", "review-1"},
+			attributes: fullAttributes,
+		},
+		{
+			name:       "app list sparse read",
+			args:       []string{"reviews", "list", "--app", "app-1", "--fields", "title"},
+			attributes: sparseAttributes,
+		},
+		{
+			name:       "view sparse read",
+			args:       []string{"reviews", "view", "--id", "review-1", "--fields", "title"},
+			attributes: sparseAttributes,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			isView := test.args[1] == "view"
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if isView {
+					_, _ = io.WriteString(w, `{"data":`+resource(test.attributes)+`}`)
+					return
+				}
+				_, _ = io.WriteString(w, `{"data":[`+resource(test.attributes)+`]}`)
+			}))
+			t.Cleanup(server.Close)
+
+			client := newReviewTestServerClient(t, server)
+			restoreClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil })
+			t.Cleanup(restoreClient)
+
+			stdout, _ := captureOutput(t, func() {
+				if code := rootcmd.Run(append(test.args, "--output", "json"), "1.2.3"); code != rootcmd.ExitSuccess {
+					t.Errorf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+				}
+			})
+
+			var got map[string]any
+			var want map[string]any
+			if err := json.Unmarshal([]byte(test.attributes), &want); err != nil {
+				t.Fatal(err)
+			}
+			if isView {
+				var envelope struct {
+					Data struct {
+						Attributes map[string]any `json:"attributes"`
+					} `json:"data"`
+				}
+				if err := json.Unmarshal([]byte(stdout), &envelope); err != nil {
+					t.Fatalf("stdout is not JSON: %v (%q)", err, stdout)
+				}
+				got = envelope.Data.Attributes
+			} else {
+				var envelope struct {
+					Data []struct {
+						Attributes map[string]any `json:"attributes"`
+					} `json:"data"`
+				}
+				if err := json.Unmarshal([]byte(stdout), &envelope); err != nil || len(envelope.Data) != 1 {
+					t.Fatalf("stdout = %q, want one review (err %v)", stdout, err)
+				}
+				got = envelope.Data[0].Attributes
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("attributes = %v, want %v", got, want)
+			}
+
+			table, _ := captureOutput(t, func() {
+				if code := rootcmd.Run(append(test.args, "--output", "table"), "1.2.3"); code != rootcmd.ExitSuccess {
+					t.Errorf("table exit code = %d, want %d", code, rootcmd.ExitSuccess)
+				}
+			})
+			wantCell := "USA"
+			if test.attributes == sparseAttributes {
+				wantCell = "Slow"
+			}
+			if !strings.Contains(table, wantCell) {
+				t.Fatalf("table = %q, want it to contain %q", table, wantCell)
+			}
+		})
+	}
+}
+
 func TestReviewsViewRejectsInvalidSelection(t *testing.T) {
 	tests := []struct {
 		name        string

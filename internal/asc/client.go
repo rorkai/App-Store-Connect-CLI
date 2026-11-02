@@ -70,12 +70,14 @@ type CrashAttributes struct {
 
 // ReviewAttributes describes App Store customer reviews.
 type ReviewAttributes struct {
-	Rating           int    `json:"rating,omitempty"`
-	Title            string `json:"title,omitempty"`
-	Body             string `json:"body,omitempty"`
-	ReviewerNickname string `json:"reviewerNickname,omitempty"`
-	CreatedDate      string `json:"createdDate,omitempty"`
-	Territory        string `json:"territory,omitempty"`
+	Rating           int    `json:"rating"`
+	Title            string `json:"title"`
+	Body             string `json:"body"`
+	ReviewerNickname string `json:"reviewerNickname"`
+	CreatedDate      string `json:"createdDate"`
+	Territory        string `json:"territory"`
+
+	api apiAttributes
 }
 
 // FeedbackResponse is the response from beta feedback screenshots endpoint.
