@@ -88,6 +88,105 @@ func TestNilAuthOptionsResponseReturnsEmptyOptions(t *testing.T) {
 	}
 }
 
+func TestPrepareTwoFactorChallengeRoutesSecurityKeys(t *testing.T) {
+	for _, tt := range []struct {
+		name             string
+		delivery         string
+		fsa              bool
+		noTrustedDevices bool
+		wantMethod       string
+		wantError        string
+	}{
+		{name: "FSA overrides code metadata", fsa: true, wantMethod: TwoFactorMethodSecurityKey},
+		{name: "explicit security key", delivery: TwoFactorMethodSecurityKey, fsa: true, wantMethod: TwoFactorMethodSecurityKey},
+		{name: "FSA preserves explicit SMS", delivery: TwoFactorDeliverySMS, fsa: true, wantMethod: TwoFactorMethodPhone},
+		{name: "FSA preserves automatic phone routing without trusted devices", fsa: true, noTrustedDevices: true, wantMethod: TwoFactorMethodPhone},
+		{name: "FSA preserves explicit SMS without trusted devices", delivery: TwoFactorDeliverySMS, fsa: true, noTrustedDevices: true, wantMethod: TwoFactorMethodPhone},
+		{name: "explicit key refuses phone-priority auth options", delivery: TwoFactorMethodSecurityKey, fsa: true, noTrustedDevices: true, wantError: "security-key verification is unavailable because Apple auth options prioritize phone verification; use auto or sms"},
+		{name: "key mode refuses code-only challenge", delivery: TwoFactorMethodSecurityKey, wantError: "security-key challenge not offered by Apple for this account"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := fmt.Sprintf(`{"noTrustedDevices":%t,"trustedPhoneNumbers":[{"id":7,"pushMode":"sms","numberWithDialCode":"+1 (•••) •••-••66"}]`, tt.noTrustedDevices)
+			if !tt.noTrustedDevices {
+				payload += `,"trustedDevices":[{"id":"device"}]`
+			}
+			if tt.fsa {
+				payload += `,"fsaChallenge":{"challenge":"AQID","keyHandles":["BAUG"],"allowedCredentials":"BAUG"}`
+			}
+			payload += `}`
+			var response AuthOptionsResponse
+			if err := json.Unmarshal([]byte(payload), &response); err != nil {
+				t.Fatal(err)
+			}
+			session := &stubSessionState{preference: TwoFactorPreference{Delivery: tt.delivery}}
+			challenge, err := PrepareTwoFactorChallenge(context.Background(), session, func(context.Context) (*AuthOptions, error) {
+				return response.AuthOptions(), nil
+			})
+			if tt.wantError != "" {
+				if err == nil || err.Error() != tt.wantError {
+					t.Fatalf("challenge error = %v, want %q", err, tt.wantError)
+				}
+				if challenge != nil || session.method != "" || session.phoneID != 0 || session.phoneMode != "" || session.destination != "" || session.requested {
+					t.Fatal("rejected challenge prepared code delivery")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if challenge.Method != tt.wantMethod {
+				t.Fatalf("challenge = %+v, want method %q", challenge, tt.wantMethod)
+			}
+			if tt.wantMethod == TwoFactorMethodPhone {
+				if challenge.SecurityKey != nil || challenge.Destination != "+1 (•••) •••-••66" || session.method != TwoFactorMethodPhone || session.phoneID != 7 || session.phoneMode != TwoFactorDeliverySMS || session.destination != challenge.Destination {
+					t.Fatalf("phone challenge = %+v, session = %+v, want prepared SMS delivery to phone 7", challenge, session)
+				}
+			} else if challenge.SecurityKey == nil || challenge.SecurityKey.Challenge != "AQID" || challenge.SecurityKey.AllowedCredentials != "BAUG" {
+				t.Fatalf("security-key continuation lost: %+v", challenge.SecurityKey)
+			}
+			if challenge.PhoneFallbackAvailable || challenge.Requested {
+				t.Fatalf("challenge unexpectedly requested code delivery or offered fallback: %+v", challenge)
+			}
+		})
+	}
+}
+
+// Regression: only a usable challenge may replace the code flow, so an
+// unexpected fsaChallenge cannot break ordinary sign-in, including explicit SMS.
+func TestPrepareTwoFactorChallengeIgnoresUnusableFSAChallenge(t *testing.T) {
+	for _, fsa := range []string{
+		`null`, `{}`, `""`, `[]`, `false`,
+		`{"challenge":123}`,
+		`{"allowedCredentials":[]}`,
+		`{"challenge":"AQID"}`,
+		`{"allowedCredentials":"BAUG"}`,
+		`{"challenge":null,"allowedCredentials":""}`,
+	} {
+		for _, tt := range []struct{ delivery, wantMethod string }{
+			{wantMethod: TwoFactorMethodTrustedDevice},
+			{delivery: TwoFactorDeliverySMS, wantMethod: TwoFactorMethodPhone},
+		} {
+			t.Run(fsa+"/"+tt.wantMethod, func(t *testing.T) {
+				payload := fmt.Sprintf(`{"trustedDevices":[{"id":"device"}],"trustedPhoneNumbers":[{"id":7,"pushMode":"sms","numberWithDialCode":"+1 (•••) •••-••66"}],"fsaChallenge":%s}`, fsa)
+				var response AuthOptionsResponse
+				if err := json.Unmarshal([]byte(payload), &response); err != nil {
+					t.Fatal(err)
+				}
+				session := &stubSessionState{preference: TwoFactorPreference{Delivery: tt.delivery}}
+				challenge, err := PrepareTwoFactorChallenge(context.Background(), session, func(context.Context) (*AuthOptions, error) {
+					return response.AuthOptions(), nil
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if challenge.Method != tt.wantMethod || challenge.SecurityKey != nil {
+					t.Fatalf("challenge = %+v, want code method %q", challenge, tt.wantMethod)
+				}
+			})
+		}
+	}
+}
+
 func TestSubmitTwoFactorCodeRequestsPhoneFallbackBeforeRetry(t *testing.T) {
 	session := &stubSessionState{
 		method:      TwoFactorMethodTrustedDevice,

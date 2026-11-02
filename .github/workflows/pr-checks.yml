@@ -379,6 +379,14 @@ jobs:
               ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 ./internal/cli/xcode -run '^(TestXcodeHelpScopesMacOSRequirementToXcodeTooling|TestXcodeSigningApplyHelpExplainsWindowsBoundary)$'
               CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/asc_dev_windows_amd64.exe .
               ASC_BYPASS_KEYCHAIN=1 ASC_WINDOWS_CREDENTIAL_SMOKE=1 ASC_WINDOWS_SMOKE_BINARY=../../../build/asc_dev_windows_amd64.exe go test -count=1 ./internal/cli/auth -run '^TestWindowsCredentialManagerNativeRoundTrip$'
+          - name: security-key macOS
+            runner: macos-latest
+            command: |
+              brew install libfido2 pkg-config
+              pkg-config --atleast-version=1.14.0 libfido2
+              export CGO_ENABLED=1 GOMAXPROCS=4 GOFLAGS=-p=4
+              go build -tags fido2 -o build/asc_dev_fido2_macos .
+              ASC_BYPASS_KEYCHAIN=1 go test -race -tags fido2 -p=1 -parallel=4 -count=1 ./internal/securitykey ./internal/web ./internal/cli/web ./internal/cli/cmdtest -run 'SecurityKey|SecurityChallenge|TwoFactorDelivery|TwoFactorPreference|SignCancelledBeforeDeviceDiscovery'
     steps:
       - name: Checkout code
         uses: actions/checkout@v7

@@ -173,9 +173,10 @@ it asks for `--apple-id`; without a password source it asks for a terminal or
 `asc web auth status`; it prints `"authenticated":false` and exits `0`.
 
 Without an interactive terminal, signing in also needs a two-factor code
-source: `--two-factor-code-command` or `ASC_WEB_2FA_CODE_COMMAND`. A fresh
-sign-in that has neither exits with code `1` before sending the password to
-Apple, so no verification code is delivered. A sign-in that reuses an expired
+source: `--two-factor-code-command` or `ASC_WEB_2FA_CODE_COMMAND`. Explicit
+security-key sign-in on an opt-in build does not. A fresh sign-in that has
+neither exits with code `1` before sending the password to Apple, so no
+verification code is delivered. A sign-in that reuses an expired
 cached session still tries it, and stops before requesting a code if Apple asks
 for one:
 
@@ -245,7 +246,7 @@ code completes this sign-in.
 asc web auth login --apple-id "user@example.com" --two-factor-method sms --two-factor-code-command "/path/to/read-apple-sms-code"
 ```
 
-For a login with no terminal, set `ASC_WEB_PASSWORD` and
+For a code-based login with no terminal, set `ASC_WEB_PASSWORD` and
 `ASC_WEB_2FA_CODE_COMMAND`. The password variable is consulted after the
 cached session and before the saved-password store and the interactive prompt,
 and a password supplied that way is used for the login without being saved.
@@ -253,6 +254,51 @@ and a password supplied that way is used for the login without being saved.
 `ASC_WEB_DONT_STORE_PASSWORD=1` disables saved-password reads and writes. The
 web-session and non-interactive-login variables are listed in
 [Web session variables](/configuration/environment-variables#web-session-variables).
+
+#### Security-key login
+
+Security-key authentication is an opt-in macOS source build. Install libfido2
+**1.14 or newer**, pkg-config, and a C compiler; the native libraries must remain
+installed at runtime. Official release packaging is unchanged.
+
+```bash
+brew install libfido2 pkg-config
+pkg-config --atleast-version=1.14.0 libfido2
+CGO_ENABLED=1 go build -tags fido2 -o build/asc-security-key .
+./build/asc-security-key web auth login --apple-id "user@example.com" --two-factor-method security-key
+```
+
+Connect exactly one registered USB FIDO2 key. Key mode checks that one usable
+FIDO2 device is attached before sending the password; physical touch or approval
+is requested after Apple returns the challenge. A login without a terminal still
+needs the key and physical approval. Code commands and phone selection cannot
+be combined with `security-key`.
+
+`ASC_WEB_2FA_METHOD` accepts `auto`, `sms`, and `security-key`;
+`--two-factor-method` takes precedence. `auto` preserves SMS-first routing when
+Apple reports `noTrustedDevices`. When Apple instead offers an FSA challenge,
+`auto` stops with guidance to select `--two-factor-method security-key` on a
+supported build; it does not obtain a key assertion automatically. Code-only
+accounts retain trusted-device and phone fallback behavior. Detection through
+`auto` requires a terminal or configured code source so sign-in can proceed.
+A fresh noninteractive `auto` login without either stops before sending the
+password; choose explicit `security-key` mode for non-terminal key sign-in.
+A valid cached
+session remains usable without the native backend or an attached key, including
+when `ASC_WEB_2FA_METHOD=security-key` is exported.
+
+If the key requires a PIN, supply `ASC_WEB_SECURITY_KEY_PIN` in the environment
+for an explicit `asc web auth login`. It is never saved, printed, or sent to
+Apple, and a wrong PIN is not retried within that login. Automatic
+reauthentication refuses an environment PIN when a key challenge is needed and
+asks you to run `asc web auth login` explicitly. Verify the PIN before trying
+again, since repeated explicit logins with a wrong PIN can lock the key.
+
+Nonempty UTF-8 user handles are passed through. Binary user handles are sent
+empty, matching XcodesLoginKit.
+
+Security-key login has been tested with a Ledger Stax on macOS. Live PIN use and
+YubiKey behavior have not been verified.
 
 #### Moving a session to another machine or to CI
 

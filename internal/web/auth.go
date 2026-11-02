@@ -144,6 +144,7 @@ type AuthSession struct {
 	twoFactorDestination   string
 	twoFactorCodeRequested bool
 	twoFactorPreference    appleauth.TwoFactorPreference
+	securityKeyChallenge   *appleauth.SecurityKeyChallenge
 }
 
 // ProviderSelection identifies the App Store Connect provider/team a web
@@ -1583,6 +1584,9 @@ func PrepareTwoFactorChallenge(ctx context.Context, session *AuthSession) (*TwoF
 	if session.ServiceKey == "" || session.AppleIDSessionID == "" || session.SCNT == "" {
 		return nil, fmt.Errorf("session is missing 2fa continuation state")
 	}
+	if session.securityKeyChallenge != nil {
+		return &TwoFactorChallenge{Method: appleauth.TwoFactorMethodSecurityKey, SecurityKey: session.securityKeyChallenge}, nil
+	}
 	challenge, err := appleauth.PrepareTwoFactorChallenge(ctx, session, func(ctx context.Context) (*appleauth.AuthOptions, error) {
 		opts, err := getAuthOptions(ctx, session)
 		if err != nil {
@@ -1590,6 +1594,10 @@ func PrepareTwoFactorChallenge(ctx context.Context, session *AuthSession) (*TwoF
 		}
 		return opts.AuthOptions(), nil
 	})
+	if err == nil && challenge != nil && challenge.SecurityKey != nil {
+		session.securityKeyChallenge = challenge.SecurityKey
+		session.SetPreparedTwoFactorState(appleauth.TwoFactorMethodSecurityKey, 0, "", "", false)
+	}
 	return challenge, wrapWebTwoFactorFlowError(err)
 }
 

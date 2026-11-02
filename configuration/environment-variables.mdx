@@ -177,18 +177,44 @@ They do not replace `ASC_KEY_ID`, `ASC_ISSUER_ID`, or the other API credentials.
   output fails the login. It is bounded by its own timeout rather than the
   caller's deadline: 60 seconds by default, or the value of `ASC_TIMEOUT` or
   `ASC_TIMEOUT_SECONDS` when either is set. When neither the flag nor
-  `ASC_WEB_2FA_CODE_COMMAND` supplies a command, a login that needs verification
-  requires an interactive terminal.
+  `ASC_WEB_2FA_CODE_COMMAND` supplies a command, code-based verification
+  requires an interactive terminal. Security-key verification instead requires
+  the optional native build, a connected key, and physical touch.
 </ParamField>
 
 <ParamField path="ASC_WEB_2FA_METHOD" type="string">
-  Two-factor code delivery for a fresh `asc web` login: `auto` or `sms`
+  Two-factor method for a fresh `asc web` login: `auto`, `sms`, or `security-key`
 
-  `auto` (the default) keeps Apple's order: trusted devices first, with phone
-  fallback after a rejected trusted-device code. `sms` asks Apple to text the
-  code to a trusted phone number before prompting or running the 2FA code
-  command, even when trusted devices are available. `--two-factor-method` wins
-  when it is set, and any other value fails with a usage error before sign-in.
+  `auto` (the default) follows Apple's routing: SMS first when
+  `noTrustedDevices` is true, including when an FSA challenge is present;
+  otherwise an FSA challenge stops with guidance to choose `security-key` on a
+  supported build. `auto` does not perform a key assertion. Code-only
+  accounts use trusted devices with phone fallback after a rejected code.
+  FSA detection through `auto` requires a terminal or configured code source;
+  a fresh noninteractive login without either stops before sending the password.
+  Choose `security-key` explicitly for non-terminal key sign-in.
+  `sms` asks Apple to text a trusted phone number before prompting or running
+  the 2FA code command. `--two-factor-method` wins when set; other values fail
+  with a usage error before sign-in.
+
+  `security-key` requires an opt-in macOS build with `CGO_ENABLED=1`
+  and `-tags fido2`, installed libfido2 1.14 or newer and pkg-config, exactly one
+  connected registered USB FIDO2 key, and physical touch. Device readiness is
+  checked before sending a password. Valid cached sessions do not require the
+  backend or an attached key, even with this variable exported. Official release
+  packaging is unchanged. See
+  [Security-key login](/commands/web#security-key-login).
+</ParamField>
+
+<ParamField path="ASC_WEB_SECURITY_KEY_PIN" type="string">
+  Optional authenticator PIN, read only by explicit `asc web auth login`
+
+  Supply this only if the key requires a PIN. It is not saved, printed, or sent
+  to Apple, and a wrong PIN is not retried within that login. Automatic
+  reauthentication refuses an environment PIN when key authentication is
+  needed and directs you to run `asc web auth login` explicitly, preventing a
+  stale PIN from being tried by successive commands. Check the PIN before
+  retrying an explicit login; wrong attempts can lock the key.
 </ParamField>
 
 <ParamField path="ASC_WEB_2FA_PHONE_ID" type="integer">

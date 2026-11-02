@@ -728,6 +728,48 @@ func TestPrepareTwoFactorChallengeKeepsPhoneFallbackForTrustedDeviceFlow(t *test
 	}
 }
 
+// Regression: preparing the same FSA challenge twice must preserve its bytes
+// without requesting another challenge or routing the account into code delivery.
+func TestPrepareTwoFactorChallengeCachesSecurityKeyContinuation(t *testing.T) {
+	requests := 0
+	session := &AuthSession{
+		ServiceKey: "service-key", AppleIDSessionID: "session-id", SCNT: "scnt-token",
+		Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requests++
+			if req.Method != http.MethodGet || req.URL.String() != authServiceURL {
+				t.Fatalf("unexpected request %s %s", req.Method, req.URL)
+			}
+			for name, want := range map[string]string{"X-Apple-Widget-Key": "service-key", "X-Apple-ID-Session-Id": "session-id", "scnt": "scnt-token"} {
+				if got := req.Header.Get(name); got != want {
+					t.Fatalf("%s = %q, want %q", name, got, want)
+				}
+			}
+			return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"fsaChallenge":{"challenge":"AQID","allowedCredentials":"BAUG","keyHandles":["BAUG"]},"trustedDevices":[{"id":"device"}]}`))}, nil
+		})},
+	}
+	for range 2 {
+		challenge, err := PrepareTwoFactorChallenge(context.Background(), session)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if challenge.Method != appleauth.TwoFactorMethodSecurityKey || challenge.SecurityKey == nil {
+			t.Fatalf("challenge = %+v, want security key", challenge)
+		}
+		if challenge.SecurityKey.Challenge != "AQID" || challenge.SecurityKey.AllowedCredentials != "BAUG" {
+			t.Fatalf("continuation bytes changed: %+v", challenge.SecurityKey)
+		}
+		if challenge.PhoneFallbackAvailable || challenge.Requested {
+			t.Fatal("security-key continuation exposed code delivery")
+		}
+	}
+	if requests != 1 {
+		t.Fatalf("auth-options requests = %d, want 1", requests)
+	}
+	if session.TwoFactorMethod() != appleauth.TwoFactorMethodSecurityKey {
+		t.Fatalf("prepared method = %q", session.TwoFactorMethod())
+	}
+}
+
 func TestSubmitTwoFactorCodeUsesPreparedPhoneFlow(t *testing.T) {
 	session := &AuthSession{
 		Client: &http.Client{
