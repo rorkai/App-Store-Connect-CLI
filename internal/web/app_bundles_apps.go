@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -25,20 +26,35 @@ type AppBundleEligibleAppsResponse struct {
 	Data []AppBundleEligibleApp `json:"data"`
 }
 
-type appBundleEligibleApp struct {
-	AdamID json.Number `json:"adamId"`
-	Name   string      `json:"name"`
+// appBundleEligibleRow keeps Apple's row so an added app can be sent back the
+// way the bundle page sends it.
+type appBundleEligibleRow map[string]json.RawMessage
+
+// appBundleDisplayOnlyFields are the keys the bundle page strips from a member
+// before saving.
+var appBundleDisplayOnlyFields = []string{"iconUrl", "appType", "lastModifiedDate", "name", "type", "vendorId", "versions", "latestSupportedHardware", "bundleId"}
+
+func (r appBundleEligibleRow) id() string {
+	return strings.Trim(string(r["adamId"]), `"`)
+}
+
+func (r appBundleEligibleRow) name() string {
+	var name string
+	if err := json.Unmarshal(r["name"], &name); err != nil {
+		return ""
+	}
+	return name
 }
 
 // ListAppBundleEligibleApps lists the iOS and macOS apps that can join a bundle.
 func (c *Client) ListAppBundleEligibleApps(ctx context.Context) (*AppBundleEligibleAppsResponse, error) {
-	apps, err := doAppBundleJSON[[]appBundleEligibleApp](ctx, c, http.MethodGet, appBundleEligibleAppsPath, nil)
+	rows, err := doAppBundleJSON[[]appBundleEligibleRow](ctx, c, http.MethodGet, appBundleEligibleAppsPath, nil)
 	if err != nil {
 		return nil, err
 	}
-	result := &AppBundleEligibleAppsResponse{Data: make([]AppBundleEligibleApp, 0, len(*apps))}
-	for _, app := range *apps {
-		result.Data = append(result.Data, AppBundleEligibleApp{ID: app.AdamID.String(), Name: app.Name})
+	result := &AppBundleEligibleAppsResponse{Data: make([]AppBundleEligibleApp, 0, len(*rows))}
+	for _, row := range *rows {
+		result.Data = append(result.Data, AppBundleEligibleApp{ID: row.id(), Name: row.name()})
 	}
 	return result, nil
 }
@@ -50,7 +66,7 @@ type appBundleSaveRequest struct {
 	PriceTierStem     string                `json:"priceTierStem,omitempty"`
 	ClearedForSale    bool                  `json:"clearedForSale"`
 	Details           []appBundleSaveLocale `json:"details"`
-	MemberApps        []appBundleSaveApp    `json:"memberApps"`
+	MemberApps        []any                 `json:"memberApps"`
 	UserBundleIcon    json.RawMessage       `json:"userBundleIcon"`
 }
 
@@ -95,9 +111,8 @@ func (c *Client) SetAppBundleApps(ctx context.Context, bundleID string, appIDs [
 		return result, nil
 	}
 
-	switch current.StateKey {
-	case "inReview", "waitingForReview":
-		return nil, fmt.Errorf("app bundle is %s; remove it from review before changing its apps", current.StateKey)
+	if appBundleInReview(current) {
+		return nil, fmt.Errorf("app bundle is in review (%s); remove it from review before changing its apps", current.StateKey)
 	}
 	newIDs := slices.DeleteFunc(slices.Clone(appIDs), func(id string) bool {
 		_, member := members[id]
@@ -109,11 +124,12 @@ func (c *Client) SetAppBundleApps(ctx context.Context, bundleID string, appIDs [
 			return nil, fmt.Errorf("app bundle is %s; Apple only allows reordering its apps", current.StateKey)
 		}
 	}
-	if err := c.requireAppBundleEligible(ctx, newIDs); err != nil {
+	added, err := c.eligibleAppBundleRows(ctx, newIDs)
+	if err != nil {
 		return nil, err
 	}
 
-	if err := c.postAppBundle(ctx, "/appbundles/createOrUpdate", newAppBundleSaveRequest(current, members, appIDs)); err != nil {
+	if err := c.postAppBundle(ctx, "/appbundles/createOrUpdate", newAppBundleSaveRequest(current, members, added, appIDs)); err != nil {
 		return nil, err
 	}
 
@@ -132,23 +148,38 @@ func (c *Client) SetAppBundleApps(ctx context.Context, bundleID string, appIDs [
 	return result, nil
 }
 
-func (c *Client) requireAppBundleEligible(ctx context.Context, appIDs []string) error {
-	if len(appIDs) == 0 {
-		return nil
-	}
-	eligible, err := c.ListAppBundleEligibleApps(ctx)
-	if err != nil {
-		return err
-	}
-	for _, id := range appIDs {
-		if !slices.ContainsFunc(eligible.Data, func(app AppBundleEligibleApp) bool { return app.ID == id }) {
-			return fmt.Errorf("app %s is not eligible for an app bundle", id)
-		}
-	}
-	return nil
+// appBundleInReview reports a pending review. A released bundle keeps its sale
+// state while a newer version is reviewed, so inFlightState and Apple's offer to
+// withdraw it count too; a Rejected in-flight version stays editable.
+func appBundleInReview(detail *appBundleDetailData) bool {
+	return detail.StateKey == "inReview" || detail.StateKey == "waitingForReview" ||
+		detail.CanDevReject || strings.Contains(strings.ToLower(detail.InFlightState), "review")
 }
 
-func newAppBundleSaveRequest(current *appBundleDetailData, members map[string]appBundleMemberApp, appIDs []string) appBundleSaveRequest {
+func (c *Client) eligibleAppBundleRows(ctx context.Context, appIDs []string) (map[string]appBundleEligibleRow, error) {
+	added := make(map[string]appBundleEligibleRow, len(appIDs))
+	if len(appIDs) == 0 {
+		return added, nil
+	}
+	rows, err := doAppBundleJSON[[]appBundleEligibleRow](ctx, c, http.MethodGet, appBundleEligibleAppsPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range appIDs {
+		index := slices.IndexFunc(*rows, func(row appBundleEligibleRow) bool { return row.id() == id })
+		if index < 0 {
+			return nil, fmt.Errorf("app %s is not eligible for an app bundle", id)
+		}
+		row := maps.Clone((*rows)[index])
+		for _, key := range appBundleDisplayOnlyFields {
+			delete(row, key)
+		}
+		added[id] = row
+	}
+	return added, nil
+}
+
+func newAppBundleSaveRequest(current *appBundleDetailData, members map[string]appBundleMemberApp, added map[string]appBundleEligibleRow, appIDs []string) appBundleSaveRequest {
 	request := appBundleSaveRequest{
 		AdamID:            current.AdamID,
 		VendorIdentifier:  current.VendorIdentifier,
@@ -156,7 +187,7 @@ func newAppBundleSaveRequest(current *appBundleDetailData, members map[string]ap
 		PriceTierStem:     current.PriceTierStem,
 		ClearedForSale:    current.ClearedForSale,
 		Details:           make([]appBundleSaveLocale, 0, len(current.Details)),
-		MemberApps:        make([]appBundleSaveApp, 0, len(appIDs)),
+		MemberApps:        make([]any, 0, len(appIDs)),
 		UserBundleIcon:    current.UserBundleIcon,
 	}
 	for _, locale := range current.Details {
@@ -168,6 +199,10 @@ func newAppBundleSaveRequest(current *appBundleDetailData, members map[string]ap
 		})
 	}
 	for _, id := range appIDs {
+		if row, ok := added[id]; ok {
+			request.MemberApps = append(request.MemberApps, row)
+			continue
+		}
 		request.MemberApps = append(request.MemberApps, appBundleSaveApp{AdamID: json.Number(id), PriceTier: members[id].PriceTier})
 	}
 	return request

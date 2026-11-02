@@ -124,6 +124,7 @@ func TestGetAppBundleReportsLegacyFailures(t *testing.T) {
 type appBundleSaveServer struct {
 	t         *testing.T
 	stateKey  string
+	flags     string
 	saveError string
 	members   []string
 	saves     []map[string]any
@@ -142,7 +143,7 @@ func (s *appBundleSaveServer) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		}
 		_, _ = w.Write([]byte(`{"data": {
 			"adamId": 1501593771, "vendorIdentifier": "COLORWAY", "primaryLocaleCode": "en-GB", "priceTierStem": "530",
-			"clearedForSale": false, "stateKey": "` + s.stateKey + `",
+			"clearedForSale": false, "stateKey": "` + s.stateKey + `", ` + s.flags + `
 			"details": [{"name": "Colorway", "localeCode": "en-GB", "approvedDetail": null, "empty": false,
 				"marketingText": {"value": "Colour games", "isEditable": true}, "marketingUrl": {"value": null, "isEditable": true}}],
 			"userBundleIcon": {"value": {"assetToken": "token"}, "isEditable": true},
@@ -152,7 +153,7 @@ func (s *appBundleSaveServer) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		if got := r.URL.Query().Get("platform"); got != "IOS,OSX" {
 			s.t.Errorf("platform = %q", got)
 		}
-		_, _ = w.Write([]byte(`{"data": [{"adamId": 3, "name": "Three"}], "messages": {"error": null}, "statusCode": "SUCCESS"}`))
+		_, _ = w.Write([]byte(`{"data": [{"adamId": 3, "name": "Three", "bundleId": null, "vendorId": null, "appType": null, "iconUrl": "x", "priceTier": null, "versionSets": [{"platformString": "IOS"}], "isAAG": false}], "messages": {"error": null}, "statusCode": "SUCCESS"}`))
 	case "POST /WebObjects/iTunesConnect.woa/ra/appbundles/createOrUpdate":
 		var body map[string]any
 		decoder := json.NewDecoder(r.Body)
@@ -213,6 +214,7 @@ func TestSetAppBundleAppsGuards(t *testing.T) {
 	tests := []struct {
 		name      string
 		stateKey  string
+		flags     string
 		apps      []string
 		saveError string
 		wantErr   string
@@ -224,6 +226,9 @@ func TestSetAppBundleAppsGuards(t *testing.T) {
 		{name: "remove after approval", stateKey: "developerRemovedFromSale", apps: []string{"1"}, wantErr: "only allows reordering"},
 		{name: "swap after approval", stateKey: "readyForSale", apps: []string{"1", "3"}, wantErr: "only allows reordering"},
 		{name: "reorder in review", stateKey: "inReview", apps: []string{"2", "1"}, wantErr: "remove it from review"},
+		{name: "reorder while a newer version waits for review", stateKey: "readyForSale", flags: `"inFlightState": "Waiting for Review",`, apps: []string{"2", "1"}, wantErr: "remove it from review"},
+		{name: "reorder while Apple offers withdrawal", stateKey: "readyForSale", flags: `"canDevReject": true,`, apps: []string{"2", "1"}, wantErr: "remove it from review"},
+		{name: "reorder after a rejected version", stateKey: "readyForSale", flags: `"inFlightState": "Rejected",`, apps: []string{"2", "1"}, wantSaves: 1},
 		{name: "add ineligible app", stateKey: "prepareForSubmission", apps: []string{"1", "2", "9"}, wantErr: "9 is not eligible", eligible: true},
 		{name: "add eligible app", stateKey: "prepareForSubmission", apps: []string{"3", "2", "1"}, wantSaves: 1, eligible: true},
 		{name: "remove before approval", stateKey: "prepareForSubmission", apps: []string{"2"}, wantSaves: 1},
@@ -231,7 +236,7 @@ func TestSetAppBundleAppsGuards(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			handler := &appBundleSaveServer{t: t, stateKey: test.stateKey, saveError: test.saveError, members: []string{"1", "2"}}
+			handler := &appBundleSaveServer{t: t, stateKey: test.stateKey, flags: test.flags, saveError: test.saveError, members: []string{"1", "2"}}
 			server := httptest.NewServer(handler)
 			defer server.Close()
 
@@ -249,6 +254,24 @@ func TestSetAppBundleAppsGuards(t *testing.T) {
 				t.Fatalf("eligibility lookup = %v, want %v", asked, test.eligible)
 			}
 		})
+	}
+}
+
+func TestSetAppBundleAppsSendsAddedAppLikeThePage(t *testing.T) {
+	handler := &appBundleSaveServer{t: t, stateKey: "prepareForSubmission", members: []string{"1", "2"}}
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	if _, err := testWebClient(server).SetAppBundleApps(context.Background(), "1501593771", []string{"1", "2", "3"}); err != nil {
+		t.Fatalf("SetAppBundleApps() error = %v", err)
+	}
+	encoded, err := json.Marshal(handler.saves[0]["memberApps"].([]any)[2])
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	want := `{"adamId":3,"isAAG":false,"priceTier":null,"versionSets":[{"platformString":"IOS"}]}`
+	if string(encoded) != want {
+		t.Fatalf("added app = %s, want %s", encoded, want)
 	}
 }
 
