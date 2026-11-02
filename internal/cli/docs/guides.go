@@ -33,6 +33,11 @@ var guideRegistry = []guideEntry{
 		Description: "Task-based workflow recipes for release, TestFlight, and Xcode flows",
 		Content:     docsembed.WorkflowsGuide,
 	},
+	{
+		Slug:        "third-party-notices",
+		Description: "Licenses for native dependencies included in release binaries",
+		Content:     docsembed.ThirdPartyNoticesGuide,
+	},
 }
 
 func listGuideSummaries() []guideSummary {

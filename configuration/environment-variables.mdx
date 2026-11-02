@@ -197,12 +197,12 @@ They do not replace `ASC_KEY_ID`, `ASC_ISSUER_ID`, or the other API credentials.
   the 2FA code command. `--two-factor-method` wins when set; other values fail
   with a usage error before sign-in.
 
-  `security-key` requires an opt-in macOS build with `CGO_ENABLED=1`
-  and `-tags fido2`, installed libfido2 1.14 or newer and pkg-config, exactly one
-  connected registered USB FIDO2 key, and physical touch. Device readiness is
+  `security-key` requires a macOS release binary or a source build with
+  `CGO_ENABLED=1` and `-tags fido2`, exactly one connected registered USB FIDO2
+  key, and physical touch. Release binaries bundle native libraries; source
+  builds need installed libfido2 1.14 or newer and pkg-config. Device readiness is
   checked before sending a password. Valid cached sessions do not require the
-  backend or an attached key, even with this variable exported. Official release
-  packaging is unchanged. See
+  backend or an attached key, even with this variable exported. See
   [Security-key login](/commands/web#security-key-login).
 </ParamField>
 

@@ -9,6 +9,11 @@ records the exact checked-out SHA, and passes both values to the repository's
 release rehearsal script. Its guardrails run on `macos-latest`, matching the
 publishing workflow so Darwin-only release tests are exercised.
 
+The rehearsal uses untagged `make build-all` cross-builds. Self-contained macOS
+release packages are qualified separately by the non-publishing
+`Native macOS release packages` workflow, which runs the actual release builder.
+The rehearsal keeps its existing runner-local output and read-only contract.
+
 The local invocation uses the same entrypoint:
 
 ```bash

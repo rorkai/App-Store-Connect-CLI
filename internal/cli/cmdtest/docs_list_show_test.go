@@ -35,11 +35,11 @@ func TestDocsListOutputsEmbeddedGuidesAsJSON(t *testing.T) {
 		t.Fatalf("failed to unmarshal guides JSON: %v\nstdout=%s", err, stdout)
 	}
 
-	if len(guides) != 3 {
-		t.Fatalf("expected 3 guides, got %d", len(guides))
+	if len(guides) != 4 {
+		t.Fatalf("expected 4 guides, got %d", len(guides))
 	}
 
-	expectedSlugs := []string{"api-notes", "reference", "workflows"}
+	expectedSlugs := []string{"api-notes", "reference", "workflows", "third-party-notices"}
 	for i, expectedSlug := range expectedSlugs {
 		if guides[i].Slug != expectedSlug {
 			t.Fatalf("expected guide %d slug %q, got %q", i, expectedSlug, guides[i].Slug)

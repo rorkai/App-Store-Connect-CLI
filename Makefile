@@ -106,6 +106,11 @@ build-all: clean
 	done
 	@echo "$(GREEN)✓ Release binaries written to $(RELEASE_DIR)/$(NC)"
 
+# Build the same self-contained Intel/Apple Silicon binaries as macOS releases.
+.PHONY: build-native-macos
+build-native-macos: clean
+	VERSION="$(VERSION)" RELEASE_DIR="$(RELEASE_DIR)" sh scripts/build_release_macos.sh
+
 # Build with debug symbols
 .PHONY: build-debug
 build-debug:
@@ -336,6 +341,7 @@ release: clean
 # Run the non-publishing checks used by the release rehearsal workflow
 .PHONY: release-guardrails
 release-guardrails:
+	python3 scripts/test_build_macos_release.py
 	python3 scripts/test_release_rehearsal.py
 	python3 scripts/test_check_docs.py
 	$(MAKE) format-check
@@ -352,7 +358,8 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  build          Build the binary"
-	@echo "  build-all      Build release binaries for supported platforms"
+	@echo "  build-all      Build cross-platform rehearsal binaries"
+	@echo "  build-native-macos Build self-contained macOS releases"
 	@echo "  build-debug    Build with debug symbols"
 	@echo "  test           Run tests (TEST_JOBS=<n> sets a soft CPU budget)"
 	@echo "  test-short     Run the short test suite (TEST_JOBS=<n> sets a soft CPU budget)"

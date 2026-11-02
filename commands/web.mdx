@@ -257,16 +257,25 @@ web-session and non-interactive-login variables are listed in
 
 #### Security-key login
 
-Security-key authentication is an opt-in macOS source build. Install libfido2
-**1.14 or newer**, pkg-config, and a C compiler; the native libraries must remain
-installed at runtime. Official release packaging is unchanged.
+macOS release builds bundle the native security-key libraries for Intel and
+Apple Silicon, so no separate libfido2 installation is needed. macOS 13.0 or
+newer is required.
+
+```bash
+asc web auth login --apple-id "user@example.com" --two-factor-method security-key
+```
+
+For a macOS source build, install libfido2 **1.14 or newer**, pkg-config, and a
+C compiler. These developer builds use the installed libraries at runtime:
 
 ```bash
 brew install libfido2 pkg-config
-pkg-config --atleast-version=1.14.0 libfido2
 CGO_ENABLED=1 go build -tags fido2 -o build/asc-security-key .
-./build/asc-security-key web auth login --apple-id "user@example.com" --two-factor-method security-key
 ```
+
+Release builds instead compile checksum-pinned native dependencies into each
+binary. Their license texts are available through
+`asc docs show third-party-notices`.
 
 Connect exactly one registered USB FIDO2 key. Key mode checks that one usable
 FIDO2 device is attached before sending the password; physical touch or approval

@@ -1,0 +1,63 @@
+name: Native macOS release packages
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/macos-packages.yml'
+      - '.github/workflows/release.yml'
+      - 'internal/securitykey/**'
+      - 'scripts/build_fido2_deps.py'
+      - 'scripts/build_release_macos.sh'
+      - 'scripts/fido2-deps.json'
+      - 'scripts/test_build_macos_release.py'
+      - 'docs/THIRD_PARTY_NOTICES.md'
+      - 'docs/embed.go'
+      - 'Makefile'
+      - 'go.mod'
+      - 'go.sum'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/macos-packages.yml'
+      - '.github/workflows/release.yml'
+      - 'internal/securitykey/**'
+      - 'scripts/build_fido2_deps.py'
+      - 'scripts/build_release_macos.sh'
+      - 'scripts/fido2-deps.json'
+      - 'scripts/test_build_macos_release.py'
+      - 'docs/THIRD_PARTY_NOTICES.md'
+      - 'docs/embed.go'
+      - 'Makefile'
+      - 'go.mod'
+      - 'go.sum'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Self-contained macOS packages
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      ASC_BYPASS_KEYCHAIN: '1'
+      GOMAXPROCS: '3'
+      VERSION: '0.0.0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install build tools
+        run: brew install cmake pkg-config
+      - name: Check package orchestration and rejection paths
+        run: python3 scripts/test_build_macos_release.py
+      - name: Build and qualify macOS release packages
+        run: sh scripts/build_release_macos.sh

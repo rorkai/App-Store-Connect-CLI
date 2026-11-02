@@ -120,7 +120,7 @@ func (c *Client) SetAppBundleApps(ctx context.Context, bundleID string, appIDs [
 	})
 	if len(newIDs) > 0 || len(appIDs) != len(currentIDs) {
 		switch current.StateKey {
-		case "readyForSale", "developerRemovedFromSale":
+		case "readyForSale", "developerRemovedFromSale", "removedFromSale", "pendingContract":
 			return nil, fmt.Errorf("app bundle is %s; Apple only allows reordering its apps", current.StateKey)
 		}
 	}
