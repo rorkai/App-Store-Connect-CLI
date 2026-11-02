@@ -2,12 +2,15 @@ package cmdtest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -297,5 +300,86 @@ func TestOfferCodesValuesRejectsInvalidFormat(t *testing.T) {
 				t.Fatalf("expected format error, got %q", stderr)
 			}
 		})
+	}
+}
+
+// TestOfferCodeBatchUpdatesSendActive guards the path that turns codes off:
+// each command must PATCH its own resource and send false, not drop it.
+func TestOfferCodeBatchUpdatesSendActive(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	commands := []struct {
+		name         string
+		args         []string
+		resourceType string
+	}{
+		{
+			name:         "subscription one-time codes",
+			args:         []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--batch-id", "code-1"},
+			resourceType: "subscriptionOfferCodeOneTimeUseCodes",
+		},
+		{
+			name:         "iap custom codes",
+			args:         []string{"iap", "offer-codes", "custom-codes", "update", "--custom-code-id", "code-1"},
+			resourceType: "inAppPurchaseOfferCodeCustomCodes",
+		},
+		{
+			name:         "iap one-time codes",
+			args:         []string{"iap", "offer-codes", "one-time-codes", "update", "--one-time-code-id", "code-1"},
+			resourceType: "inAppPurchaseOfferCodeOneTimeUseCodes",
+		},
+	}
+
+	for _, command := range commands {
+		for _, active := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s active=%t", command.name, active), func(t *testing.T) {
+				wantBody := map[string]any{"data": map[string]any{
+					"type":       command.resourceType,
+					"id":         "code-1",
+					"attributes": map[string]any{"active": active},
+				}}
+				requests := 0
+				http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					requests++
+					if req.Method != http.MethodPatch {
+						t.Fatalf("expected PATCH, got %s", req.Method)
+					}
+					if wantPath := "/v1/" + command.resourceType + "/code-1"; req.URL.Path != wantPath {
+						t.Fatalf("expected path %s, got %s", wantPath, req.URL.Path)
+					}
+					var gotBody map[string]any
+					if err := json.NewDecoder(req.Body).Decode(&gotBody); err != nil {
+						t.Fatalf("decode request body: %v", err)
+					}
+					if !reflect.DeepEqual(gotBody, wantBody) {
+						t.Fatalf("request body = %v, want %v", gotBody, wantBody)
+					}
+					body := fmt.Sprintf(`{"data":{"type":%q,"id":"code-1","attributes":{"active":%t}}}`, command.resourceType, active)
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(body)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				})
+
+				args := append(append([]string{}, command.args...), "--active", fmt.Sprint(active), "--output", "json")
+				stdout, _, err := runCommand(t, args)
+				if err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+				if requests != 1 {
+					t.Fatalf("expected 1 request, got %d", requests)
+				}
+				if !strings.Contains(stdout, `"id":"code-1"`) {
+					t.Fatalf("expected updated resource in stdout, got %q", stdout)
+				}
+			})
+		}
 	}
 }

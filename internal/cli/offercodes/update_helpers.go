@@ -13,7 +13,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-type activeUpdateCommandConfig struct {
+// ActiveUpdateCommandConfig describes a command that sets a resource's active attribute.
+type ActiveUpdateCommandConfig struct {
 	FlagSetName string
 	Name        string
 	ShortUsage  string
@@ -26,7 +27,8 @@ type activeUpdateCommandConfig struct {
 	Update      func(context.Context, *asc.Client, string, *bool) (any, error)
 }
 
-func newActiveUpdateCommand(config activeUpdateCommandConfig) *ffcli.Command {
+// NewActiveUpdateCommand builds a command that updates a resource's active attribute.
+func NewActiveUpdateCommand(config ActiveUpdateCommandConfig) *ffcli.Command {
 	fs := flag.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, config.IDFlag, config.IDType, config.IDUsage)
@@ -49,7 +51,7 @@ func newActiveUpdateCommand(config activeUpdateCommandConfig) *ffcli.Command {
 
 			activeValue, err := shared.ParseOptionalBoolFlag("--active", *active)
 			if err != nil {
-				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+				return shared.UsageErrorfCtx(ctx, "%s: %v", config.ErrorPrefix, err)
 			}
 			if activeValue == nil {
 				fmt.Fprintln(os.Stderr, "Error: --active is required")

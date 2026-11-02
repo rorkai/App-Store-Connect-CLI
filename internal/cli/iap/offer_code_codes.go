@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/offercodes"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -26,13 +27,15 @@ func IAPOfferCodesCustomCodesCommand() *ffcli.Command {
 Examples:
   asc iap offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID"
   asc iap offer-codes custom-codes view --custom-code-id "CUSTOM_CODE_ID"
-  asc iap offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --custom-code "SUMMER26" --quantity 100`,
+  asc iap offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --custom-code "SUMMER26" --quantity 100
+  asc iap offer-codes custom-codes update --custom-code-id "CUSTOM_CODE_ID" --active false`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPOfferCodesCustomCodesListCommand(),
 			IAPOfferCodesCustomCodesGetCommand(),
 			IAPOfferCodesCustomCodesCreateCommand(),
+			IAPOfferCodesCustomCodesUpdateCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -243,6 +246,27 @@ Examples:
 	}
 }
 
+// IAPOfferCodesCustomCodesUpdateCommand returns the custom codes update subcommand.
+func IAPOfferCodesCustomCodesUpdateCommand() *ffcli.Command {
+	return offercodes.NewActiveUpdateCommand(offercodes.ActiveUpdateCommandConfig{
+		FlagSetName: "offer-codes custom-codes update",
+		Name:        "update",
+		ShortUsage:  "asc iap offer-codes custom-codes update --custom-code-id \"CUSTOM_CODE_ID\" --active false",
+		ShortHelp:   "Turn a custom code on or off.",
+		LongHelp: `Turn a custom code on or off.
+
+Examples:
+  asc iap offer-codes custom-codes update --custom-code-id "CUSTOM_CODE_ID" --active false`,
+		IDFlag:      "custom-code-id",
+		IDUsage:     "Custom code ID (required)",
+		IDType:      "inAppPurchaseOfferCodeCustomCodes",
+		ErrorPrefix: "iap offer-codes custom-codes update",
+		Update: func(ctx context.Context, client *asc.Client, id string, active *bool) (any, error) {
+			return client.UpdateInAppPurchaseOfferCodeCustomCode(ctx, id, asc.InAppPurchaseOfferCodeCustomCodeUpdateAttributes{Active: active})
+		},
+	})
+}
+
 // IAPOfferCodesOneTimeCodesCommand returns the one-time codes command group.
 func IAPOfferCodesOneTimeCodesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes one-time-codes", flag.ExitOnError)
@@ -257,6 +281,7 @@ Examples:
   asc iap offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
   asc iap offer-codes one-time-codes view --one-time-code-id "ONE_TIME_USE_CODE_ID"
   asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 100 --expiration-date "2026-12-31"
+  asc iap offer-codes one-time-codes update --one-time-code-id "ONE_TIME_USE_CODE_ID" --active false
   asc iap offer-codes one-time-codes values --one-time-code-id "ONE_TIME_USE_CODE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -264,6 +289,7 @@ Examples:
 			IAPOfferCodesOneTimeCodesListCommand(),
 			IAPOfferCodesOneTimeCodesGetCommand(),
 			IAPOfferCodesOneTimeCodesCreateCommand(),
+			IAPOfferCodesOneTimeCodesUpdateCommand(),
 			IAPOfferCodesOneTimeCodesValuesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -469,6 +495,27 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// IAPOfferCodesOneTimeCodesUpdateCommand returns the one-time codes update subcommand.
+func IAPOfferCodesOneTimeCodesUpdateCommand() *ffcli.Command {
+	return offercodes.NewActiveUpdateCommand(offercodes.ActiveUpdateCommandConfig{
+		FlagSetName: "offer-codes one-time-codes update",
+		Name:        "update",
+		ShortUsage:  "asc iap offer-codes one-time-codes update --one-time-code-id \"ONE_TIME_USE_CODE_ID\" --active false",
+		ShortHelp:   "Turn a one-time use code batch on or off.",
+		LongHelp: `Turn a one-time use code batch on or off.
+
+Examples:
+  asc iap offer-codes one-time-codes update --one-time-code-id "ONE_TIME_USE_CODE_ID" --active false`,
+		IDFlag:      "one-time-code-id",
+		IDUsage:     "One-time use code batch ID (required)",
+		IDType:      "inAppPurchaseOfferCodeOneTimeUseCodes",
+		ErrorPrefix: "iap offer-codes one-time-codes update",
+		Update: func(ctx context.Context, client *asc.Client, id string, active *bool) (any, error) {
+			return client.UpdateInAppPurchaseOfferCodeOneTimeUseCode(ctx, id, asc.InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes{Active: active})
+		},
+	})
 }
 
 func normalizeIAPOfferCodeEnvironment(value string) (string, error) {
