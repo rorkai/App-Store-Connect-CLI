@@ -1244,11 +1244,17 @@ func TestSigningRunLegacyImportDoesNotExpandChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	directory := t.TempDir()
+	directory, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	issuerKeychain := filepath.Join(directory, "issuer.keychain-db")
 	keychain := filepath.Join(directory, "identity.keychain-db")
 	issuer := filepath.Join(directory, "issuer.cer")
 	t.Cleanup(func() {
+		if err := setKeychainSearchList(ctx, before); err != nil {
+			t.Errorf("restore keychain search list: %v", err)
+		}
 		for _, path := range []string{keychain, issuerKeychain} {
 			if err := deleteSigningRunKeychain(ctx, path); err != nil {
 				t.Error(err)
@@ -1259,10 +1265,12 @@ func TestSigningRunLegacyImportDoesNotExpandChain(t *testing.T) {
 			t.Errorf("keychain search list changed: before=%v after=%v error=%v", before, after, err)
 		}
 	})
-	for _, path := range []string{issuerKeychain, keychain} {
-		if _, err := createPersistentSigningKeychain(ctx, path, []byte("disposable-keychain-password")); err != nil {
-			t.Fatal(err)
-		}
+	keychainPassword := []byte("disposable-keychain-password")
+	if _, err := createPersistentSigningKeychain(ctx, issuerKeychain, keychainPassword); err != nil {
+		t.Fatal(err)
+	}
+	if err := createSigningRunKeychain(ctx, keychain, keychainPassword); err != nil {
+		t.Fatal(err)
 	}
 	if err := os.WriteFile(issuer, fixture.trustAnchor, 0o600); err != nil {
 		t.Fatal(err)
@@ -1282,7 +1290,13 @@ func TestSigningRunLegacyImportDoesNotExpandChain(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := importLegacyPKCS12WithSecurityFramework(keychain, fixture.identity, []byte(fixture.password)); err != nil {
+	// Use signing run's own importer so this also guards its routing. Its final
+	// codesign probe depends on trust for the synthetic issuer, which is not under
+	// test. The timeout keeps a terminal password prompt from outliving cleanup.
+	importCtx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	err = importSigningRunIdentity(importCtx, keychain, keychainPassword, fixture.identity, []byte(fixture.password), identity.CertificateSHA1)
+	if err != nil && !strings.HasPrefix(err.Error(), "verify imported signing identity") {
 		t.Fatal(err)
 	}
 	stdout, stderr, err := runSigningUtility(ctx, nil, "find-certificate", "-a", "-Z", keychain)
@@ -1290,6 +1304,6 @@ func TestSigningRunLegacyImportDoesNotExpandChain(t *testing.T) {
 		t.Fatal(utilityFailure("read imported certificates", stderr, err))
 	}
 	if fingerprints := parseSigningRunCertificateFingerprints(stdout); !reflect.DeepEqual(fingerprints, []string{identity.CertificateSHA1}) {
-		t.Fatalf("legacy import expanded the certificate chain: %v", fingerprints)
+		t.Fatalf("signing run import expanded the certificate chain: %v", fingerprints)
 	}
 }
