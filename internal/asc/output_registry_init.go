@@ -482,6 +482,19 @@ func registerAllOutputRenderers() {
 		}
 		return nil
 	})
+	registerDirect(func(v *ExperimentTreatmentLocalizationPreviewUploadResult, render func([]string, [][]string)) error {
+		h, r := experimentTreatmentLocalizationPreviewUploadResultMainRows(v)
+		render(h, r)
+		if len(v.Results) > 0 {
+			ih, ir := assetUploadResultItemRows(v.Results)
+			render(ih, ir)
+		}
+		if len(v.Failures) > 0 {
+			fh, fr := assetUploadFailureItemRows(v.Failures)
+			render(fh, fr)
+		}
+		return nil
+	})
 	registerRows(appClipAdvancedExperienceImageUploadResultRows)
 	registerRows(appClipHeaderImageUploadResultRows)
 	registerRows(assetDeleteResultRows)
