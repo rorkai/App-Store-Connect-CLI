@@ -98,11 +98,12 @@ Placement reads, creation, swaps, and deletion are available under four command 
 | Product page optimization treatment localization | `asc product-pages experiments treatments localizations placements` |
 | In-App Event localization | `asc app-events localizations placements` |
 
-Use the localization ID for the selected context, not its parent page, treatment, event, or version ID.
+Use the localization ID for the selected context, not its parent page, treatment, event, or version ID. `view` is the exception: it reads one placement by `--id` and accepts `--include` and `--fields`, printing Apple's full envelope in JSON. Because Apple's endpoint has no localization parent, it does not check which localization owns the placement.
 
 ```bash theme={null}
 asc localizations placements list --localization-id LOCALIZATION_ID \
   --include image,video --sort placementGroupPosition --paginate
+asc localizations placements view --id PLACEMENT_ID --include image,video
 asc localizations placements create --localization-id LOCALIZATION_ID \
   --image-id IMAGE_ID --placement-type PRODUCT_PAGE_HEADER_ASSET
 asc localizations placements create --localization-id LOCALIZATION_ID \

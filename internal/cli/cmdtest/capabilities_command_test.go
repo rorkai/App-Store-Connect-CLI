@@ -73,6 +73,7 @@ func TestRun_CapabilitiesJSONReportsKnownGaps(t *testing.T) {
 	}
 	for _, command := range []string{
 		"asc localizations placements list",
+		"asc localizations placements view",
 		"asc localizations placements reorder",
 		"asc localizations placements swap --confirm",
 		"asc product-pages custom-pages localizations placements",
