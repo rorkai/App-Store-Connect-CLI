@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
 func TestConfigurePersistentSigningKeychainLeavesCleanupToCaller(t *testing.T) {
@@ -80,7 +82,12 @@ func TestSigningKeychainInstallLiveDedicatedKeychain(t *testing.T) {
 	if deps.GOOS != "darwin" || !deps.SecurityAvailable {
 		t.Skip("requires a cgo-enabled macOS build")
 	}
+	t.Run("legacy", func(t *testing.T) { testSigningKeychainInstallLive(t, deps, false) })
+	t.Run("modern", func(t *testing.T) { testSigningKeychainInstallLive(t, deps, true) })
+}
 
+func testSigningKeychainInstallLive(t *testing.T, deps signingKeychainInstallDeps, modern bool) {
+	t.Helper()
 	before, err := deps.KeychainSearchList(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -92,6 +99,12 @@ func TestSigningKeychainInstallLiveDedicatedKeychain(t *testing.T) {
 	}
 	if identity.Certificate == nil || identity.Certificate.IsCA || identity.Certificate.KeyUsage&x509.KeyUsageDigitalSignature == 0 || !slices.Contains(identity.Certificate.ExtKeyUsage, x509.ExtKeyUsageCodeSigning) {
 		t.Fatalf("fixture certificate is not a code-signing leaf: %+v", identity.Certificate)
+	}
+	if modern {
+		fixture.identity, err = modernpkcs12.Modern2023.Encode(identity.PrivateKey, identity.Certificate, nil, fixture.password)
+		if err != nil {
+			t.Fatalf("encode modern PKCS#12 identity: %v", err)
+		}
 	}
 
 	directory := t.TempDir()
@@ -124,6 +137,9 @@ func TestSigningKeychainInstallLiveDedicatedKeychain(t *testing.T) {
 		return createPersistentSigningKeychain(ctx, path, password)
 	}
 	importIdentity := func(ctx context.Context, path string, keychainPassword, identityData, identityPassword []byte, expectedSHA1 string) error {
+		if err := importPKCS12WithSecurityFramework(path, identityData, []byte("incorrect-password")); err == nil {
+			return errors.New("native PKCS#12 import accepted an incorrect password")
+		}
 		if len(fixture.trustAnchor) > 0 {
 			_, stderr, err := runSigningUtility(ctx, nil, "import", trustAnchorPath, "-k", path, "-T", "/usr/bin/codesign")
 			if err != nil {

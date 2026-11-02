@@ -1137,7 +1137,7 @@ Read the plan blockers. Common causes include multiple eligible certificates, an
 
 ### Expired or missing WWDR intermediate
 
-Apple issues developer certificates under a Worldwide Developer Relations (WWDR) intermediate. If that intermediate is expired or missing from the System keychain, `codesign` can reject a pulled identity that is otherwise valid. Eligible Xcode versions install current WWDR intermediates automatically; otherwise download them from the [Apple PKI](https://www.apple.com/certificateauthority/) page and install them into `/Library/Keychains/System.keychain`. `asc` does not fetch or install WWDR intermediates.
+Apple issues developer certificates under a Worldwide Developer Relations (WWDR) intermediate. If that intermediate is expired or missing from the System keychain, `codesign` can reject a pulled identity that is otherwise valid. Eligible Xcode versions install current WWDR intermediates automatically; otherwise download them from the [Apple PKI](https://www.apple.com/certificateauthority/) page and install them into `/Library/Keychains/System.keychain`. `asc` does not install WWDR intermediates into the System keychain, though `signing keychain install` can copy certificates from an identity's chain into its dedicated keychain.
 
 ### Identity is present but `codesign` cannot see it
 
