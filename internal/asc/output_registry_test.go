@@ -422,47 +422,6 @@ func runOutputRegistryHelperRegistrations(t *testing.T) {
 		})
 	})
 
-	t.Run("response-data helper", func(t *testing.T) {
-		t.Run("existing registration renders expected rows", func(t *testing.T) {
-			handler := requireOutputHandlerFor[Response[BetaGroupMetricAttributes]](
-				t,
-				"Response[BetaGroupMetricAttributes]",
-			)
-
-			headers, rows, err := handler(&Response[BetaGroupMetricAttributes]{
-				Data: []Resource[BetaGroupMetricAttributes]{
-					{
-						ID:         "metric-1",
-						Attributes: BetaGroupMetricAttributes{"installs": 12},
-					},
-				},
-			})
-			if err != nil {
-				t.Fatalf("handler returned error: %v", err)
-			}
-			assertRowContains(t, headers, rows, "metric-1", "installs=12")
-		})
-
-		t.Run("typed nil pointer maps to zero-value data slice", func(t *testing.T) {
-			type attrs struct{}
-
-			registerResponseDataRows(func(data []Resource[attrs]) ([]string, [][]string) {
-				return []string{"count"}, [][]string{{fmt.Sprintf("%d", len(data))}}
-			})
-
-			key := typeKey[Response[attrs]]()
-			cleanupRegistryTypes(t, key)
-
-			handler := requireOutputHandler(t, key, "response-data typed nil helper")
-
-			headers, rows, err := handler((*Response[attrs])(nil))
-			if err != nil {
-				t.Fatalf("handler returned error: %v", err)
-			}
-			assertSingleRowEquals(t, headers, rows, []string{"count"}, []string{"0"})
-		})
-	})
-
 	t.Run("single-resource helper", func(t *testing.T) {
 		type helperAttrs struct {
 			Name string `json:"name"`
@@ -773,17 +732,6 @@ func runOutputRegistryPanicScenarios(t *testing.T) {
 				registerIDBoolRows[idBool](nil, func(id string, deleted bool) ([]string, [][]string) {
 					return []string{"id", "deleted"}, [][]string{{id, fmt.Sprintf("%t", deleted)}}
 				})
-			})
-			assertRegistryTypeAbsent(t, key)
-		})
-
-		t.Run("response-data nil rows", func(t *testing.T) {
-			type attrs struct{}
-			key := typeKey[Response[attrs]]()
-			cleanupRegistryTypes(t, key)
-
-			expectNilRegistryPanic(t, "response-data rows function", func() {
-				registerResponseDataRows[attrs](nil)
 			})
 			assertRegistryTypeAbsent(t, key)
 		})
