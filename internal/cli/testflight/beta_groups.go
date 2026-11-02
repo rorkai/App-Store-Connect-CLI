@@ -60,64 +60,6 @@ var betaGroupFieldsValues = []string{
 	"betaRecruitmentCriterionCompatibleBuildCheck",
 }
 
-var betaGroupAppFieldsValues = []string{
-	"accessibilityUrl",
-	"name",
-	"bundleId",
-	"sku",
-	"primaryLocale",
-	"isOrEverWasMadeForKids",
-	"subscriptionStatusUrl",
-	"subscriptionStatusUrlVersion",
-	"subscriptionStatusUrlForSandbox",
-	"subscriptionStatusUrlVersionForSandbox",
-	"contentRightsDeclaration",
-	"streamlinedPurchasingEnabled",
-	"accessibilityDeclarations",
-	"appEncryptionDeclarations",
-	"appStoreIcon",
-	"ciProduct",
-	"betaTesters",
-	"betaGroups",
-	"appStoreVersions",
-	"appTags",
-	"preReleaseVersions",
-	"betaAppLocalizations",
-	"builds",
-	"betaLicenseAgreement",
-	"betaAppReviewDetail",
-	"appInfos",
-	"appClips",
-	"appPricePoints",
-	"endUserLicenseAgreement",
-	"appPriceSchedule",
-	"appAvailabilityV2",
-	"inAppPurchases",
-	"subscriptionGroups",
-	"gameCenterEnabledVersions",
-	"perfPowerMetrics",
-	"appCustomProductPages",
-	"inAppPurchasesV2",
-	"promotedPurchases",
-	"appEvents",
-	"reviewSubmissions",
-	"subscriptionGracePeriod",
-	"customerReviews",
-	"customerReviewSummarizations",
-	"gameCenterDetail",
-	"appStoreVersionExperimentsV2",
-	"alternativeDistributionKey",
-	"analyticsReportRequests",
-	"marketplaceSearchDetail",
-	"buildUploads",
-	"backgroundAssets",
-	"betaFeedbackScreenshotSubmissions",
-	"betaFeedbackCrashSubmissions",
-	"searchKeywords",
-	"webhooks",
-	"androidToIosAppMappingDetails",
-}
-
 var betaGroupBuildFieldsValues = []string{
 	"version",
 	"uploadedDate",
@@ -504,7 +446,7 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			appFieldsValue, err := parseBetaGroupsListFields("--app-fields", *appFields, appFieldsSet, betaGroupAppFieldsValues)
+			appFieldsValue, err := parseBetaGroupsListFields("--app-fields", *appFields, appFieldsSet, shared.AppFieldsList())
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}

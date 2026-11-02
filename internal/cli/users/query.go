@@ -7,7 +7,7 @@ func normalizeUsersFields(value, flagName string) ([]string, error) {
 }
 
 func normalizeUsersAppFields(value, flagName string) ([]string, error) {
-	return shared.NormalizeSelection(value, usersAppFieldsList(), flagName)
+	return shared.NormalizeSelection(value, shared.AppFieldsList(), flagName)
 }
 
 func normalizeUsersSort(value, flagName string) ([]string, error) {
@@ -27,65 +27,5 @@ func usersFieldsList() []string {
 		"allAppsVisible",
 		"provisioningAllowed",
 		"visibleApps",
-	}
-}
-
-func usersAppFieldsList() []string {
-	return []string{
-		"accessibilityUrl",
-		"name",
-		"bundleId",
-		"sku",
-		"primaryLocale",
-		"isOrEverWasMadeForKids",
-		"subscriptionStatusUrl",
-		"subscriptionStatusUrlVersion",
-		"subscriptionStatusUrlForSandbox",
-		"subscriptionStatusUrlVersionForSandbox",
-		"contentRightsDeclaration",
-		"streamlinedPurchasingEnabled",
-		"accessibilityDeclarations",
-		"appEncryptionDeclarations",
-		"appStoreIcon",
-		"ciProduct",
-		"betaTesters",
-		"betaGroups",
-		"appStoreVersions",
-		"appTags",
-		"preReleaseVersions",
-		"betaAppLocalizations",
-		"builds",
-		"betaLicenseAgreement",
-		"betaAppReviewDetail",
-		"appInfos",
-		"appClips",
-		"appPricePoints",
-		"endUserLicenseAgreement",
-		"appPriceSchedule",
-		"appAvailabilityV2",
-		"inAppPurchases",
-		"subscriptionGroups",
-		"gameCenterEnabledVersions",
-		"perfPowerMetrics",
-		"appCustomProductPages",
-		"inAppPurchasesV2",
-		"promotedPurchases",
-		"appEvents",
-		"reviewSubmissions",
-		"subscriptionGracePeriod",
-		"customerReviews",
-		"customerReviewSummarizations",
-		"gameCenterDetail",
-		"appStoreVersionExperimentsV2",
-		"alternativeDistributionKey",
-		"analyticsReportRequests",
-		"marketplaceSearchDetail",
-		"buildUploads",
-		"backgroundAssets",
-		"betaFeedbackScreenshotSubmissions",
-		"betaFeedbackCrashSubmissions",
-		"searchKeywords",
-		"webhooks",
-		"androidToIosAppMappingDetails",
 	}
 }

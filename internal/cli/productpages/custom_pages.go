@@ -122,7 +122,7 @@ Examples:
 			if err != nil {
 				return shared.UsageError("custom-pages list: " + err.Error())
 			}
-			appFieldValues, err := shared.NormalizeSelection(*appFields, customPagesAppFields, "--app-fields")
+			appFieldValues, err := shared.NormalizeSelection(*appFields, shared.AppFieldsList(), "--app-fields")
 			if err != nil {
 				return shared.UsageError("custom-pages list: " + err.Error())
 			}
@@ -222,7 +222,6 @@ const customPagesMaxVersionsLimit = 50
 
 var (
 	customPagesFields        = []string{"name", "url", "visible", "app", "appCustomProductPageVersions"}
-	customPagesAppFields     = []string{"accessibilityUrl", "name", "bundleId", "sku", "primaryLocale", "isOrEverWasMadeForKids", "subscriptionStatusUrl", "subscriptionStatusUrlVersion", "subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox", "contentRightsDeclaration", "streamlinedPurchasingEnabled", "accessibilityDeclarations", "appEncryptionDeclarations", "appStoreIcon", "ciProduct", "betaTesters", "betaGroups", "appStoreVersions", "appTags", "preReleaseVersions", "betaAppLocalizations", "builds", "betaLicenseAgreement", "betaAppReviewDetail", "appInfos", "appClips", "appPricePoints", "endUserLicenseAgreement", "appPriceSchedule", "appAvailabilityV2", "inAppPurchases", "subscriptionGroups", "gameCenterEnabledVersions", "perfPowerMetrics", "appCustomProductPages", "inAppPurchasesV2", "promotedPurchases", "appEvents", "reviewSubmissions", "subscriptionGracePeriod", "customerReviews", "customerReviewSummarizations", "gameCenterDetail", "appStoreVersionExperimentsV2", "alternativeDistributionKey", "analyticsReportRequests", "marketplaceSearchDetail", "buildUploads", "backgroundAssets", "betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "searchKeywords", "webhooks", "androidToIosAppMappingDetails"}
 	customPagesVersionFields = []string{"version", "state", "deepLink", "appCustomProductPage", "appCustomProductPageLocalizations"}
 	customPagesIncludes      = []string{"app", "appCustomProductPageVersions"}
 )
