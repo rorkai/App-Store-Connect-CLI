@@ -91,6 +91,7 @@ func TestNextRejectsIgnoredQueryFlags(t *testing.T) {
 		{"localizations list", "locale", "en-US"},
 		{"merchant-ids certificates list", "display-name", "Cert"},
 		{"nominations list", "status", "DRAFT"},
+		{"nominations list", "has-in-app-events", "false"},
 		{"pass-type-ids certificates list", "serial-number", "SERIAL"},
 		{"performance diagnostics list --build-id BUILD_ID", "diagnostic-type", "HANGS"},
 		{"pricing price-points", "territory", "USA"},

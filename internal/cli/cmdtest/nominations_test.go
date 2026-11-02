@@ -5,9 +5,13 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net/http"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestNominationsValidationErrors(t *testing.T) {
@@ -111,6 +115,93 @@ func TestNominationsValidationErrors(t *testing.T) {
 			}
 			if !strings.Contains(stderr, test.wantErr) {
 				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+// TestNominationsListHasInAppEventsQuery pins the raw query so false stays on
+// the wire, the "--flag false" spelling is not read as bare true, and leaving
+// the flag out adds nothing to the request.
+func TestNominationsListHasInAppEventsQuery(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	tests := []struct {
+		name      string
+		args      []string
+		wantQuery string
+	}{
+		{name: "true", args: []string{"--has-in-app-events", "true"}, wantQuery: "filter%5BhasInAppEvents%5D=true&filter%5Bstate%5D=DRAFT"},
+		{name: "false as separate value", args: []string{"--has-in-app-events", "false"}, wantQuery: "filter%5BhasInAppEvents%5D=false&filter%5Bstate%5D=DRAFT"},
+		{name: "false with equals", args: []string{"--has-in-app-events=false"}, wantQuery: "filter%5BhasInAppEvents%5D=false&filter%5Bstate%5D=DRAFT"},
+		{name: "omitted", wantQuery: "filter%5Bstate%5D=DRAFT"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var requests atomic.Int64
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests.Add(1)
+				if req.Method != http.MethodGet || req.URL.Path != "/v1/nominations" {
+					t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+				}
+				if req.URL.RawQuery != test.wantQuery {
+					t.Errorf("query = %q, want %q", req.URL.RawQuery, test.wantQuery)
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(`{"data":[],"links":{}}`)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}))
+
+			var code int
+			_, stderr := captureOutput(t, func() {
+				code = rootcmd.Run(append([]string{"nominations", "list", "--status", "DRAFT"}, test.args...), "1.2.3")
+			})
+			if code != rootcmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d; stderr = %q", code, rootcmd.ExitSuccess, stderr)
+			}
+			if got := requests.Load(); got != 1 {
+				t.Fatalf("requests = %d, want 1", got)
+			}
+		})
+	}
+}
+
+// TestNominationsListHasInAppEventsRejectsInvalidValues keeps a bad or missing
+// value a usage error rather than an unfiltered list.
+func TestNominationsListHasInAppEventsRejectsInvalidValues(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{name: "not a boolean", args: []string{"--has-in-app-events", "maybe"}, wantErr: `invalid value "maybe" for flag -has-in-app-events: must be true or false`},
+		{name: "empty", args: []string{"--has-in-app-events="}, wantErr: `invalid value "" for flag -has-in-app-events: must be true or false`},
+		{name: "no value", args: []string{"--has-in-app-events"}, wantErr: "flag needs an argument: -has-in-app-events"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Errorf("unexpected request: %s %s", req.Method, req.URL)
+				return nil, errors.New("unexpected request")
+			}))
+
+			var code int
+			_, stderr := captureOutput(t, func() {
+				code = rootcmd.Run(append([]string{"nominations", "list", "--status", "DRAFT"}, test.args...), "1.2.3")
+			})
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d; stderr = %q", code, rootcmd.ExitUsage, stderr)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantErr)
 			}
 		})
 	}

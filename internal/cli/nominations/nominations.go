@@ -52,6 +52,8 @@ func NominationsListCommand() *ffcli.Command {
 	appIDs := fs.String("app", "", "Filter by related app ID(s), comma-separated")
 	status := fs.String("status", "", "Filter by status/state(s), comma-separated: "+strings.Join(nominationStateList(), ", "))
 	nomType := fs.String("type", "", "Filter by type(s), comma-separated: "+strings.Join(nominationTypeList(), ", "))
+	var hasInAppEvents shared.OptionalBool
+	fs.Var(&hasInAppEvents, "has-in-app-events", "Filter by whether the nomination has in-app events (true/false)")
 	sort := fs.String("sort", "", "Sort by: "+strings.Join(nominationSortList(), ", "))
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(nominationFieldsList(), ", "))
 	include := fs.String("include", "", "Include related resources: "+strings.Join(nominationIncludeList(), ", "))
@@ -72,6 +74,7 @@ func NominationsListCommand() *ffcli.Command {
 Examples:
   asc nominations list --status DRAFT
   asc nominations list --status DRAFT --type APP_LAUNCH
+  asc nominations list --status DRAFT --has-in-app-events false
   asc nominations list --app "APP_ID" --status SUBMITTED --output table
   asc nominations list --status DRAFT --include relatedApps --related-apps-limit 10`,
 		FlagSet:   fs,
@@ -83,7 +86,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("nominations list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "nominations list", "app", "status", "type", "sort", "fields", "include", "in-app-events-limit", "related-apps-limit", "supported-territories-limit"); err != nil {
+			if err := shared.RejectNextFlagConflicts(fs, *next, "nominations list", "app", "status", "type", "has-in-app-events", "sort", "fields", "include", "in-app-events-limit", "related-apps-limit", "supported-territories-limit"); err != nil {
 				return err
 			}
 			if err := shared.ValidateSort(*sort, nominationSortList()...); err != nil {
@@ -150,6 +153,9 @@ Examples:
 				asc.WithNominationsRelatedApps(shared.SplitCSV(*appIDs)),
 				asc.WithNominationsLimit(*limit),
 				asc.WithNominationsNextURL(*next),
+			}
+			if hasInAppEvents.IsSet() {
+				opts = append(opts, asc.WithNominationsHasInAppEvents(hasInAppEvents.Value()))
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithNominationsSort(*sort))

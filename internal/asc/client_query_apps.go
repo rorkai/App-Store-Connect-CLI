@@ -67,6 +67,7 @@ type nominationsQuery struct {
 	types                     []string
 	states                    []string
 	relatedApps               []string
+	hasInAppEvents            *bool
 	sort                      string
 	fields                    []string
 	include                   []string
@@ -187,6 +188,9 @@ func buildNominationsQuery(query *nominationsQuery) string {
 	addCSV(values, "filter[type]", query.types)
 	addCSV(values, "filter[state]", query.states)
 	addCSV(values, "filter[relatedApps]", query.relatedApps)
+	if query.hasInAppEvents != nil {
+		values.Set("filter[hasInAppEvents]", strconv.FormatBool(*query.hasInAppEvents))
+	}
 	if query.sort != "" {
 		values.Set("sort", query.sort)
 	}
@@ -766,6 +770,13 @@ func WithNominationsStates(states []string) NominationsOption {
 func WithNominationsRelatedApps(appIDs []string) NominationsOption {
 	return func(q *nominationsQuery) {
 		q.relatedApps = normalizeList(appIDs)
+	}
+}
+
+// WithNominationsHasInAppEvents filters nominations by whether they have in-app events.
+func WithNominationsHasInAppEvents(hasInAppEvents bool) NominationsOption {
+	return func(q *nominationsQuery) {
+		q.hasInAppEvents = &hasInAppEvents
 	}
 }
 
