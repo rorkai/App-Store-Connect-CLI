@@ -18,6 +18,7 @@ type BackgroundAssetVersionStateDetails struct {
 // BackgroundAssetVersionAttributes describes a background asset version.
 type BackgroundAssetVersionAttributes struct {
 	CreatedDate  string                              `json:"createdDate,omitempty"`
+	Locale       string                              `json:"locale,omitempty"`
 	Platforms    []Platform                          `json:"platforms,omitempty"`
 	State        string                              `json:"state,omitempty"`
 	StateDetails *BackgroundAssetVersionStateDetails `json:"stateDetails,omitempty"`
