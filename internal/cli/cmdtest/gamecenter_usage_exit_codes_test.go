@@ -269,6 +269,26 @@ func TestGameCenterInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
+			name:    "activities images upload without a target",
+			args:    []string{"game-center", "activities", "images", "upload", "--file", "test.png"},
+			wantErr: "exactly one of --localization-id or --version-id is required",
+		},
+		{
+			name:    "activities images upload with both targets",
+			args:    []string{"game-center", "activities", "images", "upload", "--localization-id", "LOC_ID", "--version-id", "VERSION_ID", "--file", "test.png"},
+			wantErr: "exactly one of --localization-id or --version-id is required",
+		},
+		{
+			name:    "challenges images upload without a target",
+			args:    []string{"game-center", "challenges", "images", "upload", "--file", "test.png"},
+			wantErr: "exactly one of --localization-id or --version-id is required",
+		},
+		{
+			name:    "challenges images upload with both targets",
+			args:    []string{"game-center", "challenges", "images", "upload", "--localization-id", "LOC_ID", "--version-id", "VERSION_ID", "--file", "test.png"},
+			wantErr: "exactly one of --localization-id or --version-id is required",
+		},
+		{
 			name:    "matchmaking queues view without id",
 			args:    []string{"game-center", "matchmaking", "queues", "view"},
 			wantErr: "--id is required",
