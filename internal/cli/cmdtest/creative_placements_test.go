@@ -80,6 +80,38 @@ func TestCreativePlacementsUsage(t *testing.T) {
 	}
 }
 
+// Every placement read shares Apple's enums, so a value must reach the server
+// in any localization context rather than stop as a usage error.
+func TestCreativePlacementsListSendsAppleEnumValues(t *testing.T) {
+	for _, tc := range []struct{ name, command, resource, flag, value, query string }{
+		{"ad types", "localizations", "appStoreVersionLocalizations", "--placement-type", "SEARCH_RESULTS_ADS_ASSET,TODAY_TAB_ADS_ASSET", "filter%5BplacementType%5D=SEARCH_RESULTS_ADS_ASSET%2CTODAY_TAB_ADS_ASSET"},
+		{"retention type", "localizations", "appStoreVersionLocalizations", "--placement-type", "RETENTION_MESSAGE_ASSET", "filter%5BplacementType%5D=RETENTION_MESSAGE_ASSET"},
+		{"event type outside events", "localizations", "appStoreVersionLocalizations", "--placement-type", "EVENT_CARD_ASSET", "filter%5BplacementType%5D=EVENT_CARD_ASSET"},
+		{"store type on events", "app-events localizations", "appEventLocalizations", "--placement-type", "APP_SCREENSHOT", "filter%5BplacementType%5D=APP_SCREENSHOT"},
+		{"iMessage type on treatments", "product-pages experiments treatments localizations", "appStoreVersionExperimentTreatmentLocalizations", "--placement-type", "IMESSAGE_APP_SCREENSHOT", "filter%5BplacementType%5D=IMESSAGE_APP_SCREENSHOT"},
+		{"parent includes", "localizations", "appStoreVersionLocalizations", "--include", "appEventLocalization,appStoreVersionLocalization,appCustomProductPageLocalization,appStoreVersionExperimentTreatmentLocalization", "include=appEventLocalization%2CappStoreVersionLocalization%2CappCustomProductPageLocalization%2CappStoreVersionExperimentTreatmentLocalization"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupAuth(t)
+			original := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = original })
+			requests := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				if req.Method != "GET" || req.URL.Path != "/v1/"+tc.resource+"/loc/placements" || req.URL.RawQuery != tc.query {
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL)
+				}
+				return jsonResponse(200, `{"data":[]}`)
+			})
+			args := append(strings.Fields(tc.command), "placements", "list", "--localization-id", "loc", tc.flag, tc.value)
+			stdout, stderr, err := runCreativePlacements(t, args...)
+			if err != nil || stderr != "" || requests != 1 || !strings.Contains(stdout, `"data":[]`) {
+				t.Fatalf("requests=%d stdout=%s stderr=%s err=%v", requests, stdout, stderr, err)
+			}
+		})
+	}
+}
+
 func TestCreativePlacementsRejectOverLimitBeforeAuth(t *testing.T) {
 	for _, path := range [][]string{
 		{"localizations", "placements", "list"},
