@@ -1,0 +1,24 @@
+{
+  "sources": {
+    "openssl": {
+      "version": "3.5.9",
+      "url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",
+      "sha256": "603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a"
+    },
+    "libcbor": {
+      "version": "0.14.0",
+      "url": "https://github.com/PJK/libcbor/archive/refs/tags/v0.14.0.tar.gz",
+      "sha256": "a8c1516e741562cf95aa4479c64916c3d4d2623e24fdc35e414e2320e7300aae"
+    },
+    "zlib": {
+      "version": "1.3.2",
+      "url": "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz",
+      "sha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
+    },
+    "libfido2": {
+      "version": "1.17.0",
+      "url": "https://developers.yubico.com/libfido2/Releases/libfido2-1.17.0.tar.gz",
+      "sha256": "c1012c8871d71b65872fd5ff1a9d6b0838a55683a03e85ba97479ce57129c736"
+    }
+  }
+}
