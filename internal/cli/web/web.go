@@ -53,6 +53,7 @@ Examples:
 			WebSandboxCommand(),
 			WebAppsCommand(),
 			WebRemovedAppsCommand(),
+			WebAppBundlesCommand(),
 			WebBundleIDsCommand(),
 			WebServiceIDsCommand(),
 			WebSignInKeysCommand(),
