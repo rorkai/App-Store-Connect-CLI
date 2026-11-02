@@ -731,6 +731,23 @@ asc web removed-apps list
 asc web removed-apps list --paginate --output table
 ```
 
+### `asc web app-bundles`
+
+Inspect App Store app bundles, the sets of apps sold together. The public App
+Store Connect API has no app bundle resources.
+
+Available commands:
+
+* `asc web app-bundles list` - list bundles with their platforms and review status
+* `asc web app-bundles view` - view a bundle's status, sale state, and member apps in display order
+
+Example:
+
+```bash  theme={null}
+asc web app-bundles list --output table
+asc web app-bundles view --id "BUNDLE_ID" --output json
+```
+
 ### `asc web bundle-ids`
 
 Bundle ID operations that are only available through Apple web-session
