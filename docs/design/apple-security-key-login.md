@@ -5,12 +5,12 @@ The initial implementation adds explicit USB FIDO2 authentication to
 
 ## Local build and use
 
-Security-key support is an opt-in source build for macOS. Install
+macOS release builds include security-key support. For a developer source
+build, enable the backend explicitly. Install
 libfido2 **1.14 or newer**, pkg-config, and a C compiler for the host architecture.
 Version 1.14 is the minimum for the raw authenticator-data accessors Apple needs.
-The native libraries must remain installed when running the binary. Release
-binaries and their native dependency packaging are unchanged;
-this change does not bundle or enable libfido2 in official releases.
+The native libraries must remain installed when running a developer build.
+Official macOS binaries bundle them instead.
 
 On macOS:
 
@@ -110,5 +110,34 @@ Live PIN entry and YubiKey behavior have **not** been
 verified. Native builds and cancellation tests
 do not establish those hardware results.
 
-A fresh Ledger sign-in and Ctrl+C retest, plus the legacy code-flow comparison
-on `main`, remain pending after the routing/readiness changes.
+The owner retested the merged preflight behavior on Ledger Stax, including
+fresh approval, missing keys, removal during password entry, cancellation and
+retry, rejection and retry, and auto-mode guidance. These self-contained release
+artifacts still need a fresh Ledger smoke test after signing/notarization.
+
+
+## Native macOS release bundles
+
+Intel and Apple Silicon release binaries target macOS 13.0. libfido2, libcbor,
+OpenSSL crypto, and zlib are built as archives from checksum-pinned sources in
+`scripts/fido2-deps.json`. Only Apple system frameworks and libraries remain
+dynamically linked. The dependency builder requires Python 3.12 or newer for
+safe archive extraction; CI selects Python 3.14.
+
+`scripts/build_release_macos.sh` is shared by the release workflow, the native
+macOS package CI job, and `make build-native-macos`. Local packaging also needs
+Go, a C compiler, CMake, and pkg-config. The builder rejects non-system dylibs,
+a deployment target other than 13.0, and binaries missing the CGO FIDO2 backend.
+It runs backend availability/cancellation tests and the native binary's version
+and embedded-notices commands without accessing hardware. Packaging tests cover
+architecture/prefix/CGO/tag wiring, rejection of unbundled dependencies or a
+missing backend, failure propagation, and older-source workflow fallback.
+
+The existing release job subsequently signs and notarizes the binaries and
+assembles immutable release candidates. Existing asset names and Homebrew
+consumption remain unchanged. Older source refs without the helper retain their
+previous build path. The ordinary cross-build rehearsal remains untagged; the
+separate native macOS CI job qualifies the actual release builder.
+
+Dependency licenses are embedded in the `third-party-notices` guide so raw
+single-file downloads carry their notices. Normal commands do not print them.

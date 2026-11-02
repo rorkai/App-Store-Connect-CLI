@@ -18,13 +18,14 @@ func DocsShowCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "show",
-		ShortUsage: "asc docs show <api-notes|reference>",
+		ShortUsage: "asc docs show <guide>",
 		ShortHelp:  "Print an embedded documentation guide.",
 		LongHelp: `Print an embedded documentation guide.
 
 Examples:
   asc docs show api-notes
-  asc docs show reference`,
+  asc docs show reference
+  asc docs show third-party-notices`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
