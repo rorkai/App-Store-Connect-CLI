@@ -172,7 +172,7 @@ func TestCreateGameCenterLeaderboardSet(t *testing.T) {
 		VendorIdentifier: "com.example.monthly",
 	}
 
-	resp, err := client.CreateGameCenterLeaderboardSet(context.Background(), "gc-detail-123", attrs)
+	resp, err := client.CreateGameCenterLeaderboardSet(context.Background(), "gc-detail-123", attrs, nil)
 	if err != nil {
 		t.Fatalf("CreateGameCenterLeaderboardSet() error: %v", err)
 	}

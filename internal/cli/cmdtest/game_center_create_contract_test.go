@@ -69,6 +69,38 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			wantBody:     `{"data":{"type":"gameCenterLeaderboardSets","attributes":{"referenceName":"Group Season","vendorIdentifier":"grp.com.example.groupseason"},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"versions":{"data":[{"type":"gameCenterLeaderboardSetVersions","id":"${lbsetVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardSetVersions","id":"${lbsetVer1}"}]}`,
 			wantRequests: 1,
 		},
+		{
+			name:         "leaderboard v1 with set ids",
+			args:         []string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--reference-name", "High Score", "--vendor-id", "com.example.highscore", "--formatter", "INTEGER", "--sort", "DESC", "--submission-type", "BEST_SCORE", "--set-ids", "set-2,set-1,set-2"},
+			postPath:     "/v1/gameCenterLeaderboards",
+			resourceType: "gameCenterLeaderboards",
+			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}},"gameCenterLeaderboardSets":{"data":[{"type":"gameCenterLeaderboardSets","id":"set-2"},{"type":"gameCenterLeaderboardSets","id":"set-1"}]}}}}`,
+			wantRequests: 2,
+		},
+		{
+			name:         "leaderboard v2 with set ids",
+			args:         []string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--reference-name", "High Score", "--vendor-id", "com.example.highscore", "--formatter", "INTEGER", "--sort", "DESC", "--submission-type", "BEST_SCORE", "--v2", "--set-ids", "set-2,set-1,set-2"},
+			postPath:     "/v2/gameCenterLeaderboards",
+			resourceType: "gameCenterLeaderboards",
+			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}},"gameCenterLeaderboardSets":{"data":[{"type":"gameCenterLeaderboardSets","id":"set-2"},{"type":"gameCenterLeaderboardSets","id":"set-1"}]},"versions":{"data":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}`,
+			wantRequests: 2,
+		},
+		{
+			name:         "leaderboard set v1 with leaderboard ids",
+			args:         []string{"game-center", "leaderboard-sets", "create", "--app", "APP_ID", "--reference-name", "Season 1", "--vendor-id", "com.example.season1", "--leaderboard-ids", "lb-2,lb-1,lb-2"},
+			postPath:     "/v1/gameCenterLeaderboardSets",
+			resourceType: "gameCenterLeaderboardSets",
+			wantBody:     `{"data":{"type":"gameCenterLeaderboardSets","attributes":{"referenceName":"Season 1","vendorIdentifier":"com.example.season1"},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}},"gameCenterLeaderboards":{"data":[{"type":"gameCenterLeaderboards","id":"lb-2"},{"type":"gameCenterLeaderboards","id":"lb-1"}]}}}}`,
+			wantRequests: 2,
+		},
+		{
+			name:         "leaderboard set v2 with leaderboard ids",
+			args:         []string{"game-center", "leaderboard-sets", "v2", "create", "--group-id", "group-1", "--reference-name", "Group Season", "--vendor-id", "grp.com.example.groupseason", "--leaderboard-ids", "lb-2,lb-1,lb-2"},
+			postPath:     "/v2/gameCenterLeaderboardSets",
+			resourceType: "gameCenterLeaderboardSets",
+			wantBody:     `{"data":{"type":"gameCenterLeaderboardSets","attributes":{"referenceName":"Group Season","vendorIdentifier":"grp.com.example.groupseason"},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"gameCenterLeaderboards":{"data":[{"type":"gameCenterLeaderboards","id":"lb-2"},{"type":"gameCenterLeaderboards","id":"lb-1"}]},"versions":{"data":[{"type":"gameCenterLeaderboardSetVersions","id":"${lbsetVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardSetVersions","id":"${lbsetVer1}"}]}`,
+			wantRequests: 1,
+		},
 	}
 
 	for _, test := range tests {

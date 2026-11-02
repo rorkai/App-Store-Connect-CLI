@@ -221,7 +221,7 @@ func (c *Client) GetGameCenterLeaderboardGroupLeaderboard(ctx context.Context, l
 }
 
 // CreateGameCenterLeaderboard creates a new Game Center leaderboard.
-func (c *Client) CreateGameCenterLeaderboard(ctx context.Context, gcDetailID string, attrs GameCenterLeaderboardCreateAttributes) (*GameCenterLeaderboardResponse, error) {
+func (c *Client) CreateGameCenterLeaderboard(ctx context.Context, gcDetailID string, attrs GameCenterLeaderboardCreateAttributes, setIDs []string) (*GameCenterLeaderboardResponse, error) {
 	payload := GameCenterLeaderboardCreateRequest{
 		Data: GameCenterLeaderboardCreateData{
 			Type:       ResourceTypeGameCenterLeaderboards,
@@ -233,6 +233,7 @@ func (c *Client) CreateGameCenterLeaderboard(ctx context.Context, gcDetailID str
 						ID:   strings.TrimSpace(gcDetailID),
 					},
 				},
+				GameCenterLeaderboardSets: buildToManyRelationship(ResourceTypeGameCenterLeaderboardSets, setIDs),
 			},
 		},
 	}
@@ -354,7 +355,7 @@ func (c *Client) GetGameCenterLeaderboardSetGroupLeaderboardSet(ctx context.Cont
 }
 
 // CreateGameCenterLeaderboardSet creates a new Game Center leaderboard set.
-func (c *Client) CreateGameCenterLeaderboardSet(ctx context.Context, gcDetailID string, attrs GameCenterLeaderboardSetCreateAttributes) (*GameCenterLeaderboardSetResponse, error) {
+func (c *Client) CreateGameCenterLeaderboardSet(ctx context.Context, gcDetailID string, attrs GameCenterLeaderboardSetCreateAttributes, leaderboardIDs []string) (*GameCenterLeaderboardSetResponse, error) {
 	payload := GameCenterLeaderboardSetCreateRequest{
 		Data: GameCenterLeaderboardSetCreateData{
 			Type:       ResourceTypeGameCenterLeaderboardSets,
@@ -366,6 +367,7 @@ func (c *Client) CreateGameCenterLeaderboardSet(ctx context.Context, gcDetailID 
 						ID:   strings.TrimSpace(gcDetailID),
 					},
 				},
+				GameCenterLeaderboards: buildToManyRelationship(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
 			},
 		},
 	}
@@ -1792,10 +1794,11 @@ func (c *Client) GetGameCenterLeaderboardV2(ctx context.Context, leaderboardID s
 }
 
 // CreateGameCenterLeaderboardV2 creates a new v2 Game Center leaderboard.
-func (c *Client) CreateGameCenterLeaderboardV2(ctx context.Context, gcDetailID string, groupID string, attrs GameCenterLeaderboardCreateAttributes) (*GameCenterLeaderboardResponse, error) {
+func (c *Client) CreateGameCenterLeaderboardV2(ctx context.Context, gcDetailID string, groupID string, attrs GameCenterLeaderboardCreateAttributes, setIDs []string) (*GameCenterLeaderboardResponse, error) {
 	const initialVersionID = "${lbVer1}"
 
 	relationships := &GameCenterLeaderboardV2Relationships{
+		GameCenterLeaderboardSets: buildToManyRelationship(ResourceTypeGameCenterLeaderboardSets, setIDs),
 		Versions: &RelationshipList{Data: []ResourceData{{
 			Type: ResourceTypeGameCenterLeaderboardVersions,
 			ID:   initialVersionID,

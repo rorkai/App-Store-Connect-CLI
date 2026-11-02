@@ -520,6 +520,7 @@ func GameCenterLeaderboardSetsCreateCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard set")
 	vendorID := fs.String("vendor-id", "", "Vendor identifier (e.g., com.example.set)")
+	leaderboardIDs := shared.BindOnceCSVFlag(fs, "leaderboard-ids", "Comma-separated leaderboard IDs to add as members")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -530,7 +531,8 @@ func GameCenterLeaderboardSetsCreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Season 1" --vendor-id "com.example.season1"
-  asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Weekly Challenge" --vendor-id "com.example.weekly"`,
+  asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Weekly Challenge" --vendor-id "com.example.weekly"
+  asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Season 2" --vendor-id "com.example.season2" --leaderboard-ids "id1,id2"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -552,6 +554,12 @@ Examples:
 				return shared.MissingRequiredUsageError("--vendor-id")
 			}
 
+			ids := shared.SplitUniqueCSV(leaderboardIDs.String())
+			if leaderboardIDs.Provided() && len(ids) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --leaderboard-ids must include at least one ID")
+				return flag.ErrHelp
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets create: %w", err)
@@ -571,7 +579,7 @@ Examples:
 				VendorIdentifier: vendor,
 			}
 
-			resp, err := client.CreateGameCenterLeaderboardSet(requestCtx, gcDetailID, attrs)
+			resp, err := client.CreateGameCenterLeaderboardSet(requestCtx, gcDetailID, attrs, ids)
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets create: failed to create: %w", err)
 			}

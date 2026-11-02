@@ -21,6 +21,20 @@ func normalizeList(values []string) []string {
 	return normalized
 }
 
+// buildToManyRelationship returns nil for an empty list so an omitted optional
+// relationship stays out of the request body.
+func buildToManyRelationship(resourceType ResourceType, ids []string) *RelationshipList {
+	ids = normalizeList(ids)
+	if len(ids) == 0 {
+		return nil
+	}
+	data := make([]ResourceData, 0, len(ids))
+	for _, id := range ids {
+		data = append(data, ResourceData{Type: resourceType, ID: id})
+	}
+	return &RelationshipList{Data: data}
+}
+
 func normalizeUniqueList(values []string) []string {
 	values = normalizeList(values)
 	if len(values) == 0 {

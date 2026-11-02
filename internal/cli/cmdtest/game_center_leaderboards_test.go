@@ -127,6 +127,10 @@ func TestGameCenterLeaderboardsCreateValidationErrors(t *testing.T) {
 			name: "missing submission-type",
 			args: []string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--reference-name", "Test", "--vendor-id", "com.test", "--formatter", "INTEGER", "--sort", "DESC"},
 		},
+		{
+			name: "empty set-ids",
+			args: []string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--reference-name", "Test", "--vendor-id", "com.test", "--formatter", "INTEGER", "--sort", "DESC", "--submission-type", "BEST_SCORE", "--set-ids", " , "},
+		},
 	}
 
 	for _, test := range tests {

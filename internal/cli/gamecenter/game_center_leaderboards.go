@@ -344,6 +344,7 @@ func GameCenterLeaderboardsCreateCommand() *ffcli.Command {
 	scoreRangeStart := fs.String("score-range-start", "", "Score range start (optional)")
 	scoreRangeEnd := fs.String("score-range-end", "", "Score range end (optional)")
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID (v2 only)")
+	setIDs := shared.BindOnceCSVFlag(fs, "set-ids", "Comma-separated leaderboard set IDs to add the leaderboard to")
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
 
@@ -358,7 +359,8 @@ V2 creates the required initial leaderboard version inline.
 Examples:
   asc game-center leaderboards create --app "APP_ID" --reference-name "High Score" --vendor-id "com.example.highscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE
   asc game-center leaderboards create --app "APP_ID" --reference-name "Time Trial" --vendor-id "com.example.timetrial" --formatter ELAPSED_TIME_CENTISECOND --sort ASC --submission-type BEST_SCORE
-  asc game-center leaderboards create --group-id "GROUP_ID" --reference-name "Group Score" --vendor-id "grp.com.example.groupscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2`,
+  asc game-center leaderboards create --group-id "GROUP_ID" --reference-name "Group Score" --vendor-id "grp.com.example.groupscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2
+  asc game-center leaderboards create --app "APP_ID" --reference-name "Weekly Score" --vendor-id "com.example.weeklyscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2 --set-ids "id1,id2"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -420,6 +422,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			ids := shared.SplitUniqueCSV(setIDs.String())
+			if setIDs.Provided() && len(ids) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --set-ids must include at least one ID")
+				return flag.ErrHelp
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards create: %w", err)
@@ -451,9 +459,9 @@ Examples:
 			useV2 := *v2 || group != ""
 			var resp *asc.GameCenterLeaderboardResponse
 			if useV2 {
-				resp, err = client.CreateGameCenterLeaderboardV2(requestCtx, gcDetailID, group, attrs)
+				resp, err = client.CreateGameCenterLeaderboardV2(requestCtx, gcDetailID, group, attrs, ids)
 			} else {
-				resp, err = client.CreateGameCenterLeaderboard(requestCtx, gcDetailID, attrs)
+				resp, err = client.CreateGameCenterLeaderboard(requestCtx, gcDetailID, attrs, ids)
 			}
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards create: failed to create: %w", err)

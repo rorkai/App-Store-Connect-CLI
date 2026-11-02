@@ -192,6 +192,7 @@ func GameCenterLeaderboardSetsV2CreateCommand() *ffcli.Command {
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard set")
 	vendorID := fs.String("vendor-id", "", "Vendor identifier (e.g., com.example.set)")
+	leaderboardIDs := shared.BindOnceCSVFlag(fs, "leaderboard-ids", "Comma-separated leaderboard IDs to add as members")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -204,7 +205,8 @@ Creates the required initial leaderboard set version inline.
 
 Examples:
   asc game-center leaderboard-sets v2 create --app "APP_ID" --reference-name "Season 1" --vendor-id "com.example.season1"
-  asc game-center leaderboard-sets v2 create --group-id "GROUP_ID" --reference-name "Group Season" --vendor-id "grp.com.example.groupseason"`,
+  asc game-center leaderboard-sets v2 create --group-id "GROUP_ID" --reference-name "Group Season" --vendor-id "grp.com.example.groupseason"
+  asc game-center leaderboard-sets v2 create --app "APP_ID" --reference-name "Season 2" --vendor-id "com.example.season2" --leaderboard-ids "id1,id2"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -236,6 +238,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			ids := shared.SplitUniqueCSV(leaderboardIDs.String())
+			if leaderboardIDs.Provided() && len(ids) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --leaderboard-ids must include at least one ID")
+				return flag.ErrHelp
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets v2 create: %w", err)
@@ -258,7 +266,7 @@ Examples:
 				VendorIdentifier: vendor,
 			}
 
-			resp, err := client.CreateGameCenterLeaderboardSetV2(requestCtx, gcDetailID, group, attrs)
+			resp, err := client.CreateGameCenterLeaderboardSetV2(requestCtx, gcDetailID, group, attrs, ids)
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets v2 create: failed to create: %w", err)
 			}
