@@ -112,6 +112,8 @@ before authentication or API requests.
   Include related resources (comma-separated): `ageRatingDeclaration`, `app`, `appStoreVersionLocalizations`, `build`, `appStoreVersionPhasedRelease`, `gameCenterAppVersion`, `routingAppCoverage`, `appStoreReviewDetail`, `appStoreVersionSubmission`, `appClipDefaultExperience`, `appStoreVersionExperiments`, `appStoreVersionExperimentsV2`, `alternativeDistributionPackage`
 </ParamField>
 
+Each included resource has a sparse-field flag that requires its `--include` value, such as `--build-fields`, `--app-fields`, or `--review-detail-fields`. `asc versions list` accepts the same flags.
+
 **Examples:**
 
 ```bash  theme={null}
@@ -121,6 +123,7 @@ asc versions view --app "123456789" --version "1.2.3" --platform MAC_OS
 asc versions view --version-id "VERSION_ID" --include build
 asc versions view --version-id "VERSION_ID" --include-build --include-submission
 asc versions view --version-id "VERSION_ID" --include "ageRatingDeclaration,appStoreReviewDetail"
+asc versions view --version-id "VERSION_ID" --include build --build-fields "version,uploadedDate"
 ```
 
 **Response:**

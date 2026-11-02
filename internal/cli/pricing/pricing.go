@@ -159,6 +159,7 @@ func PricingPricePointsCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	territory := fs.String("territory", "", "Filter by territories, comma-separated (accepts alpha-2, alpha-3, or exact English country name)")
 	include := fs.String("include", "", "Relationships to include (comma-separated): territory")
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"territory": "territories"})
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -202,6 +203,10 @@ Examples:
 					return shared.UsageError("--include must be: territory")
 				}
 			}
+			included, err := includedFields.Resolve("pricing price-points", *next, includes)
+			if err != nil {
+				return err
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
@@ -227,6 +232,7 @@ Examples:
 				asc.WithPricePointsNextURL(*next),
 				asc.WithPricePointsTerritory(strings.Join(territoryIDs, ",")),
 				asc.WithPricePointsInclude(includes),
+				asc.WithIncludedFields[asc.PricePointsOption](included),
 			}
 
 			if *paginate {
@@ -311,11 +317,12 @@ func PricingPricePointsEqualizationsCommand() *ffcli.Command {
 		ParentType:  "appPricePoints",
 		LimitMax:    200,
 		ErrorPrefix: "pricing price-points equalizations",
-		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string, include []string) (asc.PaginatedResponse, error) {
+		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string, include []string, included asc.IncludedFields) (asc.PaginatedResponse, error) {
 			opts := []asc.PricePointsOption{
 				asc.WithPricePointsLimit(limit),
 				asc.WithPricePointsNextURL(next),
 				asc.WithPricePointsInclude(include),
+				asc.WithIncludedFields[asc.PricePointsOption](included),
 			}
 			return client.GetAppPricePointEqualizations(ctx, pricePointID, opts...)
 		},

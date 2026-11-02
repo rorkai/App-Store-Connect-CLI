@@ -74,6 +74,7 @@ type passTypeIDCertificatesQuery struct {
 
 type certificatesQuery struct {
 	listQuery
+	includedFieldsQuery
 	displayNames     []string
 	certificateTypes []string
 	serialNumbers    []string
@@ -98,6 +99,7 @@ type merchantIDCertificatesQuery struct {
 
 type profilesQuery struct {
 	listQuery
+	includedFieldsQuery
 	bundleID          string
 	name              string
 	ids               string
@@ -115,6 +117,7 @@ type profilesQuery struct {
 
 type usersQuery struct {
 	listQuery
+	includedFieldsQuery
 	email            string
 	roles            []string
 	visibleAppIDs    []string
@@ -275,6 +278,7 @@ func buildCertificateDetailQuery(query *certificatesQuery) string {
 	addCSV(values, "fields[certificates]", query.fields)
 	addCSV(values, "fields[passTypeIds]", query.passTypeIDFields)
 	addCSV(values, "include", query.include)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -346,6 +350,7 @@ func buildProfilesQuery(query *profilesQuery) string {
 		values.Set("limit[certificates]", strconv.Itoa(query.certificatesLimit))
 	}
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -371,6 +376,7 @@ func buildUsersQuery(query *usersQuery) string {
 		values.Set("limit[visibleApps]", strconv.Itoa(query.visibleAppsLimit))
 	}
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 

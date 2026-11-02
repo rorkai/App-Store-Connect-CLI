@@ -432,6 +432,7 @@ func ProfilesGetCommand() *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
 	include := fs.String("include", "", "Include related resources: bundleId, certificates, devices")
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"bundleId": "bundleIds", "certificates": "certificates", "devices": "devices"})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -456,6 +457,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("profiles view: %w", err)
 			}
+			included, err := includedFields.Resolve("profiles view", "", includeValues)
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -465,7 +470,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			opts := []asc.ProfilesOption{}
+			opts := []asc.ProfilesOption{asc.WithIncludedFields[asc.ProfilesOption](included)}
 			if len(includeValues) > 0 {
 				opts = append(opts, asc.WithProfilesInclude(includeValues))
 			}

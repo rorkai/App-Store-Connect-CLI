@@ -19,6 +19,7 @@ type reviewQuery struct {
 
 type appStoreVersionsQuery struct {
 	listQuery
+	includedFieldsQuery
 	platforms        []string
 	versionStrings   []string
 	states           []string
@@ -27,12 +28,14 @@ type appStoreVersionsQuery struct {
 }
 
 type appStoreVersionQuery struct {
+	includedFieldsQuery
 	include            []string
 	localizationsLimit int
 }
 
 type reviewSubmissionsQuery struct {
 	listQuery
+	includedFieldsQuery
 	platforms                  []string
 	states                     []string
 	appIDs                     []string
@@ -41,12 +44,14 @@ type reviewSubmissionsQuery struct {
 }
 
 type reviewSubmissionQuery struct {
+	includedFieldsQuery
 	reviewSubmissionItemFields []string
 	include                    []string
 }
 
 type reviewSubmissionItemsQuery struct {
 	listQuery
+	includedFieldsQuery
 	fields                         []string
 	inAppPurchaseVersionFields     []string
 	subscriptionVersionFields      []string
@@ -56,6 +61,7 @@ type reviewSubmissionItemsQuery struct {
 
 type appStoreVersionLocalizationsQuery struct {
 	listQuery
+	includedFieldsQuery
 	locales []string
 	include []string
 }
@@ -69,6 +75,7 @@ type appInfoLocalizationsQuery struct {
 
 type appInfoQuery struct {
 	listQuery
+	includedFieldsQuery
 	fields                     []string
 	ageRatingDeclarationFields []string
 	include                    []string
@@ -118,6 +125,7 @@ type appStoreVersionLocalizationPreviewSetsQuery struct {
 
 type appStoreVersionLocalizationScreenshotSetsQuery struct {
 	listQuery
+	includedFieldsQuery
 	includeMedia   bool
 	requestContext RequestContextFunc
 }
@@ -215,6 +223,7 @@ func buildAppStoreVersionsQuery(query *appStoreVersionsQuery) string {
 	addCSV(values, "filter[appVersionState]", query.appVersionStates)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -224,6 +233,7 @@ func buildAppStoreVersionQuery(query *appStoreVersionQuery) string {
 	if query.localizationsLimit > 0 {
 		values.Set("limit[appStoreVersionLocalizations]", strconv.Itoa(query.localizationsLimit))
 	}
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -235,6 +245,7 @@ func buildReviewSubmissionsQuery(query *reviewSubmissionsQuery) string {
 	addCSV(values, "fields[reviewSubmissionItems]", query.reviewSubmissionItemFields)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -242,6 +253,7 @@ func buildReviewSubmissionQuery(query *reviewSubmissionQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[reviewSubmissionItems]", query.reviewSubmissionItemFields)
 	addCSV(values, "include", query.include)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -253,6 +265,7 @@ func buildReviewSubmissionItemsQuery(query *reviewSubmissionItemsQuery) string {
 	addCSV(values, "fields[subscriptionGroupVersions]", query.subscriptionGroupVersionFields)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -261,6 +274,7 @@ func buildAppStoreVersionLocalizationsQuery(query *appStoreVersionLocalizationsQ
 	addCSV(values, "filter[locale]", query.locales)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -289,6 +303,7 @@ func buildAppInfoQuery(query *appInfoQuery) string {
 	if query.localizationsLimit > 0 {
 		values.Set("limit[appInfoLocalizations]", strconv.Itoa(query.localizationsLimit))
 	}
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -368,6 +383,7 @@ func buildAppStoreVersionLocalizationScreenshotSetsQuery(query *appStoreVersionL
 	if query.includeMedia {
 		addIncludedSetMedia(values, "appScreenshots")
 	}
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 

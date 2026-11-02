@@ -46,6 +46,7 @@ func IAPPricePointsListCommand() *ffcli.Command {
 	appID := addIAPLookupAppFlag(fs)
 	territory := fs.String("territory", "", "Territory filter, comma-separated (accepts alpha-2, alpha-3, or exact English country name)")
 	include := fs.String("include", "", "Relationships to include (comma-separated): territory")
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"territory": "territories"})
 	price := fs.String("price", "", "Filter by exact customer price (e.g., 4.99)")
 	minPrice := fs.String("min-price", "", "Filter by minimum customer price")
 	maxPrice := fs.String("max-price", "", "Filter by maximum customer price")
@@ -92,6 +93,10 @@ Examples:
 					return shared.UsageError("--include must be: territory")
 				}
 			}
+			included, err := includedFields.Resolve("iap price-points list", *next, includes)
+			if err != nil {
+				return err
+			}
 
 			priceFilter := shared.PriceFilter{
 				Price:    strings.TrimSpace(*price),
@@ -127,6 +132,7 @@ Examples:
 				asc.WithIAPPricePointsLimit(*limit),
 				asc.WithIAPPricePointsNextURL(*next),
 				asc.WithIAPPricePointsInclude(includes),
+				asc.WithIncludedFields[asc.IAPPricePointsOption](included),
 			}
 			territoryIDs, err := shared.NormalizeASCTerritoryCSV(*territory)
 			if err != nil {
@@ -197,11 +203,12 @@ func IAPPricePointsEqualizationsCommand() *ffcli.Command {
 		ParentUsage: "In-app purchase price point ID",
 		LimitMax:    8000,
 		ErrorPrefix: "iap price-points equalizations",
-		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string, include []string) (asc.PaginatedResponse, error) {
+		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string, include []string, included asc.IncludedFields) (asc.PaginatedResponse, error) {
 			opts := []asc.IAPPricePointsOption{
 				asc.WithIAPPricePointsLimit(limit),
 				asc.WithIAPPricePointsNextURL(next),
 				asc.WithIAPPricePointsInclude(include),
+				asc.WithIncludedFields[asc.IAPPricePointsOption](included),
 			}
 			return client.GetInAppPurchasePricePointEqualizations(ctx, pricePointID, opts...)
 		},

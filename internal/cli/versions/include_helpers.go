@@ -10,6 +10,23 @@ func normalizeAppStoreVersionsInclude(value string) ([]string, error) {
 	return shared.NormalizeSelection(value, appStoreVersionsIncludeList(), "--include")
 }
 
+// appStoreVersionIncludedResources maps each --include value to the resource it
+// returns.
+var appStoreVersionIncludedResources = map[string]string{
+	"app":                            "apps",
+	"appStoreVersionLocalizations":   "appStoreVersionLocalizations",
+	"build":                          "builds",
+	"appStoreVersionPhasedRelease":   "appStoreVersionPhasedReleases",
+	"gameCenterAppVersion":           "gameCenterAppVersions",
+	"routingAppCoverage":             "routingAppCoverages",
+	"appStoreReviewDetail":           "appStoreReviewDetails",
+	"appStoreVersionSubmission":      "appStoreVersionSubmissions",
+	"appClipDefaultExperience":       "appClipDefaultExperiences",
+	"appStoreVersionExperiments":     "appStoreVersionExperiments",
+	"appStoreVersionExperimentsV2":   "appStoreVersionExperiments",
+	"alternativeDistributionPackage": "alternativeDistributionPackages",
+}
+
 // appStoreVersionIncludeList returns the include values a single app store
 // version accepts. ageRatingDeclaration has no include relationship on the API
 // and is served through a separate request.

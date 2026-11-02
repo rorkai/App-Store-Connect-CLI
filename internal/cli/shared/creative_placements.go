@@ -37,6 +37,7 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 	kind := fs.String("placement-type", "", "Filter by placement types, comma-separated: "+strings.Join(listTypes, ", "))
 	group := fs.String("placement-group", "", "Filter by placement group IDs, comma-separated")
 	include := fs.String("include", "", "Include related media, comma-separated: image, video")
+	includedFields := BindIncludedFieldFlags(fs, map[string]string{"image": "appAssetLibraryImages", "video": "appAssetLibraryVideos"})
 	sort := fs.String("sort", "", "Sort by placementGroupPosition")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200; 0 uses server default)")
 	next := fs.String("next", "", "Fetch a links.next URL instead of selecting a localization")
@@ -74,6 +75,10 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 			if err != nil {
 				return UsageErrorf(prefix+" placements list: --include %v", err)
 			}
+			included, err := includedFields.Resolve(prefix+" placements list", *next, SplitCSV(includes))
+			if err != nil {
+				return err
+			}
 			if *sort != "" && *sort != "placementGroupPosition" {
 				return UsageError(prefix + " placements list: --sort must be placementGroupPosition")
 			}
@@ -97,6 +102,7 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 				if includes != "" {
 					q.Set("include", includes)
 				}
+				included.AddTo(q)
 				if *sort != "" {
 					q.Set("sort", *sort)
 				}

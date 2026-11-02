@@ -70,6 +70,7 @@ func VersionsListCommand() *ffcli.Command {
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS (comma-separated)")
 	state := fs.String("state", "", "Filter by state (comma-separated)")
 	include := shared.BindOnceCSVFlag(fs, "include", "Include related resources: "+strings.Join(appStoreVersionsIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, appStoreVersionIncludedResources)
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
@@ -146,6 +147,10 @@ Examples:
 			if len(includeValues) > 0 && strings.TrimSpace(*next) != "" {
 				return shared.UsageError("versions list: --next cannot be combined with --include")
 			}
+			included, err := includedFields.Resolve("versions list", *next, includeValues)
+			if err != nil {
+				return err
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
@@ -167,6 +172,7 @@ Examples:
 				asc.WithAppStoreVersionsVersionStrings(shared.SplitCSV(*version)),
 				asc.WithAppStoreVersionsStates(states),
 				asc.WithAppStoreVersionsInclude(includeValues),
+				asc.WithIncludedFields[asc.AppStoreVersionsOption](included),
 				asc.WithAppStoreVersionsNextURL(*next),
 			}
 
@@ -352,6 +358,7 @@ func VersionsViewCommand() *ffcli.Command {
 	includeBuild := fs.Bool("include-build", false, "Include attached build information")
 	includeSubmission := fs.Bool("include-submission", false, "Include submission information")
 	include := fs.String("include", "", "Include related resources: "+strings.Join(appStoreVersionIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, appStoreVersionIncludedResources)
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
@@ -427,6 +434,10 @@ equivalent to --include appStoreVersionSubmission.`,
 			if *includeSubmission {
 				includeValues = append(includeValues, "appStoreVersionSubmission")
 			}
+			included, err := includedFields.Resolve("versions view", "", includeValues)
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -445,7 +456,7 @@ equivalent to --include appStoreVersionSubmission.`,
 			apiIncludes, includeAgeRating := splitCompatAppStoreVersionIncludes(includeValues)
 			var versionResp *asc.AppStoreVersionResponse
 			if len(apiIncludes) > 0 {
-				versionResp, err = client.GetAppStoreVersion(requestCtx, trimmedID, asc.WithAppStoreVersionInclude(apiIncludes))
+				versionResp, err = client.GetAppStoreVersion(requestCtx, trimmedID, asc.WithAppStoreVersionInclude(apiIncludes), asc.WithIncludedFields[asc.AppStoreVersionOption](included))
 			} else {
 				versionResp, err = client.GetAppStoreVersion(requestCtx, trimmedID)
 			}

@@ -43,6 +43,7 @@ func AppEncryptionDeclarationsListCommand() *ffcli.Command {
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(appEncryptionDeclarationFieldsList(), ", "))
 	documentFields := fs.String("document-fields", "", "Document fields to include: "+strings.Join(appEncryptionDeclarationDocumentFieldsList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(appEncryptionDeclarationIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"app": "apps", "builds": "builds"})
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	buildLimit := fs.Int("build-limit", 0, "Maximum included builds per declaration (1-50)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -87,6 +88,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("apps app-encryption-declarations list: %w", err)
 			}
+			included, err := includedFields.Resolve("apps app-encryption-declarations list", *next, includeValue)
+			if err != nil {
+				return err
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
@@ -109,6 +114,7 @@ Examples:
 				asc.WithAppEncryptionDeclarationsFields(fieldsValue),
 				asc.WithAppEncryptionDeclarationsDocumentFields(documentFieldsValue),
 				asc.WithAppEncryptionDeclarationsInclude(includeValue),
+				asc.WithIncludedFields[asc.AppEncryptionDeclarationsOption](included),
 				asc.WithAppEncryptionDeclarationsLimit(*limit),
 				asc.WithAppEncryptionDeclarationsBuildLimit(*buildLimit),
 				asc.WithAppEncryptionDeclarationsNextURL(*next),
