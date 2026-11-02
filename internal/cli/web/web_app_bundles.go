@@ -296,12 +296,12 @@ Examples:
 }
 
 func parseAppBundleAppIDs(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, errors.New("--apps is required")
+	}
 	var ids []string
 	for part := range strings.SplitSeq(raw, ",") {
 		id := strings.TrimSpace(part)
-		if id == "" {
-			continue
-		}
 		parsed, err := strconv.ParseUint(id, 10, 64)
 		if err != nil || strconv.FormatUint(parsed, 10) != id {
 			return nil, fmt.Errorf("--apps must contain numeric app IDs, got %q", id)
@@ -310,9 +310,6 @@ func parseAppBundleAppIDs(raw string) ([]string, error) {
 			return nil, fmt.Errorf("--apps lists app %s twice", id)
 		}
 		ids = append(ids, id)
-	}
-	if len(ids) == 0 {
-		return nil, errors.New("--apps is required")
 	}
 	return ids, nil
 }
