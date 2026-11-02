@@ -1065,10 +1065,11 @@ asc subscriptions offers introductory delete \
 **CSV format:**
 
 * Required column: `territory`
-* Optional columns: `offer_mode`, `offer_duration`, `number_of_periods`, `start_date`, `end_date`, `price_point_id`
+* Optional columns: `offer_mode`, `offer_duration`, `number_of_periods`, `start_date`, `end_date`, `price_point_id`, `target_subscription_plan_type`
 * Header alias: `price_point` -> `price_point_id`
 * Territory values may be 3-letter ASC IDs, 2-letter country codes, or English territory names
 * Row values override command-level defaults, so a territory-only CSV can inherit a shared offer shape from flags
+* `target_subscription_plan_type` accepts `MONTHLY` or `UPFRONT`, and falls back to `UPFRONT` when neither the row nor `--target-subscription-plan-type` sets it
 * Use `create --all-territories` when every current subscription availability territory should receive the same offer shape
 
 **Offer Types:**
@@ -1076,6 +1077,10 @@ asc subscriptions offers introductory delete \
 * `FREE_TRIAL` - Free access for specified duration
 * `PAY_AS_YOU_GO` - Discounted price per period
 * `PAY_UP_FRONT` - Single upfront payment for multiple periods
+
+**Target plan type:**
+
+Introductory, promotional, offer code, and win-back `create` commands accept `--target-subscription-plan-type MONTHLY` or `UPFRONT`. Omit the flag to leave `targetSubscriptionPlanType` out of the request. With `--all-territories`, an existing offer for the other plan type does not count as already existing.
 
 ## Promotional Offers
 

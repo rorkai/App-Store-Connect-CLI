@@ -250,6 +250,7 @@ func SubscriptionsOfferCodesCreateCommand() *ffcli.Command {
 	prices := fs.String("prices", "", "Offer code prices (required): TERRITORY entries for FREE_TRIAL or TERRITORY:PRICE_POINT_ID entries for paid modes; territory accepts alpha-2, alpha-3, or exact English country name")
 	var autoRenewEnabled shared.OptionalBool
 	fs.Var(&autoRenewEnabled, "auto-renew-enabled", "Enable auto-renew: true or false")
+	targetPlanType := shared.BindTargetSubscriptionPlanTypeFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -260,7 +261,8 @@ func SubscriptionsOfferCodesCreateCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "US"
-  asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "US:PRICE_POINT_ID"`,
+  asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "US:PRICE_POINT_ID"
+  asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "US" --target-subscription-plan-type MONTHLY`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -315,6 +317,11 @@ Examples:
 				return shared.MissingRequiredUsageError("--prices")
 			}
 
+			planType, err := targetPlanType()
+			if err != nil {
+				return err
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions offer-codes create: %w", err)
@@ -329,12 +336,13 @@ Examples:
 			defer cancel()
 
 			attrs := asc.SubscriptionOfferCodeCreateAttributes{
-				Name:                  nameValue,
-				OfferEligibility:      eligibility,
-				CustomerEligibilities: customerEligibilityValues,
-				Duration:              duration,
-				OfferMode:             mode,
-				NumberOfPeriods:       *numberOfPeriods,
+				Name:                       nameValue,
+				OfferEligibility:           eligibility,
+				CustomerEligibilities:      customerEligibilityValues,
+				Duration:                   duration,
+				OfferMode:                  mode,
+				NumberOfPeriods:            *numberOfPeriods,
+				TargetSubscriptionPlanType: planType,
 			}
 			if autoRenewEnabled.IsSet() {
 				value := autoRenewEnabled.Value()

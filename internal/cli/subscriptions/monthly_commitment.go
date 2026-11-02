@@ -394,15 +394,7 @@ func findMonthlySubscriptionPlanAvailability(resp *asc.SubscriptionPlanAvailabil
 }
 
 func normalizeSubscriptionPlanType(value string) (asc.SubscriptionPlanType, error) {
-	normalized := strings.ToUpper(strings.TrimSpace(value))
-	switch normalized {
-	case string(asc.SubscriptionPlanTypeMonthly):
-		return asc.SubscriptionPlanTypeMonthly, nil
-	case string(asc.SubscriptionPlanTypeUpfront):
-		return asc.SubscriptionPlanTypeUpfront, nil
-	default:
-		return "", fmt.Errorf("--plan-type must be one of: MONTHLY, UPFRONT")
-	}
+	return shared.NormalizeSubscriptionPlanType(value, "--plan-type")
 }
 
 func normalizeSubscriptionBillingMode(value string) (subscriptionBillingMode, error) {
