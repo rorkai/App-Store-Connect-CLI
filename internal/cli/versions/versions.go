@@ -484,6 +484,7 @@ func VersionsCreateCommand() *ffcli.Command {
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to attach to the version")
 	copyMetadataFrom := fs.String("copy-metadata-from", "", "Copy localization metadata from this source version string")
 	copyFields := shared.BindOnceCSVFlag(fs, "copy-fields", "Comma-separated metadata fields to copy: description, keywords, marketingUrl, promotionalText, supportUrl, whatsNew")
 	excludeFields := shared.BindOnceCSVFlag(fs, "exclude-fields", "Comma-separated metadata fields to exclude from copy")
@@ -500,6 +501,7 @@ Examples:
   asc versions create --app "123456789" --version "2.0.0"
   asc versions create --app "123456789" --version "2.0.0" --platform IOS
   asc versions create --app "123456789" --version "2.0.0" --copyright "2026 My Company" --release-type MANUAL
+  asc versions create --app "123456789" --version "2.0.0" --build-id "BUILD_ID"
   asc versions create --app "123456789" --version "2.4.0" --platform IOS --copy-metadata-from "2.3.2"
   asc versions create --app "123456789" --version "2.4.0" --copy-metadata-from "2.3.2" --copy-fields "description,keywords,supportUrl" --exclude-fields "whatsNew"
   asc versions create --app "123456789" --version "2.0.0" --if-exists skip
@@ -509,9 +511,11 @@ Examples:
 the version already exists for that platform. fail (default) returns the
 error. skip reads the existing version back, exits 0, and reports
 "action":"skipped" without changing it. update applies --copyright and
---release-type to the existing version with asc versions update and reports
-"action":"updated"; --copy-metadata-from still runs against the existing
-version. Any other 409 keeps failing.`,
+--release-type to the existing version with asc versions update, attaches
+--build-id with asc versions attach-build, and reports "action":"updated";
+--copy-metadata-from still runs against the existing version. Any other 409
+keeps failing. --build-id cannot be combined with skip, which would leave the
+build unattached.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -566,6 +570,24 @@ version. Any other 409 keeps failing.`,
 				return err
 			}
 
+			buildIDValue := *buildID
+			if buildIDValue == "" {
+				buildIDSet := false
+				fs.Visit(func(f *flag.Flag) {
+					buildIDSet = buildIDSet || f.Name == "build-id"
+				})
+				if buildIDSet {
+					return shared.UsageError("--build-id must not be empty")
+				}
+			}
+			if buildIDValue != "" && ifExistsMode == shared.IfExistsSkip {
+				return shared.WithDiagnostic(
+					shared.UsageError("--build-id cannot be used with --if-exists skip, which leaves an existing version unchanged; use --if-exists update"),
+					shared.DiagnosticConflictingInput,
+					"",
+				)
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("versions create: %w", err)
@@ -585,7 +607,7 @@ version. Any other 409 keeps failing.`,
 				attrs.ReleaseType = normalizedReleaseType
 			}
 
-			resp, err := client.CreateAppStoreVersion(requestCtx, resolvedAppID, attrs)
+			resp, err := client.CreateAppStoreVersionWithBuild(requestCtx, resolvedAppID, buildIDValue, attrs)
 			action := asc.IdempotentWriteActionCreated
 			copyMetadata := copyMetadataFromValue != ""
 			conflictHandled := false
@@ -629,6 +651,12 @@ version. Any other 409 keeps failing.`,
 							return fmt.Errorf("versions create: update existing version %s: %w", existing.Data.ID, updateErr)
 						}
 						resp = updated
+						action = asc.IdempotentWriteActionUpdated
+					}
+					if buildIDValue != "" {
+						if attachErr := client.AttachBuildToVersion(requestCtx, existing.Data.ID, buildIDValue); attachErr != nil {
+							return fmt.Errorf("versions create: attach build %s to existing version %s: %w", buildIDValue, existing.Data.ID, attachErr)
+						}
 						action = asc.IdempotentWriteActionUpdated
 					}
 				}
@@ -680,6 +708,7 @@ version. Any other 409 keeps failing.`,
 				VersionString:          resp.Data.Attributes.VersionString,
 				Platform:               string(resp.Data.Attributes.Platform),
 				State:                  shared.ResolveAppStoreVersionState(resp.Data.Attributes),
+				BuildID:                buildIDValue,
 				IdempotentWriteReceipt: receipt,
 				MetadataCopy:           copySummary,
 			}

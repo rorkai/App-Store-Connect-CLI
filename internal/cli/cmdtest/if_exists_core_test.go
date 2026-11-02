@@ -358,6 +358,9 @@ func TestVersionsCreateDefaultIfExistsFailPreservesSuccessfulOutput(t *testing.T
 			args = append(args, tt.args...)
 			stdout, stderr, seen, runErr := runIfExistsCommand(t, args, func(req ifExistsRequest) (*http.Response, error) {
 				if req.Method == http.MethodPost && req.Path == "/v1/appStoreVersions" {
+					if strings.Contains(req.Body, `"build"`) {
+						t.Fatalf("POST body = %s, want no build relationship without --build-id", req.Body)
+					}
 					return jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreVersions","id":"version-created","attributes":{"versionString":"2.0.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}}`)
 				}
 				t.Fatalf("unexpected request %s %s", req.Method, req.Path)
@@ -441,6 +444,144 @@ func TestVersionsCreateIfExistsOnlyHandlesDuplicateVersionCode(t *testing.T) {
 			}
 			if !strings.Contains(runErr.Error(), `To ship "2.0.0" from editable version 1.9.0, rename it: asc versions update --version-id "version-draft" --version "2.0.0"`) {
 				t.Fatalf("run error = %v, want the unreleased version named", runErr)
+			}
+		})
+	}
+}
+
+// --build-id must travel in the create request itself, so a new version needs
+// no second attach call.
+func TestVersionsCreateSendsBuildRelationship(t *testing.T) {
+	stdout, _, seen, runErr := runIfExistsCommand(t, []string{
+		"versions", "create", "--app", "app-1", "--version", "2.0.0", "--build-id", "build-1", "--output", "json",
+	}, func(req ifExistsRequest) (*http.Response, error) {
+		if req.Method == http.MethodPost && req.Path == "/v1/appStoreVersions" {
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreVersions","id":"version-created","attributes":{"versionString":"2.0.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}}`)
+		}
+		t.Fatalf("unexpected request %s %s", req.Method, req.Path)
+		return nil, nil
+	})
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
+	if len(seen) != 1 {
+		t.Fatalf("requests = %+v, want only the POST", seen)
+	}
+	var body asc.AppStoreVersionCreateRequest
+	if err := json.Unmarshal([]byte(seen[0].Body), &body); err != nil {
+		t.Fatalf("unmarshal POST body: %v; body=%q", err, seen[0].Body)
+	}
+	relationships := body.Data.Relationships
+	if relationships == nil || relationships.App == nil || relationships.App.Data.ID != "app-1" {
+		t.Fatalf("POST body = %s, want the app relationship kept", seen[0].Body)
+	}
+	if relationships.Build == nil || relationships.Build.Data.Type != asc.ResourceTypeBuilds || relationships.Build.Data.ID != "build-1" {
+		t.Fatalf("POST body = %s, want build relationship for build-1", seen[0].Body)
+	}
+	if !strings.Contains(stdout, `"buildId":"build-1"`) {
+		t.Fatalf("stdout = %q, want buildId in the receipt", stdout)
+	}
+}
+
+// A conflict sends nothing the existing version can use from the POST, so
+// --if-exists update has to attach the build itself or the flag is lost.
+func TestVersionsCreateIfExistsUpdateAttachesBuild(t *testing.T) {
+	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
+		"versions", "create", "--app", "app-1", "--version", "2.0.0", "--build-id", "build-1",
+		"--if-exists", "update", "--output", "json",
+	}, func(req ifExistsRequest) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.Path == "/v1/appStoreVersions":
+			return jsonResponse(http.StatusConflict, versionsDuplicate409)
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+			return jsonResponse(http.StatusOK, existingVersionsList)
+		case req.Method == http.MethodPatch && req.Path == "/v1/appStoreVersions/version-existing/relationships/build":
+			if !strings.Contains(req.Body, `"type":"builds"`) || !strings.Contains(req.Body, `"id":"build-1"`) {
+				t.Fatalf("PATCH body = %s, want build-1", req.Body)
+			}
+			return jsonResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request %s %s", req.Method, req.Path)
+			return nil, nil
+		}
+	})
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
+	if len(seen) != 3 {
+		t.Fatalf("requests = %+v, want POST, GET, PATCH", seen)
+	}
+	var result struct {
+		ID            string `json:"id"`
+		BuildID       string `json:"buildId"`
+		AlreadyExists bool   `json:"alreadyExists"`
+		Action        string `json:"action"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal stdout: %v; stdout=%q", err, stdout)
+	}
+	if result.ID != "version-existing" || result.BuildID != "build-1" || !result.AlreadyExists || result.Action != "updated" {
+		t.Fatalf("receipt = %+v, want existing id, build-1, alreadyExists=true, action=updated", result)
+	}
+	if !strings.Contains(stderr, "updated it in place") {
+		t.Fatalf("stderr = %q, want updated diagnostic", stderr)
+	}
+}
+
+// A failed attach must not print a receipt that claims the build landed.
+func TestVersionsCreateIfExistsUpdateFailsWhenAttachFails(t *testing.T) {
+	stdout, _, _, runErr := runIfExistsCommand(t, []string{
+		"versions", "create", "--app", "app-1", "--version", "2.0.0", "--build-id", "build-1",
+		"--if-exists", "update", "--output", "json",
+	}, func(req ifExistsRequest) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.Path == "/v1/appStoreVersions":
+			return jsonResponse(http.StatusConflict, versionsDuplicate409)
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+			return jsonResponse(http.StatusOK, existingVersionsList)
+		case req.Method == http.MethodPatch && req.Path == "/v1/appStoreVersions/version-existing/relationships/build":
+			return jsonResponse(http.StatusConflict, versionsState409)
+		default:
+			t.Fatalf("unexpected request %s %s", req.Method, req.Path)
+			return nil, nil
+		}
+	})
+	if runErr == nil || !strings.Contains(runErr.Error(), "attach build build-1 to existing version version-existing") {
+		t.Fatalf("run error = %v, want the attach failure", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want no receipt", stdout)
+	}
+}
+
+// skip leaves an existing version unchanged, and a blank value carries no
+// build, so either would drop --build-id without a word.
+func TestVersionsCreateRejectsUnusableBuildIDBeforeHTTP(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "if-exists skip", args: []string{"--build-id", "build-1", "--if-exists", "skip"}, want: "--build-id cannot be used with --if-exists skip"},
+		{name: "blank", args: []string{"--build-id", "  "}, want: "--build-id must not be empty"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"versions", "create", "--app", "app-1", "--version", "2.0.0"}, tt.args...)
+			stdout, stderr, seen, runErr := runIfExistsCommand(t, args, func(req ifExistsRequest) (*http.Response, error) {
+				t.Fatalf("unexpected request %s %s", req.Method, req.Path)
+				return nil, nil
+			})
+			if !isUsageClassError(runErr) {
+				t.Fatalf("run error = %v, want usage-class error", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if !strings.Contains(stderr, tt.want) {
+				t.Fatalf("stderr = %q, want %q", stderr, tt.want)
+			}
+			if len(seen) != 0 {
+				t.Fatalf("requests = %+v, want none", seen)
 			}
 		})
 	}

@@ -179,12 +179,17 @@ Create a new app store version.
   Release type: `MANUAL`, `AFTER_APPROVAL`, `SCHEDULED`
 </ParamField>
 
+<ParamField path="--build-id" type="string">
+  Build ID to attach in the create request. With `--if-exists update`, attaches it to an existing version instead. Cannot be used with `--if-exists skip`.
+</ParamField>
+
 **Examples:**
 
 ```bash  theme={null}
 asc versions create --app "123456789" --version "2.0.0"
 asc versions create --app "123456789" --version "2.0.0" --platform IOS
 asc versions create --app "123456789" --version "2.0.0" --copyright "2026 My Company" --release-type MANUAL
+asc versions create --app "123456789" --version "2.0.0" --build-id "BUILD_ID"
 ```
 
 **Response:**

@@ -26,8 +26,9 @@ Create-style commands gain one shared flag:
   resource unchanged, and reports that it already existed.
 - `update` routes the same inputs to the corresponding update/PATCH call on the
   existing resource when one exists. When the invocation supplied nothing the
-  update call can carry (`versions create` without `--copyright` or
-  `--release-type`, `localizations create` with only `--locale`), `update`
+  update call can carry (`versions create` without `--copyright`,
+  `--release-type`, or `--build-id`, `localizations create` with only
+  `--locale`), `update`
   resolves like `skip` instead of sending an empty PATCH that a non-editable
   resource could reject. `bundle-ids capabilities add` routes `update` to
   the capability PATCH with `--settings`, the only input it can carry. A
@@ -285,7 +286,9 @@ with a bundle-ID suffix):
 
 1. `if-exists-core`: shared flag and helpers, receipt fields, `versions create`
    (`update` routes to `PATCH /v1/appStoreVersions/{id}` with `--copyright` and
-   `--release-type`; `--copy-metadata-from` still runs against the existing
+   `--release-type` and to `PATCH /v1/appStoreVersions/{id}/relationships/build`
+   with `--build-id`, which `skip` rejects as a usage error (exit 2) because it
+   would drop the build; `--copy-metadata-from` still runs against the existing
    version, and because that copy PATCHes the existing version's localizations
    the receipt reports `updated` even when the version resource itself had
    nothing to PATCH), `review details-create` (`update` routes to
