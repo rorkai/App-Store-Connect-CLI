@@ -1496,6 +1496,16 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			wantErr: "--subscription-period must be one of",
 		},
 		{
+			name:    "subscriptions create invalid group-level zero",
+			args:    []string{"subscriptions", "create", "--group-id", "GROUP_ID", "--reference-name", "Monthly", "--product-id", "com.example.sub", "--group-level", "0"},
+			wantErr: "--group-level must be a positive integer",
+		},
+		{
+			name:    "subscriptions create blank review-note",
+			args:    []string{"subscriptions", "create", "--group-id", "GROUP_ID", "--reference-name", "Monthly", "--product-id", "com.example.sub", "--review-note", "   "},
+			wantErr: "--review-note cannot be empty",
+		},
+		{
 			name:    "subscriptions update invalid group-level zero",
 			args:    []string{"subscriptions", "update", "--id", "SUB_ID", "--group-level", "0"},
 			wantErr: "--group-level must be a positive integer",
