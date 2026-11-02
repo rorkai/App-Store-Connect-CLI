@@ -1038,6 +1038,11 @@ func TestIAPValidationErrors(t *testing.T) {
 			wantErr: "--product-id is required",
 		},
 		{
+			name:    "iap create blank review-note",
+			args:    []string{"iap", "create", "--app", "APP_ID", "--type", "CONSUMABLE", "--ref-name", "Pro", "--product-id", "com.example.pro", "--review-note", " "},
+			wantErr: "--review-note cannot be empty",
+		},
+		{
 			name:    "iap update missing id",
 			args:    []string{"iap", "update"},
 			wantErr: "--id is required",
@@ -1046,6 +1051,16 @@ func TestIAPValidationErrors(t *testing.T) {
 			name:    "iap update missing update flags",
 			args:    []string{"iap", "update", "--id", "IAP_ID"},
 			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "iap update blank review-note",
+			args:    []string{"iap", "update", "--id", "IAP_ID", "--review-note", ""},
+			wantErr: "--review-note cannot be empty",
+		},
+		{
+			name:    "iap update blank review-note beside ref-name",
+			args:    []string{"iap", "update", "--id", "IAP_ID", "--ref-name", "Pro", "--review-note", " "},
+			wantErr: "--review-note cannot be empty",
 		},
 		{
 			name:    "iap delete missing id",
