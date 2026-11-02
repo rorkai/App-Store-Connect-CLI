@@ -343,6 +343,8 @@ func GameCenterLeaderboardsCreateCommand() *ffcli.Command {
 	submissionType := fs.String("submission-type", "", "Submission type: BEST_SCORE, MOST_RECENT_SCORE")
 	scoreRangeStart := fs.String("score-range-start", "", "Score range start (optional)")
 	scoreRangeEnd := fs.String("score-range-end", "", "Score range end (optional)")
+	fs.String("visibility", "", "Leaderboard visibility: "+strings.Join(asc.ValidLeaderboardVisibilities, ", "))
+	fs.String("activity-properties", "", "Activity properties as a JSON object of string values, inline or @file:PATH")
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID (v2 only)")
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
@@ -358,6 +360,7 @@ V2 creates the required initial leaderboard version inline.
 Examples:
   asc game-center leaderboards create --app "APP_ID" --reference-name "High Score" --vendor-id "com.example.highscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE
   asc game-center leaderboards create --app "APP_ID" --reference-name "Time Trial" --vendor-id "com.example.timetrial" --formatter ELAPSED_TIME_CENTISECOND --sort ASC --submission-type BEST_SCORE
+  asc game-center leaderboards create --app "APP_ID" --reference-name "Ranked" --vendor-id "com.example.ranked" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --visibility HIDE_FOR_ALL --activity-properties '{"mode":"ranked"}'
   asc game-center leaderboards create --group-id "GROUP_ID" --reference-name "Group Score" --vendor-id "grp.com.example.groupscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -420,6 +423,15 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			visibility, err := parseLeaderboardVisibilityFlag(fs)
+			if err != nil {
+				return err
+			}
+			activityProperties, err := parseStringMapFlag(fs, "activity-properties")
+			if err != nil {
+				return err
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards create: %w", err)
@@ -439,13 +451,15 @@ Examples:
 			}
 
 			attrs := asc.GameCenterLeaderboardCreateAttributes{
-				ReferenceName:    name,
-				VendorIdentifier: vendor,
-				DefaultFormatter: formatterVal,
-				ScoreSortType:    sortVal,
-				SubmissionType:   submissionVal,
-				ScoreRangeStart:  strings.TrimSpace(*scoreRangeStart),
-				ScoreRangeEnd:    strings.TrimSpace(*scoreRangeEnd),
+				ReferenceName:      name,
+				VendorIdentifier:   vendor,
+				DefaultFormatter:   formatterVal,
+				ScoreSortType:      sortVal,
+				SubmissionType:     submissionVal,
+				ScoreRangeStart:    strings.TrimSpace(*scoreRangeStart),
+				ScoreRangeEnd:      strings.TrimSpace(*scoreRangeEnd),
+				ActivityProperties: activityProperties,
+				Visibility:         visibility,
 			}
 
 			useV2 := *v2 || group != ""
@@ -471,6 +485,8 @@ func GameCenterLeaderboardsUpdateCommand() *ffcli.Command {
 	leaderboardID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboards", "Game Center leaderboard ID")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard")
 	archived := fs.String("archived", "", "Archive the leaderboard (true/false)")
+	fs.String("visibility", "", "Leaderboard visibility: "+strings.Join(asc.ValidLeaderboardVisibilities, ", "))
+	fs.String("activity-properties", "", "Activity properties as a JSON object of string values, inline or @file:PATH")
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
 
@@ -483,6 +499,8 @@ func GameCenterLeaderboardsUpdateCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards update --id "LEADERBOARD_ID" --reference-name "New Name"
   asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --visibility HIDE_FOR_ALL
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --activity-properties @file:properties.json
   asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -509,6 +527,24 @@ Examples:
 					return flag.ErrHelp
 				}
 				attrs.Archived = &val
+				hasUpdate = true
+			}
+
+			visibility, err := parseLeaderboardVisibilityFlag(fs)
+			if err != nil {
+				return err
+			}
+			if visibility != "" {
+				attrs.Visibility = &visibility
+				hasUpdate = true
+			}
+
+			activityProperties, err := parseStringMapFlag(fs, "activity-properties")
+			if err != nil {
+				return err
+			}
+			if activityProperties != nil {
+				attrs.ActivityProperties = activityProperties
 				hasUpdate = true
 			}
 
