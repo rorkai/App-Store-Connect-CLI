@@ -970,6 +970,8 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 	var feedbackEnabled shared.OptionalBool
 	feedbackEnabled.EnableBoolFlag()
 	fs.Var(&feedbackEnabled, "feedback-enabled", "Enable tester feedback")
+	buildID := shared.BindOnceCSVFlag(fs, "build-id", "Build ID(s) to attach, comma-separated")
+	tester := shared.BindOnceCSVFlag(fs, "tester", "Beta tester ID(s) to attach, comma-separated")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -978,8 +980,12 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 		ShortHelp:  "Create a TestFlight beta group.",
 		LongHelp: `Create a TestFlight beta group.
 
+--build-id and --tester attach existing builds and beta testers in the create
+request itself.
+
 Examples:
   asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"
+  asc testflight beta-groups create --app "APP_ID" --name "Beta Testers" --build-id "BUILD_ID1,BUILD_ID2" --tester "TESTER_ID1,TESTER_ID2"
   asc testflight beta-groups create --app "APP_ID" --name "Internal Testers" --internal --access-all-builds
   asc testflight beta-groups create --app "APP_ID" --name "Public Beta" --public-link-enabled --public-link-limit-enabled --public-link-limit 250 --feedback-enabled`,
 		FlagSet:   fs,
@@ -1011,6 +1017,14 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --public-link-limit is required when enabling public link limit")
 				return shared.MissingRequiredUsageError("--public-link-limit")
 			}
+			buildIDs, err := parseCreateRelationshipIDs(buildID, "--build-id")
+			if err != nil {
+				return err
+			}
+			testerIDs, err := parseCreateRelationshipIDs(tester, "--tester")
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -1034,7 +1048,7 @@ Examples:
 				FeedbackEnabled:        optionalBetaGroupCreateBool(feedbackEnabled),
 			}
 
-			group, err := client.CreateBetaGroupWithAttributes(requestCtx, resolvedAppID, attrs)
+			group, err := client.CreateBetaGroupWithAttributes(requestCtx, resolvedAppID, attrs, buildIDs, testerIDs)
 			if err != nil {
 				return fmt.Errorf("beta-groups create: failed to create: %w", err)
 			}

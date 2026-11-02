@@ -2,6 +2,7 @@ package cmdtest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
@@ -365,5 +366,85 @@ func TestBetaGroupsCreateRejectsInvalidPublicLinkLimitBeforeRequest(t *testing.T
 	}
 	if !strings.Contains(stderr, "--public-link-limit must be between 1 and 10000") {
 		t.Fatalf("expected limit diagnostic, got %q", stderr)
+	}
+}
+
+func createRequestRelationships(t *testing.T, req *http.Request) string {
+	t.Helper()
+
+	var payload struct {
+		Data struct {
+			Relationships json.RawMessage `json:"relationships"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode body error: %v", err)
+	}
+	return string(payload.Data.Relationships)
+}
+
+func TestBetaGroupsCreateSendsRelationshipsInOneRequest(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	const app = `"app":{"data":{"type":"apps","id":"app-1"}}`
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "omitted flags send only the app",
+			want: `{` + app + `}`,
+		},
+		{
+			name: "builds",
+			args: []string{"--build-id", "build-1, build-2,build-1"},
+			want: `{` + app + `,"builds":{"data":[{"type":"builds","id":"build-1"},{"type":"builds","id":"build-2"}]}}`,
+		},
+		{
+			name: "testers",
+			args: []string{"--tester", "tester-1,tester-2"},
+			want: `{` + app + `,"betaTesters":{"data":[{"type":"betaTesters","id":"tester-1"},{"type":"betaTesters","id":"tester-2"}]}}`,
+		},
+		{
+			name: "builds and testers",
+			args: []string{"--build-id", "build-1", "--tester", "tester-1"},
+			want: `{` + app + `,"builds":{"data":[{"type":"builds","id":"build-1"}]},"betaTesters":{"data":[{"type":"betaTesters","id":"tester-1"}]}}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			callCount := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				callCount++
+				if req.Method != http.MethodPost || req.URL.Path != "/v1/betaGroups" {
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+				}
+				if got := createRequestRelationships(t, req); got != test.want {
+					t.Fatalf("relationships = %s, want %s", got, test.want)
+				}
+				return &http.Response{
+					StatusCode: http.StatusCreated,
+					Body:       io.NopCloser(strings.NewReader(`{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Beta"}}}`)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			})
+
+			args := append([]string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta"}, test.args...)
+			if _, _, err := runCommand(t, args); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+			if callCount != 1 {
+				t.Fatalf("expected one request, got %d", callCount)
+			}
+		})
 	}
 }

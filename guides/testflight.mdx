@@ -43,6 +43,14 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     ```bash  theme={null}
     asc testflight groups create --app "YOUR_APP_ID" --name "QA Team" --internal
     ```
+
+    Attach existing builds and testers in the create request:
+
+    ```bash  theme={null}
+    asc testflight groups create --app "YOUR_APP_ID" --name "Release Candidates" \
+      --build-id "BUILD_ID1,BUILD_ID2" \
+      --tester "TESTER_ID1,TESTER_ID2"
+    ```
   </Step>
 
   <Step title="Configure group settings">
@@ -85,6 +93,14 @@ TestFlight allows you to distribute pre-release builds to internal and external 
       --first-name "Jane" \
       --last-name "Doe" \
       --group "Beta Testers"
+    ```
+
+    Give a new tester specific builds, with or without a group:
+
+    ```bash  theme={null}
+    asc testflight testers add \
+      --email "tester@example.com" \
+      --build-id "BUILD_ID1,BUILD_ID2"
     ```
   </Step>
 

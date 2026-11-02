@@ -6,6 +6,18 @@ import (
 	"strings"
 )
 
+func buildRelationshipList(resourceType ResourceType, ids []string) *RelationshipList {
+	normalized := normalizeList(ids)
+	if len(normalized) == 0 {
+		return nil
+	}
+	data := make([]ResourceData, 0, len(normalized))
+	for _, id := range normalized {
+		data = append(data, ResourceData{Type: resourceType, ID: id})
+	}
+	return &RelationshipList{Data: data}
+}
+
 func normalizeList(values []string) []string {
 	if len(values) == 0 {
 		return nil
