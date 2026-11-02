@@ -66,7 +66,7 @@ func LocalizationsListCommand() *ffcli.Command {
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info", "appInfos", "App Info ID (optional override)")
 	platform := fs.String("platform", "", "Platform used to pick the version when --version is omitted or is a version string with --app: IOS, MAC_OS, TV_OS, or VISION_OS")
 	locType := fs.String("type", shared.LocalizationTypeVersion, "Localization type: version (default) or app-info")
-	appInfoFields := fs.String("app-info-fields", "", "Sparse app info fields for app-info localizations: kidsAgeBand (deprecated; removed from API 4.5; prefer age-rating data)")
+	appInfoFields := fs.String("app-info-fields", "", "Sparse app info fields for app-info localizations: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer age-rating data)")
 	include := shared.BindOnceCSVFlag(fs, "include", "Include related resources for version localizations, comma-separated: "+strings.Join(versionLocalizationIncludeList(), ", "))
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -100,7 +100,7 @@ Examples:
   asc localizations list --version "VERSION_ID"
   asc localizations list --app "APP_ID"
   asc localizations list --app "APP_ID" --platform IOS
-  asc localizations list --app "APP_ID" --type app-info --app-info-fields kidsAgeBand
+  asc localizations list --app "APP_ID" --type app-info --app-info-fields state,primaryCategory
   asc localizations list --version "VERSION_ID" --locale "en-US,ja"
   asc localizations list --version "VERSION_ID" --include "appScreenshotSets,appPreviewSets"
   asc localizations list --version "VERSION_ID" --paginate`,
@@ -175,7 +175,7 @@ Examples:
 			if includeProvided && len(includeValues) == 0 {
 				return shared.UsageError("--include must not be empty")
 			}
-			appInfoFieldValues, err := shared.NormalizeSelection(*appInfoFields, []string{"kidsAgeBand"}, "--app-info-fields")
+			appInfoFieldValues, err := shared.NormalizeSelection(*appInfoFields, shared.AppInfoSparseFields, "--app-info-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}

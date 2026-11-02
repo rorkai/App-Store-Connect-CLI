@@ -2,10 +2,13 @@ package cmdtest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
 	"net/http"
+	"os"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -17,18 +20,18 @@ func TestSparseAppFieldFlagsValidateBeforeAuth(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"apps list iap", []string{"apps", "list", "--iap-fields", "name"}, "--iap-fields must be one of: versions"},
-		{"apps list app info", []string{"apps", "list", "--app-info-fields", "state"}, "--app-info-fields must be one of: kidsAgeBand"},
-		{"apps view group", []string{"apps", "view", "--id", "app-1", "--subscription-group-fields", "subscriptions"}, "--subscription-group-fields must be one of: versions"},
-		{"app infos list fields", []string{"apps", "info", "list", "--app", "app-1", "--fields", "state"}, "--fields must be one of: kidsAgeBand"},
-		{"app info view age rating", []string{"apps", "info", "view", "--info-id", "info-1", "--age-rating-fields", "gambling"}, "--age-rating-fields must be one of"},
+		{"apps list iap", []string{"apps", "list", "--iap-fields", "bogus"}, "--iap-fields must be one of: referenceName"},
+		{"apps list app info", []string{"apps", "list", "--app-info-fields", "bogus"}, "--app-info-fields must be one of: appStoreState"},
+		{"apps view group", []string{"apps", "view", "--id", "app-1", "--subscription-group-fields", "bogus"}, "--subscription-group-fields must be one of: referenceName"},
+		{"app infos list fields", []string{"apps", "info", "list", "--app", "app-1", "--fields", "bogus"}, "--fields must be one of: appStoreState"},
+		{"app info view age rating", []string{"apps", "info", "view", "--info-id", "info-1", "--age-rating-fields", "bogus"}, "--age-rating-fields must be one of: advertising"},
 		{"app info view unsupported include", []string{"apps", "info", "view", "--info-id", "info-1", "--include", "territoryAgeRatings"}, "--include must be one of: app, ageRatingDeclaration, appInfoLocalizations, primaryCategory"},
 		{"app info fields conflict with version", []string{"apps", "info", "view", "--app", "app-1", "--version-id", "version-1", "--fields", "kidsAgeBand"}, "--fields cannot be used with version localization flags"},
 		{"app info age rating fields conflict with next", []string{"apps", "info", "view", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--age-rating-fields", "socialMedia"}, "--next cannot be combined with --age-rating-fields"},
-		{"age rating view", []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "gambling"}, "--fields must be one of"},
-		{"app info localizations", []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--app-info-fields", "state"}, "--app-info-fields must be one of: kidsAgeBand"},
-		{"xcode cloud product app", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--iap-fields", "name"}, "--iap-fields must be one of: versions"},
-		{"xcode cloud product app app info", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--app-info-fields", "state"}, "--app-info-fields must be one of: kidsAgeBand"},
+		{"age rating view", []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "bogus"}, "--fields must be one of: advertising"},
+		{"app info localizations", []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--app-info-fields", "bogus"}, "--app-info-fields must be one of: appStoreState"},
+		{"xcode cloud product app", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--iap-fields", "bogus"}, "--iap-fields must be one of: referenceName"},
+		{"xcode cloud product app app info", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--app-info-fields", "bogus"}, "--app-info-fields must be one of: appStoreState"},
 	}
 
 	for _, test := range tests {
@@ -305,6 +308,118 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 	}
 }
 
+// A narrower allowlist rejects values Apple documents, and a value removed from
+// the spec leaves the flag unable to express a valid request.
+func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
+	setupAuth(t)
+	raw, err := os.ReadFile("../../../docs/openapi/latest.json")
+	if err != nil {
+		t.Fatalf("read OpenAPI snapshot: %v", err)
+	}
+	var spec struct {
+		Paths map[string]struct {
+			Get struct {
+				Parameters []struct {
+					Name   string `json:"name"`
+					Schema struct {
+						Items struct {
+							Enum []string `json:"enum"`
+						} `json:"items"`
+					} `json:"schema"`
+				} `json:"parameters"`
+			} `json:"get"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(raw, &spec); err != nil {
+		t.Fatalf("parse OpenAPI snapshot: %v", err)
+	}
+
+	const (
+		appInfos   = "fields[appInfos]"
+		ageRatings = "fields[ageRatingDeclarations]"
+		iaps       = "fields[inAppPurchases]"
+		groups     = "fields[subscriptionGroups]"
+		list       = `{"data":[]}`
+		app        = `{"data":{"type":"apps","id":"app-1"}}`
+		appInfo    = `{"data":{"type":"appInfos","id":"info-1"}}`
+		ageRating  = `{"data":{"type":"ageRatingDeclarations","id":"age-1"}}`
+	)
+	appsList := []string{"apps", "list"}
+	appsView := []string{"apps", "view", "--id", "app-1"}
+	infosList := []string{"apps", "info", "list", "--app", "app-1"}
+	infoView := []string{"apps", "info", "view", "--info-id", "info-1"}
+	ageRatingView := []string{"age-rating", "view", "--app-info-id", "info-1"}
+	localizations := []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1"}
+	productApp := []string{"xcode-cloud", "products", "app", "--id", "product-1"}
+	tests := []struct {
+		command             []string
+		flagName, parameter string
+		specPath, path      string
+		response            string
+	}{
+		{appsList, "--app-info-fields", appInfos, "/v1/apps", "/v1/apps", list},
+		{appsList, "--iap-fields", iaps, "/v1/apps", "/v1/apps", list},
+		{appsList, "--subscription-group-fields", groups, "/v1/apps", "/v1/apps", list},
+		{appsView, "--app-info-fields", appInfos, "/v1/apps/{id}", "/v1/apps/app-1", app},
+		{appsView, "--iap-fields", iaps, "/v1/apps/{id}", "/v1/apps/app-1", app},
+		{appsView, "--subscription-group-fields", groups, "/v1/apps/{id}", "/v1/apps/app-1", app},
+		{infosList, "--fields", appInfos, "/v1/apps/{id}/appInfos", "/v1/apps/app-1/appInfos", list},
+		{infosList, "--age-rating-fields", ageRatings, "/v1/apps/{id}/appInfos", "/v1/apps/app-1/appInfos", list},
+		{infoView, "--fields", appInfos, "/v1/appInfos/{id}", "/v1/appInfos/info-1", appInfo},
+		{infoView, "--age-rating-fields", ageRatings, "/v1/appInfos/{id}", "/v1/appInfos/info-1", appInfo},
+		{ageRatingView, "--fields", ageRatings, "/v1/appInfos/{id}/ageRatingDeclaration", "/v1/appInfos/info-1/ageRatingDeclaration", ageRating},
+		{localizations, "--app-info-fields", appInfos, "/v1/appInfos/{id}/appInfoLocalizations", "/v1/appInfos/info-1/appInfoLocalizations", list},
+		{productApp, "--app-info-fields", appInfos, "/v1/ciProducts/{id}/app", "/v1/ciProducts/product-1/app", app},
+		{productApp, "--iap-fields", iaps, "/v1/ciProducts/{id}/app", "/v1/ciProducts/product-1/app", app},
+		{productApp, "--subscription-group-fields", groups, "/v1/ciProducts/{id}/app", "/v1/ciProducts/product-1/app", app},
+	}
+
+	for _, test := range tests {
+		t.Run(test.specPath+" "+test.flagName, func(t *testing.T) {
+			var want []string
+			for _, parameter := range spec.Paths[test.specPath].Get.Parameters {
+				if parameter.Name == test.parameter {
+					want = slices.Sorted(slices.Values(parameter.Schema.Items.Enum))
+				}
+			}
+			if len(want) == 0 {
+				t.Fatalf("OpenAPI snapshot has no %s on GET %s", test.parameter, test.specPath)
+			}
+
+			calls := 0
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				calls++
+				if req.URL.Path != test.path {
+					t.Fatalf("path = %s, want %s", req.URL.Path, test.path)
+				}
+				got := slices.Sorted(slices.Values(strings.Split(req.URL.Query().Get(test.parameter), ",")))
+				if !slices.Equal(got, want) {
+					t.Errorf("%s = %v, want %v", test.parameter, got, want)
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(test.response)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
+			}))
+
+			args := append(slices.Clone(test.command), test.flagName, strings.Join(want, ","), "--output", "json")
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			_, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Errorf("run error: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Errorf("stderr = %q, want empty", stderr)
+			}
+			if calls != 1 {
+				t.Fatalf("calls = %d, want 1", calls)
+			}
+		})
+	}
+}
+
 func TestSparseAppFieldHelp441(t *testing.T) {
 	root := RootCommand("1.2.3")
 	for _, path := range [][]string{
@@ -336,7 +451,7 @@ func TestSparseAppFieldHelp441(t *testing.T) {
 	if appInfoView == nil {
 		t.Fatal("command [apps info view] not found")
 	}
-	usage := appInfoView.UsageFunc(appInfoView)
+	usage := appInfoView.FlagSet.Lookup("include").Usage
 	wantIncludes := "app, ageRatingDeclaration, appInfoLocalizations, primaryCategory, primarySubcategoryOne, primarySubcategoryTwo, secondaryCategory, secondarySubcategoryOne, secondarySubcategoryTwo"
 	if !strings.Contains(usage, wantIncludes) || strings.Contains(usage, "territoryAgeRatings") {
 		t.Fatalf("help for [apps info view] does not teach exact app-info includes: %q", usage)

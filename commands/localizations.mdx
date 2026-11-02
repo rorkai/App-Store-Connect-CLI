@@ -47,10 +47,11 @@ List localization metadata for an app or version.
 </ParamField>
 
 <ParamField path="--app-info-fields" type="string">
-  Legacy sparse app-info fields for `--type app-info`: `kidsAgeBand`. API 4.5
-  removed this property from `AppInfo`. The CLI forwards the selector for
-  compatibility and emits a deprecation warning on stderr. Automatically
-  includes `appInfo`. Use `asc age-rating view` for current age-rating data.
+  Sparse app-info fields for `--type app-info`: `appStoreState`, `state`, `appStoreAgeRating`, `australiaAgeRating`, `brazilAgeRating`, `brazilAgeRatingV2`, `franceAgeRating`, `koreaAgeRating`, `app`, `ageRatingDeclaration`, `appInfoLocalizations`, `primaryCategory`, `primarySubcategoryOne`, `primarySubcategoryTwo`, `secondaryCategory`, `secondarySubcategoryOne`, `secondarySubcategoryTwo`, `territoryAgeRatings`. Automatically includes
+  `appInfo`.
+  `kidsAgeBand` is deprecated: API 4.5 removed it from `AppInfo`. The CLI still
+  forwards it with a stderr deprecation warning. Use `asc age-rating view` for
+  current age-rating data.
   This flag is rejected for other localization types and cannot be combined
   with `--next`.
 </ParamField>
@@ -82,7 +83,7 @@ asc localizations list --app "APP_ID" --version "1.2.3" --output table
 asc localizations list --version "VERSION_ID"
 asc localizations list --app "APP_ID"
 asc localizations list --app "APP_ID" --platform IOS
-asc localizations list --app "APP_ID" --type app-info --app-info-fields kidsAgeBand
+asc localizations list --app "APP_ID" --type app-info --app-info-fields state,primaryCategory
 asc localizations list --version "VERSION_ID" --locale "en-US,ja"
 asc localizations list --version "VERSION_ID" --paginate
 ```

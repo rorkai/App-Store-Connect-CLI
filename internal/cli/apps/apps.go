@@ -25,9 +25,9 @@ func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *strin
 	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next = fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	appInfoFields = fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated; removed from API 4.5; prefer asc age-rating view)")
-	iapFields = fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
-	subscriptionGroupFields = fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
+	appInfoFields = fs.String("app-info-fields", "", "Sparse fields for included app info records: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
+	iapFields = fs.String("iap-fields", "", "Sparse fields for included in-app purchases: "+strings.Join(shared.AppInAppPurchaseSparseFields, ", "))
+	subscriptionGroupFields = fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: "+strings.Join(shared.SubscriptionGroupSparseFields, ", "))
 	return
 }
 
@@ -88,7 +88,7 @@ Examples:
   asc apps --sort sku
   asc apps --version-state IN_REVIEW,WAITING_FOR_REVIEW
   asc apps --review-submission-state IN_REVIEW
-  asc apps --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
+  asc apps --app-info-fields state,primaryCategory --iap-fields versions --subscription-group-fields versions
   asc apps --output table
   asc apps --next "<links.next>"
   asc apps --paginate`,
@@ -131,7 +131,7 @@ Examples:
   asc apps list --sort sku
   asc apps list --version-state IN_REVIEW,WAITING_FOR_REVIEW
   asc apps list --review-submission-state IN_REVIEW
-  asc apps list --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
+  asc apps list --app-info-fields state,primaryCategory --iap-fields versions --subscription-group-fields versions
   asc apps list --output table
   asc apps list --next "<links.next>"
   asc apps list --paginate`,
@@ -149,9 +149,9 @@ func AppsGetCommand() *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "apps", "App Store Connect app ID")
 	fields := fs.String("fields", "", "App attribute fields to return, comma-separated: "+strings.Join(appAttributeFields, ", "))
-	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated; removed from API 4.5; prefer asc age-rating view)")
-	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
-	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
+	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
+	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: "+strings.Join(shared.AppInAppPurchaseSparseFields, ", "))
+	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: "+strings.Join(shared.SubscriptionGroupSparseFields, ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -162,7 +162,7 @@ func AppsGetCommand() *ffcli.Command {
 
 Examples:
   asc apps view --id "APP_ID"
-  asc apps view --id "APP_ID" --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
+  asc apps view --id "APP_ID" --app-info-fields state,primaryCategory --iap-fields versions --subscription-group-fields versions
   asc apps view --id "APP_ID" --output table
   asc apps view --id "APP_ID" --fields "subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox" --output json`,
 		FlagSet:   fs,
@@ -177,15 +177,15 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			appInfoFieldValues, err := normalizeSparseField(fs, *appInfoFields, appInfoSparseFields441, "--app-info-fields")
+			appInfoFieldValues, err := normalizeSparseField(fs, *appInfoFields, shared.AppInfoSparseFields, "--app-info-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			iapFieldValues, err := normalizeSparseField(fs, *iapFields, appInAppPurchaseSparseFields441, "--iap-fields")
+			iapFieldValues, err := normalizeSparseField(fs, *iapFields, shared.AppInAppPurchaseSparseFields, "--iap-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			groupFieldValues, err := normalizeSparseField(fs, *subscriptionGroupFields, appSubscriptionGroupSparseFields441, "--subscription-group-fields")
+			groupFieldValues, err := normalizeSparseField(fs, *subscriptionGroupFields, shared.SubscriptionGroupSparseFields, "--subscription-group-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -381,15 +381,15 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 	if err != nil {
 		return shared.UsageError(err.Error())
 	}
-	appInfoFieldValues, err := normalizeSparseField(fs, appInfoFields, appInfoSparseFields441, "--app-info-fields")
+	appInfoFieldValues, err := normalizeSparseField(fs, appInfoFields, shared.AppInfoSparseFields, "--app-info-fields")
 	if err != nil {
 		return shared.UsageError(err.Error())
 	}
-	iapFieldValues, err := normalizeSparseField(fs, iapFields, appInAppPurchaseSparseFields441, "--iap-fields")
+	iapFieldValues, err := normalizeSparseField(fs, iapFields, shared.AppInAppPurchaseSparseFields, "--iap-fields")
 	if err != nil {
 		return shared.UsageError(err.Error())
 	}
-	groupFieldValues, err := normalizeSparseField(fs, subscriptionGroupFields, appSubscriptionGroupSparseFields441, "--subscription-group-fields")
+	groupFieldValues, err := normalizeSparseField(fs, subscriptionGroupFields, shared.SubscriptionGroupSparseFields, "--subscription-group-fields")
 	if err != nil {
 		return shared.UsageError(err.Error())
 	}
