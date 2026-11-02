@@ -812,6 +812,10 @@ plan availability per billing plan: `UPFRONT` and `MONTHLY`.
 asc subscriptions pricing plan-availability show \
   --subscription-id "SUB_ID"
 
+asc subscriptions pricing plan-availability available-territories \
+  --plan-availability-id "PLAN_AVAILABILITY_ID" \
+  --paginate
+
 asc subscriptions pricing plan-availability set \
   --subscription-id "SUB_ID" \
   --plan-type UPFRONT \
@@ -822,9 +826,13 @@ asc subscriptions pricing plan-availability set \
 `show` prints `GET /v1/subscriptions/{id}/planAvailabilities` with
 `include=availableTerritories`. Apple caps the included linkages at 50 per plan
 availability and reports the real count in the response paging metadata. When
-that cap truncates the included list, `show` warns on stderr; do not pass the
-truncated include to `set --territories`. `set` reads the complete relationship
-before replacing it.
+that cap truncates the included list or leaves it unknown, `show` warns on
+stderr; do not pass the truncated include to `set --territories`.
+
+`available-territories` prints
+`GET /v1/subscriptionPlanAvailabilities/{id}/availableTerritories`, which has no
+include cap. Use `--paginate` for the complete list. `show` prints each plan
+availability ID. `set` reads the complete relationship before replacing it.
 
 `set` is a desired-state write. The complete `--territories` list replaces the
 plan's territories: territories missing from the list are removed and new ones

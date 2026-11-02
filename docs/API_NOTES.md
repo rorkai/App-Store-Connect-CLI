@@ -243,7 +243,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 
 ## Subscription Plan Availability
 
-- `GET /v1/subscriptions/{id}/planAvailabilities?include=availableTerritories` caps `limit[availableTerritories]` at 50; complete territory lists require `GET /v1/subscriptionPlanAvailabilities/{id}/relationships/availableTerritories` (`limit=200`, cursor-paginated).
+- `GET /v1/subscriptions/{id}/planAvailabilities?include=availableTerritories` caps `limit[availableTerritories]` at 50; complete territory lists require `GET /v1/subscriptionPlanAvailabilities/{id}/relationships/availableTerritories` or `GET /v1/subscriptionPlanAvailabilities/{id}/availableTerritories` (`limit=200`, cursor-paginated; the latter backs `plan-availability available-territories`).
 - `PATCH /v1/subscriptionPlanAvailabilities/{id}` replaces `availableTerritories` wholesale and allows only `availableInNewTerritories` as a mutable attribute (`planType` is create-only, and `availableInNewTerritories` is unsupported for `MONTHLY`). `set` verifies territories via the paginated relationship endpoint and `availableInNewTerritories` via a fresh resource GET.
 - Removing an approved subscription from sale (emptying `availableTerritories`) requires the Account Holder web session (`asc web subscriptions availability remove-from-sale` on `/iris/v1`).
 
