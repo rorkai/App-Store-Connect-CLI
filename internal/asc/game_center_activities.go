@@ -25,7 +25,7 @@ type GameCenterActivityCreateAttributes struct {
 	MinimumPlayersCount *int              `json:"minimumPlayersCount,omitempty"`
 	MaximumPlayersCount *int              `json:"maximumPlayersCount,omitempty"`
 	SupportsPartyCode   *bool             `json:"supportsPartyCode,omitempty"`
-	Properties          map[string]string `json:"properties,omitempty"`
+	Properties          map[string]string `json:"properties,omitzero"`
 }
 
 // GameCenterActivityUpdateAttributes describes attributes for updating an activity.
@@ -36,7 +36,7 @@ type GameCenterActivityUpdateAttributes struct {
 	MaximumPlayersCount *int              `json:"maximumPlayersCount,omitempty"`
 	SupportsPartyCode   *bool             `json:"supportsPartyCode,omitempty"`
 	Archived            *bool             `json:"archived,omitempty"`
-	Properties          map[string]string `json:"properties,omitempty"`
+	Properties          map[string]string `json:"properties,omitzero"`
 }
 
 // GameCenterActivityRelationships describes relationships for activities.

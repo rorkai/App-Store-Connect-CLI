@@ -26,8 +26,9 @@ Create-style commands gain one shared flag:
   resource unchanged, and reports that it already existed.
 - `update` routes the same inputs to the corresponding update/PATCH call on the
   existing resource when one exists. When the invocation supplied nothing the
-  update call can carry (`versions create` without `--copyright` or
-  `--release-type`, `localizations create` with only `--locale`), `update`
+  update call can carry (`versions create` without `--copyright`,
+  `--release-type`, or `--build-id`, `localizations create` with only
+  `--locale`), `update`
   resolves like `skip` instead of sending an empty PATCH that a non-editable
   resource could reject. `bundle-ids capabilities add` routes `update` to
   the capability PATCH with `--settings`, the only input it can carry. A
@@ -68,7 +69,7 @@ Error codes keyed on, per command:
 
 | Command | Natural key read-back | Apple 409 code(s) accepted | Evidence |
 | --- | --- | --- | --- |
-| `versions create` | `GET /v1/apps/{id}/appStoreVersions?filter[versionString]=&filter[platform]=` | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` (source pointer `/data/attributes/versionString`, detail "The version number has been previously used.") | **Verified live** against app `6759231657` on 2026-09-15: re-creating the existing version string returns two errors, `errors[0]` = `ENTITY_ERROR.RELATIONSHIP.INVALID` ("You cannot create a new version of the App in the current state.", pointer `/data/relationships/app`) and `errors[1]` = the duplicate code above. A 409 carrying only the relationship rejection (a genuinely new version string the app cannot accept yet) has no duplicate code and keeps failing. |
+| `versions create` | `GET /v1/apps/{id}/appStoreVersions?filter[versionString]=&filter[platform]=` | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` (source pointer `/data/attributes/versionString`, detail "The version number has been previously used.") | **Verified live** against app `6759231657` on 2026-09-15: re-creating the existing version string returns two errors, `errors[0]` = `ENTITY_ERROR.RELATIONSHIP.INVALID` ("You cannot create a new version of the App in the current state.", pointer `/data/relationships/app`) and `errors[1]` = the duplicate code above. A 409 carrying only the relationship rejection (a genuinely new version string the app cannot accept yet) has no duplicate code and keeps failing, except under `--build-id` with `update`: live on 2026-11-03 a rejected build on an existing version string also returned the relationship rejection alone, so that combination reads the version back and attaches the build to it. |
 | `review details-create` | `GET /v1/appStoreVersions/{id}/appStoreReviewDetail` | `STATE_ERROR.ALREADY_EXISTS`, `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | **Verified live** against app `6759231657` on 2026-09-15: creating a detail for a version that already has one returns 409 `STATE_ERROR.ALREADY_EXISTS` ("Resource already exists." / "The given app version already has an existing review."). The relationship and duplicate-attribute codes are kept as defensive alternates; every other `STATE_ERROR.*` keeps failing, and the read-back is the decisive check. |
 | `localizations create` | `GET /v1/appStoreVersions/{id}/appStoreVersionLocalizations` matched on locale, then `GET /v1/appStoreVersionLocalizations/{id}` so Apple's own single-resource envelope is what gets printed | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` (pointer `/data/attributes/locale`, detail "Entity with locale: ... already exists. Try updating.") | **Verified live** against disposable app `6759231657` on 2026-09-15: re-creating an existing `en-US` locale returned HTTP 409 with this code and pointer. The exact-locale read-back found the existing resource; `skip` and `update` with no metadata both exited 0 without a PATCH. |
 | `pricing availability create` | `GET /v1/apps/{id}/appAvailabilityV2` | `ENTITY_ERROR.RELATIONSHIP.INVALID` (pointer `/data/relationships/app`, detail "An 'appAvailabilities' with a relationship to 'apps' with id '...' already exists."), `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` (defensive alternate, not observed) | **Verified live** against app `6759231657` on 2026-09-15 and 2026-09-25: re-creating the existing availability returns 409 with the relationship code and detail above in `errors[0]`; when the request omits catalog territories Apple appends one bootstrap-style "expects an included resource with type 'territories'" error per omitted territory after it. **This code is ambiguous on this endpoint**: Apple also returns it for the public-API bootstrap rejection, which is classified first (by the `territoryAvailabilities.territory` detail in `errors[0]`) and keeps its own remediation. The read-back is decisive either way, since the bootstrap rejection creates nothing. A create with no `territoryAvailabilities` at all is `ENTITY_ERROR.RELATIONSHIP.REQUIRED`, not an existence conflict, and keeps failing. |
@@ -285,7 +286,12 @@ with a bundle-ID suffix):
 
 1. `if-exists-core`: shared flag and helpers, receipt fields, `versions create`
    (`update` routes to `PATCH /v1/appStoreVersions/{id}` with `--copyright` and
-   `--release-type`; `--copy-metadata-from` still runs against the existing
+   `--release-type` and to `PATCH /v1/appStoreVersions/{id}/relationships/build`
+   with `--build-id`, which `skip` rejects as a usage error (exit 2) because it
+   would drop the build; a bad build makes Apple answer the POST with
+   `ENTITY_ERROR.RELATIONSHIP.INVALID` alone, without the duplicate code, so
+   `update` with `--build-id` also reads the version back after that code and,
+   when it exists, lets the attach report the build error; `--copy-metadata-from` still runs against the existing
    version, and because that copy PATCHes the existing version's localizations
    the receipt reports `updated` even when the version resource itself had
    nothing to PATCH), `review details-create` (`update` routes to

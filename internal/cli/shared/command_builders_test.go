@@ -156,7 +156,7 @@ func TestBuildPricePointEqualizationsCommand_UsesSharedHelpTemplate(t *testing.T
 		ParentFlag:  "price-point",
 		ParentUsage: "App price point ID",
 		ErrorPrefix: "pricing price-points equalizations",
-		FetchPage: func(context.Context, *asc.Client, string, int, string, []string) (asc.PaginatedResponse, error) {
+		FetchPage: func(context.Context, *asc.Client, string, int, string, []string, asc.IncludedFields) (asc.PaginatedResponse, error) {
 			return &testPaginatedResponse{}, nil
 		},
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {

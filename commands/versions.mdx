@@ -112,6 +112,8 @@ before authentication or API requests.
   Include related resources (comma-separated): `ageRatingDeclaration`, `app`, `appStoreVersionLocalizations`, `build`, `appStoreVersionPhasedRelease`, `gameCenterAppVersion`, `routingAppCoverage`, `appStoreReviewDetail`, `appStoreVersionSubmission`, `appClipDefaultExperience`, `appStoreVersionExperiments`, `appStoreVersionExperimentsV2`, `alternativeDistributionPackage`
 </ParamField>
 
+Each included resource has a sparse-field flag that requires its `--include` value, such as `--build-fields`, `--app-fields`, or `--review-detail-fields`. `asc versions list` accepts the same flags.
+
 **Examples:**
 
 ```bash  theme={null}
@@ -121,6 +123,7 @@ asc versions view --app "123456789" --version "1.2.3" --platform MAC_OS
 asc versions view --version-id "VERSION_ID" --include build
 asc versions view --version-id "VERSION_ID" --include-build --include-submission
 asc versions view --version-id "VERSION_ID" --include "ageRatingDeclaration,appStoreReviewDetail"
+asc versions view --version-id "VERSION_ID" --include build --build-fields "version,uploadedDate"
 ```
 
 **Response:**
@@ -183,6 +186,14 @@ Create a new app store version.
   Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)
 </ParamField>
 
+<ParamField path="--review-type" type="string">
+  Review type: `APP_STORE`, `NOTARIZATION`
+</ParamField>
+
+<ParamField path="--build-id" type="string">
+  Build ID to attach in the create request. With `--if-exists update`, attaches it to an existing version instead. Cannot be used with `--if-exists skip`.
+</ParamField>
+
 **Examples:**
 
 ```bash  theme={null}
@@ -190,6 +201,8 @@ asc versions create --app "123456789" --version "2.0.0"
 asc versions create --app "123456789" --version "2.0.0" --platform IOS
 asc versions create --app "123456789" --version "2.0.0" --copyright "2026 My Company" --release-type MANUAL
 asc versions create --app "123456789" --version "2.0.0" --release-type SCHEDULED --earliest-release-date "2026-02-01T08:00:00+00:00"
+asc versions create --app "123456789" --version "2.0.0" --review-type NOTARIZATION
+asc versions create --app "123456789" --version "2.0.0" --build-id "BUILD_ID"
 ```
 
 **Response:**
@@ -221,6 +234,10 @@ Update an app store version.
   Release type: `MANUAL`, `AFTER_APPROVAL`, `SCHEDULED`
 </ParamField>
 
+<ParamField path="--review-type" type="string">
+  Review type: `APP_STORE`, `NOTARIZATION`
+</ParamField>
+
 <ParamField path="--earliest-release-date" type="string">
   Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)
 </ParamField>
@@ -242,6 +259,7 @@ Update an app store version.
 ```bash  theme={null}
 asc versions update --version-id "VERSION_ID" --copyright "2026 My Company"
 asc versions update --version-id "VERSION_ID" --release-type MANUAL
+asc versions update --version-id "VERSION_ID" --review-type NOTARIZATION
 asc versions update --version-id "VERSION_ID" --release-type SCHEDULED --earliest-release-date "2026-02-01T08:00:00+00:00"
 asc versions update --version-id "VERSION_ID" --version "1.0.1"
 asc versions update --version-id "VERSION_ID" --downloadable true

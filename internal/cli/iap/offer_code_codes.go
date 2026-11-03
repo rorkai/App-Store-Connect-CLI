@@ -454,7 +454,7 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
 			}
-			normalizedEnvironment, err := normalizeIAPOfferCodeEnvironment(*environment)
+			normalizedEnvironment, err := shared.NormalizeOfferCodeEnvironment(*environment)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
@@ -520,20 +520,6 @@ Examples:
 			return client.UpdateInAppPurchaseOfferCodeOneTimeUseCode(ctx, id, asc.InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes{Active: active})
 		},
 	})
-}
-
-func normalizeIAPOfferCodeEnvironment(value string) (string, error) {
-	normalized := strings.TrimSpace(strings.ToUpper(value))
-	if normalized == "" {
-		return "", nil
-	}
-
-	switch normalized {
-	case "PRODUCTION", "SANDBOX":
-		return normalized, nil
-	default:
-		return "", fmt.Errorf("--environment must be one of: PRODUCTION, SANDBOX")
-	}
 }
 
 // IAPOfferCodesOneTimeCodesValuesCommand returns the one-time code values subcommand.

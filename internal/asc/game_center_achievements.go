@@ -23,7 +23,7 @@ type GameCenterAchievementCreateAttributes struct {
 	Points             int               `json:"points"`
 	ShowBeforeEarned   bool              `json:"showBeforeEarned"`
 	Repeatable         bool              `json:"repeatable"`
-	ActivityProperties map[string]string `json:"activityProperties,omitempty"`
+	ActivityProperties map[string]string `json:"activityProperties,omitzero"`
 }
 
 // GameCenterAchievementUpdateAttributes describes attributes for updating an achievement.
@@ -33,7 +33,7 @@ type GameCenterAchievementUpdateAttributes struct {
 	ShowBeforeEarned   *bool             `json:"showBeforeEarned,omitempty"`
 	Repeatable         *bool             `json:"repeatable,omitempty"`
 	Archived           *bool             `json:"archived,omitempty"`
-	ActivityProperties map[string]string `json:"activityProperties,omitempty"`
+	ActivityProperties map[string]string `json:"activityProperties,omitzero"`
 }
 
 // GameCenterAchievementRelationships describes relationships for achievements.

@@ -235,6 +235,7 @@ func CertificatesGetCommand() *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "certificates", "Certificate ID")
 	include := fs.String("include", "", "Include related resources: passTypeId")
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"passTypeId": "passTypeIds"})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -259,6 +260,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("certificates view: %w", err)
 			}
+			included, err := includedFields.Resolve("certificates view", "", includeValues)
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -268,7 +273,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			opts := []asc.CertificatesOption{}
+			opts := []asc.CertificatesOption{asc.WithIncludedFields[asc.CertificatesOption](included)}
 			if len(includeValues) > 0 {
 				opts = append(opts, asc.WithCertificatesInclude(includeValues))
 			}

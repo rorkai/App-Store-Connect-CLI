@@ -205,6 +205,11 @@ func UsersGetCommand() *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "users", "User ID")
 	include := fs.String("include", "", "Include related resources: visibleApps")
+	// Apple rejects these spec fields[apps] values with 400 on users view.
+	includedFields := shared.BindIncludedFieldFlagsExcept(fs, map[string]string{"visibleApps": "apps"}, map[string][]string{"apps": {
+		"appStoreIcon", "performanceOverviews", "customerReviewSummarizations", "analyticsReportRequests",
+		"betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "webhooks", "androidToIosAppMappingDetails",
+	}})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -229,6 +234,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("users view: %w", err)
 			}
+			included, err := includedFields.Resolve("users view", "", includeValues)
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -238,7 +247,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			opts := []asc.UsersOption{}
+			opts := []asc.UsersOption{asc.WithIncludedFields[asc.UsersOption](included)}
 			if len(includeValues) > 0 {
 				opts = append(opts, asc.WithUsersInclude(includeValues))
 			}

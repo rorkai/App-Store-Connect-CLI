@@ -44,6 +44,7 @@ type linkagesQuery struct {
 
 type pricePointsQuery struct {
 	listQuery
+	includedFieldsQuery
 	territory string
 	include   []string
 }
@@ -112,6 +113,7 @@ func buildPricePointsQuery(query *pricePointsQuery) string {
 	}
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
