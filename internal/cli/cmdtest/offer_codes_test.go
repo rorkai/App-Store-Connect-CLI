@@ -318,11 +318,13 @@ func TestOfferCodeBatchUpdatesSendActive(t *testing.T) {
 		name         string
 		args         []string
 		resourceType string
+		confirmOff   bool
 	}{
 		{
 			name:         "subscription one-time codes",
 			args:         []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--batch-id", "code-1"},
 			resourceType: "subscriptionOfferCodeOneTimeUseCodes",
+			confirmOff:   true,
 		},
 		{
 			name:         "iap custom codes",
@@ -333,6 +335,7 @@ func TestOfferCodeBatchUpdatesSendActive(t *testing.T) {
 			name:         "iap one-time codes",
 			args:         []string{"iap", "offer-codes", "one-time-codes", "update", "--one-time-code-id", "code-1"},
 			resourceType: "inAppPurchaseOfferCodeOneTimeUseCodes",
+			confirmOff:   true,
 		},
 	}
 
@@ -369,6 +372,9 @@ func TestOfferCodeBatchUpdatesSendActive(t *testing.T) {
 				})
 
 				args := append(append([]string{}, command.args...), "--active", fmt.Sprint(active), "--output", "json")
+				if !active && command.confirmOff {
+					args = append(args, "--confirm")
+				}
 				stdout, _, err := runCommand(t, args)
 				if err != nil {
 					t.Fatalf("run error: %v", err)
@@ -381,5 +387,36 @@ func TestOfferCodeBatchUpdatesSendActive(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestOneTimeCodeBatchTurnOffRequiresConfirm guards against permanently
+// turning off a one-time use code batch without --confirm: Apple returns 409
+// "Given oneTimeUse code is inactive" when --active true follows.
+func TestOneTimeCodeBatchTurnOffRequiresConfirm(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	for _, args := range [][]string{
+		{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--batch-id", "code-1", "--active", "false"},
+		{"iap", "offer-codes", "one-time-codes", "update", "--one-time-code-id", "code-1", "--active", "false"},
+	} {
+		t.Run(args[0], func(t *testing.T) {
+			requests := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL.Path)
+			})
+
+			assertUsageExitCode(t, args, "--confirm is required to turn off a one-time use code batch; turning it off is permanent")
+			if requests != 0 {
+				t.Fatalf("expected no request, got %d", requests)
+			}
+		})
 	}
 }

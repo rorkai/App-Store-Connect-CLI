@@ -281,7 +281,7 @@ Examples:
   asc iap offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
   asc iap offer-codes one-time-codes view --one-time-code-id "ONE_TIME_USE_CODE_ID"
   asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 100 --expiration-date "2026-12-31"
-  asc iap offer-codes one-time-codes update --one-time-code-id "ONE_TIME_USE_CODE_ID" --active false
+  asc iap offer-codes one-time-codes update --one-time-code-id "ONE_TIME_USE_CODE_ID" --active false --confirm
   asc iap offer-codes one-time-codes values --one-time-code-id "ONE_TIME_USE_CODE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -502,19 +502,20 @@ func IAPOfferCodesOneTimeCodesUpdateCommand() *ffcli.Command {
 	return offercodes.NewActiveUpdateCommand(offercodes.ActiveUpdateCommandConfig{
 		FlagSetName: "offer-codes one-time-codes update",
 		Name:        "update",
-		ShortUsage:  "asc iap offer-codes one-time-codes update --one-time-code-id \"ONE_TIME_USE_CODE_ID\" --active false",
+		ShortUsage:  "asc iap offer-codes one-time-codes update --one-time-code-id \"ONE_TIME_USE_CODE_ID\" --active false --confirm",
 		ShortHelp:   "Turn off a one-time use code batch.",
 		LongHelp: `Turn off a one-time use code batch.
 
 Turning a batch off is permanent: Apple rejects --active true on an inactive
-batch.
+batch, so --active false requires --confirm.
 
 Examples:
-  asc iap offer-codes one-time-codes update --one-time-code-id "ONE_TIME_USE_CODE_ID" --active false`,
+  asc iap offer-codes one-time-codes update --one-time-code-id "ONE_TIME_USE_CODE_ID" --active false --confirm`,
 		IDFlag:      "one-time-code-id",
 		IDUsage:     "One-time use code batch ID (required)",
 		IDType:      "inAppPurchaseOfferCodeOneTimeUseCodes",
 		ErrorPrefix: "iap offer-codes one-time-codes update",
+		ConfirmOff:  "a one-time use code batch",
 		Update: func(ctx context.Context, client *asc.Client, id string, active *bool) (any, error) {
 			return client.UpdateInAppPurchaseOfferCodeOneTimeUseCode(ctx, id, asc.InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes{Active: active})
 		},
