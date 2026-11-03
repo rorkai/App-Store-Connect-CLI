@@ -554,6 +554,61 @@ func TestVersionsCreateIfExistsUpdateFailsWhenAttachFails(t *testing.T) {
 	}
 }
 
+// Apple's 409 on POST /v1/appStoreVersions for a --build-id it rejects, seen
+// live on 2026-11-03 against a version already in PREPARE_FOR_SUBMISSION: only
+// ENTITY_ERROR.RELATIONSHIP.INVALID with this title, no versionString
+// DUPLICATE. The detail and pointer here are placeholders.
+const versionsBadBuild409 = `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"The provided entity includes a relationship with an invalid value","detail":"The build relationship is invalid.","source":{"pointer":"/data/relationships/build"}}]}`
+
+// A bad build hides the duplicate code, so update used to stop at Apple's 409
+// and tell the user to pass the --if-exists update they already passed. It
+// must reach the attach so the build error surfaces, and must not attach when
+// no version has that string.
+func TestVersionsCreateIfExistsUpdateBadBuildSurfacesBuildError(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		readBack string
+		want     string
+	}{
+		{name: "version exists", readBack: existingVersionsList, want: "attach build bad-build to existing version version-existing"},
+		{name: "no version", readBack: `{"data":[]}`, want: "The provided entity includes a relationship with an invalid value"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			stdout, _, seen, runErr := runIfExistsCommand(t, []string{
+				"versions", "create", "--app", "app-1", "--version", "2.0.0", "--build-id", "bad-build",
+				"--if-exists", "update", "--output", "json",
+			}, func(req ifExistsRequest) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodPost && req.Path == "/v1/appStoreVersions":
+					return jsonResponse(http.StatusConflict, versionsBadBuild409)
+				case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+					return jsonResponse(http.StatusOK, tt.readBack)
+				case req.Method == http.MethodPatch && req.Path == "/v1/appStoreVersions/version-existing/relationships/build":
+					return jsonResponse(http.StatusConflict, versionsBadBuild409)
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.Path)
+					return nil, nil
+				}
+			})
+			if runErr == nil || !strings.Contains(runErr.Error(), tt.want) {
+				t.Fatalf("run error = %v, want %q", runErr, tt.want)
+			}
+			if strings.Contains(runErr.Error(), "Reuse it with") {
+				t.Fatalf("run error = %v, want no --if-exists hint", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want no receipt", stdout)
+			}
+			// The version-string read-back runs in both cases; the attach
+			// only when it finds the version, the diagnostic listing only
+			// when it does not.
+			if len(seen) != 3 || seen[1].Method != http.MethodGet || isVersionsCreateDiagnosticListing(seen[1]) {
+				t.Fatalf("requests = %+v, want POST, read-back, then attach or listing", seen)
+			}
+		})
+	}
+}
+
 // skip leaves an existing version unchanged, and a blank value carries no
 // build, so either would drop --build-id without a word.
 func TestVersionsCreateRejectsUnusableBuildIDBeforeHTTP(t *testing.T) {

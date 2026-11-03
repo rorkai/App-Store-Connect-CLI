@@ -513,9 +513,11 @@ error. skip reads the existing version back, exits 0, and reports
 "action":"skipped" without changing it. update applies --copyright and
 --release-type to the existing version with asc versions update, attaches
 --build-id with asc versions attach-build, and reports "action":"updated";
---copy-metadata-from still runs against the existing version. Any other 409
-keeps failing. --build-id cannot be combined with skip, which would leave the
-build unattached.`,
+--copy-metadata-from still runs against the existing version. Apple rejects a
+bad --build-id with a 409 that does not say the version exists, so update
+with --build-id also looks the version up after that 409 and, when it finds
+it, reports the attach error. Any other 409 keeps failing. --build-id cannot
+be combined with skip, which would leave the build unattached.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -613,7 +615,11 @@ build unattached.`,
 			conflictHandled := false
 			if err != nil {
 				readBackFailed := false
-				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, versionsCreateExistsCodes, func() (*asc.AppStoreVersionResponse, bool, error) {
+				existsCodes := versionsCreateExistsCodes
+				if buildIDValue != "" && ifExistsMode == shared.IfExistsUpdate {
+					existsCodes = versionsCreateWithBuildExistsCodes
+				}
+				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, existsCodes, func() (*asc.AppStoreVersionResponse, bool, error) {
 					found, ok, lookupErr := findExistingAppStoreVersion(requestCtx, client, resolvedAppID, attrs.VersionString, normalizedPlatform)
 					readBackFailed = lookupErr != nil && !asc.IsNotFound(lookupErr)
 					return found, ok, lookupErr
@@ -727,9 +733,18 @@ build unattached.`,
 // ENTITY_ERROR.RELATIONSHIP.INVALID ("You cannot create a new version of the
 // App in the current state."), so shared.IsIfExistsConflict matches every code
 // in the response. A 409 that carries only the relationship rejection, or
-// STATE_ERROR.*, is not an existence conflict and keeps failing; so does a
+// STATE_ERROR.*, is not an existence conflict and keeps failing (except the
+// relationship rejection under --build-id with update, below); so does a
 // duplicate whose read-back finds no such version string.
 var versionsCreateExistsCodes = []string{"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE"}
+
+// versionsCreateWithBuildExistsCodes applies to --build-id with --if-exists
+// update. Live on 2026-11-03, a POST naming a build Apple rejects, for a
+// version string that already existed in PREPARE_FOR_SUBMISSION, came back as
+// a 409 with ENTITY_ERROR.RELATIONSHIP.INVALID alone and no DUPLICATE entry.
+// The read-back still decides: when it finds the version, the update path's
+// attach reports the build error; when it does not, Apple's 409 stands.
+var versionsCreateWithBuildExistsCodes = []string{"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE", "ENTITY_ERROR.RELATIONSHIP.INVALID"}
 
 // findExistingAppStoreVersion reads back the version a 409 conflict referred
 // to, keyed by version string and platform. It reports found=false when the
