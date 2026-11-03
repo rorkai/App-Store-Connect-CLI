@@ -1615,6 +1615,36 @@ func TestPersistSessionRoundTripsDeveloperTeamID(t *testing.T) {
 	}
 }
 
+func TestPersistSessionRecordsProviderIDForCachedReload(t *testing.T) {
+	t.Setenv(webSessionBackendEnv, "file")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, t.TempDir())
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New error: %v", err)
+	}
+	targetURL, _ := url.Parse("https://appstoreconnect.apple.com/")
+	jar.SetCookies(targetURL, []*http.Cookie{
+		{Name: "myacinfo", Value: "token", Path: "/", Expires: time.Now().Add(24 * time.Hour)},
+	})
+	if err := PersistSession(&AuthSession{
+		Client:     &http.Client{Jar: jar},
+		UserEmail:  "user@example.com",
+		ProviderID: 99,
+	}); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+
+	loaded, ok, err := LoadCachedSession("user@example.com")
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession = %v, %v", ok, err)
+	}
+	if loaded.ProviderID != 99 {
+		t.Fatalf("ProviderID = %d, want 99", loaded.ProviderID)
+	}
+}
+
 func TestTryResumeSessionPersistsRefreshedCookies(t *testing.T) {
 	withArraySessionKeyring(t)
 	t.Setenv(webSessionBackendEnv, "keychain")
