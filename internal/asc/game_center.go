@@ -48,6 +48,12 @@ var ValidSubmissionTypes = []string{
 	"MOST_RECENT_SCORE",
 }
 
+// Valid leaderboard visibilities.
+var ValidLeaderboardVisibilities = []string{
+	"SHOW_FOR_ALL",
+	"HIDE_FOR_ALL",
+}
+
 // GameCenterVersionState represents the state of a Game Center version.
 type GameCenterVersionState string
 

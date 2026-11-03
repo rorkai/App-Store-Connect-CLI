@@ -470,21 +470,21 @@ func subscriptionPricePointsRows(resp *SubscriptionPricePointsResponse) ([]strin
 }
 
 func subscriptionIntroductoryOffersRows(resp *SubscriptionIntroductoryOffersResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Duration", "Mode", "Periods", "Start Date", "End Date"}
+	headers := []string{"ID", "Duration", "Mode", "Periods", "Start Date", "End Date", "Target Plan Type"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		rows = append(rows, []string{item.ID, string(attrs.Duration), string(attrs.OfferMode), formatInt(attrs.NumberOfPeriods), attrs.StartDate, attrs.EndDate})
+		rows = append(rows, []string{item.ID, string(attrs.Duration), string(attrs.OfferMode), formatInt(attrs.NumberOfPeriods), attrs.StartDate, attrs.EndDate, string(attrs.TargetSubscriptionPlanType)})
 	}
 	return headers, rows
 }
 
 func subscriptionPromotionalOffersRows(resp *SubscriptionPromotionalOffersResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Name", "Offer Code", "Duration", "Mode", "Periods"}
+	headers := []string{"ID", "Name", "Offer Code", "Duration", "Mode", "Periods", "Target Plan Type"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		rows = append(rows, []string{item.ID, compactWhitespace(attrs.Name), attrs.OfferCode, string(attrs.Duration), string(attrs.OfferMode), formatInt(attrs.NumberOfPeriods)})
+		rows = append(rows, []string{item.ID, compactWhitespace(attrs.Name), attrs.OfferCode, string(attrs.Duration), string(attrs.OfferMode), formatInt(attrs.NumberOfPeriods), string(attrs.TargetSubscriptionPlanType)})
 	}
 	return headers, rows
 }

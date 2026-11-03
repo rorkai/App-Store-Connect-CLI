@@ -71,6 +71,26 @@ func TestRunProductPagesExperimentTreatmentLocalizationScreenshotSetsUsageErrors
 			args:    []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "upload", "--localization-id", "tloc-1", "--path", "./shots", "--device-type", "NOT_A_DEVICE"},
 			wantErr: "unsupported screenshot display type",
 		},
+		{
+			name:    "preview upload missing localization",
+			args:    []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "upload", "--path", "./previews", "--device-type", "IPHONE_65"},
+			wantErr: "--localization-id is required",
+		},
+		{
+			name:    "preview upload missing path",
+			args:    []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "upload", "--localization-id", "tloc-1", "--device-type", "IPHONE_65"},
+			wantErr: "--path is required",
+		},
+		{
+			name:    "preview upload missing device type",
+			args:    []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "upload", "--localization-id", "tloc-1", "--path", "./previews"},
+			wantErr: "--device-type is required",
+		},
+		{
+			name:    "preview upload invalid device type",
+			args:    []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "upload", "--localization-id", "tloc-1", "--path", "./previews", "--device-type", "NOT_A_DEVICE"},
+			wantErr: "unsupported preview type",
+		},
 	}
 
 	for _, tc := range tests {

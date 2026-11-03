@@ -30,6 +30,7 @@ type AppAttributes struct {
 	SKU                                    string                        `json:"sku"`
 	PrimaryLocale                          string                        `json:"primaryLocale,omitempty"`
 	ContentRightsDeclaration               *ContentRightsDeclaration     `json:"contentRightsDeclaration,omitempty"`
+	AccessibilityURL                       *string                       `json:"accessibilityUrl,omitempty"`
 	SubscriptionStatusURL                  *string                       `json:"subscriptionStatusUrl,omitempty"`
 	SubscriptionStatusURLVersion           *SubscriptionStatusURLVersion `json:"subscriptionStatusUrlVersion,omitempty"`
 	SubscriptionStatusURLForSandbox        *string                       `json:"subscriptionStatusUrlForSandbox,omitempty"`
@@ -43,6 +44,7 @@ type AppUpdateAttributes struct {
 	BundleID                               *string                       `json:"bundleId,omitempty"`
 	PrimaryLocale                          *string                       `json:"primaryLocale,omitempty"`
 	ContentRightsDeclaration               *ContentRightsDeclaration     `json:"contentRightsDeclaration,omitempty"`
+	AccessibilityURL                       *string                       `json:"accessibilityUrl,omitempty"`
 	SubscriptionStatusURL                  *string                       `json:"subscriptionStatusUrl,omitempty"`
 	SubscriptionStatusURLVersion           *SubscriptionStatusURLVersion `json:"subscriptionStatusUrlVersion,omitempty"`
 	SubscriptionStatusURLForSandbox        *string                       `json:"subscriptionStatusUrlForSandbox,omitempty"`

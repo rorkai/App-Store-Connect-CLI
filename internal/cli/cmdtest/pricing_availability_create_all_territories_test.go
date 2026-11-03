@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -111,6 +112,156 @@ func TestPricingAvailabilityCreateTerritorySelectorValidation(t *testing.T) {
 			args = append(args, "--available", "true", "--available-in-new-territories", "true")
 			stdout, stderr, seen, runErr := runIfExistsCommand(t, args, func(req ifExistsRequest) (*http.Response, error) {
 				t.Fatalf("unexpected request %s %s; selector validation must precede HTTP", req.Method, req.Path)
+				return nil, nil
+			})
+			if runErr == nil {
+				t.Fatal("run error = nil, want a usage error")
+			}
+			if got := cmd.ExitCodeFromError(runErr); got != cmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", got, cmd.ExitUsage)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantErr)
+			}
+			if len(seen) != 0 {
+				t.Fatalf("requests = %+v, want none", seen)
+			}
+		})
+	}
+}
+
+func TestPricingAvailabilityCreateSendsPreOrderAttributesToSelectedTerritoriesOnly(t *testing.T) {
+	preOrder := map[string]any{"available": true, "releaseDate": "2026-12-01", "preOrderEnabled": true}
+	unselected := map[string]any{"available": false}
+
+	tests := []struct {
+		name  string
+		extra []string
+		want  map[string]map[string]any
+	}{
+		{
+			name:  "omitted flags leave the request unchanged",
+			extra: []string{"--territory", "USA"},
+			want:  map[string]map[string]any{"USA": {"available": true}, "GBR": unselected},
+		},
+		{
+			name:  "selected territory only",
+			extra: []string{"--territory", "USA", "--release-date", "2026-12-01", "--pre-order-enabled", "true"},
+			want:  map[string]map[string]any{"USA": preOrder, "GBR": unselected},
+		},
+		{
+			name:  "every territory with all territories",
+			extra: []string{"--all-territories", "--release-date", "2026-12-01", "--pre-order-enabled", "true"},
+			want:  map[string]map[string]any{"USA": preOrder, "GBR": preOrder},
+		},
+		{
+			name:  "release date alone",
+			extra: []string{"--territory", "USA", "--release-date", "2026-12-01"},
+			want:  map[string]map[string]any{"USA": {"available": true, "releaseDate": "2026-12-01"}, "GBR": unselected},
+		},
+		{
+			name:  "explicit false is sent",
+			extra: []string{"--territory", "USA", "--pre-order-enabled", "false"},
+			want:  map[string]map[string]any{"USA": {"available": true, "preOrderEnabled": false}, "GBR": unselected},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			args := append([]string{"pricing", "availability", "create", "--app", "app-1", "--available", "true", "--available-in-new-territories", "true"}, test.extra...)
+			var posted string
+			_, _, _, runErr := runIfExistsCommand(t, args, func(req ifExistsRequest) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.Path == "/v1/territories":
+					return jsonResponse(http.StatusOK, territoryCatalog)
+				case req.Method == http.MethodPost && req.Path == "/v2/appAvailabilities":
+					posted = req.Body
+					return jsonResponse(http.StatusCreated, existingAvailability)
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.Path)
+					return nil, nil
+				}
+			})
+			if runErr != nil {
+				t.Fatalf("run error: %v", runErr)
+			}
+
+			var payload struct {
+				Included []struct {
+					Attributes    map[string]any `json:"attributes"`
+					Relationships struct {
+						Territory struct {
+							Data struct {
+								ID string `json:"id"`
+							} `json:"data"`
+						} `json:"territory"`
+					} `json:"relationships"`
+				} `json:"included"`
+			}
+			if err := json.Unmarshal([]byte(posted), &payload); err != nil {
+				t.Fatalf("decode POST body %q: %v", posted, err)
+			}
+			got := map[string]map[string]any{}
+			for _, included := range payload.Included {
+				got[included.Relationships.Territory.Data.ID] = included.Attributes
+			}
+			if !reflect.DeepEqual(got, test.want) {
+				t.Fatalf("territory attributes = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestPricingAvailabilityCreatePreOrderFlagValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		extra   []string
+		wantErr string
+	}{
+		{
+			name:    "release date with unavailable territories",
+			extra:   []string{"--available", "false", "--release-date", "2026-12-01"},
+			wantErr: "--release-date and --pre-order-enabled require --available true",
+		},
+		{
+			name:    "pre-order with unavailable territories",
+			extra:   []string{"--available", "false", "--pre-order-enabled", "true"},
+			wantErr: "--release-date and --pre-order-enabled require --available true",
+		},
+		{
+			name:    "malformed release date",
+			extra:   []string{"--release-date", "12/01/2026"},
+			wantErr: "--release-date must be in YYYY-MM-DD format",
+		},
+		{
+			name:    "blank release date",
+			extra:   []string{"--release-date", " "},
+			wantErr: "--release-date is required",
+		},
+		{
+			name:    "release date while disabling pre-orders",
+			extra:   []string{"--release-date", "2026-12-01", "--pre-order-enabled", "false"},
+			wantErr: "--release-date cannot be set when disabling pre-orders",
+		},
+		{
+			name:    "release date with if-exists update",
+			extra:   []string{"--release-date", "2026-12-01", "--if-exists", "update"},
+			wantErr: "--release-date and --pre-order-enabled cannot be used with --if-exists update",
+		},
+		{
+			name:    "pre-order with if-exists update",
+			extra:   []string{"--pre-order-enabled", "true", "--if-exists", "update"},
+			wantErr: "--release-date and --pre-order-enabled cannot be used with --if-exists update",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr, seen, runErr := runIfExistsCommand(t, availabilityCreateArgs(test.extra...), func(req ifExistsRequest) (*http.Response, error) {
+				t.Fatalf("unexpected request %s %s; flag validation must precede HTTP", req.Method, req.Path)
 				return nil, nil
 			})
 			if runErr == nil {

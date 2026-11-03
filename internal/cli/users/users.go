@@ -205,6 +205,11 @@ func UsersGetCommand() *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "users", "User ID")
 	include := fs.String("include", "", "Include related resources: visibleApps")
+	// Apple rejects these spec fields[apps] values with 400 on users view.
+	includedFields := shared.BindIncludedFieldFlagsExcept(fs, map[string]string{"visibleApps": "apps"}, map[string][]string{"apps": {
+		"appStoreIcon", "performanceOverviews", "customerReviewSummarizations", "analyticsReportRequests",
+		"betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "webhooks", "androidToIosAppMappingDetails",
+	}})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -229,6 +234,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("users view: %w", err)
 			}
+			included, err := includedFields.Resolve("users view", "", includeValues)
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -238,7 +247,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			opts := []asc.UsersOption{}
+			opts := []asc.UsersOption{asc.WithIncludedFields[asc.UsersOption](included)}
 			if len(includeValues) > 0 {
 				opts = append(opts, asc.WithUsersInclude(includeValues))
 			}
@@ -260,12 +269,14 @@ func UsersUpdateCommand() *ffcli.Command {
 	id := shared.BindResourceIDFlag(fs, "id", "users", "User ID")
 	roles := shared.BindOnceCSVFlag(fs, "roles", "Comma-separated UserRole values: "+strings.Join(userRoleList(), ", "))
 	visibleApps := shared.BindOnceCSVFlag(fs, "visible-app", "Comma-separated app IDs for visible apps")
+	var provisioningAllowed shared.OptionalBool
+	fs.Var(&provisioningAllowed, "provisioning-allowed", "Grant or remove provisioning access: true or false (omit to leave unchanged)")
 	confirm := fs.Bool("confirm", false, "Confirm replacing visible apps (required with --visible-app)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
-		ShortUsage: "asc users update --id USER_ID --roles ROLE_ID[,ROLE_ID...] [--visible-app APP_ID[,APP_ID...]] [--confirm]",
+		ShortUsage: "asc users update --id USER_ID --roles ROLE_ID[,ROLE_ID...] [--visible-app APP_ID[,APP_ID...]] [--confirm] [--provisioning-allowed true|false]",
 		ShortHelp:  "Update a user.",
 		LongHelp: `Update a user by ID.
 
@@ -274,7 +285,8 @@ use --confirm when --visible-app is supplied.
 
 Examples:
   asc users update --id "USER_ID" --roles "ADMIN"
-  asc users update --id "USER_ID" --roles "ADMIN" --visible-app "APP_ID" --confirm`,
+  asc users update --id "USER_ID" --roles "ADMIN" --visible-app "APP_ID" --confirm
+  asc users update --id "USER_ID" --roles "DEVELOPER" --provisioning-allowed false`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -326,6 +338,9 @@ Examples:
 			if len(visibleAppIDs) > 0 && client.IsEnterpriseProgramAPI() {
 				return shared.UsageError("users update: --visible-app is not available on the Enterprise Program API")
 			}
+			if provisioningAllowed.IsSet() && client.IsEnterpriseProgramAPI() {
+				return shared.UsageError("users update: --provisioning-allowed is not available on the Enterprise Program API")
+			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
@@ -336,6 +351,10 @@ Examples:
 			if len(visibleAppIDs) > 0 {
 				allAppsVisible := false
 				attrs.AllAppsVisible = &allAppsVisible
+			}
+			if provisioningAllowed.IsSet() {
+				allowed := provisioningAllowed.Value()
+				attrs.ProvisioningAllowed = &allowed
 			}
 
 			user, err := client.UpdateUser(requestCtx, idValue, attrs, visibleAppIDs)
@@ -410,17 +429,20 @@ func UsersInviteCommand() *ffcli.Command {
 	roles := shared.BindOnceCSVFlag(fs, "roles", "Comma-separated UserRole values: "+strings.Join(userRoleList(), ", "))
 	allApps := fs.Bool("all-apps", false, "Grant access to all apps")
 	visibleApps := shared.BindOnceCSVFlag(fs, "visible-app", "Comma-separated app IDs for visible apps")
+	var provisioningAllowed shared.OptionalBool
+	fs.Var(&provisioningAllowed, "provisioning-allowed", "Grant provisioning access: true or false (omit for Apple's default)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "invite",
-		ShortUsage: "asc users invite --email EMAIL --first-name NAME --last-name NAME --roles ROLE[,ROLE...] [--all-apps | --visible-app APP_ID[,APP_ID...]]",
+		ShortUsage: "asc users invite --email EMAIL --first-name NAME --last-name NAME --roles ROLE[,ROLE...] [--all-apps | --visible-app APP_ID[,APP_ID...]] [--provisioning-allowed true|false]",
 		ShortHelp:  "Invite a user.",
 		LongHelp: `Invite a new user to App Store Connect.
 
 Examples:
   asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "ADMIN" --all-apps
-  asc users invite --email "user@example.com" --first-name "John" --last-name "Smith" --roles "DEVELOPER" --visible-app "APP_ID"`,
+  asc users invite --email "user@example.com" --first-name "John" --last-name "Smith" --roles "DEVELOPER" --visible-app "APP_ID"
+  asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "DEVELOPER" --all-apps --provisioning-allowed true`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -466,6 +488,9 @@ Examples:
 			if enterprise && (*allApps || len(visibleAppIDs) > 0) {
 				return shared.UsageError("users invite: --all-apps and --visible-app are not available on the Enterprise Program API")
 			}
+			if enterprise && provisioningAllowed.IsSet() {
+				return shared.UsageError("users invite: --provisioning-allowed is not available on the Enterprise Program API")
+			}
 			if !enterprise && !*allApps && len(visibleAppIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --all-apps or --visible-app is required")
 				return shared.MissingRequiredUsageError("")
@@ -486,6 +511,10 @@ Examples:
 			if !enterprise {
 				allAppsVisible := *allApps
 				attrs.AllAppsVisible = &allAppsVisible
+			}
+			if provisioningAllowed.IsSet() {
+				allowed := provisioningAllowed.Value()
+				attrs.ProvisioningAllowed = &allowed
 			}
 
 			invitation, err := client.CreateUserInvitation(requestCtx, attrs, visibleAppIDs)

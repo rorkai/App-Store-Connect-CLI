@@ -545,6 +545,22 @@ var buildsListIncludeValues = []string{
 	"buildUpload",
 }
 
+// buildsIncludedResources maps each --include value to the resource it returns.
+var buildsIncludedResources = map[string]string{
+	"preReleaseVersion":        "preReleaseVersions",
+	"individualTesters":        "betaTesters",
+	"betaGroups":               "betaGroups",
+	"betaBuildLocalizations":   "betaBuildLocalizations",
+	"appEncryptionDeclaration": "appEncryptionDeclarations",
+	"betaAppReviewSubmission":  "betaAppReviewSubmissions",
+	"app":                      "apps",
+	"buildBetaDetail":          "buildBetaDetails",
+	"appStoreVersion":          "appStoreVersions",
+	"icons":                    "buildIcons",
+	"buildBundles":             "buildBundles",
+	"buildUpload":              "buildUploads",
+}
+
 // resolveBuildsListInclude validates a comma-separated include value and unions
 // it with the default relationship the table renderer depends on.
 func resolveBuildsListInclude(value string) ([]string, error) {
@@ -578,6 +594,7 @@ func BuildsListCommand() *ffcli.Command {
 	processingState := fs.String("processing-state", "", "Filter by processing state: VALID, PROCESSING, FAILED, INVALID, or all")
 	betaReviewState := fs.String("beta-review-state", "", "Filter by beta app review state, comma-separated ("+strings.Join(buildsListBetaReviewStates, ", ")+")")
 	include := fs.String("include", "", "Include related resources, comma-separated ("+strings.Join(buildsListIncludeValues, ", ")+")")
+	includedFields := shared.BindIncludedFieldFlags(fs, buildsIncludedResources)
 	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds")
 	notExpired := fs.Bool("not-expired", false, "Alias for --exclude-expired")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -659,6 +676,10 @@ Examples:
 			if err != nil {
 				return err
 			}
+			included, err := includedFields.Resolve("builds list", nextValue, includeValues)
+			if err != nil {
+				return err
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && nextValue == "" {
@@ -696,6 +717,7 @@ Examples:
 				asc.WithBuildsLimit(*limit),
 				asc.WithBuildsNextURL(nextValue),
 				asc.WithBuildsInclude(includeValues),
+				asc.WithIncludedFields[asc.BuildsOption](included),
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithBuildsSort(*sort))
@@ -834,6 +856,7 @@ func BuildsInfoCommand() *ffcli.Command {
 	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds when resolving --latest")
 	notExpired := fs.Bool("not-expired", false, "Alias for --exclude-expired")
 	include := fs.String("include", "", "Include related resources, comma-separated ("+strings.Join(buildsListIncludeValues, ", ")+")")
+	includedFields := shared.BindIncludedFieldFlags(fs, buildsIncludedResources)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -886,6 +909,10 @@ Examples:
 					return err
 				}
 			}
+			included, err := includedFields.Resolve("builds info", "", includeValues)
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -904,7 +931,7 @@ Examples:
 					}
 					buildIDValue = resolved.Data.ID
 				}
-				build, err := client.GetBuild(requestCtx, buildIDValue, asc.WithBuildInclude(includeValues))
+				build, err := client.GetBuild(requestCtx, buildIDValue, asc.WithBuildInclude(includeValues), asc.WithIncludedFields[asc.BuildOption](included))
 				if err != nil {
 					return fmt.Errorf("builds info: failed to fetch build %s: %w", buildIDValue, err)
 				}

@@ -100,6 +100,7 @@ func BetaTestersListCommand() *ffcli.Command {
 	inviteType := fs.String("invite-type", "", "Filter by invite type(s), comma-separated: "+strings.Join(betaTesterInviteTypeValues, ", "))
 	sortBy := fs.String("sort", "", "Sort by: "+strings.Join(betaTesterSortValues, ", "))
 	include := fs.String("include", "", "Include related resources, comma-separated: "+strings.Join(betaTesterIncludeValues, ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"apps": "apps", "betaGroups": "betaGroups", "builds": "builds"})
 	fields := fs.String("fields", "", "Fields to include for beta testers, comma-separated: "+strings.Join(betaGroupTesterFieldsValues, ", "))
 	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -175,6 +176,10 @@ Examples:
 			if err := rejectBetaTestersNextFlagConflicts(fs, *next, "build-id", "group", "email", "first-name", "last-name", "invite-type", "sort", "include", "fields"); err != nil {
 				return err
 			}
+			included, err := includedFields.Resolve("beta-testers list", *next, shared.SplitCSV(*include))
+			if err != nil {
+				return err
+			}
 			if strings.TrimSpace(*group) != "" && strings.TrimSpace(*buildID) != "" {
 				return shared.WithDiagnostic(
 					shared.UsageError("--group cannot be combined with --build-id"),
@@ -232,7 +237,7 @@ Examples:
 
 			includeValues := shared.SplitCSV(*include)
 			if len(includeValues) > 0 {
-				opts = append(opts, asc.WithBetaTestersInclude(includeValues))
+				opts = append(opts, asc.WithBetaTestersInclude(includeValues), asc.WithIncludedFields[asc.BetaTestersOption](included))
 			}
 			// Only the JSON renderer emits the envelope's included array. A
 			// continuation URL can carry include even though --include itself is
@@ -372,16 +377,17 @@ See also: asc testflight beta-testers beta-groups list --id "TESTER_ID" for the 
 func BetaTestersAddCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("add", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	appID := fs.String("app", "", "App Store Connect app ID, used to resolve --group (or ASC_APP_ID env)")
 	email := fs.String("email", "", "Tester email address")
 	firstName := fs.String("first-name", "", "Tester first name")
 	lastName := fs.String("last-name", "", "Tester last name")
 	group := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group names or IDs")
+	buildID := shared.BindOnceCSVFlag(fs, "build-id", "Build ID(s) to attach, comma-separated")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add",
-		ShortUsage: "asc testflight beta-testers add --app APP_ID --email EMAIL --group GROUP[,GROUP...]",
+		ShortUsage: "asc testflight beta-testers add --email EMAIL [--app APP_ID --group GROUP[,GROUP...]] [--build-id BUILD_ID[,BUILD_ID...]]",
 		ShortHelp:  "Add a TestFlight beta tester.",
 		LongHelp: `Add a TestFlight beta tester.
 
@@ -390,14 +396,24 @@ value that exactly matches one group name is used as-is, even when the name
 contains commas. To combine a comma-containing group name with other groups
 in one list, reference that group by its ID instead.
 
+--build-id attaches builds in the same create request. At least one of --group
+or --build-id is required, and --app is required only to resolve --group.
+
 Examples:
   asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
-  asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta,iOS 27"`,
+  asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta,iOS 27"
+  asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta" --build-id "BUILD_ID1,BUILD_ID2"
+  asc testflight beta-testers add --email "tester@example.com" --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			buildIDs, err := parseCreateRelationshipIDs(buildID, "--build-id")
+			if err != nil {
+				return err
+			}
+			hasGroup := strings.TrimSpace(group.String()) != ""
 			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" {
+			if resolvedAppID == "" && (hasGroup || len(buildIDs) == 0) {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
@@ -405,8 +421,8 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --email is required")
 				return shared.MissingRequiredUsageError("--email")
 			}
-			if strings.TrimSpace(group.String()) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
+			if !hasGroup && (group.Provided() || len(buildIDs) == 0) {
+				fmt.Fprintln(os.Stderr, "Error: --group is required unless --build-id is set")
 				return shared.MissingRequiredUsageError("--group")
 			}
 
@@ -418,12 +434,15 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			groupIDs, err := resolveBetaGroupIDs(requestCtx, client, resolvedAppID, group.String())
-			if err != nil {
-				return fmt.Errorf("beta-testers add: %w", err)
+			var groupIDs []string
+			if hasGroup {
+				groupIDs, err = resolveBetaGroupIDs(requestCtx, client, resolvedAppID, group.String())
+				if err != nil {
+					return fmt.Errorf("beta-testers add: %w", err)
+				}
 			}
 
-			tester, err := client.CreateBetaTester(requestCtx, *email, *firstName, *lastName, groupIDs)
+			tester, err := client.CreateBetaTester(requestCtx, *email, *firstName, *lastName, groupIDs, buildIDs)
 			if err != nil {
 				return fmt.Errorf("beta-testers add: failed to create: %w", err)
 			}
@@ -946,7 +965,7 @@ Examples:
 						return fmt.Errorf("beta-testers invite: %w", resolveErr)
 					}
 
-					created, createErr := client.CreateBetaTester(requestCtx, emailValue, "", "", groupIDs)
+					created, createErr := client.CreateBetaTester(requestCtx, emailValue, "", "", groupIDs, nil)
 					if createErr != nil {
 						return fmt.Errorf("beta-testers invite: failed to create tester: %w", createErr)
 					}

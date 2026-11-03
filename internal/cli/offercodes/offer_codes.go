@@ -25,6 +25,7 @@ func OfferCodesGenerateCommand() *ffcli.Command {
 	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Subscription offer code ID (required)")
 	quantity := fs.Int("quantity", 0, "Number of one-time use codes to generate (required)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD) (required)")
+	environment := fs.String("environment", "", "Offer code environment: PRODUCTION or SANDBOX")
 	outputPath := fs.String("output", "", "Output file path for offer codes")
 	output := shared.BindMetadataOutputFlags(fs)
 
@@ -36,7 +37,8 @@ func OfferCodesGenerateCommand() *ffcli.Command {
 
 Examples:
   asc offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
-  asc offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01" --output "./offer-codes.txt"`,
+  asc offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01" --output "./offer-codes.txt"
+  asc offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01" --environment SANDBOX`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -50,6 +52,11 @@ Examples:
 				return shared.MissingRequiredUsageError("--quantity")
 			}
 			normalizedExpirationDate, err := normalizeOfferCodeExpirationDate(*expirationDate)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err)
+				return flag.ErrHelp
+			}
+			normalizedEnvironment, err := shared.NormalizeOfferCodeEnvironment(*environment)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
@@ -69,6 +76,7 @@ Examples:
 					Attributes: asc.SubscriptionOfferCodeOneTimeUseCodeCreateAttributes{
 						NumberOfCodes:  *quantity,
 						ExpirationDate: normalizedExpirationDate,
+						Environment:    normalizedEnvironment,
 					},
 					Relationships: asc.SubscriptionOfferCodeOneTimeUseCodeCreateRelationships{
 						OfferCode: asc.Relationship{

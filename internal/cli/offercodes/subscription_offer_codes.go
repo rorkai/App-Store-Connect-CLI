@@ -268,7 +268,7 @@ Examples:
 
 // OfferCodesUpdateCommand returns the offer codes update subcommand.
 func OfferCodesUpdateCommand() *ffcli.Command {
-	return newActiveUpdateCommand(activeUpdateCommandConfig{
+	return NewActiveUpdateCommand(ActiveUpdateCommandConfig{
 		FlagSetName: "update",
 		Name:        "update",
 		ShortUsage:  "asc offer-codes update [flags]",

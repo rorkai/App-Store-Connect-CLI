@@ -86,6 +86,7 @@ func reviewItemsListCommand(name, errorPrefix, shortUsage, examples string) *ffc
 	next := fs.String("next", "", "Next page URL from a previous response")
 	fields := fs.String("fields", "", "Review item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewSubmissionItemIncludes, ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, reviewSubmissionItemIncludedResources)
 	iapVersionFields := fs.String("iap-version-fields", "", "In-app purchase version fields: "+strings.Join(reviewSubmissionItemIAPVersionFields, ", "))
 	subscriptionVersionFields := fs.String("subscription-version-fields", "", "Subscription version fields: "+strings.Join(reviewSubmissionItemSubscriptionVersionFields, ", "))
 	subscriptionGroupVersionFields := fs.String("subscription-group-version-fields", "", "Subscription group version fields: "+strings.Join(reviewSubmissionItemSubscriptionGroupVersionFields, ", "))
@@ -120,6 +121,11 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
+			included, err := includedFields.Resolve(errorPrefix, *next, shared.SplitCSV(*include))
+			if err != nil {
+				return err
+			}
+			opts = append(opts, asc.WithIncludedFields[asc.ReviewSubmissionItemsOption](included))
 			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission is required")
 				return shared.MissingRequiredUsageError("--submission")
@@ -185,6 +191,24 @@ var reviewSubmissionItemFields = []string{
 }
 
 var reviewSubmissionItemIncludes = reviewSubmissionItemFields[1:]
+
+// reviewSubmissionItemIncludedResources maps each --include value that has no
+// dedicated sparse-field flag to the resource it returns.
+var reviewSubmissionItemIncludedResources = map[string]string{
+	"appStoreVersion":                 "appStoreVersions",
+	"appCustomProductPageVersion":     "appCustomProductPageVersions",
+	"appAssetLibraryImage":            "appAssetLibraryImages",
+	"appAssetLibraryVideo":            "appAssetLibraryVideos",
+	"appStoreVersionExperiment":       "appStoreVersionExperiments",
+	"appStoreVersionExperimentV2":     "appStoreVersionExperiments",
+	"appEvent":                        "appEvents",
+	"backgroundAssetVersion":          "backgroundAssetVersions",
+	"gameCenterAchievementVersion":    "gameCenterAchievementVersions",
+	"gameCenterActivityVersion":       "gameCenterActivityVersions",
+	"gameCenterChallengeVersion":      "gameCenterChallengeVersions",
+	"gameCenterLeaderboardSetVersion": "gameCenterLeaderboardSetVersions",
+	"gameCenterLeaderboardVersion":    "gameCenterLeaderboardVersions",
+}
 
 var (
 	reviewSubmissionItemIAPVersionFields               = []string{"version", "state", "inAppPurchase", "image", "images", "localizations"}

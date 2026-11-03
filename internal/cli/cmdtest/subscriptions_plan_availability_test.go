@@ -68,6 +68,21 @@ func TestSubscriptionsPricingPlanAvailabilityValidationErrors(t *testing.T) {
 			wantErr: `unexpected argument "sub-1"`,
 		},
 		{
+			name:    "available-territories missing plan availability",
+			args:    []string{"subscriptions", "pricing", "plan-availability", "available-territories"},
+			wantErr: "--plan-availability-id is required",
+		},
+		{
+			name:    "available-territories rejects limit above the API maximum",
+			args:    []string{"subscriptions", "pricing", "plan-availability", "available-territories", "--plan-availability-id", "plan-1", "--limit", "201"},
+			wantErr: "--limit must be between 1 and 200",
+		},
+		{
+			name:    "available-territories rejects next with a selector",
+			args:    []string{"subscriptions", "pricing", "plan-availability", "available-territories", "--plan-availability-id", "plan-1", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionPlanAvailabilities/plan-1/availableTerritories?cursor=AQ"},
+			wantErr: "--plan-availability-id",
+		},
+		{
 			name:    "set missing subscription",
 			args:    []string{"subscriptions", "pricing", "plan-availability", "set", "--plan-type", "UPFRONT", "--territories", "USA", "--confirm"},
 			wantErr: "--subscription-id is required",
@@ -687,26 +702,108 @@ func TestSubscriptionsPricingPlanAvailabilityShowTableIncludesTerritories(t *tes
 }
 
 func TestSubscriptionsPricingPlanAvailabilityShowWarnsWhenIncludedTerritoriesAreCapped(t *testing.T) {
+	linkagesAtCap := strings.TrimSuffix(strings.Repeat(`{"type":"territories","id":"USA"},`, asc.SubscriptionPlanAvailabilityIncludedTerritoriesLimit), ",")
+
+	tests := []struct {
+		name         string
+		relationship string
+		wantInWarn   string
+	}{
+		{
+			name:         "total above the included linkages",
+			relationship: `{"data":[{"type":"territories","id":"USA"}],"meta":{"paging":{"total":175,"limit":50}}}`,
+			wantInWarn:   "175",
+		},
+		{
+			name:         "cap reached without paging metadata",
+			relationship: `{"data":[` + linkagesAtCap + `]}`,
+			wantInWarn:   "may be incomplete",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/planAvailabilities" {
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+				body := `{
+					"data":[{
+						"type":"subscriptionPlanAvailabilities","id":"plan-upfront",
+						"attributes":{"planType":"UPFRONT","availableInNewTerritories":true},
+						"relationships":{"availableTerritories":` + test.relationship + `}
+					}]
+				}`
+				return jsonResponse(http.StatusOK, body)
+			}))
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"subscriptions", "pricing", "plan-availability", "show",
+					"--subscription-id", "8000000001",
+					"--output", "json",
+				}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+			if runErr != nil {
+				t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
+			}
+			for _, want := range []string{
+				"plan-upfront",
+				test.wantInWarn,
+				`asc subscriptions pricing plan-availability available-territories --plan-availability-id "plan-upfront" --paginate`,
+			} {
+				if !strings.Contains(stderr, want) {
+					t.Fatalf("expected truncated-include warning to contain %q, got %q", want, stderr)
+				}
+			}
+			if strings.Contains(stdout, `"subscriptionId"`) {
+				t.Fatalf("expected Apple's unmodified envelope on stdout, got %q", stdout)
+			}
+		})
+	}
+}
+
+func TestSubscriptionsPricingPlanAvailabilityAvailableTerritoriesPaginatesPastIncludeCap(t *testing.T) {
 	setupAuth(t)
 
+	const secondPage = "https://api.appstoreconnect.apple.com/v1/subscriptionPlanAvailabilities/plan-upfront/availableTerritories?cursor=AQ&limit=200"
+	requests := 0
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/planAvailabilities" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		requests++
+		switch requests {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionPlanAvailabilities/plan-upfront/availableTerritories" {
+				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
+			}
+			if got := req.URL.Query().Get("limit"); got != "200" {
+				t.Fatalf("expected limit=200, got %q", got)
+			}
+			return jsonResponse(http.StatusOK, `{
+				"data":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
+				"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptionPlanAvailabilities/plan-upfront/availableTerritories","next":"`+secondPage+`"}
+			}`)
+		case 2:
+			if req.Method != http.MethodGet || req.URL.String() != secondPage {
+				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
+			}
+			return jsonResponse(http.StatusOK, `{
+				"data":[{"type":"territories","id":"NOR","attributes":{"currency":"NOK"}}],
+				"links":{"self":"`+secondPage+`"}
+			}`)
+		default:
+			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-		body := `{
-			"data":[{
-				"type":"subscriptionPlanAvailabilities","id":"plan-upfront",
-				"attributes":{"planType":"UPFRONT","availableInNewTerritories":true},
-				"relationships":{
-					"availableTerritories":{
-						"data":[{"type":"territories","id":"USA"}],
-						"meta":{"paging":{"total":175,"limit":50}}
-					}
-				}
-			}]
-		}`
-		return jsonResponse(http.StatusOK, body)
 	}))
 
 	root := RootCommand("1.2.3")
@@ -715,8 +812,9 @@ func TestSubscriptionsPricingPlanAvailabilityShowWarnsWhenIncludedTerritoriesAre
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "pricing", "plan-availability", "show",
-			"--subscription-id", "8000000001",
+			"subscriptions", "pricing", "plan-availability", "available-territories",
+			"--plan-availability-id", "plan-upfront",
+			"--paginate",
 			"--output", "json",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
@@ -726,11 +824,24 @@ func TestSubscriptionsPricingPlanAvailabilityShowWarnsWhenIncludedTerritoriesAre
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
 	}
-	if !strings.Contains(stderr, "plan-upfront") || !strings.Contains(stderr, "175") {
-		t.Fatalf("expected a truncated-include warning naming the plan and total, got %q", stderr)
+
+	var envelope struct {
+		Data []struct {
+			Type       string `json:"type"`
+			ID         string `json:"id"`
+			Attributes struct {
+				Currency string `json:"currency"`
+			} `json:"attributes"`
+		} `json:"data"`
 	}
-	if strings.Contains(stdout, `"subscriptionId"`) {
-		t.Fatalf("expected Apple's unmodified envelope on stdout, got %q", stdout)
+	if err := json.Unmarshal([]byte(stdout), &envelope); err != nil {
+		t.Fatalf("expected Apple's envelope, got %q: %v", stdout, err)
+	}
+	if len(envelope.Data) != 2 || envelope.Data[0].ID != "USA" || envelope.Data[1].ID != "NOR" {
+		t.Fatalf("expected territories from both pages, got %q", stdout)
+	}
+	if envelope.Data[1].Type != "territories" || envelope.Data[1].Attributes.Currency != "NOK" {
+		t.Fatalf("expected territory resources preserved, got %q", stdout)
 	}
 }
 

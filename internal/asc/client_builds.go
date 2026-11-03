@@ -352,6 +352,7 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 		if len(query.include) > 0 {
 			values.Set("include", strings.Join(query.include, ","))
 		}
+		query.includedFields.AddTo(values)
 		if queryString := values.Encode(); queryString != "" {
 			path += "?" + queryString
 		}
@@ -380,6 +381,7 @@ func (c *Client) GetBuild(ctx context.Context, buildID string, opts ...BuildOpti
 	if len(query.include) > 0 {
 		values := url.Values{}
 		addCSV(values, "include", query.include)
+		query.includedFields.AddTo(values)
 		path += "?" + values.Encode()
 	}
 	data, err := c.do(ctx, "GET", path, nil)

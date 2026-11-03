@@ -10,6 +10,7 @@ import (
 
 type feedbackQuery struct {
 	listQuery
+	includedFieldsQuery
 	deviceModels              []string
 	osVersions                []string
 	appPlatforms              []string
@@ -24,6 +25,7 @@ type feedbackQuery struct {
 
 type crashQuery struct {
 	listQuery
+	includedFieldsQuery
 	deviceModels              []string
 	osVersions                []string
 	appPlatforms              []string
@@ -90,6 +92,7 @@ type betaGroupTestersQuery struct {
 
 type betaTestersQuery struct {
 	listQuery
+	includedFieldsQuery
 	email        string
 	firstName    string
 	lastName     string
@@ -174,6 +177,7 @@ func buildFeedbackQuery(query *feedbackQuery) string {
 		values.Set("sort", query.sort)
 	}
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -191,6 +195,7 @@ func buildCrashQuery(query *crashQuery) string {
 		values.Set("sort", query.sort)
 	}
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -281,6 +286,7 @@ func buildBetaTestersQuery(appID string, query *betaTestersQuery) (string, error
 	}
 	addValue(values, "sort", query.sort)
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode(), nil
 }
 

@@ -2,8 +2,10 @@ package gamecenter
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"slices"
+	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -72,4 +74,50 @@ func isValidScoreSortType(value string) bool {
 // isValidSubmissionType checks if the value is a valid submission type.
 func isValidSubmissionType(value string) bool {
 	return slices.Contains(asc.ValidSubmissionTypes, value)
+}
+
+func flagPassed(fs *flag.FlagSet, name string) bool {
+	passed := false
+	fs.Visit(func(item *flag.Flag) {
+		passed = passed || item.Name == name
+	})
+	return passed
+}
+
+// parseStringMapFlag decodes a flag holding a JSON object of string values. It
+// returns nil when the flag was not passed and a non-nil map otherwise, so an
+// empty object still reaches Apple.
+func parseStringMapFlag(fs *flag.FlagSet, name string) (map[string]string, error) {
+	if !flagPassed(fs, name) {
+		return nil, nil
+	}
+	shapeError := func() error {
+		return shared.UsageErrorf("--%s must be a JSON object of string values", name)
+	}
+	// Pointer values keep a JSON null from decoding to an empty string.
+	var decoded map[string]*string
+	if err := json.Unmarshal([]byte(fs.Lookup(name).Value.String()), &decoded); err != nil || decoded == nil {
+		return nil, shapeError()
+	}
+	values := make(map[string]string, len(decoded))
+	for key, value := range decoded {
+		if value == nil {
+			return nil, shapeError()
+		}
+		values[key] = *value
+	}
+	return values, nil
+}
+
+// parseLeaderboardVisibilityFlag returns the normalized --visibility value, or
+// an empty string when the flag was not passed.
+func parseLeaderboardVisibilityFlag(fs *flag.FlagSet) (string, error) {
+	if !flagPassed(fs, "visibility") {
+		return "", nil
+	}
+	value := strings.TrimSpace(strings.ToUpper(fs.Lookup("visibility").Value.String()))
+	if !slices.Contains(asc.ValidLeaderboardVisibilities, value) {
+		return "", shared.UsageErrorf("--visibility must be one of: %s", strings.Join(asc.ValidLeaderboardVisibilities, ", "))
+	}
+	return value, nil
 }

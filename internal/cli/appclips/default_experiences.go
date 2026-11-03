@@ -137,6 +137,12 @@ func AppClipDefaultExperiencesGetCommand() *ffcli.Command {
 
 	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	include := fs.String("include", "", "Include relationships: "+strings.Join(appClipDefaultExperienceIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{
+		"appClip":                               "appClips",
+		"releaseWithAppStoreVersion":            "appStoreVersions",
+		"appClipDefaultExperienceLocalizations": "appClipDefaultExperienceLocalizations",
+		"appClipAppStoreReviewDetail":           "appClipAppStoreReviewDetails",
+	})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -160,6 +166,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences view: %w", err)
 			}
+			included, err := includedFields.Resolve("app-clips default-experiences view", "", includeValue)
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -169,7 +179,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetAppClipDefaultExperience(requestCtx, idValue, asc.WithAppClipDefaultExperienceInclude(includeValue))
+			resp, err := client.GetAppClipDefaultExperience(requestCtx, idValue, asc.WithAppClipDefaultExperienceInclude(includeValue), asc.WithIncludedFields[asc.AppClipDefaultExperienceOption](included))
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences view: failed to fetch: %w", err)
 			}

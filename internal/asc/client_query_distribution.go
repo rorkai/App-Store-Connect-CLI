@@ -58,11 +58,20 @@ type backgroundAssetsQuery struct {
 	archived             []string
 	assetPackIdentifiers []string
 	versionsLocales      []string
+	versionsPlatforms    []string
+	sort                 string
 }
 
 type backgroundAssetVersionsQuery struct {
 	listQuery
-	locales []string
+	locales            []string
+	platforms          []string
+	states             []string
+	versions           []string
+	internalBetaStates []string
+	externalBetaStates []string
+	appStoreStates     []string
+	sort               string
 }
 
 type backgroundAssetUploadFilesQuery struct {
@@ -150,6 +159,10 @@ func buildBackgroundAssetsQuery(query *backgroundAssetsQuery) string {
 	addCSV(values, "filter[archived]", query.archived)
 	addCSV(values, "filter[assetPackIdentifier]", query.assetPackIdentifiers)
 	addCSV(values, "filter[versions.locale]", query.versionsLocales)
+	addCSV(values, "filter[versions.platforms]", query.versionsPlatforms)
+	if query.sort != "" {
+		values.Set("sort", query.sort)
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -157,6 +170,15 @@ func buildBackgroundAssetsQuery(query *backgroundAssetsQuery) string {
 func buildBackgroundAssetVersionsQuery(query *backgroundAssetVersionsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[locale]", query.locales)
+	addCSV(values, "filter[platforms]", query.platforms)
+	addCSV(values, "filter[state]", query.states)
+	addCSV(values, "filter[version]", query.versions)
+	addCSV(values, "filter[internalBetaRelease.state]", query.internalBetaStates)
+	addCSV(values, "filter[externalBetaRelease.state]", query.externalBetaStates)
+	addCSV(values, "filter[appStoreRelease.state]", query.appStoreStates)
+	if query.sort != "" {
+		values.Set("sort", query.sort)
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -504,6 +526,20 @@ func WithBackgroundAssetsFilterVersionsLocale(values []string) BackgroundAssetsO
 	}
 }
 
+// WithBackgroundAssetsFilterVersionsPlatforms filters background assets by version platform.
+func WithBackgroundAssetsFilterVersionsPlatforms(values []string) BackgroundAssetsOption {
+	return func(q *backgroundAssetsQuery) {
+		q.versionsPlatforms = normalizeList(values)
+	}
+}
+
+// WithBackgroundAssetsSort sets the sort order for background assets.
+func WithBackgroundAssetsSort(sort string) BackgroundAssetsOption {
+	return func(q *backgroundAssetsQuery) {
+		q.sort = strings.TrimSpace(sort)
+	}
+}
+
 // WithBackgroundAssetVersionsLimit sets the max number of background asset versions to return.
 func WithBackgroundAssetVersionsLimit(limit int) BackgroundAssetVersionsOption {
 	return func(q *backgroundAssetVersionsQuery) {
@@ -526,6 +562,55 @@ func WithBackgroundAssetVersionsNextURL(next string) BackgroundAssetVersionsOpti
 func WithBackgroundAssetVersionsFilterLocale(values []string) BackgroundAssetVersionsOption {
 	return func(q *backgroundAssetVersionsQuery) {
 		q.locales = normalizeList(values)
+	}
+}
+
+// WithBackgroundAssetVersionsFilterPlatforms filters background asset versions by platform.
+func WithBackgroundAssetVersionsFilterPlatforms(values []string) BackgroundAssetVersionsOption {
+	return func(q *backgroundAssetVersionsQuery) {
+		q.platforms = normalizeList(values)
+	}
+}
+
+// WithBackgroundAssetVersionsFilterState filters background asset versions by state.
+func WithBackgroundAssetVersionsFilterState(values []string) BackgroundAssetVersionsOption {
+	return func(q *backgroundAssetVersionsQuery) {
+		q.states = normalizeList(values)
+	}
+}
+
+// WithBackgroundAssetVersionsFilterVersion filters background asset versions by version.
+func WithBackgroundAssetVersionsFilterVersion(values []string) BackgroundAssetVersionsOption {
+	return func(q *backgroundAssetVersionsQuery) {
+		q.versions = normalizeList(values)
+	}
+}
+
+// WithBackgroundAssetVersionsFilterInternalBetaState filters background asset versions by internal beta release state.
+func WithBackgroundAssetVersionsFilterInternalBetaState(values []string) BackgroundAssetVersionsOption {
+	return func(q *backgroundAssetVersionsQuery) {
+		q.internalBetaStates = normalizeList(values)
+	}
+}
+
+// WithBackgroundAssetVersionsFilterExternalBetaState filters background asset versions by external beta release state.
+func WithBackgroundAssetVersionsFilterExternalBetaState(values []string) BackgroundAssetVersionsOption {
+	return func(q *backgroundAssetVersionsQuery) {
+		q.externalBetaStates = normalizeList(values)
+	}
+}
+
+// WithBackgroundAssetVersionsFilterAppStoreState filters background asset versions by App Store release state.
+func WithBackgroundAssetVersionsFilterAppStoreState(values []string) BackgroundAssetVersionsOption {
+	return func(q *backgroundAssetVersionsQuery) {
+		q.appStoreStates = normalizeList(values)
+	}
+}
+
+// WithBackgroundAssetVersionsSort sets the sort order for background asset versions.
+func WithBackgroundAssetVersionsSort(sort string) BackgroundAssetVersionsOption {
+	return func(q *backgroundAssetVersionsQuery) {
+		q.sort = strings.TrimSpace(sort)
 	}
 }
 
