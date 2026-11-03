@@ -54,17 +54,26 @@ func redactRemoteUserinfo(raw string) string {
 	}
 	credentialsEnd := strings.LastIndex(authority, "@")
 	if credentialsEnd < 0 {
-		return raw
+		return withoutQueryOrFragment(raw)
 	}
 	if !hasScheme && !strings.Contains(authority[:credentialsEnd], ":") {
-		return raw
+		return withoutQueryOrFragment(raw)
 	}
 
-	redacted := redactedRepoUserinfo + authority[credentialsEnd:] + remainder
+	redacted := redactedRepoUserinfo + withoutQueryOrFragment(authority[credentialsEnd:]+remainder)
 	if hasScheme {
 		return scheme + "://" + redacted
 	}
 	return redacted
+}
+
+// withoutQueryOrFragment drops a query or fragment, which can carry a token
+// that the fallback above cannot parse and redact by key.
+func withoutQueryOrFragment(raw string) string {
+	if index := strings.IndexAny(raw, "?#"); index >= 0 {
+		return raw[:index]
+	}
+	return raw
 }
 
 // GitStore manages an encrypted git repository of signing assets.

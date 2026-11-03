@@ -659,6 +659,11 @@ func TestRedactRepoURLRemovesCredentials(t *testing.T) {
 			want: "/srv/git/certs.git",
 		},
 		{
+			name: "unparseable remote with query token",
+			raw:  "https://host/%zz?access_token=SECRET",
+			want: "https://host/%zz",
+		},
+		{
 			name: "empty",
 			raw:  "",
 			want: "",

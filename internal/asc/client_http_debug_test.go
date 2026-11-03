@@ -85,6 +85,23 @@ func TestSanitizeURLForLog_RedactsTokenQuery(t *testing.T) {
 	}
 }
 
+func TestSanitizeURLForLog_RedactsCommonCredentialQueryKeys(t *testing.T) {
+	for _, key := range []string{"private_token", "client_secret", "api_key", "apikey", "key", "password", "secret", "jwt", "authorization", "X-Goog-Signature"} {
+		got := sanitizeURLForLog("https://example.com/repo.git?" + key + "=abc&foo=bar")
+		if strings.Contains(got, "abc") || !strings.Contains(got, "foo=bar") {
+			t.Fatalf("expected only %s to be redacted, got %q", key, got)
+		}
+	}
+}
+
+func TestSanitizeURLForLog_DropsUnparseableQuery(t *testing.T) {
+	got := sanitizeURLForLog("https://example.com/path?access_token=abc;x")
+
+	if got != "https://example.com/path" {
+		t.Fatalf("expected unparseable query to be dropped, got %q", got)
+	}
+}
+
 func TestSanitizeURLForLog_EmptySignatureDoesNotRedactAll(t *testing.T) {
 	rawURL := "https://example.com/path?X-Amz-Signature=&foo=bar"
 	got := sanitizeURLForLog(rawURL)

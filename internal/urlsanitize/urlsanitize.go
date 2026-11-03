@@ -32,6 +32,16 @@ var DefaultSensitiveQueryKeys = map[string]struct{}{
 	"access_token":         {},
 	"id_token":             {},
 	"refresh_token":        {},
+	"private_token":        {},
+	"client_secret":        {},
+	"api_key":              {},
+	"apikey":               {},
+	"key":                  {},
+	"password":             {},
+	"secret":               {},
+	"jwt":                  {},
+	"authorization":        {},
+	"x-goog-signature":     {},
 }
 
 // CopyKeySet returns a shallow copy of a key set map.
@@ -82,10 +92,12 @@ func SanitizeURLForLog(rawURL string, signedKeys, sensitiveKeys map[string]struc
 	if parsedURL.User != nil {
 		parsedURL.User = url.User("[REDACTED]")
 	}
-	values := parsedURL.Query()
-	if len(values) == 0 {
+	if parsedURL.RawQuery == "" {
 		return parsedURL.String()
 	}
+	// Query drops pairs it cannot parse, such as those containing ";", so a
+	// query made only of such pairs is dropped instead of echoed verbatim.
+	values := parsedURL.Query()
 	redactAll := HasSignedQuery(values, signedKeys)
 	for key, vals := range values {
 		if redactAll || isSensitiveQueryKey(key, sensitiveKeys) {
