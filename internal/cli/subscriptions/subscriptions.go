@@ -1413,6 +1413,7 @@ func SubscriptionsPricesAddCommand() *ffcli.Command {
 	territory := fs.String("territory", "", "Territory input (accepts alpha-2, alpha-3, or exact English country name; e.g., US, USA, United States)")
 	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD)")
 	preserved := fs.Bool("preserved", false, "Preserve existing prices")
+	planType := fs.String("plan-type", "", "Billing plan: MONTHLY or UPFRONT (default Apple's UPFRONT)")
 	force := fs.Bool("force", false, "Re-save the complete equalized price matrix even when the selected price is unchanged")
 	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
 	output := shared.BindOutputFlags(fs)
@@ -1429,10 +1430,14 @@ Examples:
   asc subscriptions prices add --subscription-id "SUB_ID" --tier 5 --territory "US"
   asc subscriptions prices add --subscription-id "SUB_ID" --price "4.99" --territory "France"
   asc subscriptions prices add --subscription-id "SUB_ID" --price "4.99" --territory "France" --force
+  asc subscriptions prices add --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID" --territory "Norway" --plan-type MONTHLY --start-date "2026-03-01"
 
 By default, an identical existing price is returned without sending another
 write. Use --force with --territory to rebuild and atomically re-save the full
-equalized price matrix when repairing Apple's MISSING_METADATA state.`,
+equalized price matrix when repairing Apple's MISSING_METADATA state.
+
+--plan-type MONTHLY sets a Monthly with 12-Month Commitment price. It cannot be
+combined with --force or USA, and it needs MONTHLY plan availability.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1472,6 +1477,16 @@ equalized price matrix when repairing Apple's MISSING_METADATA state.`,
 			if *force && territoryID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --territory is required with --force")
 				return shared.MissingRequiredUsageError("--territory")
+			}
+			planTypeValue, err := parseSubscriptionPricePlanType(fs, *planType)
+			if err != nil {
+				return err
+			}
+			if err := validatePlanTypeTerritory(planTypeValue, territoryID, "--territory"); err != nil {
+				return shared.UsageError(err.Error())
+			}
+			if *force && planTypeValue == asc.SubscriptionPlanTypeMonthly {
+				return shared.UsageError("--force only repairs UPFRONT prices")
 			}
 
 			client, err := shared.GetASCClient()
@@ -1517,6 +1532,7 @@ equalized price matrix when repairing Apple's MISSING_METADATA state.`,
 
 			attrs := asc.SubscriptionPriceCreateAttributes{
 				StartDate: strings.TrimSpace(*startDate),
+				PlanType:  planTypeValue,
 			}
 			if *preserved {
 				attrs.Preserved = preserved

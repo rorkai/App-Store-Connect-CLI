@@ -630,6 +630,7 @@ asc subscriptions pricing prices set \
 * `--territory` - Territory ID (e.g., `USA`) - required for `--tier` or `--price`
 * `--start-date` - Price change start date (`YYYY-MM-DD`)
 * `--preserved` - Preserve existing customer pricing
+* `--plan-type` - Billing plan: `MONTHLY` or `UPFRONT`. Omit it to send no plan type. `MONTHLY` cannot be combined with `--force` or USA
 * `--refresh` - Force refresh of tier cache
 
 **Examples:**
@@ -698,10 +699,14 @@ GBR,3.99
 AUS,7.99
 ```
 
+The optional `plan_type` column accepts `MONTHLY` or `UPFRONT`. Rows without a
+value use `--plan-type`, then `UPFRONT`. `MONTHLY` rows cannot target USA.
+
 **Optional Flags:**
 
 * `--start-date` - Price change start date
 * `--preserved` - Preserve existing customer pricing
+* `--plan-type` - Default billing plan for rows without `plan_type`
 
 ### Delete Price
 
@@ -900,7 +905,13 @@ asc subscriptions pricing monthly-commitment list \
   --plan-type MONTHLY
 ```
 
-**Optional Flags:**
+**Optional Flags on `enable`:**
+
+* `--start-date` - Schedule the MONTHLY prices for a future date (`YYYY-MM-DD`).
+  Plan availability still changes immediately
+* `--preserved` - Preserve current prices for existing subscribers
+
+**Optional Flags on `list`:**
 
 * `--plan-type` - Filter results by `MONTHLY` or `UPFRONT`. Filtering is applied
   client-side because `GET /v1/subscriptions/{id}/planAvailabilities` does not
@@ -919,7 +930,8 @@ Current CLI behavior:
 * Requires an existing UPFRONT subscription price in each eligible territory.
 * Creates or updates `subscriptionPlanAvailabilities` with `planType=MONTHLY`
   before creating MONTHLY `subscriptionPrices`, as required by Apple.
-* Creates MONTHLY `subscriptionPrices` for each eligible territory at `--price`.
+* Creates MONTHLY `subscriptionPrices` for each eligible territory at `--price`,
+  skipping a territory already at that price on the effective date.
 
 ## API 4.4.1 Related Sparse Fields
 
