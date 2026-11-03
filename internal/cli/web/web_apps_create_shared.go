@@ -264,7 +264,7 @@ func resolveAppCreatePassword(_ context.Context, password string) (string, error
 
 func persistFreshAppCreateSession(session *webcore.AuthSession) error {
 	// App creation can proceed with the in-memory session even if cache persistence fails.
-	_ = persistWebSessionFn(session)
+	printSessionCacheWriteWarning(persistWebSessionFn(session))
 	return nil
 }
 

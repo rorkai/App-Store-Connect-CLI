@@ -389,3 +389,19 @@ func TestWithWebAuthHintCoversSessionInfoAuthStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestWithWebAuthHintDoesNotRepeatDeveloperPortalSessionGuidance(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		session := &webcore.AuthSession{Client: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: status, Body: http.NoBody, Header: http.Header{}}, nil
+		})}}
+		_, err := webcore.NewClient(session).AssignDeveloperAppGroup(context.Background(), webcore.DeveloperAppGroupAssignRequest{BundleID: "bundle-1", GroupID: "GROUP1"})
+		if err == nil {
+			t.Fatalf("AssignDeveloperAppGroup() error = nil, want Developer Portal status %d", status)
+		}
+		got := withWebAuthHint(err, "web app-groups assign").Error()
+		if want := "web app-groups assign failed: " + err.Error(); got != want {
+			t.Fatalf("withWebAuthHint() = %q, want %q", got, want)
+		}
+	}
+}

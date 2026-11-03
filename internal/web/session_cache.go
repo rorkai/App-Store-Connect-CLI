@@ -81,6 +81,7 @@ type persistedSession struct {
 	Generation      string               `json:"generation,omitempty"`
 	UserEmail       string               `json:"user_email,omitempty"`
 	DeveloperTeamID string               `json:"developer_team_id,omitempty"`
+	ProviderID      int64                `json:"provider_id,omitempty"`
 	Cookies         map[string][]pCookie `json:"cookies"`
 }
 
@@ -2656,6 +2657,7 @@ func loadSessionFromPersistedSession(sess persistedSession) (*AuthSession, bool,
 		Client:           newWebHTTPClient(newSessionCookieTrackingJarWithCached(jar, &sess)),
 		UserEmail:        strings.TrimSpace(sess.UserEmail),
 		DeveloperTeamID:  strings.TrimSpace(sess.DeveloperTeamID),
+		ProviderID:       sess.ProviderID,
 		cachedUpdatedAt:  sess.UpdatedAt,
 		cachedGeneration: sess.Generation,
 		cachedSession:    &sess,
@@ -2702,6 +2704,7 @@ func PersistSession(session *AuthSession) error {
 	// after narrowing, before the cache is made visible to the next load.
 	narrowPersistedCookieDomains(&serialized)
 	serialized.DeveloperTeamID = strings.TrimSpace(session.DeveloperTeamID)
+	serialized.ProviderID = session.ProviderID
 	merged := false
 	err = withSessionEntryLock(key, func() error {
 		if session.cachedGeneration != "" && session.cachedSource == CachedSessionSourceFile {
