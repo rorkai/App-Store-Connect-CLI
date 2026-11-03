@@ -503,8 +503,11 @@ func IAPOfferCodesOneTimeCodesUpdateCommand() *ffcli.Command {
 		FlagSetName: "offer-codes one-time-codes update",
 		Name:        "update",
 		ShortUsage:  "asc iap offer-codes one-time-codes update --one-time-code-id \"ONE_TIME_USE_CODE_ID\" --active false",
-		ShortHelp:   "Turn a one-time use code batch on or off.",
-		LongHelp: `Turn a one-time use code batch on or off.
+		ShortHelp:   "Turn off a one-time use code batch.",
+		LongHelp: `Turn off a one-time use code batch.
+
+Turning a batch off is permanent: Apple rejects --active true on an inactive
+batch.
 
 Examples:
   asc iap offer-codes one-time-codes update --one-time-code-id "ONE_TIME_USE_CODE_ID" --active false`,
