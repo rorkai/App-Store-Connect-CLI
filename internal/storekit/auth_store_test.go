@@ -131,6 +131,83 @@ func TestGetCredentialsFallsBackToGlobalWhenLocalConfigHasNoStoreKitKeys(t *test
 	}
 }
 
+func TestStoreCredentialsConfigInRepoWithoutStoreKitConfigWritesGlobalConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ASC_CONFIG_PATH", "")
+	t.Setenv("ASC_STOREKIT_BYPASS_KEYCHAIN", "1")
+	projectDir := t.TempDir()
+	localPath := filepath.Join(projectDir, ".asc", "config.json")
+	if err := config.SaveAt(localPath, &config.Config{AppID: "local-app"}); err != nil {
+		t.Fatalf("SaveAt(local) error = %v", err)
+	}
+	t.Chdir(projectDir)
+	credentials := testCredentials(t)
+	credentials.PrivateKeyPath = "/global/SubscriptionKey.p8"
+	credentials.PrivateKeyPEM = ""
+
+	if err := StoreCredentialsConfig("repo", credentials); err != nil {
+		t.Fatalf("StoreCredentialsConfig() error = %v", err)
+	}
+
+	localCfg, err := config.LoadAt(localPath)
+	if err != nil {
+		t.Fatalf("LoadAt(local) error = %v", err)
+	}
+	if hasStoreKitConfig(localCfg) {
+		t.Fatalf("expected repo config to stay free of StoreKit credentials, got %+v", localCfg.StoreKit)
+	}
+	globalPath, err := config.GlobalPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	globalCfg, err := config.LoadAt(globalPath)
+	if err != nil {
+		t.Fatalf("LoadAt(global) error = %v", err)
+	}
+	if len(globalCfg.StoreKit.Keys) != 1 || globalCfg.StoreKit.Keys[0].Name != "repo" {
+		t.Fatalf("expected StoreKit credential in global config, got %+v", globalCfg.StoreKit)
+	}
+}
+
+func TestStoreCredentialsKeychainInRepoWithoutStoreKitConfigKeepsDefaultGlobal(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ASC_CONFIG_PATH", "")
+	t.Setenv("ASC_STOREKIT_BYPASS_KEYCHAIN", "")
+	original := openStoreKitKeyring
+	kr := keyring.NewArrayKeyring(nil)
+	openStoreKitKeyring = func() (keyring.Keyring, error) { return kr, nil }
+	t.Cleanup(func() { openStoreKitKeyring = original })
+	projectDir := t.TempDir()
+	localPath := filepath.Join(projectDir, ".asc", "config.json")
+	if err := config.SaveAt(localPath, &config.Config{AppID: "local-app"}); err != nil {
+		t.Fatalf("SaveAt(local) error = %v", err)
+	}
+	t.Chdir(projectDir)
+
+	if err := StoreCredentials("keychain", testCredentials(t)); err != nil {
+		t.Fatalf("StoreCredentials() error = %v", err)
+	}
+
+	localCfg, err := config.LoadAt(localPath)
+	if err != nil {
+		t.Fatalf("LoadAt(local) error = %v", err)
+	}
+	if hasStoreKitConfig(localCfg) {
+		t.Fatalf("expected repo config to stay free of StoreKit config, got %+v", localCfg.StoreKit)
+	}
+	globalPath, err := config.GlobalPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	globalCfg, err := config.LoadAt(globalPath)
+	if err != nil {
+		t.Fatalf("LoadAt(global) error = %v", err)
+	}
+	if globalCfg.StoreKit.DefaultKeyName != "keychain" {
+		t.Fatalf("expected global StoreKit default keychain, got %q", globalCfg.StoreKit.DefaultKeyName)
+	}
+}
+
 func TestGetCredentialsPrefersGlobalConfigOverSameNamedKeychainProfile(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

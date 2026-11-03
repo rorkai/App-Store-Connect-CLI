@@ -29,6 +29,37 @@ func TestStoreCredentialsConfigUsesActiveConfigPath(t *testing.T) {
 	}
 }
 
+func TestStoreCredentialsConfigInRepoWithoutAdsCredentialsWritesGlobalConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ASC_CONFIG_PATH", "")
+	t.Setenv(adsBypassKeychainEnvVar, "1")
+	repo := t.TempDir()
+	repoPath := filepath.Join(repo, ".asc", "config.json")
+	if err := config.SaveAt(repoPath, &config.Config{AppID: "123"}); err != nil {
+		t.Fatalf("SaveAt(repo) error: %v", err)
+	}
+	t.Chdir(repo)
+
+	if err := StoreCredentialsConfig("ads", testAdsCredentials()); err != nil {
+		t.Fatalf("StoreCredentialsConfig() error: %v", err)
+	}
+
+	repoCfg, err := config.LoadAt(repoPath)
+	if err != nil {
+		t.Fatalf("LoadAt(repo) error: %v", err)
+	}
+	if len(repoCfg.Ads.Keys) != 0 || repoCfg.Ads.DefaultKeyName != "" {
+		t.Fatalf("expected repo config to stay free of Apple Ads credentials, got %+v", repoCfg.Ads)
+	}
+	creds, _, err := GetCredentialsWithSource("")
+	if err != nil {
+		t.Fatalf("GetCredentialsWithSource() error: %v", err)
+	}
+	if creds.Profile != "ads" || creds.KeyID != "KEY" {
+		t.Fatalf("expected global ads profile inside the repo, got %+v", creds)
+	}
+}
+
 func TestStoreCredentialsConfigRejectsUnsafeAdAccountID(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "active-config.json")
 	credentials := testAdsCredentials()
