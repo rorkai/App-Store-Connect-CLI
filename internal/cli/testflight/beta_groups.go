@@ -1051,11 +1051,17 @@ Examples:
 				FeedbackEnabled:        optionalBetaGroupCreateBool(feedbackEnabled),
 			}
 
+			hasRelationships := len(buildIDs) > 0 || len(testerIDs) > 0
+			var existingIDs map[string]bool
+			if hasRelationships {
+				existingIDs = listBetaGroupIDsByName(ctx, client, resolvedAppID, attrs.Name)
+			}
+
 			group, err := client.CreateBetaGroupWithAttributes(requestCtx, resolvedAppID, attrs, buildIDs, testerIDs)
 			if err != nil {
 				err = fmt.Errorf("beta-groups create: failed to create: %w", err)
-				if len(buildIDs) > 0 || len(testerIDs) > 0 {
-					return explainPartialBetaGroupCreate(ctx, client, resolvedAppID, attrs.Name, buildIDs, testerIDs, err)
+				if existingIDs != nil {
+					return explainPartialBetaGroupCreate(ctx, client, resolvedAppID, attrs.Name, existingIDs, buildIDs, testerIDs, err)
 				}
 				return err
 			}
@@ -1067,8 +1073,9 @@ Examples:
 
 // explainPartialBetaGroupCreate adds what a failed create left behind. Live App
 // Store Connect returned 404 for a missing build ID yet still created the
-// group, so a blind retry would make a duplicate.
-func explainPartialBetaGroupCreate(ctx context.Context, client *asc.Client, appID, name string, buildIDs, testerIDs []string, createErr error) error {
+// group, so a blind retry would make a duplicate. Only groups missing from
+// existingIDs, listed before the create, count as made by this command.
+func explainPartialBetaGroupCreate(ctx context.Context, client *asc.Client, appID, name string, existingIDs map[string]bool, buildIDs, testerIDs []string, createErr error) error {
 	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
@@ -1076,13 +1083,15 @@ func explainPartialBetaGroupCreate(ctx context.Context, client *asc.Client, appI
 	if err != nil {
 		return fmt.Errorf("%w\nApp Store Connect may have created the group anyway. Check with `asc testflight groups list --app %q --name %q` before retrying", createErr, appID, name)
 	}
-	if len(groups.Data) == 0 {
-		return createErr
-	}
 
-	ids := make([]string, len(groups.Data))
-	for i, group := range groups.Data {
-		ids[i] = group.ID
+	var ids []string
+	for _, group := range groups.Data {
+		if !existingIDs[group.ID] {
+			ids = append(ids, group.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return createErr
 	}
 	groupID := "GROUP_ID"
 	var b strings.Builder
@@ -1101,6 +1110,23 @@ func explainPartialBetaGroupCreate(ctx context.Context, client *asc.Client, appI
 	}
 	fmt.Fprintf(&b, "\n  asc testflight groups delete --id %q --confirm", groupID)
 	return fmt.Errorf("%w\n%s", createErr, b.String())
+}
+
+// listBetaGroupIDsByName returns nil when the lookup fails, so a failed create
+// claims nothing about which group it left behind.
+func listBetaGroupIDsByName(ctx context.Context, client *asc.Client, appID, name string) map[string]bool {
+	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+	defer cancel()
+
+	groups, err := client.ListBetaGroups(lookupCtx, asc.WithBetaGroupsApps([]string{appID}), asc.WithBetaGroupsName(name))
+	if err != nil {
+		return nil
+	}
+	ids := make(map[string]bool, len(groups.Data))
+	for _, group := range groups.Data {
+		ids[group.ID] = true
+	}
+	return ids
 }
 
 func optionalBetaGroupCreateBool(value shared.OptionalBool) *bool {
