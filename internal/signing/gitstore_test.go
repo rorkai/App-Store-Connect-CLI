@@ -654,6 +654,11 @@ func TestRedactRepoURLRemovesCredentials(t *testing.T) {
 			want: "[REDACTED]@github.com:team/certs.git",
 		},
 		{
+			name: "local file remote with a token query",
+			raw:  "file:///tmp/certs.git?access_token=secret",
+			want: "file:///tmp/certs.git?access_token=%5BREDACTED%5D",
+		},
+		{
 			name: "no credentials",
 			raw:  "https://github.com/team/certs.git",
 			want: "https://github.com/team/certs.git",

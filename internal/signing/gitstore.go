@@ -33,12 +33,12 @@ func RedactRepoURL(raw string) string {
 	if trimmed == "" {
 		return ""
 	}
-	if parsed, err := url.Parse(trimmed); err == nil && parsed.Opaque == "" && parsed.Host != "" {
-		// net/url found the authority, so the sanitizer replaces any
-		// embedded userinfo. An scp-style remote parses as an opaque URL
-		// whose credentials the sanitizer cannot see, even when rendering
-		// it changes the text (net/url lowercases the "scheme" that is
-		// really the user name).
+	if parsed, err := url.Parse(trimmed); err == nil && parsed.Opaque == "" {
+		// net/url parsed a hierarchical URL, so the sanitizer sees any
+		// userinfo and sensitive query values. An scp-style remote parses
+		// as an opaque URL whose credentials the sanitizer cannot see,
+		// even when rendering it changes the text (net/url lowercases the
+		// "scheme" that is really the user name).
 		return urlsanitize.SanitizeURLForLog(trimmed, urlsanitize.DefaultSignedQueryKeys, urlsanitize.DefaultSensitiveQueryKeys)
 	}
 	return redactRemoteUserinfo(trimmed)
