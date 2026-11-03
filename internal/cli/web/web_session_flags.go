@@ -109,6 +109,9 @@ func withWebAuthHint(err error, operation string) error {
 	if strings.HasPrefix(err.Error(), operation+" failed:") {
 		return err
 	}
+	if webcore.IsDeveloperPortalSessionError(err) {
+		return fmt.Errorf("%s failed: %w", operation, err)
+	}
 	if apiErr, ok := errors.AsType[*webcore.APIError](err); ok && apiErr.Status == http.StatusForbidden {
 		return fmt.Errorf("%s failed: Apple denied the request (403); the account role likely lacks permission for this action, or the web session expired (run 'asc web auth status' to check): %w", operation, err)
 	}

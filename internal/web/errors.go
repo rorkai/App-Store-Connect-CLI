@@ -16,6 +16,13 @@ func IsSessionAuthFailure(err error) bool {
 	return isSessionInfoAuthExpired(err)
 }
 
+// IsDeveloperPortalSessionError reports whether err is a Developer Portal 401
+// or 403 that already explains the session or permission failure.
+func IsDeveloperPortalSessionError(err error) bool {
+	_, ok := errors.AsType[*developerPortalSessionStatusError](err)
+	return ok
+}
+
 // IsDuplicateAppNameError reports whether an internal API error means app name is taken.
 func IsDuplicateAppNameError(err error) bool {
 	var apiErr *APIError
