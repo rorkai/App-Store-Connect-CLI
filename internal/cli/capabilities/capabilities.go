@@ -316,6 +316,14 @@ func capabilityRows() []Capability {
 			NextAction: "Use App Store Connect web UI, or asc web removed-apps list.",
 		},
 		{
+			Area:       "app-management",
+			Capability: "App bundle management",
+			Status:     statusWebSession,
+			Commands:   []string{"asc web app-bundles"},
+			Notes:      []string{"App Store app bundles are not present in the embedded public OpenAPI snapshot, and the public API answers that the resource does not exist."},
+			NextAction: "Use asc web app-bundles list, view --id BUNDLE_ID, or apps set --id BUNDLE_ID --apps APP_ID,APP_ID --confirm.",
+		},
+		{
 			Area:         "app-management",
 			Capability:   "Initial app availability bootstrap",
 			Status:       statusPartial,
