@@ -46,6 +46,8 @@ type subscriptionsSetupOptions struct {
 	ReferenceName             string
 	ProductID                 string
 	SubscriptionPeriod        asc.SubscriptionPeriod
+	ReviewNote                string
+	GroupLevel                optionalInt
 	FamilySharable            bool
 	Locale                    string
 	DisplayName               string
@@ -167,7 +169,10 @@ func SubscriptionsSetupCommand() *ffcli.Command {
 	referenceName := fs.String("reference-name", "", "Subscription reference name")
 	refNameAlias := fs.String("ref-name", "", "Subscription reference name alias")
 	productID := fs.String("product-id", "", "Product ID (e.g., com.example.sub.monthly)")
+	reviewNote := fs.String("review-note", "", "Review note for App Review")
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
+	var groupLevel optionalInt
+	fs.Var(&groupLevel, "group-level", "Subscription ordering level (positive integer)")
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 
 	locale := fs.String("locale", "", "Locale for the first subscription localization (e.g., en-US)")
@@ -226,7 +231,8 @@ version-scoped localization commands.
 
 Examples:
   asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --price "2.99" --price-territory "United States" --territories "US,Canada" --review-screenshot "./review.png" --no-verify
-  asc subscriptions setup --group-id "GROUP_ID" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --no-verify`,
+  asc subscriptions setup --group-id "GROUP_ID" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --no-verify
+  asc subscriptions setup --group-id "GROUP_ID" --reference-name "Pro Yearly" --product-id "com.example.pro.yearly" --subscription-period ONE_YEAR --group-level 1 --review-note "Same paywall structure, design may differ" --no-verify`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -268,6 +274,8 @@ Examples:
 				GroupCustomAppName:        strings.TrimSpace(*groupCustomAppName),
 				ReferenceName:             referenceNameValue,
 				ProductID:                 strings.TrimSpace(*productID),
+				ReviewNote:                strings.TrimSpace(*reviewNote),
+				GroupLevel:                groupLevel,
 				FamilySharable:            *familySharable,
 				Locale:                    strings.TrimSpace(*locale),
 				DisplayName:               displayNameValue,
@@ -299,6 +307,9 @@ Examples:
 			}
 			if opts.ProductID == "" {
 				return shared.UsageError("--product-id is required")
+			}
+			if err := validateSubscriptionReviewFlags(fs, opts.ReviewNote, opts.GroupLevel); err != nil {
+				return err
 			}
 
 			normalizedPeriod, err := normalizeSubscriptionPeriod(*subscriptionPeriod, false)
@@ -548,11 +559,16 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 	}
 
 	subAttrs := asc.SubscriptionCreateAttributes{
-		Name:      opts.ReferenceName,
-		ProductID: opts.ProductID,
+		Name:       opts.ReferenceName,
+		ProductID:  opts.ProductID,
+		ReviewNote: opts.ReviewNote,
 	}
 	if opts.SubscriptionPeriod != "" {
 		subAttrs.SubscriptionPeriod = string(opts.SubscriptionPeriod)
+	}
+	if opts.GroupLevel.IsSet() {
+		level := opts.GroupLevel.Value()
+		subAttrs.GroupLevel = &level
 	}
 	if opts.FamilySharable {
 		val := true
@@ -1080,6 +1096,14 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	if opts.SubscriptionPeriod != "" && subResp.Data.Attributes.SubscriptionPeriod != string(opts.SubscriptionPeriod) {
 		verification.Status = "failed"
 		return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: fmt.Sprintf("subscription period mismatch: got %q", subResp.Data.Attributes.SubscriptionPeriod)}, fmt.Errorf("subscription period mismatch: got %q want %q", subResp.Data.Attributes.SubscriptionPeriod, opts.SubscriptionPeriod)
+	}
+	if opts.ReviewNote != "" && strings.TrimSpace(subResp.Data.Attributes.ReviewNote) != opts.ReviewNote {
+		verification.Status = "failed"
+		return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: fmt.Sprintf("review note mismatch: got %q", subResp.Data.Attributes.ReviewNote)}, fmt.Errorf("review note mismatch: got %q want %q", subResp.Data.Attributes.ReviewNote, opts.ReviewNote)
+	}
+	if opts.GroupLevel.IsSet() && subResp.Data.Attributes.GroupLevel != opts.GroupLevel.Value() {
+		verification.Status = "failed"
+		return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: fmt.Sprintf("group level mismatch: got %d", subResp.Data.Attributes.GroupLevel)}, fmt.Errorf("group level mismatch: got %d want %d", subResp.Data.Attributes.GroupLevel, opts.GroupLevel.Value())
 	}
 	if opts.FamilySharable && !subResp.Data.Attributes.FamilySharable {
 		verification.Status = "failed"
@@ -1824,6 +1848,12 @@ func validateExistingSubscriptionSetupSubscription(subscription asc.Resource[asc
 	}
 	if target.SubscriptionPeriod != "" && strings.TrimSpace(subscription.Attributes.SubscriptionPeriod) != strings.TrimSpace(target.SubscriptionPeriod) {
 		return newSubscriptionsSetupConflictError("existing subscription %q has a different subscription period; update it or choose a different product ID", strings.TrimSpace(subscription.ID))
+	}
+	if target.ReviewNote != "" && strings.TrimSpace(subscription.Attributes.ReviewNote) != target.ReviewNote {
+		return newSubscriptionsSetupConflictError("existing subscription %q has a different review note; update it or choose a different product ID", strings.TrimSpace(subscription.ID))
+	}
+	if target.GroupLevel != nil && subscription.Attributes.GroupLevel != *target.GroupLevel {
+		return newSubscriptionsSetupConflictError("existing subscription %q has a different group level; update it or choose a different product ID", strings.TrimSpace(subscription.ID))
 	}
 	if subscription.Attributes.FamilySharable != expectedFamilySharable {
 		return newSubscriptionsSetupConflictError("existing subscription %q has a different family sharing setting; update it or choose a different product ID", strings.TrimSpace(subscription.ID))

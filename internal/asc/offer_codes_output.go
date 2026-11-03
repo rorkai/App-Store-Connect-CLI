@@ -23,7 +23,7 @@ func offerCodesRows(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) ([]strin
 }
 
 func subscriptionOfferCodesRows(resp *SubscriptionOfferCodesResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Name", "Customer Eligibilities", "Offer Eligibility", "Duration", "Mode", "Periods", "Total Codes", "Production Codes", "Sandbox Codes", "Active", "Auto Renew"}
+	headers := []string{"ID", "Name", "Customer Eligibilities", "Offer Eligibility", "Duration", "Mode", "Periods", "Total Codes", "Production Codes", "Sandbox Codes", "Active", "Auto Renew", "Target Plan Type"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
@@ -40,6 +40,7 @@ func subscriptionOfferCodesRows(resp *SubscriptionOfferCodesResponse) ([]string,
 			fmt.Sprintf("%d", attrs.SandboxCodeCount),
 			fmt.Sprintf("%t", attrs.Active),
 			formatOptionalBool(attrs.AutoRenewEnabled),
+			SanitizeTerminalText(string(attrs.TargetSubscriptionPlanType)),
 		})
 	}
 	return headers, rows

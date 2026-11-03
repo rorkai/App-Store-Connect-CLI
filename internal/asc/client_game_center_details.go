@@ -131,20 +131,24 @@ func (c *Client) UpdateGameCenterDetail(ctx context.Context, detailID string, at
 	hasAttributeUpdate := false
 	hasRelationshipUpdate := false
 	if rels != nil {
-		if rels.GameCenterGroup != nil {
-			groupID := strings.TrimSpace(rels.GameCenterGroup.Data.ID)
-			if groupID == "" {
-				return nil, fmt.Errorf("gameCenterGroup relationship ID is required")
+		for _, relationship := range []struct {
+			name  string
+			value *Relationship
+		}{
+			{"gameCenterGroup", rels.GameCenterGroup},
+			{"defaultLeaderboard", rels.DefaultLeaderboard},
+			{"defaultLeaderboardV2", rels.DefaultLeaderboardV2},
+			{"defaultGroupLeaderboard", rels.DefaultGroupLeaderboard},
+			{"defaultGroupLeaderboardV2", rels.DefaultGroupLeaderboardV2},
+		} {
+			if relationship.value == nil {
+				continue
 			}
-			rels.GameCenterGroup.Data.ID = groupID
-			hasRelationshipUpdate = true
-		}
-		if rels.DefaultLeaderboard != nil {
-			leaderboardID := strings.TrimSpace(rels.DefaultLeaderboard.Data.ID)
-			if leaderboardID == "" {
-				return nil, fmt.Errorf("defaultLeaderboard relationship ID is required")
+			id := strings.TrimSpace(relationship.value.Data.ID)
+			if id == "" {
+				return nil, fmt.Errorf("%s relationship ID is required", relationship.name)
 			}
-			rels.DefaultLeaderboard.Data.ID = leaderboardID
+			relationship.value.Data.ID = id
 			hasRelationshipUpdate = true
 		}
 	}

@@ -25,6 +25,7 @@ func TestAppsUpdateNotificationURLs(t *testing.T) {
 		{"production only", []string{"--subscription-status-url", "https://example.com/production"}, map[string]any{"subscriptionStatusUrl": "https://example.com/production", "subscriptionStatusUrlVersion": "V2"}},
 		{"sandbox with metadata", []string{"--sandbox-subscription-status-url", "https://example.com/sandbox?source=apple", "--primary-locale", "en-GB"}, map[string]any{"subscriptionStatusUrlForSandbox": "https://example.com/sandbox?source=apple", "subscriptionStatusUrlVersionForSandbox": "V2", "primaryLocale": "en-GB"}},
 		{"ordinary metadata leaves endpoints unchanged", []string{"--bundle-id", "com.example.app", "--content-rights", "DOES_NOT_USE_THIRD_PARTY_CONTENT"}, map[string]any{"bundleId": "com.example.app", "contentRightsDeclaration": "DOES_NOT_USE_THIRD_PARTY_CONTENT"}},
+		{"accessibility URL", []string{"--accessibility-url", "http://example.com/accessibility"}, map[string]any{"accessibilityUrl": "http://example.com/accessibility"}},
 		{"streamlined purchasing on", []string{"--streamlined-purchasing-enabled", "true"}, map[string]any{"streamlinedPurchasingEnabled": true}},
 		{"streamlined purchasing explicit false", []string{"--streamlined-purchasing-enabled", "false"}, map[string]any{"streamlinedPurchasingEnabled": false}},
 	}
@@ -115,6 +116,30 @@ func TestAppsUpdateNotificationURLRejectsInvalid(t *testing.T) {
 	}
 }
 
+func TestAppsUpdateAccessibilityURLRejectsInvalid(t *testing.T) {
+	for _, value := range []string{"ftp://example.com", "https://user:pass@example.com", "https:///path", "not-a-url", "", "   "} {
+		t.Run(value, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+			original := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = original })
+			fixture := handlertest.New(t)
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return nil, fixture.Errorf("invalid URL made network request: %s", req.URL)
+			})
+			root := RootCommand("test")
+			var err error
+			stdout, stderr := captureOutput(t, func() {
+				err = root.ParseAndRun(context.Background(), []string{"apps", "update", "--id", "app-1", "--accessibility-url", value})
+			})
+			if !errors.Is(err, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, "--accessibility-url: must be an absolute HTTP or HTTPS URL without credentials") {
+				t.Fatalf("err=%v stdout=%q stderr=%q", err, stdout, stderr)
+			}
+		})
+	}
+}
+
 func TestAppsViewNotificationURLFields(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
@@ -122,12 +147,12 @@ func TestAppsViewNotificationURLFields(t *testing.T) {
 	original := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = original })
 	fixture := handlertest.New(t)
-	fields := "subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox"
+	fields := "accessibilityUrl,subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox"
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1" || req.URL.Query().Get("fields[apps]") != fields {
 			return nil, fixture.Errorf("unexpected readback request: %s %s", req.Method, req.URL)
 		}
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"apps","id":"app-1","attributes":{"subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V2"}}}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"apps","id":"app-1","attributes":{"accessibilityUrl":"https://example.com/accessibility","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V2"}}}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
 	})
 	root := RootCommand("test")
 	var err error
@@ -146,6 +171,7 @@ func TestAppsViewNotificationURLFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]any{
+		"accessibilityUrl":                       "https://example.com/accessibility",
 		"subscriptionStatusUrl":                  "https://example.com/production",
 		"subscriptionStatusUrlVersion":           "V2",
 		"subscriptionStatusUrlForSandbox":        "https://example.com/sandbox",

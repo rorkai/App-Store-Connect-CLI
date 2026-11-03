@@ -101,20 +101,22 @@ type SubscriptionIntroductoryOfferUpdateRequest struct {
 
 // SubscriptionPromotionalOfferAttributes describes a subscription promotional offer.
 type SubscriptionPromotionalOfferAttributes struct {
-	Duration        SubscriptionOfferDuration `json:"duration,omitempty"`
-	Name            string                    `json:"name,omitempty"`
-	NumberOfPeriods int                       `json:"numberOfPeriods,omitempty"`
-	OfferCode       string                    `json:"offerCode,omitempty"`
-	OfferMode       SubscriptionOfferMode     `json:"offerMode,omitempty"`
+	Duration                   SubscriptionOfferDuration `json:"duration,omitempty"`
+	Name                       string                    `json:"name,omitempty"`
+	NumberOfPeriods            int                       `json:"numberOfPeriods,omitempty"`
+	OfferCode                  string                    `json:"offerCode,omitempty"`
+	OfferMode                  SubscriptionOfferMode     `json:"offerMode,omitempty"`
+	TargetSubscriptionPlanType SubscriptionPlanType      `json:"targetSubscriptionPlanType,omitempty"`
 }
 
 // SubscriptionPromotionalOfferCreateAttributes describes attributes for creating a promotional offer.
 type SubscriptionPromotionalOfferCreateAttributes struct {
-	Duration        SubscriptionOfferDuration `json:"duration"`
-	Name            string                    `json:"name"`
-	NumberOfPeriods int                       `json:"numberOfPeriods"`
-	OfferCode       string                    `json:"offerCode"`
-	OfferMode       SubscriptionOfferMode     `json:"offerMode"`
+	Duration                   SubscriptionOfferDuration `json:"duration"`
+	Name                       string                    `json:"name"`
+	NumberOfPeriods            int                       `json:"numberOfPeriods"`
+	OfferCode                  string                    `json:"offerCode"`
+	OfferMode                  SubscriptionOfferMode     `json:"offerMode"`
+	TargetSubscriptionPlanType SubscriptionPlanType      `json:"targetSubscriptionPlanType,omitempty"`
 }
 
 // SubscriptionPromotionalOfferRelationships describes relationships for promotional offers.
@@ -178,28 +180,30 @@ type SubscriptionPromotionalOfferPriceAttributes struct{}
 
 // SubscriptionOfferCodeAttributes describes a subscription offer code.
 type SubscriptionOfferCodeAttributes struct {
-	Name                  string                            `json:"name,omitempty"`
-	OfferEligibility      SubscriptionOfferEligibility      `json:"offerEligibility,omitempty"`
-	CustomerEligibilities []SubscriptionCustomerEligibility `json:"customerEligibilities,omitempty"`
-	Duration              SubscriptionOfferDuration         `json:"duration,omitempty"`
-	OfferMode             SubscriptionOfferMode             `json:"offerMode,omitempty"`
-	NumberOfPeriods       int                               `json:"numberOfPeriods,omitempty"`
-	AutoRenewEnabled      *bool                             `json:"autoRenewEnabled,omitempty"`
-	Active                bool                              `json:"active,omitempty"`
-	TotalNumberOfCodes    int                               `json:"totalNumberOfCodes,omitempty"`
-	ProductionCodeCount   int                               `json:"productionCodeCount,omitempty"`
-	SandboxCodeCount      int                               `json:"sandboxCodeCount,omitempty"`
+	Name                       string                            `json:"name,omitempty"`
+	OfferEligibility           SubscriptionOfferEligibility      `json:"offerEligibility,omitempty"`
+	CustomerEligibilities      []SubscriptionCustomerEligibility `json:"customerEligibilities,omitempty"`
+	Duration                   SubscriptionOfferDuration         `json:"duration,omitempty"`
+	OfferMode                  SubscriptionOfferMode             `json:"offerMode,omitempty"`
+	NumberOfPeriods            int                               `json:"numberOfPeriods,omitempty"`
+	AutoRenewEnabled           *bool                             `json:"autoRenewEnabled,omitempty"`
+	Active                     bool                              `json:"active,omitempty"`
+	TotalNumberOfCodes         int                               `json:"totalNumberOfCodes,omitempty"`
+	ProductionCodeCount        int                               `json:"productionCodeCount,omitempty"`
+	SandboxCodeCount           int                               `json:"sandboxCodeCount,omitempty"`
+	TargetSubscriptionPlanType SubscriptionPlanType              `json:"targetSubscriptionPlanType,omitempty"`
 }
 
 // SubscriptionOfferCodeCreateAttributes describes attributes for creating an offer code.
 type SubscriptionOfferCodeCreateAttributes struct {
-	Name                  string                            `json:"name"`
-	OfferEligibility      SubscriptionOfferEligibility      `json:"offerEligibility"`
-	CustomerEligibilities []SubscriptionCustomerEligibility `json:"customerEligibilities"`
-	Duration              SubscriptionOfferDuration         `json:"duration"`
-	OfferMode             SubscriptionOfferMode             `json:"offerMode"`
-	NumberOfPeriods       int                               `json:"numberOfPeriods"`
-	AutoRenewEnabled      *bool                             `json:"autoRenewEnabled,omitempty"`
+	Name                       string                            `json:"name"`
+	OfferEligibility           SubscriptionOfferEligibility      `json:"offerEligibility"`
+	CustomerEligibilities      []SubscriptionCustomerEligibility `json:"customerEligibilities"`
+	Duration                   SubscriptionOfferDuration         `json:"duration"`
+	OfferMode                  SubscriptionOfferMode             `json:"offerMode"`
+	NumberOfPeriods            int                               `json:"numberOfPeriods"`
+	AutoRenewEnabled           *bool                             `json:"autoRenewEnabled,omitempty"`
+	TargetSubscriptionPlanType SubscriptionPlanType              `json:"targetSubscriptionPlanType,omitempty"`
 }
 
 type SubscriptionOfferCodePrice struct {

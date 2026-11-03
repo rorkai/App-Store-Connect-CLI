@@ -482,6 +482,20 @@ func TestPrintTable_ExperimentTreatmentLocalizationUploadResultUsesExperimentLoc
 	}, "Localization ID", "TLOC_123", "SET_123", "APP_IPHONE_65", "shot.png", "SHOT_123")
 }
 
+func TestPrintTable_ExperimentTreatmentLocalizationPreviewUploadResultShowsFailures(t *testing.T) {
+	assertRenderedNonJSONContains(t, PrintTable, &ExperimentTreatmentLocalizationPreviewUploadResult{
+		ExperimentTreatmentLocalizationID: "TLOC_123",
+		SetID:                             "SET_123",
+		PreviewType:                       "IPHONE_65",
+		Results: []AssetUploadResultItem{
+			{FileName: "preview.mov", AssetID: "PREVIEW_123", State: "COMPLETE"},
+		},
+		Failures: []AssetUploadFailureItem{
+			{FileName: "broken.mov", Error: "upload refused"},
+		},
+	}, "Localization ID", "TLOC_123", "SET_123", "IPHONE_65", "preview.mov", "PREVIEW_123", "broken.mov", "upload refused")
+}
+
 func TestPrintTable_SkippedAssetUploadResultShowsSkippedState(t *testing.T) {
 	resp := &AppScreenshotUploadResult{
 		VersionLocalizationID: "LOC_123",

@@ -1523,7 +1523,7 @@ func (c *Client) CreateAppClipAdvancedExperienceImage(ctx context.Context, fileN
 }
 
 // UpdateAppClipAdvancedExperienceImage commits an upload.
-func (c *Client) UpdateAppClipAdvancedExperienceImage(ctx context.Context, imageID string, uploaded bool) (*AppClipAdvancedExperienceImageResponse, error) {
+func (c *Client) UpdateAppClipAdvancedExperienceImage(ctx context.Context, imageID string, uploaded bool, checksumHash string) (*AppClipAdvancedExperienceImageResponse, error) {
 	imageID = strings.TrimSpace(imageID)
 	if imageID == "" {
 		return nil, fmt.Errorf("imageID is required")
@@ -1534,7 +1534,8 @@ func (c *Client) UpdateAppClipAdvancedExperienceImage(ctx context.Context, image
 			Type: ResourceTypeAppClipAdvancedExperienceImages,
 			ID:   imageID,
 			Attributes: &AppClipAdvancedExperienceImageUpdateAttributes{
-				Uploaded: &uploaded,
+				SourceFileChecksum: &checksumHash,
+				Uploaded:           &uploaded,
 			},
 		},
 	}
@@ -1571,6 +1572,11 @@ func (c *Client) UploadAppClipAdvancedExperienceImage(ctx context.Context, fileP
 	fileName := info.Name()
 	fileSize := info.Size()
 
+	checksum, err := ComputeFileChecksum(filePath, ChecksumAlgorithmMD5)
+	if err != nil {
+		return nil, fmt.Errorf("compute checksum: %w", err)
+	}
+
 	reservation, err := c.CreateAppClipAdvancedExperienceImage(ctx, fileName, fileSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reserve image upload: %w", err)
@@ -1586,7 +1592,7 @@ func (c *Client) UploadAppClipAdvancedExperienceImage(ctx context.Context, fileP
 		return nil, fmt.Errorf("failed to upload image: %w", err)
 	}
 
-	committed, err := c.UpdateAppClipAdvancedExperienceImage(ctx, imageID, true)
+	committed, err := c.UpdateAppClipAdvancedExperienceImage(ctx, imageID, true, checksum.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to commit image upload: %w", err)
 	}
@@ -1667,7 +1673,7 @@ func (c *Client) CreateAppClipHeaderImage(ctx context.Context, localizationID st
 }
 
 // UpdateAppClipHeaderImage commits a header image upload.
-func (c *Client) UpdateAppClipHeaderImage(ctx context.Context, imageID string, uploaded bool) (*AppClipHeaderImageResponse, error) {
+func (c *Client) UpdateAppClipHeaderImage(ctx context.Context, imageID string, uploaded bool, checksumHash string) (*AppClipHeaderImageResponse, error) {
 	imageID = strings.TrimSpace(imageID)
 	if imageID == "" {
 		return nil, fmt.Errorf("imageID is required")
@@ -1678,7 +1684,8 @@ func (c *Client) UpdateAppClipHeaderImage(ctx context.Context, imageID string, u
 			Type: ResourceTypeAppClipHeaderImages,
 			ID:   imageID,
 			Attributes: &AppClipHeaderImageUpdateAttributes{
-				Uploaded: &uploaded,
+				SourceFileChecksum: &checksumHash,
+				Uploaded:           &uploaded,
 			},
 		},
 	}
@@ -1726,6 +1733,11 @@ func (c *Client) UploadAppClipHeaderImage(ctx context.Context, localizationID st
 	fileName := info.Name()
 	fileSize := info.Size()
 
+	checksum, err := ComputeFileChecksum(filePath, ChecksumAlgorithmMD5)
+	if err != nil {
+		return nil, fmt.Errorf("compute checksum: %w", err)
+	}
+
 	reservation, err := c.CreateAppClipHeaderImage(ctx, localizationID, fileName, fileSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reserve image upload: %w", err)
@@ -1741,7 +1753,7 @@ func (c *Client) UploadAppClipHeaderImage(ctx context.Context, localizationID st
 		return nil, fmt.Errorf("failed to upload image: %w", err)
 	}
 
-	committed, err := c.UpdateAppClipHeaderImage(ctx, imageID, true)
+	committed, err := c.UpdateAppClipHeaderImage(ctx, imageID, true, checksum.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to commit image upload: %w", err)
 	}

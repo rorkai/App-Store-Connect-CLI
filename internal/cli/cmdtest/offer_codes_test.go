@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -297,6 +298,124 @@ func TestOfferCodesValuesRejectsInvalidFormat(t *testing.T) {
 			}
 			if !strings.Contains(stderr, "Error: --format must be text or csv") {
 				t.Fatalf("expected format error, got %q", stderr)
+			}
+		})
+	}
+}
+
+// TestOfferCodeBatchUpdatesSendActive guards the path that turns codes off:
+// each command must PATCH its own resource and send false, not drop it.
+func TestOfferCodeBatchUpdatesSendActive(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	commands := []struct {
+		name         string
+		args         []string
+		resourceType string
+		confirmOff   bool
+	}{
+		{
+			name:         "subscription one-time codes",
+			args:         []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--batch-id", "code-1"},
+			resourceType: "subscriptionOfferCodeOneTimeUseCodes",
+			confirmOff:   true,
+		},
+		{
+			name:         "iap custom codes",
+			args:         []string{"iap", "offer-codes", "custom-codes", "update", "--custom-code-id", "code-1"},
+			resourceType: "inAppPurchaseOfferCodeCustomCodes",
+		},
+		{
+			name:         "iap one-time codes",
+			args:         []string{"iap", "offer-codes", "one-time-codes", "update", "--one-time-code-id", "code-1"},
+			resourceType: "inAppPurchaseOfferCodeOneTimeUseCodes",
+			confirmOff:   true,
+		},
+	}
+
+	for _, command := range commands {
+		for _, active := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s active=%t", command.name, active), func(t *testing.T) {
+				wantBody := map[string]any{"data": map[string]any{
+					"type":       command.resourceType,
+					"id":         "code-1",
+					"attributes": map[string]any{"active": active},
+				}}
+				requests := 0
+				http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					requests++
+					if req.Method != http.MethodPatch {
+						t.Fatalf("expected PATCH, got %s", req.Method)
+					}
+					if wantPath := "/v1/" + command.resourceType + "/code-1"; req.URL.Path != wantPath {
+						t.Fatalf("expected path %s, got %s", wantPath, req.URL.Path)
+					}
+					var gotBody map[string]any
+					if err := json.NewDecoder(req.Body).Decode(&gotBody); err != nil {
+						t.Fatalf("decode request body: %v", err)
+					}
+					if !reflect.DeepEqual(gotBody, wantBody) {
+						t.Fatalf("request body = %v, want %v", gotBody, wantBody)
+					}
+					body := fmt.Sprintf(`{"data":{"type":%q,"id":"code-1","attributes":{"active":%t}}}`, command.resourceType, active)
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(body)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				})
+
+				args := append(append([]string{}, command.args...), "--active", fmt.Sprint(active), "--output", "json")
+				if !active && command.confirmOff {
+					args = append(args, "--confirm")
+				}
+				stdout, _, err := runCommand(t, args)
+				if err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+				if requests != 1 {
+					t.Fatalf("expected 1 request, got %d", requests)
+				}
+				if !strings.Contains(stdout, `"id":"code-1"`) {
+					t.Fatalf("expected updated resource in stdout, got %q", stdout)
+				}
+			})
+		}
+	}
+}
+
+// TestOneTimeCodeBatchTurnOffRequiresConfirm guards against permanently
+// turning off a one-time use code batch without --confirm: Apple returns 409
+// "Given oneTimeUse code is inactive" when --active true follows.
+func TestOneTimeCodeBatchTurnOffRequiresConfirm(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	for _, args := range [][]string{
+		{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--batch-id", "code-1", "--active", "false"},
+		{"iap", "offer-codes", "one-time-codes", "update", "--one-time-code-id", "code-1", "--active", "false"},
+	} {
+		t.Run(args[0], func(t *testing.T) {
+			requests := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL.Path)
+			})
+
+			assertUsageExitCode(t, args, "--confirm is required to turn off a one-time use code batch; turning it off is permanent")
+			if requests != 0 {
+				t.Fatalf("expected no request, got %d", requests)
 			}
 		})
 	}

@@ -44,12 +44,25 @@ func uploadReferenceName(fs *flag.FlagSet, value string) (string, error) {
 	return "", nil
 }
 
+// uploadTimeCode returns the trimmed --time-code. An explicitly blank value
+// fails the format check instead of silently dropping the requested frame.
+func uploadTimeCode(fs *flag.FlagSet, value string) (string, error) {
+	timeCode := strings.TrimSpace(value)
+	set := false
+	fs.Visit(func(f *flag.Flag) { set = set || f.Name == "time-code" })
+	if set && !libraryTimeCode.MatchString(timeCode) {
+		return "", fmt.Errorf("--time-code must be HH:MM:SS:FF or HH:MM:SS.mmm")
+	}
+	return timeCode, nil
+}
+
 func videosUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("videos upload", flag.ExitOnError)
 	library := shared.BindResourceIDFlag(fs, "library-id", "appAssetLibraries", "Asset Library ID")
 	path := fs.String("file", "", "Video file to upload (.mp4, .m4v, or .mov)")
 	category := fs.String("category", "CREATIVE_ASSETS", "Asset category: CREATIVE_ASSETS or APP_SCREENSHOTS_AND_PREVIEWS")
 	referenceName := bindUploadReferenceNameFlag(fs)
+	timeCode := fs.String("time-code", "", "Poster frame time code: HH:MM:SS:FF or HH:MM:SS.mmm")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{Name: "upload", ShortUsage: "asc asset-library videos upload --library-id ID --file video.mp4 [flags]", ShortHelp: "Upload a video to the Asset Library and wait for processing.", LongHelp: `Upload a video independently of an app version, placement or review submission.
 
@@ -59,10 +72,14 @@ ASC_UPLOAD_TIMEOUT bounds upload and processing (default 30m for videos, since
 Apple commonly takes 10 to 15 minutes to process one). Failures after reservation print
 a partial receipt with the video ID; no automatic deletion occurs.
 
+--time-code sets the poster frame on the upload request, and the command waits
+for Apple to finish that frame. A frame Apple cannot generate fails the command.
+
 Examples:
   asc asset-library videos upload --library-id LIBRARY_ID --file ./header.mp4
   asc asset-library videos upload --library-id LIBRARY_ID --file ./duo-preview.mp4 --category APP_SCREENSHOTS_AND_PREVIEWS
-  asc asset-library videos upload --library-id LIBRARY_ID --file ./cms-8f3a21.mp4 --reference-name "Hero en-US 3.14"`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+  asc asset-library videos upload --library-id LIBRARY_ID --file ./cms-8f3a21.mp4 --reference-name "Hero en-US 3.14"
+  asc asset-library videos upload --library-id LIBRARY_ID --file ./header.mp4 --time-code 00:00:03:00`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		if len(args) > 0 {
 			return shared.UsageErrorf("asset-library videos upload: unexpected argument %q", args[0])
 		}
@@ -74,6 +91,10 @@ Examples:
 			return shared.UsageErrorf("asset-library videos upload: %v", err)
 		}
 		selectedReferenceName, err := uploadReferenceName(fs, *referenceName)
+		if err != nil {
+			return shared.UsageErrorf("asset-library videos upload: %v", err)
+		}
+		selectedTimeCode, err := uploadTimeCode(fs, *timeCode)
 		if err != nil {
 			return shared.UsageErrorf("asset-library videos upload: %v", err)
 		}
@@ -108,7 +129,7 @@ Examples:
 		}
 		uploadCtx, cancel := libraryVideoUploadContext(ctx)
 		defer cancel()
-		result, uploadErr := client.UploadAssetLibraryVideoWithCategory(uploadCtx, id, filepath.Base(source), staged.file, staged.size, selected, selectedReferenceName, shared.ContextWithTimeout)
+		result, uploadErr := client.UploadAssetLibraryVideoWithCategory(uploadCtx, id, filepath.Base(source), staged.file, staged.size, selected, selectedReferenceName, selectedTimeCode, shared.ContextWithTimeout)
 		if uploadErr == nil || result.VideoID != "" {
 			if err := shared.PrintOutput(&result, *output.Output, *output.Pretty); err != nil {
 				return err

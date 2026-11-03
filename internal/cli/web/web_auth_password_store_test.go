@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -456,6 +458,7 @@ func TestResolveSessionReplacesRejectedStoredPasswordOnlyAfterSuccessfulLogin(t 
 	}
 	loadStoredWebPasswordFn = func(string) (string, bool, error) { return "old-secret", true, nil }
 	promptPasswordFn = func(context.Context) (string, error) { return "new-secret", nil }
+	deleteStoredWebPasswordFn = func(string) error { return nil }
 
 	loginAttempts := 0
 	webLoginWithClientFn = func(_ context.Context, client *http.Client, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
@@ -502,7 +505,7 @@ func TestResolveSessionReplacesRejectedStoredPasswordOnlyAfterSuccessfulLogin(t 
 	if session != expected || source != "fresh" || stored != "new-secret" {
 		t.Fatalf("result = (%+v, %q, stored %q), want expected fresh session with replacement", session, source, stored)
 	}
-	if got := warning.String(); !strings.Contains(got, "Saved Apple Account password was rejected; enter the current password to replace it.") {
+	if got := warning.String(); !strings.Contains(got, "Saved Apple Account password was rejected; removing it. Enter the current password to save a new one.") {
 		t.Fatalf("warning = %q, want stored-password rejection notice", got)
 	}
 }
@@ -520,6 +523,7 @@ func TestResolveSessionReplacesRejectedStoredPasswordWithoutCachedSession(t *tes
 	}
 	loadStoredWebPasswordFn = func(string) (string, bool, error) { return "old-secret", true, nil }
 	promptPasswordFn = func(context.Context) (string, error) { return "new-secret", nil }
+	deleteStoredWebPasswordFn = func(string) error { return nil }
 	persistWebSessionFn = func(*webcore.AuthSession) error { return nil }
 
 	loginAttempts := 0
@@ -559,8 +563,47 @@ func TestResolveSessionReplacesRejectedStoredPasswordWithoutCachedSession(t *tes
 	if session != expected || source != "fresh" || stored != "new-secret" {
 		t.Fatalf("result = (%+v, %q, stored %q), want expected fresh session with replacement", session, source, stored)
 	}
-	if got := warning.String(); !strings.Contains(got, "Saved Apple Account password was rejected; enter the current password to replace it.") {
+	if got := warning.String(); !strings.Contains(got, "Saved Apple Account password was rejected; removing it. Enter the current password to save a new one.") {
 		t.Fatalf("warning = %q, want stored-password rejection notice", got)
+	}
+}
+
+// A run without a terminal cannot replace a rejected saved password, so it must
+// be removed or every later run sends it to Apple again.
+func TestResolveSessionRemovesRejectedStoredPassword(t *testing.T) {
+	for _, expiredCache := range []bool{false, true} {
+		t.Run(fmt.Sprintf("expiredCache=%t", expiredCache), func(t *testing.T) {
+			configureFreshPasswordLoginTest(t)
+			if expiredCache {
+				tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
+					return nil, false, webcore.ErrCachedSessionExpired
+				}
+				loadCachedSessionFn = func(string) (*webcore.AuthSession, bool, error) {
+					return &webcore.AuthSession{Client: &http.Client{}, UserEmail: "user@example.com"}, true, nil
+				}
+			}
+			loadStoredWebPasswordFn = func(string) (string, bool, error) { return "old-secret", true, nil }
+			promptPasswordFn = func(context.Context) (string, error) { return "", errors.New("no terminal") }
+			webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				return nil, webcore.ErrInvalidAppleAccountCredentials
+			}
+			webLoginWithClientFn = func(context.Context, *http.Client, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				return nil, webcore.ErrInvalidAppleAccountCredentials
+			}
+			var deleted []string
+			deleteStoredWebPasswordFn = func(appleID string) error {
+				deleted = append(deleted, appleID)
+				return nil
+			}
+			passwordStoreWarningWriter = io.Discard
+
+			if _, _, err := resolveSession(context.Background(), "user@example.com", "", ""); err == nil {
+				t.Fatal("expected resolveSession to fail without a replacement password")
+			}
+			if len(deleted) != 1 || deleted[0] != "user@example.com" {
+				t.Fatalf("deleted saved passwords = %v, want [user@example.com]", deleted)
+			}
+		})
 	}
 }
 

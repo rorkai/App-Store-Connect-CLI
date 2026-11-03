@@ -29,6 +29,15 @@ type AppCustomProductPageCreateAttributes struct {
 type AppCustomProductPageCreateRelationships struct {
 	App                          *Relationship    `json:"app"`
 	AppCustomProductPageVersions RelationshipList `json:"appCustomProductPageVersions"`
+	AppStoreVersionTemplate      *Relationship    `json:"appStoreVersionTemplate,omitempty"`
+	CustomProductPageTemplate    *Relationship    `json:"customProductPageTemplate,omitempty"`
+}
+
+// AppCustomProductPageTemplate selects what a new custom product page starts
+// from. A zero value creates a page without a template.
+type AppCustomProductPageTemplate struct {
+	AppStoreVersionID string
+	CustomPageID      string
 }
 
 // AppCustomProductPageCreateData is the data payload for create requests.
@@ -252,7 +261,7 @@ func (c *Client) GetAppCustomProductPage(ctx context.Context, pageID string) (*A
 
 // CreateAppCustomProductPage creates a custom product page with an initial version and
 // a localization that uses the app's primary locale.
-func (c *Client) CreateAppCustomProductPage(ctx context.Context, appID, name string) (*AppCustomProductPageResponse, error) {
+func (c *Client) CreateAppCustomProductPage(ctx context.Context, appID, name string, template AppCustomProductPageTemplate) (*AppCustomProductPageResponse, error) {
 	const initialVersionID = "${new-appCustomProductPageVersion-id}"
 	const initialLocalizationID = "${new-appCustomProductPageLocalization-id}"
 
@@ -307,6 +316,12 @@ func (c *Client) CreateAppCustomProductPage(ctx context.Context, appID, name str
 				Locale: primaryLocale,
 			},
 		}},
+	}
+	if template.AppStoreVersionID != "" {
+		payload.Data.Relationships.AppStoreVersionTemplate = &Relationship{Data: ResourceData{Type: ResourceTypeAppStoreVersions, ID: template.AppStoreVersionID}}
+	}
+	if template.CustomPageID != "" {
+		payload.Data.Relationships.CustomProductPageTemplate = &Relationship{Data: ResourceData{Type: ResourceTypeAppCustomProductPages, ID: template.CustomPageID}}
 	}
 
 	body, err := BuildRequestBody(payload)
@@ -606,12 +621,12 @@ func (c *Client) GetAppCustomProductPageLocalizationsRelationships(ctx context.C
 }
 
 // GetAppCustomProductPageLocalization retrieves a custom product page localization by ID.
-func (c *Client) GetAppCustomProductPageLocalization(ctx context.Context, localizationID string) (*AppCustomProductPageLocalizationResponse, error) {
+func (c *Client) GetAppCustomProductPageLocalization(ctx context.Context, localizationID string, opts ...LocalizationReadOption) (*AppCustomProductPageLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), nil)
+	data, err := c.do(ctx, "GET", localizationReadPath(fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), opts), nil)
 	if err != nil {
 		return nil, err
 	}

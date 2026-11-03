@@ -23,6 +23,9 @@ type assetLibraryVideoUploadResponse struct {
 					Width  int `json:"width"`
 					Height int `json:"height"`
 				} `json:"image"`
+				State *struct {
+					State string `json:"state"`
+				} `json:"state"`
 			} `json:"previewFrameImage"`
 		} `json:"attributes"`
 	} `json:"data"`
@@ -32,13 +35,14 @@ type assetLibraryVideoUploadResponse struct {
 // A partial result retains the reserved ID when a later operation fails.
 // The caller validates the video and owns the overall upload timeout.
 func (c *Client) UploadAssetLibraryVideo(ctx context.Context, libraryID, fileName string, file *os.File, fileSize int64, requestContext RequestContextFunc) (AssetLibraryVideoUploadResult, error) {
-	return c.UploadAssetLibraryVideoWithCategory(ctx, libraryID, fileName, file, fileSize, "CREATIVE_ASSETS", "", requestContext)
+	return c.UploadAssetLibraryVideoWithCategory(ctx, libraryID, fileName, file, fileSize, "CREATIVE_ASSETS", "", "", requestContext)
 }
 
 // UploadAssetLibraryVideoWithCategory uploads an independently managed video.
-// An empty referenceName leaves Apple's default reference name in place.
-func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, libraryID, fileName string, file *os.File, fileSize int64, category, referenceName string, requestContext RequestContextFunc) (AssetLibraryVideoUploadResult, error) {
-	result := AssetLibraryVideoUploadResult{LibraryID: libraryID, FileName: fileName, FileSize: fileSize, ReferenceName: referenceName, Category: category}
+// An empty referenceName leaves Apple's default reference name in place. A
+// non-empty previewFrameTimeCode also makes readiness wait for that frame.
+func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, libraryID, fileName string, file *os.File, fileSize int64, category, referenceName, previewFrameTimeCode string, requestContext RequestContextFunc) (AssetLibraryVideoUploadResult, error) {
+	result := AssetLibraryVideoUploadResult{LibraryID: libraryID, FileName: fileName, FileSize: fileSize, ReferenceName: referenceName, PreviewFrameTimeCode: previewFrameTimeCode, Category: category}
 	if category != "CREATIVE_ASSETS" && category != "APP_SCREENSHOTS_AND_PREVIEWS" {
 		return result, fmt.Errorf("unsupported asset category %q", category)
 	}
@@ -52,10 +56,11 @@ func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, librar
 		Data struct {
 			Type       string `json:"type"`
 			Attributes struct {
-				FileSize      int64  `json:"fileSize"`
-				FileName      string `json:"fileName"`
-				Category      string `json:"category"`
-				ReferenceName string `json:"referenceName,omitempty"`
+				FileSize             int64  `json:"fileSize"`
+				FileName             string `json:"fileName"`
+				Category             string `json:"category"`
+				ReferenceName        string `json:"referenceName,omitempty"`
+				PreviewFrameTimeCode string `json:"previewFrameTimeCode,omitempty"`
 			} `json:"attributes"`
 			Relationships struct {
 				AssetLibrary Relationship `json:"assetLibrary"`
@@ -63,7 +68,7 @@ func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, librar
 		} `json:"data"`
 	}{}
 	payload.Data.Type = "appAssetLibraryVideos"
-	payload.Data.Attributes.FileSize, payload.Data.Attributes.FileName, payload.Data.Attributes.Category, payload.Data.Attributes.ReferenceName = fileSize, fileName, category, referenceName
+	payload.Data.Attributes.FileSize, payload.Data.Attributes.FileName, payload.Data.Attributes.Category, payload.Data.Attributes.ReferenceName, payload.Data.Attributes.PreviewFrameTimeCode = fileSize, fileName, category, referenceName, previewFrameTimeCode
 	payload.Data.Relationships.AssetLibrary.Data = ResourceData{Type: "appAssetLibraries", ID: libraryID}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -130,9 +135,17 @@ func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, librar
 		if attrs.PreviewFrameImage != nil && attrs.PreviewFrameImage.Image != nil {
 			result.Width, result.Height = attrs.PreviewFrameImage.Image.Width, attrs.PreviewFrameImage.Image.Height
 		}
+		frameState := ""
+		if attrs.PreviewFrameImage != nil && attrs.PreviewFrameImage.State != nil {
+			frameState = attrs.PreviewFrameImage.State.State
+		}
+		if previewFrameTimeCode != "" && frameState == "FAILED" {
+			return struct{}{}, false, fmt.Errorf("video preview frame reached FAILED")
+		}
 		videoURL, parseErr := url.Parse(attrs.VideoAsset)
 		videoAvailable := parseErr == nil && videoURL.Host != "" && (videoURL.Scheme == "https" || videoURL.Scheme == "http")
-		result.Ready = attrs.State == "PREPARE_FOR_SUBMISSION" && attrs.SpecID != "" && videoAvailable
+		frameReady := previewFrameTimeCode == "" || frameState == "COMPLETE"
+		result.Ready = attrs.State == "PREPARE_FOR_SUBMISSION" && attrs.SpecID != "" && videoAvailable && frameReady
 		return struct{}{}, result.Ready, nil
 	}, PollOptions{Tolerate: IsTransientWaitError})
 	if err != nil {

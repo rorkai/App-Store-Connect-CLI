@@ -195,17 +195,6 @@ func registerIDBoolRows[T any](extract func(*T) (string, bool), rows func(string
 	})
 }
 
-func registerResponseDataRows[T any](rows func([]Resource[T]) ([]string, [][]string)) {
-	t := typeForPtr[Response[T]]()
-	if rows == nil {
-		panicNilHelperFunction("response-data rows function", t)
-	}
-	// Normalize typed-nil *Response[T] to zero-value Response[T] semantics.
-	registerRows(func(v *Response[T]) ([]string, [][]string) {
-		return rows(ptrOrZero(v).Data)
-	})
-}
-
 // registerSingleResourceRowsAdapter registers rows rendering for list renderers
 // by adapting SingleResponse[T] into Response[T] with one item in Data.
 func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string, [][]string)) {
