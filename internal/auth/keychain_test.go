@@ -408,6 +408,39 @@ func TestStoreCredentials_InRepoWritesDefaultToGlobalConfig(t *testing.T) {
 	}
 }
 
+func TestStoreCredentials_KeychainUnavailableInRepoWritesGlobalConfig(t *testing.T) {
+	_, repo := withRepoConfigWithoutCredentials(t)
+	previous := keyringOpener
+	keyringOpener = func() (keyring.Keyring, error) {
+		return nil, keyring.ErrNoAvailImpl
+	}
+	t.Cleanup(func() { keyringOpener = previous })
+
+	t.Chdir(repo)
+	if err := StoreCredentials("fallback", "KEY123", "ISS", "/tmp/AuthKey.p8"); err != nil {
+		t.Fatalf("StoreCredentials() error: %v", err)
+	}
+
+	repoCfg, err := config.LoadAt(filepath.Join(repo, ".asc", "config.json"))
+	if err != nil {
+		t.Fatalf("LoadAt(repo) error: %v", err)
+	}
+	if hasAnyCredentials(repoCfg) || repoCfg.DefaultKeyName != "" {
+		t.Fatalf("expected repo config to stay credential-free, got %+v", repoCfg)
+	}
+	globalPath, err := config.GlobalPath()
+	if err != nil {
+		t.Fatalf("GlobalPath() error: %v", err)
+	}
+	globalCfg, err := config.LoadAt(globalPath)
+	if err != nil {
+		t.Fatalf("LoadAt(global) error: %v", err)
+	}
+	if globalCfg.DefaultKeyName != "fallback" || globalCfg.KeyID != "KEY123" {
+		t.Fatalf("expected credentials in global config, got %+v", globalCfg)
+	}
+}
+
 func TestGetCredentials_RepoConfigWithoutCredentialsUsesGlobalDefault(t *testing.T) {
 	_, repo := withRepoConfigWithoutCredentials(t)
 	if err := StoreCredentials("a", "AKEY", "ISS", "/tmp/AuthKey.p8"); err != nil {

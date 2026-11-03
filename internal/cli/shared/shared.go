@@ -520,6 +520,11 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 		if actualKeyPath != "" || actualKeyPEM != "" {
 			sources.keyMaterial = storedSource
 		}
+		if profile == "" {
+			if err := checkIgnoredEnvCredentialIDs(actualKeyID, actualIssuerID, storedSource); err != nil {
+				return resolvedCredentials{}, err
+			}
+		}
 	}
 
 	// Priority 2: Environment variables (fallback for CI/CD or when keychain unavailable)
@@ -1078,6 +1083,32 @@ func checkMixedCredentialSourcesForKeyType(sources credentialSource, keyType str
 		return fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Issuer ID: %s\n  Private Key: %s", keyIDSource, issuerSource, keyMaterialSource)
 	}
 	fmt.Fprint(os.Stderr, message)
+	return nil
+}
+
+func checkIgnoredEnvCredentialIDs(storedKeyID, storedIssuerID, storedSource string) error {
+	hasKeyEnv := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "" ||
+		strings.TrimSpace(os.Getenv(privateKeyEnvVar)) != "" ||
+		strings.TrimSpace(os.Getenv(privateKeyBase64EnvVar)) != ""
+	if hasKeyEnv && strings.TrimSpace(os.Getenv("ASC_KEY_ID")) != "" &&
+		(strings.TrimSpace(os.Getenv("ASC_ISSUER_ID")) != "" || config.IsIndividualCredentialKeyType(os.Getenv(keyTypeEnvVar))) {
+		return nil
+	}
+	var ignored []string
+	if envKeyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID")); envKeyID != "" && storedKeyID != "" && envKeyID != strings.TrimSpace(storedKeyID) {
+		ignored = append(ignored, "ASC_KEY_ID")
+	}
+	if envIssuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID")); envIssuerID != "" && storedIssuerID != "" && envIssuerID != strings.TrimSpace(storedIssuerID) {
+		ignored = append(ignored, "ASC_ISSUER_ID")
+	}
+	if len(ignored) == 0 {
+		return nil
+	}
+	names := strings.Join(ignored, " and ")
+	if strictAuthEnabled() {
+		return fmt.Errorf("mixed authentication sources detected: %s ignored because the environment credentials are incomplete; using %s credentials", names, storedSource)
+	}
+	fmt.Fprintf(os.Stderr, "Warning: %s ignored because the environment credentials are incomplete; using %s credentials\n", names, storedSource)
 	return nil
 }
 
