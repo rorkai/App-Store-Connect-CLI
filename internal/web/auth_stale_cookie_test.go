@@ -433,3 +433,70 @@ func shiftPersistedSessionClock(t *testing.T, appleID string, delta time.Duratio
 		t.Fatal(err)
 	}
 }
+
+// TestResumedSessionReplacesHydratedCookieWithReissuedDomainCookie covers a
+// Domain cookie Apple re-issues mid-session on a cached jar. The cache
+// hydrates it host-only, so the re-issued cookie used to sit beside the old
+// one, be sent second, and make persistence drop both.
+func TestResumedSessionReplacesHydratedCookieWithReissuedDomainCookie(t *testing.T) {
+	withFileSessionCache(t)
+	expires := time.Now().UTC().Add(time.Hour)
+	if err := writeSessionToFile(webSessionCacheKey(staleCookieTestAppleID), persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: staleCookieTestAppleID,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{Name: "myacinfo", Value: "old", ScopeDomain: "apple.com", Path: "/", Expires: expires}},
+			"https://idmsa.apple.com/":           {{Name: "myacinfo", Value: "old", ScopeDomain: "apple.com", Path: "/", Expires: expires}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession ok=%v err=%v", ok, err)
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	loaded.Client.Jar.SetCookies(endpoint, []*http.Cookie{{Name: "myacinfo", Value: "new", Domain: "apple.com", Path: "/", Expires: expires.Add(time.Hour), Secure: true, HttpOnly: true}})
+
+	for _, origin := range []string{olympusSessionURL, "https://idmsa.apple.com/"} {
+		u, _ := url.Parse(origin)
+		cookies := loaded.Client.Jar.Cookies(u)
+		if observedCookieNameCount(cookies, "myacinfo") != 1 || cookieValue(cookies, "myacinfo") != "new" {
+			t.Fatalf("%s sends %v, want only the re-issued myacinfo", origin, cookies)
+		}
+	}
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession: %v", err)
+	}
+	reloaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("reload ok=%v err=%v", ok, err)
+	}
+	if got := cookieValue(reloaded.Client.Jar.Cookies(endpoint), "myacinfo"); got != "new" {
+		t.Fatalf("persisted myacinfo = %q, want the re-issued value", got)
+	}
+}
+
+func TestDomainCookieKeepsGenuineHostOnlyCookieOfTheSameName(t *testing.T) {
+	withFileSessionCache(t)
+	if err := writeSessionToFile(webSessionCacheKey(staleCookieTestAppleID), persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: staleCookieTestAppleID,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{Name: "token", Value: "host-only", Path: "/", Expires: time.Now().UTC().Add(time.Hour)}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession ok=%v err=%v", ok, err)
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	loaded.Client.Jar.SetCookies(endpoint, []*http.Cookie{{Name: "token", Value: "domain", Domain: "apple.com", Path: "/"}})
+	if got := observedCookieNameCount(loaded.Client.Jar.Cookies(endpoint), "token"); got != 2 {
+		t.Fatalf("token sent %d times, want the host-only cookie kept beside the Domain cookie", got)
+	}
+}

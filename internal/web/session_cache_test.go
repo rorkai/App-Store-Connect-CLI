@@ -3964,3 +3964,91 @@ func TestBypassKeychainKeepsWebSessionsOutOfKeychain(t *testing.T) {
 		t.Fatalf("keychain opened %d times with explicit keychain backend and ASC_BYPASS_KEYCHAIN=1", opened)
 	}
 }
+
+func TestPersistSessionKeepsRotatedSessionOnlyCookie(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey(webTestSessionEmail)
+	root := "https://appstoreconnect.apple.com/"
+	if err := writeSessionToFile(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: webTestSessionEmail,
+		Cookies: map[string][]pCookie{root: {
+			{Name: "myacinfo", Value: "session", ScopeDomain: "apple.com", Path: "/", Expires: time.Now().UTC().Add(time.Hour)},
+			{Name: "dqsid", Value: "old", Path: "/"},
+		}},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile() error: %v", err)
+	}
+	loaded, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession() = (%t, %v), want cached session", ok, err)
+	}
+	target, _ := url.Parse(root)
+	loaded.Client.Jar.SetCookies(target, []*http.Cookie{{Name: "dqsid", Value: "new", Path: "/"}})
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession() error: %v", err)
+	}
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%t, %v), want stored session", ok, err)
+	}
+	var got []string
+	for _, cookie := range stored.Cookies[root] {
+		if cookie.Name == "dqsid" {
+			got = append(got, cookie.Value)
+		}
+	}
+	if len(got) != 1 || got[0] != "new" {
+		t.Fatalf("persisted dqsid = %v, want [new]", got)
+	}
+}
+
+func TestPersistSessionKeepsNewerCookieWrittenByAnotherProcess(t *testing.T) {
+	withFileSessionCache(t)
+	key := webSessionCacheKey(webTestSessionEmail)
+	root := "https://appstoreconnect.apple.com/"
+	expires := time.Now().UTC().Add(time.Hour)
+	if err := writeSessionToFile(key, persistedSession{
+		Version:    webSessionCacheVersion,
+		UpdatedAt:  time.Now().UTC(),
+		Generation: "s0",
+		UserEmail:  webTestSessionEmail,
+		Cookies: map[string][]pCookie{root: {
+			{Name: "myacinfo", Value: "old", ScopeDomain: "apple.com", Path: "/", Expires: expires},
+			{Name: "itctx", Value: "provider", ScopeDomain: "apple.com", Path: "/", Expires: expires},
+		}},
+	}); err != nil {
+		t.Fatalf("writeSessionToFile() error: %v", err)
+	}
+	a, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession(a) = (%t, %v)", ok, err)
+	}
+	b, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession(b) = (%t, %v)", ok, err)
+	}
+	target, _ := url.Parse(root)
+	a.Client.Jar.SetCookies(target, []*http.Cookie{{Name: "myacinfo", Value: "fresh", Path: "/", Expires: expires}})
+	if err := PersistSession(a); err != nil {
+		t.Fatalf("PersistSession(a) error: %v", err)
+	}
+	b.Client.Jar.SetCookies(target, []*http.Cookie{{Name: "itctx", Value: "other", Path: "/", Expires: expires}})
+	endpoint, _ := url.Parse(olympusSessionURL)
+	b.Client.Jar.SetCookies(endpoint, []*http.Cookie{{Name: "myacinfo", Value: "olympus", Path: "/olympus", Expires: expires}})
+	if err := PersistSession(b); err != nil {
+		t.Fatalf("PersistSession(b) error: %v", err)
+	}
+	stored, ok, err := readSessionFromFile(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromFile() = (%t, %v), want stored session", ok, err)
+	}
+	values := map[string]string{}
+	for _, cookie := range stored.Cookies[root] {
+		values[cookie.Name+" "+persistedCookiePath(cookie.Path)] = cookie.Value
+	}
+	if len(values) != 3 || values["myacinfo /"] != "fresh" || values["itctx /"] != "other" || values["myacinfo /olympus"] != "olympus" {
+		t.Fatalf("persisted cookies = %v, want the other process's myacinfo plus this handle's itctx and Olympus myacinfo", values)
+	}
+}
