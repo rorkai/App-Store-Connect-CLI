@@ -148,6 +148,10 @@ The version-related flags are `--include`, `--fields`, `--version-fields`, and
 `--versions-limit`. Group list also retains `--limit`, `--next`, and
 `--paginate`; do not combine `--next` with query flags.
 
+`--subscription-fields` and `--localization-fields` select fields on included
+subscriptions and group localizations. Each one adds its relationship to
+`include`, and to `--fields` when that flag is set.
+
 #### Create, List, and View Versions
 
 ```bash  theme={null}
@@ -264,6 +268,36 @@ asc subscriptions list --group-id "GROUP_ID"
 * `--limit` - Results per page (1-200)
 * `--paginate` - Fetch all pages
 * `--next` - Pagination URL
+* `--fields`, `--version-fields`, `--include`, `--versions-limit` - Sparse
+  fields, includes, and included-version limit
+* Included resource fields, listed below
+
+Included resource fields require `--group-id`, cannot be combined with `--next`,
+and accept Apple's field names for that resource. `asc subscriptions view` takes
+the same flags. Each one adds its relationship to `include`, and to `--fields`
+when that flag is set.
+
+| Flag | Query parameter |
+| --- | --- |
+| `--localization-fields` | `fields[subscriptionLocalizations]` |
+| `--review-screenshot-fields` | `fields[subscriptionAppStoreReviewScreenshots]` |
+| `--group-fields` | `fields[subscriptionGroups]` |
+| `--introductory-offer-fields` | `fields[subscriptionIntroductoryOffers]` |
+| `--promotional-offer-fields` | `fields[subscriptionPromotionalOffers]` |
+| `--offer-code-fields` | `fields[subscriptionOfferCodes]` |
+| `--price-fields` | `fields[subscriptionPrices]` |
+| `--promoted-purchase-fields` | `fields[promotedPurchases]` |
+| `--availability-fields` | `fields[subscriptionAvailabilities]` |
+| `--win-back-offer-fields` | `fields[winBackOffers]` |
+| `--image-fields` | `fields[subscriptionImages]` |
+| `--plan-availability-fields` | `fields[subscriptionPlanAvailabilities]` |
+
+```bash  theme={null}
+asc subscriptions list \
+  --group-id "GROUP_ID" \
+  --fields name,productId \
+  --localization-fields name,locale
+```
 
 ### Create Subscription
 
@@ -332,6 +366,7 @@ conflict if either value differs instead of changing that subscription.
 
 ```bash  theme={null}
 asc subscriptions view --id "SUB_ID"
+asc subscriptions view --id "SUB_ID" --fields name --price-fields startDate,planType
 ```
 
 ### Update Subscription
