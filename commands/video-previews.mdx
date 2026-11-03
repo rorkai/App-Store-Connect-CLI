@@ -40,7 +40,7 @@ asc video-previews upload --version-localization "LOC_ID" \
   --time-code "00:00:05:00"
 ```
 
-Pass `--time-code` to set the poster frame on the upload request instead of running `asc video-previews set-poster-frame` afterwards. It accepts `HH:MM:SS:FF` or `HH:MM:SS.mmm`, applies to every uploaded file, and leaves files skipped by `--skip-existing` unchanged. The command then also waits for that frame. A frame Apple cannot generate, or one still processing when `ASC_UPLOAD_TIMEOUT` expires, exits non-zero with an entry in `failures`, but nothing is rolled back: every delivered preview stays in the set and in `results`. Retry the frame with `asc video-previews set-poster-frame --id "PREVIEW_ID" --time-code "00:00:05:00"`. `--asset-library` does not support `--time-code`.
+Pass `--time-code` to set the poster frame as part of the upload instead of running `asc video-previews set-poster-frame` afterwards. It accepts `HH:MM:SS:FF` or `HH:MM:SS.mmm`, applies to every uploaded file, and leaves files skipped by `--skip-existing` unchanged. Apple ignores the time code on the create request, so the command sets it after Apple finishes processing each video, which can take minutes and counts against `ASC_UPLOAD_TIMEOUT`, and checks that Apple reports the requested value. If processing fails or does not finish in time, or Apple rejects or does not keep the value, the command exits non-zero with an entry in `failures`, but nothing is rolled back: every delivered preview stays in the set and in `results`. Retry the frame with `asc video-previews set-poster-frame --id "PREVIEW_ID" --time-code "00:00:05:00"`. `--asset-library` does not support `--time-code`.
 
 ### Video File Requirements
 

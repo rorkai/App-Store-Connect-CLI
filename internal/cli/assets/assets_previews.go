@@ -113,7 +113,7 @@ func assetsPreviewsUploadCommandWithDependencies(deps previewUploadDependencies)
 	dryRun := fs.Bool("dry-run", false, "Show what would be uploaded, skipped, or deleted without making changes")
 	assetLibrary := fs.Bool("asset-library", false, "Upload to the Asset Library and place on the localization instead of using a preview set")
 	placementGroup := fs.String("placement-group", "", "Placement group to use with --asset-library (defaults to the group Apple publishes for --device-type)")
-	timeCode := fs.String("time-code", "", "Poster frame timecode set on upload (e.g., 00:00:05:00 or 00:00:05.000); not available with --asset-library")
+	timeCode := fs.String("time-code", "", "Poster frame timecode, set after Apple finishes processing each video (e.g., 00:00:05:00 or 00:00:05.000); not available with --asset-library")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -138,13 +138,14 @@ command exits non-zero and prints a receipt with each file's asset and placement
 ID. Nothing is deleted automatically; inspect the placements before retrying.
 Use --dry-run to see the library, group and capacity without changing anything.
 
---time-code sets the poster frame on the upload request of every uploaded file,
-and the command waits for Apple to finish that frame. Accepted formats are
-HH:MM:SS:FF and HH:MM:SS.mmm. A frame Apple cannot generate, or one still
-processing at ASC_UPLOAD_TIMEOUT, exits non-zero with a failure in the receipt,
-but the delivered preview is kept; retry with asc video-previews
-set-poster-frame. Files skipped by --skip-existing keep their poster frame.
---asset-library does not support it.
+--time-code sets the poster frame of every uploaded file after Apple finishes
+processing its video, which can take minutes and counts against
+ASC_UPLOAD_TIMEOUT, then checks that Apple reports the requested value.
+Accepted formats are HH:MM:SS:FF and HH:MM:SS.mmm. If processing fails or does
+not finish in time, or Apple rejects or does not keep the value, the command
+exits non-zero with a failure in the receipt, but the delivered preview is
+kept; retry with asc video-previews set-poster-frame. Files skipped by
+--skip-existing keep their poster frame. --asset-library does not support it.
 
 Examples:
   asc video-previews upload --version-localization "VERSION_LOCALIZATION_ID" --path "./previews/duo.mp4" --device-type "IPHONE_DUO" --asset-library --dry-run
@@ -848,10 +849,6 @@ func ensurePreviewSet(ctx context.Context, client *asc.Client, localizationID, p
 }
 
 func uploadPreviewAsset(ctx context.Context, client *asc.Client, setID, filePath string) (asc.AssetUploadResultItem, error) {
-	return uploadPreviewAssetWithTimeCode(ctx, client, setID, filePath, "")
-}
-
-func uploadPreviewAssetWithTimeCode(ctx context.Context, client *asc.Client, setID, filePath, timeCode string) (asc.AssetUploadResultItem, error) {
 	if err := asc.ValidateImageFile(filePath); err != nil {
 		return asc.AssetUploadResultItem{}, err
 	}
@@ -881,7 +878,7 @@ func uploadPreviewAssetWithTimeCode(ctx context.Context, client *asc.Client, set
 		return asc.AssetUploadResultItem{}, err
 	}
 
-	created, err := client.CreateAppPreview(ctx, setID, info.Name(), info.Size(), mimeType, timeCode)
+	created, err := client.CreateAppPreview(ctx, setID, info.Name(), info.Size(), mimeType)
 	if err != nil {
 		return result, err
 	}
@@ -1056,9 +1053,7 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		}
 	}
 
-	uploadedResults, err := uploadPreviewFiles(uploadCtx, ctx, client, set.ID, files, func(ctx context.Context, client *asc.Client, setID, filePath string) (asc.AssetUploadResultItem, error) {
-		return uploadPreviewAssetWithTimeCode(ctx, client, setID, filePath, timeCode)
-	})
+	uploadedResults, err := uploadPreviewFiles(uploadCtx, ctx, client, set.ID, files, uploadPreviewAsset)
 	result := asc.AppPreviewUploadResult{
 		VersionLocalizationID: localizationID,
 		SetID:                 set.ID,
@@ -1076,7 +1071,7 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 	}
 
 	if timeCode != "" {
-		result.Failures, err = waitForPreviewFrames(uploadCtx, client, uploadedResults, timeCode)
+		result.Failures, err = setPreviewFrames(uploadCtx, client, uploadedResults, timeCode)
 	}
 	return result, err
 }
@@ -1342,67 +1337,64 @@ func waitForPreviewDelivery(ctx context.Context, client *asc.Client, previewID s
 	})
 }
 
-// waitForPreviewFrames reports frame failures without touching the previews:
-// each one finished delivery, so a frame problem must not cost the upload.
-func waitForPreviewFrames(ctx context.Context, client *asc.Client, items []asc.AssetUploadResultItem, timeCode string) ([]asc.AssetUploadFailureItem, error) {
-	settled := make(map[string]bool, len(items))
-	frameErrs := make(map[string]error, len(items))
-	_, pollErr := asc.PollUntil(ctx, assetPollInterval, func(ctx context.Context) (struct{}, bool, error) {
-		for _, item := range items {
-			if settled[item.AssetID] {
-				continue
-			}
-			done, err := previewFrameSettled(ctx, client, item.AssetID)
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				return struct{}{}, false, ctxErr
-			}
-			settled[item.AssetID], frameErrs[item.AssetID] = done || err != nil, err
-		}
-		for _, item := range items {
-			if !settled[item.AssetID] {
-				return struct{}{}, false, nil
-			}
-		}
-		return struct{}{}, true, nil
-	})
-
+// setPreviewFrames PATCHes the poster frame once Apple finishes processing the
+// video. Apple ignores previewFrameTimeCode on POST /v1/appPreviews (live:
+// requested 00:00:07:00, read back its default 00:00:05:01), and
+// previewFrameImage.state reads COMPLETE with an empty image, so neither proves
+// the frame. A PATCH while videoDeliveryState is PROCESSING (about 3 minutes
+// after assetDeliveryState COMPLETE for a 20 MB file) gets 409 "Asset Not in
+// Complete state! can't update Image!". A PATCH after COMPLETE returns 200 with
+// the old time code in its body, but GET then reads the new one. A failure
+// keeps the delivered preview.
+func setPreviewFrames(ctx context.Context, client *asc.Client, items []asc.AssetUploadResultItem, timeCode string) ([]asc.AssetUploadFailureItem, error) {
 	var failures []asc.AssetUploadFailureItem
 	var errs []error
 	for _, item := range items {
-		err := frameErrs[item.AssetID]
-		if !settled[item.AssetID] {
-			err = fmt.Errorf("timed out waiting for preview %s poster frame: %w", item.AssetID, pollErr)
-		}
+		err := setPreviewFrame(ctx, client, item.AssetID, timeCode)
 		if err == nil {
 			continue
 		}
-		err = fmt.Errorf("%w; the preview was kept, retry with asc video-previews set-poster-frame --id %s --time-code %s", err, item.AssetID, timeCode)
+		err = fmt.Errorf("preview %s poster frame: %w; the preview was kept, retry with asc video-previews set-poster-frame --id %s --time-code %s", item.AssetID, err, item.AssetID, timeCode)
 		failures = append(failures, asc.AssetUploadFailureItem{FileName: item.FileName, FilePath: item.FilePath, Error: err.Error()})
 		errs = append(errs, err)
 	}
 	return failures, errors.Join(errs...)
 }
 
-func previewFrameSettled(ctx context.Context, client *asc.Client, previewID string) (bool, error) {
-	resp, err := client.GetAppPreview(ctx, previewID)
-	if err != nil {
-		return false, err
-	}
-	frame := resp.Data.Attributes.PreviewFrameImage
-	if frame == nil || frame.State == nil {
-		return false, nil
-	}
-	switch strings.ToUpper(frame.State.State) {
-	case "COMPLETE":
-		return true, nil
-	case "FAILED":
-		details := make([]asc.ErrorDetail, 0, len(frame.State.Errors))
-		for _, item := range frame.State.Errors {
-			details = append(details, asc.ErrorDetail{Code: item.Code, Message: item.Message})
+func setPreviewFrame(ctx context.Context, client *asc.Client, previewID, timeCode string) error {
+	if _, err := waitForAssetDeliveryState(ctx, previewID, func(ctx context.Context) (*asc.AssetDeliveryState, error) {
+		resp, err := client.GetAppPreview(ctx, previewID)
+		if err != nil {
+			return nil, err
 		}
-		return false, fmt.Errorf("preview %s poster frame failed: %s", previewID, formatAssetErrors(details))
+		video := resp.Data.Attributes.VideoDeliveryState
+		if video == nil || video.State == nil {
+			return nil, nil
+		}
+		state := &asc.AssetDeliveryState{State: *video.State}
+		for _, detail := range video.Errors {
+			state.Errors = append(state.Errors, asc.ErrorDetail{Code: detail.Code, Message: detail.Message, Description: detail.Description})
+		}
+		return state, nil
+	}); err != nil {
+		return fmt.Errorf("waiting for Apple to process the video: %w", err)
 	}
-	return false, nil
+	resp, err := client.SetAppPreviewFrameTimeCode(ctx, previewID, timeCode)
+	if err != nil {
+		return err
+	}
+	got := resp.Data.Attributes.PreviewFrameTimeCode
+	if got != timeCode {
+		readBack, err := client.GetAppPreview(ctx, previewID)
+		if err != nil {
+			return err
+		}
+		got = readBack.Data.Attributes.PreviewFrameTimeCode
+	}
+	if got != timeCode {
+		return fmt.Errorf("read back %q, want %q", got, timeCode)
+	}
+	return nil
 }
 
 // ValidPreviewFrameTimeCode reports whether a timecode matches the upload contract.

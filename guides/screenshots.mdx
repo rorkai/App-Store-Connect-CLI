@@ -442,7 +442,7 @@ asc video-previews upload \
   --device-type "IPHONE_65"
 ```
 
-Add `--time-code "00:00:05:00"` to set the poster frame on the upload request. The command then also waits for that frame. If the frame fails, the command exits non-zero but keeps the delivered preview, so you can retry with `asc video-previews set-poster-frame`.
+Add `--time-code "00:00:05:00"` to set the poster frame after Apple finishes processing each video. If that fails or times out, the command exits non-zero but keeps the delivered preview, so you can retry with `asc video-previews set-poster-frame`.
 
 ### Preview Video Requirements
 

@@ -150,49 +150,62 @@ func TestVideoPreviewsUploadReportsUploadedPreviewsWhenALaterFileFails(t *testin
 }
 
 func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
-	const failedFrame = "poster frame failed: FRAME: frame is out of range"
-	const unfinishedFrame = "timed out waiting for preview preview-1 poster frame"
+	const appleDefault = "00:00:05:01"
+	const timeCode = "00:00:07:00"
 	tests := []struct {
-		name              string
-		timeCode          string
-		frameStates       []string
-		cancelOnFramePoll int
-		replace           bool
-		wantFailures      []string
+		name         string
+		timeCode     string
+		outcomes     []string // per file: "ok", "error" (PATCH 409), "stale" (PATCH and read-back keep Apple's default), "late" (read-back matches after a stale PATCH echo)
+		video        []string // videoDeliveryState on each file's successive GETs, the first being the delivery poll; the last repeats
+		cancelOnGet  int      // cancel the run on this GET of the first file
+		wantFailures []string
 	}{
-		{name: "omitted flag sends nothing and ignores frame state", frameStates: []string{"PROCESSING"}},
-		{name: "requested frame is sent and recorded", timeCode: "00:00:05:00", frameStates: []string{"COMPLETE"}},
-		{name: "failed frame keeps the delivered preview", timeCode: "00:00:05:00", frameStates: []string{"FAILED"}, wantFailures: []string{failedFrame}},
-		{name: "unfinished frame keeps the delivered preview", timeCode: "00:00:05:00", frameStates: []string{"PROCESSING"}, cancelOnFramePoll: 1, wantFailures: []string{unfinishedFrame}},
-		{name: "failed frame after replace keeps the new preview", timeCode: "00:00:05:00", frameStates: []string{"FAILED"}, replace: true, wantFailures: []string{failedFrame}},
-		{name: "unfinished frame does not hide a later file's failure", timeCode: "00:00:05:00", frameStates: []string{"PROCESSING", "FAILED"}, cancelOnFramePoll: 2, wantFailures: []string{unfinishedFrame, "preview preview-2 " + failedFrame}},
+		{name: "omitted flag sends no poster frame", outcomes: []string{"ok"}},
+		{name: "requested frame waits for video processing", timeCode: timeCode, outcomes: []string{"ok"}, video: []string{"PROCESSING", "PROCESSING", "COMPLETE"}},
+		{name: "failed video processing keeps the preview", timeCode: timeCode, outcomes: []string{"ok"}, video: []string{"PROCESSING", "FAILED"}, wantFailures: []string{"VIDEO_ERROR: video could not be processed"}},
+		{name: "unfinished video processing keeps the preview", timeCode: timeCode, outcomes: []string{"ok"}, video: []string{"PROCESSING"}, cancelOnGet: 2, wantFailures: []string{"timed out"}},
+		{name: "read-back match after a stale echo succeeds", timeCode: timeCode, outcomes: []string{"late"}},
+		{name: "patch failure keeps the preview and reports the retry", timeCode: timeCode, outcomes: []string{"error"}, wantFailures: []string{"poster frame not changed"}},
+		{name: "read-back mismatch is a failure", timeCode: timeCode, outcomes: []string{"stale"}, wantFailures: []string{`read back "` + appleDefault + `"`}},
+		{name: "one file's failure does not hide or stop another's", timeCode: timeCode, outcomes: []string{"error", "stale"}, wantFailures: []string{"poster frame not changed", `read back "` + appleDefault + `"`}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", "")
-			t.Setenv("ASC_UPLOAD_TIMEOUT", "5m")
 
 			dir := t.TempDir()
-			sizes := make([]int64, len(test.frameStates))
-			linkages := make([]string, len(test.frameStates))
-			for i := range test.frameStates {
-				sizes[i] = writePreviewFile(t, filepath.Join(dir, fmt.Sprintf("%02d.mov", i+1)))
-				linkages[i] = fmt.Sprintf(`{"type":"appPreviews","id":"preview-%d"}`, i+1)
+			sizes := make([]int64, len(test.outcomes))
+			linkages := make([]string, len(test.outcomes))
+			readBack := make([]string, len(test.outcomes))
+			gets := make([]int, len(test.outcomes))
+			lastVideo := make([]string, len(test.outcomes))
+			video := test.video
+			if video == nil {
+				video = []string{"PROCESSING", "COMPLETE"}
 			}
-			existing := ""
-			if test.replace {
-				existing = `{"type":"appPreviews","id":"old-1","attributes":{"fileName":"old.mov"}}`
-			}
-
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+			for i := range test.outcomes {
+				sizes[i] = writePreviewFile(t, filepath.Join(dir, fmt.Sprintf("%02d.mov", i+1)))
+				linkages[i] = fmt.Sprintf(`{"type":"appPreviews","id":"preview-%d"}`, i+1)
+				readBack[i] = appleDefault
+			}
 
 			var created []map[string]any
+			var framePatches []string
 			var deleted []string
-			orderRead := false
-			firstFilePolls := 0
+			previewIndex := func(path string) int {
+				index, err := strconv.Atoi(strings.TrimPrefix(path, "/v1/appPreviews/preview-"))
+				if err != nil {
+					t.Fatalf("preview path %s: %v", path, err)
+				}
+				return index - 1
+			}
+			previewJSON := func(i int, frame string) *http.Response {
+				return statusJSONResponse(fmt.Sprintf(`{"data":{"type":"appPreviews","id":"preview-%d","attributes":{"assetDeliveryState":{"state":"COMPLETE"},"videoDeliveryState":{"state":%q,"errors":[{"code":"VIDEO_ERROR","description":"video could not be processed"}]},"previewFrameTimeCode":%q}}}`, i+1, lastVideo[i], frame))
+			}
 			originalTransport := http.DefaultTransport
 			t.Cleanup(func() { http.DefaultTransport = originalTransport })
 			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -200,9 +213,8 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appPreviewSets":
 					return statusJSONResponse(`{"data":[{"type":"appPreviewSets","id":"set-1","attributes":{"previewType":"IPHONE_65"}}],"links":{}}`), nil
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/appPreviewSets/set-1/appPreviews":
-					return statusJSONResponse(`{"data":[` + existing + `],"links":{}}`), nil
+					return statusJSONResponse(`{"data":[],"links":{}}`), nil
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/appPreviewSets/set-1/relationships/appPreviews":
-					orderRead = true
 					return statusJSONResponse(`{"data":[` + strings.Join(linkages, ",") + `],"links":{}}`), nil
 				case req.Method == http.MethodPost && req.URL.Path == "/v1/appPreviews":
 					var body struct {
@@ -221,30 +233,44 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 					)), nil
 				case req.Method == http.MethodPut && req.URL.Host == "upload.example":
 					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{}}, nil
-				case req.Method == http.MethodPatch && strings.HasPrefix(req.URL.Path, "/v1/appPreviews/"):
-					return statusJSONResponse(`{"data":{"type":"appPreviews","id":"preview","attributes":{"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`), nil
+				case req.Method == http.MethodPatch && strings.HasPrefix(req.URL.Path, "/v1/appPreviews/preview-"):
+					i := previewIndex(req.URL.Path)
+					var body struct {
+						Data struct {
+							Attributes map[string]any `json:"attributes"`
+						} `json:"data"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+						t.Fatalf("decode patch preview body: %v", err)
+					}
+					frame, isFramePatch := body.Data.Attributes["previewFrameTimeCode"]
+					if !isFramePatch {
+						return statusJSONResponse(`{"data":{"type":"appPreviews","id":"preview","attributes":{"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`), nil
+					}
+					if lastVideo[i] != "COMPLETE" {
+						t.Fatalf("poster frame patched before a GET showed preview-%d videoDeliveryState COMPLETE", i+1)
+					}
+					framePatches = append(framePatches, fmt.Sprintf("preview-%d=%v", i+1, frame))
+					switch test.outcomes[i] {
+					case "error":
+						return jsonHTTPResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR","title":"poster frame not changed","detail":"poster frame not changed"}]}`), nil
+					case "ok":
+						readBack[i] = timeCode
+					case "late":
+						readBack[i] = timeCode
+						return previewJSON(i, appleDefault), nil
+					}
+					return previewJSON(i, readBack[i]), nil
 				case req.Method == http.MethodGet && strings.HasPrefix(req.URL.Path, "/v1/appPreviews/preview-"):
-					index, err := strconv.Atoi(strings.TrimPrefix(req.URL.Path, "/v1/appPreviews/preview-"))
-					if err != nil {
-						t.Fatalf("preview path %s: %v", req.URL.Path, err)
+					i := previewIndex(req.URL.Path)
+					lastVideo[i] = video[min(gets[i], len(video)-1)]
+					gets[i]++
+					if i == 0 && gets[i] == test.cancelOnGet {
+						cancel()
 					}
-					if orderRead {
-						if test.timeCode == "" {
-							t.Fatal("polled a frame without --time-code")
-						}
-						if index == 1 {
-							firstFilePolls++
-							if firstFilePolls == test.cancelOnFramePoll {
-								cancel()
-							}
-						}
-					}
-					return statusJSONResponse(fmt.Sprintf(
-						`{"data":{"type":"appPreviews","id":"preview-%d","attributes":{"assetDeliveryState":{"state":"COMPLETE"},"previewFrameImage":{"state":{"state":%q,"errors":[{"code":"FRAME","description":"frame is out of range"}]}}}}}`,
-						index, test.frameStates[index-1],
-					)), nil
+					return previewJSON(i, readBack[i]), nil
 				case req.Method == http.MethodDelete:
-					deleted = append(deleted, strings.TrimPrefix(req.URL.Path, "/v1/appPreviews/"))
+					deleted = append(deleted, req.URL.Path)
 					return &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{}}, nil
 				default:
 					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -256,11 +282,6 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 			if test.timeCode != "" {
 				args = append(args, "--time-code", test.timeCode)
 			}
-			wantDeleted := []string(nil)
-			if test.replace {
-				args = append(args, "--replace", "--confirm")
-				wantDeleted = []string{"old-1"}
-			}
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 			var err error
@@ -271,14 +292,22 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 				err = root.Run(ctx)
 			})
 
-			if !reflect.DeepEqual(deleted, wantDeleted) {
-				t.Fatalf("deleted = %v, want %v", deleted, wantDeleted)
+			if len(deleted) != 0 {
+				t.Fatalf("deleted delivered previews: %v", deleted)
 			}
 			for _, attributes := range created {
-				got, sent := attributes["previewFrameTimeCode"]
-				if sent != (test.timeCode != "") || (sent && got != test.timeCode) {
-					t.Fatalf("create previewFrameTimeCode = %v, want %q", got, test.timeCode)
+				if got, sent := attributes["previewFrameTimeCode"]; sent {
+					t.Fatalf("create sent previewFrameTimeCode %v; Apple ignores it on POST", got)
 				}
+			}
+			var wantPatches []string
+			if test.timeCode != "" && video[len(video)-1] == "COMPLETE" {
+				for i := range test.outcomes {
+					wantPatches = append(wantPatches, fmt.Sprintf("preview-%d=%s", i+1, test.timeCode))
+				}
+			}
+			if !reflect.DeepEqual(framePatches, wantPatches) {
+				t.Fatalf("poster frame patches = %v, want %v", framePatches, wantPatches)
 			}
 			var receipt struct {
 				PreviewFrameTimeCode string `json:"previewFrameTimeCode"`
@@ -297,7 +326,7 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 			if receipt.PreviewFrameTimeCode != test.timeCode {
 				t.Fatalf("receipt previewFrameTimeCode = %q, want %q: %s", receipt.PreviewFrameTimeCode, test.timeCode, stdout)
 			}
-			if len(receipt.Results) != len(test.frameStates) {
+			if len(receipt.Results) != len(test.outcomes) {
 				t.Fatalf("receipt results: %s", stdout)
 			}
 			for i, item := range receipt.Results {

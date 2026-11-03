@@ -5491,7 +5491,7 @@ func TestCreateAppPreview(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	result, err := client.CreateAppPreview(context.Background(), "SET_123", "preview.mov", 2048, "video/quicktime", "")
+	result, err := client.CreateAppPreview(context.Background(), "SET_123", "preview.mov", 2048, "video/quicktime")
 	if err != nil {
 		t.Fatalf("CreateAppPreview() error: %v", err)
 	}
