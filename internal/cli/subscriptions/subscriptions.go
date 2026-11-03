@@ -1634,7 +1634,7 @@ func SubscriptionsAvailabilityCommand() *ffcli.Command {
 Deprecated: the underlying Subscription availability resource is deprecated in
 App Store Connect API 4.4 in favor of Subscription plan availability. These
 commands keep working for now; for plan-based availability use
-` + "`asc subscriptions pricing plan-availability`" + ` (show/set) or
+` + "`asc subscriptions pricing plan-availability`" + ` (show/available-territories/set) or
 ` + "`asc subscriptions pricing monthly-commitment`" + ` (enable/disable/list).
 
 Examples:
