@@ -65,8 +65,8 @@ var resourceIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 func readCommand(name, help, selector, path string, collection bool) *ffcli.Command {
 	fs := flag.NewFlagSet(name, flag.ExitOnError)
 	id := new(string)
+	resourceType := "appAssetLibraries"
 	if selector != "" {
-		resourceType := "appAssetLibraries"
 		switch selector {
 		case "app":
 			resourceType = "apps"
@@ -94,9 +94,16 @@ func readCommand(name, help, selector, path string, collection bool) *ffcli.Comm
 	if name == "specs" {
 		specs = bindSpecsFilters(fs)
 	}
+	var placementFilters *shared.PlacementFilters
+	if name == "placements" {
+		placementFilters = shared.BindPlacementFilters(fs, resourceType)
+	}
 	longHelp := ""
 	if specs != nil {
 		longHelp = help + "\n\nFilter placement types, placement profile groups, features and specifications using comma-separated tokens. Apple validates values."
+	}
+	if placementFilters != nil {
+		longHelp = help + "\n\nFilter by placement type, placement group, state, media, localization or placement ID using comma-separated tokens. State values are validated by Apple. Sort by createdDate, lastModifiedDate or placementGroupPosition; prefix a field with - for descending order. Filter and sort flags cannot be combined with --next."
 	}
 	if filters != nil {
 		longHelp = help + "\n\nFilter category, state, specification IDs, asset IDs and reference names using comma-separated tokens. State values are validated by Apple. Sort by referenceName, createdDate or lastModifiedDate; prefix a field with - for descending order. Filter and sort flags cannot be combined with --next."
@@ -123,6 +130,9 @@ func readCommand(name, help, selector, path string, collection bool) *ffcli.Comm
 				if filters != nil {
 					conflicts = append(conflicts, libraryListFilterFlags...)
 				}
+				if placementFilters != nil {
+					conflicts = append(conflicts, placementFilters.Names()...)
+				}
 				if err := shared.RejectNextFlagConflicts(fs, next, "asset-library", conflicts...); err != nil {
 					return err
 				}
@@ -137,6 +147,11 @@ func readCommand(name, help, selector, path string, collection bool) *ffcli.Comm
 			}
 			if err != nil {
 				return err
+			}
+			if placementFilters != nil {
+				if err := placementFilters.Apply(query); err != nil {
+					return shared.UsageErrorf("asset-library: %v", err)
+				}
 			}
 			resourceID := strings.TrimSpace(*id)
 			if selector == "app" {
