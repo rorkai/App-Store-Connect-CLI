@@ -45,9 +45,10 @@ GOVULNCHECK_VERSION ?= v1.6.0
 # checkout inside the home directory reaches ~/.asc/config.json. The directory
 # is read-only so a test that writes config without choosing its own path fails
 # (root bypasses the mode, but the directory is still private to the run).
-# Tests that need any of these inputs set them with t.Setenv.
+# Tests that need any of these inputs set them with t.Setenv. TEST_AFFECTED_BY
+# and MAKEFLAGS are unset too, so tests that run make get the whole suite.
 TEST_ENV_PASSTHROUGH := ASC_UPDATE_GOLDEN ASC_SIGNING_RUN_LIVE_TEST ASC_SIGNING_KEYCHAIN_INSTALL_LIVE_TEST
-TEST_ENV = env $(foreach var,$(sort $(filter-out $(TEST_ENV_PASSTHROUGH),$(filter ASC_%,$(.VARIABLES)))),-u $(var)) -u DO_NOT_TRACK ASC_BYPASS_KEYCHAIN=1
+TEST_ENV = env $(foreach var,$(sort $(filter-out $(TEST_ENV_PASSTHROUGH),$(filter ASC_%,$(.VARIABLES)))),-u $(var)) -u DO_NOT_TRACK -u TEST_AFFECTED_BY -u MAKEFLAGS ASC_BYPASS_KEYCHAIN=1
 
 # $(call run_isolated_tests,<go test arguments>[,<test command>])
 # The test command defaults to `go test`.
@@ -121,8 +122,9 @@ build-debug:
 # The slowest packages run as concurrent test shards beside the rest of ./...;
 # TEST_JOBS sets the CPU budget (default: GOMAXPROCS, else the CPU count). It is
 # a soft budget: it sizes shard and package fan-out, not a hard CPU limit.
+# TEST_AFFECTED_BY=<Go files> tests only the packages those files reach.
 TEST_JOBS ?=
-LOCAL_TEST = GO="$(GO)" python3 scripts/go_test_shard.py local --split ./internal/cli/cmdtest --split ./internal/cli/web $(if $(TEST_JOBS),--jobs $(TEST_JOBS)) --
+LOCAL_TEST = GO="$(GO)" python3 scripts/go_test_shard.py local --split ./internal/cli/cmdtest --split ./internal/cli/web $(if $(TEST_JOBS),--jobs $(TEST_JOBS)) $(if $(TEST_AFFECTED_BY),--affected-by $(TEST_AFFECTED_BY)) --
 
 # Run tests
 .PHONY: test
