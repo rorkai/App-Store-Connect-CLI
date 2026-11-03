@@ -742,19 +742,30 @@ asc web removed-apps list --paginate --output table
 
 ### `asc web app-bundles`
 
-Inspect App Store app bundles, the sets of apps sold together. The public App
-Store Connect API has no app bundle resources.
+Inspect and edit App Store app bundles, the sets of apps sold together. The
+public App Store Connect API has no app bundle resources.
 
 Available commands:
 
 * `asc web app-bundles list` - list bundles with their platforms and review status
 * `asc web app-bundles view` - view a bundle's status, sale state, and member apps in display order
+* `asc web app-bundles apps eligible` - list the iOS and macOS apps that can join a bundle
+* `asc web app-bundles apps set` - set a bundle's apps and their order
+
+`apps set` requires `--id`, `--apps`, and `--confirm`. List every app the bundle
+should keep, in order: leaving one out removes it, and a new ID adds it. Apple
+only allows adding or removing apps until the bundle is approved, and the order
+can still change after that. The first app is the primary app, so moving it can
+change metadata Apple derives from it, such as the copyright. The command refuses
+a bundle in review, reads the bundle back to confirm the change, and sends
+nothing when the list already matches.
 
 Example:
 
 ```bash  theme={null}
 asc web app-bundles list --output table
 asc web app-bundles view --id "BUNDLE_ID" --output json
+asc web app-bundles apps set --id "BUNDLE_ID" --apps "APP_ID_2,APP_ID_1" --confirm
 ```
 
 ### `asc web bundle-ids`

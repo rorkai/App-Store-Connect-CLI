@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -115,6 +117,14 @@ func TestWebAppBundlesRejectsBadUsage(t *testing.T) {
 		{"view needs id", WebAppBundlesViewCommand(), nil, nil, "--id is required"},
 		{"view rejects positional", WebAppBundlesViewCommand(), []string{"--id", "1"}, []string{"extra"}, "does not accept positional"},
 		{"list rejects positional", WebAppBundlesListCommand(), nil, []string{"extra"}, "does not accept positional"},
+		{"eligible rejects positional", WebAppBundlesAppsEligibleCommand(), nil, []string{"extra"}, "does not accept positional"},
+		{"set needs id", WebAppBundlesAppsSetCommand(), []string{"--apps", "1,2", "--confirm"}, nil, "--id is required"},
+		{"set needs apps", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--confirm"}, nil, "--apps is required"},
+		{"set needs confirm", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2"}, nil, "--confirm is required"},
+		{"set rejects duplicates", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2,1", "--confirm"}, nil, "lists app 1 twice"},
+		{"set rejects names", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,two", "--confirm"}, nil, "numeric app IDs"},
+		{"set rejects leading zeros", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,01", "--confirm"}, nil, "numeric app IDs"},
+		{"set rejects an empty entry", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,,2", "--confirm"}, nil, "numeric app IDs"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -129,5 +139,56 @@ func TestWebAppBundlesRejectsBadUsage(t *testing.T) {
 				t.Fatalf("error = %v, stderr = %q, want usage error %q", err, stderr, test.want)
 			}
 		})
+	}
+}
+
+func TestWebAppBundlesAppsSetPrintsReceipt(t *testing.T) {
+	stubWebAppBundleSession(t)
+	orig := setWebAppBundleAppsFn
+	t.Cleanup(func() { setWebAppBundleAppsFn = orig })
+	setWebAppBundleAppsFn = func(ctx context.Context, client *webcore.Client, bundleID string, appIDs []string) (*asc.WebAppBundleAppsResult, error) {
+		if bundleID != "1501593771" || !slices.Equal(appIDs, []string{"2", "1"}) {
+			t.Fatalf("bundle %q apps %v", bundleID, appIDs)
+		}
+		return &asc.WebAppBundleAppsResult{BundleID: bundleID, PreviousApps: []string{"1", "2"}, Apps: appIDs, Changed: true}, nil
+	}
+
+	cmd := WebAppBundlesAppsSetCommand()
+	if err := cmd.FlagSet.Parse([]string{"--id", "1501593771", "--apps", " 2, 1 ", "--confirm", "--output", "json"}); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	stdout, _ := captureWebCommandOutput(t, func() {
+		if err := cmd.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("Exec: %v", err)
+		}
+	})
+	var got asc.WebAppBundleAppsResult
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("stdout is not JSON: %v: %q", err, stdout)
+	}
+	if !got.Changed || got.BundleID != "1501593771" {
+		t.Fatalf("unexpected receipt: %+v", got)
+	}
+}
+
+func TestWebAppBundlesAppsEligiblePrintsApps(t *testing.T) {
+	stubWebAppBundleSession(t)
+	orig := listWebAppBundleEligibleAppsFn
+	t.Cleanup(func() { listWebAppBundleEligibleAppsFn = orig })
+	listWebAppBundleEligibleAppsFn = func(ctx context.Context, client *webcore.Client) (*webcore.AppBundleEligibleAppsResponse, error) {
+		return &webcore.AppBundleEligibleAppsResponse{Data: []webcore.AppBundleEligibleApp{{ID: "3", Name: "Three"}}}, nil
+	}
+
+	cmd := WebAppBundlesAppsEligibleCommand()
+	if err := cmd.FlagSet.Parse([]string{"--output", "table"}); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	stdout, _ := captureWebCommandOutput(t, func() {
+		if err := cmd.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("Exec: %v", err)
+		}
+	})
+	if !strings.Contains(stdout, "Three") {
+		t.Fatalf("table missing app: %q", stdout)
 	}
 }
