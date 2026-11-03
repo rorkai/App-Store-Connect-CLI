@@ -76,7 +76,7 @@ var (
 	// account owner completes a prompt on the Apple Account website.
 	ErrAppleAccountActionRequired = errAppleAccountActionRequired
 	// ErrTwoFactorCodeRejected reports a verification code Apple refused.
-	ErrTwoFactorCodeRejected = errors.New("two-factor code rejected")
+	ErrTwoFactorCodeRejected = appleauth.ErrTwoFactorCodeRejected
 	// ErrInvalidProviderSelection reports a provider selection that matches
 	// none of the account's providers.
 	ErrInvalidProviderSelection = errors.New("invalid provider selection")
@@ -284,12 +284,7 @@ func IsStaleSessionAfterTwoFactor(err error) bool {
 	if !errors.As(err, &finalizeErr) {
 		return false
 	}
-	switch finalizeErr.Status {
-	case http.StatusUnauthorized, http.StatusForbidden:
-		return true
-	default:
-		return false
-	}
+	return finalizeErr.Status == http.StatusUnauthorized
 }
 
 func (e *APIError) Error() string {
@@ -490,12 +485,7 @@ func (e *twoFAVerificationFailedError) Is(target error) bool {
 	if target != ErrTwoFactorCodeRejected || e.Kind == "phone-request" {
 		return false
 	}
-	switch e.Status {
-	case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden:
-		return true
-	default:
-		return false
-	}
+	return e.Status == http.StatusBadRequest
 }
 
 func (e *twoFAVerificationFailedError) HTTPStatusCode() int {
