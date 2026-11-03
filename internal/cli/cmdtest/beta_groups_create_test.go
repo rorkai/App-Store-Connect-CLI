@@ -545,8 +545,12 @@ func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing
 			createBody:   notFound,
 			wantErr:      asc.ErrNotFound,
 			wantGets:     1,
-			want:         []string{"There is no resource of type 'builds' with id 'missing-build'"},
-			notWant:      []string{"created", "delete"},
+			want: []string{
+				"There is no resource of type 'builds' with id 'missing-build'",
+				"App Store Connect may have created the group anyway",
+				`asc testflight groups list --app "app-1" --name "Beta"`,
+			},
+			notWant: []string{"created group", "delete"},
 		},
 	}
 

@@ -1060,10 +1060,13 @@ Examples:
 			group, err := client.CreateBetaGroupWithAttributes(requestCtx, resolvedAppID, attrs, buildIDs, testerIDs)
 			if err != nil {
 				err = fmt.Errorf("beta-groups create: failed to create: %w", err)
-				if existingIDs != nil {
-					return explainPartialBetaGroupCreate(ctx, client, resolvedAppID, attrs.Name, existingIDs, buildIDs, testerIDs, err)
+				if !hasRelationships {
+					return err
 				}
-				return err
+				if existingIDs == nil {
+					return maybeCreatedBetaGroupError(err, resolvedAppID, attrs.Name)
+				}
+				return explainPartialBetaGroupCreate(ctx, client, resolvedAppID, attrs.Name, existingIDs, buildIDs, testerIDs, err)
 			}
 
 			return shared.PrintOutput(group, *output.Output, *output.Pretty)
@@ -1081,7 +1084,7 @@ func explainPartialBetaGroupCreate(ctx context.Context, client *asc.Client, appI
 
 	groups, err := listAllBetaGroupsByName(lookupCtx, client, appID, name)
 	if err != nil {
-		return fmt.Errorf("%w\nApp Store Connect may have created the group anyway. Check with `asc testflight groups list --app %q --name %q` before retrying", createErr, appID, name)
+		return maybeCreatedBetaGroupError(createErr, appID, name)
 	}
 
 	var ids []string
@@ -1110,6 +1113,10 @@ func explainPartialBetaGroupCreate(ctx context.Context, client *asc.Client, appI
 	}
 	fmt.Fprintf(&b, "\n  asc testflight groups delete --id %q --confirm", groupID)
 	return fmt.Errorf("%w\n%s", createErr, b.String())
+}
+
+func maybeCreatedBetaGroupError(createErr error, appID, name string) error {
+	return fmt.Errorf("%w\nApp Store Connect may have created the group anyway. Check with `asc testflight groups list --app %q --name %q` before retrying", createErr, appID, name)
 }
 
 // listBetaGroupIDsByName returns nil when the lookup fails, so a failed create
