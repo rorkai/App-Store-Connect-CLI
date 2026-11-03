@@ -17,9 +17,8 @@ type appBundleReference struct {
 	Locales           []struct {
 		Code string `json:"code"`
 	} `json:"locales"`
-	DefaultDetails    []appBundleLocale    `json:"defaultDetails"`
-	ValidPriceTiers   []appBundlePriceTier `json:"validPriceTiers"`
-	InvalidPriceTiers []appBundlePriceTier `json:"invalidPriceTiers"`
+	DefaultDetails  []appBundleLocale    `json:"defaultDetails"`
+	ValidPriceTiers []appBundlePriceTier `json:"validPriceTiers"`
 }
 
 type appBundlePriceTier struct {
@@ -28,9 +27,9 @@ type appBundlePriceTier struct {
 
 // CreateAppBundle creates a bundle of appIDs, in that order, that is not cleared
 // for sale. Like Apple's bundle page, it starts from Apple's default metadata for
-// the apps, names the bundle in the primary locale, and picks the first price
-// tier compatible with the apps unless priceTier is set. Reading the new bundle
-// back confirms its apps.
+// the apps and names the bundle in the primary locale. Unless priceTier is set,
+// it picks the first price tier Apple marks compatible with the apps. Reading the
+// new bundle back confirms its apps.
 func (c *Client) CreateAppBundle(ctx context.Context, name, sku string, appIDs []string, priceTier string) (*AppBundleDetail, error) {
 	name, sku, priceTier = strings.TrimSpace(name), strings.TrimSpace(sku), strings.TrimSpace(priceTier)
 	if name == "" {
@@ -52,11 +51,10 @@ func (c *Client) CreateAppBundle(ctx context.Context, name, sku string, appIDs [
 		return nil, err
 	}
 	if priceTier == "" {
-		tiers := slices.Concat(reference.ValidPriceTiers, reference.InvalidPriceTiers)
-		if len(tiers) == 0 {
-			return nil, errors.New("apple offered no price tier for these apps")
+		if len(reference.ValidPriceTiers) == 0 {
+			return nil, errors.New("apple marks no price tier compatible with these apps; choose one with --price-tier")
 		}
-		priceTier = tiers[0].TierStem
+		priceTier = reference.ValidPriceTiers[0].TierStem
 	}
 
 	request := appBundleSaveRequest{

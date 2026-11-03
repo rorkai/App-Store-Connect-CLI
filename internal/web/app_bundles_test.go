@@ -385,11 +385,13 @@ func TestCreateAppBundleSendsPageBodyAndReadsBack(t *testing.T) {
 	}{
 		{name: "defaults to the first compatible tier", readback: "3,4", wantTier: "10000"},
 		{name: "keeps a chosen tier", priceTier: "10003", readback: "3,4", wantTier: "10003"},
+		{name: "no compatible tier", priceTier: "none", wantErr: "choose one with --price-tier"},
 		{name: "readback mismatch", readback: "4,3", wantTier: "10000", wantErr: "created app bundle 6830005835, but its apps read back as 4,3"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var saves []string
+			validTiers := `[{"tierStem": "10000"}]`
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				switch r.Method + " " + strings.TrimPrefix(r.URL.Path, "/WebObjects/iTunesConnect.woa/ra") {
@@ -405,7 +407,7 @@ func TestCreateAppBundleSendsPageBodyAndReadsBack(t *testing.T) {
 					_, _ = w.Write([]byte(`{"data": {"primaryLocaleCode": "en-GB",
 						"locales": [{"name": "UK English", "code": "en-GB"}, {"name": "French", "code": "fr-FR"}],
 						"defaultDetails": [{"name": null, "localeCode": "en-GB", "marketingText": {"value": "Quotes"}, "marketingUrl": {"value": null}}],
-						"validPriceTiers": [{"tierStem": "10000"}], "invalidPriceTiers": [{"tierStem": "10001"}]
+						"validPriceTiers": ` + validTiers + `, "invalidPriceTiers": [{"tierStem": "10001"}]
 					}, "messages": {"error": null}, "statusCode": "SUCCESS"}`))
 				case "POST /appbundles/createOrUpdate":
 					if csrf := r.Header.Get("X-Csrf-Itc"); csrf != "itc" {
@@ -431,7 +433,11 @@ func TestCreateAppBundleSendsPageBodyAndReadsBack(t *testing.T) {
 			}))
 			defer server.Close()
 
-			got, err := testWebClient(server).CreateAppBundle(context.Background(), " Test Bundle ", "TEST_BUNDLE", []string{"3", "4"}, test.priceTier)
+			priceTier := test.priceTier
+			if priceTier == "none" {
+				validTiers, priceTier = `[]`, ""
+			}
+			got, err := testWebClient(server).CreateAppBundle(context.Background(), " Test Bundle ", "TEST_BUNDLE", []string{"3", "4"}, priceTier)
 			if test.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
 					t.Fatalf("error = %v, want %q", err, test.wantErr)
@@ -444,6 +450,12 @@ func TestCreateAppBundleSendsPageBodyAndReadsBack(t *testing.T) {
 				`{"localeCode":"fr-FR","marketingText":null,"marketingUrl":"","name":""}],` +
 				`"memberApps":[{"adamId":3,"isAAG":false,"priceTier":null},{"adamId":4,"isAAG":false,"priceTier":null}],` +
 				`"priceTierStem":"` + test.wantTier + `","primaryLocaleCode":"en-GB","userBundleIcon":{"value":null},"vendorIdentifier":"TEST_BUNDLE"}`
+			if test.wantTier == "" {
+				if len(saves) != 0 {
+					t.Fatalf("saves = %v, want none", saves)
+				}
+				return
+			}
 			if len(saves) != 1 || saves[0] != want {
 				t.Fatalf("saves =\n%v\nwant\n%s", saves, want)
 			}
