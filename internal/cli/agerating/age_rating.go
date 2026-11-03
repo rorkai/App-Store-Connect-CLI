@@ -55,12 +55,6 @@ var kidsAgeBandValues = []string{
 	"NINE_TO_ELEVEN",
 }
 
-var ageRatingSparseFields441 = []string{
-	"gracRatingClassificationNumber",
-	"socialMedia",
-	"socialMediaAgeRestricted",
-}
-
 // AgeRatingCommand returns the age rating command with subcommands.
 func AgeRatingCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("age-rating", flag.ExitOnError)
@@ -95,7 +89,7 @@ func AgeRatingViewCommand() *ffcli.Command {
 	appID := fs.String("app", os.Getenv("ASC_APP_ID"), "App ID (required unless --app-info-id or --version-id is provided)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info-id", "appInfos", "App info ID (optional)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional)")
-	fields := fs.String("fields", "", "Sparse fields: gracRatingClassificationNumber, socialMedia, socialMediaAgeRestricted")
+	fields := fs.String("fields", "", "Sparse fields: "+strings.Join(shared.AgeRatingDeclarationSparseFields, ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -123,7 +117,7 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
-			fieldValues, err := shared.NormalizeSelection(*fields, ageRatingSparseFields441, "--fields")
+			fieldValues, err := shared.NormalizeSelection(*fields, shared.AgeRatingDeclarationSparseFields, "--fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
