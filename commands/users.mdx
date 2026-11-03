@@ -80,6 +80,7 @@ Update a user:
 ```bash  theme={null}
 asc users update --id "USER_ID" --roles "ADMIN"
 asc users update --id "USER_ID" --roles "DEVELOPER" --visible-app "APP_ID" --confirm
+asc users update --id "USER_ID" --roles "DEVELOPER" --provisioning-allowed false
 ```
 
 **Flags:**
@@ -88,6 +89,7 @@ asc users update --id "USER_ID" --roles "DEVELOPER" --visible-app "APP_ID" --con
 * `--roles` - Comma-separated role IDs (required)
 * `--visible-app` - Comma-separated app IDs for visible apps
 * `--confirm` - Confirm replacing the user's existing visible-app relationship (required with `--visible-app`)
+* `--provisioning-allowed` - Grant or remove provisioning access: `true` or `false` (omit to leave unchanged)
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 
@@ -124,6 +126,14 @@ asc users invite \
   --last-name "Smith" \
   --roles "DEVELOPER" \
   --visible-app "APP_ID"
+
+asc users invite \
+  --email "user@example.com" \
+  --first-name "Jane" \
+  --last-name "Doe" \
+  --roles "DEVELOPER" \
+  --all-apps \
+  --provisioning-allowed true
 ```
 
 **Flags:**
@@ -134,6 +144,7 @@ asc users invite \
 * `--roles` - Comma-separated role IDs (required)
 * `--all-apps` - Grant access to all apps
 * `--visible-app` - Comma-separated app IDs for visible apps
+* `--provisioning-allowed` - Grant provisioning access: `true` or `false` (omit for Apple's default)
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 

@@ -22,6 +22,7 @@ type subscriptionIntroductoryOfferImportCSVRow struct {
 	startDate       string
 	endDate         string
 	pricePointID    string
+	planType        asc.SubscriptionPlanType
 }
 
 type subscriptionIntroductoryOfferImportDefaults struct {
@@ -31,6 +32,7 @@ type subscriptionIntroductoryOfferImportDefaults struct {
 	hasPeriods      bool
 	startDate       string
 	endDate         string
+	planType        asc.SubscriptionPlanType
 }
 
 type subscriptionIntroductoryOfferImportResolvedRow struct {
@@ -46,14 +48,15 @@ type subscriptionIntroductoryOfferImportResolvedRow struct {
 }
 
 var subscriptionIntroductoryOffersImportKnownColumns = map[string]string{
-	"territory":         "territory",
-	"offer_mode":        "offer_mode",
-	"offer_duration":    "offer_duration",
-	"number_of_periods": "number_of_periods",
-	"start_date":        "start_date",
-	"end_date":          "end_date",
-	"price_point_id":    "price_point_id",
-	"price_point":       "price_point_id",
+	"territory":                     "territory",
+	"offer_mode":                    "offer_mode",
+	"offer_duration":                "offer_duration",
+	"number_of_periods":             "number_of_periods",
+	"start_date":                    "start_date",
+	"end_date":                      "end_date",
+	"price_point_id":                "price_point_id",
+	"price_point":                   "price_point_id",
+	"target_subscription_plan_type": "target_subscription_plan_type",
 }
 
 func readSubscriptionIntroductoryOffersImportCSV(path string) ([]subscriptionIntroductoryOfferImportCSVRow, error) {
@@ -191,6 +194,15 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 		hasPeriods = true
 	}
 
+	var planType asc.SubscriptionPlanType
+	if value := get("target_subscription_plan_type"); value != "" {
+		normalized, err := shared.NormalizeSubscriptionPlanType(value, "target_subscription_plan_type")
+		if err != nil {
+			return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+		}
+		planType = normalized
+	}
+
 	territoryID, err := normalizeSubscriptionIntroductoryOfferImportTerritoryID(get("territory"))
 	if err != nil {
 		return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
@@ -206,6 +218,7 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 		startDate:       startDate,
 		endDate:         endDate,
 		pricePointID:    get("price_point_id"),
+		planType:        planType,
 	}, nil
 }
 
@@ -222,12 +235,13 @@ func isSubscriptionIntroductoryOffersImportRecordEmpty(record []string) bool {
 	return true
 }
 
-func buildSubscriptionIntroductoryOfferImportDefaults(offerDuration, offerMode string, numberOfPeriods int, startDate, endDate string) subscriptionIntroductoryOfferImportDefaults {
+func buildSubscriptionIntroductoryOfferImportDefaults(offerDuration, offerMode string, numberOfPeriods int, startDate, endDate string, planType asc.SubscriptionPlanType) subscriptionIntroductoryOfferImportDefaults {
 	defaults := subscriptionIntroductoryOfferImportDefaults{
 		offerDuration: strings.TrimSpace(offerDuration),
 		offerMode:     strings.TrimSpace(offerMode),
 		startDate:     strings.TrimSpace(startDate),
 		endDate:       strings.TrimSpace(endDate),
+		planType:      planType,
 	}
 	if numberOfPeriods > 0 {
 		defaults.numberOfPeriods = numberOfPeriods
@@ -278,6 +292,14 @@ func resolveSubscriptionIntroductoryOfferImportRows(
 			endDate = defaults.endDate
 		}
 
+		planType := row.planType
+		if planType == "" {
+			planType = defaults.planType
+		}
+		if planType == "" {
+			planType = asc.SubscriptionPlanTypeUpfront
+		}
+
 		resolved = append(resolved, subscriptionIntroductoryOfferImportResolvedRow{
 			row:             row.row,
 			territory:       row.territory,
@@ -287,7 +309,7 @@ func resolveSubscriptionIntroductoryOfferImportRows(
 			startDate:       startDate,
 			endDate:         endDate,
 			pricePointID:    row.pricePointID,
-			planType:        asc.SubscriptionPlanTypeUpfront,
+			planType:        planType,
 		})
 	}
 	return resolved, nil

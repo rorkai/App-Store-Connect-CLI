@@ -8,18 +8,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-var appInfoSparseFields441 = []string{"kidsAgeBand"}
-
-var ageRatingSparseFields441 = []string{
-	"gracRatingClassificationNumber",
-	"socialMedia",
-	"socialMediaAgeRestricted",
-}
-
-var appInAppPurchaseSparseFields441 = []string{"versions"}
-
-var appSubscriptionGroupSparseFields441 = []string{"versions"}
-
 func normalizeSparseField(fs *flag.FlagSet, value string, allowed []string, flagName string) ([]string, error) {
 	values, err := shared.NormalizeSelection(value, allowed, flagName)
 	if err != nil {

@@ -44,21 +44,21 @@ List apps from App Store Connect.
 </ParamField>
 
 <ParamField path="--app-info-fields" type="string">
-  Legacy sparse fields for included app-info records: `kidsAgeBand`. API 4.5
-  removed this property from `AppInfo`. The CLI forwards the selector for
-  compatibility and emits a deprecation warning on stderr. Supplying this flag
-  automatically includes `appInfos`. Use `asc age-rating view` for current
-  age-rating data.
+  Sparse fields for included app-info records: `appStoreState`, `state`, `appStoreAgeRating`, `australiaAgeRating`, `brazilAgeRating`, `brazilAgeRatingV2`, `franceAgeRating`, `koreaAgeRating`, `app`, `ageRatingDeclaration`, `appInfoLocalizations`, `primaryCategory`, `primarySubcategoryOne`, `primarySubcategoryTwo`, `secondaryCategory`, `secondarySubcategoryOne`, `secondarySubcategoryTwo`, `territoryAgeRatings`. Supplying this flag
+  automatically includes `appInfos`.
+  `kidsAgeBand` is deprecated: API 4.5 removed it from `AppInfo`. The CLI still
+  forwards it with a stderr deprecation warning. Use `asc age-rating view` for
+  current age-rating data.
 </ParamField>
 
 <ParamField path="--iap-fields" type="string">
-  Sparse fields for included in-app purchases. API 4.4.1 supports `versions`.
-  Supplying this flag automatically includes `inAppPurchases`.
+  Sparse fields for included in-app purchases: `referenceName`, `productId`, `inAppPurchaseType`, `state`, `apps`, `name`, `reviewNote`, `familySharable`, `contentHosting`, `inAppPurchaseLocalizations`, `pricePoints`, `content`, `appStoreReviewScreenshot`, `promotedPurchase`, `iapPriceSchedule`, `inAppPurchaseAvailability`, `images`, `offerCodes`, `versions`. Supplying this flag
+  automatically includes `inAppPurchases`.
 </ParamField>
 
 <ParamField path="--subscription-group-fields" type="string">
-  Sparse fields for included subscription groups. API 4.4.1 supports
-  `versions`. Supplying this flag automatically includes `subscriptionGroups`.
+  Sparse fields for included subscription groups: `referenceName`, `subscriptions`, `subscriptionGroupLocalizations`, `versions`. Supplying this flag
+  automatically includes `subscriptionGroups`.
 </ParamField>
 
 <ParamField path="--output" type="string" default="json">
@@ -73,7 +73,7 @@ asc apps list --bundle-id "com.example.app"
 asc apps list --name "My App"
 asc apps list --limit 10
 asc apps list --sort name
-asc apps list --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
+asc apps list --app-info-fields state,primaryCategory --iap-fields versions --subscription-group-fields versions
 asc apps list --output table
 asc apps list --paginate
 ```
@@ -120,20 +120,21 @@ Apple omits notification endpoints from its default response. Request them using
 </ParamField>
 
 <ParamField path="--app-info-fields" type="string">
-  Legacy sparse fields for included app-info records: `kidsAgeBand`. API 4.5
-  removed this property from `AppInfo`. The selector is still forwarded with a
-  stderr deprecation warning and automatically includes `appInfos`. Use
-  `asc age-rating view` for current age-rating data.
+  Sparse fields for included app-info records: `appStoreState`, `state`, `appStoreAgeRating`, `australiaAgeRating`, `brazilAgeRating`, `brazilAgeRatingV2`, `franceAgeRating`, `koreaAgeRating`, `app`, `ageRatingDeclaration`, `appInfoLocalizations`, `primaryCategory`, `primarySubcategoryOne`, `primarySubcategoryTwo`, `secondaryCategory`, `secondarySubcategoryOne`, `secondarySubcategoryTwo`, `territoryAgeRatings`. Automatically includes
+  `appInfos`.
+  `kidsAgeBand` is deprecated: API 4.5 removed it from `AppInfo`. The CLI still
+  forwards it with a stderr deprecation warning. Use `asc age-rating view` for
+  current age-rating data.
 </ParamField>
 
 <ParamField path="--iap-fields" type="string">
-  Sparse fields for included in-app purchases: `versions`. Automatically
-  includes `inAppPurchases`.
+  Sparse fields for included in-app purchases: `referenceName`, `productId`, `inAppPurchaseType`, `state`, `apps`, `name`, `reviewNote`, `familySharable`, `contentHosting`, `inAppPurchaseLocalizations`, `pricePoints`, `content`, `appStoreReviewScreenshot`, `promotedPurchase`, `iapPriceSchedule`, `inAppPurchaseAvailability`, `images`, `offerCodes`, `versions`. Automatically includes
+  `inAppPurchases`.
 </ParamField>
 
 <ParamField path="--subscription-group-fields" type="string">
-  Sparse fields for included subscription groups: `versions`. Automatically
-  includes `subscriptionGroups`.
+  Sparse fields for included subscription groups: `referenceName`, `subscriptions`, `subscriptionGroupLocalizations`, `versions`. Automatically includes
+  `subscriptionGroups`.
 </ParamField>
 
 <ParamField path="--output" type="string" default="json">
@@ -144,7 +145,7 @@ Apple omits notification endpoints from its default response. Request them using
 
 ```bash  theme={null}
 asc apps view --id "APP_ID"
-asc apps view --id "APP_ID" --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
+asc apps view --id "APP_ID" --app-info-fields state,primaryCategory --iap-fields versions --subscription-group-fields versions
 asc apps view --id "APP_ID" --output table
 asc apps view --id "APP_ID" --fields "subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox" --output json
 ```
@@ -228,19 +229,19 @@ available with a deprecation warning.
 </ParamField>
 
 <ParamField path="--fields" type="string">
-  Legacy sparse app-info fields: `kidsAgeBand`. API 4.5 removed this property
-  from `AppInfo`; the CLI still forwards it with a stderr deprecation warning.
-  Use `asc age-rating view` for current age-rating data.
+  Sparse app-info fields: `appStoreState`, `state`, `appStoreAgeRating`, `australiaAgeRating`, `brazilAgeRating`, `brazilAgeRatingV2`, `franceAgeRating`, `koreaAgeRating`, `app`, `ageRatingDeclaration`, `appInfoLocalizations`, `primaryCategory`, `primarySubcategoryOne`, `primarySubcategoryTwo`, `secondaryCategory`, `secondarySubcategoryOne`, `secondarySubcategoryTwo`, `territoryAgeRatings`.
+  `kidsAgeBand` is deprecated: API 4.5 removed it from `AppInfo`. The CLI still
+  forwards it with a stderr deprecation warning. Use `asc age-rating view` for
+  current age-rating data.
 </ParamField>
 
 <ParamField path="--age-rating-fields" type="string">
-  Sparse fields for the included age-rating declaration:
-  `socialMedia`, `socialMediaAgeRestricted`, `gracRatingClassificationNumber`.
+  Sparse fields for the included age-rating declaration: `advertising`, `alcoholTobaccoOrDrugUseOrReferences`, `contests`, `gambling`, `gamblingSimulated`, `gunsOrOtherWeapons`, `healthOrWellnessTopics`, `kidsAgeBand`, `lootBox`, `medicalOrTreatmentInformation`, `messagingAndChat`, `parentalControls`, `profanityOrCrudeHumor`, `ageAssurance`, `sexualContentGraphicAndNudity`, `sexualContentOrNudity`, `socialMedia`, `socialMediaAgeRestricted`, `horrorOrFearThemes`, `matureOrSuggestiveThemes`, `unrestrictedWebAccess`, `userGeneratedContent`, `violenceCartoonOrFantasy`, `violenceRealisticProlongedGraphicOrSadistic`, `violenceRealistic`, `ageRatingOverride`, `ageRatingOverrideV2`, `koreaAgeRatingOverride`, `gracRatingClassificationNumber`, `developerAgeRatingInfoUrl`.
   Automatically includes `ageRatingDeclaration`.
 </ParamField>
 
 ```bash  theme={null}
-asc apps info list --app "APP_ID" --fields kidsAgeBand
+asc apps info list --app "APP_ID" --fields state,primaryCategory
 asc apps info list --app "APP_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted,gracRatingClassificationNumber
 ```
 
@@ -264,7 +265,7 @@ app-info flags cannot be combined with version-localization selectors such as
 `--version-id`, `--locale`, `--next`, or `--paginate`.
 
 ```bash  theme={null}
-asc apps info view --info-id "APP_INFO_ID" --fields kidsAgeBand
+asc apps info view --info-id "APP_INFO_ID" --fields state,primaryCategory
 asc apps info view --info-id "APP_INFO_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted
 ```
 
@@ -290,6 +291,10 @@ Update app metadata and App Store Server Notifications URLs.
   Content rights declaration: `DOES_NOT_USE_THIRD_PARTY_CONTENT` or `USES_THIRD_PARTY_CONTENT`
 </ParamField>
 
+<ParamField path="--accessibility-url" type="string">
+  Accessibility URL for the app. Must be an absolute HTTP or HTTPS URL without credentials. An empty value is rejected; this flag does not remove an existing URL.
+</ParamField>
+
 <ParamField path="--subscription-status-url" type="string">
   Production App Store Server Notifications HTTPS URL. Sets notification version V2.
 </ParamField>
@@ -313,6 +318,7 @@ these flags do not remove existing endpoints. Use `asc apps view --id "APP_ID" -
 asc apps update --id "APP_ID" --bundle-id "com.example.app"
 asc apps update --id "APP_ID" --primary-locale "en-US"
 asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"
+asc apps update --id "APP_ID" --accessibility-url "https://example.com/accessibility"
 asc apps update --id "APP_ID" --subscription-status-url "https://example.com/notifications"
 asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"
 asc apps update --id "APP_ID" --streamlined-purchasing-enabled false

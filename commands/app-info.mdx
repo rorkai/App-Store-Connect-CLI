@@ -21,23 +21,21 @@ needed by app-info detail and age-rating commands.
 </ParamField>
 
 <ParamField path="--fields" type="string">
-  Legacy sparse app-info fields: `kidsAgeBand`. API 4.5 removed this property
-  from `AppInfo`. The selector is still forwarded for compatibility and emits
-  one deprecation warning on stderr. Use `asc age-rating view --app-info-id ID`
-  for current age-rating data.
+  Sparse app-info fields: `appStoreState`, `state`, `appStoreAgeRating`, `australiaAgeRating`, `brazilAgeRating`, `brazilAgeRatingV2`, `franceAgeRating`, `koreaAgeRating`, `app`, `ageRatingDeclaration`, `appInfoLocalizations`, `primaryCategory`, `primarySubcategoryOne`, `primarySubcategoryTwo`, `secondaryCategory`, `secondarySubcategoryOne`, `secondarySubcategoryTwo`, `territoryAgeRatings`.
+  `kidsAgeBand` is deprecated: API 4.5 removed it from `AppInfo`. The selector
+  is still forwarded and emits one deprecation warning on stderr. Use
+  `asc age-rating view --app-info-id ID` for current age-rating data.
 </ParamField>
 
 <ParamField path="--age-rating-fields" type="string">
-  Sparse fields for the included age-rating declaration. Supported values are
-  `gracRatingClassificationNumber`, `socialMedia`, and
-  `socialMediaAgeRestricted`. Supplying this flag
-  automatically includes `ageRatingDeclaration`.
+  Sparse fields for the included age-rating declaration: `advertising`, `alcoholTobaccoOrDrugUseOrReferences`, `contests`, `gambling`, `gamblingSimulated`, `gunsOrOtherWeapons`, `healthOrWellnessTopics`, `kidsAgeBand`, `lootBox`, `medicalOrTreatmentInformation`, `messagingAndChat`, `parentalControls`, `profanityOrCrudeHumor`, `ageAssurance`, `sexualContentGraphicAndNudity`, `sexualContentOrNudity`, `socialMedia`, `socialMediaAgeRestricted`, `horrorOrFearThemes`, `matureOrSuggestiveThemes`, `unrestrictedWebAccess`, `userGeneratedContent`, `violenceCartoonOrFantasy`, `violenceRealisticProlongedGraphicOrSadistic`, `violenceRealistic`, `ageRatingOverride`, `ageRatingOverrideV2`, `koreaAgeRatingOverride`, `gracRatingClassificationNumber`, `developerAgeRatingInfoUrl`. Supplying this
+  flag automatically includes `ageRatingDeclaration`.
 </ParamField>
 
 ```bash  theme={null}
 asc apps info list --app "APP_ID"
-asc apps info list --app "APP_ID" --fields kidsAgeBand
-asc apps info list --app "APP_ID" --fields kidsAgeBand --age-rating-fields socialMedia,socialMediaAgeRestricted
+asc apps info list --app "APP_ID" --fields state,primaryCategory
+asc apps info list --app "APP_ID" --fields state,primaryCategory --age-rating-fields socialMedia,socialMediaAgeRestricted
 ```
 
 ***
@@ -91,17 +89,15 @@ View app store version localization metadata.
 </ParamField>
 
 <ParamField path="--fields" type="string">
-  Legacy sparse app-info fields: `kidsAgeBand`. API 4.5 removed this property
-  from `AppInfo`. The selector is still forwarded for compatibility and emits
-  one deprecation warning on stderr. Use `asc age-rating view --app-info-id ID`
-  for current age-rating data.
+  Sparse app-info fields: `appStoreState`, `state`, `appStoreAgeRating`, `australiaAgeRating`, `brazilAgeRating`, `brazilAgeRatingV2`, `franceAgeRating`, `koreaAgeRating`, `app`, `ageRatingDeclaration`, `appInfoLocalizations`, `primaryCategory`, `primarySubcategoryOne`, `primarySubcategoryTwo`, `secondaryCategory`, `secondarySubcategoryOne`, `secondarySubcategoryTwo`, `territoryAgeRatings`.
+  `kidsAgeBand` is deprecated: API 4.5 removed it from `AppInfo`. The selector
+  is still forwarded and emits one deprecation warning on stderr. Use
+  `asc age-rating view --app-info-id ID` for current age-rating data.
 </ParamField>
 
 <ParamField path="--age-rating-fields" type="string">
-  Sparse fields for the included age-rating declaration. Supported values are
-  `gracRatingClassificationNumber`, `socialMedia`, and
-  `socialMediaAgeRestricted`. Supplying this flag
-  automatically includes `ageRatingDeclaration`.
+  Sparse fields for the included age-rating declaration: `advertising`, `alcoholTobaccoOrDrugUseOrReferences`, `contests`, `gambling`, `gamblingSimulated`, `gunsOrOtherWeapons`, `healthOrWellnessTopics`, `kidsAgeBand`, `lootBox`, `medicalOrTreatmentInformation`, `messagingAndChat`, `parentalControls`, `profanityOrCrudeHumor`, `ageAssurance`, `sexualContentGraphicAndNudity`, `sexualContentOrNudity`, `socialMedia`, `socialMediaAgeRestricted`, `horrorOrFearThemes`, `matureOrSuggestiveThemes`, `unrestrictedWebAccess`, `userGeneratedContent`, `violenceCartoonOrFantasy`, `violenceRealisticProlongedGraphicOrSadistic`, `violenceRealistic`, `ageRatingOverride`, `ageRatingOverrideV2`, `koreaAgeRatingOverride`, `gracRatingClassificationNumber`, `developerAgeRatingInfoUrl`. Supplying this
+  flag automatically includes `ageRatingDeclaration`.
 </ParamField>
 
 **Examples:**
@@ -111,7 +107,7 @@ asc apps info view --app "APP_ID"
 asc apps info view --app "APP_ID" --version "1.2.3" --platform IOS
 asc apps info view --version-id "VERSION_ID"
 asc apps info view --info-id "APP_INFO_ID" --include "ageRatingDeclaration"
-asc apps info view --info-id "APP_INFO_ID" --fields kidsAgeBand --age-rating-fields socialMedia
+asc apps info view --info-id "APP_INFO_ID" --fields state --age-rating-fields socialMedia
 asc apps info view --app "APP_ID" --include "ageRatingDeclaration,appInfoLocalizations"
 asc apps info view --app "APP_ID" --locale "en-US" --output table
 ```
@@ -119,7 +115,7 @@ asc apps info view --app "APP_ID" --locale "en-US" --output table
 When an app-info sparse fieldset and relationships are requested together, the
 CLI retains each included relationship in `fields[appInfos]`. For example, the
 combined sparse example above sends
-`fields[appInfos]=kidsAgeBand,ageRatingDeclaration` and
+`fields[appInfos]=state,ageRatingDeclaration` and
 `include=ageRatingDeclaration`, so App Store Connect does not drop the included
 age-rating declaration.
 

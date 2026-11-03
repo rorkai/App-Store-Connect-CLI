@@ -23,6 +23,9 @@ const TwoFactorDeliverySMS = "sms"
 
 var ErrNoTrustedPhoneNumbers = errors.New("no trusted phone numbers available")
 
+// ErrTwoFactorCodeRejected reports a verification code Apple refused.
+var ErrTwoFactorCodeRejected = errors.New("two-factor code rejected")
+
 // TwoFactorPreference is the caller's requested verification delivery. The
 // zero value keeps Apple's default: trusted devices first, phone fallback after.
 type TwoFactorPreference struct {
@@ -357,7 +360,7 @@ func SubmitTwoFactorCode(ctx context.Context, session SessionState, code string,
 	case TwoFactorMethodTrustedDevice:
 		if err := submitTrustedDeviceCode(ctx, code); err != nil {
 			phoneID := session.TwoFactorPhoneID()
-			if phoneID == 0 {
+			if phoneID == 0 || !errors.Is(err, ErrTwoFactorCodeRejected) {
 				return err
 			}
 			phoneMode := session.TwoFactorPhoneMode()

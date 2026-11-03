@@ -21,6 +21,7 @@ asc testflight groups list --app APP_ID
 asc testflight groups list --build-id BUILD_ID
 asc testflight groups create --app APP_ID --name "Beta Testers"
 asc testflight groups create --app APP_ID --name "Internal Testers" --internal
+asc testflight groups create --app APP_ID --name "Beta Testers" --build-id BUILD_ID1,BUILD_ID2 --tester TESTER_ID1,TESTER_ID2
 asc testflight groups view --id GROUP_ID
 ```
 
@@ -95,6 +96,8 @@ asc testflight testers list --app APP_ID
 asc testflight testers list --app APP_ID --first-name "Ada" --last-name "Lovelace"
 asc testflight testers list --app APP_ID --invite-type PUBLIC_LINK --sort -lastName
 asc testflight testers add --app APP_ID --email user@example.com --group "Beta"
+asc testflight testers add --app APP_ID --email user@example.com --group "Beta" --build-id BUILD_ID1,BUILD_ID2
+asc testflight testers add --email user@example.com --build-id BUILD_ID
 asc testflight testers view --id TESTER_ID
 asc testflight testers groups list --id TESTER_ID
 asc testflight testers add-groups --id TESTER_ID --group GROUP_ID

@@ -293,7 +293,8 @@ type GameCenterChallengeImageUpdateAttributes struct {
 
 // GameCenterChallengeImageRelationships describes relationships for challenge images.
 type GameCenterChallengeImageRelationships struct {
-	Localization *Relationship `json:"localization"`
+	Localization *Relationship `json:"localization,omitempty"`
+	Version      *Relationship `json:"version,omitempty"`
 }
 
 // GameCenterChallengeImageCreateData is the data portion of an image create request.
@@ -335,7 +336,8 @@ type GameCenterChallengeImageDeleteResult struct {
 // GameCenterChallengeImageUploadResult represents CLI output for image uploads.
 type GameCenterChallengeImageUploadResult struct {
 	ID                 string `json:"id"`
-	LocalizationID     string `json:"localizationId"`
+	LocalizationID     string `json:"localizationId,omitempty"`
+	VersionID          string `json:"versionId,omitempty"`
 	FileName           string `json:"fileName"`
 	FileSize           int64  `json:"fileSize"`
 	AssetDeliveryState string `json:"assetDeliveryState,omitempty"`

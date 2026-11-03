@@ -11,10 +11,13 @@ type reviewQuery struct {
 	listQuery
 	ratings                 []int
 	territory               string
+	reviewTerritory         string
 	sort                    string
 	publishedResponseExists *bool
-	includeResponse         bool
+	include                 []string
+	fields                  []string
 	responseFields          []string
+	territoryFields         []string
 }
 
 type appStoreVersionsQuery struct {
@@ -59,11 +62,25 @@ type reviewSubmissionItemsQuery struct {
 	include                        []string
 }
 
+// localizationRelatedQuery carries the include and limit[placements] parameters
+// that localization reads share.
+type localizationRelatedQuery struct {
+	include         []string
+	placementsLimit int
+}
+
+func (q localizationRelatedQuery) addTo(values url.Values) {
+	addCSV(values, "include", q.include)
+	if q.placementsLimit > 0 {
+		values.Set("limit[placements]", strconv.Itoa(q.placementsLimit))
+	}
+}
+
 type appStoreVersionLocalizationsQuery struct {
 	listQuery
+	localizationRelatedQuery
 	includedFieldsQuery
 	locales []string
-	include []string
 }
 
 type appInfoLocalizationsQuery struct {
@@ -105,6 +122,7 @@ type appCustomProductPageVersionsQuery struct {
 
 type appCustomProductPageLocalizationsQuery struct {
 	listQuery
+	localizationRelatedQuery
 	searchKeywordsLimit int
 }
 
@@ -146,6 +164,7 @@ type appStoreVersionExperimentTreatmentsQuery struct {
 
 type appStoreVersionExperimentTreatmentLocalizationsQuery struct {
 	listQuery
+	localizationRelatedQuery
 }
 
 type appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery struct {
@@ -184,6 +203,9 @@ func buildReviewQuery(opts []ReviewOption) string {
 	if query.territory != "" {
 		values.Set("filter[territory]", query.territory)
 	}
+	if query.reviewTerritory != "" {
+		values.Set("filter[reviewTerritory]", query.reviewTerritory)
+	}
 	if len(query.ratings) > 0 {
 		ratings := make([]string, 0, len(query.ratings))
 		for _, rating := range query.ratings {
@@ -197,13 +219,30 @@ func buildReviewQuery(opts []ReviewOption) string {
 	if query.publishedResponseExists != nil {
 		values.Set("exists[publishedResponse]", strconv.FormatBool(*query.publishedResponseExists))
 	}
-	if query.includeResponse {
-		values.Set("include", "response")
-	}
-	addCSV(values, "fields[customerReviewResponses]", query.responseFields)
+	addReviewSelection(values, query)
 	addLimit(values, query.limit)
 
 	return values.Encode()
+}
+
+// buildCustomerReviewQuery builds the query for GET /v1/customerReviews/{id},
+// which accepts only the include and fields parameters.
+func buildCustomerReviewQuery(opts []ReviewOption) string {
+	query := &reviewQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values := url.Values{}
+	addReviewSelection(values, query)
+	return values.Encode()
+}
+
+func addReviewSelection(values url.Values, query *reviewQuery) {
+	addCSV(values, "include", normalizeUniqueList(query.include))
+	addCSV(values, "fields[customerReviews]", query.fields)
+	addCSV(values, "fields[customerReviewResponses]", query.responseFields)
+	addCSV(values, "fields[territories]", query.territoryFields)
 }
 
 func buildAppStoreReviewAttachmentsQuery(query *appStoreReviewAttachmentsQuery) string {
@@ -272,7 +311,7 @@ func buildReviewSubmissionItemsQuery(query *reviewSubmissionItemsQuery) string {
 func buildAppStoreVersionLocalizationsQuery(query *appStoreVersionLocalizationsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[locale]", query.locales)
-	addCSV(values, "include", query.include)
+	query.addTo(values)
 	addLimit(values, query.limit)
 	query.includedFields.AddTo(values)
 	return values.Encode()
@@ -346,8 +385,9 @@ func buildAppCustomProductPageVersionsQuery(query *appCustomProductPageVersionsQ
 func buildAppCustomProductPageLocalizationsQuery(query *appCustomProductPageLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	query.addTo(values)
 	if query.searchKeywordsLimit > 0 {
-		values.Set("include", "searchKeywords")
+		addCSV(values, "include", append(slices.Clone(query.include), "searchKeywords"))
 		values.Set("limit[searchKeywords]", strconv.Itoa(query.searchKeywordsLimit))
 	}
 	return values.Encode()
@@ -410,6 +450,7 @@ func buildAppStoreVersionExperimentTreatmentsQuery(query *appStoreVersionExperim
 func buildAppStoreVersionExperimentTreatmentLocalizationsQuery(query *appStoreVersionExperimentTreatmentLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	query.addTo(values)
 	return values.Encode()
 }
 
@@ -473,6 +514,36 @@ type AppCustomProductPagesOption func(*appCustomProductPagesQuery)
 
 // AppCustomProductPageVersionsOption is a functional option for custom product page version list endpoints.
 type AppCustomProductPageVersionsOption func(*appCustomProductPageVersionsQuery)
+
+// LocalizationReadOption sets query parameters on a single-localization read.
+type LocalizationReadOption func(*localizationRelatedQuery)
+
+// WithLocalizationReadInclude includes related resources.
+func WithLocalizationReadInclude(include []string) LocalizationReadOption {
+	return func(q *localizationRelatedQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithLocalizationReadPlacementsLimit sets limit[placements].
+func WithLocalizationReadPlacementsLimit(limit int) LocalizationReadOption {
+	return func(q *localizationRelatedQuery) {
+		q.placementsLimit = limit
+	}
+}
+
+func localizationReadPath(path string, opts []LocalizationReadOption) string {
+	query := localizationRelatedQuery{}
+	for _, opt := range opts {
+		opt(&query)
+	}
+	values := url.Values{}
+	query.addTo(values)
+	if len(values) == 0 {
+		return path
+	}
+	return path + "?" + values.Encode()
+}
 
 // AppCustomProductPageLocalizationsOption is a functional option for custom product page localization list endpoints.
 type AppCustomProductPageLocalizationsOption func(*appCustomProductPageLocalizationsQuery)
@@ -589,6 +660,13 @@ func WithTerritory(territory string) ReviewOption {
 	}
 }
 
+// WithReviewTerritory filters reviews by related reviewTerritory IDs.
+func WithReviewTerritory(territory string) ReviewOption {
+	return func(r *reviewQuery) {
+		r.reviewTerritory = strings.TrimSpace(territory)
+	}
+}
+
 // WithReviewSort sets the sort order for reviews.
 func WithReviewSort(sort string) ReviewOption {
 	return func(r *reviewQuery) {
@@ -609,7 +687,21 @@ func WithPublishedResponseExists(exists bool) ReviewOption {
 // WithReviewIncludeResponse includes review response relationships in review results.
 func WithReviewIncludeResponse() ReviewOption {
 	return func(r *reviewQuery) {
-		r.includeResponse = true
+		r.include = append(r.include, "response")
+	}
+}
+
+// WithReviewInclude adds relationships to include in review results.
+func WithReviewInclude(include []string) ReviewOption {
+	return func(r *reviewQuery) {
+		r.include = append(r.include, include...)
+	}
+}
+
+// WithReviewFields limits fields returned for customer reviews.
+func WithReviewFields(fields []string) ReviewOption {
+	return func(r *reviewQuery) {
+		r.fields = normalizeList(fields)
 	}
 }
 
@@ -617,6 +709,13 @@ func WithReviewIncludeResponse() ReviewOption {
 func WithReviewResponseFields(fields []string) ReviewOption {
 	return func(r *reviewQuery) {
 		r.responseFields = normalizeList(fields)
+	}
+}
+
+// WithReviewTerritoryFields limits fields returned for included territories.
+func WithReviewTerritoryFields(fields []string) ReviewOption {
+	return func(r *reviewQuery) {
+		r.territoryFields = normalizeList(fields)
 	}
 }
 
@@ -868,10 +967,17 @@ func WithAppStoreVersionLocalizationLocales(locales []string) AppStoreVersionLoc
 
 // WithAppStoreVersionLocalizationsInclude includes related resources for
 // version localizations (appStoreVersion, appScreenshotSets, appPreviewSets,
-// searchKeywords).
+// searchKeywords, placements).
 func WithAppStoreVersionLocalizationsInclude(include []string) AppStoreVersionLocalizationsOption {
 	return func(q *appStoreVersionLocalizationsQuery) {
 		q.include = normalizeList(include)
+	}
+}
+
+// WithAppStoreVersionLocalizationsPlacementsLimit sets limit[placements].
+func WithAppStoreVersionLocalizationsPlacementsLimit(limit int) AppStoreVersionLocalizationsOption {
+	return func(q *appStoreVersionLocalizationsQuery) {
+		q.placementsLimit = limit
 	}
 }
 
@@ -1144,6 +1250,20 @@ func WithAppCustomProductPageLocalizationsSearchKeywords(limit int) AppCustomPro
 	}
 }
 
+// WithAppCustomProductPageLocalizationsInclude includes related resources.
+func WithAppCustomProductPageLocalizationsInclude(include []string) AppCustomProductPageLocalizationsOption {
+	return func(q *appCustomProductPageLocalizationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppCustomProductPageLocalizationsPlacementsLimit sets limit[placements].
+func WithAppCustomProductPageLocalizationsPlacementsLimit(limit int) AppCustomProductPageLocalizationsOption {
+	return func(q *appCustomProductPageLocalizationsQuery) {
+		q.placementsLimit = limit
+	}
+}
+
 // WithAppCustomProductPageLocalizationsNextURL uses a next page URL directly.
 func WithAppCustomProductPageLocalizationsNextURL(next string) AppCustomProductPageLocalizationsOption {
 	return func(q *appCustomProductPageLocalizationsQuery) {
@@ -1363,6 +1483,20 @@ func WithAppStoreVersionExperimentTreatmentLocalizationsLimit(limit int) AppStor
 		if limit > 0 {
 			q.limit = limit
 		}
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentLocalizationsInclude includes related resources.
+func WithAppStoreVersionExperimentTreatmentLocalizationsInclude(include []string) AppStoreVersionExperimentTreatmentLocalizationsOption {
+	return func(q *appStoreVersionExperimentTreatmentLocalizationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentLocalizationsPlacementsLimit sets limit[placements].
+func WithAppStoreVersionExperimentTreatmentLocalizationsPlacementsLimit(limit int) AppStoreVersionExperimentTreatmentLocalizationsOption {
+	return func(q *appStoreVersionExperimentTreatmentLocalizationsQuery) {
+		q.placementsLimit = limit
 	}
 }
 

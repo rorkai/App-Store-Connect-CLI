@@ -6,7 +6,7 @@ import (
 )
 
 func offerCodesRows(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Codes", "Expires", "Created", "Active"}
+	headers := []string{"ID", "Codes", "Expires", "Created", "Active", "Environment"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
@@ -16,13 +16,14 @@ func offerCodesRows(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) ([]strin
 			SanitizeTerminalText(attrs.ExpirationDate),
 			SanitizeTerminalText(attrs.CreatedDate),
 			fmt.Sprintf("%t", attrs.Active),
+			SanitizeTerminalText(attrs.Environment),
 		})
 	}
 	return headers, rows
 }
 
 func subscriptionOfferCodesRows(resp *SubscriptionOfferCodesResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Name", "Customer Eligibilities", "Offer Eligibility", "Duration", "Mode", "Periods", "Total Codes", "Production Codes", "Sandbox Codes", "Active", "Auto Renew"}
+	headers := []string{"ID", "Name", "Customer Eligibilities", "Offer Eligibility", "Duration", "Mode", "Periods", "Total Codes", "Production Codes", "Sandbox Codes", "Active", "Auto Renew", "Target Plan Type"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
@@ -39,6 +40,7 @@ func subscriptionOfferCodesRows(resp *SubscriptionOfferCodesResponse) ([]string,
 			fmt.Sprintf("%d", attrs.SandboxCodeCount),
 			fmt.Sprintf("%t", attrs.Active),
 			formatOptionalBool(attrs.AutoRenewEnabled),
+			SanitizeTerminalText(string(attrs.TargetSubscriptionPlanType)),
 		})
 	}
 	return headers, rows

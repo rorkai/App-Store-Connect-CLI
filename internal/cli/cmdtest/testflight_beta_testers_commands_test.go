@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -144,6 +145,129 @@ func TestTestFlightBetaTestersAddOutput(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"id":"tester-1"`) {
 		t.Fatalf("expected tester id in output, got %q", stdout)
+	}
+}
+
+func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	const groups = `"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"}]}`
+	const builds = `"builds":{"data":[{"type":"builds","id":"build-1"},{"type":"builds","id":"build-2"}]}`
+	tests := []struct {
+		name         string
+		args         []string
+		wantRequests []string
+		want         string
+	}{
+		{
+			name:         "omitted --build-id sends only groups",
+			args:         []string{"--app", "app-1", "--group", "Beta"},
+			wantRequests: []string{"GET /v1/apps/app-1/betaGroups", "POST /v1/betaTesters"},
+			want:         `{` + groups + `}`,
+		},
+		{
+			name:         "groups and builds",
+			args:         []string{"--app", "app-1", "--group", "Beta", "--build-id", "build-1, build-2,build-1"},
+			wantRequests: []string{"GET /v1/apps/app-1/betaGroups", "POST /v1/betaTesters"},
+			want:         `{` + groups + `,` + builds + `}`,
+		},
+		{
+			name:         "builds alone need neither a group nor an app",
+			args:         []string{"--build-id", "build-1,build-2"},
+			wantRequests: []string{"POST /v1/betaTesters"},
+			want:         `{` + builds + `}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var requests []string
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests = append(requests, req.Method+" "+req.URL.Path)
+				body := `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`
+				status := http.StatusOK
+				if req.Method == http.MethodPost {
+					if got := createRequestRelationships(t, req); got != test.want {
+						t.Fatalf("relationships = %s, want %s", got, test.want)
+					}
+					body = `{"data":{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}}`
+					status = http.StatusCreated
+				}
+				return &http.Response{
+					StatusCode: status,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			})
+
+			args := append([]string{"testflight", "testers", "add", "--email", "tester@example.com"}, test.args...)
+			if _, _, err := runCommand(t, args); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+			if !slices.Equal(requests, test.wantRequests) {
+				t.Fatalf("requests = %v, want %v", requests, test.wantRequests)
+			}
+		})
+	}
+}
+
+func TestBetaCreateRejectsEmptyRelationshipFlagsBeforeRequest(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "group create --build-id",
+			args:    []string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta", "--build-id", " , "},
+			wantErr: "--build-id must include at least one ID",
+		},
+		{
+			name:    "group create --tester",
+			args:    []string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta", "--tester", ""},
+			wantErr: "--tester must include at least one ID",
+		},
+		{
+			name:    "tester add --build-id",
+			args:    []string{"testflight", "testers", "add", "--app", "app-1", "--email", "tester@example.com", "--group", "Beta", "--build-id", ","},
+			wantErr: "--build-id must include at least one ID",
+		},
+		{
+			name:    "tester add blank --group beside builds",
+			args:    []string{"testflight", "testers", "add", "--email", "tester@example.com", "--group", " ", "--build-id", "build-1"},
+			wantErr: "--group is required",
+		},
+		{
+			name:    "tester add group without app",
+			args:    []string{"testflight", "testers", "add", "--email", "tester@example.com", "--group", "Beta", "--build-id", "build-1"},
+			wantErr: "--app is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExit(t, test.args, test.wantErr)
+		})
 	}
 }
 

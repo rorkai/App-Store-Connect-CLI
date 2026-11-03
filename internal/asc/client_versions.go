@@ -26,16 +26,19 @@ type AppStoreVersionAttributes struct {
 
 // AppStoreVersionCreateAttributes describes app store version create payload attributes.
 type AppStoreVersionCreateAttributes struct {
-	Platform      Platform `json:"platform"`
-	VersionString string   `json:"versionString"`
-	Copyright     string   `json:"copyright,omitempty"`
-	ReleaseType   string   `json:"releaseType,omitempty"`
+	Platform            Platform `json:"platform"`
+	VersionString       string   `json:"versionString"`
+	Copyright           string   `json:"copyright,omitempty"`
+	ReleaseType         string   `json:"releaseType,omitempty"`
+	EarliestReleaseDate string   `json:"earliestReleaseDate,omitempty"`
+	ReviewType          string   `json:"reviewType,omitempty"`
 }
 
 // AppStoreVersionUpdateAttributes describes app store version update payload attributes.
 type AppStoreVersionUpdateAttributes struct {
 	Copyright           *string `json:"copyright,omitempty"`
 	ReleaseType         *string `json:"releaseType,omitempty"`
+	ReviewType          *string `json:"reviewType,omitempty"`
 	EarliestReleaseDate *string `json:"earliestReleaseDate,omitempty"`
 	VersionString       *string `json:"versionString,omitempty"`
 	// Downloadable is nullable on AppStoreVersionUpdateRequest. A pointer keeps
@@ -57,7 +60,8 @@ type AppStoreVersionUpdateRequest struct {
 
 // AppStoreVersionCreateRelationships describes relationships for app store version create requests.
 type AppStoreVersionCreateRelationships struct {
-	App *Relationship `json:"app"`
+	App   *Relationship `json:"app"`
+	Build *Relationship `json:"build,omitempty"`
 }
 
 // AppStoreVersionCreateData is the data portion of an app store version create request.
@@ -251,18 +255,33 @@ func (c *Client) GetAppStoreVersion(ctx context.Context, versionID string, opts 
 
 // CreateAppStoreVersion creates a new app store version for an app.
 func (c *Client) CreateAppStoreVersion(ctx context.Context, appID string, attrs AppStoreVersionCreateAttributes) (*AppStoreVersionResponse, error) {
+	return c.CreateAppStoreVersionWithBuild(ctx, appID, "", attrs)
+}
+
+// CreateAppStoreVersionWithBuild creates a new app store version and, when
+// buildID is set, attaches that build in the same request.
+func (c *Client) CreateAppStoreVersionWithBuild(ctx context.Context, appID, buildID string, attrs AppStoreVersionCreateAttributes) (*AppStoreVersionResponse, error) {
+	relationships := &AppStoreVersionCreateRelationships{
+		App: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeApps,
+				ID:   strings.TrimSpace(appID),
+			},
+		},
+	}
+	if buildID = strings.TrimSpace(buildID); buildID != "" {
+		relationships.Build = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeBuilds,
+				ID:   buildID,
+			},
+		}
+	}
 	payload := AppStoreVersionCreateRequest{
 		Data: AppStoreVersionCreateData{
-			Type:       ResourceTypeAppStoreVersions,
-			Attributes: attrs,
-			Relationships: &AppStoreVersionCreateRelationships{
-				App: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   strings.TrimSpace(appID),
-					},
-				},
-			},
+			Type:          ResourceTypeAppStoreVersions,
+			Attributes:    attrs,
+			Relationships: relationships,
 		},
 	}
 

@@ -76,8 +76,8 @@ func AppsInfoViewCommand() *ffcli.Command {
 		"secondarySubcategoryOne": "appCategories",
 		"secondarySubcategoryTwo": "appCategories",
 	})
-	fields := fs.String("fields", "", "Sparse app info fields: kidsAgeBand (deprecated; removed from API 4.5; prefer asc age-rating view)")
-	ageRatingFields := fs.String("age-rating-fields", "", "Sparse fields for included age rating declaration: gracRatingClassificationNumber, socialMedia, socialMediaAgeRestricted")
+	fields := fs.String("fields", "", "Sparse app info fields: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
+	ageRatingFields := fs.String("age-rating-fields", "", "Sparse fields for included age rating declaration: "+strings.Join(shared.AgeRatingDeclarationSparseFields, ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -93,7 +93,7 @@ Examples:
   asc apps info view --app "APP_ID"
   asc apps info view --app "APP_ID" --version "1.2.3" --platform IOS
   asc apps info view --version-id "VERSION_ID"
-  asc apps info view --info-id "APP_INFO_ID" --fields kidsAgeBand
+  asc apps info view --info-id "APP_INFO_ID" --fields state,primaryCategory
   asc apps info view --info-id "APP_INFO_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted
   asc apps info view --info-id "APP_INFO_ID" --include "ageRatingDeclaration"
   asc apps info view --app "APP_ID" --include "appInfoLocalizations,primaryCategory"
@@ -131,11 +131,11 @@ Examples:
 			if err != nil {
 				return err
 			}
-			fieldValues, err := normalizeSparseField(fs, *fields, appInfoSparseFields441, "--fields")
+			fieldValues, err := normalizeSparseField(fs, *fields, shared.AppInfoSparseFields, "--fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			ageRatingFieldValues, err := normalizeSparseField(fs, *ageRatingFields, ageRatingSparseFields441, "--age-rating-fields")
+			ageRatingFieldValues, err := normalizeSparseField(fs, *ageRatingFields, shared.AgeRatingDeclarationSparseFields, "--age-rating-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}

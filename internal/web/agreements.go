@@ -279,7 +279,7 @@ func (c *Client) DownloadAgreement(ctx context.Context, agreementID string) (*Ag
 	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
-		return nil, developerPortalSessionError(response.StatusCode)
+		return nil, developerPortalSessionError(response, nil)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, &APIError{

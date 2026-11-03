@@ -455,6 +455,27 @@ func TestUpdateGameCenterDetail_ValidationErrors(t *testing.T) {
 			},
 		},
 		{
+			name: "empty defaultLeaderboardV2 relationship ID",
+			id:   "detail-1",
+			rels: &GameCenterDetailUpdateRelationships{
+				DefaultLeaderboardV2: &Relationship{Data: ResourceData{Type: ResourceTypeGameCenterLeaderboards, ID: " "}},
+			},
+		},
+		{
+			name: "empty defaultGroupLeaderboard relationship ID",
+			id:   "detail-1",
+			rels: &GameCenterDetailUpdateRelationships{
+				DefaultGroupLeaderboard: &Relationship{Data: ResourceData{Type: ResourceTypeGameCenterLeaderboards, ID: " "}},
+			},
+		},
+		{
+			name: "empty defaultGroupLeaderboardV2 relationship ID",
+			id:   "detail-1",
+			rels: &GameCenterDetailUpdateRelationships{
+				DefaultGroupLeaderboardV2: &Relationship{Data: ResourceData{Type: ResourceTypeGameCenterLeaderboards, ID: " "}},
+			},
+		},
+		{
 			name: "deprecated challengeEnabled attribute",
 			id:   "detail-1",
 			attrs: &GameCenterDetailUpdateAttributes{
