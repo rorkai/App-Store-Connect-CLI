@@ -39,7 +39,7 @@ var includedResources = map[string]includedResource{
 	"appStoreVersionPhasedReleases":          {"phased-release-fields", []string{"phasedReleaseState", "startDate", "totalPauseDuration", "currentDayNumber"}},
 	"appStoreVersionSubmissions":             {"version-submission-fields", []string{"appStoreVersion"}},
 	"appStoreVersions":                       {"app-store-version-fields", []string{"platform", "versionString", "appStoreState", "appVersionState", "copyright", "reviewType", "releaseType", "earliestReleaseDate", "usesIdfa", "downloadable", "createdDate", "app", "appStoreVersionLocalizations", "build", "appStoreVersionPhasedRelease", "gameCenterAppVersion", "routingAppCoverage", "appStoreReviewDetail", "appStoreVersionSubmission", "appClipDefaultExperience", "appStoreVersionExperiments", "appStoreVersionExperimentsV2", "customerReviews", "alternativeDistributionPackage"}},
-	"apps":                                   {"app-fields", []string{"accessibilityUrl", "name", "bundleId", "sku", "primaryLocale", "isOrEverWasMadeForKids", "subscriptionStatusUrl", "subscriptionStatusUrlVersion", "subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox", "contentRightsDeclaration", "streamlinedPurchasingEnabled", "accessibilityDeclarations", "appEncryptionDeclarations", "appStoreIcon", "ciProduct", "betaTesters", "betaGroups", "appStoreVersions", "appTags", "preReleaseVersions", "betaAppLocalizations", "builds", "betaLicenseAgreement", "betaAppReviewDetail", "appInfos", "appClips", "appPricePoints", "endUserLicenseAgreement", "appPriceSchedule", "appAvailabilityV2", "inAppPurchases", "subscriptionGroups", "gameCenterEnabledVersions", "performanceOverviews", "perfPowerMetrics", "appCustomProductPages", "inAppPurchasesV2", "promotedPurchases", "appEvents", "reviewSubmissions", "subscriptionGracePeriod", "customerReviews", "customerReviewSummarizations", "gameCenterDetail", "appStoreVersionExperimentsV2", "alternativeDistributionKey", "analyticsReportRequests", "marketplaceSearchDetail", "buildUploads", "backgroundAssets", "assetLibrary", "betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "searchKeywords", "webhooks", "androidToIosAppMappingDetails"}},
+	"apps":                                   {"app-fields", []string{"accessibilityUrl", "name", "bundleId", "sku", "primaryLocale", "isOrEverWasMadeForKids", "subscriptionStatusUrl", "subscriptionStatusUrlVersion", "subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox", "contentRightsDeclaration", "streamlinedPurchasingEnabled", "accessibilityDeclarations", "appStoreIcon", "ciProduct", "betaTesters", "betaGroups", "appStoreVersions", "appTags", "preReleaseVersions", "betaAppLocalizations", "builds", "betaLicenseAgreement", "betaAppReviewDetail", "appInfos", "appClips", "appPricePoints", "endUserLicenseAgreement", "appPriceSchedule", "appAvailabilityV2", "inAppPurchases", "subscriptionGroups", "gameCenterEnabledVersions", "performanceOverviews", "perfPowerMetrics", "appCustomProductPages", "inAppPurchasesV2", "promotedPurchases", "appEvents", "reviewSubmissions", "subscriptionGracePeriod", "customerReviews", "customerReviewSummarizations", "gameCenterDetail", "appStoreVersionExperimentsV2", "alternativeDistributionKey", "analyticsReportRequests", "marketplaceSearchDetail", "buildUploads", "backgroundAssets", "assetLibrary", "betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "searchKeywords", "webhooks", "androidToIosAppMappingDetails"}}, // Apple rejects spec value appEncryptionDeclarations: 400 "is not a valid field name" or HTTP 500.
 	"backgroundAssetVersions":                {"background-asset-version-fields", []string{"createdDate", "platforms", "state", "stateDetails", "version", "locale", "backgroundAsset", "internalBetaRelease", "externalBetaRelease", "appStoreRelease", "assetFile", "manifestFile", "backgroundAssetUploadFiles"}},
 	"betaAppReviewSubmissions":               {"beta-app-review-submission-fields", []string{"betaReviewState", "submittedDate", "build"}},
 	"betaBuildLocalizations":                 {"beta-build-localization-fields", []string{"whatsNew", "locale", "build"}},
@@ -50,7 +50,7 @@ var includedResources = map[string]includedResource{
 	"buildIcons":                             {"build-icon-fields", []string{"iconAsset", "iconType", "masked", "name"}},
 	"buildUploads":                           {"build-upload-fields", []string{"cfBundleShortVersionString", "cfBundleVersion", "createdDate", "state", "platform", "uploadedDate", "build", "assetFile", "assetDescriptionFile", "assetSpiFile", "buildUploadFiles"}},
 	"builds":                                 {"build-fields", []string{"version", "uploadedDate", "expirationDate", "expired", "minOsVersion", "lsMinimumSystemVersion", "computedMinMacOsVersion", "computedMinVisionOsVersion", "iconAssetToken", "processingState", "buildAudienceType", "usesNonExemptEncryption", "preReleaseVersion", "individualTesters", "betaGroups", "betaBuildLocalizations", "appEncryptionDeclaration", "betaAppReviewSubmission", "app", "buildBetaDetail", "appStoreVersion", "icons", "buildBundles", "buildUpload", "perfPowerMetrics", "diagnosticSignatures"}},
-	"bundleIds":                              {"bundle-id-fields", []string{"name", "platform", "identifier", "seedId", "profiles", "bundleIdCapabilities", "app"}},
+	"bundleIds":                              {"bundle-id-fields", []string{"name", "platform", "identifier", "seedId", "profiles", "bundleIdCapabilities"}}, // Apple rejects spec value app: 400 "'app' does not exist".
 	"certificates":                           {"certificate-fields", []string{"name", "certificateType", "displayName", "serialNumber", "platform", "expirationDate", "certificateContent", "activated", "passTypeId"}},
 	"devices":                                {"device-fields", []string{"name", "platform", "udid", "deviceClass", "status", "model", "addedDate"}},
 	"gameCenterAchievementVersions":          {"game-center-achievement-version-fields", []string{"version", "state", "achievement", "localizations"}},
@@ -78,6 +78,7 @@ type includedFieldFlag struct {
 	name         string
 	resourceType string
 	includes     []string
+	fields       []string
 	value        *string
 }
 
@@ -91,6 +92,13 @@ type IncludedFieldFlags struct {
 // BindIncludedFieldFlags binds one sparse-field flag per resource type.
 // relationships maps each --include value to the resource type it returns.
 func BindIncludedFieldFlags(fs *flag.FlagSet, relationships map[string]string) *IncludedFieldFlags {
+	return BindIncludedFieldFlagsExcept(fs, relationships, nil)
+}
+
+// BindIncludedFieldFlagsExcept is BindIncludedFieldFlags without the
+// fields[type] values, keyed by resource type, that Apple rejects on this
+// command.
+func BindIncludedFieldFlagsExcept(fs *flag.FlagSet, relationships map[string]string, rejected map[string][]string) *IncludedFieldFlags {
 	includes := map[string][]string{}
 	for _, include := range slices.Sorted(maps.Keys(relationships)) {
 		resourceType := relationships[include]
@@ -99,11 +107,15 @@ func BindIncludedFieldFlags(fs *flag.FlagSet, relationships map[string]string) *
 	bound := &IncludedFieldFlags{fs: fs}
 	for _, resourceType := range slices.Sorted(maps.Keys(includes)) {
 		name := includedResources[resourceType].flagName
+		fields := slices.DeleteFunc(slices.Clone(includedResources[resourceType].fields), func(value string) bool {
+			return slices.Contains(rejected[resourceType], value)
+		})
 		usage := "fields[" + resourceType + "], comma-separated (requires --include " + strings.Join(includes[resourceType], " or ") + ")"
 		bound.flags = append(bound.flags, includedFieldFlag{
 			name:         name,
 			resourceType: resourceType,
 			includes:     includes[resourceType],
+			fields:       fields,
 			value:        fs.String(name, "", usage),
 		})
 	}
@@ -130,7 +142,7 @@ func (f *IncludedFieldFlags) Resolve(command, next string, includes []string) (a
 			continue
 		}
 		flagName := "--" + field.name
-		values, err := NormalizeSelection(*field.value, includedResources[field.resourceType].fields, flagName)
+		values, err := NormalizeSelection(*field.value, field.fields, flagName)
 		if err != nil {
 			return nil, WithDiagnostic(UsageErrorf("%s: %v", command, err), DiagnosticInvalidInput, flagName)
 		}

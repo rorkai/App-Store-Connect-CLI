@@ -205,7 +205,11 @@ func UsersGetCommand() *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "users", "User ID")
 	include := fs.String("include", "", "Include related resources: visibleApps")
-	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"visibleApps": "apps"})
+	// Apple rejects these spec fields[apps] values with 400 on users view.
+	includedFields := shared.BindIncludedFieldFlagsExcept(fs, map[string]string{"visibleApps": "apps"}, map[string][]string{"apps": {
+		"appStoreIcon", "performanceOverviews", "customerReviewSummarizations", "analyticsReportRequests",
+		"betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "webhooks", "androidToIosAppMappingDetails",
+	}})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

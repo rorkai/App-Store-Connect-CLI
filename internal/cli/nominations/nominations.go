@@ -919,14 +919,14 @@ func nominationFieldsList() []string {
 }
 
 // nominationIncludedResources maps each --include value to the resource it
-// returns.
+// returns. inAppEvents and supportedTerritories get no field flag: Apple
+// rejects every spec fields[appEvents] and fields[territories] value here with
+// 400 "is not a valid field name".
 var nominationIncludedResources = map[string]string{
-	"relatedApps":          "apps",
-	"createdByActor":       "actors",
-	"lastModifiedByActor":  "actors",
-	"submittedByActor":     "actors",
-	"inAppEvents":          "appEvents",
-	"supportedTerritories": "territories",
+	"relatedApps":         "apps",
+	"createdByActor":      "actors",
+	"lastModifiedByActor": "actors",
+	"submittedByActor":    "actors",
 }
 
 func nominationIncludeList() []string {

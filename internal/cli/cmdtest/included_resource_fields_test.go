@@ -34,6 +34,19 @@ type includedFieldsCase struct {
 	nextSelector []string
 	// alwaysIncluded lists flags whose relationship the command always requests.
 	alwaysIncluded []string
+	// rejected lists fields[type] values the spec allows on this command but
+	// Apple rejected live.
+	rejected map[string][]string
+	// removed lists field flags the command must not define because Apple
+	// rejected every value live.
+	removed []string
+}
+
+// liveRejectedFields lists fields[type] values the spec allows but Apple
+// rejected live on every command that includes the type.
+var liveRejectedFields = map[string][]string{
+	"apps":      {"appEncryptionDeclarations"},
+	"bundleIds": {"app"},
 }
 
 func openAPIFieldValues(t *testing.T, operation string) map[string][]string {
@@ -106,10 +119,8 @@ var versionIncludedFieldFlags = map[string]string{
 }
 
 var nominationIncludedFieldFlags = map[string]string{
-	"app-fields":       "apps",
-	"actor-fields":     "actors",
-	"app-event-fields": "appEvents",
-	"territory-fields": "territories",
+	"app-fields":   "apps",
+	"actor-fields": "actors",
 }
 
 var encryptionIncludedFieldFlags = map[string]string{"app-fields": "apps", "build-fields": "builds"}
@@ -189,6 +200,10 @@ func includedFieldsCases() []includedFieldsCase {
 			command: []string{"users", "view"}, selector: []string{"--id", "user-1"},
 			include: "visibleApps", path: "/v1/users/user-1",
 			flags: map[string]string{"app-fields": "apps"},
+			rejected: map[string][]string{"apps": {
+				"appStoreIcon", "performanceOverviews", "customerReviewSummarizations", "analyticsReportRequests",
+				"betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "webhooks", "androidToIosAppMappingDetails",
+			}},
 		},
 		{
 			name: "app clip default experiences view", operation: "appClipDefaultExperiences_getInstance", resource: true, noNext: true,
@@ -230,13 +245,13 @@ func includedFieldsCases() []includedFieldsCase {
 			name: "nominations list", operation: "nominations_getCollection",
 			command: []string{"nominations", "list"}, selector: []string{"--status", "DRAFT"},
 			include: nominationIncludes, path: "/v1/nominations", query: map[string]string{"filter[state]": "DRAFT"},
-			flags: nominationIncludedFieldFlags,
+			flags: nominationIncludedFieldFlags, removed: []string{"app-event-fields", "territory-fields"},
 		},
 		{
 			name: "nominations view", operation: "nominations_getInstance", resource: true, noNext: true,
 			command: []string{"nominations", "view"}, selector: []string{"--id", "nomination-1"},
 			include: nominationIncludes, path: "/v1/nominations/nomination-1",
-			flags: nominationIncludedFieldFlags,
+			flags: nominationIncludedFieldFlags, removed: []string{"app-event-fields", "territory-fields"},
 		},
 		{
 			name: "testflight testers list", operation: "betaTesters_getCollection",
@@ -304,13 +319,15 @@ func includedFieldsCases() []includedFieldsCase {
 			name: "testflight crashes list", operation: "apps_betaFeedbackCrashSubmissions_getToManyRelated",
 			command: []string{"testflight", "crashes", "list"}, selector: []string{"--app", "123456789"},
 			include: "build,tester", path: "/v1/apps/123456789/betaFeedbackCrashSubmissions", query: map[string]string{"fields[builds]": "version,preReleaseVersion"},
-			flags: map[string]string{"build-fields": "builds", "tester-fields": "betaTesters"},
+			flags:    map[string]string{"build-fields": "builds", "tester-fields": "betaTesters"},
+			rejected: map[string][]string{"betaTesters": {"appDevices"}},
 		},
 		{
 			name: "testflight feedback list", operation: "apps_betaFeedbackScreenshotSubmissions_getToManyRelated",
 			command: []string{"testflight", "feedback", "list"}, selector: []string{"--app", "123456789"},
 			include: "build,tester", path: "/v1/apps/123456789/betaFeedbackScreenshotSubmissions", query: map[string]string{"fields[builds]": "version,preReleaseVersion"},
-			flags: map[string]string{"build-fields": "builds", "tester-fields": "betaTesters"},
+			flags:    map[string]string{"build-fields": "builds", "tester-fields": "betaTesters"},
+			rejected: map[string][]string{"betaTesters": {"appDevices"}},
 		},
 		{
 			name: "localization placements list", operation: "appStoreVersionLocalizations_placements_getToManyRelated",
@@ -418,7 +435,13 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 			args := slices.Concat(selected, []string{"--include", tc.include})
 			want := omitted.Query()
 			for flagName, resourceType := range tc.flags {
-				values := allowed[resourceType]
+				rejected := slices.Concat(liveRejectedFields[resourceType], tc.rejected[resourceType])
+				for _, value := range rejected {
+					if !slices.Contains(allowed[resourceType], value) {
+						t.Fatalf("%s: rejected value %q is not in the spec for fields[%s]", flagName, value, resourceType)
+					}
+				}
+				values := slices.DeleteFunc(slices.Clone(allowed[resourceType]), func(value string) bool { return slices.Contains(rejected, value) })
 				if len(values) == 0 {
 					t.Fatalf("%s: %s accepts no fields[%s]", flagName, tc.operation, resourceType)
 				}
@@ -443,6 +466,20 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 				}
 				assertUsageError(t, slices.Concat(selected, []string{"--include", tc.include, "--" + flagName, "notAField"}), "--"+flagName+" must be one of")
 				assertUsageError(t, slices.Concat(selected, []string{"--include", tc.include, "--" + flagName, " , "}), "--"+flagName+" must not be empty")
+				for _, value := range slices.Concat(liveRejectedFields[resourceType], tc.rejected[resourceType]) {
+					assertUsageError(t, slices.Concat(selected, []string{"--include", tc.include, "--" + flagName, value}), "--"+flagName+" must be one of")
+				}
+			}
+
+			for _, flagName := range tc.removed {
+				requests = nil
+				var code int
+				_, stderr := captureOutput(t, func() {
+					code = rootcmd.Run(slices.Concat(selected, []string{"--include", tc.include, "--" + flagName, "name"}), "1.2.3")
+				})
+				if code != rootcmd.ExitUsage || !strings.Contains(stderr, "unknown flag `--"+flagName+"`") || len(requests) != 0 {
+					t.Fatalf("--%s: exit %d, stderr %q, requests %v; want an unknown-flag usage error before any request", flagName, code, stderr, requests)
+				}
 			}
 		})
 	}
