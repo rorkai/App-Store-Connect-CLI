@@ -515,6 +515,7 @@ func GameCenterActivityAchievementsSetCommand() *ffcli.Command {
 
 	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
 	ids := shared.BindOnceCSVFlag(fs, "ids", "Comma-separated achievement IDs")
+	v2 := fs.Bool("v2", false, "Use v2 relationships endpoint")
 	remove := fs.Bool("remove", false, "Remove relationships instead of adding")
 	confirm := fs.Bool("confirm", false, "Confirm removal (required with --remove)")
 	output := shared.BindOutputFlags(fs)
@@ -527,6 +528,7 @@ func GameCenterActivityAchievementsSetCommand() *ffcli.Command {
 
 Examples:
   asc game-center activities achievements set --activity-id "ACTIVITY_ID" --ids "ACH_1,ACH_2"
+  asc game-center activities achievements set --activity-id "ACTIVITY_ID" --ids "ACH_1" --v2
   asc game-center activities achievements set --activity-id "ACTIVITY_ID" --ids "ACH_1" --remove --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -557,12 +559,17 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			removeRelationships, addRelationships := client.RemoveGameCenterActivityAchievements, client.AddGameCenterActivityAchievements
+			if *v2 {
+				removeRelationships, addRelationships = client.RemoveGameCenterActivityAchievementsV2, client.AddGameCenterActivityAchievementsV2
+			}
+
 			if *remove {
-				if err := client.RemoveGameCenterActivityAchievements(requestCtx, id, idsValue); err != nil {
+				if err := removeRelationships(requestCtx, id, idsValue); err != nil {
 					return fmt.Errorf("game-center activities achievements set: failed to remove: %w", err)
 				}
 			} else {
-				if err := client.AddGameCenterActivityAchievements(requestCtx, id, idsValue); err != nil {
+				if err := addRelationships(requestCtx, id, idsValue); err != nil {
 					return fmt.Errorf("game-center activities achievements set: failed to add: %w", err)
 				}
 			}
@@ -605,6 +612,7 @@ func GameCenterActivityLeaderboardsSetCommand() *ffcli.Command {
 
 	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
 	ids := shared.BindOnceCSVFlag(fs, "ids", "Comma-separated leaderboard IDs")
+	v2 := fs.Bool("v2", false, "Use v2 relationships endpoint")
 	remove := fs.Bool("remove", false, "Remove relationships instead of adding")
 	confirm := fs.Bool("confirm", false, "Confirm removal (required with --remove)")
 	output := shared.BindOutputFlags(fs)
@@ -617,6 +625,7 @@ func GameCenterActivityLeaderboardsSetCommand() *ffcli.Command {
 
 Examples:
   asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1,LB_2"
+  asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1" --v2
   asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1" --remove --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -647,12 +656,17 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			removeRelationships, addRelationships := client.RemoveGameCenterActivityLeaderboards, client.AddGameCenterActivityLeaderboards
+			if *v2 {
+				removeRelationships, addRelationships = client.RemoveGameCenterActivityLeaderboardsV2, client.AddGameCenterActivityLeaderboardsV2
+			}
+
 			if *remove {
-				if err := client.RemoveGameCenterActivityLeaderboards(requestCtx, id, idsValue); err != nil {
+				if err := removeRelationships(requestCtx, id, idsValue); err != nil {
 					return fmt.Errorf("game-center activities leaderboards set: failed to remove: %w", err)
 				}
 			} else {
-				if err := client.AddGameCenterActivityLeaderboards(requestCtx, id, idsValue); err != nil {
+				if err := addRelationships(requestCtx, id, idsValue); err != nil {
 					return fmt.Errorf("game-center activities leaderboards set: failed to add: %w", err)
 				}
 			}
@@ -1244,10 +1258,11 @@ func GameCenterActivityImagesCommand() *ffcli.Command {
 		Name:       "images",
 		ShortUsage: "asc game-center activities images <subcommand> [flags]",
 		ShortHelp:  "Manage Game Center activity images.",
-		LongHelp: `Manage Game Center activity images. Images are attached to activity localizations.
+		LongHelp: `Manage Game Center activity images. Images are attached to activity localizations, or to activity versions as the default image.
 
 Examples:
   asc game-center activities images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
+  asc game-center activities images upload --version-id "VERSION_ID" --file path/to/image.png
   asc game-center activities images view --id "IMAGE_ID"
   asc game-center activities images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
@@ -1267,27 +1282,29 @@ Examples:
 func GameCenterActivityImagesUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("upload", flag.ExitOnError)
 
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterActivityLocalizations", "Activity localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterActivityLocalizations", "Activity localization ID (exactly one of --localization-id or --version-id)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterActivityVersions", "Activity version ID, to set the version's default image (exactly one of --localization-id or --version-id)")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
-		ShortUsage: "asc game-center activities images upload --localization-id \"LOCALIZATION_ID\" --file path/to/image.png",
-		ShortHelp:  "Upload an image for an activity localization.",
-		LongHelp: `Upload an image for an activity localization.
+		ShortUsage: "asc game-center activities images upload (--localization-id \"LOCALIZATION_ID\" | --version-id \"VERSION_ID\") --file path/to/image.png",
+		ShortHelp:  "Upload an image for an activity localization or version.",
+		LongHelp: `Upload an image for an activity localization, or a default image for an activity version.
 
 The upload process reserves an upload slot, uploads the image file, and commits the upload.
 
 Examples:
-  asc game-center activities images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png`,
+  asc game-center activities images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
+  asc game-center activities images upload --version-id "VERSION_ID" --file path/to/image.png`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
-			if locID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+			verID := strings.TrimSpace(*versionID)
+			if (locID == "") == (verID == "") {
+				return shared.UsageError("exactly one of --localization-id or --version-id is required")
 			}
 
 			file := strings.TrimSpace(*filePath)
@@ -1304,7 +1321,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
 			defer cancel()
 
-			result, err := client.UploadGameCenterActivityImage(requestCtx, locID, file)
+			result, err := client.UploadGameCenterActivityImage(requestCtx, locID, verID, file)
 			if err != nil {
 				return fmt.Errorf("game-center activities images upload: %w", err)
 			}

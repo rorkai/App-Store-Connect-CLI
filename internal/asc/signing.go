@@ -111,6 +111,7 @@ type BundleIDCreateAttributes struct {
 	Name       string           `json:"name"`
 	Identifier string           `json:"identifier"`
 	Platform   BundleIDPlatform `json:"platform"`
+	SeedID     string           `json:"seedId,omitempty"`
 }
 
 // BundleIDUpdateAttributes describes attributes for updating a bundle ID.

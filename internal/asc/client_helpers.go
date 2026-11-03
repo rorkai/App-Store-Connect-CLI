@@ -6,6 +6,18 @@ import (
 	"strings"
 )
 
+func buildRelationshipList(resourceType ResourceType, ids []string) *RelationshipList {
+	normalized := normalizeList(ids)
+	if len(normalized) == 0 {
+		return nil
+	}
+	data := make([]ResourceData, 0, len(normalized))
+	for _, id := range normalized {
+		data = append(data, ResourceData{Type: resourceType, ID: id})
+	}
+	return &RelationshipList{Data: data}
+}
+
 func normalizeList(values []string) []string {
 	if len(values) == 0 {
 		return nil
@@ -19,6 +31,20 @@ func normalizeList(values []string) []string {
 		normalized = append(normalized, value)
 	}
 	return normalized
+}
+
+// buildToManyRelationship returns nil for an empty list so an omitted optional
+// relationship stays out of the request body.
+func buildToManyRelationship(resourceType ResourceType, ids []string) *RelationshipList {
+	ids = normalizeList(ids)
+	if len(ids) == 0 {
+		return nil
+	}
+	data := make([]ResourceData, 0, len(ids))
+	for _, id := range ids {
+		data = append(data, ResourceData{Type: resourceType, ID: id})
+	}
+	return &RelationshipList{Data: data}
 }
 
 func normalizeUniqueList(values []string) []string {

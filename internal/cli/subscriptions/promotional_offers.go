@@ -201,6 +201,7 @@ func SubscriptionsPromotionalOffersCreateCommand() *ffcli.Command {
 	offerMode := fs.String("offer-mode", "", "Offer mode: "+strings.Join(subscriptionOfferModeValues, ", "))
 	numberOfPeriods := fs.Int("number-of-periods", 0, "Number of periods (required)")
 	prices := shared.BindOnceCSVFlag(fs, "prices", "Promotional offer prices (required): existing PRICE_ID entries, inline TERRITORY entries, or inline TERRITORY:PRICE_POINT_ID entries; territory accepts alpha-2, alpha-3, or exact English country name")
+	targetPlanType := shared.BindTargetSubscriptionPlanTypeFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -212,7 +213,8 @@ func SubscriptionsPromotionalOffersCreateCommand() *ffcli.Command {
 Examples:
   asc subscriptions promotional-offers create --subscription-id "SUB_ID" --offer-code "SPRING" --name "Spring" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "US"
   asc subscriptions promotional-offers create --subscription-id "SUB_ID" --offer-code "SPRING" --name "Spring" --offer-duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "US:PRICE_POINT_ID"
-  asc subscriptions promotional-offers create --subscription-id "SUB_ID" --offer-code "SPRING" --name "Spring" --offer-duration ONE_MONTH --offer-mode PAY_UP_FRONT --number-of-periods 1 --prices "EXISTING_PROMOTIONAL_OFFER_PRICE_ID"`,
+  asc subscriptions promotional-offers create --subscription-id "SUB_ID" --offer-code "SPRING" --name "Spring" --offer-duration ONE_MONTH --offer-mode PAY_UP_FRONT --number-of-periods 1 --prices "EXISTING_PROMOTIONAL_OFFER_PRICE_ID"
+  asc subscriptions promotional-offers create --subscription-id "SUB_ID" --offer-code "SPRING" --name "Spring" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "US" --target-subscription-plan-type MONTHLY`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -261,6 +263,11 @@ Examples:
 				return shared.MissingRequiredUsageError("--prices")
 			}
 
+			planType, err := targetPlanType()
+			if err != nil {
+				return err
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions promotional-offers create: %w", err)
@@ -275,11 +282,12 @@ Examples:
 			defer cancel()
 
 			attrs := asc.SubscriptionPromotionalOfferCreateAttributes{
-				Duration:        duration,
-				Name:            nameValue,
-				NumberOfPeriods: *numberOfPeriods,
-				OfferCode:       offerCodeValue,
-				OfferMode:       mode,
+				Duration:                   duration,
+				Name:                       nameValue,
+				NumberOfPeriods:            *numberOfPeriods,
+				OfferCode:                  offerCodeValue,
+				OfferMode:                  mode,
+				TargetSubscriptionPlanType: planType,
 			}
 
 			resp, err := client.CreateSubscriptionPromotionalOffer(requestCtx, id, attrs, priceEntries)

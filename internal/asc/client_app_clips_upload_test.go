@@ -4,7 +4,10 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/md5"
 	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +34,29 @@ func newUploadTestClient(t *testing.T, handler func(*http.Request) (*http.Respon
 		keyID:      "KEY123",
 		issuerID:   "ISS456",
 		privateKey: key,
+	}
+}
+
+func assertAppClipImageCommit(t *testing.T, req *http.Request, content []byte) {
+	t.Helper()
+
+	var payload struct {
+		Data struct {
+			Attributes struct {
+				SourceFileChecksum string `json:"sourceFileChecksum"`
+				Uploaded           bool   `json:"uploaded"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode commit body: %v", err)
+	}
+	sum := md5.Sum(content)
+	if got, want := payload.Data.Attributes.SourceFileChecksum, hex.EncodeToString(sum[:]); got != want {
+		t.Fatalf("sourceFileChecksum = %q, want %q", got, want)
+	}
+	if !payload.Data.Attributes.Uploaded {
+		t.Fatal("uploaded = false, want true")
 	}
 }
 
@@ -64,6 +90,7 @@ func TestUploadAppClipHeaderImage(t *testing.T) {
 			body := fmt.Sprintf(`{"data":{"type":"appClipHeaderImages","id":"img-1","attributes":{"uploadOperations":[{"method":"PUT","url":"%s","length":%d,"offset":0}]}}}`, server.URL, fileInfo.Size())
 			return jsonResponse(http.StatusCreated, body), nil
 		case "/v1/appClipHeaderImages/img-1":
+			assertAppClipImageCommit(t, req, []byte("header-image"))
 			body := `{"data":{"type":"appClipHeaderImages","id":"img-1","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`
 			return jsonResponse(http.StatusOK, body), nil
 		default:
@@ -119,6 +146,7 @@ func TestUploadAppClipAdvancedExperienceImage(t *testing.T) {
 			body := fmt.Sprintf(`{"data":{"type":"appClipAdvancedExperienceImages","id":"img-2","attributes":{"uploadOperations":[{"method":"PUT","url":"%s","length":%d,"offset":0}]}}}`, server.URL, fileInfo.Size())
 			return jsonResponse(http.StatusCreated, body), nil
 		case "/v1/appClipAdvancedExperienceImages/img-2":
+			assertAppClipImageCommit(t, req, []byte("advanced-image"))
 			body := `{"data":{"type":"appClipAdvancedExperienceImages","id":"img-2","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`
 			return jsonResponse(http.StatusOK, body), nil
 		default:

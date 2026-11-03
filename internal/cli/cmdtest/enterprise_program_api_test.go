@@ -159,7 +159,7 @@ func TestEnterpriseUsersInviteOmitsAppVisibility(t *testing.T) {
 	}
 }
 
-func TestEnterpriseUsersRejectAppVisibilityFlags(t *testing.T) {
+func TestEnterpriseUsersRejectUnsupportedFlags(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -175,6 +175,14 @@ func TestEnterpriseUsersRejectAppVisibilityFlags(t *testing.T) {
 		{
 			name: "update visible app",
 			args: []string{"users", "update", "--id", "USER", "--roles", "ADMIN", "--visible-app", "APP", "--confirm"},
+		},
+		{
+			name: "invite provisioning allowed",
+			args: []string{"users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "ADMIN", "--provisioning-allowed", "false"},
+		},
+		{
+			name: "update provisioning allowed",
+			args: []string{"users", "update", "--id", "USER", "--roles", "ADMIN", "--provisioning-allowed", "true"},
 		},
 	}
 

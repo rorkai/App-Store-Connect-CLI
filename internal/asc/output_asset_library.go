@@ -151,18 +151,19 @@ func assetLibraryImageUploadRows(result *AssetLibraryImageUploadResult) ([]strin
 // AssetLibraryVideoUploadResult reports upload and processing independently.
 // VideoID is retained in a partial result after reservation.
 type AssetLibraryVideoUploadResult struct {
-	VideoID       string `json:"videoId"`
-	Category      string `json:"category,omitempty"`
-	LibraryID     string `json:"libraryId"`
-	FileName      string `json:"fileName"`
-	FileSize      int64  `json:"fileSize"`
-	ReferenceName string `json:"referenceName,omitempty"`
-	Uploaded      bool   `json:"uploaded"`
-	Ready         bool   `json:"ready"`
-	State         string `json:"state,omitempty"`
-	SpecID        string `json:"specId,omitempty"`
-	Width         int    `json:"width,omitempty"`
-	Height        int    `json:"height,omitempty"`
+	VideoID              string `json:"videoId"`
+	Category             string `json:"category,omitempty"`
+	LibraryID            string `json:"libraryId"`
+	FileName             string `json:"fileName"`
+	FileSize             int64  `json:"fileSize"`
+	ReferenceName        string `json:"referenceName,omitempty"`
+	PreviewFrameTimeCode string `json:"previewFrameTimeCode,omitempty"`
+	Uploaded             bool   `json:"uploaded"`
+	Ready                bool   `json:"ready"`
+	State                string `json:"state,omitempty"`
+	SpecID               string `json:"specId,omitempty"`
+	Width                int    `json:"width,omitempty"`
+	Height               int    `json:"height,omitempty"`
 }
 
 func assetLibraryVideoUploadRows(result *AssetLibraryVideoUploadResult) ([]string, [][]string) {

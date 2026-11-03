@@ -391,6 +391,10 @@ func TestLibraryUploadFlagConflicts(t *testing.T) {
 		{previews("--placement-group", "G"), "--placement-group requires --asset-library"},
 		{previews("--asset-library", "--skip-existing"), "--asset-library cannot be combined with --skip-existing"},
 		{previews("--asset-library", "--replace", "--confirm"), "--asset-library cannot be combined with --replace"},
+		{previews("--asset-library", "--time-code", "00:00:05:00"), "--time-code cannot be combined with --asset-library"},
+		{previews("--time-code", "  "), "--time-code must be in HH:MM:SS:FF or HH:MM:SS.mmm format"},
+		{previews("--time-code", "5s"), "--time-code must be in HH:MM:SS:FF or HH:MM:SS.mmm format"},
+		{previews("--time-code", "00:00:05"), "--time-code must be in HH:MM:SS:FF or HH:MM:SS.mmm format"},
 	}
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {

@@ -947,10 +947,11 @@ func GameCenterChallengeImagesCommand() *ffcli.Command {
 		Name:       "images",
 		ShortUsage: "asc game-center challenges images <subcommand> [flags]",
 		ShortHelp:  "Manage Game Center challenge images.",
-		LongHelp: `Manage Game Center challenge images. Images are attached to challenge localizations.
+		LongHelp: `Manage Game Center challenge images. Images are attached to challenge localizations, or to challenge versions as the default image.
 
 Examples:
   asc game-center challenges images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
+  asc game-center challenges images upload --version-id "VERSION_ID" --file path/to/image.png
   asc game-center challenges images view --id "IMAGE_ID"
   asc game-center challenges images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
@@ -970,27 +971,29 @@ Examples:
 func GameCenterChallengeImagesUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("upload", flag.ExitOnError)
 
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterChallengeLocalizations", "Challenge localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterChallengeLocalizations", "Challenge localization ID (exactly one of --localization-id or --version-id)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterChallengeVersions", "Challenge version ID, to set the version's default image (exactly one of --localization-id or --version-id)")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
-		ShortUsage: "asc game-center challenges images upload --localization-id \"LOCALIZATION_ID\" --file path/to/image.png",
-		ShortHelp:  "Upload an image for a challenge localization.",
-		LongHelp: `Upload an image for a challenge localization.
+		ShortUsage: "asc game-center challenges images upload (--localization-id \"LOCALIZATION_ID\" | --version-id \"VERSION_ID\") --file path/to/image.png",
+		ShortHelp:  "Upload an image for a challenge localization or version.",
+		LongHelp: `Upload an image for a challenge localization, or a default image for a challenge version.
 
 The upload process reserves an upload slot, uploads the image file, and commits the upload.
 
 Examples:
-  asc game-center challenges images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png`,
+  asc game-center challenges images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
+  asc game-center challenges images upload --version-id "VERSION_ID" --file path/to/image.png`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
-			if locID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+			verID := strings.TrimSpace(*versionID)
+			if (locID == "") == (verID == "") {
+				return shared.UsageError("exactly one of --localization-id or --version-id is required")
 			}
 
 			file := strings.TrimSpace(*filePath)
@@ -1007,7 +1010,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
 			defer cancel()
 
-			result, err := client.UploadGameCenterChallengeImage(requestCtx, locID, file)
+			result, err := client.UploadGameCenterChallengeImage(requestCtx, locID, verID, file)
 			if err != nil {
 				return fmt.Errorf("game-center challenges images upload: %w", err)
 			}

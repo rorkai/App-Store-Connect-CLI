@@ -326,10 +326,29 @@ type SubscriptionAvailabilityTerritoriesOption func(*subscriptionAvailabilityTer
 
 type subscriptionGroupsQuery struct {
 	listQuery
-	include       []string
-	groupFields   []string
-	versionFields []string
-	versionsLimit int
+	include            []string
+	groupFields        []string
+	versionFields      []string
+	subscriptionFields []string
+	localizationFields []string
+	versionsLimit      int
+}
+
+// SubscriptionRelatedFields selects sparse fields for resources included with a subscription.
+// Selecting fields for a resource also requests its relationship.
+type SubscriptionRelatedFields struct {
+	Localizations      []string
+	ReviewScreenshots  []string
+	Groups             []string
+	IntroductoryOffers []string
+	PromotionalOffers  []string
+	OfferCodes         []string
+	Prices             []string
+	PromotedPurchases  []string
+	Availabilities     []string
+	WinBackOffers      []string
+	Images             []string
+	PlanAvailabilities []string
 }
 
 type subscriptionsQuery struct {
@@ -338,6 +357,7 @@ type subscriptionsQuery struct {
 	names         []string
 	fields        []string
 	versionFields []string
+	relatedFields SubscriptionRelatedFields
 	include       []string
 	versionLimit  int
 }
@@ -345,6 +365,7 @@ type subscriptionsQuery struct {
 type subscriptionQuery struct {
 	fields        []string
 	versionFields []string
+	relatedFields SubscriptionRelatedFields
 	include       []string
 	versionLimit  int
 }
@@ -382,6 +403,20 @@ func WithSubscriptionGroupsInclude(include []string) SubscriptionGroupsOption {
 func WithSubscriptionGroupsFields(fields []string) SubscriptionGroupsOption {
 	return func(q *subscriptionGroupsQuery) {
 		q.groupFields = normalizeUniqueList(fields)
+	}
+}
+
+// WithSubscriptionGroupsSubscriptionFields sets sparse fields for included subscriptions.
+func WithSubscriptionGroupsSubscriptionFields(fields []string) SubscriptionGroupsOption {
+	return func(q *subscriptionGroupsQuery) {
+		q.subscriptionFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionGroupsLocalizationFields sets sparse fields for included group localizations.
+func WithSubscriptionGroupsLocalizationFields(fields []string) SubscriptionGroupsOption {
+	return func(q *subscriptionGroupsQuery) {
+		q.localizationFields = normalizeList(fields)
 	}
 }
 
@@ -443,6 +478,11 @@ func WithSubscriptionsVersionFields(fields []string) SubscriptionsOption {
 	return func(q *subscriptionsQuery) { q.versionFields = normalizeList(fields) }
 }
 
+// WithSubscriptionsRelatedFields sets sparse fields for included related resources.
+func WithSubscriptionsRelatedFields(fields SubscriptionRelatedFields) SubscriptionsOption {
+	return func(q *subscriptionsQuery) { q.relatedFields = fields }
+}
+
 // WithSubscriptionsInclude sets relationships to include.
 func WithSubscriptionsInclude(include []string) SubscriptionsOption {
 	return func(q *subscriptionsQuery) { q.include = normalizeList(include) }
@@ -465,6 +505,11 @@ func WithSubscriptionFields(fields []string) SubscriptionOption {
 // WithSubscriptionIncludedVersionFields sets sparse fields for included versions.
 func WithSubscriptionIncludedVersionFields(fields []string) SubscriptionOption {
 	return func(q *subscriptionQuery) { q.versionFields = normalizeList(fields) }
+}
+
+// WithSubscriptionRelatedFields sets sparse fields for included related resources.
+func WithSubscriptionRelatedFields(fields SubscriptionRelatedFields) SubscriptionOption {
+	return func(q *subscriptionQuery) { q.relatedFields = fields }
 }
 
 // WithSubscriptionInclude sets relationships to include for a subscription detail response.
@@ -499,11 +544,53 @@ func WithSubscriptionAvailabilityTerritoriesNextURL(next string) SubscriptionAva
 	}
 }
 
+type relatedSparseField struct {
+	parameter    string
+	relationship string
+	fields       []string
+}
+
+func (f SubscriptionRelatedFields) sparseFields() []relatedSparseField {
+	return []relatedSparseField{
+		{"fields[subscriptionLocalizations]", "subscriptionLocalizations", f.Localizations},
+		{"fields[subscriptionAppStoreReviewScreenshots]", "appStoreReviewScreenshot", f.ReviewScreenshots},
+		{"fields[subscriptionGroups]", "group", f.Groups},
+		{"fields[subscriptionIntroductoryOffers]", "introductoryOffers", f.IntroductoryOffers},
+		{"fields[subscriptionPromotionalOffers]", "promotionalOffers", f.PromotionalOffers},
+		{"fields[subscriptionOfferCodes]", "offerCodes", f.OfferCodes},
+		{"fields[subscriptionPrices]", "prices", f.Prices},
+		{"fields[promotedPurchases]", "promotedPurchase", f.PromotedPurchases},
+		{"fields[subscriptionAvailabilities]", "subscriptionAvailability", f.Availabilities},
+		{"fields[winBackOffers]", "winBackOffers", f.WinBackOffers},
+		{"fields[subscriptionImages]", "images", f.Images},
+		{"fields[subscriptionPlanAvailabilities]", "planAvailabilities", f.PlanAvailabilities},
+	}
+}
+
+// addRelatedSparseFields writes the primary fields and include alongside the related
+// fields, because a selected related resource needs its relationship in both.
+func addRelatedSparseFields(values url.Values, primaryParameter string, primary, include []string, related ...relatedSparseField) {
+	for _, field := range related {
+		if len(field.fields) == 0 {
+			continue
+		}
+		addCSV(values, field.parameter, field.fields)
+		include = includeWhenFieldsSelected(include, field.relationship, field.fields)
+		if len(primary) > 0 {
+			primary = includeWhenFieldsSelected(primary, field.relationship, field.fields)
+		}
+	}
+	addCSV(values, primaryParameter, primary)
+	addCSV(values, "include", include)
+}
+
 func buildSubscriptionGroupsQuery(query *subscriptionGroupsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
-	addCSV(values, "include", query.include)
-	addCSV(values, "fields[subscriptionGroups]", query.groupFields)
+	addRelatedSparseFields(values, "fields[subscriptionGroups]", query.groupFields, query.include,
+		relatedSparseField{"fields[subscriptions]", "subscriptions", query.subscriptionFields},
+		relatedSparseField{"fields[subscriptionGroupLocalizations]", "subscriptionGroupLocalizations", query.localizationFields},
+	)
 	addCSV(values, "fields[subscriptionGroupVersions]", query.versionFields)
 	if query.versionsLimit > 0 {
 		values.Set("limit[versions]", strconv.Itoa(query.versionsLimit))
@@ -516,18 +603,16 @@ func buildSubscriptionsQuery(query *subscriptionsQuery) string {
 	addLimit(values, query.limit)
 	addCSV(values, "filter[productId]", query.productIDs)
 	addCSV(values, "filter[name]", query.names)
-	addCSV(values, "fields[subscriptions]", query.fields)
+	addRelatedSparseFields(values, "fields[subscriptions]", query.fields, query.include, query.relatedFields.sparseFields()...)
 	addCSV(values, "fields[subscriptionVersions]", query.versionFields)
-	addCSV(values, "include", query.include)
 	addNamedLimit(values, "limit[versions]", query.versionLimit)
 	return values.Encode()
 }
 
 func buildSubscriptionQuery(query *subscriptionQuery) string {
 	values := url.Values{}
-	addCSV(values, "fields[subscriptions]", query.fields)
+	addRelatedSparseFields(values, "fields[subscriptions]", query.fields, query.include, query.relatedFields.sparseFields()...)
 	addCSV(values, "fields[subscriptionVersions]", query.versionFields)
-	addCSV(values, "include", query.include)
 	addNamedLimit(values, "limit[versions]", query.versionLimit)
 	return values.Encode()
 }

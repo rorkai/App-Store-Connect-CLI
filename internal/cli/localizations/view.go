@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -23,6 +24,7 @@ func LocalizationsViewCommand() *ffcli.Command {
 	localizationID := fs.String("id", "", "Localization resource ID")
 	locType := fs.String("type", shared.LocalizationTypeVersion, "Localization type: version (default) or app-info")
 	fields := fs.String("fields", "", "Fields to return, comma-separated. version: "+strings.Join(versionLocalizationFieldList(), ", ")+"; app-info: "+strings.Join(appInfoLocalizationFieldList(), ", "))
+	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources for version localizations", versionLocalizationIncludeList())
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -36,6 +38,7 @@ JSON output is App Store Connect's response, unmodified.
 Examples:
   asc localizations view --id "LOCALIZATION_ID"
   asc localizations view --id "LOCALIZATION_ID" --fields "description,whatsNew"
+  asc localizations view --id "LOCALIZATION_ID" --include placements --placements-limit 50
   asc localizations view --type app-info --id "LOCALIZATION_ID" --fields "name,subtitle"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -59,6 +62,13 @@ Examples:
 			if fieldsProvided && len(fieldValues) == 0 {
 				return shared.UsageError("--fields must not be empty")
 			}
+			if include.Provided() && normalizedType != shared.LocalizationTypeVersion {
+				return shared.UsageError("--include requires --type version")
+			}
+			includeValues, placementsLimit, err := include.Resolve()
+			if err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -66,9 +76,17 @@ Examples:
 			}
 
 			path := "/v1/" + resourceType + "/" + url.PathEscape(id)
+			query := url.Values{}
 			if len(fieldValues) > 0 {
-				query := url.Values{}
 				query.Set("fields["+resourceType+"]", strings.Join(fieldValues, ","))
+			}
+			if len(includeValues) > 0 {
+				query.Set("include", strings.Join(includeValues, ","))
+			}
+			if placementsLimit > 0 {
+				query.Set("limit[placements]", strconv.Itoa(placementsLimit))
+			}
+			if len(query) > 0 {
 				path += "?" + query.Encode()
 			}
 

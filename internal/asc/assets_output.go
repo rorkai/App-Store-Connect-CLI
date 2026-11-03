@@ -116,6 +116,7 @@ type AppPreviewUploadResult struct {
 	VersionLocalizationID string                   `json:"versionLocalizationId"`
 	SetID                 string                   `json:"setId"`
 	PreviewType           string                   `json:"previewType"`
+	PreviewFrameTimeCode  string                   `json:"previewFrameTimeCode,omitempty"`
 	DryRun                bool                     `json:"dryRun,omitempty"`
 	Results               []AssetUploadResultItem  `json:"results"`
 	Failures              []AssetUploadFailureItem `json:"failures,omitempty"`
@@ -144,6 +145,15 @@ type CustomProductPagePreviewUploadResult struct {
 	PreviewType                     string                   `json:"previewType"`
 	Results                         []AssetUploadResultItem  `json:"results"`
 	Failures                        []AssetUploadFailureItem `json:"failures,omitempty"`
+}
+
+// ExperimentTreatmentLocalizationPreviewUploadResult represents PPO treatment localization preview upload output.
+type ExperimentTreatmentLocalizationPreviewUploadResult struct {
+	ExperimentTreatmentLocalizationID string                   `json:"experimentTreatmentLocalizationId"`
+	SetID                             string                   `json:"setId"`
+	PreviewType                       string                   `json:"previewType"`
+	Results                           []AssetUploadResultItem  `json:"results"`
+	Failures                          []AssetUploadFailureItem `json:"failures,omitempty"`
 }
 
 // AssetDeleteResult represents deletion output for assets.
@@ -414,6 +424,16 @@ func customProductPagePreviewUploadResultMainRows(result *CustomProductPagePrevi
 	headers := []string{"Localization ID", "Set ID", "Preview Type"}
 	rows := [][]string{{
 		SanitizeTerminalText(result.CustomProductPageLocalizationID),
+		SanitizeTerminalText(result.SetID),
+		SanitizeTerminalText(result.PreviewType),
+	}}
+	return headers, rows
+}
+
+func experimentTreatmentLocalizationPreviewUploadResultMainRows(result *ExperimentTreatmentLocalizationPreviewUploadResult) ([]string, [][]string) {
+	headers := []string{"Localization ID", "Set ID", "Preview Type"}
+	rows := [][]string{{
+		SanitizeTerminalText(result.ExperimentTreatmentLocalizationID),
 		SanitizeTerminalText(result.SetID),
 		SanitizeTerminalText(result.PreviewType),
 	}}
