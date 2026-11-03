@@ -1396,6 +1396,60 @@ func TestSerializeCookieJarIncludesDeveloperPortalOrigin(t *testing.T) {
 	}
 }
 
+func TestPersistSessionKeepsNewerCookieWrittenToKeychainByAnotherProcess(t *testing.T) {
+	kr := withArraySessionKeyring(t)
+	t.Setenv(webSessionBackendEnv, "keychain")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+	key := webSessionCacheKey(webTestSessionEmail)
+	root := "https://appstoreconnect.apple.com/"
+	expires := time.Now().UTC().Add(time.Hour)
+	if err := writeSessionToKeychain(key, persistedSession{
+		Version:    webSessionCacheVersion,
+		UpdatedAt:  time.Now().UTC(),
+		Generation: "s0",
+		UserEmail:  webTestSessionEmail,
+		Cookies: map[string][]pCookie{root: {
+			{Name: "myacinfo", Value: "old", ScopeDomain: "apple.com", Path: "/", Expires: expires},
+			{Name: "itctx", Value: "provider", ScopeDomain: "apple.com", Path: "/", Expires: expires},
+		}},
+	}); err != nil {
+		t.Fatalf("writeSessionToKeychain() error: %v", err)
+	}
+	a, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession(a) = (%t, %v)", ok, err)
+	}
+	b, ok, err := LoadCachedSession(webTestSessionEmail)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession(b) = (%t, %v)", ok, err)
+	}
+	target, _ := url.Parse(root)
+	a.Client.Jar.SetCookies(target, []*http.Cookie{{Name: "myacinfo", Value: "fresh", Path: "/", Expires: expires}})
+	if err := PersistSession(a); err != nil {
+		t.Fatalf("PersistSession(a) error: %v", err)
+	}
+	b.Client.Jar.SetCookies(target, []*http.Cookie{{Name: "itctx", Value: "other", Path: "/", Expires: expires}})
+	kr.ResetCounts()
+	if err := PersistSession(b); err != nil {
+		t.Fatalf("PersistSession(b) error: %v", err)
+	}
+	if got := kr.GetCount(webSessionStoreItem); got != 1 {
+		t.Fatalf("PersistSession(b) read the keychain store %d times, want 1", got)
+	}
+	stored, ok, err := readSessionFromKeychain(key)
+	if err != nil || !ok {
+		t.Fatalf("readSessionFromKeychain() = (%t, %v), want stored session", ok, err)
+	}
+	values := map[string]string{}
+	for _, cookie := range stored.Cookies[root] {
+		values[cookie.Name] = cookie.Value
+	}
+	if len(stored.Cookies[root]) != 2 || values["myacinfo"] != "fresh" || values["itctx"] != "other" {
+		t.Fatalf("persisted cookies = %v, want the other process's myacinfo plus this handle's itctx", values)
+	}
+}
+
 func TestPersistSessionUsesSingleSharedKeychainStore(t *testing.T) {
 	kr := withArraySessionKeyring(t)
 	t.Setenv(webSessionBackendEnv, "keychain")
@@ -1558,6 +1612,36 @@ func TestPersistSessionRoundTripsDeveloperTeamID(t *testing.T) {
 	}
 	if resumed.DeveloperTeamID != "TEAMTWO456" {
 		t.Fatalf("DeveloperTeamID = %q, want TEAMTWO456", resumed.DeveloperTeamID)
+	}
+}
+
+func TestPersistSessionRecordsProviderIDForCachedReload(t *testing.T) {
+	t.Setenv(webSessionBackendEnv, "file")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, t.TempDir())
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New error: %v", err)
+	}
+	targetURL, _ := url.Parse("https://appstoreconnect.apple.com/")
+	jar.SetCookies(targetURL, []*http.Cookie{
+		{Name: "myacinfo", Value: "token", Path: "/", Expires: time.Now().Add(24 * time.Hour)},
+	})
+	if err := PersistSession(&AuthSession{
+		Client:     &http.Client{Jar: jar},
+		UserEmail:  "user@example.com",
+		ProviderID: 99,
+	}); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+
+	loaded, ok, err := LoadCachedSession("user@example.com")
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession = %v, %v", ok, err)
+	}
+	if loaded.ProviderID != 99 {
+		t.Fatalf("ProviderID = %d, want 99", loaded.ProviderID)
 	}
 }
 

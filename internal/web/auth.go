@@ -345,6 +345,9 @@ func webAuthHTTPLogFields(stage string, req *http.Request, resp *http.Response, 
 		if codes := boundedWebAuthDiagnosticCodes(extractServiceErrorCodes(body)); len(codes) > 0 {
 			fields = append(fields, "codes", strings.Join(codes, ","))
 		}
+		if cookies := setCookieLogSummary(resp); cookies != "" {
+			fields = append(fields, "set_cookie", cookies)
+		}
 	}
 	if err != nil {
 		errorText := err.Error()
@@ -354,6 +357,36 @@ func webAuthHTTPLogFields(stage string, req *http.Request, resp *http.Response, 
 		fields = append(fields, "error", errorText)
 	}
 	return fields
+}
+
+// setCookieLogSummary describes each Set-Cookie by name, scope, and lifetime.
+// Cookie values and other attributes are never included.
+func setCookieLogSummary(resp *http.Response) string {
+	cookies := resp.Cookies()
+	parts := make([]string, 0, len(cookies))
+	for _, cookie := range cookies {
+		scope := "host-only"
+		if domain := strings.TrimPrefix(cookie.Domain, "."); domain != "" {
+			scope = "domain=" + domain
+		}
+		lifetime := "session"
+		switch {
+		case cookie.MaxAge < 0:
+			lifetime = "deletion"
+		case cookie.MaxAge > 0:
+			lifetime = "persistent"
+		case !cookie.Expires.IsZero() && !cookie.Expires.After(time.Now()):
+			lifetime = "deletion"
+		case !cookie.Expires.IsZero():
+			lifetime = "persistent"
+		}
+		part := sanitizeWebAuthDiagnosticValue(cookie.Name) + " " + sanitizeWebAuthDiagnosticValue(scope)
+		if cookie.Path != "" {
+			part += " path=" + sanitizeWebAuthDiagnosticValue(cookie.Path)
+		}
+		parts = append(parts, part+" "+lifetime)
+	}
+	return strings.Join(parts, "; ")
 }
 
 func sanitizeWebAuthDiagnosticValue(value string) string {
