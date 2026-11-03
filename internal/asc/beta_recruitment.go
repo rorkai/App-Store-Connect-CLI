@@ -85,11 +85,83 @@ type BetaRecruitmentCriterionOptionDeviceFamily struct {
 // BetaRecruitmentCriterionOptionsResponse is the response from recruitment criteria options list.
 type BetaRecruitmentCriterionOptionsResponse = Response[BetaRecruitmentCriterionOptionAttributes]
 
-// BetaGroupMetricAttributes represents metric attributes returned by metrics endpoints.
-type BetaGroupMetricAttributes map[string]any
-
 // BetaGroupPublicLinkUsagesResponse is the response from public link usage metrics.
-type BetaGroupPublicLinkUsagesResponse = Response[BetaGroupMetricAttributes]
+// The metric endpoint returns data-point objects rather than JSON:API resource
+// objects, so it has a dedicated envelope instead of Response[T].
+type BetaGroupPublicLinkUsagesResponse struct {
+	Data  []BetaGroupPublicLinkUsage `json:"data"`
+	Links Links                      `json:"links"`
+	Meta  json.RawMessage            `json:"meta,omitempty"`
+}
+
+// GetLinks returns the links field for pagination.
+func (r *BetaGroupPublicLinkUsagesResponse) GetLinks() *Links {
+	if r == nil {
+		return nil
+	}
+	return &r.Links
+}
+
+// GetMeta returns the raw metadata field for pagination warnings.
+func (r *BetaGroupPublicLinkUsagesResponse) GetMeta() json.RawMessage {
+	if r == nil {
+		return nil
+	}
+	return r.Meta
+}
+
+// GetData returns the metric data for aggregation.
+func (r *BetaGroupPublicLinkUsagesResponse) GetData() any {
+	if r == nil {
+		return nil
+	}
+	return r.Data
+}
+
+// BetaGroupPublicLinkUsage is one metric series returned by the public link
+// usage endpoint. The raw item is retained so JSON output remains faithful to
+// Apple's response while table output can use typed metric fields.
+type BetaGroupPublicLinkUsage struct {
+	DataPoints []BetaGroupPublicLinkUsageDataPoint `json:"dataPoints,omitempty"`
+	raw        json.RawMessage
+}
+
+func (m *BetaGroupPublicLinkUsage) UnmarshalJSON(data []byte) error {
+	type metricAlias BetaGroupPublicLinkUsage
+	var decoded metricAlias
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	decoded.raw = append(decoded.raw[:0], data...)
+	*m = BetaGroupPublicLinkUsage(decoded)
+	return nil
+}
+
+func (m BetaGroupPublicLinkUsage) MarshalJSON() ([]byte, error) {
+	if len(m.raw) > 0 {
+		return m.raw, nil
+	}
+	type metricAlias BetaGroupPublicLinkUsage
+	return json.Marshal(metricAlias(m))
+}
+
+// BetaGroupPublicLinkUsageDataPoint is one time interval in a metric series.
+type BetaGroupPublicLinkUsageDataPoint struct {
+	Start  string                         `json:"start,omitempty"`
+	End    string                         `json:"end,omitempty"`
+	Values BetaGroupPublicLinkUsageValues `json:"values,omitempty"`
+}
+
+// BetaGroupPublicLinkUsageValues contains the counts and ratios Apple reports for a data point.
+type BetaGroupPublicLinkUsageValues struct {
+	ViewCount               *int     `json:"viewCount,omitempty"`
+	AcceptedCount           *int     `json:"acceptedCount,omitempty"`
+	DidNotAcceptCount       *int     `json:"didNotAcceptCount,omitempty"`
+	DidNotMeetCriteriaCount *int     `json:"didNotMeetCriteriaCount,omitempty"`
+	NotRelevantRatio        *float64 `json:"notRelevantRatio,omitempty"`
+	NotClearRatio           *float64 `json:"notClearRatio,omitempty"`
+	NotInterestingRatio     *float64 `json:"notInterestingRatio,omitempty"`
+}
 
 // BetaGroupTesterUsagesResponse is the response from beta tester usage metrics.
 // The metric endpoint returns data-point objects rather than JSON:API resource

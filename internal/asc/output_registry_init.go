@@ -387,7 +387,7 @@ func registerAllOutputRenderers() {
 	registerRows(betaRecruitmentCriteriaRows)
 	registerRows(betaRecruitmentCompatibleBuildCheckRows)
 	registerRows(betaRecruitmentCriteriaDeleteResultRows)
-	registerResponseDataRows(betaGroupMetricsRows)
+	registerRows(betaGroupPublicLinkUsagesRows)
 	registerRows(betaGroupTesterUsagesRows)
 	registerRowsErr(betaBuildUsagesRows)
 	registerRowsWithSingleResourceAdapter(sandboxTestersRows)
