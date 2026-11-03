@@ -301,6 +301,41 @@ func (c *Client) GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationship
 	)
 }
 
+// GetSubscriptionPlanAvailabilityAvailableTerritories lists available territories for a plan availability.
+func (c *Client) GetSubscriptionPlanAvailabilityAvailableTerritories(ctx context.Context, planAvailabilityID string, opts ...SubscriptionAvailabilityTerritoriesOption) (*TerritoriesResponse, error) {
+	query := &subscriptionAvailabilityTerritoriesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	planAvailabilityID = strings.TrimSpace(planAvailabilityID)
+	if query.nextURL == "" && planAvailabilityID == "" {
+		return nil, fmt.Errorf("plan availability ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s/availableTerritories", planAvailabilityID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionPlanAvailabilityAvailableTerritories: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildSubscriptionAvailabilityTerritoriesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response TerritoriesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 func filterSubscriptionPlanAvailabilities(resp *SubscriptionPlanAvailabilitiesResponse, planTypes []SubscriptionPlanType) *SubscriptionPlanAvailabilitiesResponse {
 	if resp == nil || len(planTypes) == 0 {
 		return resp

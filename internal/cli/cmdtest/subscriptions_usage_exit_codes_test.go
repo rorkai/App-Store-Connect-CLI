@@ -114,6 +114,26 @@ func TestSubscriptionsInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "subscriptions offers offer-codes one-time-codes list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "offers offer-codes one-time-codes update missing batch id",
+			args:    []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--active", "false"},
+			wantErr: "--batch-id is required",
+		},
+		{
+			name:    "offers offer-codes one-time-codes update missing active",
+			args:    []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--batch-id", "b"},
+			wantErr: "--active is required",
+		},
+		{
+			name:    "offers offer-codes one-time-codes update invalid active",
+			args:    []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--batch-id", "b", "--active", "maybe"},
+			wantErr: "subscriptions offers offer-codes one-time-codes update: --active must be true or false",
+		},
+		{
+			name:    "offers offer-codes custom-codes update invalid active",
+			args:    []string{"subscriptions", "offers", "offer-codes", "custom-codes", "update", "--custom-code-id", "c", "--active", "maybe"},
+			wantErr: "subscriptions offers offer-codes custom-codes update: --active must be true or false",
+		},
+		{
 			name:    "offers offer-codes prices offer-code-id o limit 201",
 			args:    []string{"subscriptions", "offers", "offer-codes", "prices", "--offer-code-id", "o", "--limit", "201"},
 			wantErr: "subscriptions offers offer-codes prices: --limit must be between 1 and 200",

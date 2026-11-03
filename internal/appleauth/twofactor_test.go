@@ -195,7 +195,7 @@ func TestSubmitTwoFactorCodeRequestsPhoneFallbackBeforeRetry(t *testing.T) {
 		destination: "+1 (•••) •••-••66",
 	}
 
-	trustedDeviceErr := errors.New("trusted-device rejected code")
+	trustedDeviceErr := fmt.Errorf("trusted-device rejected code: %w", ErrTwoFactorCodeRejected)
 	requestedPhoneCode := false
 	submittedPhoneCode := false
 	finalized := false
@@ -269,7 +269,7 @@ func TestSubmitTwoFactorCodeReturnsRetryWhenTrustedDeviceFallbackWasAlreadyReque
 		requested:   true,
 	}
 
-	trustedDeviceErr := errors.New("trusted-device rejected code")
+	trustedDeviceErr := fmt.Errorf("trusted-device rejected code: %w", ErrTwoFactorCodeRejected)
 	requestedPhoneCode := false
 	submittedPhoneCode := false
 	finalized := false
@@ -322,6 +322,31 @@ func TestSubmitTwoFactorCodeReturnsRetryWhenTrustedDeviceFallbackWasAlreadyReque
 	}
 	if !session.requested {
 		t.Fatal("expected session to keep requested phone-delivery state")
+	}
+}
+
+func TestSubmitTwoFactorCodeKeepsTrustedDeviceFailuresThatAreNotRejections(t *testing.T) {
+	session := &stubSessionState{method: TwoFactorMethodTrustedDevice, phoneID: 7, phoneMode: "sms"}
+	unavailable := errors.New("trusted-device 2fa failed (status 503)")
+
+	err := SubmitTwoFactorCode(
+		context.Background(),
+		session,
+		"123456",
+		nil,
+		func(context.Context, int, string) error {
+			t.Fatal("did not expect a phone code request for a failure that is not a rejected code")
+			return nil
+		},
+		func(context.Context, string) error { return unavailable },
+		nil,
+		nil,
+	)
+	if !errors.Is(err, unavailable) {
+		t.Fatalf("SubmitTwoFactorCode() error = %v, want %v", err, unavailable)
+	}
+	if session.method != TwoFactorMethodTrustedDevice {
+		t.Fatalf("session method = %q, want trusted-device", session.method)
 	}
 }
 

@@ -281,6 +281,7 @@ func WinBackOffersCreateCommand() *ffcli.Command {
 	promotionIntent := fs.String("promotion-intent", "", "Promotion intent: "+strings.Join(winBackOfferPromotionIntentValues, ", "))
 	priceIDs := shared.BindOnceCSVFlag(fs, "price", "Subscription price point ID(s), comma-separated (required for paid offer modes)")
 	territories := shared.BindOnceCSVFlag(fs, "territory", "Territories for FREE_TRIAL offers, comma-separated (accepts alpha-2, alpha-3, or exact English country names)")
+	targetPlanType := shared.BindTargetSubscriptionPlanTypeFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -295,7 +296,8 @@ they require --territory instead.
 
 Examples:
   asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-1" --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --price "SUBSCRIPTION_PRICE_POINT_ID"
-  asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-2" --duration ONE_MONTH --offer-mode FREE_TRIAL --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --territory "USA,FRA"`,
+  asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-2" --duration ONE_MONTH --offer-mode FREE_TRIAL --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --territory "USA,FRA"
+  asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-3" --duration ONE_MONTH --offer-mode FREE_TRIAL --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --territory "USA" --target-subscription-plan-type MONTHLY`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -495,6 +497,11 @@ Examples:
 				}
 			}
 
+			planType, err := targetPlanType()
+			if err != nil {
+				return err
+			}
+
 			var waitBetween *int
 			if eligibilityWaitMonths.set {
 				waitBetween = &eligibilityWaitMonths.value
@@ -536,10 +543,11 @@ Examples:
 						CustomerEligibilityPaidSubscriptionDurationInMonths: eligibilityPaidMonths.value,
 						CustomerEligibilityTimeSinceLastSubscribedInMonths:  rangeValue,
 						CustomerEligibilityWaitBetweenOffersInMonths:        waitBetween,
-						StartDate:       normalizedStartDate,
-						EndDate:         endDateValue,
-						Priority:        priorityValue,
-						PromotionIntent: promotionIntentValue,
+						StartDate:                  normalizedStartDate,
+						EndDate:                    endDateValue,
+						Priority:                   priorityValue,
+						PromotionIntent:            promotionIntentValue,
+						TargetSubscriptionPlanType: planType,
 					},
 					Relationships: asc.WinBackOfferCreateRelationships{
 						Subscription: asc.Relationship{
@@ -1088,6 +1096,7 @@ func winBackOfferFieldsList() []string {
 		"endDate",
 		"priority",
 		"promotionIntent",
+		"targetSubscriptionPlanType",
 		"prices",
 	}
 }
@@ -1105,7 +1114,7 @@ func winBackOfferTerritoryFieldsList() []string {
 }
 
 func winBackOfferSubscriptionPricePointFieldsList() []string {
-	return []string{"customerPrice", "proceeds", "proceedsYear2", "territory", "equalizations"}
+	return []string{"customerPrice", "proceeds", "proceedsYear2", "territory", "equalizations", "adjustedEqualizations"}
 }
 
 func winBackOfferPriceIncludeList() []string {

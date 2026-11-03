@@ -90,9 +90,14 @@ func appEventLocalizationFieldsList() []string {
 		"appEvent",
 		"appEventScreenshots",
 		"appEventVideoClips",
+		"placements",
 	}
 }
 
 func appEventIncludeList() []string {
 	return []string{"localizations"}
+}
+
+func appEventLocalizationIncludeList() []string {
+	return []string{"appEvent", "appEventScreenshots", "appEventVideoClips", "placements"}
 }

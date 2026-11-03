@@ -135,30 +135,23 @@ func formatDeviceFamilyOsVersionFilters(filters []DeviceFamilyOsVersionFilter) s
 	return strings.Join(parts, "; ")
 }
 
-func formatMetricAttributes(attrs BetaGroupMetricAttributes) string {
-	if len(attrs) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(attrs))
-	for key := range attrs {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	parts := make([]string, 0, len(keys))
-	for _, key := range keys {
-		parts = append(parts, fmt.Sprintf("%s=%v", key, attrs[key]))
-	}
-	return strings.Join(parts, ", ")
-}
-
-func betaGroupMetricsRows(items []Resource[BetaGroupMetricAttributes]) ([]string, [][]string) {
-	headers := []string{"ID", "Attributes"}
-	rows := make([][]string, 0, len(items))
-	for _, item := range items {
-		rows = append(rows, []string{
-			item.ID,
-			compactWhitespace(formatMetricAttributes(item.Attributes)),
-		})
+func betaGroupPublicLinkUsagesRows(resp *BetaGroupPublicLinkUsagesResponse) ([]string, [][]string) {
+	headers := []string{"Start", "End", "Views", "Accepted", "Did Not Accept", "Did Not Meet Criteria", "Not Relevant", "Not Clear", "Not Interesting"}
+	rows := make([][]string, 0, len(resp.Data))
+	for _, metric := range resp.Data {
+		for _, point := range metric.DataPoints {
+			rows = append(rows, []string{
+				point.Start,
+				point.End,
+				formatBetaGroupMetricCount(point.Values.ViewCount),
+				formatBetaGroupMetricCount(point.Values.AcceptedCount),
+				formatBetaGroupMetricCount(point.Values.DidNotAcceptCount),
+				formatBetaGroupMetricCount(point.Values.DidNotMeetCriteriaCount),
+				formatBetaGroupMetricRatio(point.Values.NotRelevantRatio),
+				formatBetaGroupMetricRatio(point.Values.NotClearRatio),
+				formatBetaGroupMetricRatio(point.Values.NotInterestingRatio),
+			})
+		}
 	}
 	return headers, rows
 }
@@ -190,6 +183,13 @@ func formatBetaGroupMetricCount(value *int) string {
 		return ""
 	}
 	return fmt.Sprintf("%d", *value)
+}
+
+func formatBetaGroupMetricRatio(value *float64) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprintf("%g", *value)
 }
 
 func betaRecruitmentCompatibleBuildCheckRows(resp *BetaRecruitmentCriterionCompatibleBuildCheckResponse) ([]string, [][]string) {

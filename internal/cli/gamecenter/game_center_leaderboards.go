@@ -337,7 +337,7 @@ Examples:
 func GameCenterLeaderboardsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env); not used with --set-ids")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard")
 	vendorID := fs.String("vendor-id", "", "Vendor identifier (e.g., com.example.leaderboard)")
 	formatter := fs.String("formatter", "", "Score formatter: "+strings.Join(asc.ValidLeaderboardFormatters, ", "))
@@ -346,7 +346,8 @@ func GameCenterLeaderboardsCreateCommand() *ffcli.Command {
 	scoreRangeStart := fs.String("score-range-start", "", "Score range start (optional)")
 	scoreRangeEnd := fs.String("score-range-end", "", "Score range end (optional)")
 	bindLeaderboardRecurrenceFlags(fs)
-	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID (v2 only)")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID (v2 only); not used with --set-ids")
+	setIDs := shared.BindOnceCSVFlag(fs, "set-ids", "Comma-separated leaderboard set IDs to add the leaderboard to; it inherits its parent from them")
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
 
@@ -358,6 +359,9 @@ func GameCenterLeaderboardsCreateCommand() *ffcli.Command {
 
 V2 creates the required initial leaderboard version inline.
 
+With --set-ids, the leaderboard inherits its Game Center detail or group from the
+leaderboard sets, so --app and --group-id are not used.
+
 Recurring leaderboards take all three recurrence flags. --recurrence-duration
 uses time components only (PT168H for a week; Apple rejects P7D), and
 --recurrence-rule must be FREQ=MINUTELY, HOURLY, or DAILY with ;INTERVAL=N.
@@ -366,7 +370,8 @@ Examples:
   asc game-center leaderboards create --app "APP_ID" --reference-name "High Score" --vendor-id "com.example.highscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE
   asc game-center leaderboards create --app "APP_ID" --reference-name "Time Trial" --vendor-id "com.example.timetrial" --formatter ELAPSED_TIME_CENTISECOND --sort ASC --submission-type BEST_SCORE
   asc game-center leaderboards create --app "APP_ID" --reference-name "Weekly Score" --vendor-id "com.example.weeklyscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --recurrence-start-date "2026-12-01T00:00:00Z" --recurrence-duration "PT168H" --recurrence-rule "FREQ=DAILY;INTERVAL=7"
-  asc game-center leaderboards create --group-id "GROUP_ID" --reference-name "Group Score" --vendor-id "grp.com.example.groupscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2`,
+  asc game-center leaderboards create --group-id "GROUP_ID" --reference-name "Group Score" --vendor-id "grp.com.example.groupscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2
+  asc game-center leaderboards create --reference-name "Weekly Score" --vendor-id "com.example.weeklyscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2 --set-ids "id1,id2"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -376,10 +381,31 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if group == "" && resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
+			ids := shared.SplitUniqueCSV(setIDs.String())
+			if setIDs.Provided() && len(ids) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --set-ids must include at least one ID")
+				return flag.ErrHelp
+			}
+			// Apple returns 409 when gameCenterLeaderboardSets is sent with gameCenterDetail
+			// or gameCenterGroup; the leaderboard inherits its parent from the sets.
+			if len(ids) > 0 {
+				if strings.TrimSpace(*appID) != "" {
+					fmt.Fprintln(os.Stderr, "Error: --app cannot be used with --set-ids; the leaderboard inherits its parent from the leaderboard sets")
+					return flag.ErrHelp
+				}
+				if group != "" {
+					fmt.Fprintln(os.Stderr, "Error: --group-id cannot be used with --set-ids; the leaderboard inherits its parent from the leaderboard sets")
+					return flag.ErrHelp
+				}
+			}
+
+			resolvedAppID := ""
+			if len(ids) == 0 {
+				resolvedAppID = shared.ResolveAppID(*appID)
+				if group == "" && resolvedAppID == "" {
+					fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+					return shared.MissingRequiredUsageError("--app")
+				}
 			}
 
 			name := strings.TrimSpace(*referenceName)
@@ -442,7 +468,7 @@ Examples:
 			defer cancel()
 
 			gcDetailID := ""
-			if group == "" {
+			if group == "" && len(ids) == 0 {
 				// Get Game Center detail ID first
 				var err error
 				gcDetailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
@@ -467,9 +493,9 @@ Examples:
 			useV2 := *v2 || group != ""
 			var resp *asc.GameCenterLeaderboardResponse
 			if useV2 {
-				resp, err = client.CreateGameCenterLeaderboardV2(requestCtx, gcDetailID, group, attrs)
+				resp, err = client.CreateGameCenterLeaderboardV2(requestCtx, gcDetailID, group, attrs, ids)
 			} else {
-				resp, err = client.CreateGameCenterLeaderboard(requestCtx, gcDetailID, attrs)
+				resp, err = client.CreateGameCenterLeaderboard(requestCtx, gcDetailID, attrs, ids)
 			}
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards create: failed to create: %w", err)
@@ -487,6 +513,11 @@ func GameCenterLeaderboardsUpdateCommand() *ffcli.Command {
 	leaderboardID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboards", "Game Center leaderboard ID")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard")
 	archived := fs.String("archived", "", "Archive the leaderboard (true/false)")
+	formatter := fs.String("formatter", "", "Score formatter: "+strings.Join(asc.ValidLeaderboardFormatters, ", "))
+	sortType := fs.String("sort", "", "Score sort type: ASC, DESC")
+	submissionType := fs.String("submission-type", "", "Submission type: BEST_SCORE, MOST_RECENT_SCORE")
+	scoreRangeStart := fs.String("score-range-start", "", "Score range start")
+	scoreRangeEnd := fs.String("score-range-end", "", "Score range end")
 	bindLeaderboardRecurrenceFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
@@ -504,6 +535,8 @@ Examples:
   asc game-center leaderboards update --id "LEADERBOARD_ID" --reference-name "New Name"
   asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true
   asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true --v2
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --formatter ELAPSED_TIME_SECOND --sort ASC --submission-type MOST_RECENT_SCORE
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --score-range-start 0 --score-range-end 5000 --v2
   asc game-center leaderboards update --id "LEADERBOARD_ID" --recurrence-duration "PT168H" --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -530,6 +563,54 @@ Examples:
 					return flag.ErrHelp
 				}
 				attrs.Archived = &val
+				hasUpdate = true
+			}
+
+			provided := map[string]bool{}
+			fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
+
+			if provided["formatter"] {
+				val := strings.TrimSpace(strings.ToUpper(*formatter))
+				if !isValidLeaderboardFormatter(val) {
+					return shared.UsageErrorf("--formatter must be one of: %s", strings.Join(asc.ValidLeaderboardFormatters, ", "))
+				}
+				attrs.DefaultFormatter = &val
+				hasUpdate = true
+			}
+
+			if provided["sort"] {
+				val := strings.TrimSpace(strings.ToUpper(*sortType))
+				if !isValidScoreSortType(val) {
+					return shared.UsageErrorf("--sort must be one of: %s", strings.Join(asc.ValidScoreSortTypes, ", "))
+				}
+				attrs.ScoreSortType = &val
+				hasUpdate = true
+			}
+
+			if provided["submission-type"] {
+				val := strings.TrimSpace(strings.ToUpper(*submissionType))
+				if !isValidSubmissionType(val) {
+					return shared.UsageErrorf("--submission-type must be one of: %s", strings.Join(asc.ValidSubmissionTypes, ", "))
+				}
+				attrs.SubmissionType = &val
+				hasUpdate = true
+			}
+
+			if provided["score-range-start"] {
+				val := strings.TrimSpace(*scoreRangeStart)
+				if val == "" {
+					return shared.UsageError("--score-range-start must not be empty")
+				}
+				attrs.ScoreRangeStart = &val
+				hasUpdate = true
+			}
+
+			if provided["score-range-end"] {
+				val := strings.TrimSpace(*scoreRangeEnd)
+				if val == "" {
+					return shared.UsageError("--score-range-end must not be empty")
+				}
+				attrs.ScoreRangeEnd = &val
 				hasUpdate = true
 			}
 

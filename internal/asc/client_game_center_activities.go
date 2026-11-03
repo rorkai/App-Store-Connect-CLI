@@ -568,7 +568,20 @@ func (c *Client) GetGameCenterActivityImage(ctx context.Context, imageID string)
 }
 
 // CreateGameCenterActivityImage reserves an activity image upload.
-func (c *Client) CreateGameCenterActivityImage(ctx context.Context, localizationID, fileName string, fileSize int64) (*GameCenterActivityImageResponse, error) {
+// Pass exactly one of localizationID or versionID; a version target sets the version's default image.
+func (c *Client) CreateGameCenterActivityImage(ctx context.Context, localizationID, versionID, fileName string, fileSize int64) (*GameCenterActivityImageResponse, error) {
+	relationships := &GameCenterActivityImageRelationships{}
+	if id := strings.TrimSpace(localizationID); id != "" {
+		relationships.Localization = &Relationship{
+			Data: ResourceData{Type: ResourceTypeGameCenterActivityLocalizations, ID: id},
+		}
+	}
+	if id := strings.TrimSpace(versionID); id != "" {
+		relationships.Version = &Relationship{
+			Data: ResourceData{Type: ResourceTypeGameCenterActivityVersions, ID: id},
+		}
+	}
+
 	payload := GameCenterActivityImageCreateRequest{
 		Data: GameCenterActivityImageCreateData{
 			Type: ResourceTypeGameCenterActivityImages,
@@ -576,14 +589,7 @@ func (c *Client) CreateGameCenterActivityImage(ctx context.Context, localization
 				FileName: fileName,
 				FileSize: fileSize,
 			},
-			Relationships: &GameCenterActivityImageRelationships{
-				Localization: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterActivityLocalizations,
-						ID:   strings.TrimSpace(localizationID),
-					},
-				},
-			},
+			Relationships: relationships,
 		},
 	}
 
@@ -644,7 +650,7 @@ func (c *Client) DeleteGameCenterActivityImage(ctx context.Context, imageID stri
 }
 
 // UploadGameCenterActivityImage performs the full upload flow for an activity image.
-func (c *Client) UploadGameCenterActivityImage(ctx context.Context, localizationID, filePath string) (*GameCenterActivityImageUploadResult, error) {
+func (c *Client) UploadGameCenterActivityImage(ctx context.Context, localizationID, versionID, filePath string) (*GameCenterActivityImageUploadResult, error) {
 	if err := ValidateImageFile(filePath); err != nil {
 		return nil, fmt.Errorf("invalid image file: %w", err)
 	}
@@ -656,7 +662,7 @@ func (c *Client) UploadGameCenterActivityImage(ctx context.Context, localization
 	fileName := info.Name()
 	fileSize := info.Size()
 
-	reservation, err := c.CreateGameCenterActivityImage(ctx, localizationID, fileName, fileSize)
+	reservation, err := c.CreateGameCenterActivityImage(ctx, localizationID, versionID, fileName, fileSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reserve upload: %w", err)
 	}
@@ -679,6 +685,7 @@ func (c *Client) UploadGameCenterActivityImage(ctx context.Context, localization
 	result := &GameCenterActivityImageUploadResult{
 		ID:             committed.Data.ID,
 		LocalizationID: localizationID,
+		VersionID:      versionID,
 		FileName:       committed.Data.Attributes.FileName,
 		FileSize:       committed.Data.Attributes.FileSize,
 		Uploaded:       true,

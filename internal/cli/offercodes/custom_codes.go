@@ -183,7 +183,7 @@ Examples:
 
 // OfferCodeCustomCodesUpdateCommand returns the custom codes update subcommand.
 func OfferCodeCustomCodesUpdateCommand() *ffcli.Command {
-	return newActiveUpdateCommand(activeUpdateCommandConfig{
+	return NewActiveUpdateCommand(ActiveUpdateCommandConfig{
 		FlagSetName: "update",
 		Name:        "update",
 		ShortUsage:  "asc offer-codes custom-codes update [flags]",
