@@ -139,7 +139,8 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 // does not establish creation support.
 func creativePlacementFilterTypes(resource string) []string {
 	kinds := creativePlacementTypes(resource)
-	for _, kind := range []string{"PRODUCT_PAGE_HEADER_ASSET", "APP_STORE_SEARCH_RESULTS_ASSET", "APP_SCREENSHOT", "APP_PREVIEW", "IMESSAGE_APP_SCREENSHOT", "EVENT_CARD_ASSET", "EVENT_DETAILS_PAGE_ASSET", "SEARCH_RESULTS_ADS_ASSET", "TODAY_TAB_ADS_ASSET", "RETENTION_MESSAGE_ASSET"} {
+	// The spec also lists RETENTION_MESSAGE_ASSET, but Apple returns 400 "is not a valid filter value" for it.
+	for _, kind := range []string{"PRODUCT_PAGE_HEADER_ASSET", "APP_STORE_SEARCH_RESULTS_ASSET", "APP_SCREENSHOT", "APP_PREVIEW", "IMESSAGE_APP_SCREENSHOT", "EVENT_CARD_ASSET", "EVENT_DETAILS_PAGE_ASSET", "SEARCH_RESULTS_ADS_ASSET", "TODAY_TAB_ADS_ASSET"} {
 		if !slices.Contains(kinds, kind) {
 			kinds = append(kinds, kind)
 		}

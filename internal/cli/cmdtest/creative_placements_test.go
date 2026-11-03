@@ -85,7 +85,6 @@ func TestCreativePlacementsUsage(t *testing.T) {
 func TestCreativePlacementsListSendsAppleEnumValues(t *testing.T) {
 	for _, tc := range []struct{ name, command, resource, flag, value, query string }{
 		{"ad types", "localizations", "appStoreVersionLocalizations", "--placement-type", "SEARCH_RESULTS_ADS_ASSET,TODAY_TAB_ADS_ASSET", "filter%5BplacementType%5D=SEARCH_RESULTS_ADS_ASSET%2CTODAY_TAB_ADS_ASSET"},
-		{"retention type", "localizations", "appStoreVersionLocalizations", "--placement-type", "RETENTION_MESSAGE_ASSET", "filter%5BplacementType%5D=RETENTION_MESSAGE_ASSET"},
 		{"event type outside events", "localizations", "appStoreVersionLocalizations", "--placement-type", "EVENT_CARD_ASSET", "filter%5BplacementType%5D=EVENT_CARD_ASSET"},
 		{"store type on events", "app-events localizations", "appEventLocalizations", "--placement-type", "APP_SCREENSHOT", "filter%5BplacementType%5D=APP_SCREENSHOT"},
 		{"iMessage type on treatments", "product-pages experiments treatments localizations", "appStoreVersionExperimentTreatmentLocalizations", "--placement-type", "IMESSAGE_APP_SCREENSHOT", "filter%5BplacementType%5D=IMESSAGE_APP_SCREENSHOT"},
@@ -107,6 +106,27 @@ func TestCreativePlacementsListSendsAppleEnumValues(t *testing.T) {
 			stdout, stderr, err := runCreativePlacements(t, args...)
 			if err != nil || stderr != "" || requests != 1 || !strings.Contains(stdout, `"data":[]`) {
 				t.Fatalf("requests=%d stdout=%s stderr=%s err=%v", requests, stdout, stderr, err)
+			}
+		})
+	}
+}
+
+// Apple's spec lists RETENTION_MESSAGE_ASSET, but production rejects it as a
+// placements filter with HTTP 400, so it must stop as a usage error locally.
+func TestCreativePlacementsListRejectsRetentionMessageType(t *testing.T) {
+	original := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = original })
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected request %s %s", req.Method, req.URL)
+		return nil, nil
+	})
+	for _, command := range []string{"localizations", "app-events localizations", "product-pages custom-pages localizations", "product-pages experiments treatments localizations"} {
+		t.Run(command, func(t *testing.T) {
+			setupAuth(t)
+			args := append(strings.Fields(command), "placements", "list", "--localization-id", "loc", "--placement-type", "APP_SCREENSHOT,RETENTION_MESSAGE_ASSET")
+			stdout, stderr, err := runCreativePlacements(t, args...)
+			if !isUsageClassError(err) || stdout != "" || !strings.Contains(stderr, "--placement-type") {
+				t.Fatalf("expected placement type usage error: %s %s %v", stdout, stderr, err)
 			}
 		})
 	}
