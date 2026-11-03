@@ -1358,3 +1358,68 @@ func standaloneTestGitConfigValue(t *testing.T, environment []string, repository
 	t.Fatalf("standalone git config --get %s: %v", key, err)
 	return "", false
 }
+
+func TestGitStoreCloneRedactsRepositoryCredentialsInGitOutput(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "missing-global-config"))
+	t.Setenv("GIT_TERMINAL_PROMPT", "0")
+	stderrFile, err := os.CreateTemp(t.TempDir(), "stderr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalStderr := os.Stderr
+	os.Stderr = stderrFile
+	t.Cleanup(func() { os.Stderr = originalStderr })
+
+	store := &GitStore{
+		RepoURL:  "https://TOKENVALUE@127.0.0.1:1/team/certs.git?private_token=SECRETVALUE",
+		LocalDir: filepath.Join(t.TempDir(), "clone"),
+	}
+	if err := store.Clone(context.Background(), false); err == nil {
+		t.Fatal("expected clone of an unreachable remote to fail")
+	}
+	os.Stderr = originalStderr
+
+	output, err := os.ReadFile(stderrFile.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"SECRETVALUE", "TOKENVALUE"} {
+		if strings.Contains(string(output), secret) {
+			t.Fatalf("git output leaks repository credentials: %q", output)
+		}
+	}
+	if !strings.Contains(string(output), "fatal: unable to access") {
+		t.Fatalf("git output lost its failure line: %q", output)
+	}
+}
+
+func TestRepoRedactingWriterRedactsSecretsSplitAcrossWrites(t *testing.T) {
+	var output bytes.Buffer
+	writer := newRepoRedactingWriter(&output, "https://user:pa%2Fss@example.com/certs.git?private_token=SECRETVALUE&ok=1")
+	for _, chunk := range []string{"Receiving 1%\rReceiving 2% pa/", "ss\nfatal: x?private_tok", "en=SECRET", "VALUE: no", "t found\npa%2Fss tail"} {
+		if _, err := writer.Write([]byte(chunk)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	want := "Receiving 1%\rReceiving 2% [REDACTED]\nfatal: x?private_token=[REDACTED]: not found\n[REDACTED] tail"
+	if output.String() != want {
+		t.Fatalf("output = %q, want %q", output.String(), want)
+	}
+}
+
+func TestRepoRedactingWriterRedactsShortCredentialsOnlyInPlace(t *testing.T) {
+	var output bytes.Buffer
+	writer := newRepoRedactingWriter(&output, "https://u:ab@example.com/certs.git?token=xy")
+	if _, err := writer.Write([]byte("fatal: 'https://u:ab@host/certs.git?token=xy/' abxy\n")); err != nil {
+		t.Fatal(err)
+	}
+	want := "fatal: 'https://u:[REDACTED]@host/certs.git?token=[REDACTED]/' abxy\n"
+	if output.String() != want {
+		t.Fatalf("output = %q, want %q", output.String(), want)
+	}
+}
