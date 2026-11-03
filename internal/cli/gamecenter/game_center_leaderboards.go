@@ -358,10 +358,14 @@ func GameCenterLeaderboardsCreateCommand() *ffcli.Command {
 
 V2 creates the required initial leaderboard version inline.
 
+Recurring leaderboards take all three recurrence flags. --recurrence-duration
+uses time components only (PT168H for a week; Apple rejects P7D), and
+--recurrence-rule must be FREQ=MINUTELY, HOURLY, or DAILY with ;INTERVAL=N.
+
 Examples:
   asc game-center leaderboards create --app "APP_ID" --reference-name "High Score" --vendor-id "com.example.highscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE
   asc game-center leaderboards create --app "APP_ID" --reference-name "Time Trial" --vendor-id "com.example.timetrial" --formatter ELAPSED_TIME_CENTISECOND --sort ASC --submission-type BEST_SCORE
-  asc game-center leaderboards create --app "APP_ID" --reference-name "Weekly Score" --vendor-id "com.example.weeklyscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --recurrence-start-date "2026-12-01T00:00:00Z" --recurrence-duration "P7D" --recurrence-rule "RECURRENCE_RULE"
+  asc game-center leaderboards create --app "APP_ID" --reference-name "Weekly Score" --vendor-id "com.example.weeklyscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --recurrence-start-date "2026-12-01T00:00:00Z" --recurrence-duration "PT168H" --recurrence-rule "FREQ=DAILY;INTERVAL=7"
   asc game-center leaderboards create --group-id "GROUP_ID" --reference-name "Group Score" --vendor-id "grp.com.example.groupscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -493,11 +497,14 @@ func GameCenterLeaderboardsUpdateCommand() *ffcli.Command {
 		ShortHelp:  "Update a Game Center leaderboard.",
 		LongHelp: `Update a Game Center leaderboard.
 
+Recurrence flags work only on a leaderboard created as recurring; Apple does
+not convert a classic leaderboard. Each flag can be set alone.
+
 Examples:
   asc game-center leaderboards update --id "LEADERBOARD_ID" --reference-name "New Name"
   asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true
   asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true --v2
-  asc game-center leaderboards update --id "LEADERBOARD_ID" --recurrence-duration "P7D" --v2`,
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --recurrence-duration "PT168H" --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -998,10 +1005,15 @@ Examples:
 	}
 }
 
-// leaderboardRecurrenceDuration matches the ISO 8601 durations allowed by
-// OpenAPI's "duration" format. It also matches the empty forms "P" and "P1DT",
+// leaderboardRecurrenceDuration allows time components only. OpenAPI says
+// "duration", but Apple rejects P7D and P7DT0H with "Expected an ISO 8601
+// duration with time components" and accepts PT168H. It also matches "PT",
 // which the caller rejects.
-var leaderboardRecurrenceDuration = regexp.MustCompile(`^P(\d+W|(\d+Y)?(\d+M)?(\d+D)?(T(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?)$`)
+var leaderboardRecurrenceDuration = regexp.MustCompile(`^PT(\d+H)?(\d+M)?(\d+S)?$`)
+
+// leaderboardRecurrenceRule is the only rule shape Apple accepts:
+// "Format must be 'FREQ=[MINUTELY,HOURLY,DAILY];INTERVAL=$INT'".
+var leaderboardRecurrenceRule = regexp.MustCompile(`^FREQ=(MINUTELY|HOURLY|DAILY);INTERVAL=[1-9][0-9]*$`)
 
 // leaderboardRecurrence holds validated recurrence flags. An empty field means
 // the flag was omitted.
@@ -1013,8 +1025,8 @@ type leaderboardRecurrence struct {
 
 func bindLeaderboardRecurrenceFlags(fs *flag.FlagSet) {
 	fs.String("recurrence-start-date", "", "Recurrence start date (RFC 3339)")
-	fs.String("recurrence-duration", "", "Recurrence duration (ISO 8601, e.g., P7D)")
-	fs.String("recurrence-rule", "", "Recurrence rule")
+	fs.String("recurrence-duration", "", "Recurrence duration, time components only (e.g., PT168H for a week)")
+	fs.String("recurrence-rule", "", "Recurrence rule: FREQ=MINUTELY|HOURLY|DAILY;INTERVAL=N (e.g., FREQ=DAILY;INTERVAL=7)")
 }
 
 func parseLeaderboardRecurrence(fs *flag.FlagSet) (leaderboardRecurrence, error) {
@@ -1036,8 +1048,11 @@ func parseLeaderboardRecurrence(fs *flag.FlagSet) (leaderboardRecurrence, error)
 		}
 	}
 	if duration := recurrence.duration; duration != "" &&
-		(duration == "P" || strings.HasSuffix(duration, "T") || !leaderboardRecurrenceDuration.MatchString(duration)) {
-		return recurrence, shared.UsageError("--recurrence-duration must be an ISO 8601 duration, such as P7D or PT12H")
+		(duration == "PT" || !leaderboardRecurrenceDuration.MatchString(duration)) {
+		return recurrence, shared.UsageError("--recurrence-duration must be an ISO 8601 duration with time components only, such as PT168H for a week")
+	}
+	if rule := recurrence.rule; rule != "" && !leaderboardRecurrenceRule.MatchString(rule) {
+		return recurrence, shared.UsageError("--recurrence-rule must be FREQ=MINUTELY, HOURLY, or DAILY with ;INTERVAL=N, such as FREQ=DAILY;INTERVAL=7")
 	}
 
 	return recurrence, nil

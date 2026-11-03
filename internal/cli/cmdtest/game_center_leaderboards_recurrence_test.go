@@ -17,9 +17,9 @@ func TestGameCenterLeaderboardsUpdateSendsOnlyRecurrenceFlagsSet(t *testing.T) {
 	}{
 		{
 			name:      "v1 all attributes",
-			args:      []string{"--recurrence-start-date", "2026-12-01T00:00:00+01:00", "--recurrence-duration", "P1W", "--recurrence-rule", "FREQ=WEEKLY"},
+			args:      []string{"--recurrence-start-date", "2026-12-01T00:00:00+01:00", "--recurrence-duration", "PT168H", "--recurrence-rule", "FREQ=DAILY;INTERVAL=7"},
 			patchPath: "/v1/gameCenterLeaderboards/LB_ID",
-			wantAttrs: `{"recurrenceStartDate":"2026-12-01T00:00:00+01:00","recurrenceDuration":"P1W","recurrenceRule":"FREQ=WEEKLY"}`,
+			wantAttrs: `{"recurrenceStartDate":"2026-12-01T00:00:00+01:00","recurrenceDuration":"PT168H","recurrenceRule":"FREQ=DAILY;INTERVAL=7"}`,
 		},
 		{
 			name:      "v1 start date alone",
@@ -29,21 +29,21 @@ func TestGameCenterLeaderboardsUpdateSendsOnlyRecurrenceFlagsSet(t *testing.T) {
 		},
 		{
 			name:      "v1 duration alone",
-			args:      []string{"--recurrence-duration", "P1DT12H"},
+			args:      []string{"--recurrence-duration", "PT36H"},
 			patchPath: "/v1/gameCenterLeaderboards/LB_ID",
-			wantAttrs: `{"recurrenceDuration":"P1DT12H"}`,
+			wantAttrs: `{"recurrenceDuration":"PT36H"}`,
 		},
 		{
 			name:      "v2 rule alone",
-			args:      []string{"--v2", "--recurrence-rule", "FREQ=DAILY"},
+			args:      []string{"--v2", "--recurrence-rule", "FREQ=HOURLY;INTERVAL=24"},
 			patchPath: "/v2/gameCenterLeaderboards/LB_ID",
-			wantAttrs: `{"recurrenceRule":"FREQ=DAILY"}`,
+			wantAttrs: `{"recurrenceRule":"FREQ=HOURLY;INTERVAL=24"}`,
 		},
 		{
 			name:      "v2 all attributes",
-			args:      []string{"--v2", "--recurrence-start-date", "2026-12-01T00:00:00Z", "--recurrence-duration", "PT30M", "--recurrence-rule", "FREQ=HOURLY"},
+			args:      []string{"--v2", "--recurrence-start-date", "2026-12-01T00:00:00Z", "--recurrence-duration", "PT24H", "--recurrence-rule", "FREQ=DAILY;INTERVAL=1"},
 			patchPath: "/v2/gameCenterLeaderboards/LB_ID",
-			wantAttrs: `{"recurrenceStartDate":"2026-12-01T00:00:00Z","recurrenceDuration":"PT30M","recurrenceRule":"FREQ=HOURLY"}`,
+			wantAttrs: `{"recurrenceStartDate":"2026-12-01T00:00:00Z","recurrenceDuration":"PT24H","recurrenceRule":"FREQ=DAILY;INTERVAL=1"}`,
 		},
 	}
 
@@ -94,7 +94,8 @@ func TestGameCenterLeaderboardsRecurrenceFlagsRejectBadValuesBeforeRequests(t *t
 		blankDuration  = "--recurrence-duration must not be blank"
 		blankRule      = "--recurrence-rule must not be blank"
 		badStartDate   = "--recurrence-start-date must be an RFC 3339 date-time, such as 2026-12-01T00:00:00Z"
-		badDuration    = "--recurrence-duration must be an ISO 8601 duration, such as P7D or PT12H"
+		badDuration    = "--recurrence-duration must be an ISO 8601 duration with time components only, such as PT168H for a week"
+		badRule        = "--recurrence-rule must be FREQ=MINUTELY, HOURLY, or DAILY with ;INTERVAL=N, such as FREQ=DAILY;INTERVAL=7"
 	)
 
 	commands := []struct {
@@ -135,7 +136,15 @@ func TestGameCenterLeaderboardsRecurrenceFlagsRejectBadValuesBeforeRequests(t *t
 		{name: "bare designator", flag: "--recurrence-duration", value: "P", wantErr: badDuration},
 		{name: "time designator with no time", flag: "--recurrence-duration", value: "P1DT", wantErr: badDuration},
 		{name: "time unit before date unit", flag: "--recurrence-duration", value: "PT1H1D", wantErr: badDuration},
-		{name: "lowercase duration", flag: "--recurrence-duration", value: "p7d", wantErr: badDuration},
+		{name: "lowercase duration", flag: "--recurrence-duration", value: "pt1h", wantErr: badDuration},
+		// Apple rejects these with "Expected an ISO 8601 duration with time components".
+		{name: "day duration Apple rejects", flag: "--recurrence-duration", value: "P7D", wantErr: badDuration},
+		{name: "week duration Apple rejects", flag: "--recurrence-duration", value: "P1W", wantErr: badDuration},
+		{name: "day with zero time Apple rejects", flag: "--recurrence-duration", value: "P7DT0H", wantErr: badDuration},
+		// Apple accepts only FREQ=[MINUTELY,HOURLY,DAILY];INTERVAL=$INT.
+		{name: "weekly rule Apple rejects", flag: "--recurrence-rule", value: "FREQ=WEEKLY;INTERVAL=1", wantErr: badRule},
+		{name: "rule without interval", flag: "--recurrence-rule", value: "FREQ=DAILY", wantErr: badRule},
+		{name: "zero interval", flag: "--recurrence-rule", value: "FREQ=DAILY;INTERVAL=0", wantErr: badRule},
 	}
 
 	for _, command := range commands {
