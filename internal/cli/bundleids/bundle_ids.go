@@ -301,16 +301,18 @@ func BundleIDsCreateCommand() *ffcli.Command {
 	identifier := fs.String("identifier", "", "Bundle ID identifier (e.g., com.example.app)")
 	name := fs.String("name", "", "Bundle ID name")
 	platform := fs.String("platform", "IOS", "Platform: "+strings.Join(shared.BundleIDPlatformList(), ", "))
+	seedID := fs.String("seed-id", "", "App ID prefix (seedId); omit for Apple's default")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
-		ShortUsage: "asc bundle-ids create --identifier \"com.example.app\" --name \"Example\" [--platform IOS]",
+		ShortUsage: "asc bundle-ids create --identifier \"com.example.app\" --name \"Example\" [--platform IOS] [--seed-id SEED_ID]",
 		ShortHelp:  "Create a bundle ID.",
 		LongHelp: `Create a bundle ID.
 
 Examples:
-  asc bundle-ids create --identifier "com.example.app" --name "Example" --platform IOS`,
+  asc bundle-ids create --identifier "com.example.app" --name "Example" --platform IOS
+  asc bundle-ids create --identifier "com.example.app" --name "Example" --seed-id "ABCDE12345"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -331,6 +333,16 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("bundle-ids create: %w", shared.UsageError(err.Error()))
 			}
+			seedIDValue := strings.TrimSpace(*seedID)
+			seedIDSet := false
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "seed-id" {
+					seedIDSet = true
+				}
+			})
+			if seedIDSet && seedIDValue == "" {
+				return fmt.Errorf("bundle-ids create: %w", shared.UsageError("--seed-id must not be empty"))
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -344,6 +356,7 @@ Examples:
 				Name:       nameValue,
 				Identifier: identifierValue,
 				Platform:   platformValue,
+				SeedID:     seedIDValue,
 			}
 			resp, err := client.CreateBundleID(requestCtx, attrs)
 			if err != nil {
