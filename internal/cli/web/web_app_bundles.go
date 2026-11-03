@@ -32,6 +32,14 @@ var setWebAppBundleAppsFn = func(ctx context.Context, client *webcore.Client, bu
 	return client.SetAppBundleApps(ctx, bundleID, appIDs)
 }
 
+var submitWebAppBundleFn = func(ctx context.Context, client *webcore.Client, bundleID string) (*asc.WebAppBundleReviewResult, error) {
+	return client.SubmitAppBundle(ctx, bundleID)
+}
+
+var removeWebAppBundleFromReviewFn = func(ctx context.Context, client *webcore.Client, bundleID string) (*asc.WebAppBundleReviewResult, error) {
+	return client.RemoveAppBundleFromReview(ctx, bundleID)
+}
+
 // WebAppBundlesCommand returns the app bundles command group.
 func WebAppBundlesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("web app-bundles", flag.ExitOnError)
@@ -49,13 +57,17 @@ Examples:
   asc web app-bundles list
   asc web app-bundles view --id "BUNDLE_ID" --output table
   asc web app-bundles apps eligible --output table
-  asc web app-bundles apps set --id "BUNDLE_ID" --apps "APP_ID_1,APP_ID_2" --confirm`,
+  asc web app-bundles apps set --id "BUNDLE_ID" --apps "APP_ID_1,APP_ID_2" --confirm
+  asc web app-bundles submit --id "BUNDLE_ID" --confirm
+  asc web app-bundles remove-from-review --id "BUNDLE_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WebAppBundlesListCommand(),
 			WebAppBundlesViewCommand(),
 			WebAppBundlesAppsCommand(),
+			webAppBundleReviewCommand("submit", "Submit an app bundle for App Review.", "Submit an app bundle for App Review. Apple must offer this: canSubmit in\nasc web app-bundles view has to be true. Reading the bundle back confirms the\nnew state.", submitWebAppBundleFn),
+			webAppBundleReviewCommand("remove-from-review", "Remove an app bundle from App Review.", "Remove a submitted app bundle from App Review so it can be edited. Apple must\noffer this: canRemoveFromReview in asc web app-bundles view has to be true.\nReading the bundle back confirms the new state.", removeWebAppBundleFromReviewFn),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -289,6 +301,51 @@ Examples:
 			result, err := setWebAppBundleAppsFn(requestCtx, newWebClientFn(session), bundleID, appIDs)
 			if err != nil {
 				return withWebAuthHint(fmt.Errorf("web app-bundles apps set failed: %w", err), "web app-bundles apps set")
+			}
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		},
+	}
+}
+
+func webAppBundleReviewCommand(name, shortHelp, longHelp string, run func(context.Context, *webcore.Client, string) (*asc.WebAppBundleReviewResult, error)) *ffcli.Command {
+	commandName := "web app-bundles " + name
+	fs := flag.NewFlagSet(commandName, flag.ExitOnError)
+	id := fs.String("id", "", "App bundle ID")
+	confirm := fs.Bool("confirm", false, "Confirm this review change (required)")
+	authFlags := bindWebSessionFlags(fs)
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       name,
+		ShortUsage: "asc " + commandName + " --id BUNDLE_ID --confirm [flags]",
+		ShortHelp:  shortHelp,
+		LongHelp:   longHelp + "\n\nExamples:\n  asc " + commandName + ` --id "BUNDLE_ID" --confirm`,
+		FlagSet:    fs,
+		UsageFunc:  shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError(commandName + " does not accept positional arguments")
+			}
+			bundleID := strings.TrimSpace(*id)
+			if bundleID == "" {
+				return shared.UsageError("--id is required")
+			}
+			if !*confirm {
+				return shared.UsageError("--confirm is required")
+			}
+			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
+				return shared.UsageError(err.Error())
+			}
+
+			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			defer cancel()
+			if err != nil {
+				return withWebAuthHint(err, commandName)
+			}
+
+			result, err := run(requestCtx, newWebClientFn(session), bundleID)
+			if err != nil {
+				return withWebAuthHint(fmt.Errorf("%s failed: %w", commandName, err), commandName)
 			}
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},

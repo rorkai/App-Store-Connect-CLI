@@ -751,6 +751,8 @@ Available commands:
 * `asc web app-bundles view` - view a bundle's status, sale state, and member apps in display order
 * `asc web app-bundles apps eligible` - list the iOS and macOS apps that can join a bundle
 * `asc web app-bundles apps set` - set a bundle's apps and their order
+* `asc web app-bundles submit` - submit a bundle for App Review
+* `asc web app-bundles remove-from-review` - remove a submitted bundle from App Review
 
 `apps set` requires `--id`, `--apps`, and `--confirm`. List every app the bundle
 should keep, in order: leaving one out removes it, and a new ID adds it. Apple
@@ -759,6 +761,10 @@ can still change after that. The first app is the primary app, so moving it can
 change metadata Apple derives from it, such as the copyright. The command refuses
 a bundle in review, reads the bundle back to confirm the change, and sends
 nothing when the list already matches.
+
+`submit` and `remove-from-review` require `--id` and `--confirm`. They refuse a
+bundle unless Apple offers that action (`canSubmit` or `canRemoveFromReview` in
+`view`), and read the bundle back to confirm its state changed.
 
 Example:
 

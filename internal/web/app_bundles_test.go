@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestListAppBundlesJoinsReviewStateAcrossPages(t *testing.T) {
@@ -291,5 +293,83 @@ func TestSetAppBundleAppsRejectsReadbackMismatch(t *testing.T) {
 	result, err := testWebClient(server).SetAppBundleApps(context.Background(), "1501593771", []string{"2", "1"})
 	if err == nil || !strings.Contains(err.Error(), "readback") || result != nil {
 		t.Fatalf("result = %+v, error = %v, want readback error", result, err)
+	}
+}
+
+func TestAppBundleReviewActions(t *testing.T) {
+	type call func(*Client, context.Context, string) (*asc.WebAppBundleReviewResult, error)
+	submit, remove := call((*Client).SubmitAppBundle), call((*Client).RemoveAppBundleFromReview)
+	tests := []struct {
+		name         string
+		run          call
+		flags        string
+		afterFlags   string
+		before       string
+		after        string
+		postBody     string
+		wantPath     string
+		wantErr      string
+		wantState    string
+		wantInFlight string
+		wantNoPost   bool
+	}{
+		{name: "submit", run: submit, flags: `"canSubmit": true`, before: "prepareForSubmission", after: "waitingForReview", wantPath: "/submit/1501593771", wantState: "waitingForReview"},
+		{name: "remove", run: remove, flags: `"canDevReject": true`, before: "waitingForReview", after: "developerRejected", afterFlags: `"canSubmit": true`, wantPath: "/devreject/1501593771", wantState: "developerRejected"},
+		{name: "remove still in review", run: remove, flags: `"canDevReject": true`, before: "waitingForReview", after: "inReview", afterFlags: `"canDevReject": false`, wantPath: "/devreject/1501593771", wantErr: "readback"},
+		{name: "submit ends somewhere unrelated", run: submit, flags: `"canSubmit": true`, before: "prepareForSubmission", after: "readyForSale", wantPath: "/submit/1501593771", wantErr: "readback"},
+		{name: "submit a new version of a released bundle", run: submit, flags: `"canSubmit": true`, before: "readyForSale", after: "readyForSale", afterFlags: `"inFlightState": "Waiting for Review"`, wantPath: "/submit/1501593771", wantState: "readyForSale", wantInFlight: "Waiting for Review"},
+		{name: "submit not offered", run: submit, flags: `"canDevReject": true`, before: "developerRemovedFromSale", wantErr: "cannot be submitted", wantNoPost: true},
+		{name: "remove not offered", run: remove, flags: `"canSubmit": true`, before: "prepareForSubmission", wantErr: "cannot be removed", wantNoPost: true},
+		{name: "apple refuses", run: submit, flags: `"canSubmit": true`, before: "prepareForSubmission", postBody: `{"data": null, "messages": {"error": ["Missing metadata"]}, "statusCode": "ERROR"}`, wantPath: "/submit/1501593771", wantErr: "Missing metadata"},
+		{name: "state did not change", run: submit, flags: `"canSubmit": true`, before: "prepareForSubmission", after: "prepareForSubmission", wantPath: "/submit/1501593771", wantErr: "readback"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var posts []string
+			var bodySizes []int64
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method == http.MethodPost {
+					posts = append(posts, strings.TrimPrefix(r.URL.Path, "/WebObjects/iTunesConnect.woa/ra/appbundles"))
+					bodySizes = append(bodySizes, r.ContentLength)
+					if csrf := r.Header.Get("X-Csrf-Itc"); csrf != "itc" {
+						t.Errorf("X-Csrf-Itc = %q", csrf)
+					}
+					if test.postBody != "" {
+						_, _ = w.Write([]byte(test.postBody))
+						return
+					}
+					_, _ = w.Write([]byte(`{"data": null, "messages": {"error": null}, "statusCode": "SUCCESS"}`))
+					return
+				}
+				state, flags := test.before, test.flags
+				if len(posts) > 0 {
+					state, flags = test.after, test.afterFlags
+					if flags == "" {
+						flags = `"canSubmit": false`
+					}
+				}
+				_, _ = w.Write([]byte(`{"data": {"stateKey": "` + state + `", ` + flags + `}, "messages": {"error": null}, "statusCode": "SUCCESS"}`))
+			}))
+			defer server.Close()
+
+			got, err := test.run(testWebClient(server), context.Background(), "1501593771")
+			if test.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+					t.Fatalf("error = %v, want %q", err, test.wantErr)
+				}
+			} else if err != nil || got.State != test.wantState || got.PreviousState != test.before || got.InFlightState != test.wantInFlight {
+				t.Fatalf("result = %+v, error = %v", got, err)
+			}
+			if test.wantNoPost {
+				if len(posts) != 0 {
+					t.Fatalf("posts = %v, want none", posts)
+				}
+				return
+			}
+			if len(posts) != 1 || posts[0] != test.wantPath || bodySizes[0] > 0 {
+				t.Fatalf("posts = %v sizes %v, want one bodyless %s", posts, bodySizes, test.wantPath)
+			}
+		})
 	}
 }

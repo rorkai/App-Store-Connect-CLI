@@ -39,6 +39,7 @@ func registerAllOutputRenderers() {
 	registerRows(webAppDeleteRows)
 	registerRows(webRemovedAppRestoreRows)
 	registerRows(webAppBundleAppsRows)
+	registerRows(webAppBundleReviewRows)
 	registerRows(webAppDeclarationListRows)
 	registerRows(webMedicalDeviceDeclarationStateRows)
 	registerRows(webMedicalDeviceDeclarationResultRows)
