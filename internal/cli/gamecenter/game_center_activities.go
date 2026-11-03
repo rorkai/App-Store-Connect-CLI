@@ -197,6 +197,7 @@ func GameCenterActivitiesCreateCommand() *ffcli.Command {
 	minPlayers := fs.Int("min-players", 0, "Minimum players count")
 	maxPlayers := fs.Int("max-players", 0, "Maximum players count")
 	supportsPartyCode := fs.String("supports-party-code", "", "Supports party code (true/false)")
+	fs.String("properties", "", "Activity properties as a JSON object of string values, inline or @file:PATH")
 	createInitialVersion := fs.String("create-initial-version", "", "Create an initial activity version inline (true/false)")
 	initialFallbackURL := fs.String("initial-fallback-url", "", "Fallback URL for the initial activity version")
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
@@ -211,6 +212,7 @@ func GameCenterActivitiesCreateCommand() *ffcli.Command {
 Examples:
   asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly"
   asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --create-initial-version true
+  asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --properties '{"mode":"ranked"}'
   asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --create-initial-version true --initial-fallback-url "https://example.com/fallback"
   asc game-center activities create --group-id "GROUP_ID" --reference-name "Weekly" --vendor-id "grp.com.example.weekly"`,
 		FlagSet:   fs,
@@ -283,6 +285,11 @@ Examples:
 				}
 				attrs.SupportsPartyCode = &val
 			}
+			properties, err := parseStringMapFlag(fs, "properties")
+			if err != nil {
+				return err
+			}
+			attrs.Properties = properties
 
 			var initialVersion *asc.GameCenterActivityVersionCreateAttributes
 			if createInitialVersionValue {
@@ -330,6 +337,7 @@ func GameCenterActivitiesUpdateCommand() *ffcli.Command {
 	maxPlayers := fs.Int("max-players", 0, "Maximum players count")
 	supportsPartyCode := fs.String("supports-party-code", "", "Supports party code (true/false)")
 	archived := fs.String("archived", "", "Archive the activity (true/false)")
+	fs.String("properties", "", "Activity properties as a JSON object of string values, inline or @file:PATH")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -340,7 +348,8 @@ func GameCenterActivitiesUpdateCommand() *ffcli.Command {
 
 Examples:
   asc game-center activities update --id "ACTIVITY_ID" --reference-name "New Name"
-  asc game-center activities update --id "ACTIVITY_ID" --archived true`,
+  asc game-center activities update --id "ACTIVITY_ID" --archived true
+  asc game-center activities update --id "ACTIVITY_ID" --properties @file:properties.json`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -389,6 +398,14 @@ Examples:
 					return flag.ErrHelp
 				}
 				attrs.Archived = &val
+				hasUpdate = true
+			}
+			properties, err := parseStringMapFlag(fs, "properties")
+			if err != nil {
+				return err
+			}
+			if properties != nil {
+				attrs.Properties = properties
 				hasUpdate = true
 			}
 

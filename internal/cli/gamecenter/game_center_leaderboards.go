@@ -346,6 +346,8 @@ func GameCenterLeaderboardsCreateCommand() *ffcli.Command {
 	scoreRangeStart := fs.String("score-range-start", "", "Score range start (optional)")
 	scoreRangeEnd := fs.String("score-range-end", "", "Score range end (optional)")
 	bindLeaderboardRecurrenceFlags(fs)
+	fs.String("visibility", "", "Leaderboard visibility: "+strings.Join(asc.ValidLeaderboardVisibilities, ", "))
+	fs.String("activity-properties", "", "Activity properties as a JSON object of string values, inline or @file:PATH")
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID (v2 only); not used with --set-ids")
 	setIDs := shared.BindOnceCSVFlag(fs, "set-ids", "Comma-separated leaderboard set IDs to add the leaderboard to; it inherits its parent from them")
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
@@ -370,6 +372,7 @@ Examples:
   asc game-center leaderboards create --app "APP_ID" --reference-name "High Score" --vendor-id "com.example.highscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE
   asc game-center leaderboards create --app "APP_ID" --reference-name "Time Trial" --vendor-id "com.example.timetrial" --formatter ELAPSED_TIME_CENTISECOND --sort ASC --submission-type BEST_SCORE
   asc game-center leaderboards create --app "APP_ID" --reference-name "Weekly Score" --vendor-id "com.example.weeklyscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --recurrence-start-date "2026-12-01T00:00:00Z" --recurrence-duration "PT168H" --recurrence-rule "FREQ=DAILY;INTERVAL=7"
+  asc game-center leaderboards create --app "APP_ID" --reference-name "Ranked" --vendor-id "com.example.ranked" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --visibility HIDE_FOR_ALL --activity-properties '{"mode":"ranked"}'
   asc game-center leaderboards create --group-id "GROUP_ID" --reference-name "Group Score" --vendor-id "grp.com.example.groupscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2
   asc game-center leaderboards create --reference-name "Weekly Score" --vendor-id "com.example.weeklyscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2 --set-ids "id1,id2"`,
 		FlagSet:   fs,
@@ -458,6 +461,14 @@ Examples:
 			if err != nil {
 				return err
 			}
+			visibility, err := parseLeaderboardVisibilityFlag(fs)
+			if err != nil {
+				return err
+			}
+			activityProperties, err := parseStringMapFlag(fs, "activity-properties")
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -488,6 +499,8 @@ Examples:
 				RecurrenceStartDate: recurrence.startDate,
 				RecurrenceDuration:  recurrence.duration,
 				RecurrenceRule:      recurrence.rule,
+				ActivityProperties:  activityProperties,
+				Visibility:          visibility,
 			}
 
 			useV2 := *v2 || group != ""
@@ -519,6 +532,8 @@ func GameCenterLeaderboardsUpdateCommand() *ffcli.Command {
 	scoreRangeStart := fs.String("score-range-start", "", "Score range start")
 	scoreRangeEnd := fs.String("score-range-end", "", "Score range end")
 	bindLeaderboardRecurrenceFlags(fs)
+	fs.String("visibility", "", "Leaderboard visibility: "+strings.Join(asc.ValidLeaderboardVisibilities, ", "))
+	fs.String("activity-properties", "", "Activity properties as a JSON object of string values, inline or @file:PATH")
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
 
@@ -534,6 +549,8 @@ not convert a classic leaderboard. Each flag can be set alone.
 Examples:
   asc game-center leaderboards update --id "LEADERBOARD_ID" --reference-name "New Name"
   asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --visibility HIDE_FOR_ALL
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --activity-properties @file:properties.json
   asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true --v2
   asc game-center leaderboards update --id "LEADERBOARD_ID" --formatter ELAPSED_TIME_SECOND --sort ASC --submission-type MOST_RECENT_SCORE
   asc game-center leaderboards update --id "LEADERBOARD_ID" --score-range-start 0 --score-range-end 5000 --v2
@@ -628,6 +645,24 @@ Examples:
 			}
 			if recurrence.rule != "" {
 				attrs.RecurrenceRule = &recurrence.rule
+				hasUpdate = true
+			}
+
+			visibility, err := parseLeaderboardVisibilityFlag(fs)
+			if err != nil {
+				return err
+			}
+			if visibility != "" {
+				attrs.Visibility = &visibility
+				hasUpdate = true
+			}
+
+			activityProperties, err := parseStringMapFlag(fs, "activity-properties")
+			if err != nil {
+				return err
+			}
+			if activityProperties != nil {
+				attrs.ActivityProperties = activityProperties
 				hasUpdate = true
 			}
 

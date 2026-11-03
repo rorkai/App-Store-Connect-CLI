@@ -51,6 +51,46 @@ func TestRun_GameCenter43Flags_InvalidValuesReturnUsage(t *testing.T) {
 			args:    []string{"game-center", "activities", "create", "--app", "APP_ID", "--reference-name", "Seasonal", "--vendor-id", "com.example.seasonal", "--initial-fallback-url", "https://example.com/fallback"},
 			wantErr: "--initial-fallback-url requires --create-initial-version true",
 		},
+		{
+			name:    "achievement create activity properties not an object",
+			args:    []string{"game-center", "achievements", "create", "--app", "APP_ID", "--reference-name", "Win", "--vendor-id", "com.example.win", "--points", "10", "--activity-properties", `["mode"]`},
+			wantErr: "--activity-properties must be a JSON object of string values",
+		},
+		{
+			name:    "achievement update activity properties non-string value",
+			args:    []string{"game-center", "achievements", "update", "--id", "ACH", "--activity-properties", `{"mode":1}`},
+			wantErr: "--activity-properties must be a JSON object of string values",
+		},
+		{
+			name:    "leaderboard create activity properties invalid JSON",
+			args:    []string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--reference-name", "Score", "--vendor-id", "com.example.score", "--formatter", "INTEGER", "--sort", "DESC", "--submission-type", "BEST_SCORE", "--activity-properties", `{mode}`},
+			wantErr: "--activity-properties must be a JSON object of string values",
+		},
+		{
+			name:    "leaderboard update activity properties null value",
+			args:    []string{"game-center", "leaderboards", "update", "--id", "LB", "--activity-properties", `{"mode":null}`},
+			wantErr: "--activity-properties must be a JSON object of string values",
+		},
+		{
+			name:    "activity create properties null",
+			args:    []string{"game-center", "activities", "create", "--app", "APP_ID", "--reference-name", "Weekly", "--vendor-id", "com.example.weekly", "--properties", `null`},
+			wantErr: "--properties must be a JSON object of string values",
+		},
+		{
+			name:    "activity update properties blank",
+			args:    []string{"game-center", "activities", "update", "--id", "ACT", "--properties", ""},
+			wantErr: "--properties must be a JSON object of string values",
+		},
+		{
+			name:    "leaderboard create invalid visibility",
+			args:    []string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--reference-name", "Score", "--vendor-id", "com.example.score", "--formatter", "INTEGER", "--sort", "DESC", "--submission-type", "BEST_SCORE", "--visibility", "PUBLIC"},
+			wantErr: "--visibility must be one of: SHOW_FOR_ALL, HIDE_FOR_ALL",
+		},
+		{
+			name:    "leaderboard update blank visibility",
+			args:    []string{"game-center", "leaderboards", "update", "--id", "LB", "--visibility", " "},
+			wantErr: "--visibility must be one of: SHOW_FOR_ALL, HIDE_FOR_ALL",
+		},
 	}
 
 	for _, test := range tests {

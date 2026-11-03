@@ -215,6 +215,7 @@ func GameCenterAchievementsCreateCommand() *ffcli.Command {
 	points := fs.Int("points", 0, "Points value (1-100)")
 	showBeforeEarned := fs.Bool("show-before-earned", true, "Show achievement before it is earned")
 	repeatable := fs.Bool("repeatable", false, "Achievement can be earned multiple times")
+	fs.String("activity-properties", "", "Activity properties as a JSON object of string values, inline or @file:PATH")
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID (v2 only)")
 	v2 := fs.Bool("v2", false, "Use v2 achievements endpoint")
 	output := shared.BindOutputFlags(fs)
@@ -230,6 +231,7 @@ V2 creates the required initial achievement version inline.
 Examples:
   asc game-center achievements create --app "APP_ID" --reference-name "First Win" --vendor-id "com.example.firstwin" --points 10
   asc game-center achievements create --app "APP_ID" --reference-name "Master" --vendor-id "com.example.master" --points 100 --repeatable
+  asc game-center achievements create --app "APP_ID" --reference-name "Ranked" --vendor-id "com.example.ranked" --points 10 --activity-properties '{"mode":"ranked"}'
   asc game-center achievements create --group-id "GROUP_ID" --reference-name "Group Win" --vendor-id "grp.com.example.groupwin" --points 10 --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -267,6 +269,11 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			activityProperties, err := parseStringMapFlag(fs, "activity-properties")
+			if err != nil {
+				return err
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements create: %w", err)
@@ -286,11 +293,12 @@ Examples:
 			}
 
 			attrs := asc.GameCenterAchievementCreateAttributes{
-				ReferenceName:    name,
-				VendorIdentifier: vendor,
-				Points:           *points,
-				ShowBeforeEarned: *showBeforeEarned,
-				Repeatable:       *repeatable,
+				ReferenceName:      name,
+				VendorIdentifier:   vendor,
+				Points:             *points,
+				ShowBeforeEarned:   *showBeforeEarned,
+				Repeatable:         *repeatable,
+				ActivityProperties: activityProperties,
 			}
 
 			useV2 := *v2 || group != ""
@@ -319,6 +327,7 @@ func GameCenterAchievementsUpdateCommand() *ffcli.Command {
 	showBeforeEarned := fs.String("show-before-earned", "", "Show achievement before it is earned (true/false)")
 	repeatable := fs.String("repeatable", "", "Achievement can be earned multiple times (true/false)")
 	archived := fs.String("archived", "", "Archive the achievement (true/false)")
+	fs.String("activity-properties", "", "Activity properties as a JSON object of string values, inline or @file:PATH")
 	v2 := fs.Bool("v2", false, "Use v2 achievements endpoint")
 	output := shared.BindOutputFlags(fs)
 
@@ -332,6 +341,7 @@ Examples:
   asc game-center achievements update --id "ACHIEVEMENT_ID" --reference-name "New Name"
   asc game-center achievements update --id "ACHIEVEMENT_ID" --points 20
   asc game-center achievements update --id "ACHIEVEMENT_ID" --archived true
+  asc game-center achievements update --id "ACHIEVEMENT_ID" --activity-properties @file:properties.json
   asc game-center achievements update --id "ACHIEVEMENT_ID" --points 20 --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -387,6 +397,15 @@ Examples:
 					return flag.ErrHelp
 				}
 				attrs.Archived = &val
+				hasUpdate = true
+			}
+
+			activityProperties, err := parseStringMapFlag(fs, "activity-properties")
+			if err != nil {
+				return err
+			}
+			if activityProperties != nil {
+				attrs.ActivityProperties = activityProperties
 				hasUpdate = true
 			}
 

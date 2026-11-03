@@ -34,7 +34,7 @@ type GameCenterLeaderboardCreateAttributes struct {
 	RecurrenceDuration  string            `json:"recurrenceDuration,omitempty"`
 	RecurrenceRule      string            `json:"recurrenceRule,omitempty"`
 	SubmissionType      string            `json:"submissionType"`
-	ActivityProperties  map[string]string `json:"activityProperties,omitempty"`
+	ActivityProperties  map[string]string `json:"activityProperties,omitzero"`
 	Visibility          string            `json:"visibility,omitempty"`
 }
 
@@ -50,7 +50,7 @@ type GameCenterLeaderboardUpdateAttributes struct {
 	RecurrenceRule      *string           `json:"recurrenceRule,omitempty"`
 	SubmissionType      *string           `json:"submissionType,omitempty"`
 	Archived            *bool             `json:"archived,omitempty"`
-	ActivityProperties  map[string]string `json:"activityProperties,omitempty"`
+	ActivityProperties  map[string]string `json:"activityProperties,omitzero"`
 	Visibility          *string           `json:"visibility,omitempty"`
 }
 
