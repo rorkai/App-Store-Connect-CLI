@@ -148,6 +148,10 @@ The version-related flags are `--include`, `--fields`, `--version-fields`, and
 `--versions-limit`. Group list also retains `--limit`, `--next`, and
 `--paginate`; do not combine `--next` with query flags.
 
+`--subscription-fields` and `--localization-fields` select fields on included
+subscriptions and group localizations. Each one adds its relationship to
+`include`, and to `--fields` when that flag is set.
+
 #### Create, List, and View Versions
 
 ```bash  theme={null}
@@ -264,6 +268,36 @@ asc subscriptions list --group-id "GROUP_ID"
 * `--limit` - Results per page (1-200)
 * `--paginate` - Fetch all pages
 * `--next` - Pagination URL
+* `--fields`, `--version-fields`, `--include`, `--versions-limit` - Sparse
+  fields, includes, and included-version limit
+* Included resource fields, listed below
+
+Included resource fields require `--group-id`, cannot be combined with `--next`,
+and accept Apple's field names for that resource. `asc subscriptions view` takes
+the same flags. Each one adds its relationship to `include`, and to `--fields`
+when that flag is set.
+
+| Flag | Query parameter |
+| --- | --- |
+| `--localization-fields` | `fields[subscriptionLocalizations]` |
+| `--review-screenshot-fields` | `fields[subscriptionAppStoreReviewScreenshots]` |
+| `--group-fields` | `fields[subscriptionGroups]` |
+| `--introductory-offer-fields` | `fields[subscriptionIntroductoryOffers]` |
+| `--promotional-offer-fields` | `fields[subscriptionPromotionalOffers]` |
+| `--offer-code-fields` | `fields[subscriptionOfferCodes]` |
+| `--price-fields` | `fields[subscriptionPrices]` |
+| `--promoted-purchase-fields` | `fields[promotedPurchases]` |
+| `--availability-fields` | `fields[subscriptionAvailabilities]` |
+| `--win-back-offer-fields` | `fields[winBackOffers]` |
+| `--image-fields` | `fields[subscriptionImages]` |
+| `--plan-availability-fields` | `fields[subscriptionPlanAvailabilities]` |
+
+```bash  theme={null}
+asc subscriptions list \
+  --group-id "GROUP_ID" \
+  --fields name,productId \
+  --localization-fields name,locale
+```
 
 ### Create Subscription
 
@@ -292,6 +326,8 @@ asc subscriptions create \
   * `THREE_MONTHS`
   * `SIX_MONTHS`
   * `ONE_YEAR`
+* `--review-note` - Review note for App Review
+* `--group-level` - Subscription ordering level (positive integer)
 * `--family-sharable` - Enable Family Sharing (cannot be undone). This also sets
   `multiSeatStatus` to `DISABLED`.
 
@@ -311,12 +347,26 @@ asc subscriptions create \
   --product-id "com.example.app.yearly" \
   --subscription-period ONE_YEAR \
   --family-sharable
+
+# Set the ordering level and App Review note at creation
+asc subscriptions create \
+  --group-id "GROUP_ID" \
+  --reference-name "Yearly Premium" \
+  --product-id "com.example.app.yearly" \
+  --subscription-period ONE_YEAR \
+  --group-level 1 \
+  --review-note "Same paywall structure, design may differ"
 ```
+
+`asc subscriptions setup` accepts `--review-note` and `--group-level` too. When
+setup finds an existing subscription for the product ID, it stops with a
+conflict if either value differs instead of changing that subscription.
 
 ### Get Subscription
 
 ```bash  theme={null}
 asc subscriptions view --id "SUB_ID"
+asc subscriptions view --id "SUB_ID" --fields name --price-fields startDate,planType
 ```
 
 ### Update Subscription
@@ -615,6 +665,7 @@ asc subscriptions pricing prices set \
 * `--territory` - Territory ID (e.g., `USA`) - required for `--tier` or `--price`
 * `--start-date` - Price change start date (`YYYY-MM-DD`)
 * `--preserved` - Preserve existing customer pricing
+* `--plan-type` - Billing plan: `MONTHLY` or `UPFRONT`. Omit it to send no plan type. `MONTHLY` cannot be combined with `--force` or USA
 * `--refresh` - Force refresh of tier cache
 
 **Examples:**
@@ -683,10 +734,14 @@ GBR,3.99
 AUS,7.99
 ```
 
+The optional `plan_type` column accepts `MONTHLY` or `UPFRONT`. Rows without a
+value use `--plan-type`, then `UPFRONT`. `MONTHLY` rows cannot target USA.
+
 **Optional Flags:**
 
 * `--start-date` - Price change start date
 * `--preserved` - Preserve existing customer pricing
+* `--plan-type` - Default billing plan for rows without `plan_type`
 
 ### Delete Price
 
@@ -812,6 +867,10 @@ plan availability per billing plan: `UPFRONT` and `MONTHLY`.
 asc subscriptions pricing plan-availability show \
   --subscription-id "SUB_ID"
 
+asc subscriptions pricing plan-availability available-territories \
+  --plan-availability-id "PLAN_AVAILABILITY_ID" \
+  --paginate
+
 asc subscriptions pricing plan-availability set \
   --subscription-id "SUB_ID" \
   --plan-type UPFRONT \
@@ -822,9 +881,13 @@ asc subscriptions pricing plan-availability set \
 `show` prints `GET /v1/subscriptions/{id}/planAvailabilities` with
 `include=availableTerritories`. Apple caps the included linkages at 50 per plan
 availability and reports the real count in the response paging metadata. When
-that cap truncates the included list, `show` warns on stderr; do not pass the
-truncated include to `set --territories`. `set` reads the complete relationship
-before replacing it.
+that cap truncates the included list or leaves it unknown, `show` warns on
+stderr; do not pass the truncated include to `set --territories`.
+
+`available-territories` prints
+`GET /v1/subscriptionPlanAvailabilities/{id}/availableTerritories`, which has no
+include cap. Use `--paginate` for the complete list. `show` prints each plan
+availability ID. `set` reads the complete relationship before replacing it.
 
 `set` is a desired-state write. The complete `--territories` list replaces the
 plan's territories: territories missing from the list are removed and new ones
@@ -877,7 +940,13 @@ asc subscriptions pricing monthly-commitment list \
   --plan-type MONTHLY
 ```
 
-**Optional Flags:**
+**Optional Flags on `enable`:**
+
+* `--start-date` - Schedule the MONTHLY prices for a future date (`YYYY-MM-DD`).
+  Plan availability still changes immediately
+* `--preserved` - Preserve current prices for existing subscribers
+
+**Optional Flags on `list`:**
 
 * `--plan-type` - Filter results by `MONTHLY` or `UPFRONT`. Filtering is applied
   client-side because `GET /v1/subscriptions/{id}/planAvailabilities` does not
@@ -896,7 +965,8 @@ Current CLI behavior:
 * Requires an existing UPFRONT subscription price in each eligible territory.
 * Creates or updates `subscriptionPlanAvailabilities` with `planType=MONTHLY`
   before creating MONTHLY `subscriptionPrices`, as required by Apple.
-* Creates MONTHLY `subscriptionPrices` for each eligible territory at `--price`.
+* Creates MONTHLY `subscriptionPrices` for each eligible territory at `--price`,
+  skipping a territory already at that price on the effective date.
 
 ## API 4.4.1 Related Sparse Fields
 
@@ -1065,10 +1135,11 @@ asc subscriptions offers introductory delete \
 **CSV format:**
 
 * Required column: `territory`
-* Optional columns: `offer_mode`, `offer_duration`, `number_of_periods`, `start_date`, `end_date`, `price_point_id`
+* Optional columns: `offer_mode`, `offer_duration`, `number_of_periods`, `start_date`, `end_date`, `price_point_id`, `target_subscription_plan_type`
 * Header alias: `price_point` -> `price_point_id`
 * Territory values may be 3-letter ASC IDs, 2-letter country codes, or English territory names
 * Row values override command-level defaults, so a territory-only CSV can inherit a shared offer shape from flags
+* `target_subscription_plan_type` accepts `MONTHLY` or `UPFRONT`, and falls back to `UPFRONT` when neither the row nor `--target-subscription-plan-type` sets it
 * Use `create --all-territories` when every current subscription availability territory should receive the same offer shape
 
 **Offer Types:**
@@ -1076,6 +1147,10 @@ asc subscriptions offers introductory delete \
 * `FREE_TRIAL` - Free access for specified duration
 * `PAY_AS_YOU_GO` - Discounted price per period
 * `PAY_UP_FRONT` - Single upfront payment for multiple periods
+
+**Target plan type:**
+
+Introductory, promotional, offer code, and win-back `create` commands accept `--target-subscription-plan-type MONTHLY` or `UPFRONT`. Omit the flag to leave `targetSubscriptionPlanType` out of the request. With `--all-territories`, an existing offer for the other plan type does not count as already existing.
 
 ## Promotional Offers
 
@@ -1117,6 +1192,17 @@ asc subscriptions offers offer-codes create \
 # List offer codes
 asc subscriptions offers offer-codes list \
   --subscription-id "SUB_ID"
+
+# Turn off a custom code
+asc subscriptions offers offer-codes custom-codes update \
+  --custom-code-id "CUSTOM_CODE_ID" \
+  --active false
+
+# Turn off a one-time use code batch (permanent: Apple can't turn it back on)
+asc subscriptions offers offer-codes one-time-codes update \
+  --batch-id "ONE_TIME_USE_CODE_ID" \
+  --active false \
+  --confirm
 ```
 
 ## App Store Review

@@ -805,7 +805,7 @@ func TestCreateGameCenterLeaderboardSetV2_WithDetail(t *testing.T) {
 		ReferenceName:    "Season",
 		VendorIdentifier: "com.example.season",
 	}
-	if _, err := client.CreateGameCenterLeaderboardSetV2(context.Background(), "gc-detail-1", "", attrs); err != nil {
+	if _, err := client.CreateGameCenterLeaderboardSetV2(context.Background(), "gc-detail-1", "", attrs, nil); err != nil {
 		t.Fatalf("CreateGameCenterLeaderboardSetV2() error: %v", err)
 	}
 }
@@ -845,7 +845,7 @@ func TestCreateGameCenterLeaderboardSetV2_WithGroup(t *testing.T) {
 		ReferenceName:    "Season",
 		VendorIdentifier: "grp.com.example.season",
 	}
-	if _, err := client.CreateGameCenterLeaderboardSetV2(context.Background(), "", "group-1", attrs); err != nil {
+	if _, err := client.CreateGameCenterLeaderboardSetV2(context.Background(), "", "group-1", attrs, nil); err != nil {
 		t.Fatalf("CreateGameCenterLeaderboardSetV2() error: %v", err)
 	}
 }

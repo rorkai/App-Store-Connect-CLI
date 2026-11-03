@@ -941,10 +941,11 @@ func (c *Client) GetGameCenterLeaderboardSetV2(ctx context.Context, setID string
 }
 
 // CreateGameCenterLeaderboardSetV2 creates a new v2 leaderboard set.
-func (c *Client) CreateGameCenterLeaderboardSetV2(ctx context.Context, gcDetailID, groupID string, attrs GameCenterLeaderboardSetCreateAttributes) (*GameCenterLeaderboardSetResponse, error) {
+func (c *Client) CreateGameCenterLeaderboardSetV2(ctx context.Context, gcDetailID, groupID string, attrs GameCenterLeaderboardSetCreateAttributes, leaderboardIDs []string) (*GameCenterLeaderboardSetResponse, error) {
 	const initialVersionID = "${lbsetVer1}"
 
 	relationships := &GameCenterLeaderboardSetV2Relationships{
+		GameCenterLeaderboards: buildToManyRelationship(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
 		Versions: &RelationshipList{Data: []ResourceData{{
 			Type: ResourceTypeGameCenterLeaderboardSetVersions,
 			ID:   initialVersionID,

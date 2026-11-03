@@ -471,6 +471,18 @@ func (c *Client) CreateAppPreviewSetForCustomProductPageLocalization(ctx context
 	})
 }
 
+// CreateAppPreviewSetForExperimentTreatmentLocalization creates a preview set for a treatment localization.
+func (c *Client) CreateAppPreviewSetForExperimentTreatmentLocalization(ctx context.Context, localizationID string, previewType string) (*AppPreviewSetResponse, error) {
+	return c.createAppPreviewSet(ctx, previewType, &AppPreviewSetRelationships{
+		AppStoreVersionExperimentTreatmentLocalization: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeAppStoreVersionExperimentTreatmentLocalizations,
+				ID:   localizationID,
+			},
+		},
+	})
+}
+
 func (c *Client) createAppPreviewSet(ctx context.Context, previewType string, relationships *AppPreviewSetRelationships) (*AppPreviewSetResponse, error) {
 	payload := AppPreviewSetCreateRequest{
 		Data: AppPreviewSetCreateData{

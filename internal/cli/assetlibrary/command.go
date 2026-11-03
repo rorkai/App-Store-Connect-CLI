@@ -53,7 +53,8 @@ Examples:
   asc asset-library images upload --library-id LIBRARY_ID --file ./header.png
   asc asset-library images placements --id IMAGE_ID
   asc asset-library videos list --library-id LIBRARY_ID
-  asc asset-library specs`,
+  asc asset-library specs
+  asc asset-library specs --placement-type APP_SCREENSHOT --feature APP_STORE_VERSIONS`,
 		FlagSet: flag.NewFlagSet(name, flag.ExitOnError), UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: children, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
@@ -89,7 +90,14 @@ func readCommand(name, help, selector, path string, collection bool) *ffcli.Comm
 	if name == "list" && selector == "library-id" {
 		filters = bindLibraryListFilters(fs)
 	}
+	var specs *specsFilters
+	if name == "specs" {
+		specs = bindSpecsFilters(fs)
+	}
 	longHelp := ""
+	if specs != nil {
+		longHelp = help + "\n\nFilter placement types, placement profile groups, features and specifications using comma-separated tokens. Apple validates values."
+	}
 	if filters != nil {
 		longHelp = help + "\n\nFilter category, state, specification IDs, asset IDs and reference names using comma-separated tokens. State values are validated by Apple. Sort by referenceName, createdDate or lastModifiedDate; prefix a field with - for descending order. Filter and sort flags cannot be combined with --next."
 	}
@@ -120,12 +128,15 @@ func readCommand(name, help, selector, path string, collection bool) *ffcli.Comm
 				}
 			}
 			query := url.Values{}
-			if filters != nil {
-				var err error
+			var err error
+			switch {
+			case filters != nil:
 				query, err = filters.query(fs)
-				if err != nil {
-					return err
-				}
+			case specs != nil:
+				query, err = specs.query(fs)
+			}
+			if err != nil {
+				return err
 			}
 			resourceID := strings.TrimSpace(*id)
 			if selector == "app" {

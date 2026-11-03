@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -120,6 +122,92 @@ func TestBundleIDsCreateUsesBundleIDPlatformPayload(t *testing.T) {
 	}
 	if requestCount != 1 {
 		t.Fatalf("request count = %d, want 1", requestCount)
+	}
+}
+
+func TestBundleIDsCreateSeedIDRequestAttributes(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags []string
+		want  map[string]any
+	}{
+		{
+			name: "omitted flag leaves Apple to assign the prefix",
+			want: map[string]any{"identifier": "com.example.app", "name": "Example", "platform": "IOS"},
+		},
+		{
+			name:  "chosen prefix is sent trimmed",
+			flags: []string{"--seed-id", " ABCDE12345 "},
+			want:  map[string]any{"identifier": "com.example.app", "name": "Example", "platform": "IOS", "seedId": "ABCDE12345"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			var got map[string]any
+			setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+				var payload struct {
+					Data struct {
+						Attributes map[string]any `json:"attributes"`
+					} `json:"data"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+					t.Errorf("decode body: %v", err)
+				}
+				got = payload.Data.Attributes
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusCreated)
+				_, _ = io.WriteString(w, `{"data":{"type":"bundleIds","id":"bundle-1","attributes":{"identifier":"com.example.app","name":"Example","platform":"IOS"}}}`)
+			})
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			args := append([]string{"bundle-ids", "create", "--identifier", "com.example.app", "--name", "Example"}, tt.flags...)
+			if err := root.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			captureOutput(t, func() {
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("attributes = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBundleIDsCreateRejectsBlankSeedIDBeforeRequest(t *testing.T) {
+	for _, value := range []string{"", "   "} {
+		t.Run(strconv.Quote(value), func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			requestCount := 0
+			setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+				requestCount++
+				http.Error(w, "unexpected request", http.StatusBadRequest)
+			})
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			if err := root.Parse([]string{"bundle-ids", "create", "--identifier", "com.example.app", "--name", "Example", "--seed-id", value}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			_, stderr := captureOutput(t, func() {
+				if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("error = %v, want usage error", err)
+				}
+			})
+			assertUsageDiagnosticFirstLine(t, stderr, "--seed-id must not be empty")
+			if requestCount != 0 {
+				t.Fatalf("request count = %d, want 0", requestCount)
+			}
+		})
 	}
 }
 

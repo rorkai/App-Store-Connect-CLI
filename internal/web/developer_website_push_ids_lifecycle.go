@@ -340,7 +340,7 @@ func (c *Client) doDeveloperWebsitePushIDRequest(ctx context.Context, path strin
 	}
 	c.captureDeveloperCSRFTokens(response.Header)
 	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
-		return nil, developerPortalSessionError(response.StatusCode)
+		return nil, developerPortalSessionError(response, responseBody)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, &APIError{
