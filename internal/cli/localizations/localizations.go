@@ -68,6 +68,7 @@ func LocalizationsListCommand() *ffcli.Command {
 	locType := fs.String("type", shared.LocalizationTypeVersion, "Localization type: version (default) or app-info")
 	appInfoFields := fs.String("app-info-fields", "", "Sparse app info fields for app-info localizations: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer age-rating data)")
 	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources for version localizations", versionLocalizationIncludeList())
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"appStoreVersion": "appStoreVersions", "appScreenshotSets": "appScreenshotSets", "appPreviewSets": "appPreviewSets"})
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -173,6 +174,10 @@ Examples:
 			if err != nil {
 				return err
 			}
+			included, err := includedFields.Resolve("localizations list", *next, includeValues)
+			if err != nil {
+				return err
+			}
 			appInfoFieldValues, err := shared.NormalizeSelection(*appInfoFields, shared.AppInfoSparseFields, "--app-info-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
@@ -242,6 +247,7 @@ Examples:
 					opts = append(opts,
 						asc.WithAppStoreVersionLocalizationsInclude(includeValues),
 						asc.WithAppStoreVersionLocalizationsPlacementsLimit(placementsLimit),
+						asc.WithIncludedFields[asc.AppStoreVersionLocalizationsOption](included),
 					)
 				}
 

@@ -66,6 +66,16 @@ func AppsInfoViewCommand() *ffcli.Command {
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	include := fs.String("include", "", "Include related resources: "+strings.Join(appInfoIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{
+		"app":                     "apps",
+		"appInfoLocalizations":    "appInfoLocalizations",
+		"primaryCategory":         "appCategories",
+		"primarySubcategoryOne":   "appCategories",
+		"primarySubcategoryTwo":   "appCategories",
+		"secondaryCategory":       "appCategories",
+		"secondarySubcategoryOne": "appCategories",
+		"secondarySubcategoryTwo": "appCategories",
+	})
 	fields := fs.String("fields", "", "Sparse app info fields: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
 	ageRatingFields := fs.String("age-rating-fields", "", "Sparse fields for included age rating declaration: "+strings.Join(shared.AgeRatingDeclarationSparseFields, ", "))
 	output := shared.BindOutputFlags(fs)
@@ -116,6 +126,10 @@ Examples:
 			includeValues, err := normalizeAppInfoInclude(*include)
 			if err != nil {
 				return shared.UsageError(err.Error())
+			}
+			included, err := includedFields.Resolve("apps info view", *next, includeValues)
+			if err != nil {
+				return err
 			}
 			fieldValues, err := normalizeSparseField(fs, *fields, shared.AppInfoSparseFields, "--fields")
 			if err != nil {
@@ -191,6 +205,7 @@ Examples:
 					asc.WithAppInfoFields(fieldValues),
 					asc.WithAppInfoAgeRatingDeclarationFields(ageRatingFieldValues),
 					asc.WithAppInfoInclude(includeValues),
+					asc.WithIncludedFields[asc.AppInfoOption](included),
 				)
 				if err != nil {
 					return fmt.Errorf("apps info view: %w", err)

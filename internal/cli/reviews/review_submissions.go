@@ -65,6 +65,7 @@ func ReviewSubmissionsListCommand() *ffcli.Command {
 	next := fs.String("next", "", "Next page URL from a previous response")
 	itemFields := fs.String("item-fields", "", "Review submission item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewSubmissionIncludes, ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, reviewSubmissionIncludedResources)
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
@@ -115,6 +116,10 @@ Examples:
 			if err != nil {
 				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--include")
 			}
+			included, err := includedFields.Resolve("review submissions-list", *next, normalizedIncludes)
+			if err != nil {
+				return err
+			}
 			if len(normalizedItemFields) != 0 && !slices.Contains(normalizedIncludes, "items") {
 				normalizedIncludes = append(normalizedIncludes, "items")
 			}
@@ -147,6 +152,7 @@ Examples:
 				asc.WithReviewSubmissionsStates(states),
 				asc.WithReviewSubmissionsItemFields(normalizedItemFields),
 				asc.WithReviewSubmissionsInclude(normalizedIncludes),
+				asc.WithIncludedFields[asc.ReviewSubmissionsOption](included),
 			}
 			if *global && resolvedAppID != "" {
 				opts = append(opts, asc.WithReviewSubmissionsApps([]string{resolvedAppID}))
@@ -214,6 +220,7 @@ func ReviewSubmissionsGetCommand() *ffcli.Command {
 	submissionID := shared.BindResourceIDFlag(fs, "id", "reviewSubmissions", "Review submission ID (required)")
 	itemFields := fs.String("item-fields", "", "Review submission item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewSubmissionIncludes, ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, reviewSubmissionIncludedResources)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -238,6 +245,10 @@ Examples:
 			if err != nil {
 				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--include")
 			}
+			included, err := includedFields.Resolve("review submissions-get", "", normalizedIncludes)
+			if err != nil {
+				return err
+			}
 			if len(normalizedItemFields) != 0 && !slices.Contains(normalizedIncludes, "items") {
 				normalizedIncludes = append(normalizedIncludes, "items")
 			}
@@ -259,6 +270,7 @@ Examples:
 				strings.TrimSpace(*submissionID),
 				asc.WithReviewSubmissionItemFields(normalizedItemFields),
 				asc.WithReviewSubmissionInclude(normalizedIncludes),
+				asc.WithIncludedFields[asc.ReviewSubmissionOption](included),
 			)
 			if err != nil {
 				return fmt.Errorf("review submissions-get: %w", err)
@@ -267,6 +279,15 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// reviewSubmissionIncludedResources maps each --include value that has no
+// dedicated sparse-field flag to the resource it returns.
+var reviewSubmissionIncludedResources = map[string]string{
+	"app":                      "apps",
+	"appStoreVersionForReview": "appStoreVersions",
+	"submittedByActor":         "actors",
+	"lastUpdatedByActor":       "actors",
 }
 
 var reviewSubmissionIncludes = []string{

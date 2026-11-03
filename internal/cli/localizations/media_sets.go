@@ -225,6 +225,7 @@ Examples:
 // LocalizationsScreenshotSetsListCommand returns the screenshot sets list subcommand.
 func LocalizationsScreenshotSetsListCommand() *ffcli.Command {
 	include := new(string)
+	var included asc.IncludedFields
 	cmd := shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		FlagSetName: "localizations screenshot-sets list",
 		Name:        "list",
@@ -249,7 +250,7 @@ Examples:
 				asc.WithAppStoreVersionLocalizationScreenshotSetsNextURL(next),
 			}
 			if *include != "" {
-				opts = append(opts, asc.WithAppStoreVersionLocalizationScreenshotSetsIncludeScreenshots())
+				opts = append(opts, asc.WithAppStoreVersionLocalizationScreenshotSetsIncludeScreenshots(), asc.WithIncludedFields[asc.AppStoreVersionLocalizationScreenshotSetsOption](included))
 			}
 			resp, err := client.GetAppStoreVersionLocalizationScreenshotSets(ctx, localizationID, opts...)
 			if err != nil {
@@ -259,6 +260,7 @@ Examples:
 		},
 	})
 	cmd.FlagSet.StringVar(include, "include", "", "Include related resources: appScreenshots")
+	includedFields := shared.BindIncludedFieldFlags(cmd.FlagSet, map[string]string{"appScreenshots": "appScreenshots"})
 	list := cmd.Exec
 	cmd.Exec = func(ctx context.Context, args []string) error {
 		*include = strings.TrimSpace(*include)
@@ -267,6 +269,11 @@ Examples:
 		}
 		if *include != "" && strings.TrimSpace(cmd.FlagSet.Lookup("next").Value.String()) != "" {
 			return shared.UsageError("localizations screenshot-sets list: --include cannot be combined with --next; the next URL keeps the original include")
+		}
+		var err error
+		included, err = includedFields.Resolve("localizations screenshot-sets list", cmd.FlagSet.Lookup("next").Value.String(), shared.SplitCSV(*include))
+		if err != nil {
+			return err
 		}
 		return list(ctx, args)
 	}

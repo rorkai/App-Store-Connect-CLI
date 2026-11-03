@@ -36,6 +36,7 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 	group := fs.String("placement-group", "", "Filter by placement group IDs, comma-separated")
 	includeValues := []string{"image", "video", "appEventLocalization", "appStoreVersionLocalization", "appCustomProductPageLocalization", "appStoreVersionExperimentTreatmentLocalization"}
 	include := fs.String("include", "", "Include related resources, comma-separated: "+strings.Join(includeValues, ", "))
+	includedFields := BindIncludedFieldFlags(fs, map[string]string{"image": "appAssetLibraryImages", "video": "appAssetLibraryVideos"})
 	filters := BindPlacementFilters(fs, resource)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200; 0 uses server default)")
 	next := fs.String("next", "", "Fetch a links.next URL instead of selecting a localization")
@@ -73,6 +74,10 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 			if err != nil {
 				return UsageErrorf(prefix+" placements list: --include %v", err)
 			}
+			included, err := includedFields.Resolve(prefix+" placements list", *next, SplitCSV(includes))
+			if err != nil {
+				return err
+			}
 			q := url.Values{}
 			if err := filters.Apply(q); err != nil {
 				return UsageErrorf(prefix+" placements list: %v", err)
@@ -96,6 +101,7 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 				if includes != "" {
 					q.Set("include", includes)
 				}
+				included.AddTo(q)
 				pageLimit := *limit
 				if *paginate && pageLimit == 0 {
 					pageLimit = 200

@@ -84,6 +84,7 @@ func EncryptionDeclarationsListCommand() *ffcli.Command {
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(encryptionDeclarationFieldList(), ", "))
 	documentFields := fs.String("document-fields", "", "Document fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(encryptionDeclarationIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"app": "apps", "builds": "builds"})
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	buildLimit := fs.Int("build-limit", 0, "Maximum included builds per declaration (1-50)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -128,6 +129,10 @@ Examples:
 			if err != nil {
 				return shared.UsageErrorf("encryption declarations list: %v", err)
 			}
+			included, err := includedFields.Resolve("encryption declarations list", *next, includeValue)
+			if err != nil {
+				return err
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
@@ -150,6 +155,7 @@ Examples:
 				asc.WithAppEncryptionDeclarationsFields(fieldsValue),
 				asc.WithAppEncryptionDeclarationsDocumentFields(documentFieldsValue),
 				asc.WithAppEncryptionDeclarationsInclude(includeValue),
+				asc.WithIncludedFields[asc.AppEncryptionDeclarationsOption](included),
 				asc.WithAppEncryptionDeclarationsLimit(*limit),
 				asc.WithAppEncryptionDeclarationsBuildLimit(*buildLimit),
 				asc.WithAppEncryptionDeclarationsNextURL(*next),
@@ -190,6 +196,7 @@ func EncryptionDeclarationsGetCommand() *ffcli.Command {
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(encryptionDeclarationFieldList(), ", "))
 	documentFields := fs.String("document-fields", "", "Document fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(encryptionDeclarationIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"app": "apps", "builds": "builds"})
 	buildLimit := fs.Int("build-limit", 0, "Maximum included builds (1-50)")
 	output := shared.BindOutputFlags(fs)
 
@@ -226,6 +233,10 @@ Examples:
 			if err != nil {
 				return shared.UsageErrorf("encryption declarations view: %v", err)
 			}
+			included, err := includedFields.Resolve("encryption declarations view", "", includeValue)
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -240,6 +251,7 @@ Examples:
 				asc.WithAppEncryptionDeclarationsFields(fieldsValue),
 				asc.WithAppEncryptionDeclarationsDocumentFields(documentFieldsValue),
 				asc.WithAppEncryptionDeclarationsInclude(includeValue),
+				asc.WithIncludedFields[asc.AppEncryptionDeclarationsOption](included),
 				asc.WithAppEncryptionDeclarationsBuildLimit(*buildLimit),
 			)
 			if err != nil {

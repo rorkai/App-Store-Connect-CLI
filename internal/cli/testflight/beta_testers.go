@@ -100,6 +100,7 @@ func BetaTestersListCommand() *ffcli.Command {
 	inviteType := fs.String("invite-type", "", "Filter by invite type(s), comma-separated: "+strings.Join(betaTesterInviteTypeValues, ", "))
 	sortBy := fs.String("sort", "", "Sort by: "+strings.Join(betaTesterSortValues, ", "))
 	include := fs.String("include", "", "Include related resources, comma-separated: "+strings.Join(betaTesterIncludeValues, ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"apps": "apps", "betaGroups": "betaGroups", "builds": "builds"})
 	fields := fs.String("fields", "", "Fields to include for beta testers, comma-separated: "+strings.Join(betaGroupTesterFieldsValues, ", "))
 	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -175,6 +176,10 @@ Examples:
 			if err := rejectBetaTestersNextFlagConflicts(fs, *next, "build-id", "group", "email", "first-name", "last-name", "invite-type", "sort", "include", "fields"); err != nil {
 				return err
 			}
+			included, err := includedFields.Resolve("beta-testers list", *next, shared.SplitCSV(*include))
+			if err != nil {
+				return err
+			}
 			if strings.TrimSpace(*group) != "" && strings.TrimSpace(*buildID) != "" {
 				return shared.WithDiagnostic(
 					shared.UsageError("--group cannot be combined with --build-id"),
@@ -232,7 +237,7 @@ Examples:
 
 			includeValues := shared.SplitCSV(*include)
 			if len(includeValues) > 0 {
-				opts = append(opts, asc.WithBetaTestersInclude(includeValues))
+				opts = append(opts, asc.WithBetaTestersInclude(includeValues), asc.WithIncludedFields[asc.BetaTestersOption](included))
 			}
 			// Only the JSON renderer emits the envelope's included array. A
 			// continuation URL can carry include even though --include itself is

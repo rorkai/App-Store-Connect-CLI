@@ -37,6 +37,7 @@ type appClipDefaultExperiencesQuery struct {
 }
 
 type appClipDefaultExperienceQuery struct {
+	includedFieldsQuery
 	include []string
 }
 
@@ -64,6 +65,7 @@ type appTagsQuery struct {
 
 type nominationsQuery struct {
 	listQuery
+	includedFieldsQuery
 	types                     []string
 	states                    []string
 	relatedApps               []string
@@ -93,6 +95,7 @@ type accessibilityDeclarationsQuery struct {
 
 type appEncryptionDeclarationsQuery struct {
 	listQuery
+	includedFieldsQuery
 	appID          string
 	buildIDs       []string
 	fields         []string
@@ -138,6 +141,7 @@ func buildAppClipDefaultExperiencesQuery(query *appClipDefaultExperiencesQuery) 
 func buildAppClipDefaultExperienceQuery(query *appClipDefaultExperienceQuery) string {
 	values := url.Values{}
 	addCSV(values, "include", query.include)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -202,6 +206,7 @@ func buildNominationsQuery(query *nominationsQuery) string {
 	if query.supportedTerritoriesLimit > 0 {
 		values.Set("limit[supportedTerritories]", strconv.Itoa(query.supportedTerritoriesLimit))
 	}
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -218,6 +223,7 @@ func buildNominationsDetailQuery(query *nominationsQuery) string {
 	if query.supportedTerritoriesLimit > 0 {
 		values.Set("limit[supportedTerritories]", strconv.Itoa(query.supportedTerritoriesLimit))
 	}
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -249,6 +255,7 @@ func buildAppEncryptionDeclarationsQuery(query *appEncryptionDeclarationsQuery) 
 	if query.buildLimit > 0 {
 		values.Set("limit[builds]", strconv.Itoa(query.buildLimit))
 	}
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 

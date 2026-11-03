@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -32,6 +33,19 @@ var iapListStates = []string{
 }
 
 var iapListIncludes = []string{"inAppPurchaseLocalizations", "content", "appStoreReviewScreenshot", "promotedPurchase", "iapPriceSchedule", "inAppPurchaseAvailability", "images", "offerCodes", "versions"}
+
+// iapIncludedResources maps each --include value that has no dedicated
+// sparse-field flag to the resource it returns.
+var iapIncludedResources = map[string]string{
+	"inAppPurchaseLocalizations": "inAppPurchaseLocalizations",
+	"content":                    "inAppPurchaseContents",
+	"appStoreReviewScreenshot":   "inAppPurchaseAppStoreReviewScreenshots",
+	"promotedPurchase":           "promotedPurchases",
+	"iapPriceSchedule":           "inAppPurchasePriceSchedules",
+	"inAppPurchaseAvailability":  "inAppPurchaseAvailabilities",
+	"images":                     "inAppPurchaseImages",
+	"offerCodes":                 "inAppPurchaseOfferCodes",
+}
 
 var iapViewIncludes = []string{"inAppPurchaseLocalizations", "pricePoints", "content", "appStoreReviewScreenshot", "promotedPurchase", "iapPriceSchedule", "inAppPurchaseAvailability", "images", "offerCodes", "versions"}
 
@@ -100,6 +114,7 @@ func IAPListCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchases endpoint")
 	include := fs.String("include", "", "Include relationships (comma-separated, v2 only): "+strings.Join(iapListIncludes, ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, iapIncludedResources)
 	includeVersions := fs.Bool("include-versions", false, "Include related in-app purchase versions (v2 only)")
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50, v2 only)")
 	fields := fs.String("fields", "", "fields[inAppPurchases] (comma-separated, v2 only)")
@@ -197,6 +212,10 @@ Examples:
 			if err != nil {
 				return shared.UsageError("iap list: " + err.Error())
 			}
+			included, err := includedFields.Resolve("iap list", *next, includeValues)
+			if err != nil {
+				return err
+			}
 			if *includeVersions {
 				includeValues = append(includeValues, "versions")
 			}
@@ -230,6 +249,7 @@ Examples:
 				asc.WithIAPNestedVersionsLimit(*versionsLimit),
 				asc.WithIAPVersionFields(versionFieldValues),
 				asc.WithIAPInclude(includeValues),
+				asc.WithIncludedFields[asc.IAPOption](included),
 			}
 
 			if *paginate {
@@ -291,6 +311,9 @@ func IAPGetCommand() *ffcli.Command {
 	iapID := shared.BindResourceIDFlag(fs, "id", "inAppPurchases", "In-app purchase ID")
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchase endpoint")
 	include := fs.String("include", "", "Include relationships (comma-separated, v2 only): "+strings.Join(iapViewIncludes, ", "))
+	includedResources := maps.Clone(iapIncludedResources)
+	includedResources["pricePoints"] = "inAppPurchasePricePoints"
+	includedFields := shared.BindIncludedFieldFlags(fs, includedResources)
 	includeVersions := fs.Bool("include-versions", false, "Include related in-app purchase versions (v2 only)")
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50, v2 only)")
 	fields := fs.String("fields", "", "fields[inAppPurchases] (comma-separated, v2 only)")
@@ -340,6 +363,10 @@ Examples:
 			if err != nil {
 				return shared.UsageError("iap view: " + err.Error())
 			}
+			included, err := includedFields.Resolve("iap view", "", includeValues)
+			if err != nil {
+				return err
+			}
 			if *includeVersions {
 				includeValues = append(includeValues, "versions")
 			}
@@ -370,6 +397,7 @@ Examples:
 				asc.WithIAPGetNestedVersionsLimit(*versionsLimit),
 				asc.WithIAPGetVersionFields(versionFieldValues),
 				asc.WithIAPGetInclude(includeValues),
+				asc.WithIncludedFields[asc.IAPGetOption](included),
 			}
 			resp, err := client.GetInAppPurchaseV2(requestCtx, id, opts...)
 			if err != nil {

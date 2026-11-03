@@ -107,6 +107,8 @@ The `--invite-type`, `--sort`, `--include`, and `--fields` flags are supported.
 `--sort` accepts `firstName`, `lastName`, `email`, `inviteType`, or `state`;
 prefix the field with `-` for descending order. `--fields` selects a sparse
 `betaTesters` fieldset and keeps any `--include` relationship in it.
+`--app-fields`, `--beta-group-fields`, and `--build-fields` select the fields of
+the matching included resources and require that `--include` value.
 
 `--include` adds related resources (`apps`, `betaGroups`, `builds`) to the
 response's top-level `included` array. App Store Connect returns at most 50

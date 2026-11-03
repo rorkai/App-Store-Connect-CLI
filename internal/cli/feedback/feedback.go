@@ -25,6 +25,7 @@ type listCommandFlags struct {
 	buildPreRelease    *string
 	tester             *string
 	include            *string
+	includedFields     *shared.IncludedFieldFlags
 	sort               *string
 	limit              *int
 	next               *string
@@ -44,6 +45,7 @@ func bindListCommandFlags(fs *flag.FlagSet) listCommandFlags {
 		buildPreRelease:    fs.String("build-pre-release-version", "", "Filter by pre-release version ID(s), comma-separated"),
 		tester:             fs.String("tester", "", "Filter by tester ID(s), comma-separated"),
 		include:            fs.String("include", "", "Include related resources, comma-separated (build, tester)"),
+		includedFields:     shared.BindIncludedFieldFlagsExcept(fs, map[string]string{"build": "builds", "tester": "betaTesters"}, map[string][]string{"betaTesters": {"appDevices"}}), // Apple rejects spec value appDevices here: 400 "is not a valid field name".
 		sort:               fs.String("sort", "", "Sort by createdDate or -createdDate"),
 		limit:              fs.Int("limit", 0, "Maximum results per page (1-200)"),
 		next:               fs.String("next", "", "Fetch next page using a links.next URL"),
@@ -100,6 +102,10 @@ func runListCommand(ctx context.Context, config shared.ListCommandConfig, fs *fl
 		fmt.Fprintf(os.Stderr, "Error: %s\n\n", err)
 		return flag.ErrHelp
 	}
+	included, err := flags.includedFields.Resolve(prefix, *flags.next, shared.SplitCSV(*flags.include))
+	if err != nil {
+		return err
+	}
 
 	resolvedAppID := shared.ResolveAppID(*flags.appID)
 	if resolvedAppID == "" && strings.TrimSpace(*flags.next) == "" {
@@ -124,6 +130,7 @@ func runListCommand(ctx context.Context, config shared.ListCommandConfig, fs *fl
 		asc.WithFeedbackBuildPreReleaseVersionIDs(shared.SplitCSV(*flags.buildPreRelease)),
 		asc.WithFeedbackTesterIDs(shared.SplitCSV(*flags.tester)),
 		asc.WithFeedbackInclude(shared.SplitCSV(*flags.include)),
+		asc.WithIncludedFields[asc.FeedbackOption](included),
 		asc.WithFeedbackLimit(*flags.limit),
 		asc.WithFeedbackNextURL(*flags.next),
 	}
