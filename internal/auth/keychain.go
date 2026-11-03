@@ -2309,8 +2309,8 @@ func removeAllFromLegacyKeychain() error {
 }
 
 func storeInConfig(name string, payload credentialPayload) error {
-	path, err := config.Path()
-	if err != nil {
+	_, path, err := loadDefaultNameConfig()
+	if err != nil && !errors.Is(err, config.ErrNotFound) {
 		return err
 	}
 	return storeInConfigAt(name, payload, path)
