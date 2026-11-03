@@ -295,18 +295,24 @@ func CustomPagesCreateCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	name := fs.String("name", "", "Custom product page name")
+	fromVersion := shared.BindResourceIDFlag(fs, "from-version", "appStoreVersions", "App Store version ID to use as the page template")
+	fromCustomPage := shared.BindResourceIDFlag(fs, "from-custom-page", "appCustomProductPages", "Custom product page ID to use as the page template")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
-		ShortUsage: "asc product-pages custom-pages create --app \"APP_ID\" --name \"NAME\"",
+		ShortUsage: "asc product-pages custom-pages create --app \"APP_ID\" --name \"NAME\" [--from-version VERSION_ID | --from-custom-page PAGE_ID]",
 		ShortHelp:  "Create a custom product page.",
 		LongHelp: `Create a custom product page.
 
 The command also creates an initial version and a localization using the app's primary locale.
+Pass --from-version or --from-custom-page to start the page from a template.
+Apple accepts --from-custom-page only for a page with an approved version.
 
 Examples:
-  asc product-pages custom-pages create --app "APP_ID" --name "Summer Campaign"`,
+  asc product-pages custom-pages create --app "APP_ID" --name "Summer Campaign"
+  asc product-pages custom-pages create --app "APP_ID" --name "Summer Campaign" --from-version "VERSION_ID"
+  asc product-pages custom-pages create --app "APP_ID" --name "Summer Campaign" --from-custom-page "PAGE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -322,6 +328,11 @@ Examples:
 				return shared.MissingRequiredUsageError("--name")
 			}
 
+			template := asc.AppCustomProductPageTemplate{AppStoreVersionID: strings.TrimSpace(*fromVersion), CustomPageID: strings.TrimSpace(*fromCustomPage)}
+			if template.AppStoreVersionID != "" && template.CustomPageID != "" {
+				return shared.UsageError("--from-version and --from-custom-page are mutually exclusive")
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages create: %w", err)
@@ -330,7 +341,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.CreateAppCustomProductPage(requestCtx, resolvedAppID, nameValue)
+			resp, err := client.CreateAppCustomProductPage(requestCtx, resolvedAppID, nameValue, template)
 			if err != nil {
 				return fmt.Errorf("custom-pages create: failed to create: %w", err)
 			}
