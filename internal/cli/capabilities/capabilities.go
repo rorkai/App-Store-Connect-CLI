@@ -321,7 +321,7 @@ func capabilityRows() []Capability {
 			Status:     statusWebSession,
 			Commands:   []string{"asc web app-bundles"},
 			Notes:      []string{"App Store app bundles are not present in the embedded public OpenAPI snapshot, and the public API answers that the resource does not exist."},
-			NextAction: "Use asc web app-bundles list, view --id BUNDLE_ID, or apps set --id BUNDLE_ID --apps APP_ID,APP_ID --confirm.",
+			NextAction: "Use asc web app-bundles list, view --id BUNDLE_ID, create --name NAME --sku SKU --apps APP_ID,APP_ID --confirm, or apps set --id BUNDLE_ID --apps APP_ID,APP_ID --confirm.",
 		},
 		{
 			Area:         "app-management",

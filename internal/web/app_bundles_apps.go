@@ -60,7 +60,7 @@ func (c *Client) ListAppBundleEligibleApps(ctx context.Context) (*AppBundleEligi
 }
 
 type appBundleSaveRequest struct {
-	AdamID            json.Number           `json:"adamId"`
+	AdamID            json.Number           `json:"adamId,omitempty"`
 	VendorIdentifier  string                `json:"vendorIdentifier"`
 	PrimaryLocaleCode string                `json:"primaryLocaleCode"`
 	PriceTierStem     string                `json:"priceTierStem,omitempty"`

@@ -103,6 +103,7 @@ func TestGetAppBundleReportsLegacyFailures(t *testing.T) {
 		want   string
 	}{
 		{"error on HTTP 200", http.StatusOK, `{"data": null, "messages": {"error": ["Bundle unavailable"]}, "statusCode": "ERROR"}`, "Bundle unavailable"},
+		{"error with HTML", http.StatusOK, `{"data": null, "messages": {"error": ["Each app must offer a subscription.<ul><a href=\"/ra/ng/app/1\">Quoting</a><br><a href=\"/ra/ng/app/2\">Tips &amp; More</a></ul>"]}, "statusCode": "ERROR"}`, "subscription. Quoting Tips & More"},
 		{"status without message", http.StatusOK, `{"data": null, "messages": {"error": null}, "statusCode": "ERROR"}`, `"ERROR"`},
 		{"success without data", http.StatusOK, `{"data": null, "messages": {"error": null}, "statusCode": "SUCCESS"}`, "missing data"},
 		{"unknown bundle", http.StatusNotFound, `{"data": null, "messages": {"error": ["Not Found"]}, "statusCode": "ERROR"}`, "404"},
@@ -369,6 +370,94 @@ func TestAppBundleReviewActions(t *testing.T) {
 			}
 			if len(posts) != 1 || posts[0] != test.wantPath || bodySizes[0] > 0 {
 				t.Fatalf("posts = %v sizes %v, want one bodyless %s", posts, bodySizes, test.wantPath)
+			}
+		})
+	}
+}
+
+func TestCreateAppBundleSendsPageBodyAndReadsBack(t *testing.T) {
+	tests := []struct {
+		name      string
+		priceTier string
+		readback  string
+		wantTier  string
+		wantErr   string
+	}{
+		{name: "defaults to the first compatible tier", readback: "3,4", wantTier: "10000"},
+		{name: "keeps a chosen tier", priceTier: "10003", readback: "3,4", wantTier: "10003"},
+		{name: "no compatible tier", priceTier: "none", wantErr: "choose one with --price-tier"},
+		{name: "readback mismatch", readback: "4,3", wantTier: "10000", wantErr: "created app bundle 6830005835, but its apps read back as 4,3"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var saves []string
+			validTiers := `[{"tierStem": "10000"}]`
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.Method + " " + strings.TrimPrefix(r.URL.Path, "/WebObjects/iTunesConnect.woa/ra") {
+				case "GET /apps/approvedForBundles":
+					_, _ = w.Write([]byte(`{"data": [
+						{"adamId": 3, "name": "Three", "iconUrl": "x", "priceTier": null, "isAAG": false},
+						{"adamId": 4, "name": "Four", "iconUrl": "x", "priceTier": null, "isAAG": false}
+					], "messages": {"error": null}, "statusCode": "SUCCESS"}`))
+				case "GET /appbundles/metareference":
+					if got := r.URL.Query().Get("adamIds"); got != "3,4" {
+						t.Errorf("adamIds = %q", got)
+					}
+					_, _ = w.Write([]byte(`{"data": {"primaryLocaleCode": "en-GB",
+						"locales": [{"name": "UK English", "code": "en-GB"}, {"name": "French", "code": "fr-FR"}],
+						"defaultDetails": [{"name": null, "localeCode": "en-GB", "marketingText": {"value": "Quotes"}, "marketingUrl": {"value": null}}],
+						"validPriceTiers": ` + validTiers + `, "invalidPriceTiers": [{"tierStem": "10001"}]
+					}, "messages": {"error": null}, "statusCode": "SUCCESS"}`))
+				case "POST /appbundles/createOrUpdate":
+					if csrf := r.Header.Get("X-Csrf-Itc"); csrf != "itc" {
+						t.Errorf("X-Csrf-Itc = %q", csrf)
+					}
+					var body map[string]any
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+						t.Errorf("decode save: %v", err)
+					}
+					encoded, _ := json.Marshal(body)
+					saves = append(saves, string(encoded))
+					_, _ = w.Write([]byte(`{"data": {"adamId": 6830005835}, "messages": {"error": null}, "statusCode": "SUCCESS"}`))
+				case "GET /appbundles/metadetail/6830005835":
+					apps := make([]string, 0, 2)
+					for id := range strings.SplitSeq(test.readback, ",") {
+						apps = append(apps, `{"adamId": `+id+`}`)
+					}
+					_, _ = w.Write([]byte(`{"data": {"stateKey": "prepareForSubmission", "canSubmit": true, "memberApps": [` + strings.Join(apps, ",") + `]}, "messages": {"error": null}, "statusCode": "SUCCESS"}`))
+				default:
+					t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer server.Close()
+
+			priceTier := test.priceTier
+			if priceTier == "none" {
+				validTiers, priceTier = `[]`, ""
+			}
+			got, err := testWebClient(server).CreateAppBundle(context.Background(), " Test Bundle ", "TEST_BUNDLE", []string{"3", "4"}, priceTier)
+			if test.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+					t.Fatalf("error = %v, want %q", err, test.wantErr)
+				}
+			} else if err != nil || got.ID != "6830005835" || !got.CanSubmit {
+				t.Fatalf("CreateAppBundle() = %+v, %v", got, err)
+			}
+			want := `{"clearedForSale":false,` +
+				`"details":[{"localeCode":"en-GB","marketingText":"Quotes","marketingUrl":null,"name":"Test Bundle"},` +
+				`{"localeCode":"fr-FR","marketingText":null,"marketingUrl":"","name":""}],` +
+				`"memberApps":[{"adamId":3,"isAAG":false,"priceTier":null},{"adamId":4,"isAAG":false,"priceTier":null}],` +
+				`"priceTierStem":"` + test.wantTier + `","primaryLocaleCode":"en-GB","userBundleIcon":{"value":null},"vendorIdentifier":"TEST_BUNDLE"}`
+			if test.wantTier == "" {
+				if len(saves) != 0 {
+					t.Fatalf("saves = %v, want none", saves)
+				}
+				return
+			}
+			if len(saves) != 1 || saves[0] != want {
+				t.Fatalf("saves =\n%v\nwant\n%s", saves, want)
 			}
 		})
 	}
