@@ -1079,13 +1079,13 @@ func explainPartialBetaGroupCreate(ctx context.Context, client *asc.Client, appI
 	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
-	groups, err := client.ListBetaGroups(lookupCtx, asc.WithBetaGroupsApps([]string{appID}), asc.WithBetaGroupsName(name))
+	groups, err := listAllBetaGroupsByName(lookupCtx, client, appID, name)
 	if err != nil {
 		return fmt.Errorf("%w\nApp Store Connect may have created the group anyway. Check with `asc testflight groups list --app %q --name %q` before retrying", createErr, appID, name)
 	}
 
 	var ids []string
-	for _, group := range groups.Data {
+	for _, group := range groups {
 		if !existingIDs[group.ID] {
 			ids = append(ids, group.ID)
 		}
@@ -1118,15 +1118,35 @@ func listBetaGroupIDsByName(ctx context.Context, client *asc.Client, appID, name
 	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
-	groups, err := client.ListBetaGroups(lookupCtx, asc.WithBetaGroupsApps([]string{appID}), asc.WithBetaGroupsName(name))
+	groups, err := listAllBetaGroupsByName(lookupCtx, client, appID, name)
 	if err != nil {
 		return nil
 	}
-	ids := make(map[string]bool, len(groups.Data))
-	for _, group := range groups.Data {
+	ids := make(map[string]bool, len(groups))
+	for _, group := range groups {
 		ids[group.ID] = true
 	}
 	return ids
+}
+
+// listAllBetaGroupsByName follows every page, so the before and after lists
+// compare whole sets.
+func listAllBetaGroupsByName(ctx context.Context, client *asc.Client, appID, name string) ([]asc.Resource[asc.BetaGroupAttributes], error) {
+	firstPage, err := client.ListBetaGroups(ctx, asc.WithBetaGroupsApps([]string{appID}), asc.WithBetaGroupsName(name), asc.WithBetaGroupsLimit(200))
+	if err != nil {
+		return nil, err
+	}
+	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.ListBetaGroups(ctx, asc.WithBetaGroupsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, err
+	}
+	groups, ok := all.(*asc.BetaGroupsResponse)
+	if !ok {
+		return nil, fmt.Errorf("unexpected beta groups response %T", all)
+	}
+	return groups.Data, nil
 }
 
 func optionalBetaGroupCreateBool(value shared.OptionalBool) *bool {

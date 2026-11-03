@@ -475,6 +475,7 @@ func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing
 		conflict  = `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE","title":"duplicate","detail":"A group with this name already exists"}]}`
 		noGroups  = `{"data":[],"links":{}}`
 		oldGroup  = `{"data":[{"type":"betaGroups","id":"bg-old","attributes":{"name":"Beta"}}],"links":{}}`
+		oldPaged  = `{"data":[{"type":"betaGroups","id":"bg-old","attributes":{"name":"Beta"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/betaGroups?filter%5Bapp%5D=app-1&filter%5Bname%5D=Beta&cursor=2"}}`
 		serverErr = `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"boom","detail":"boom"}]}`
 	)
 	tests := []struct {
@@ -484,6 +485,7 @@ func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing
 		createBody   string
 		wantErr      error
 		wantGets     int
+		getsBefore   int // lookups expected before the POST; 0 means 1
 		want         []string
 		notWant      []string
 	}{
@@ -511,6 +513,17 @@ func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing
 			wantGets:     2,
 			want:         []string{"A group with this name already exists"},
 			notWant:      []string{"bg-old", "created", "delete"},
+		},
+		{
+			name:         "new group on a later page",
+			lookups:      []string{oldPaged, noGroups, oldPaged, `{"data":[{"type":"betaGroups","id":"bg-partial","attributes":{"name":"Beta"}}],"links":{}}`},
+			createStatus: http.StatusNotFound,
+			createBody:   notFound,
+			wantErr:      asc.ErrNotFound,
+			wantGets:     4,
+			getsBefore:   2,
+			want:         []string{`App Store Connect created group "bg-partial" despite the failure`},
+			notWant:      []string{`"bg-old"`},
 		},
 		{
 			name:         "post-create lookup fails",
@@ -548,8 +561,9 @@ func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing
 				switch req.Method {
 				case http.MethodPost:
 					posts++
-					if gets != 1 {
-						t.Errorf("expected one lookup before the create, got %d", gets)
+					wantBefore := max(test.getsBefore, 1)
+					if gets != wantBefore {
+						t.Errorf("expected %d lookups before the create, got %d", wantBefore, gets)
 					}
 				case http.MethodGet:
 					if gets >= len(test.lookups) {
