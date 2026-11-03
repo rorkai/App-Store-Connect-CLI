@@ -429,7 +429,20 @@ func (c *Client) GetGameCenterChallengeImage(ctx context.Context, imageID string
 }
 
 // CreateGameCenterChallengeImage reserves a challenge image upload.
-func (c *Client) CreateGameCenterChallengeImage(ctx context.Context, localizationID, fileName string, fileSize int64) (*GameCenterChallengeImageResponse, error) {
+// Pass exactly one of localizationID or versionID; a version target sets the version's default image.
+func (c *Client) CreateGameCenterChallengeImage(ctx context.Context, localizationID, versionID, fileName string, fileSize int64) (*GameCenterChallengeImageResponse, error) {
+	relationships := &GameCenterChallengeImageRelationships{}
+	if id := strings.TrimSpace(localizationID); id != "" {
+		relationships.Localization = &Relationship{
+			Data: ResourceData{Type: ResourceTypeGameCenterChallengeLocalizations, ID: id},
+		}
+	}
+	if id := strings.TrimSpace(versionID); id != "" {
+		relationships.Version = &Relationship{
+			Data: ResourceData{Type: ResourceTypeGameCenterChallengeVersions, ID: id},
+		}
+	}
+
 	payload := GameCenterChallengeImageCreateRequest{
 		Data: GameCenterChallengeImageCreateData{
 			Type: ResourceTypeGameCenterChallengeImages,
@@ -437,14 +450,7 @@ func (c *Client) CreateGameCenterChallengeImage(ctx context.Context, localizatio
 				FileName: fileName,
 				FileSize: fileSize,
 			},
-			Relationships: &GameCenterChallengeImageRelationships{
-				Localization: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterChallengeLocalizations,
-						ID:   strings.TrimSpace(localizationID),
-					},
-				},
-			},
+			Relationships: relationships,
 		},
 	}
 
@@ -505,7 +511,7 @@ func (c *Client) DeleteGameCenterChallengeImage(ctx context.Context, imageID str
 }
 
 // UploadGameCenterChallengeImage performs the full upload flow for a challenge image.
-func (c *Client) UploadGameCenterChallengeImage(ctx context.Context, localizationID, filePath string) (*GameCenterChallengeImageUploadResult, error) {
+func (c *Client) UploadGameCenterChallengeImage(ctx context.Context, localizationID, versionID, filePath string) (*GameCenterChallengeImageUploadResult, error) {
 	if err := ValidateImageFile(filePath); err != nil {
 		return nil, fmt.Errorf("invalid image file: %w", err)
 	}
@@ -517,7 +523,7 @@ func (c *Client) UploadGameCenterChallengeImage(ctx context.Context, localizatio
 	fileName := info.Name()
 	fileSize := info.Size()
 
-	reservation, err := c.CreateGameCenterChallengeImage(ctx, localizationID, fileName, fileSize)
+	reservation, err := c.CreateGameCenterChallengeImage(ctx, localizationID, versionID, fileName, fileSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reserve upload: %w", err)
 	}
@@ -540,6 +546,7 @@ func (c *Client) UploadGameCenterChallengeImage(ctx context.Context, localizatio
 	result := &GameCenterChallengeImageUploadResult{
 		ID:             committed.Data.ID,
 		LocalizationID: localizationID,
+		VersionID:      versionID,
 		FileName:       committed.Data.Attributes.FileName,
 		FileSize:       committed.Data.Attributes.FileSize,
 		Uploaded:       true,

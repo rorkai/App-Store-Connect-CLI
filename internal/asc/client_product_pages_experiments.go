@@ -844,12 +844,12 @@ func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationsRelationships
 }
 
 // GetAppStoreVersionExperimentTreatmentLocalization retrieves a treatment localization by ID.
-func (c *Client) GetAppStoreVersionExperimentTreatmentLocalization(ctx context.Context, localizationID string) (*AppStoreVersionExperimentTreatmentLocalizationResponse, error) {
+func (c *Client) GetAppStoreVersionExperimentTreatmentLocalization(ctx context.Context, localizationID string, opts ...LocalizationReadOption) (*AppStoreVersionExperimentTreatmentLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s", localizationID), nil)
+	data, err := c.do(ctx, "GET", localizationReadPath(fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s", localizationID), opts), nil)
 	if err != nil {
 		return nil, err
 	}

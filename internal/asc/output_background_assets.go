@@ -21,12 +21,13 @@ func backgroundAssetsRows(resp *BackgroundAssetsResponse) ([]string, [][]string)
 }
 
 func backgroundAssetVersionsRows(resp *BackgroundAssetVersionsResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Version", "State", "Platforms", "Created Date"}
+	headers := []string{"ID", "Version", "Locale", "State", "Platforms", "Created Date"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Version),
+			compactWhitespace(item.Attributes.Locale),
 			compactWhitespace(item.Attributes.State),
 			formatPlatforms(item.Attributes.Platforms),
 			item.Attributes.CreatedDate,

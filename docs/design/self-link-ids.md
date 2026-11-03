@@ -126,7 +126,7 @@ covering 88 resource types:
 | `asc game-center` | `--version-id` | `gameCenterLeaderboardSetVersions` |
 | `asc game-center` | `--leaderboard-set-id`, `--set-id` | `gameCenterLeaderboardSets` |
 | `asc game-center` | `--version-id` | `gameCenterLeaderboardVersions` |
-| `asc game-center` | `--default-leaderboard-id`, `--leaderboard-id` | `gameCenterLeaderboards` |
+| `asc game-center` | `--default-leaderboard-id`, `--default-leaderboard-v2-id`, `--default-group-leaderboard-id`, `--default-group-leaderboard-v2-id`, `--leaderboard-id` | `gameCenterLeaderboards` |
 | `asc game-center` | `--queue-id` | `gameCenterMatchmakingQueues` |
 | `asc game-center` | `--experiment-rule-set-id`, `--rule-set-id` | `gameCenterMatchmakingRuleSets` |
 | `asc game-center` | `--rule-id` | `gameCenterMatchmakingRules` |

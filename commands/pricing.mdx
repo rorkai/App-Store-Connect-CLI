@@ -345,6 +345,16 @@ of `--territory` or `--all-territories`.
   Automatically make available in new territories
 </ParamField>
 
+<ParamField path="--release-date" type="string">
+  Release date for the selected territories (YYYY-MM-DD). Requires
+  `--available true`. Cannot be combined with `--pre-order-enabled false`.
+</ParamField>
+
+<ParamField path="--pre-order-enabled" type="boolean">
+  Set pre-order enabled for the selected territories (true or false). Requires
+  `--available true`.
+</ParamField>
+
 <ParamField path="--if-exists" type="string" default="fail">
   Behavior when the app already has an availability record: `fail` returns
   Apple's 409, `skip` prints the existing record unchanged and exits 0, and
@@ -357,13 +367,16 @@ of `--territory` or `--all-territories`.
 Apple exposes no update for `availableInNewTerritories`, so on `update` that
 flag is only checked against the existing policy and a mismatch fails. When
 every requested territory already matches, `update` sends no request and
-reports the record as left unchanged.
+reports the record as left unchanged. `--release-date` and
+`--pre-order-enabled` are rejected with `update`; use `asc pre-orders enable`
+or `asc pre-orders update` on an existing record.
 
 **Examples:**
 
 ```bash  theme={null}
 asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true
 asc pricing availability create --app "123456789" --all-territories --available true --available-in-new-territories true
+asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true --release-date "2026-12-01" --pre-order-enabled true
 asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true --if-exists skip
 asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true --if-exists update
 ```

@@ -29,6 +29,7 @@ type iapSetupOptions struct {
 	ReferenceName    string
 	ProductID        string
 	FamilySharable   bool
+	ReviewNote       string
 	Locale           string
 	DisplayName      string
 	Description      string
@@ -97,6 +98,7 @@ func IAPSetupCommand() *ffcli.Command {
 	refNameAlias := fs.String("ref-name", "", "Reference name alias")
 	productID := fs.String("product-id", "", "Product ID (e.g., com.example.product)")
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
+	reviewNote := fs.String("review-note", "", "Review note for App Review")
 
 	locale := fs.String("locale", "", "Locale for the first localization (e.g., en-US)")
 	displayName := fs.String("display-name", "", "Display name for the first localization")
@@ -137,7 +139,8 @@ version, then use "asc iap versions localizations" commands.
 
 Examples:
   asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime"
-  asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --price "3.99" --base-territory "United States" --start-date "2026-03-01"`,
+  asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --price "3.99" --base-territory "United States" --start-date "2026-03-01"
+  asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --review-note "Purchase from Settings > Upgrade"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -166,6 +169,7 @@ Examples:
 				ReferenceName:    referenceNameValue,
 				ProductID:        strings.TrimSpace(*productID),
 				FamilySharable:   *familySharable,
+				ReviewNote:       strings.TrimSpace(*reviewNote),
 				Locale:           strings.TrimSpace(*locale),
 				DisplayName:      displayNameValue,
 				Description:      strings.TrimSpace(*description),
@@ -192,6 +196,9 @@ Examples:
 			}
 			if opts.ProductID == "" {
 				return shared.UsageError("--product-id is required")
+			}
+			if flagSet(fs, "review-note") && opts.ReviewNote == "" {
+				return shared.UsageError("--review-note cannot be empty")
 			}
 
 			hasLocalization := opts.Locale != "" || opts.DisplayName != "" || opts.Description != ""
@@ -286,6 +293,7 @@ func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult,
 		ProductID:         opts.ProductID,
 		InAppPurchaseType: opts.Type,
 		FamilySharable:    opts.FamilySharable,
+		ReviewNote:        opts.ReviewNote,
 	})
 	createCancel()
 	if err != nil {

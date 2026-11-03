@@ -101,6 +101,35 @@ func TestSubscriptionSparseFields441CommandQueries(t *testing.T) {
 			},
 		},
 		{
+			name: "subscription promoted purchase market fields",
+			args: []string{
+				"subscriptions", "promoted-purchases", "view",
+				"--subscription-id", "123456789",
+				"--subscription-fields", "marketSettings,multiSeatStatus",
+				"--output", "json",
+			},
+			path: "/v1/subscriptions/123456789/promotedPurchase",
+			wantQuery: url.Values{
+				"fields[subscriptions]": {"marketSettings,multiSeatStatus"},
+				"include":               {"subscription"},
+			},
+		},
+		{
+			name: "win-back offer prices adjusted equalizations",
+			args: []string{
+				"subscriptions", "offers", "win-back", "prices",
+				"--id", "offer-1",
+				"--include", "subscriptionPricePoint",
+				"--price-point-fields", "adjustedEqualizations",
+				"--output", "json",
+			},
+			path: "/v1/winBackOffers/offer-1/prices",
+			wantQuery: url.Values{
+				"fields[subscriptionPricePoints]": {"adjustedEqualizations"},
+				"include":                         {"subscriptionPricePoint"},
+			},
+		},
+		{
 			name:      "subscription promotional offers",
 			args:      []string{"subscriptions", "offers", "promotional", "list", "--subscription-id", "123456789", "--subscription-fields", "versions", "--output", "json"},
 			path:      "/v1/subscriptions/123456789/promotionalOffers",

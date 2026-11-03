@@ -48,11 +48,16 @@ Examples:
 	}
 }
 
+func customPageLocalizationIncludeList() []string {
+	return []string{"appCustomProductPageVersion", "appScreenshotSets", "appPreviewSets", "searchKeywords", "placements"}
+}
+
 // CustomPageLocalizationsListCommand returns the custom page localizations list subcommand.
 func CustomPageLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations list", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
+	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", customPageLocalizationIncludeList())
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -66,6 +71,7 @@ func CustomPageLocalizationsListCommand() *ffcli.Command {
 
 Examples:
   asc product-pages custom-pages localizations list --custom-page-version-id "VERSION_ID"
+  asc product-pages custom-pages localizations list --custom-page-version-id "VERSION_ID" --include placements --placements-limit 50
   asc product-pages custom-pages localizations list --custom-page-version-id "VERSION_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -75,6 +81,13 @@ Examples:
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("custom-pages localizations list: %v", err)
+			}
+			if err := shared.RejectNextFlagConflicts(fs, *next, "custom-pages localizations list", "include", "placements-limit"); err != nil {
+				return err
+			}
+			includeValues, placementsLimit, err := include.Resolve()
+			if err != nil {
+				return err
 			}
 
 			trimmedID := strings.TrimSpace(*versionID)
@@ -94,6 +107,8 @@ Examples:
 			opts := []asc.AppCustomProductPageLocalizationsOption{
 				asc.WithAppCustomProductPageLocalizationsLimit(*limit),
 				asc.WithAppCustomProductPageLocalizationsNextURL(*next),
+				asc.WithAppCustomProductPageLocalizationsInclude(includeValues),
+				asc.WithAppCustomProductPageLocalizationsPlacementsLimit(placementsLimit),
 			}
 
 			if *paginate {
@@ -128,6 +143,7 @@ func CustomPageLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations view", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
+	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", customPageLocalizationIncludeList())
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -137,7 +153,8 @@ func CustomPageLocalizationsGetCommand() *ffcli.Command {
 		LongHelp: `View a custom product page localization by ID.
 
 Examples:
-  asc product-pages custom-pages localizations view --localization-id "LOCALIZATION_ID"`,
+  asc product-pages custom-pages localizations view --localization-id "LOCALIZATION_ID"
+  asc product-pages custom-pages localizations view --localization-id "LOCALIZATION_ID" --include placements --placements-limit 50`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -145,6 +162,10 @@ Examples:
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
 				return shared.MissingRequiredUsageError("--localization-id")
+			}
+			includeValues, placementsLimit, err := include.Resolve()
+			if err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -155,7 +176,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetAppCustomProductPageLocalization(requestCtx, trimmedID)
+			resp, err := client.GetAppCustomProductPageLocalization(requestCtx, trimmedID, asc.WithLocalizationReadInclude(includeValues), asc.WithLocalizationReadPlacementsLimit(placementsLimit))
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations view: failed to fetch: %w", err)
 			}

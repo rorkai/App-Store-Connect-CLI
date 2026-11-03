@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -30,13 +31,11 @@ func CreativePlacementsCommand(resource, prefix, label string) *ffcli.Command {
 func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Command {
 	fs := flag.NewFlagSet("placements list", flag.ExitOnError)
 	id := BindResourceIDFlag(fs, "localization-id", resource, label+" ID or API self-link")
-	listTypes := creativePlacementTypes(resource)
-	if resource == "appCustomProductPageLocalizations" {
-		listTypes = append(listTypes, "IMESSAGE_APP_SCREENSHOT")
-	}
+	listTypes := creativePlacementFilterTypes(resource)
 	kind := fs.String("placement-type", "", "Filter by placement types, comma-separated: "+strings.Join(listTypes, ", "))
 	group := fs.String("placement-group", "", "Filter by placement group IDs, comma-separated")
-	include := fs.String("include", "", "Include related media, comma-separated: image, video")
+	includeValues := []string{"image", "video", "appEventLocalization", "appStoreVersionLocalization", "appCustomProductPageLocalization", "appStoreVersionExperimentTreatmentLocalization"}
+	include := fs.String("include", "", "Include related resources, comma-separated: "+strings.Join(includeValues, ", "))
 	sort := fs.String("sort", "", "Sort by placementGroupPosition")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200; 0 uses server default)")
 	next := fs.String("next", "", "Fetch a links.next URL instead of selecting a localization")
@@ -70,7 +69,7 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 			if err != nil {
 				return UsageErrorf(prefix+" placements list: --placement-group %v", err)
 			}
-			includes, err := validatedPlacementCSV(*include, []string{"image", "video"})
+			includes, err := validatedPlacementCSV(*include, includeValues)
 			if err != nil {
 				return UsageErrorf(prefix+" placements list: --include %v", err)
 			}
@@ -133,6 +132,20 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 			return PrintOutputRows(json.RawMessage(response), *output.Output, *output.Pretty, headers, rows)
 		},
 	}
+}
+
+// creativePlacementFilterTypes returns Apple's filter[placementType] enum, with
+// the context's write types first. Reads are wider than writes: filter support
+// does not establish creation support.
+func creativePlacementFilterTypes(resource string) []string {
+	kinds := creativePlacementTypes(resource)
+	// The spec also lists RETENTION_MESSAGE_ASSET, but Apple returns 400 "is not a valid filter value" for it.
+	for _, kind := range []string{"PRODUCT_PAGE_HEADER_ASSET", "APP_STORE_SEARCH_RESULTS_ASSET", "APP_SCREENSHOT", "APP_PREVIEW", "IMESSAGE_APP_SCREENSHOT", "EVENT_CARD_ASSET", "EVENT_DETAILS_PAGE_ASSET", "SEARCH_RESULTS_ADS_ASSET", "TODAY_TAB_ADS_ASSET"} {
+		if !slices.Contains(kinds, kind) {
+			kinds = append(kinds, kind)
+		}
+	}
+	return kinds
 }
 
 func validatedPlacementCSV(raw string, allowed []string) (string, error) {

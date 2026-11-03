@@ -48,6 +48,10 @@ func TestGameCenterLeaderboardSetsCreateValidationErrors(t *testing.T) {
 			name: "missing vendor-id",
 			args: []string{"game-center", "leaderboard-sets", "create", "--app", "APP_ID", "--reference-name", "Test"},
 		},
+		{
+			name: "empty leaderboard-ids",
+			args: []string{"game-center", "leaderboard-sets", "create", "--app", "APP_ID", "--reference-name", "Test", "--vendor-id", "com.test", "--leaderboard-ids", " , "},
+		},
 	}
 
 	for _, test := range tests {
