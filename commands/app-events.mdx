@@ -37,7 +37,7 @@ asc app-events list --app "APP_ID"
   `purpose`, `territorySchedules`, `archivedTerritorySchedules`, `localizations`
 * `--localization-fields` - Sparse fields for included localizations: `locale`,
   `name`, `shortDescription`, `longDescription`, `appEvent`,
-  `appEventScreenshots`, `appEventVideoClips`
+  `appEventScreenshots`, `appEventVideoClips`, `placements`
 * `--include` - Related resources to include: `localizations`
 * `--localizations-limit` - Maximum included localizations (1-50); requires
   `--include localizations`
@@ -280,6 +280,12 @@ asc app-events localizations create \
 
 # List localizations
 asc app-events localizations list --event-id "EVENT_ID"
+
+# List localizations with their placements
+asc app-events localizations list \
+  --event-id "EVENT_ID" \
+  --include placements \
+  --placements-limit 50
 
 # Update localization
 asc app-events localizations update \

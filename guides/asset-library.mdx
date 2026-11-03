@@ -121,6 +121,8 @@ asc app-events localizations placements create --localization-id EVENT_LOCALIZAT
   --image-id IMAGE_ID --placement-type EVENT_CARD_ASSET
 ```
 
+The `list` and `view` commands for these localizations also accept `--include placements` and `--placements-limit` (1-50), which return placements in Apple's `included` array with the localization. Use the `placements` command groups to filter, sort, or paginate placements.
+
 Supply exactly one `--image-id` or `--video-id`. Screenshots require images; app previews require videos and an explicit device `--placement-group`. Header, search, and event creative media use `DEFAULT_PROFILE`. Header/search types are `PRODUCT_PAGE_HEADER_ASSET` and `APP_STORE_SEARCH_RESULTS_ASSET`. Events accept only `EVENT_CARD_ASSET` and `EVENT_DETAILS_PAGE_ASSET`.
 
 Version localizations also support `IMESSAGE_APP_SCREENSHOT`. CPP and PPO creation do not support iMessage screenshot assignments. Apple validates media compatibility and available slots. Placement lists accept comma-separated type/group filters, sorting, pagination, and related `image`, `video`, `appEventLocalization`, `appStoreVersionLocalization`, `appCustomProductPageLocalization`, and `appStoreVersionExperimentTreatmentLocalization` inclusion. List filters accept the same placement types in all four contexts, including `SEARCH_RESULTS_ADS_ASSET` and `TODAY_TAB_ADS_ASSET`. Apple's spec also lists `RETENTION_MESSAGE_ASSET`, but Apple rejects it as a filter value, so the CLI does too. A value that can be filtered is not necessarily one that `create` or `swap` accepts.

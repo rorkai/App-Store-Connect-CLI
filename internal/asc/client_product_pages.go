@@ -621,12 +621,12 @@ func (c *Client) GetAppCustomProductPageLocalizationsRelationships(ctx context.C
 }
 
 // GetAppCustomProductPageLocalization retrieves a custom product page localization by ID.
-func (c *Client) GetAppCustomProductPageLocalization(ctx context.Context, localizationID string) (*AppCustomProductPageLocalizationResponse, error) {
+func (c *Client) GetAppCustomProductPageLocalization(ctx context.Context, localizationID string, opts ...LocalizationReadOption) (*AppCustomProductPageLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), nil)
+	data, err := c.do(ctx, "GET", localizationReadPath(fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), opts), nil)
 	if err != nil {
 		return nil, err
 	}

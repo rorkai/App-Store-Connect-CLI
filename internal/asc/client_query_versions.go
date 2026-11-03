@@ -57,10 +57,24 @@ type reviewSubmissionItemsQuery struct {
 	include                        []string
 }
 
+// localizationRelatedQuery carries the include and limit[placements] parameters
+// that localization reads share.
+type localizationRelatedQuery struct {
+	include         []string
+	placementsLimit int
+}
+
+func (q localizationRelatedQuery) addTo(values url.Values) {
+	addCSV(values, "include", q.include)
+	if q.placementsLimit > 0 {
+		values.Set("limit[placements]", strconv.Itoa(q.placementsLimit))
+	}
+}
+
 type appStoreVersionLocalizationsQuery struct {
 	listQuery
+	localizationRelatedQuery
 	locales []string
-	include []string
 }
 
 type appInfoLocalizationsQuery struct {
@@ -101,6 +115,7 @@ type appCustomProductPageVersionsQuery struct {
 
 type appCustomProductPageLocalizationsQuery struct {
 	listQuery
+	localizationRelatedQuery
 	searchKeywordsLimit int
 }
 
@@ -141,6 +156,7 @@ type appStoreVersionExperimentTreatmentsQuery struct {
 
 type appStoreVersionExperimentTreatmentLocalizationsQuery struct {
 	listQuery
+	localizationRelatedQuery
 }
 
 type appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery struct {
@@ -282,7 +298,7 @@ func buildReviewSubmissionItemsQuery(query *reviewSubmissionItemsQuery) string {
 func buildAppStoreVersionLocalizationsQuery(query *appStoreVersionLocalizationsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[locale]", query.locales)
-	addCSV(values, "include", query.include)
+	query.addTo(values)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -354,8 +370,9 @@ func buildAppCustomProductPageVersionsQuery(query *appCustomProductPageVersionsQ
 func buildAppCustomProductPageLocalizationsQuery(query *appCustomProductPageLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	query.addTo(values)
 	if query.searchKeywordsLimit > 0 {
-		values.Set("include", "searchKeywords")
+		addCSV(values, "include", append(slices.Clone(query.include), "searchKeywords"))
 		values.Set("limit[searchKeywords]", strconv.Itoa(query.searchKeywordsLimit))
 	}
 	return values.Encode()
@@ -417,6 +434,7 @@ func buildAppStoreVersionExperimentTreatmentsQuery(query *appStoreVersionExperim
 func buildAppStoreVersionExperimentTreatmentLocalizationsQuery(query *appStoreVersionExperimentTreatmentLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	query.addTo(values)
 	return values.Encode()
 }
 
@@ -480,6 +498,36 @@ type AppCustomProductPagesOption func(*appCustomProductPagesQuery)
 
 // AppCustomProductPageVersionsOption is a functional option for custom product page version list endpoints.
 type AppCustomProductPageVersionsOption func(*appCustomProductPageVersionsQuery)
+
+// LocalizationReadOption sets query parameters on a single-localization read.
+type LocalizationReadOption func(*localizationRelatedQuery)
+
+// WithLocalizationReadInclude includes related resources.
+func WithLocalizationReadInclude(include []string) LocalizationReadOption {
+	return func(q *localizationRelatedQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithLocalizationReadPlacementsLimit sets limit[placements].
+func WithLocalizationReadPlacementsLimit(limit int) LocalizationReadOption {
+	return func(q *localizationRelatedQuery) {
+		q.placementsLimit = limit
+	}
+}
+
+func localizationReadPath(path string, opts []LocalizationReadOption) string {
+	query := localizationRelatedQuery{}
+	for _, opt := range opts {
+		opt(&query)
+	}
+	values := url.Values{}
+	query.addTo(values)
+	if len(values) == 0 {
+		return path
+	}
+	return path + "?" + values.Encode()
+}
 
 // AppCustomProductPageLocalizationsOption is a functional option for custom product page localization list endpoints.
 type AppCustomProductPageLocalizationsOption func(*appCustomProductPageLocalizationsQuery)
@@ -903,10 +951,17 @@ func WithAppStoreVersionLocalizationLocales(locales []string) AppStoreVersionLoc
 
 // WithAppStoreVersionLocalizationsInclude includes related resources for
 // version localizations (appStoreVersion, appScreenshotSets, appPreviewSets,
-// searchKeywords).
+// searchKeywords, placements).
 func WithAppStoreVersionLocalizationsInclude(include []string) AppStoreVersionLocalizationsOption {
 	return func(q *appStoreVersionLocalizationsQuery) {
 		q.include = normalizeList(include)
+	}
+}
+
+// WithAppStoreVersionLocalizationsPlacementsLimit sets limit[placements].
+func WithAppStoreVersionLocalizationsPlacementsLimit(limit int) AppStoreVersionLocalizationsOption {
+	return func(q *appStoreVersionLocalizationsQuery) {
+		q.placementsLimit = limit
 	}
 }
 
@@ -1179,6 +1234,20 @@ func WithAppCustomProductPageLocalizationsSearchKeywords(limit int) AppCustomPro
 	}
 }
 
+// WithAppCustomProductPageLocalizationsInclude includes related resources.
+func WithAppCustomProductPageLocalizationsInclude(include []string) AppCustomProductPageLocalizationsOption {
+	return func(q *appCustomProductPageLocalizationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppCustomProductPageLocalizationsPlacementsLimit sets limit[placements].
+func WithAppCustomProductPageLocalizationsPlacementsLimit(limit int) AppCustomProductPageLocalizationsOption {
+	return func(q *appCustomProductPageLocalizationsQuery) {
+		q.placementsLimit = limit
+	}
+}
+
 // WithAppCustomProductPageLocalizationsNextURL uses a next page URL directly.
 func WithAppCustomProductPageLocalizationsNextURL(next string) AppCustomProductPageLocalizationsOption {
 	return func(q *appCustomProductPageLocalizationsQuery) {
@@ -1398,6 +1467,20 @@ func WithAppStoreVersionExperimentTreatmentLocalizationsLimit(limit int) AppStor
 		if limit > 0 {
 			q.limit = limit
 		}
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentLocalizationsInclude includes related resources.
+func WithAppStoreVersionExperimentTreatmentLocalizationsInclude(include []string) AppStoreVersionExperimentTreatmentLocalizationsOption {
+	return func(q *appStoreVersionExperimentTreatmentLocalizationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentLocalizationsPlacementsLimit sets limit[placements].
+func WithAppStoreVersionExperimentTreatmentLocalizationsPlacementsLimit(limit int) AppStoreVersionExperimentTreatmentLocalizationsOption {
+	return func(q *appStoreVersionExperimentTreatmentLocalizationsQuery) {
+		q.placementsLimit = limit
 	}
 }
 
