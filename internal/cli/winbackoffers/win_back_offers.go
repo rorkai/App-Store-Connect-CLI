@@ -1105,7 +1105,7 @@ func winBackOfferTerritoryFieldsList() []string {
 }
 
 func winBackOfferSubscriptionPricePointFieldsList() []string {
-	return []string{"customerPrice", "proceeds", "proceedsYear2", "territory", "equalizations"}
+	return []string{"customerPrice", "proceeds", "proceedsYear2", "territory", "equalizations", "adjustedEqualizations"}
 }
 
 func winBackOfferPriceIncludeList() []string {
