@@ -1490,6 +1490,7 @@ func SelectProvider(ctx context.Context, session *AuthSession, selection Provide
 	}
 	if info.Provider.ProviderID == selected.ProviderID {
 		applySessionInfo(session, info)
+		session.DeveloperTeamID = ""
 		return nil
 	}
 
@@ -1533,6 +1534,7 @@ func SelectProvider(ctx context.Context, session *AuthSession, selection Provide
 		return fmt.Errorf("provider selection did not take effect: selected %d but session reports %d", selected.ProviderID, refreshed.Provider.ProviderID)
 	}
 	applySessionInfo(session, refreshed)
+	session.DeveloperTeamID = ""
 	return nil
 }
 
