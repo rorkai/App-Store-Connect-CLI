@@ -2738,21 +2738,23 @@ func PersistSession(session *AuthSession) error {
 // keepUntouchedPersistedCookies merges onto an entry another process wrote
 // after this handle loaded it. Cookies this handle received a response for
 // replace the stored ones; every other cookie keeps the newer stored record.
+// Records are matched by host, name and path: the narrowed persisted format
+// cannot hold two cookies that differ only by domain.
 func keepUntouchedPersistedCookies(serialized *persistedSession, current persistedSession, updates map[trackedCookieKey]trackedCookieUpdate) {
-	type cookieScope struct{ host, name, path, domain string }
-	scopeOf := func(origin, name, path, domain string) cookieScope {
+	type cookieScope struct{ host, name, path string }
+	scopeOf := func(origin, name, path string) cookieScope {
 		host := ""
 		if parsed, err := url.Parse(origin); err == nil && parsed != nil {
 			host = strings.ToLower(parsed.Hostname())
 		}
-		return cookieScope{host: host, name: name, path: persistedCookiePath(path), domain: domain}
+		return cookieScope{host: host, name: name, path: persistedCookiePath(path)}
 	}
 	touched := make(map[cookieScope]bool, len(updates))
 	for key := range updates {
-		touched[scopeOf(key.origin, key.name, key.path, key.domain)] = true
+		touched[scopeOf(key.origin, key.name, key.path)] = true
 	}
 	isTouched := func(origin string, cookie pCookie) bool {
-		return touched[scopeOf(origin, cookie.Name, cookie.Path, persistedCookieScopeDomain(nil, cookie))]
+		return touched[scopeOf(origin, cookie.Name, cookie.Path)]
 	}
 	now := time.Now().UTC()
 	merged := make(map[string][]pCookie, len(current.Cookies))

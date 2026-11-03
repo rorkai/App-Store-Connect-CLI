@@ -4048,7 +4048,7 @@ func TestPersistSessionKeepsNewerCookieWrittenByAnotherProcess(t *testing.T) {
 	for _, cookie := range stored.Cookies[root] {
 		values[cookie.Name+" "+persistedCookiePath(cookie.Path)] = cookie.Value
 	}
-	if len(values) != 3 || values["myacinfo /"] != "fresh" || values["itctx /"] != "other" || values["myacinfo /olympus"] != "olympus" {
+	if len(stored.Cookies[root]) != 3 || values["myacinfo /"] != "fresh" || values["itctx /"] != "other" || values["myacinfo /olympus"] != "olympus" {
 		t.Fatalf("persisted cookies = %v, want the other process's myacinfo plus this handle's itctx and Olympus myacinfo", values)
 	}
 }
