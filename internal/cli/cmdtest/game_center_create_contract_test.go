@@ -57,6 +57,22 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			wantRequests: 1,
 		},
 		{
+			name:         "leaderboard v1 with recurrence",
+			args:         []string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--reference-name", "High Score", "--vendor-id", "com.example.highscore", "--formatter", "INTEGER", "--sort", "DESC", "--submission-type", "BEST_SCORE", "--recurrence-start-date", "2026-12-01T00:00:00Z", "--recurrence-duration", "PT168H", "--recurrence-rule", "FREQ=DAILY;INTERVAL=7"},
+			postPath:     "/v1/gameCenterLeaderboards",
+			resourceType: "gameCenterLeaderboards",
+			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE","recurrenceStartDate":"2026-12-01T00:00:00Z","recurrenceDuration":"PT168H","recurrenceRule":"FREQ=DAILY;INTERVAL=7"},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}}}}}`,
+			wantRequests: 2,
+		},
+		{
+			name:         "leaderboard v2 with recurrence",
+			args:         []string{"game-center", "leaderboards", "create", "--group-id", "group-1", "--reference-name", "Group Score", "--vendor-id", "grp.com.example.groupscore", "--formatter", "MONEY_YEN", "--sort", "DESC", "--submission-type", "BEST_SCORE", "--v2", "--recurrence-start-date", "2026-12-01T00:00:00Z", "--recurrence-duration", "PT12H", "--recurrence-rule", "FREQ=HOURLY;INTERVAL=12"},
+			postPath:     "/v2/gameCenterLeaderboards",
+			resourceType: "gameCenterLeaderboards",
+			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"Group Score","vendorIdentifier":"grp.com.example.groupscore","defaultFormatter":"MONEY_YEN","scoreSortType":"DESC","submissionType":"BEST_SCORE","recurrenceStartDate":"2026-12-01T00:00:00Z","recurrenceDuration":"PT12H","recurrenceRule":"FREQ=HOURLY;INTERVAL=12"},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"versions":{"data":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}`,
+			wantRequests: 1,
+		},
+		{
 			name:         "leaderboard set v1",
 			args:         []string{"game-center", "leaderboard-sets", "create", "--app", "APP_ID", "--reference-name", "Season 1", "--vendor-id", "com.example.season1"},
 			postPath:     "/v1/gameCenterLeaderboardSets",
