@@ -292,6 +292,8 @@ asc subscriptions create \
   * `THREE_MONTHS`
   * `SIX_MONTHS`
   * `ONE_YEAR`
+* `--review-note` - Review note for App Review
+* `--group-level` - Subscription ordering level (positive integer)
 * `--family-sharable` - Enable Family Sharing (cannot be undone). This also sets
   `multiSeatStatus` to `DISABLED`.
 
@@ -311,7 +313,20 @@ asc subscriptions create \
   --product-id "com.example.app.yearly" \
   --subscription-period ONE_YEAR \
   --family-sharable
+
+# Set the ordering level and App Review note at creation
+asc subscriptions create \
+  --group-id "GROUP_ID" \
+  --reference-name "Yearly Premium" \
+  --product-id "com.example.app.yearly" \
+  --subscription-period ONE_YEAR \
+  --group-level 1 \
+  --review-note "Same paywall structure, design may differ"
 ```
+
+`asc subscriptions setup` accepts `--review-note` and `--group-level` too. When
+setup finds an existing subscription for the product ID, it stops with a
+conflict if either value differs instead of changing that subscription.
 
 ### Get Subscription
 

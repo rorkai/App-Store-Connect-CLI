@@ -630,7 +630,10 @@ func SubscriptionsCreateCommand() *ffcli.Command {
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Subscription group ID")
 	referenceName := fs.String("reference-name", "", "Reference name")
 	productID := fs.String("product-id", "", "Product ID (e.g., com.example.sub)")
+	reviewNote := fs.String("review-note", "", "Review note for App Review")
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
+	var groupLevel optionalInt
+	fs.Var(&groupLevel, "group-level", "Subscription ordering level (positive integer)")
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 	output := shared.BindOutputFlags(fs)
 
@@ -643,7 +646,8 @@ func SubscriptionsCreateCommand() *ffcli.Command {
 Examples:
   asc subscriptions create --group-id "GROUP_ID" --reference-name "Monthly" --product-id "com.example.sub.monthly"
   asc subscriptions create --group-id "GROUP_ID" --reference-name "Monthly" --product-id "com.example.sub.monthly" --subscription-period ONE_MONTH
-  asc subscriptions create --group-id "GROUP_ID" --reference-name "Family" --product-id "com.example.sub.family" --family-sharable`,
+  asc subscriptions create --group-id "GROUP_ID" --reference-name "Family" --product-id "com.example.sub.family" --family-sharable
+  asc subscriptions create --group-id "GROUP_ID" --reference-name "Yearly" --product-id "com.example.sub.yearly" --group-level 1 --review-note "Same paywall structure, design may differ"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -665,6 +669,11 @@ Examples:
 				return shared.MissingRequiredUsageError("--product-id")
 			}
 
+			note := strings.TrimSpace(*reviewNote)
+			if err := validateSubscriptionReviewFlags(fs, note, groupLevel); err != nil {
+				return err
+			}
+
 			period, err := normalizeSubscriptionPeriod(*subscriptionPeriod, false)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
@@ -680,11 +689,16 @@ Examples:
 			defer cancel()
 
 			attrs := asc.SubscriptionCreateAttributes{
-				Name:      name,
-				ProductID: product,
+				Name:       name,
+				ProductID:  product,
+				ReviewNote: note,
 			}
 			if period != "" {
 				attrs.SubscriptionPeriod = string(period)
+			}
+			if groupLevel.IsSet() {
+				level := groupLevel.Value()
+				attrs.GroupLevel = &level
 			}
 			if *familySharable {
 				val := true
@@ -816,9 +830,8 @@ Examples:
 			fs.Visit(func(f *flag.Flag) {
 				visited[f.Name] = true
 			})
-			if visited["review-note"] && note == "" {
-				fmt.Fprintln(os.Stderr, "Error: --review-note cannot be empty")
-				return flag.ErrHelp
+			if err := validateSubscriptionReviewFlags(fs, note, groupLevel); err != nil {
+				return err
 			}
 			markets, err := normalizeSelectionFlag(fs, strings.ToUpper(*marketSettings), "--market-settings", []string{"APP_STORE", "APPLE_SCHOOL", "APPLE_BUSINESS"})
 			if err != nil {
@@ -836,10 +849,6 @@ Examples:
 			period, err := normalizeSubscriptionPeriod(*subscriptionPeriod, false)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
-				return flag.ErrHelp
-			}
-			if groupLevel.IsSet() && groupLevel.Value() <= 0 {
-				fmt.Fprintln(os.Stderr, "Error: --group-level must be a positive integer")
 				return flag.ErrHelp
 			}
 
@@ -890,6 +899,22 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func validateSubscriptionReviewFlags(fs *flag.FlagSet, reviewNote string, groupLevel optionalInt) error {
+	reviewNoteSet := false
+	fs.Visit(func(f *flag.Flag) {
+		reviewNoteSet = reviewNoteSet || f.Name == "review-note"
+	})
+	if reviewNoteSet && reviewNote == "" {
+		fmt.Fprintln(os.Stderr, "Error: --review-note cannot be empty")
+		return flag.ErrHelp
+	}
+	if groupLevel.IsSet() && groupLevel.Value() <= 0 {
+		fmt.Fprintln(os.Stderr, "Error: --group-level must be a positive integer")
+		return flag.ErrHelp
+	}
+	return nil
 }
 
 type optionalInt struct {
