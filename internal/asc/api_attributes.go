@@ -361,3 +361,19 @@ func (a AppStoreVersionAttributes) MarshalJSON() ([]byte, error) {
 	type alias AppStoreVersionAttributes
 	return a.api.marshal(alias(a))
 }
+
+func (a *ReviewAttributes) UnmarshalJSON(data []byte) error {
+	type alias ReviewAttributes
+	decoded, api, err := unmarshalAPIAttributes[alias](data)
+	if err != nil {
+		return err
+	}
+	*a = ReviewAttributes(decoded)
+	a.api = api
+	return nil
+}
+
+func (a ReviewAttributes) MarshalJSON() ([]byte, error) {
+	type alias ReviewAttributes
+	return a.api.marshal(alias(a))
+}

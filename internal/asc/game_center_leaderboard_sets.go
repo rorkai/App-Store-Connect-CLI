@@ -24,14 +24,16 @@ type GameCenterLeaderboardSetUpdateAttributes struct {
 
 // GameCenterLeaderboardSetRelationships describes relationships for leaderboard sets.
 type GameCenterLeaderboardSetRelationships struct {
-	GameCenterDetail *Relationship `json:"gameCenterDetail"`
+	GameCenterDetail       *Relationship     `json:"gameCenterDetail,omitempty"`
+	GameCenterLeaderboards *RelationshipList `json:"gameCenterLeaderboards,omitempty"`
 }
 
 // GameCenterLeaderboardSetV2Relationships describes relationships for v2 leaderboard sets.
 type GameCenterLeaderboardSetV2Relationships struct {
-	GameCenterDetail *Relationship     `json:"gameCenterDetail,omitempty"`
-	GameCenterGroup  *Relationship     `json:"gameCenterGroup,omitempty"`
-	Versions         *RelationshipList `json:"versions"`
+	GameCenterDetail       *Relationship     `json:"gameCenterDetail,omitempty"`
+	GameCenterGroup        *Relationship     `json:"gameCenterGroup,omitempty"`
+	GameCenterLeaderboards *RelationshipList `json:"gameCenterLeaderboards,omitempty"`
+	Versions               *RelationshipList `json:"versions"`
 }
 
 // GameCenterLeaderboardSetCreateData is the data portion of a leaderboard set create request.

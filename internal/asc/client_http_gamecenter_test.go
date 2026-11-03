@@ -411,7 +411,7 @@ func TestCreateGameCenterLeaderboard(t *testing.T) {
 		ScoreSortType:    "DESC",
 		SubmissionType:   "BEST_SCORE",
 	}
-	if _, err := client.CreateGameCenterLeaderboard(context.Background(), "gc-detail-1", attrs); err != nil {
+	if _, err := client.CreateGameCenterLeaderboard(context.Background(), "gc-detail-1", attrs, nil); err != nil {
 		t.Fatalf("CreateGameCenterLeaderboard() error: %v", err)
 	}
 }
@@ -520,7 +520,7 @@ func TestCreateGameCenterLeaderboardV2_WithDetail(t *testing.T) {
 		ScoreSortType:    "DESC",
 		SubmissionType:   "BEST_SCORE",
 	}
-	if _, err := client.CreateGameCenterLeaderboardV2(context.Background(), "gc-detail-1", "", attrs); err != nil {
+	if _, err := client.CreateGameCenterLeaderboardV2(context.Background(), "gc-detail-1", "", attrs, nil); err != nil {
 		t.Fatalf("CreateGameCenterLeaderboardV2() error: %v", err)
 	}
 }
@@ -566,7 +566,7 @@ func TestCreateGameCenterLeaderboardV2_WithGroup(t *testing.T) {
 		ScoreSortType:    "DESC",
 		SubmissionType:   "BEST_SCORE",
 	}
-	if _, err := client.CreateGameCenterLeaderboardV2(context.Background(), "", "group-1", attrs); err != nil {
+	if _, err := client.CreateGameCenterLeaderboardV2(context.Background(), "", "group-1", attrs, nil); err != nil {
 		t.Fatalf("CreateGameCenterLeaderboardV2() error: %v", err)
 	}
 }

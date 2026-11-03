@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -34,7 +35,37 @@ const groupTesterMetricsFixture = `{
 	"links":{"self":"https://api.example.test/v1/betaGroups/group-1/metrics/betaTesterUsages?groupBy=betaTesters"}
 }`
 
-func TestTestFlightMetricsPublicLinkOutput(t *testing.T) {
+const publicLinkMetricsFixture = `{
+	"data":[
+		{
+			"dataPoints":[
+				{
+					"start":"2026-08-01T00:00:00Z",
+					"end":"2026-08-02T00:00:00Z",
+					"values":{
+						"viewCount":120,
+						"acceptedCount":45,
+						"didNotAcceptCount":30,
+						"didNotMeetCriteriaCount":9,
+						"notRelevantRatio":0.25,
+						"notClearRatio":0.5,
+						"notInterestingRatio":0.125
+					}
+				},
+				{
+					"start":"2026-08-02T00:00:00Z",
+					"end":"2026-08-03T00:00:00Z",
+					"values":{"viewCount":0}
+				}
+			]
+		}
+	],
+	"links":{"self":"https://api.example.test/v1/betaGroups/group-1/metrics/publicLinkUsages"},
+	"meta":{"paging":{"total":1,"limit":50}}
+}`
+
+func runPublicLinkMetrics(t *testing.T, extraArgs ...string) string {
+	t.Helper()
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -50,10 +81,9 @@ func TestTestFlightMetricsPublicLinkOutput(t *testing.T) {
 		if req.URL.Path != "/v1/betaGroups/group-1/metrics/publicLinkUsages" {
 			t.Fatalf("expected path /v1/betaGroups/group-1/metrics/publicLinkUsages, got %s", req.URL.Path)
 		}
-		body := `{"data":[{"type":"betaGroupPublicLinkUsages","id":"public-usage-1"}]}`
 		return &http.Response{
 			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
+			Body:       io.NopCloser(strings.NewReader(publicLinkMetricsFixture)),
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
 		}, nil
 	})
@@ -62,7 +92,8 @@ func TestTestFlightMetricsPublicLinkOutput(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "metrics", "public-link", "--group", "group-1"}); err != nil {
+		args := append([]string{"testflight", "metrics", "public-link", "--group", "group-1"}, extraArgs...)
+		if err := root.Parse(args); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -73,17 +104,35 @@ func TestTestFlightMetricsPublicLinkOutput(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
+	return stdout
+}
 
-	var out struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+func TestTestFlightMetricsPublicLinkOutput(t *testing.T) {
+	stdout := runPublicLinkMetrics(t)
+
+	var got, want map[string]any
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("unmarshal output: %v\nstdout: %s", err, stdout)
 	}
-	if len(out.Data) != 1 || out.Data[0].ID != "public-usage-1" {
-		t.Fatalf("unexpected output: %+v", out)
+	if err := json.Unmarshal([]byte(publicLinkMetricsFixture), &want); err != nil {
+		t.Fatalf("unmarshal fixture: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected Apple's envelope unmodified\n got: %s\nwant: %s", stdout, publicLinkMetricsFixture)
+	}
+}
+
+func TestTestFlightMetricsPublicLinkTableOutput(t *testing.T) {
+	stdout := runPublicLinkMetrics(t, "--output", "table")
+
+	for _, want := range []string{
+		"Start", "End", "Views", "Accepted", "Did Not Accept", "Did Not Meet Criteria",
+		"Not Relevant", "Not Clear", "Not Interesting",
+		"2026-08-01T00:00:00Z", "120", "45", "30", "9", "0.25", "0.5", "0.125", "2026-08-02T00:00:00Z",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("expected table output to contain %q, got %q", want, stdout)
+		}
 	}
 }
 

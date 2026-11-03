@@ -279,6 +279,7 @@ func SubscriptionsIntroductoryOffersCreateCommand() *ffcli.Command {
 	territory := fs.String("territory", "", "Territory for the offer (accepts alpha-2, alpha-3, or exact English country name; required unless --all-territories)")
 	allTerritories := fs.Bool("all-territories", false, "Create introductory offers for all current subscription availability territories")
 	pricePoint := shared.BindResourceIDFlag(fs, "price-point", "subscriptionPricePoints", "Subscription price point ID")
+	targetPlanType := shared.BindTargetSubscriptionPlanTypeFlag(fs)
 	dryRun := fs.Bool("dry-run", false, "Print a summary without creating offers; single-territory mode makes no network requests")
 	continueOnError := fs.Bool("continue-on-error", true, "Continue creating offers after a territory fails")
 	output := shared.BindOutputFlags(fs)
@@ -292,8 +293,12 @@ func SubscriptionsIntroductoryOffersCreateCommand() *ffcli.Command {
 Examples:
   asc subscriptions offers introductory create --subscription-id "SUB_ID" --territory "USA" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
   asc subscriptions offers introductory create --subscription-id "SUB_ID" --all-territories --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+  asc subscriptions offers introductory create --subscription-id "SUB_ID" --territory "USA" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --target-subscription-plan-type MONTHLY
   asc subscriptions offers introductory create --subscription-id "SUB_ID" --all-territories --dry-run --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
   asc subscriptions offers introductory create --subscription-id "SUB_ID" --territory "USA" --dry-run --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+
+With --all-territories and --target-subscription-plan-type, an existing offer
+for the other plan type does not count as already existing.
 
 Timeouts:
   An explicit ASC_TIMEOUT caps the full create operation. Without an override, the operation uses a 5m fallback while individual requests retain the standard request timeout.`,
@@ -321,6 +326,11 @@ Timeouts:
 			if *numberOfPeriods <= 0 {
 				fmt.Fprintln(os.Stderr, "Error: --number-of-periods is required")
 				return requiredPositiveIntegerUsageError(fs, "number-of-periods")
+			}
+
+			planType, err := targetPlanType()
+			if err != nil {
+				return err
 			}
 
 			var normalizedStartDate string
@@ -408,9 +418,10 @@ Timeouts:
 			}
 
 			attrs := asc.SubscriptionIntroductoryOfferCreateAttributes{
-				Duration:        duration,
-				OfferMode:       mode,
-				NumberOfPeriods: *numberOfPeriods,
+				Duration:                   duration,
+				OfferMode:                  mode,
+				NumberOfPeriods:            *numberOfPeriods,
+				TargetSubscriptionPlanType: planType,
 			}
 			if normalizedStartDate != "" {
 				attrs.StartDate = normalizedStartDate
@@ -496,7 +507,7 @@ func createSubscriptionIntroductoryOffersForAllTerritories(
 		return fmt.Errorf("subscriptions introductory-offers create: %w", err)
 	}
 
-	existing, err := fetchIntroductoryOfferTerritories(ctx, client, subscriptionID)
+	existing, err := fetchIntroductoryOfferTerritories(ctx, client, subscriptionID, attrs.TargetSubscriptionPlanType)
 	if err != nil {
 		return fmt.Errorf("subscriptions introductory-offers create: %w", err)
 	}
@@ -613,7 +624,9 @@ func fetchIntroductoryOfferAvailabilityTerritories(ctx context.Context, client *
 	return availabilityID, territories, nil
 }
 
-func fetchIntroductoryOfferTerritories(ctx context.Context, client *asc.Client, subscriptionID string) (map[string]struct{}, error) {
+// fetchIntroductoryOfferTerritories returns the territories that already have an
+// offer. With a target plan type, offers known to target the other plan don't count.
+func fetchIntroductoryOfferTerritories(ctx context.Context, client *asc.Client, subscriptionID string, targetPlanType asc.SubscriptionPlanType) (map[string]struct{}, error) {
 	offersCtx, offersCancel := shared.ContextWithTimeout(ctx)
 	firstPage, err := client.GetSubscriptionIntroductoryOffers(offersCtx, subscriptionID, asc.WithSubscriptionIntroductoryOffersLimit(200))
 	offersCancel()
@@ -637,6 +650,10 @@ func fetchIntroductoryOfferTerritories(ctx context.Context, client *asc.Client, 
 
 	existing := make(map[string]struct{}, len(typed.Data))
 	for _, offer := range typed.Data {
+		existingPlanType := offer.Attributes.TargetSubscriptionPlanType
+		if targetPlanType != "" && existingPlanType != "" && existingPlanType != targetPlanType {
+			continue
+		}
 		territoryID := introductoryOfferTerritoryID(offer)
 		if territoryID == "" {
 			continue

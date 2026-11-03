@@ -484,6 +484,7 @@ func VersionsCreateCommand() *ffcli.Command {
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
+	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)")
 	reviewType := fs.String("review-type", "", "Review type: APP_STORE, NOTARIZATION")
 	copyMetadataFrom := fs.String("copy-metadata-from", "", "Copy localization metadata from this source version string")
 	copyFields := shared.BindOnceCSVFlag(fs, "copy-fields", "Comma-separated metadata fields to copy: description, keywords, marketingUrl, promotionalText, supportUrl, whatsNew")
@@ -501,6 +502,7 @@ Examples:
   asc versions create --app "123456789" --version "2.0.0"
   asc versions create --app "123456789" --version "2.0.0" --platform IOS
   asc versions create --app "123456789" --version "2.0.0" --copyright "2026 My Company" --release-type MANUAL
+  asc versions create --app "123456789" --version "2.0.0" --release-type SCHEDULED --earliest-release-date "2026-02-01T08:00:00+00:00"
   asc versions create --app "123456789" --version "2.0.0" --review-type NOTARIZATION
   asc versions create --app "123456789" --version "2.4.0" --platform IOS --copy-metadata-from "2.3.2"
   asc versions create --app "123456789" --version "2.4.0" --copy-metadata-from "2.3.2" --copy-fields "description,keywords,supportUrl" --exclude-fields "whatsNew"
@@ -511,9 +513,10 @@ Examples:
 the version already exists for that platform. fail (default) returns the
 error. skip reads the existing version back, exits 0, and reports
 "action":"skipped" without changing it. update applies --copyright,
---release-type, and --review-type to the existing version with asc versions
-update and reports "action":"updated"; --copy-metadata-from still runs against
-the existing version. Any other 409 keeps failing.`,
+--release-type, --earliest-release-date, and --review-type to the existing
+version with asc versions update and reports "action":"updated";
+--copy-metadata-from still runs against the existing version. Any other 409
+keeps failing.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -563,6 +566,13 @@ the existing version. Any other 409 keeps failing.`,
 				return shared.UsageErrorf("versions create: %v", err)
 			}
 
+			earliestReleaseDateValue := strings.TrimSpace(*earliestReleaseDate)
+			if *earliestReleaseDate != "" {
+				if _, ok := shared.ParseRFC3339Date(earliestReleaseDateValue); !ok {
+					return shared.UsageErrorf("versions create: --earliest-release-date must be an RFC3339 timestamp (e.g., 2026-02-01T08:00:00+00:00), got %q", *earliestReleaseDate)
+				}
+			}
+
 			normalizedReviewType, err := normalizeAppStoreVersionReviewType(*reviewType)
 			if err != nil {
 				return shared.UsageErrorf("versions create: %v", err)
@@ -590,6 +600,9 @@ the existing version. Any other 409 keeps failing.`,
 			}
 			if normalizedReleaseType != "" {
 				attrs.ReleaseType = normalizedReleaseType
+			}
+			if earliestReleaseDateValue != "" {
+				attrs.EarliestReleaseDate = earliestReleaseDateValue
 			}
 			if normalizedReviewType != "" {
 				attrs.ReviewType = normalizedReviewType
@@ -633,10 +646,13 @@ the existing version. Any other 409 keeps failing.`,
 					if normalizedReleaseType != "" {
 						updateAttrs.ReleaseType = &normalizedReleaseType
 					}
+					if earliestReleaseDateValue != "" {
+						updateAttrs.EarliestReleaseDate = &earliestReleaseDateValue
+					}
 					if normalizedReviewType != "" {
 						updateAttrs.ReviewType = &normalizedReviewType
 					}
-					if updateAttrs.Copyright != nil || updateAttrs.ReleaseType != nil || updateAttrs.ReviewType != nil {
+					if updateAttrs.Copyright != nil || updateAttrs.ReleaseType != nil || updateAttrs.EarliestReleaseDate != nil || updateAttrs.ReviewType != nil {
 						updated, updateErr := client.UpdateAppStoreVersion(requestCtx, existing.Data.ID, updateAttrs)
 						if updateErr != nil {
 							return fmt.Errorf("versions create: update existing version %s: %w", existing.Data.ID, updateErr)

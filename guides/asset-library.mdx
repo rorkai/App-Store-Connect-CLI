@@ -36,6 +36,12 @@ Filter by `--category`, `--state`, `--spec-id`, `--reference-name`, or `--id`. F
 
 These filters belong to image/video `list` commands. Do not combine them or a library selector with `--next`: use Apple's next URL unchanged. `--paginate` follows those URLs automatically.
 
+`asc asset-library specs` has its own filters: `--placement-type`, `--placement-profile-group`, `--feature`, and `--spec`. Each accepts comma-separated values, which Apple validates.
+
+```bash theme={null}
+asc asset-library specs --placement-type APP_SCREENSHOT --feature APP_STORE_VERSIONS
+```
+
 ## Upload images and videos
 
 The default upload category is `CREATIVE_ASSETS`, for headers, search creative media, and events. Use `APP_SCREENSHOTS_AND_PREVIEWS` for media showing your app in use.
@@ -49,9 +55,13 @@ asc asset-library videos upload --library-id LIBRARY_ID \
   --file ./duo-preview.mp4 --category APP_SCREENSHOTS_AND_PREVIEWS
 asc asset-library images upload --library-id LIBRARY_ID \
   --file ./cms-8f3a21.png --reference-name "Hero en-US 3.14"
+asc asset-library videos upload --library-id LIBRARY_ID \
+  --file ./header.mp4 --time-code 00:00:03:00
 ```
 
 Apple derives each asset's file name and default reference name from the uploaded file, and the file name cannot change after upload. Pass `--reference-name` to set the searchable reference name at upload instead of running `asc asset-library images rename` (or `videos rename`) afterwards.
+
+Pass `--time-code` to `videos upload` to set the poster frame on the upload request instead of running `asc asset-library videos set-poster-frame` afterwards. The command then also waits for that frame, and fails with a partial receipt if Apple cannot generate it.
 
 Image files must meet the selected category's media specifications. Screenshots and creative images cannot contain an alpha channel or transparency, even when all pixels appear opaque.
 
@@ -61,7 +71,7 @@ Video upload requires `ffprobe` from FFmpeg and a regular, nonempty `.mp4`, `.m4
 
 `ASC_UPLOAD_TIMEOUT` bounds upload and processing. Video uploads default to `30m`, because Apple commonly takes 10 to 15 minutes to process a video; images use the general `5m` default. Processing may continue after the command times out; increase the timeout when needed. A failure after reservation prints a partial receipt containing the asset ID. Inspect that ID with `asc asset-library videos view --id VIDEO_ID` (or `images view`) before retrying or deleting it; the CLI does not delete the reservation automatically.
 
-Video transfer or a completed poster thumbnail does not prove the video is playable. Readiness requires the expected preparation state, a matched specification, and a usable video asset URL. Processing failures return an error with the reserved ID.
+Video transfer or a completed poster thumbnail does not prove the video is playable. Readiness requires the expected preparation state, a matched specification, a usable video asset URL, and a completed poster frame when `--time-code` was passed. Processing failures return an error with the reserved ID.
 
 ### iPhone Duo sizes
 
@@ -111,9 +121,11 @@ asc app-events localizations placements create --localization-id EVENT_LOCALIZAT
   --image-id IMAGE_ID --placement-type EVENT_CARD_ASSET
 ```
 
+The `list` and `view` commands for these localizations also accept `--include placements` and `--placements-limit` (1-50), which return placements in Apple's `included` array with the localization. Use the `placements` command groups to filter, sort, or paginate placements.
+
 Supply exactly one `--image-id` or `--video-id`. Screenshots require images; app previews require videos and an explicit device `--placement-group`. Header, search, and event creative media use `DEFAULT_PROFILE`. Header/search types are `PRODUCT_PAGE_HEADER_ASSET` and `APP_STORE_SEARCH_RESULTS_ASSET`. Events accept only `EVENT_CARD_ASSET` and `EVENT_DETAILS_PAGE_ASSET`.
 
-Version localizations also support `IMESSAGE_APP_SCREENSHOT`. CPP and PPO creation do not support iMessage screenshot assignments. Apple validates media compatibility and available slots. Placement lists accept comma-separated type/group filters, related `image,video` inclusion, sorting, and pagination.
+Version localizations also support `IMESSAGE_APP_SCREENSHOT`. CPP and PPO creation do not support iMessage screenshot assignments. Apple validates media compatibility and available slots. Placement lists accept comma-separated type/group filters, sorting, pagination, and related `image`, `video`, `appEventLocalization`, `appStoreVersionLocalization`, `appCustomProductPageLocalization`, and `appStoreVersionExperimentTreatmentLocalization` inclusion. List filters accept the same placement types in all four contexts, including `SEARCH_RESULTS_ADS_ASSET` and `TODAY_TAB_ADS_ASSET`. Apple's spec also lists `RETENTION_MESSAGE_ASSET`, but Apple rejects it as a filter value, so the CLI does too. A value that can be filtered is not necessarily one that `create` or `swap` accepts.
 
 ### Replace an existing placement
 

@@ -37,7 +37,7 @@ asc app-events list --app "APP_ID"
   `purpose`, `territorySchedules`, `archivedTerritorySchedules`, `localizations`
 * `--localization-fields` - Sparse fields for included localizations: `locale`,
   `name`, `shortDescription`, `longDescription`, `appEvent`,
-  `appEventScreenshots`, `appEventVideoClips`
+  `appEventScreenshots`, `appEventVideoClips`, `placements`
 * `--include` - Related resources to include: `localizations`
 * `--localizations-limit` - Maximum included localizations (1-50); requires
   `--include localizations`
@@ -281,6 +281,12 @@ asc app-events localizations create \
 # List localizations
 asc app-events localizations list --event-id "EVENT_ID"
 
+# List localizations with their placements
+asc app-events localizations list \
+  --event-id "EVENT_ID" \
+  --include placements \
+  --placements-limit 50
+
 # Update localization
 asc app-events localizations update \
   --localization-id "LOCALIZATION_ID" \
@@ -339,7 +345,12 @@ asc app-events video-clips create \
   --locale "en-US" \
   --path "./event-preview.mov" \
   --asset-type EVENT_DETAILS_PAGE \
-  --preview-frame-time-code "00:00:02.500"
+  --time-code "00:00:02.500"
+
+# Change the poster frame of an existing clip
+asc app-events video-clips set-poster-frame \
+  --clip-id "VIDEO_ID" \
+  --time-code "00:00:02:15"
 
 # List video clips
 asc app-events video-clips list \
@@ -350,6 +361,8 @@ asc app-events video-clips delete \
   --clip-id "VIDEO_ID" \
   --confirm
 ```
+
+`--time-code` accepts `HH:MM:SS:FF` or `HH:MM:SS.mmm`. On `create`, `--preview-frame-time-code` is an alias.
 
 **Video Requirements:**
 

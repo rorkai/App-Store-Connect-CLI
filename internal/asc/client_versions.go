@@ -26,11 +26,12 @@ type AppStoreVersionAttributes struct {
 
 // AppStoreVersionCreateAttributes describes app store version create payload attributes.
 type AppStoreVersionCreateAttributes struct {
-	Platform      Platform `json:"platform"`
-	VersionString string   `json:"versionString"`
-	Copyright     string   `json:"copyright,omitempty"`
-	ReleaseType   string   `json:"releaseType,omitempty"`
-	ReviewType    string   `json:"reviewType,omitempty"`
+	Platform            Platform `json:"platform"`
+	VersionString       string   `json:"versionString"`
+	Copyright           string   `json:"copyright,omitempty"`
+	ReleaseType         string   `json:"releaseType,omitempty"`
+	EarliestReleaseDate string   `json:"earliestReleaseDate,omitempty"`
+	ReviewType          string   `json:"reviewType,omitempty"`
 }
 
 // AppStoreVersionUpdateAttributes describes app store version update payload attributes.

@@ -13,7 +13,7 @@ type WinBackOfferDeleteResult struct {
 }
 
 func winBackOffersRows(resp *WinBackOffersResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Reference Name", "Offer ID", "Duration", "Mode", "Periods", "Paid Months", "Last Subscribed", "Wait Months", "Start Date", "End Date", "Priority", "Promotion Intent"}
+	headers := []string{"ID", "Reference Name", "Offer ID", "Duration", "Mode", "Periods", "Paid Months", "Last Subscribed", "Wait Months", "Start Date", "End Date", "Priority", "Promotion Intent", "Target Plan Type"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
@@ -31,6 +31,7 @@ func winBackOffersRows(resp *WinBackOffersResponse) ([]string, [][]string) {
 			formatOptionalString(attrs.EndDate),
 			string(attrs.Priority),
 			formatPromotionIntent(attrs.PromotionIntent),
+			string(attrs.TargetSubscriptionPlanType),
 		})
 	}
 	return headers, rows

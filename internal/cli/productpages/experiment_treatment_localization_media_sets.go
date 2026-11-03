@@ -28,11 +28,13 @@ func ExperimentTreatmentLocalizationPreviewSetsCommand() *ffcli.Command {
 		LongHelp: `Manage preview sets for a treatment localization.
 
 Examples:
-  asc product-pages experiments treatments localizations preview-sets list --localization-id "LOCALIZATION_ID"`,
+  asc product-pages experiments treatments localizations preview-sets list --localization-id "LOCALIZATION_ID"
+  asc product-pages experiments treatments localizations preview-sets upload --localization-id "LOCALIZATION_ID" --path "./previews" --device-type "IPHONE_65"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ExperimentTreatmentLocalizationPreviewSetsListCommand(),
+			ExperimentTreatmentLocalizationPreviewSetsUploadCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -110,6 +112,41 @@ Examples:
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		},
+	}
+}
+
+// ExperimentTreatmentLocalizationPreviewSetsUploadCommand returns the preview sets upload subcommand.
+func ExperimentTreatmentLocalizationPreviewSetsUploadCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("treatment-localizations preview-sets upload", flag.ExitOnError)
+
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
+	path := fs.String("path", "", "Path to preview file or directory")
+	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "upload",
+		ShortUsage: "asc product-pages experiments treatments localizations preview-sets upload --localization-id \"LOCALIZATION_ID\" --path \"./previews\" --device-type \"IPHONE_65\"",
+		ShortHelp:  "Upload previews for a treatment localization.",
+		LongHelp: `Upload previews for a treatment localization.
+
+Examples:
+  asc product-pages experiments treatments localizations preview-sets upload --localization-id "LOCALIZATION_ID" --path "./previews" --device-type "IPHONE_65"
+  asc product-pages experiments treatments localizations preview-sets upload --localization-id "LOCALIZATION_ID" --path "./previews/en-US.mov" --device-type "IPHONE_65"`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			result, err := executeExperimentTreatmentLocalizationPreviewUpload(ctx, *localizationID, *path, *deviceType)
+			if result != nil {
+				if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
+					return printErr
+				}
+			}
+			if err != nil {
+				return fmt.Errorf("experiments treatments localizations preview-sets upload: %w", err)
+			}
+			return nil
 		},
 	}
 }
@@ -310,6 +347,37 @@ Examples:
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func executeExperimentTreatmentLocalizationPreviewUpload(
+	ctx context.Context,
+	localizationID, path, deviceType string,
+) (*asc.ExperimentTreatmentLocalizationPreviewUploadResult, error) {
+	upload, err := uploadLocalizationPreviews(ctx, localizationPreviewUploadOptions{
+		localizationID:           localizationID,
+		path:                     path,
+		deviceType:               deviceType,
+		invalidDeviceTypeIsUsage: true,
+		clientFactory:            experimentTreatmentLocalizationMediaClientFactory,
+		access: localizationPreviewSetAccess{
+			list: func(ctx context.Context, client *asc.Client, localizationID string) (*asc.AppPreviewSetsResponse, error) {
+				return client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx, localizationID)
+			},
+			create: func(ctx context.Context, client *asc.Client, localizationID, previewType string) (*asc.AppPreviewSetResponse, error) {
+				return client.CreateAppPreviewSetForExperimentTreatmentLocalization(ctx, localizationID, previewType)
+			},
+		},
+	})
+	if upload == nil {
+		return nil, err
+	}
+	return &asc.ExperimentTreatmentLocalizationPreviewUploadResult{
+		ExperimentTreatmentLocalizationID: upload.localizationID,
+		SetID:                             upload.set.ID,
+		PreviewType:                       upload.set.Attributes.PreviewType,
+		Results:                           upload.results,
+		Failures:                          upload.failures,
+	}, err
 }
 
 func executeExperimentTreatmentLocalizationScreenshotUpload(

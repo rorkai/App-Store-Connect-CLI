@@ -69,7 +69,7 @@ func TestMonthlyCommitmentResolvedPriceCallersUseFreshDeadlinePerPage(t *testing
 		{
 			name: "prepare monthly prices",
 			run: func(ctx context.Context, client *asc.Client) error {
-				_, err := prepareMonthlySubscriptionPrices(ctx, client, "sub-1", nil, "9.99")
+				_, err := prepareMonthlySubscriptionPrices(ctx, client, "sub-1", nil, "9.99", subscriptionPricingToday())
 				return err
 			},
 		},

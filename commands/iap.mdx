@@ -124,6 +124,7 @@ asc iap create \
 **Optional Flags:**
 
 * `--family-sharable` - Enable Family Sharing (cannot be undone)
+* `--review-note` - Review note for App Review
 
 **Product ID Format:**
 
@@ -163,6 +164,14 @@ asc iap create \
   --type NON_RENEWING_SUBSCRIPTION \
   --ref-name "Season Pass" \
   --product-id "com.example.app.season2024"
+
+# Create with a review note
+asc iap create \
+  --app "123456789" \
+  --type CONSUMABLE \
+  --ref-name "100 Coins" \
+  --product-id "com.example.app.coins100" \
+  --review-note "Purchase from Settings > Upgrade"
 ```
 
 ## Update In-App Purchase
@@ -183,6 +192,7 @@ asc iap update \
 
 * `--ref-name` - New reference name
 * `--family-sharable` - Enable Family Sharing (cannot be disabled once enabled)
+* `--review-note` - Review note for App Review
 
 **Note:** Product ID and type cannot be changed after creation.
 
@@ -541,6 +551,21 @@ asc iap offer-codes create \
 asc iap offer-codes prices \
   --offer-code-id "CODE_ID" \
   --paginate
+```
+
+### Turn Codes On or Off
+
+```bash  theme={null}
+# Turn off a custom code
+asc iap offer-codes custom-codes update \
+  --custom-code-id "CUSTOM_CODE_ID" \
+  --active false
+
+# Turn off a one-time use code batch (permanent: Apple can't turn it back on)
+asc iap offer-codes one-time-codes update \
+  --one-time-code-id "ONE_TIME_USE_CODE_ID" \
+  --active false \
+  --confirm
 ```
 
 ## Content
