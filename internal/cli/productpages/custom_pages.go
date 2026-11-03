@@ -307,6 +307,7 @@ func CustomPagesCreateCommand() *ffcli.Command {
 
 The command also creates an initial version and a localization using the app's primary locale.
 Pass --from-version or --from-custom-page to start the page from a template.
+Apple accepts --from-custom-page only for a page with an approved version.
 
 Examples:
   asc product-pages custom-pages create --app "APP_ID" --name "Summer Campaign"
