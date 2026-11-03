@@ -116,6 +116,7 @@ type AppPreviewUploadResult struct {
 	VersionLocalizationID string                   `json:"versionLocalizationId"`
 	SetID                 string                   `json:"setId"`
 	PreviewType           string                   `json:"previewType"`
+	PreviewFrameTimeCode  string                   `json:"previewFrameTimeCode,omitempty"`
 	DryRun                bool                     `json:"dryRun,omitempty"`
 	Results               []AssetUploadResultItem  `json:"results"`
 	Failures              []AssetUploadFailureItem `json:"failures,omitempty"`
