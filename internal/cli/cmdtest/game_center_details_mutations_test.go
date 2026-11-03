@@ -69,10 +69,28 @@ func TestGameCenterDetailsUpdateValidationErrors(t *testing.T) {
 			args:         []string{"game-center", "details", "update", "--id", "DETAIL_ID"},
 			stderrSubstr: "Error: at least one update flag is required (--game-center-group-id, --default-leaderboard-id, --default-leaderboard-v2-id, --default-group-leaderboard-id, --default-group-leaderboard-v2-id)",
 		},
+		{
+			// Live: Apple returned 200 for both and kept only the V2 value.
+			name:         "default leaderboard v1 with v2",
+			args:         []string{"game-center", "details", "update", "--id", "DETAIL_ID", "--default-leaderboard-id", "LB_V1", "--default-leaderboard-v2-id", "LB_V2"},
+			stderrSubstr: "Error: --default-leaderboard-id and --default-leaderboard-v2-id set the same default; pass one",
+		},
+		{
+			name:         "default group leaderboard v1 with v2",
+			args:         []string{"game-center", "details", "update", "--id", "DETAIL_ID", "--default-group-leaderboard-id", "GROUP_LB_V1", "--default-group-leaderboard-v2-id", "GROUP_LB_V2"},
+			stderrSubstr: "Error: --default-group-leaderboard-id and --default-group-leaderboard-v2-id set the same default; pass one",
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+				return nil, nil
+			}))
+
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 
@@ -103,20 +121,16 @@ func TestGameCenterDetailsUpdateSendsOnlyRequestedRelationships(t *testing.T) {
 		want string
 	}{
 		{
-			name: "every leaderboard default and the group",
+			name: "group with v2 default and v1 group default",
 			args: []string{
 				"--game-center-group-id", "GROUP_ID",
-				"--default-leaderboard-id", "LB_V1",
 				"--default-leaderboard-v2-id", "https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/LB_V2",
 				"--default-group-leaderboard-id", "GROUP_LB_V1",
-				"--default-group-leaderboard-v2-id", "GROUP_LB_V2",
 			},
 			want: `{
 				"gameCenterGroup": {"data": {"type": "gameCenterGroups", "id": "GROUP_ID"}},
-				"defaultLeaderboard": {"data": {"type": "gameCenterLeaderboards", "id": "LB_V1"}},
 				"defaultLeaderboardV2": {"data": {"type": "gameCenterLeaderboards", "id": "LB_V2"}},
-				"defaultGroupLeaderboard": {"data": {"type": "gameCenterLeaderboards", "id": "GROUP_LB_V1"}},
-				"defaultGroupLeaderboardV2": {"data": {"type": "gameCenterLeaderboards", "id": "GROUP_LB_V2"}}
+				"defaultGroupLeaderboard": {"data": {"type": "gameCenterLeaderboards", "id": "GROUP_LB_V1"}}
 			}`,
 		},
 		{

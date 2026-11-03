@@ -184,6 +184,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 - Endpoints resolve Game Center detail via `/v1/apps/{id}/gameCenterDetail` (404 when disabled; `asc game-center details list` has no pagination flags).
 - Achievements, leaderboards, and leaderboard sets require creating a release resource to go live; image uploads use reserve → upload → commit.
 - `challengesMinimumPlatformVersions` on `gameCenterDetails` is a replace-only `PATCH` relationship (GET is rejected) that requires live `appStoreVersions` linkages (rejects `gameCenterAppVersions` and non-live versions with `ENTITY_ERROR.RELATIONSHIP.INVALID.MIN_CHALLENGES_VERSION_MUST_BE_LIVE`).
+- On `gameCenterDetails`, `defaultLeaderboard` and `defaultLeaderboardV2` are one value seen through two relationships: setting either changes both on read-back, and a `PATCH` with both returns 200 but keeps only the V2 value. `asc game-center details update` rejects passing a V1 flag with its V2 counterpart, and treats `defaultGroupLeaderboard`/`defaultGroupLeaderboardV2` the same way.
 - Leaderboard-set member localizations have no direct GET; `view --id` resolves the parent leaderboard and set, then scans the filtered collection. Group challenge relationships are read-only; use `asc game-center challenges create --group-id`.
 
 ## Apple Ads Platform API v1

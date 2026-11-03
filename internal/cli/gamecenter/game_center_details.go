@@ -214,9 +214,9 @@ func GameCenterDetailsUpdateCommand() *ffcli.Command {
 
 	detailID := shared.BindResourceIDFlag(fs, "id", "gameCenterDetails", "Game Center detail ID")
 	gameCenterGroupID := shared.BindResourceIDFlag(fs, "game-center-group-id", "gameCenterGroups", "Game Center group ID to associate")
-	defaultLeaderboardID := shared.BindResourceIDFlag(fs, "default-leaderboard-id", "gameCenterLeaderboards", "Default leaderboard ID (deprecated by Apple; prefer --default-leaderboard-v2-id)")
+	defaultLeaderboardID := shared.BindResourceIDFlag(fs, "default-leaderboard-id", "gameCenterLeaderboards", "Default leaderboard ID (deprecated by Apple; sets the same default as --default-leaderboard-v2-id)")
 	defaultLeaderboardV2ID := shared.BindResourceIDFlag(fs, "default-leaderboard-v2-id", "gameCenterLeaderboards", "Default V2 leaderboard ID")
-	defaultGroupLeaderboardID := shared.BindResourceIDFlag(fs, "default-group-leaderboard-id", "gameCenterLeaderboards", "Default group leaderboard ID (deprecated by Apple; prefer --default-group-leaderboard-v2-id)")
+	defaultGroupLeaderboardID := shared.BindResourceIDFlag(fs, "default-group-leaderboard-id", "gameCenterLeaderboards", "Default group leaderboard ID (deprecated by Apple; sets the same default as --default-group-leaderboard-v2-id)")
 	defaultGroupLeaderboardV2ID := shared.BindResourceIDFlag(fs, "default-group-leaderboard-v2-id", "gameCenterLeaderboards", "Default V2 group leaderboard ID")
 	output := shared.BindOutputFlags(fs)
 
@@ -237,6 +237,14 @@ Examples:
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError("--id")
+			}
+
+			// Live: Apple accepts both relationships in one PATCH and keeps only the V2 value.
+			if strings.TrimSpace(*defaultLeaderboardID) != "" && strings.TrimSpace(*defaultLeaderboardV2ID) != "" {
+				return shared.UsageError("--default-leaderboard-id and --default-leaderboard-v2-id set the same default; pass one")
+			}
+			if strings.TrimSpace(*defaultGroupLeaderboardID) != "" && strings.TrimSpace(*defaultGroupLeaderboardV2ID) != "" {
+				return shared.UsageError("--default-group-leaderboard-id and --default-group-leaderboard-v2-id set the same default; pass one")
 			}
 
 			rels := &asc.GameCenterDetailUpdateRelationships{}
