@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -185,5 +186,102 @@ func TestCustomPageCreativePlacements(t *testing.T) {
 	stdout, stderr, err := runCreativePlacements(t, "product-pages", "custom-pages", "localizations", "placements", "list", "--localization-id", "loc", "--placement-type", "PRODUCT_PAGE_HEADER_ASSET")
 	if err != nil || stderr != "" || !strings.Contains(stdout, `"data":[]`) {
 		t.Fatalf("failed: %s %s %v", stdout, stderr, err)
+	}
+}
+
+var creativePlacementGroups = []string{
+	"localizations placements",
+	"product-pages custom-pages localizations placements",
+	"product-pages experiments treatments localizations placements",
+	"app-events localizations placements",
+}
+
+// Regression: a group loses view, the query params drift from the spec, or JSON stops being Apple's envelope.
+func TestCreativePlacementViewReadsOneResourceInEveryContext(t *testing.T) {
+	const body = `{"data":{"type":"appAssetLibraryPlacements","id":"placement-1","attributes":{"mediaType":"IMAGE","placementType":"PRODUCT_PAGE_HEADER_ASSET","placementGroup":"DEFAULT_PROFILE","state":"READY","unknown":null}},"included":[{"type":"appAssetLibraryImages","id":"img","attributes":{"future":true}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/appAssetLibraryPlacements/placement-1"},"newTopLevel":{"retain":true}}`
+	for _, group := range creativePlacementGroups {
+		for _, output := range []string{"json", "table"} {
+			t.Run(group+" "+output, func(t *testing.T) {
+				setupAuth(t)
+				original := http.DefaultTransport
+				t.Cleanup(func() { http.DefaultTransport = original })
+				http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					if req.Method != "GET" || req.URL.Path != "/v1/appAssetLibraryPlacements/placement-1" {
+						t.Fatalf("unexpected %s %s", req.Method, req.URL)
+					}
+					q := req.URL.Query()
+					if q.Get("include") != "image,appEventLocalization" || q.Get("fields[appAssetLibraryPlacements]") != "state,image" || len(q) != 2 {
+						t.Fatalf("query=%v", q)
+					}
+					return jsonResponse(200, body)
+				})
+				args := append(strings.Fields(group), "view", "--id", "placement-1", "--include", "image,appEventLocalization", "--fields", "state,image", "--output", output)
+				stdout, stderr, err := runCreativePlacements(t, args...)
+				if err != nil || stderr != "" {
+					t.Fatalf("error=%v stderr=%q", err, stderr)
+				}
+				if output == "table" {
+					if !strings.Contains(stdout, "placement-1") || !strings.Contains(stdout, "PRODUCT_PAGE_HEADER_ASSET") {
+						t.Fatalf("missing placement: %s", stdout)
+					}
+					return
+				}
+				var got, want any
+				if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+					t.Fatalf("stdout=%q: %v", stdout, err)
+				}
+				_ = json.Unmarshal([]byte(body), &want)
+				if !reflect.DeepEqual(got, want) {
+					t.Fatalf("changed envelope: %s", stdout)
+				}
+			})
+		}
+	}
+}
+
+// Regression: view prints a collection, an empty body, or an API failure as a successful read.
+func TestCreativePlacementViewRefusesFalseSuccess(t *testing.T) {
+	for name, response := range map[string]struct {
+		status int
+		body   string
+	}{
+		"collection": {200, `{"data":[{"type":"appAssetLibraryPlacements","id":"placement-1"}]}`},
+		"wrong type": {200, `{"data":{"type":"apps","id":"placement-1"}}`},
+		"empty":      {200, `{}`},
+		"not found":  {404, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			setupAuth(t)
+			original := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = original })
+			http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return jsonResponse(response.status, response.body)
+			})
+			stdout, _, err := runCreativePlacements(t, "localizations", "placements", "view", "--id", "placement-1")
+			if err == nil || isUsageClassError(err) || stdout != "" {
+				t.Fatalf("stdout=%q err=%v", stdout, err)
+			}
+		})
+	}
+}
+
+// Regression: bad input reaches auth or the network, or an unsupported value is silently dropped.
+func TestCreativePlacementViewUsage(t *testing.T) {
+	for _, args := range [][]string{
+		{},
+		{"--id", "   "},
+		{"--id", "../apps"},
+		{"--id", "placement-1", "extra"},
+		{"--id", "placement-1", "--include", "app"},
+		{"--id", "placement-1", "--include", "image,"},
+		{"--id", "placement-1", "--fields", "placementGroupPosition"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			full := append([]string{"localizations", "placements", "view"}, args...)
+			_, stderr, err := runCreativePlacements(t, full...)
+			if !isUsageClassError(err) || !strings.Contains(stderr, "localizations placements view: ") {
+				t.Fatalf("expected usage before auth, got %v %q", err, stderr)
+			}
+		})
 	}
 }
