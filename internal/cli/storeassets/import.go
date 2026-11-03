@@ -340,7 +340,7 @@ func uploadHeader(ctx context.Context, c *asc.Client, locID, path string, curren
 		return id, "upload", current.ID != "", err
 	}
 	_, err = request(ctx, func(ctx context.Context) (*asc.AppClipHeaderImageResponse, error) {
-		return c.UpdateAppClipHeaderImage(ctx, id, true)
+		return c.UpdateAppClipHeaderImage(ctx, id, true, checksum.Hash)
 	})
 	return id, "upload", current.ID != "", err
 }
