@@ -61,6 +61,8 @@ func BackgroundAssetsListCommand() *ffcli.Command {
 	archived := fs.String("archived", "", "Filter by archived state (true/false)")
 	assetPackIdentifier := fs.String("asset-pack-identifier", "", "Filter by asset pack identifier(s), comma-separated")
 	versionsLocale := fs.String("versions-locale", "", "Filter by uploaded version locale(s), comma-separated (e.g., en-US,ja)")
+	versionsPlatform := fs.String("versions-platform", "", "Filter by version platform(s), comma-separated: "+strings.Join(shared.PlatformList(), ", "))
+	sortBy := fs.String("sort", "", "Sort by: "+strings.Join(backgroundAssetSortValues, ", "))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -76,6 +78,7 @@ Examples:
   asc background-assets list --app "APP_ID"
   asc background-assets list --app "APP_ID" --archived false
   asc background-assets list --app "APP_ID" --versions-locale "en-US,ja"
+  asc background-assets list --app "APP_ID" --versions-platform "IOS,VISION_OS" --sort "-createdDate"
   asc background-assets list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -91,8 +94,15 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("background-assets list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "background-assets list", "archived", "asset-pack-identifier", "versions-locale"); err != nil {
+			if err := shared.RejectNextFlagConflicts(fs, *next, "background-assets list", "archived", "asset-pack-identifier", "versions-locale", "versions-platform", "sort"); err != nil {
 				return err
+			}
+			versionsPlatforms, err := parseBackgroundAssetEnumCSV("--versions-platform", *versionsPlatform, shared.PlatformList())
+			if err != nil {
+				return shared.UsageErrorf("background-assets list: %v", err)
+			}
+			if err := shared.ValidateSort(*sortBy, backgroundAssetSortValues...); err != nil {
+				return shared.UsageErrorf("background-assets list: %v", err)
 			}
 
 			var archivedFilter []string
@@ -118,6 +128,8 @@ Examples:
 			opts := []asc.BackgroundAssetsOption{
 				asc.WithBackgroundAssetsLimit(*limit),
 				asc.WithBackgroundAssetsNextURL(*next),
+				asc.WithBackgroundAssetsFilterVersionsPlatforms(versionsPlatforms),
+				asc.WithBackgroundAssetsSort(*sortBy),
 			}
 			if len(archivedFilter) > 0 {
 				opts = append(opts, asc.WithBackgroundAssetsFilterArchived(archivedFilter))

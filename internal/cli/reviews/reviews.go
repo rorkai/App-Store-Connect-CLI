@@ -110,6 +110,8 @@ Examples:
   asc reviews list --app "123456789" --stars 5
   asc reviews list --app "123456789" --stars 1,2
   asc reviews list --app "123456789" --territory US --sort -createdDate
+  asc reviews list --app "123456789" --review-territory USA,GBR
+  asc reviews list --app "123456789" --fields rating,title --include reviewTerritory --territory-fields currency
   asc reviews list --app "123456789" --response-state unreplied --include-response
   asc reviews list --app "123456789" --only-unresponded
   asc reviews list --next "<links.next>"

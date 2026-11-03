@@ -49,6 +49,14 @@ func TestIAPRelatedSparseFieldFlagsSendExactQueries441(t *testing.T) {
 			},
 			wantDataID: "promo-subscription", wantIncluded: "subscriptions:subscription-1",
 		},
+		{
+			name: "subscription promoted list market fields", args: []string{"subscriptions", "promoted-purchases", "list", "--app", "app-1", "--subscription-fields", "marketSettings,multiSeatStatus", "--output", "json"},
+			path: "/v1/apps/app-1/promotedPurchases", wantQuery: map[string]string{
+				"fields[subscriptions]": "marketSettings,multiSeatStatus",
+				"include":               "subscription",
+			},
+			wantDataID: "promo-subscription", wantIncluded: "subscriptions:subscription-1",
+		},
 	}
 
 	for _, tt := range tests {

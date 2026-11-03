@@ -27,13 +27,7 @@ func bindLibraryListFilters(fs *flag.FlagSet) *libraryListFilters {
 }
 
 func (filters *libraryListFilters) query(fs *flag.FlagSet) (url.Values, error) {
-	values := url.Values{}
-	provided := map[string]bool{}
-	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
-	for _, field := range []struct {
-		flag, key, raw string
-		valid          func(string) bool
-	}{
+	return filterQuery(fs, []filterField{
 		{"category", "filter[category]", filters.category, func(token string) bool { return token == "CREATIVE_ASSETS" || token == "APP_SCREENSHOTS_AND_PREVIEWS" }},
 		{"state", "filter[state]", filters.state, libraryStateToken.MatchString},
 		{"spec-id", "filter[specId]", filters.specID, resourceIDPattern.MatchString},
@@ -43,7 +37,42 @@ func (filters *libraryListFilters) query(fs *flag.FlagSet) (url.Values, error) {
 			value := strings.TrimPrefix(token, "-")
 			return value == "referenceName" || value == "lastModifiedDate" || value == "createdDate"
 		}},
-	} {
+	})
+}
+
+// specsFilters holds filters for GET /v1/appAssetLibraryRefData. Apple's
+// OpenAPI defines no enum for these parameters, so values pass through.
+type specsFilters struct{ placementType, placementProfileGroup, feature, spec string }
+
+func bindSpecsFilters(fs *flag.FlagSet) *specsFilters {
+	filters := &specsFilters{}
+	fs.StringVar(&filters.placementType, "placement-type", "", "Filter placement types (CSV; provider validates values)")
+	fs.StringVar(&filters.placementProfileGroup, "placement-profile-group", "", "Filter placement profile groups (CSV; provider validates values)")
+	fs.StringVar(&filters.feature, "feature", "", "Filter features (CSV; provider validates values)")
+	fs.StringVar(&filters.spec, "spec", "", "Filter specifications (CSV; provider validates values)")
+	return filters
+}
+
+func (filters *specsFilters) query(fs *flag.FlagSet) (url.Values, error) {
+	anyValue := func(string) bool { return true }
+	return filterQuery(fs, []filterField{
+		{"placement-type", "filter[placementTypes]", filters.placementType, anyValue},
+		{"placement-profile-group", "filter[placementProfileGroups]", filters.placementProfileGroup, anyValue},
+		{"feature", "filter[features]", filters.feature, anyValue},
+		{"spec", "filter[specs]", filters.spec, anyValue},
+	})
+}
+
+type filterField struct {
+	flag, key, raw string
+	valid          func(string) bool
+}
+
+func filterQuery(fs *flag.FlagSet, fields []filterField) (url.Values, error) {
+	values := url.Values{}
+	provided := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
+	for _, field := range fields {
 		if !provided[field.flag] {
 			continue
 		}

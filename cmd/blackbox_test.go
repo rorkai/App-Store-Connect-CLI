@@ -55,6 +55,8 @@ func TestUnknownInputRecoveryWithBuiltBinary(t *testing.T) {
 			wantStderr: "Error: unknown flag `--ap` for `asc builds list`\n" +
 				"Try:\n" +
 				"  --app\n" +
+				"  --app-fields\n" +
+				"  --app-store-version-fields\n" +
 				"For help:\n" +
 				"  asc builds list --help\n",
 		},

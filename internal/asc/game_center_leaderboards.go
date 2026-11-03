@@ -34,7 +34,7 @@ type GameCenterLeaderboardCreateAttributes struct {
 	RecurrenceDuration  string            `json:"recurrenceDuration,omitempty"`
 	RecurrenceRule      string            `json:"recurrenceRule,omitempty"`
 	SubmissionType      string            `json:"submissionType"`
-	ActivityProperties  map[string]string `json:"activityProperties,omitempty"`
+	ActivityProperties  map[string]string `json:"activityProperties,omitzero"`
 	Visibility          string            `json:"visibility,omitempty"`
 }
 
@@ -50,20 +50,22 @@ type GameCenterLeaderboardUpdateAttributes struct {
 	RecurrenceRule      *string           `json:"recurrenceRule,omitempty"`
 	SubmissionType      *string           `json:"submissionType,omitempty"`
 	Archived            *bool             `json:"archived,omitempty"`
-	ActivityProperties  map[string]string `json:"activityProperties,omitempty"`
+	ActivityProperties  map[string]string `json:"activityProperties,omitzero"`
 	Visibility          *string           `json:"visibility,omitempty"`
 }
 
 // GameCenterLeaderboardRelationships describes relationships for leaderboards.
 type GameCenterLeaderboardRelationships struct {
-	GameCenterDetail *Relationship `json:"gameCenterDetail"`
+	GameCenterDetail          *Relationship     `json:"gameCenterDetail,omitempty"`
+	GameCenterLeaderboardSets *RelationshipList `json:"gameCenterLeaderboardSets,omitempty"`
 }
 
 // GameCenterLeaderboardV2Relationships describes relationships for v2 leaderboards.
 type GameCenterLeaderboardV2Relationships struct {
-	GameCenterDetail *Relationship     `json:"gameCenterDetail,omitempty"`
-	GameCenterGroup  *Relationship     `json:"gameCenterGroup,omitempty"`
-	Versions         *RelationshipList `json:"versions"`
+	GameCenterDetail          *Relationship     `json:"gameCenterDetail,omitempty"`
+	GameCenterGroup           *Relationship     `json:"gameCenterGroup,omitempty"`
+	GameCenterLeaderboardSets *RelationshipList `json:"gameCenterLeaderboardSets,omitempty"`
+	Versions                  *RelationshipList `json:"versions"`
 }
 
 // GameCenterLeaderboardCreateData is the data portion of a leaderboard create request.

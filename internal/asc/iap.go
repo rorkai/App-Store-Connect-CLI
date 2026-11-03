@@ -127,6 +127,7 @@ type IAPLocalizationsOption func(*iapLocalizationsQuery)
 
 type inAppPurchasesQuery struct {
 	listQuery
+	includedFieldsQuery
 	productIDs          []string
 	names               []string
 	states              []string
@@ -139,6 +140,7 @@ type inAppPurchasesQuery struct {
 }
 
 type inAppPurchaseGetQuery struct {
+	includedFieldsQuery
 	fields              []string
 	include             []string
 	versionFields       []string
@@ -294,6 +296,7 @@ func buildInAppPurchasesQuery(query *inAppPurchasesQuery) string {
 	if query.nestedVersionsLimit > 0 {
 		values.Set("limit[versions]", strconv.Itoa(query.nestedVersionsLimit))
 	}
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 
@@ -305,6 +308,7 @@ func buildInAppPurchaseGetQuery(query *inAppPurchaseGetQuery) string {
 	if query.nestedVersionsLimit > 0 {
 		values.Set("limit[versions]", strconv.Itoa(query.nestedVersionsLimit))
 	}
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 

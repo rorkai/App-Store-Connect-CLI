@@ -8,6 +8,7 @@ import (
 
 type buildsQuery struct {
 	listQuery
+	includedFieldsQuery
 	sort                 string
 	version              string
 	preReleaseVersion    string
@@ -25,6 +26,7 @@ type buildUploadQuery struct {
 }
 
 type buildQuery struct {
+	includedFieldsQuery
 	include []string
 }
 

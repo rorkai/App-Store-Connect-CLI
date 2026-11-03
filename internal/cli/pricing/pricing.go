@@ -159,6 +159,7 @@ func PricingPricePointsCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	territory := fs.String("territory", "", "Filter by territories, comma-separated (accepts alpha-2, alpha-3, or exact English country name)")
 	include := fs.String("include", "", "Relationships to include (comma-separated): territory")
+	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"territory": "territories"})
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -202,6 +203,10 @@ Examples:
 					return shared.UsageError("--include must be: territory")
 				}
 			}
+			included, err := includedFields.Resolve("pricing price-points", *next, includes)
+			if err != nil {
+				return err
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
@@ -227,6 +232,7 @@ Examples:
 				asc.WithPricePointsNextURL(*next),
 				asc.WithPricePointsTerritory(strings.Join(territoryIDs, ",")),
 				asc.WithPricePointsInclude(includes),
+				asc.WithIncludedFields[asc.PricePointsOption](included),
 			}
 
 			if *paginate {
@@ -311,11 +317,12 @@ func PricingPricePointsEqualizationsCommand() *ffcli.Command {
 		ParentType:  "appPricePoints",
 		LimitMax:    200,
 		ErrorPrefix: "pricing price-points equalizations",
-		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string, include []string) (asc.PaginatedResponse, error) {
+		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string, include []string, included asc.IncludedFields) (asc.PaginatedResponse, error) {
 			opts := []asc.PricePointsOption{
 				asc.WithPricePointsLimit(limit),
 				asc.WithPricePointsNextURL(next),
 				asc.WithPricePointsInclude(include),
+				asc.WithIncludedFields[asc.PricePointsOption](included),
 			}
 			return client.GetAppPricePointEqualizations(ctx, pricePointID, opts...)
 		},
@@ -842,6 +849,9 @@ func PricingAvailabilityCreateCommand() *ffcli.Command {
 	allTerritories := fs.Bool("all-territories", false, "Apply --available to every territory in Apple's current territory catalog (mutually exclusive with --territory)")
 	var available shared.OptionalBool
 	fs.Var(&available, "available", "Set availability for specified territories: true or false (required)")
+	releaseDate := fs.String("release-date", "", "Release date for the selected territories (YYYY-MM-DD); requires --available true")
+	var preOrderEnabled shared.OptionalBool
+	fs.Var(&preOrderEnabled, "pre-order-enabled", "Set pre-order enabled for the selected territories: true or false; requires --available true")
 	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
 	output := shared.BindOutputFlags(fs)
 
@@ -858,9 +868,16 @@ selects every territory in Apple's current territory catalog instead of a
 --territory list. Once created, use "asc pricing availability edit" to update
 the record.
 
+--release-date and --pre-order-enabled set those attributes on the selected
+territories in the same request, so pre-order setup needs no per-territory
+follow-up. Both require --available true and neither works with --if-exists
+update; use "asc pre-orders enable" or "asc pre-orders update" on an existing
+record.
+
 Examples:
   asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true
   asc pricing availability create --app "123456789" --all-territories --available true --available-in-new-territories true
+  asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true --release-date "2026-12-01" --pre-order-enabled true
   asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available false --available-in-new-territories false
   asc pricing availability create --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true --if-exists skip
 
@@ -891,9 +908,13 @@ bootstrap, keeps failing.`,
 			}
 
 			territoryProvided := false
+			releaseDateProvided := false
 			fs.Visit(func(f *flag.Flag) {
-				if f.Name == "territory" {
+				switch f.Name {
+				case "territory":
 					territoryProvided = true
+				case "release-date":
+					releaseDateProvided = true
 				}
 			})
 			if territoryProvided && *allTerritories {
@@ -926,6 +947,29 @@ bootstrap, keeps failing.`,
 				return err
 			}
 
+			selection := asc.TerritoryAvailabilityCreate{Available: available.Value()}
+			if releaseDateProvided || preOrderEnabled.IsSet() {
+				if !available.Value() {
+					return shared.UsageError("--release-date and --pre-order-enabled require --available true")
+				}
+				if ifExistsMode == shared.IfExistsUpdate {
+					return shared.UsageError("--release-date and --pre-order-enabled cannot be used with --if-exists update; use \"asc pre-orders enable\" or \"asc pre-orders update\" on the existing record")
+				}
+			}
+			if releaseDateProvided {
+				selection.ReleaseDate, err = shared.NormalizeDate(*releaseDate, "--release-date")
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+			}
+			if preOrderEnabled.IsSet() {
+				v := preOrderEnabled.Value()
+				if !v && releaseDateProvided {
+					return shared.UsageError("--release-date cannot be set when disabling pre-orders (releaseDate must be null)")
+				}
+				selection.PreOrderEnabled = &v
+			}
+
 			client, err := pricingAvailabilityClientFactory()
 			if err != nil {
 				return fmt.Errorf("pricing availability create: %w", err)
@@ -935,8 +979,7 @@ bootstrap, keeps failing.`,
 			defer cancel()
 
 			availableInNewTerritoriesValue := availableInNewTerritories.Value()
-			availableValue := available.Value()
-			territoryAvailabilities, err := initialTerritoryAvailabilities(requestCtx, client, territories, *allTerritories, availableValue)
+			territoryAvailabilities, err := initialTerritoryAvailabilities(requestCtx, client, territories, *allTerritories, selection)
 			if err != nil {
 				return fmt.Errorf("pricing availability create: %w", err)
 			}
@@ -972,7 +1015,7 @@ bootstrap, keeps failing.`,
 						AppID:                             resolvedAppID,
 						Territories:                       territories,
 						AllTerritories:                    *allTerritories,
-						Available:                         availableValue,
+						Available:                         selection.Available,
 						ExpectedAvailableInNewTerritories: &availableInNewTerritoriesValue,
 						ErrorPrefix:                       "pricing availability create",
 					})

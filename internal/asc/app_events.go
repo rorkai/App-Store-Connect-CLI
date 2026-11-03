@@ -246,6 +246,7 @@ type appEventsQuery struct {
 
 type appEventLocalizationsQuery struct {
 	listQuery
+	localizationRelatedQuery
 }
 
 type appEventScreenshotsQuery struct {
@@ -327,6 +328,20 @@ func WithAppEventLocalizationsLimit(limit int) AppEventLocalizationsOption {
 	}
 }
 
+// WithAppEventLocalizationsInclude includes related resources.
+func WithAppEventLocalizationsInclude(include []string) AppEventLocalizationsOption {
+	return func(q *appEventLocalizationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppEventLocalizationsPlacementsLimit sets limit[placements].
+func WithAppEventLocalizationsPlacementsLimit(limit int) AppEventLocalizationsOption {
+	return func(q *appEventLocalizationsQuery) {
+		q.placementsLimit = limit
+	}
+}
+
 // WithAppEventLocalizationsNextURL uses a next page URL directly.
 func WithAppEventLocalizationsNextURL(next string) AppEventLocalizationsOption {
 	return func(q *appEventLocalizationsQuery) {
@@ -389,6 +404,7 @@ func buildAppEventsQuery(query *appEventsQuery) string {
 func buildAppEventLocalizationsQuery(query *appEventLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	query.addTo(values)
 	return values.Encode()
 }
 

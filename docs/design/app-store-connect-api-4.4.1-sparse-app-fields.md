@@ -5,6 +5,8 @@
 > Migrate reads to `asc age-rating view --app-info-id ID`.
 > `AgeRatingDeclaration.kidsAgeBand` remains valid. The API 4.4.1 support and
 > live observations below are historical evidence, not a current acceptance claim.
+> The flags now accept each operation's full OpenAPI enum, plus the deprecated
+> `kidsAgeBand` AppInfo selector, rather than only the values 4.4.1 added.
 
 
 ## Placement and command shape

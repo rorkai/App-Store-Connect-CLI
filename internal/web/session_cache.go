@@ -301,7 +301,7 @@ func (j *sessionCookieTrackingJar) SetCookies(u *url.URL, cookies []*http.Cookie
 
 	now := time.Now().UTC()
 	for _, supplied := range cookies {
-		j.expireHostOnlyAliases(u, supplied, now)
+		j.expireHostOnlyAliases(u, supplied)
 	}
 	j.CookieJar.SetCookies(u, cookies)
 	for _, supplied := range cookies {
@@ -337,11 +337,10 @@ func (j *sessionCookieTrackingJar) SetCookies(u *url.URL, cookies []*http.Cookie
 // expireHostOnlyAliases removes the host-only copies the cache hydrated for a
 // Domain cookie. The jar keys cookies by domain, so a re-issued Domain cookie
 // would otherwise sit beside the hydrated copy, which is sent first. The
-// persisted format cannot keep both, so nothing restorable is lost. A Domain
-// tombstone leaves host-only cookies alone.
-func (j *sessionCookieTrackingJar) expireHostOnlyAliases(source *url.URL, supplied *http.Cookie, now time.Time) {
-	if source == nil || supplied == nil || supplied.Name == "" ||
-		isCookieDeletion(pCookie{Expires: supplied.Expires, MaxAge: supplied.MaxAge}, now) {
+// persisted format cannot keep both, so nothing restorable is lost. Genuine
+// host-only cookies are left alone, including on a Domain tombstone.
+func (j *sessionCookieTrackingJar) expireHostOnlyAliases(source *url.URL, supplied *http.Cookie) {
+	if source == nil || supplied == nil || supplied.Name == "" {
 		return
 	}
 	domain := normalizedCookieDomain(supplied.Domain)
@@ -1442,10 +1441,14 @@ func removeLegacyLastKeyFromKeyring(kr keyring.Keyring) error {
 }
 
 func writeSessionToKeychain(key string, sess persistedSession) error {
-	return withSessionStoreLock(func() error { return writeSessionToKeychainUnlocked(key, sess) })
+	return writeMergedSessionToKeychain(key, sess, nil)
 }
 
-func writeSessionToKeychainUnlocked(key string, sess persistedSession) error {
+func writeMergedSessionToKeychain(key string, sess persistedSession, merge func(stored persistedSession) persistedSession) error {
+	return withSessionStoreLock(func() error { return writeSessionToKeychainUnlocked(key, sess, merge) })
+}
+
+func writeSessionToKeychainUnlocked(key string, sess persistedSession, merge func(stored persistedSession) persistedSession) error {
 	kr, err := openSessionKeyring()
 	if err != nil {
 		return err
@@ -1458,6 +1461,9 @@ func writeSessionToKeychainUnlocked(key string, sess persistedSession) error {
 		store = newPersistedSessionStore()
 	}
 	store = normalizePersistedSessionStore(store)
+	if stored, exists := store.Sessions[key]; exists && merge != nil {
+		sess = merge(stored)
+	}
 	store.Sessions[key] = sess
 	store.LastKey = key
 	return writeSessionStoreToKeyring(kr, store)
@@ -2045,16 +2051,16 @@ func persistSessionBySelection(selection backendSelection, key string, sess pers
 	// Hold the entry lock so a concurrent conditional delete cannot compare a
 	// stamp before this write and delete the entry it produces.
 	return withSessionEntryLock(key, func() error {
-		return persistSessionBySelectionLocked(selection, key, sess)
+		return persistSessionBySelectionLocked(selection, key, sess, nil)
 	})
 }
 
-func persistSessionBySelectionLocked(selection backendSelection, key string, sess persistedSession) error {
+func persistSessionBySelectionLocked(selection backendSelection, key string, sess persistedSession, mergeKeychain func(stored persistedSession) persistedSession) error {
 	switch selection.backend {
 	case sessionBackendOff:
 		return nil
 	case sessionBackendKeychain:
-		if err := writeSessionToKeychain(key, sess); err != nil {
+		if err := writeMergedSessionToKeychain(key, sess, mergeKeychain); err != nil {
 			if selection.fallbackFile && isKeyringUnavailable(err) {
 				return writeSessionToFile(key, sess)
 			}
@@ -2706,15 +2712,26 @@ func PersistSession(session *AuthSession) error {
 	serialized.DeveloperTeamID = strings.TrimSpace(session.DeveloperTeamID)
 	serialized.ProviderID = session.ProviderID
 	merged := false
+	mergeNewer := func(current persistedSession) persistedSession {
+		if current.Generation != session.cachedGeneration {
+			keepUntouchedPersistedCookies(&serialized, current, updates)
+			merged = true
+		}
+		return serialized
+	}
 	err = withSessionEntryLock(key, func() error {
-		if session.cachedGeneration != "" && session.cachedSource == CachedSessionSourceFile {
-			current, ok, err := readSessionFromFile(key)
-			if err == nil && ok && current.Generation != session.cachedGeneration {
-				keepUntouchedPersistedCookies(&serialized, current, updates)
-				merged = true
+		var mergeKeychain func(persistedSession) persistedSession
+		if session.cachedGeneration != "" {
+			switch session.cachedSource {
+			case CachedSessionSourceFile:
+				if current, ok, err := readSessionFromFile(key); err == nil && ok {
+					mergeNewer(current)
+				}
+			case CachedSessionSourceKeychain:
+				mergeKeychain = mergeNewer
 			}
 		}
-		return persistSessionBySelectionLocked(selection, key, serialized)
+		return persistSessionBySelectionLocked(selection, key, serialized, mergeKeychain)
 	})
 	if err != nil {
 		return err

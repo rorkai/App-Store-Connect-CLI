@@ -55,6 +55,7 @@ func NominationsListCommand() *ffcli.Command {
 	sort := fs.String("sort", "", "Sort by: "+strings.Join(nominationSortList(), ", "))
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(nominationFieldsList(), ", "))
 	include := fs.String("include", "", "Include related resources: "+strings.Join(nominationIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, nominationIncludedResources)
 	inAppEventsLimit := fs.Int("in-app-events-limit", 0, "Maximum included in-app events (1-50)")
 	relatedAppsLimit := fs.Int("related-apps-limit", 0, "Maximum included related apps (1-50)")
 	supportedTerritoriesLimit := fs.Int("supported-territories-limit", 0, "Maximum included supported territories (1-200)")
@@ -122,6 +123,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("nominations list: %w", err)
 			}
+			included, err := includedFields.Resolve("nominations list", *next, includeValues)
+			if err != nil {
+				return err
+			}
 
 			if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
 				fmt.Fprintf(os.Stderr, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
@@ -150,6 +155,7 @@ Examples:
 				asc.WithNominationsRelatedApps(shared.SplitCSV(*appIDs)),
 				asc.WithNominationsLimit(*limit),
 				asc.WithNominationsNextURL(*next),
+				asc.WithIncludedFields[asc.NominationsOption](included),
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithNominationsSort(*sort))
@@ -204,6 +210,7 @@ func NominationsGetCommand() *ffcli.Command {
 	nominationID := shared.BindResourceIDFlag(fs, "id", "nominations", "Nomination ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(nominationFieldsList(), ", "))
 	include := fs.String("include", "", "Include related resources: "+strings.Join(nominationIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, nominationIncludedResources)
 	inAppEventsLimit := fs.Int("in-app-events-limit", 0, "Maximum included in-app events (1-50)")
 	relatedAppsLimit := fs.Int("related-apps-limit", 0, "Maximum included related apps (1-50)")
 	supportedTerritoriesLimit := fs.Int("supported-territories-limit", 0, "Maximum included supported territories (1-200)")
@@ -245,6 +252,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("nominations view: %w", err)
 			}
+			included, err := includedFields.Resolve("nominations view", "", includeValues)
+			if err != nil {
+				return err
+			}
 
 			if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
 				fmt.Fprintf(os.Stderr, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
@@ -267,7 +278,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			opts := []asc.NominationsOption{}
+			opts := []asc.NominationsOption{asc.WithIncludedFields[asc.NominationsOption](included)}
 			if len(fieldsValue) > 0 {
 				opts = append(opts, asc.WithNominationsFields(fieldsValue))
 			}
@@ -905,6 +916,17 @@ func nominationFieldsList() []string {
 		"inAppEvents",
 		"supportedTerritories",
 	}
+}
+
+// nominationIncludedResources maps each --include value to the resource it
+// returns. inAppEvents and supportedTerritories get no field flag: Apple
+// rejects every spec fields[appEvents] and fields[territories] value here with
+// 400 "is not a valid field name".
+var nominationIncludedResources = map[string]string{
+	"relatedApps":         "apps",
+	"createdByActor":      "actors",
+	"lastModifiedByActor": "actors",
+	"submittedByActor":    "actors",
 }
 
 func nominationIncludeList() []string {

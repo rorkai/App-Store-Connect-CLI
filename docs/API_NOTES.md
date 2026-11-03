@@ -8,7 +8,7 @@ Dated maintainer canary transcripts, authenticated browser/source captures, and 
 
 - `asc auth login --key-type enterprise` (or `ASC_KEY_TYPE=enterprise`) sends requests to `https://api.enterprise.developer.apple.com` with the JWT audience `apple-developer-enterprise-v1`. Enterprise keys are created at developer.apple.com under Users and Access > Integrations, and they work only with this API.
 - The API has 40 operations covering bundle IDs, capabilities, certificates, devices, profiles, pass type IDs, users, and user invitations. Other requests fail before any network call with `not available on the Enterprise Program API`, as do notarization and `asc xcode validate`, which use other Apple services. `asc api` skips that check.
-- Compared with App Store Connect: no `UNIVERSAL` platform, no G2 Developer ID or Apple Pay certificate types, no `activated` certificate attribute, no `/relationships/` reads, and no app visibility on users or invitations. `asc users invite` takes neither `--all-apps` nor `--visible-app` on an Enterprise key, and `asc users update` does not take `--visible-app`. `asc certificates links pass-type-id` is unavailable there; use `asc certificates view --include passTypeId`. The client does not follow redirects on this API.
+- Compared with App Store Connect: no `UNIVERSAL` platform, no G2 Developer ID or Apple Pay certificate types, no `activated` certificate attribute, no `/relationships/` reads, and no app visibility or provisioning access on users or invitations. `asc users invite` takes none of `--all-apps`, `--visible-app`, or `--provisioning-allowed` on an Enterprise key, and `asc users update` takes neither `--visible-app` nor `--provisioning-allowed`. `asc certificates links pass-type-id` is unavailable there; use `asc certificates view --include passTypeId`. The client does not follow redirects on this API.
 - Built from Apple's Enterprise Program API 1.0 OpenAPI document and not yet live-verified against an Enterprise account.
 
 ## Web App Privacy Data Usage Updates
@@ -188,6 +188,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 - Endpoints resolve Game Center detail via `/v1/apps/{id}/gameCenterDetail` (404 when disabled; `asc game-center details list` has no pagination flags).
 - Achievements, leaderboards, and leaderboard sets require creating a release resource to go live; image uploads use reserve → upload → commit.
 - `challengesMinimumPlatformVersions` on `gameCenterDetails` is a replace-only `PATCH` relationship (GET is rejected) that requires live `appStoreVersions` linkages (rejects `gameCenterAppVersions` and non-live versions with `ENTITY_ERROR.RELATIONSHIP.INVALID.MIN_CHALLENGES_VERSION_MUST_BE_LIVE`).
+- On `gameCenterDetails`, `defaultLeaderboard` and `defaultLeaderboardV2` are one value seen through two relationships: setting either changes both on read-back, and a `PATCH` with both returns 200 but keeps only the V2 value. `asc game-center details update` rejects passing a V1 flag with its V2 counterpart, and treats `defaultGroupLeaderboard`/`defaultGroupLeaderboardV2` the same way.
 - Leaderboard-set member localizations have no direct GET; `view --id` resolves the parent leaderboard and set, then scans the filtered collection. Group challenge relationships are read-only; use `asc game-center challenges create --group-id`.
 
 ## Apple Ads Platform API v1
@@ -247,7 +248,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 
 ## Subscription Plan Availability
 
-- `GET /v1/subscriptions/{id}/planAvailabilities?include=availableTerritories` caps `limit[availableTerritories]` at 50; complete territory lists require `GET /v1/subscriptionPlanAvailabilities/{id}/relationships/availableTerritories` (`limit=200`, cursor-paginated).
+- `GET /v1/subscriptions/{id}/planAvailabilities?include=availableTerritories` caps `limit[availableTerritories]` at 50; complete territory lists require `GET /v1/subscriptionPlanAvailabilities/{id}/relationships/availableTerritories` or `GET /v1/subscriptionPlanAvailabilities/{id}/availableTerritories` (`limit=200`, cursor-paginated; the latter backs `plan-availability available-territories`).
 - `PATCH /v1/subscriptionPlanAvailabilities/{id}` replaces `availableTerritories` wholesale and allows only `availableInNewTerritories` as a mutable attribute (`planType` is create-only, and `availableInNewTerritories` is unsupported for `MONTHLY`). `set` verifies territories via the paginated relationship endpoint and `availableInNewTerritories` via a fresh resource GET.
 - Removing an approved subscription from sale (emptying `availableTerritories`) requires the Account Holder web session (`asc web subscriptions availability remove-from-sale` on `/iris/v1`).
 

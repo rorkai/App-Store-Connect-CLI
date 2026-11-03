@@ -500,3 +500,45 @@ func TestDomainCookieKeepsGenuineHostOnlyCookieOfTheSameName(t *testing.T) {
 		t.Fatalf("token sent %d times, want the host-only cookie kept beside the Domain cookie", got)
 	}
 }
+
+func TestResumedSessionDropsHydratedCookieWhenDomainCookieIsDeleted(t *testing.T) {
+	withFileSessionCache(t)
+	expires := time.Now().UTC().Add(time.Hour)
+	if err := writeSessionToFile(webSessionCacheKey(staleCookieTestAppleID), persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: staleCookieTestAppleID,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "myacinfo", Value: "old", ScopeDomain: "apple.com", Path: "/", Expires: expires},
+				{Name: "itctx", Value: "provider", Path: "/", Expires: expires},
+			},
+			"https://idmsa.apple.com/": {{Name: "myacinfo", Value: "old", ScopeDomain: "apple.com", Path: "/", Expires: expires}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession ok=%v err=%v", ok, err)
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	loaded.Client.Jar.SetCookies(endpoint, []*http.Cookie{{Name: "myacinfo", Domain: "apple.com", Path: "/", MaxAge: -1}})
+
+	for _, origin := range []string{olympusSessionURL, "https://idmsa.apple.com/"} {
+		u, _ := url.Parse(origin)
+		if got := observedCookieNameCount(loaded.Client.Jar.Cookies(u), "myacinfo"); got != 0 {
+			t.Fatalf("%s still sends myacinfo %d times after Apple deleted it", origin, got)
+		}
+	}
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession: %v", err)
+	}
+	reloaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("reload ok=%v err=%v", ok, err)
+	}
+	if got := observedCookieNameCount(reloaded.Client.Jar.Cookies(endpoint), "myacinfo"); got != 0 {
+		t.Fatalf("persisted session resurrects deleted myacinfo %d times", got)
+	}
+}

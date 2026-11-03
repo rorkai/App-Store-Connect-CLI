@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -25,7 +26,8 @@ func AppEventVideoClipsCommand() *ffcli.Command {
 
 Examples:
   asc app-events video-clips list --event-id "EVENT_ID"
-  asc app-events video-clips create --localization-id "LOC_ID" --path "./clip.mov" --asset-type EVENT_CARD`,
+  asc app-events video-clips create --localization-id "LOC_ID" --path "./clip.mov" --asset-type EVENT_CARD
+  asc app-events video-clips set-poster-frame --clip-id "CLIP_ID" --time-code "00:00:05:00"`,
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -33,6 +35,7 @@ Examples:
 			AppEventVideoClipsRelationshipsCommand(),
 			AppEventVideoClipsGetCommand(),
 			AppEventVideoClipsCreateCommand(),
+			AppEventVideoClipsSetPosterFrameCommand(),
 			AppEventVideoClipsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -260,7 +263,8 @@ func AppEventVideoClipsCreateCommand() *ffcli.Command {
 	locale := fs.String("locale", "", "Locale (e.g., en-US) when resolving localization")
 	path := fs.String("path", "", "Path to video clip file")
 	assetType := fs.String("asset-type", "", "Asset type: "+strings.Join(asc.ValidAppEventAssetTypes, ", "))
-	previewFrame := fs.String("preview-frame-time-code", "", "Preview frame time code (e.g., 00:00:05.000)")
+	fs.String("time-code", "", "Poster frame timecode (e.g., 00:00:05:00 or 00:00:05.000)")
+	fs.String("preview-frame-time-code", "", "Alias of --time-code")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -271,7 +275,7 @@ func AppEventVideoClipsCreateCommand() *ffcli.Command {
 
 Examples:
   asc app-events video-clips create --localization-id "LOC_ID" --path "./clip.mov" --asset-type EVENT_CARD
-  asc app-events video-clips create --event-id "EVENT_ID" --locale "en-US" --path "./clip.mov" --asset-type EVENT_DETAILS_PAGE --preview-frame-time-code "00:00:05.000"`,
+  asc app-events video-clips create --event-id "EVENT_ID" --locale "en-US" --path "./clip.mov" --asset-type EVENT_DETAILS_PAGE --time-code "00:00:05.000"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -289,6 +293,11 @@ Examples:
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
 				return flag.ErrHelp
+			}
+
+			timeCode, err := videoClipCreateTimeCode(fs)
+			if err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -310,7 +319,7 @@ Examples:
 			}
 			defer file.Close()
 
-			resp, err := client.CreateAppEventVideoClip(requestCtx, resolvedLocalizationID, info.Name(), info.Size(), normalizedAssetType, strings.TrimSpace(*previewFrame))
+			resp, err := client.CreateAppEventVideoClip(requestCtx, resolvedLocalizationID, info.Name(), info.Size(), normalizedAssetType, timeCode)
 			if err != nil {
 				return fmt.Errorf("app-events video-clips create: failed to create: %w", err)
 			}
@@ -342,6 +351,88 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// AppEventVideoClipsSetPosterFrameCommand returns the set-poster-frame subcommand.
+func AppEventVideoClipsSetPosterFrameCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("video-clips set-poster-frame", flag.ExitOnError)
+
+	clipID := shared.BindResourceIDFlag(fs, "clip-id", "appEventVideoClips", "App event video clip ID")
+	timeCode := fs.String("time-code", "", "Poster frame timecode (e.g., 00:00:05:00 or 00:00:05.000)")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "set-poster-frame",
+		ShortUsage: `asc app-events video-clips set-poster-frame --clip-id "CLIP_ID" --time-code "00:00:05:00"`,
+		ShortHelp:  "Set the poster frame timecode for an in-app event video clip.",
+		LongHelp: `Set the poster frame timecode for an in-app event video clip.
+
+Accepted timecode formats are HH:MM:SS:FF (frames) and HH:MM:SS.mmm
+(milliseconds).
+
+Examples:
+  asc app-events video-clips set-poster-frame --clip-id "CLIP_ID" --time-code "00:00:05:00"
+  asc app-events video-clips set-poster-frame --clip-id "CLIP_ID" --time-code "00:00:05.000"`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*clipID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --clip-id is required")
+				return shared.MissingRequiredUsageError("--clip-id")
+			}
+			tc := strings.TrimSpace(*timeCode)
+			if tc == "" {
+				fmt.Fprintln(os.Stderr, "Error: --time-code is required")
+				return shared.MissingRequiredUsageError("--time-code")
+			}
+			if err := validateVideoClipTimeCode("time-code", tc); err != nil {
+				return err
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("app-events video-clips set-poster-frame: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.UpdateAppEventVideoClip(requestCtx, id, asc.AppEventVideoClipUpdateAttributes{PreviewFrameTimeCode: &tc})
+			if err != nil {
+				return fmt.Errorf("app-events video-clips set-poster-frame: failed to update: %w", err)
+			}
+
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		},
+	}
+}
+
+// videoClipCreateTimeCode returns the validated time code from whichever
+// spelling was passed, or "" when neither was. It reads visited flags so an
+// explicit empty value is rejected instead of treated as omitted.
+func videoClipCreateTimeCode(fs *flag.FlagSet) (string, error) {
+	var provided []*flag.Flag
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "time-code" || f.Name == "preview-frame-time-code" {
+			provided = append(provided, f)
+		}
+	})
+	if len(provided) == 0 {
+		return "", nil
+	}
+	if len(provided) > 1 {
+		return "", shared.UsageError("--time-code and --preview-frame-time-code are mutually exclusive")
+	}
+	timeCode := strings.TrimSpace(provided[0].Value.String())
+	return timeCode, validateVideoClipTimeCode(provided[0].Name, timeCode)
+}
+
+func validateVideoClipTimeCode(flagName, timeCode string) error {
+	if !assets.ValidPreviewFrameTimeCode(timeCode) {
+		return shared.UsageErrorf("--%s must be in HH:MM:SS:FF or HH:MM:SS.mmm format (e.g., 00:00:05:00 or 00:00:05.000)", flagName)
+	}
+	return nil
 }
 
 // AppEventVideoClipsDeleteCommand returns the app event video clips delete subcommand.
