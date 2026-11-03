@@ -205,6 +205,73 @@ func TestEnsureDeveloperPortalSessionReusesPersistedTeam(t *testing.T) {
 	}
 }
 
+func TestEnsureDeveloperPortalSessionFollowsSelectedProviderOverCachedTeam(t *testing.T) {
+	t.Run("switched provider", func(t *testing.T) {
+		assertPortalFollowsSelectedProvider(t, `{"providerId": 111, "publicProviderId": "TEAM111", "name": "Old Team"}`)
+	})
+	t.Run("already on the selected provider", func(t *testing.T) {
+		assertPortalFollowsSelectedProvider(t, `{"providerId": 222, "publicProviderId": "TEAM222", "name": "New Team"}`)
+	})
+}
+
+func assertPortalFollowsSelectedProvider(t *testing.T, currentProvider string) {
+	t.Helper()
+	session := &AuthSession{DeveloperTeamID: "TEAM111"}
+	session.Client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		switch {
+		case r.URL.String() == olympusSessionURL && r.Method == http.MethodPost:
+			currentProvider = `{"providerId": 222, "publicProviderId": "TEAM222", "name": "New Team"}`
+			return developerPortalTestResponse(http.StatusOK, `{}`, nil), nil
+		case r.URL.String() == olympusSessionURL:
+			return developerPortalTestResponse(http.StatusOK, `{"provider": `+currentProvider+`, "availableProviders": [
+				{"providerId": 111, "publicProviderId": "TEAM111", "name": "Old Team"},
+				{"providerId": 222, "publicProviderId": "TEAM222", "name": "New Team"}
+			], "user": {"emailAddress": "user@example.com"}}`, nil), nil
+		case r.URL.Path == developerPortalTeamsPath:
+			return developerPortalTestResponse(http.StatusOK, `{"teams":[{"teamId":"TEAM111","name":"Old Team"},{"teamId":"TEAM222","name":"New Team"}]}`, nil), nil
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL)
+			return nil, nil
+		}
+	})}
+
+	if err := SelectProvider(context.Background(), session, ProviderSelection{ProviderID: 222}); err != nil {
+		t.Fatalf("SelectProvider() error: %v", err)
+	}
+	client := NewClient(session)
+	if err := client.ensureDeveloperPortalSession(context.Background()); err != nil {
+		t.Fatalf("ensureDeveloperPortalSession() error: %v", err)
+	}
+	if got := client.developerPortalTeamID(); got != "TEAM222" {
+		t.Fatalf("developer portal team = %q, want TEAM222", got)
+	}
+}
+
+func TestDeveloperPortalForbiddenKeepsAppleCodesAndNeverSuggestsLogout(t *testing.T) {
+	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path == developerPortalTeamsPath {
+			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
+		}
+		return developerPortalTestResponse(http.StatusForbidden, `{"errors":[{"code":"FORBIDDEN_ERROR.INSUFFICIENT_ROLE"}]}`, nil), nil
+	})
+
+	_, err := client.EnableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityEnableRequest{
+		BundleID:   "bundle-1",
+		Capability: "PRIVATE_CLOUD_COMPUTE",
+	})
+	if err == nil {
+		t.Fatal("expected forbidden error")
+	}
+	for _, want := range []string{"FORBIDDEN_ERROR.INSUFFICIENT_ROLE", "permission", "expired", "asc web auth status"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q does not mention %q", err, want)
+		}
+	}
+	if strings.Contains(err.Error(), "logout") {
+		t.Fatalf("error %q must not suggest logout for a 403", err)
+	}
+}
+
 func TestSelectDeveloperPortalTeamPrefixRequiresUniqueMatch(t *testing.T) {
 	t.Run("unique prefix match", func(t *testing.T) {
 		teams := []developerPortalTeam{
