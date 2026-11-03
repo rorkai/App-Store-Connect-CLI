@@ -322,6 +322,13 @@ func TestAssetPreviewAndDeleteRowsRemoveTerminalControls(t *testing.T) {
 	})
 	assertRowsAreInert(t, headers, rows)
 
+	headers, rows = experimentTreatmentLocalizationPreviewUploadResultMainRows(&ExperimentTreatmentLocalizationPreviewUploadResult{
+		ExperimentTreatmentLocalizationID: "LOC\x1bID",
+		SetID:                             "SET\x1bID",
+		PreviewType:                       "IPHONE_67\u202e",
+	})
+	assertRowsAreInert(t, headers, rows)
+
 	headers, rows = assetDeleteResultRows(&AssetDeleteResult{ID: "ASSET\x1bID", Deleted: true})
 	assertRowsAreInert(t, headers, rows)
 }

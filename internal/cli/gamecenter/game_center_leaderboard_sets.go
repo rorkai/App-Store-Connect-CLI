@@ -517,9 +517,10 @@ Examples:
 func GameCenterLeaderboardSetsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env); not used with --leaderboard-ids")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard set")
 	vendorID := fs.String("vendor-id", "", "Vendor identifier (e.g., com.example.set)")
+	leaderboardIDs := shared.BindOnceCSVFlag(fs, "leaderboard-ids", "Comma-separated member leaderboard IDs; the set inherits its parent from them")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -528,16 +529,35 @@ func GameCenterLeaderboardSetsCreateCommand() *ffcli.Command {
 		ShortHelp:  "Create a new Game Center leaderboard set.",
 		LongHelp: `Create a new Game Center leaderboard set.
 
+With --leaderboard-ids, the set inherits its Game Center detail or group from the
+member leaderboards, so --app is not used.
+
 Examples:
   asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Season 1" --vendor-id "com.example.season1"
-  asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Weekly Challenge" --vendor-id "com.example.weekly"`,
+  asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Weekly Challenge" --vendor-id "com.example.weekly"
+  asc game-center leaderboard-sets create --reference-name "Season 2" --vendor-id "com.example.season2" --leaderboard-ids "id1,id2"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
+			ids := shared.SplitUniqueCSV(leaderboardIDs.String())
+			if leaderboardIDs.Provided() && len(ids) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --leaderboard-ids must include at least one ID")
+				return flag.ErrHelp
+			}
+			// Apple returns 409 when gameCenterLeaderboards is sent with gameCenterDetail
+			// or gameCenterGroup; the set inherits its parent from the leaderboards.
+			if len(ids) > 0 && strings.TrimSpace(*appID) != "" {
+				fmt.Fprintln(os.Stderr, "Error: --app cannot be used with --leaderboard-ids; the set inherits its parent from the member leaderboards")
+				return flag.ErrHelp
+			}
+
+			resolvedAppID := ""
+			if len(ids) == 0 {
+				resolvedAppID = shared.ResolveAppID(*appID)
+				if resolvedAppID == "" {
+					fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+					return shared.MissingRequiredUsageError("--app")
+				}
 			}
 
 			name := strings.TrimSpace(*referenceName)
@@ -560,10 +580,12 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			// Get Game Center detail ID first
-			gcDetailID, err := client.GetGameCenterDetailID(requestCtx, resolvedAppID)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets create: failed to get Game Center detail: %w", err)
+			gcDetailID := ""
+			if len(ids) == 0 {
+				gcDetailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("game-center leaderboard-sets create: failed to get Game Center detail: %w", err)
+				}
 			}
 
 			attrs := asc.GameCenterLeaderboardSetCreateAttributes{
@@ -571,7 +593,7 @@ Examples:
 				VendorIdentifier: vendor,
 			}
 
-			resp, err := client.CreateGameCenterLeaderboardSet(requestCtx, gcDetailID, attrs)
+			resp, err := client.CreateGameCenterLeaderboardSet(requestCtx, gcDetailID, attrs, ids)
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets create: failed to create: %w", err)
 			}

@@ -33,6 +33,7 @@ type subscriptionPriceImportSummary struct {
 	ContinueOnError      bool                                  `json:"continueOnError"`
 	DefaultStart         string                                `json:"defaultStartDate,omitempty"`
 	DefaultPreserve      bool                                  `json:"defaultPreserved"`
+	DefaultPlanType      string                                `json:"defaultPlanType,omitempty"`
 	Total                int                                   `json:"total"`
 	Created              int                                   `json:"created"`
 	Skipped              int                                   `json:"skipped,omitempty"`
@@ -85,6 +86,7 @@ type subscriptionPriceImportCSVRow struct {
 	preserveSet          bool
 	preserveCurrentPrice bool
 	pricePointID         string
+	planType             asc.SubscriptionPlanType
 }
 
 type subscriptionPriceImportResolvedRow struct {
@@ -127,6 +129,7 @@ var subscriptionPricesImportKnownColumns = map[string]string{
 	"preserved":              "preserved",
 	"preserve_current_price": "preserve_current_price",
 	"price_point_id":         "price_point_id",
+	"plan_type":              "plan_type",
 }
 
 // SubscriptionsPricesImportCommand returns the subscriptions prices import subcommand.
@@ -138,6 +141,7 @@ func SubscriptionsPricesImportCommand() *ffcli.Command {
 	inputPath := fs.String("input", "", "Input CSV file path (required)")
 	startDate := fs.String("start-date", "", "Default start date (YYYY-MM-DD) for rows without start_date")
 	preserved := fs.Bool("preserved", false, "Set preserveCurrentPrice=true for rows without preserved columns")
+	planType := fs.String("plan-type", "", "Default billing plan (MONTHLY or UPFRONT) for rows without plan_type; UPFRONT when omitted")
 	dryRun := fs.Bool("dry-run", false, "Validate and resolve price points without creating subscription prices")
 	confirm := fs.Bool("confirm", false, "Confirm creating subscription prices (required unless --dry-run)")
 	continueOnError := fs.Bool("continue-on-error", true, "Continue processing rows after failures (default true)")
@@ -155,7 +159,10 @@ Required columns:
   territory, price
 
 Optional columns:
-  currency_code, start_date, preserved, preserve_current_price, price_point_id
+  currency_code, start_date, preserved, preserve_current_price, price_point_id, plan_type
+
+plan_type is MONTHLY or UPFRONT. Rows without it use --plan-type, then UPFRONT.
+MONTHLY rows need MONTHLY plan availability and cannot target USA.
 
 Header aliases:
   Countries or Regions -> territory
@@ -166,7 +173,8 @@ Examples:
   asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --dry-run
   asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --confirm
   asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --start-date "2026-03-01" --confirm
-  asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --preserved --confirm`,
+  asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --preserved --confirm
+  asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --plan-type MONTHLY --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -190,6 +198,10 @@ Examples:
 				}
 				defaultStartDate = normalized
 			}
+			defaultPlanType, err := parseSubscriptionPricePlanType(fs, *planType)
+			if err != nil {
+				return err
+			}
 
 			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
@@ -212,6 +224,7 @@ Examples:
 				ContinueOnError: *continueOnError,
 				DefaultStart:    defaultStartDate,
 				DefaultPreserve: *preserved,
+				DefaultPlanType: string(defaultPlanType),
 				Total:           len(rows),
 			}
 
@@ -225,16 +238,17 @@ Examples:
 			lookupCache := &subscriptionPricePointLookupCache{
 				byTerritory: make(map[string]map[string][]string),
 			}
+			statePlanFilter := subscriptionPriceImportStatePlanFilter(rows, defaultPlanType)
 			var stateIndex *subscriptionPriceImportStateIndex
 			if !*dryRun {
-				stateIndex, err = fetchSubscriptionPriceImportState(ctx, client, summary.SubscriptionID)
+				stateIndex, err = fetchSubscriptionPriceImportStateForPlans(ctx, client, summary.SubscriptionID, statePlanFilter)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices import: fetch existing prices: %w", err)
 				}
 			}
 
 			for _, csvRow := range rows {
-				resolvedRow, rowErr := resolveSubscriptionPriceImportRow(csvRow, defaultStartDate, *preserved)
+				resolvedRow, rowErr := resolveSubscriptionPriceImportRow(csvRow, defaultStartDate, *preserved, defaultPlanType)
 				if rowErr != nil {
 					appendSubscriptionPriceImportFailure(summary, resolvedRow, shared.NewValidationError(rowErr))
 					if !*continueOnError {
@@ -285,7 +299,7 @@ Examples:
 					status, rowErr = runReconciledMutation(
 						ctx,
 						func(readbackCtx context.Context) (bool, error) {
-							refreshed, err := fetchSubscriptionPriceImportState(readbackCtx, client, summary.SubscriptionID)
+							refreshed, err := fetchSubscriptionPriceImportStateForPlans(readbackCtx, client, summary.SubscriptionID, statePlanFilter)
 							if err != nil {
 								return false, err
 							}
@@ -446,10 +460,42 @@ func appendSubscriptionPriceImportFailure(summary *subscriptionPriceImportSummar
 	})
 }
 
+func subscriptionPriceImportRowPlanType(row subscriptionPriceImportCSVRow, defaultPlanType asc.SubscriptionPlanType) asc.SubscriptionPlanType {
+	switch {
+	case row.planType != "":
+		return row.planType
+	case defaultPlanType != "":
+		return defaultPlanType
+	default:
+		return asc.SubscriptionPlanTypeUpfront
+	}
+}
+
+// subscriptionPriceImportStatePlanFilter returns the filter[planType] value
+// covering every row: the rows' plan, or both plans when they are mixed.
+func subscriptionPriceImportStatePlanFilter(rows []subscriptionPriceImportCSVRow, defaultPlanType asc.SubscriptionPlanType) asc.SubscriptionPlanType {
+	filter := asc.SubscriptionPlanType("")
+	for _, row := range rows {
+		planType := subscriptionPriceImportRowPlanType(row, defaultPlanType)
+		if filter != "" && filter != planType {
+			return asc.SubscriptionPlanTypeMonthly + "," + asc.SubscriptionPlanTypeUpfront
+		}
+		filter = planType
+	}
+	if filter == "" {
+		return asc.SubscriptionPlanTypeUpfront
+	}
+	return filter
+}
+
 func fetchSubscriptionPriceImportState(ctx context.Context, client *asc.Client, subscriptionID string) (*subscriptionPriceImportStateIndex, error) {
+	return fetchSubscriptionPriceImportStateForPlans(ctx, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
+}
+
+func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
 	query := url.Values{
 		"fields[subscriptionPrices]": []string{"startDate,preserved,planType,territory,subscriptionPricePoint"},
-		"filter[planType]":           []string{string(asc.SubscriptionPlanTypeUpfront)},
+		"filter[planType]":           []string{string(planFilter)},
 		"include":                    []string{"territory,subscriptionPricePoint"},
 		"limit":                      []string{"200"},
 	}
@@ -468,7 +514,7 @@ func fetchSubscriptionPriceImportState(ctx context.Context, client *asc.Client, 
 				requestCtx,
 				subscriptionID,
 				asc.WithSubscriptionPricesLimit(200),
-				asc.WithSubscriptionPricesPlanType(asc.SubscriptionPlanTypeUpfront),
+				asc.WithSubscriptionPricesPlanType(planFilter),
 				asc.WithSubscriptionPricesFields([]string{"startDate", "preserved", "planType", "territory", "subscriptionPricePoint"}),
 				asc.WithSubscriptionPricesInclude([]string{"territory", "subscriptionPricePoint"}),
 			)
@@ -712,6 +758,14 @@ func parseSubscriptionPricesImportCSVRow(record []string, columnIdx map[string]i
 		preservedSet = true
 	}
 
+	planType := asc.SubscriptionPlanType("")
+	if value := get("plan_type"); value != "" {
+		planType, err = normalizeSubscriptionPlanType(value)
+		if err != nil {
+			return subscriptionPriceImportCSVRow{}, shared.UsageErrorf("row %d: plan_type must be one of: MONTHLY, UPFRONT", rowNumber)
+		}
+	}
+
 	return subscriptionPriceImportCSVRow{
 		row:                  rowNumber,
 		territory:            get("territory"),
@@ -721,6 +775,7 @@ func parseSubscriptionPricesImportCSVRow(record []string, columnIdx map[string]i
 		preserveSet:          preservedSet,
 		preserveCurrentPrice: preserved,
 		pricePointID:         strings.TrimSpace(get("price_point_id")),
+		planType:             planType,
 	}, nil
 }
 
@@ -728,6 +783,7 @@ func resolveSubscriptionPriceImportRow(
 	row subscriptionPriceImportCSVRow,
 	defaultStartDate string,
 	defaultPreserved bool,
+	defaultPlanType asc.SubscriptionPlanType,
 ) (subscriptionPriceImportResolvedRow, error) {
 	resolved := subscriptionPriceImportResolvedRow{
 		row:                  row.row,
@@ -736,7 +792,7 @@ func resolveSubscriptionPriceImportRow(
 		preserveSet:          row.preserveSet,
 		preserveCurrentPrice: row.preserveCurrentPrice,
 		pricePointID:         strings.TrimSpace(row.pricePointID),
-		planType:             asc.SubscriptionPlanTypeUpfront,
+		planType:             subscriptionPriceImportRowPlanType(row, defaultPlanType),
 	}
 
 	if resolved.startDate == "" {
@@ -752,6 +808,9 @@ func resolveSubscriptionPriceImportRow(
 		return resolved, err
 	}
 	resolved.territoryID = territoryID
+	if err := validatePlanTypeTerritory(resolved.planType, territoryID, "territory"); err != nil {
+		return resolved, err
+	}
 
 	priceKey, err := normalizeSubscriptionPriceImportPrice(resolved.price)
 	if err != nil {

@@ -361,12 +361,12 @@ func (c *Client) GetAppEventLocalizationsRelationships(ctx context.Context, even
 }
 
 // GetAppEventLocalization retrieves an app event localization by ID.
-func (c *Client) GetAppEventLocalization(ctx context.Context, localizationID string) (*AppEventLocalizationResponse, error) {
+func (c *Client) GetAppEventLocalization(ctx context.Context, localizationID string, opts ...LocalizationReadOption) (*AppEventLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	path := fmt.Sprintf("/v1/appEventLocalizations/%s", localizationID)
+	path := localizationReadPath(fmt.Sprintf("/v1/appEventLocalizations/%s", localizationID), opts)
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err

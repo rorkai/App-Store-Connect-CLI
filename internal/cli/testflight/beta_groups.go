@@ -60,64 +60,6 @@ var betaGroupFieldsValues = []string{
 	"betaRecruitmentCriterionCompatibleBuildCheck",
 }
 
-var betaGroupAppFieldsValues = []string{
-	"accessibilityUrl",
-	"name",
-	"bundleId",
-	"sku",
-	"primaryLocale",
-	"isOrEverWasMadeForKids",
-	"subscriptionStatusUrl",
-	"subscriptionStatusUrlVersion",
-	"subscriptionStatusUrlForSandbox",
-	"subscriptionStatusUrlVersionForSandbox",
-	"contentRightsDeclaration",
-	"streamlinedPurchasingEnabled",
-	"accessibilityDeclarations",
-	"appEncryptionDeclarations",
-	"appStoreIcon",
-	"ciProduct",
-	"betaTesters",
-	"betaGroups",
-	"appStoreVersions",
-	"appTags",
-	"preReleaseVersions",
-	"betaAppLocalizations",
-	"builds",
-	"betaLicenseAgreement",
-	"betaAppReviewDetail",
-	"appInfos",
-	"appClips",
-	"appPricePoints",
-	"endUserLicenseAgreement",
-	"appPriceSchedule",
-	"appAvailabilityV2",
-	"inAppPurchases",
-	"subscriptionGroups",
-	"gameCenterEnabledVersions",
-	"perfPowerMetrics",
-	"appCustomProductPages",
-	"inAppPurchasesV2",
-	"promotedPurchases",
-	"appEvents",
-	"reviewSubmissions",
-	"subscriptionGracePeriod",
-	"customerReviews",
-	"customerReviewSummarizations",
-	"gameCenterDetail",
-	"appStoreVersionExperimentsV2",
-	"alternativeDistributionKey",
-	"analyticsReportRequests",
-	"marketplaceSearchDetail",
-	"buildUploads",
-	"backgroundAssets",
-	"betaFeedbackScreenshotSubmissions",
-	"betaFeedbackCrashSubmissions",
-	"searchKeywords",
-	"webhooks",
-	"androidToIosAppMappingDetails",
-}
-
 var betaGroupBuildFieldsValues = []string{
 	"version",
 	"uploadedDate",
@@ -504,7 +446,7 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			appFieldsValue, err := parseBetaGroupsListFields("--app-fields", *appFields, appFieldsSet, betaGroupAppFieldsValues)
+			appFieldsValue, err := parseBetaGroupsListFields("--app-fields", *appFields, appFieldsSet, shared.AppFieldsList())
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -970,6 +912,8 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 	var feedbackEnabled shared.OptionalBool
 	feedbackEnabled.EnableBoolFlag()
 	fs.Var(&feedbackEnabled, "feedback-enabled", "Enable tester feedback")
+	buildID := shared.BindOnceCSVFlag(fs, "build-id", "Build ID(s) to attach, comma-separated")
+	tester := shared.BindOnceCSVFlag(fs, "tester", "Beta tester ID(s) to attach, comma-separated")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -978,8 +922,15 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 		ShortHelp:  "Create a TestFlight beta group.",
 		LongHelp: `Create a TestFlight beta group.
 
+--build-id and --tester attach existing builds and beta testers in the create
+request itself. App Store Connect can create the group even when that request
+fails, for example on an unknown build ID. The error then names the group it
+found and the commands to attach the builds and testers or delete it, so a
+retry does not make a duplicate group.
+
 Examples:
   asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"
+  asc testflight beta-groups create --app "APP_ID" --name "Beta Testers" --build-id "BUILD_ID1,BUILD_ID2" --tester "TESTER_ID1,TESTER_ID2"
   asc testflight beta-groups create --app "APP_ID" --name "Internal Testers" --internal --access-all-builds
   asc testflight beta-groups create --app "APP_ID" --name "Public Beta" --public-link-enabled --public-link-limit-enabled --public-link-limit 250 --feedback-enabled`,
 		FlagSet:   fs,
@@ -1011,14 +962,19 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --public-link-limit is required when enabling public link limit")
 				return shared.MissingRequiredUsageError("--public-link-limit")
 			}
+			buildIDs, err := parseCreateRelationshipIDs(buildID, "--build-id")
+			if err != nil {
+				return err
+			}
+			testerIDs, err := parseCreateRelationshipIDs(tester, "--tester")
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-groups create: %w", err)
 			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
 
 			var publicLinkLimitAttr *int
 			if visited["public-link-limit"] {
@@ -1034,14 +990,112 @@ Examples:
 				FeedbackEnabled:        optionalBetaGroupCreateBool(feedbackEnabled),
 			}
 
-			group, err := client.CreateBetaGroupWithAttributes(requestCtx, resolvedAppID, attrs)
+			hasRelationships := len(buildIDs) > 0 || len(testerIDs) > 0
+			var existingIDs map[string]bool
+			if hasRelationships {
+				existingIDs = listBetaGroupIDsByName(ctx, client, resolvedAppID, attrs.Name)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			group, err := client.CreateBetaGroupWithAttributes(requestCtx, resolvedAppID, attrs, buildIDs, testerIDs)
 			if err != nil {
-				return fmt.Errorf("beta-groups create: failed to create: %w", err)
+				err = fmt.Errorf("beta-groups create: failed to create: %w", err)
+				if !hasRelationships {
+					return err
+				}
+				if existingIDs == nil {
+					return maybeCreatedBetaGroupError(err, resolvedAppID, attrs.Name)
+				}
+				return explainPartialBetaGroupCreate(ctx, client, resolvedAppID, attrs.Name, existingIDs, buildIDs, testerIDs, err)
 			}
 
 			return shared.PrintOutput(group, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// explainPartialBetaGroupCreate adds what a failed create left behind. Live App
+// Store Connect returned 404 for a missing build ID yet still created the
+// group, so a blind retry would make a duplicate. Only groups missing from
+// existingIDs, listed before the create, count as made by this command.
+func explainPartialBetaGroupCreate(ctx context.Context, client *asc.Client, appID, name string, existingIDs map[string]bool, buildIDs, testerIDs []string, createErr error) error {
+	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+	defer cancel()
+
+	groups, err := listAllBetaGroupsByName(lookupCtx, client, appID, name)
+	if err != nil {
+		return maybeCreatedBetaGroupError(createErr, appID, name)
+	}
+
+	var ids []string
+	for _, group := range groups {
+		if !existingIDs[group.ID] {
+			ids = append(ids, group.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return createErr
+	}
+	groupID := "GROUP_ID"
+	var b strings.Builder
+	if len(ids) == 1 {
+		groupID = ids[0]
+		fmt.Fprintf(&b, "App Store Connect created group %q despite the failure, without its builds or testers.", groupID)
+	} else {
+		fmt.Fprintf(&b, "App Store Connect may have created one of the groups named %q despite the failure: %s.", name, strings.Join(ids, ", "))
+	}
+	b.WriteString(" Attach them after fixing the IDs, or delete the group before retrying:")
+	for _, buildID := range buildIDs {
+		fmt.Fprintf(&b, "\n  asc builds add-groups --build-id %q --group %q", buildID, groupID)
+	}
+	if len(testerIDs) > 0 {
+		fmt.Fprintf(&b, "\n  asc testflight groups add-testers --group %q --tester %q", groupID, strings.Join(testerIDs, ","))
+	}
+	fmt.Fprintf(&b, "\n  asc testflight groups delete --id %q --confirm", groupID)
+	return fmt.Errorf("%w\n%s", createErr, b.String())
+}
+
+func maybeCreatedBetaGroupError(createErr error, appID, name string) error {
+	return fmt.Errorf("%w\nApp Store Connect may have created the group anyway. Check with `asc testflight groups list --app %q --name %q` before retrying", createErr, appID, name)
+}
+
+// listBetaGroupIDsByName returns nil when the lookup fails, so a failed create
+// claims nothing about which group it left behind.
+func listBetaGroupIDsByName(ctx context.Context, client *asc.Client, appID, name string) map[string]bool {
+	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+	defer cancel()
+
+	groups, err := listAllBetaGroupsByName(lookupCtx, client, appID, name)
+	if err != nil {
+		return nil
+	}
+	ids := make(map[string]bool, len(groups))
+	for _, group := range groups {
+		ids[group.ID] = true
+	}
+	return ids
+}
+
+// listAllBetaGroupsByName follows every page, so the before and after lists
+// compare whole sets.
+func listAllBetaGroupsByName(ctx context.Context, client *asc.Client, appID, name string) ([]asc.Resource[asc.BetaGroupAttributes], error) {
+	firstPage, err := client.ListBetaGroups(ctx, asc.WithBetaGroupsApps([]string{appID}), asc.WithBetaGroupsName(name), asc.WithBetaGroupsLimit(200))
+	if err != nil {
+		return nil, err
+	}
+	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.ListBetaGroups(ctx, asc.WithBetaGroupsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, err
+	}
+	groups, ok := all.(*asc.BetaGroupsResponse)
+	if !ok {
+		return nil, fmt.Errorf("unexpected beta groups response %T", all)
+	}
+	return groups.Data, nil
 }
 
 func optionalBetaGroupCreateBool(value shared.OptionalBool) *bool {
@@ -1103,6 +1157,12 @@ func BetaGroupsUpdateCommand() *ffcli.Command {
 	publicLinkLimitEnabled := fs.Bool("public-link-limit-enabled", false, "Enable public link limit")
 	publicLinkLimit := fs.Int("public-link-limit", 0, "Public link limit (1-10000)")
 	feedbackEnabled := fs.Bool("feedback-enabled", false, "Enable feedback")
+	var iosBuildsAvailableForAppleSiliconMac shared.OptionalBool
+	iosBuildsAvailableForAppleSiliconMac.EnableBoolFlag()
+	fs.Var(&iosBuildsAvailableForAppleSiliconMac, "ios-builds-available-for-apple-silicon-mac", "Make the group's iOS builds available on Apple silicon Macs")
+	var iosBuildsAvailableForAppleVision shared.OptionalBool
+	iosBuildsAvailableForAppleVision.EnableBoolFlag()
+	fs.Var(&iosBuildsAvailableForAppleVision, "ios-builds-available-for-apple-vision", "Make the group's iOS builds available on Apple Vision")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -1114,7 +1174,8 @@ func BetaGroupsUpdateCommand() *ffcli.Command {
 Examples:
   asc testflight beta-groups update --id "GROUP_ID" --name "New Name"
   asc testflight beta-groups update --id "GROUP_ID" --public-link-enabled --public-link-limit 100
-  asc testflight beta-groups update --id "GROUP_ID" --feedback-enabled`,
+  asc testflight beta-groups update --id "GROUP_ID" --feedback-enabled
+  asc testflight beta-groups update --id "GROUP_ID" --ios-builds-available-for-apple-silicon-mac --ios-builds-available-for-apple-vision=false`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1138,7 +1199,9 @@ Examples:
 				visited["public-link-enabled"] ||
 				visited["public-link-limit-enabled"] ||
 				visited["public-link-limit"] ||
-				visited["feedback-enabled"]
+				visited["feedback-enabled"] ||
+				iosBuildsAvailableForAppleSiliconMac.IsSet() ||
+				iosBuildsAvailableForAppleVision.IsSet()
 			if !hasUpdates {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError("")
@@ -1176,11 +1239,13 @@ Examples:
 					Type: asc.ResourceTypeBetaGroups,
 					ID:   trimmedID,
 					Attributes: &asc.BetaGroupUpdateAttributes{
-						Name:                   strings.TrimSpace(*name),
-						PublicLinkEnabled:      publicLinkEnabledAttr,
-						PublicLinkLimitEnabled: publicLinkLimitEnabledAttr,
-						PublicLinkLimit:        *publicLinkLimit,
-						FeedbackEnabled:        feedbackEnabledAttr,
+						Name:                                 strings.TrimSpace(*name),
+						PublicLinkEnabled:                    publicLinkEnabledAttr,
+						PublicLinkLimitEnabled:               publicLinkLimitEnabledAttr,
+						PublicLinkLimit:                      *publicLinkLimit,
+						FeedbackEnabled:                      feedbackEnabledAttr,
+						IOSBuildsAvailableForAppleSiliconMac: optionalBetaGroupCreateBool(iosBuildsAvailableForAppleSiliconMac),
+						IOSBuildsAvailableForAppleVision:     optionalBetaGroupCreateBool(iosBuildsAvailableForAppleVision),
 					},
 				},
 			}

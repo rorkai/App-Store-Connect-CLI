@@ -76,6 +76,8 @@ type ReviewAttributes struct {
 	ReviewerNickname string `json:"reviewerNickname"`
 	CreatedDate      string `json:"createdDate"`
 	Territory        string `json:"territory"`
+
+	api apiAttributes
 }
 
 // FeedbackResponse is the response from beta feedback screenshots endpoint.
@@ -628,11 +630,13 @@ type BetaGroupCreateRequest struct {
 
 // BetaGroupUpdateAttributes describes attributes for updating a beta group.
 type BetaGroupUpdateAttributes struct {
-	Name                   string `json:"name,omitempty"`
-	PublicLinkEnabled      *bool  `json:"publicLinkEnabled,omitempty"`
-	PublicLinkLimitEnabled *bool  `json:"publicLinkLimitEnabled,omitempty"`
-	PublicLinkLimit        int    `json:"publicLinkLimit,omitempty"`
-	FeedbackEnabled        *bool  `json:"feedbackEnabled,omitempty"`
+	Name                                 string `json:"name,omitempty"`
+	PublicLinkEnabled                    *bool  `json:"publicLinkEnabled,omitempty"`
+	PublicLinkLimitEnabled               *bool  `json:"publicLinkLimitEnabled,omitempty"`
+	PublicLinkLimit                      int    `json:"publicLinkLimit,omitempty"`
+	FeedbackEnabled                      *bool  `json:"feedbackEnabled,omitempty"`
+	IOSBuildsAvailableForAppleSiliconMac *bool  `json:"iosBuildsAvailableForAppleSiliconMac,omitempty"`
+	IOSBuildsAvailableForAppleVision     *bool  `json:"iosBuildsAvailableForAppleVision,omitempty"`
 }
 
 // BetaGroupUpdateData is the data portion of a beta group update request.
@@ -649,7 +653,9 @@ type BetaGroupUpdateRequest struct {
 
 // BetaGroupRelationships describes relationships for beta groups.
 type BetaGroupRelationships struct {
-	App *Relationship `json:"app"`
+	App         *Relationship     `json:"app"`
+	Builds      *RelationshipList `json:"builds,omitempty"`
+	BetaTesters *RelationshipList `json:"betaTesters,omitempty"`
 }
 
 // BetaTesterCreateAttributes describes attributes for creating a beta tester.
@@ -662,6 +668,7 @@ type BetaTesterCreateAttributes struct {
 // BetaTesterCreateRelationships describes relationships for beta tester creation.
 type BetaTesterCreateRelationships struct {
 	BetaGroups *RelationshipList `json:"betaGroups,omitempty"`
+	Builds     *RelationshipList `json:"builds,omitempty"`
 }
 
 // BetaTesterCreateData is the data portion of a beta tester create request.
@@ -786,14 +793,19 @@ func (c *Client) GetReviews(ctx context.Context, appID string, opts ...ReviewOpt
 	return &response, nil
 }
 
-// GetCustomerReview retrieves a customer review by ID.
-func (c *Client) GetCustomerReview(ctx context.Context, reviewID string) (*CustomerReviewResponse, error) {
+// GetCustomerReview retrieves a customer review by ID. Only include and fields
+// options apply; Apple accepts no filters on this endpoint.
+func (c *Client) GetCustomerReview(ctx context.Context, reviewID string, opts ...ReviewOption) (*CustomerReviewResponse, error) {
 	reviewID = strings.TrimSpace(reviewID)
 	if reviewID == "" {
 		return nil, fmt.Errorf("reviewID is required")
 	}
 
 	path := fmt.Sprintf("/v1/customerReviews/%s", reviewID)
+	if queryString := buildCustomerReviewQuery(opts); queryString != "" {
+		path += "?" + queryString
+	}
+
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
@@ -934,12 +946,13 @@ func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts .
 func (c *Client) CreateBetaGroup(ctx context.Context, appID, name string) (*BetaGroupResponse, error) {
 	return c.CreateBetaGroupWithAttributes(ctx, appID, BetaGroupCreateAttributes{
 		Name: name,
-	})
+	}, nil, nil)
 }
 
-// CreateBetaGroupWithAttributes creates a beta group for an app with explicit attributes.
+// CreateBetaGroupWithAttributes creates a beta group for an app with explicit
+// attributes, attaching any builds and beta testers in the same request.
 // Note: some attributes (e.g., isInternalGroup) are create-only in the ASC API.
-func (c *Client) CreateBetaGroupWithAttributes(ctx context.Context, appID string, attrs BetaGroupCreateAttributes) (*BetaGroupResponse, error) {
+func (c *Client) CreateBetaGroupWithAttributes(ctx context.Context, appID string, attrs BetaGroupCreateAttributes, buildIDs, testerIDs []string) (*BetaGroupResponse, error) {
 	payload := BetaGroupCreateRequest{
 		Data: BetaGroupCreateData{
 			Type:       ResourceTypeBetaGroups,
@@ -951,6 +964,8 @@ func (c *Client) CreateBetaGroupWithAttributes(ctx context.Context, appID string
 						ID:   appID,
 					},
 				},
+				Builds:      buildRelationshipList(ResourceTypeBuilds, buildIDs),
+				BetaTesters: buildRelationshipList(ResourceTypeBetaTesters, testerIDs),
 			},
 		},
 	}
@@ -1129,21 +1144,14 @@ func (c *Client) GetBetaTester(ctx context.Context, testerID string) (*BetaTeste
 	return &response, nil
 }
 
-// CreateBetaTester creates a beta tester.
-func (c *Client) CreateBetaTester(ctx context.Context, email, firstName, lastName string, groupIDs []string) (*BetaTesterResponse, error) {
-	groupIDs = normalizeList(groupIDs)
+// CreateBetaTester creates a beta tester, attaching any beta groups and builds
+// in the same request.
+func (c *Client) CreateBetaTester(ctx context.Context, email, firstName, lastName string, groupIDs, buildIDs []string) (*BetaTesterResponse, error) {
+	groups := buildRelationshipList(ResourceTypeBetaGroups, groupIDs)
+	builds := buildRelationshipList(ResourceTypeBuilds, buildIDs)
 	var relationships *BetaTesterCreateRelationships
-	if len(groupIDs) > 0 {
-		relData := make([]ResourceData, 0, len(groupIDs))
-		for _, groupID := range groupIDs {
-			relData = append(relData, ResourceData{
-				Type: ResourceTypeBetaGroups,
-				ID:   groupID,
-			})
-		}
-		relationships = &BetaTesterCreateRelationships{
-			BetaGroups: &RelationshipList{Data: relData},
-		}
+	if groups != nil || builds != nil {
+		relationships = &BetaTesterCreateRelationships{BetaGroups: groups, Builds: builds}
 	}
 
 	payload := BetaTesterCreateRequest{

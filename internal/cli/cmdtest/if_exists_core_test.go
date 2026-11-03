@@ -176,6 +176,40 @@ func TestVersionsCreateIfExistsUpdatePatchesExistingVersion(t *testing.T) {
 	}
 }
 
+// When the date is the only updatable flag, dropping it would report a skip for
+// a version whose scheduled release never changed.
+func TestVersionsCreateIfExistsUpdateAppliesEarliestReleaseDate(t *testing.T) {
+	stdout, _, seen, runErr := runIfExistsCommand(t, []string{
+		"versions", "create", "--app", "app-1", "--version", "2.0.0",
+		"--earliest-release-date", "2026-02-01T08:00:00+00:00",
+		"--if-exists", "update", "--output", "json",
+	}, func(req ifExistsRequest) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.Path == "/v1/appStoreVersions":
+			return jsonResponse(http.StatusConflict, versionsDuplicate409)
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+			return jsonResponse(http.StatusOK, existingVersionsList)
+		case req.Method == http.MethodPatch && req.Path == "/v1/appStoreVersions/version-existing":
+			if !strings.Contains(req.Body, `"earliestReleaseDate":"2026-02-01T08:00:00+00:00"`) {
+				t.Fatalf("PATCH body = %s, want earliestReleaseDate", req.Body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-existing","attributes":{"versionString":"2.0.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}}`)
+		default:
+			t.Fatalf("unexpected request %s %s", req.Method, req.Path)
+			return nil, nil
+		}
+	})
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
+	if len(seen) != 3 {
+		t.Fatalf("requests = %+v, want POST, GET, PATCH", seen)
+	}
+	if !strings.Contains(stdout, `"action":"updated"`) {
+		t.Fatalf("stdout = %q, want action=updated", stdout)
+	}
+}
+
 func TestVersionsCreateIfExistsUpdateWithoutUpdatableFlagsSkips(t *testing.T) {
 	stdout, _, seen, runErr := runIfExistsCommand(t, []string{
 		"versions", "create", "--app", "app-1", "--version", "2.0.0",

@@ -15,6 +15,7 @@ type SubscriptionOfferCodeOneTimeUseCodeAttributes struct {
 	CreatedDate    string `json:"createdDate,omitempty"`
 	ExpirationDate string `json:"expirationDate,omitempty"`
 	Active         bool   `json:"active,omitempty"`
+	Environment    string `json:"environment,omitempty"`
 }
 
 // SubscriptionOfferCodeOneTimeUseCodesResponse is the response from list endpoints.
@@ -32,6 +33,7 @@ type OfferCodeValuesResult struct {
 type SubscriptionOfferCodeOneTimeUseCodeCreateAttributes struct {
 	NumberOfCodes  int    `json:"numberOfCodes"`
 	ExpirationDate string `json:"expirationDate"`
+	Environment    string `json:"environment,omitempty"`
 }
 
 // SubscriptionOfferCodeOneTimeUseCodeCreateRelationships describes relationships for offer code creation.

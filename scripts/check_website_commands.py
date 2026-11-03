@@ -59,6 +59,10 @@ BOOLEAN_FLAG_OVERRIDES: dict[tuple[str, ...], set[str]] = {
         "--public-link-enabled",
         "--public-link-limit-enabled",
     },
+    ("testflight", "groups", "edit"): {
+        "--ios-builds-available-for-apple-silicon-mac",
+        "--ios-builds-available-for-apple-vision",
+    },
     # `versions update --confirm` tracks presence so an explicit
     # `--confirm=false` is rejected instead of silently ignored.
     ("versions", "update"): {"--confirm"},

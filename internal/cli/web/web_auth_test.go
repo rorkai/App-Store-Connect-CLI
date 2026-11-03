@@ -2642,6 +2642,44 @@ func TestResolveSessionDoesNotRetryFreshLoginOnRejectedTwoFactorCode(t *testing.
 	}
 }
 
+// A 403 after Apple accepted the code (for example, an account without App
+// Store Connect access) fails the same way on a fresh jar, so retrying would
+// only burn a second code.
+func TestResolveSessionDoesNotRetryFreshLoginAfterTwoFactorFinalizationFailure(t *testing.T) {
+	for _, prompted := range []bool{false, true} {
+		t.Run(fmt.Sprintf("prompted=%t", prompted), func(t *testing.T) {
+			restoreStaleSessionRetryHooks(t)
+			if prompted {
+				t.Setenv(webPasswordEnv, "")
+				promptPasswordFn = func(context.Context) (string, error) { return "prompted-secret", nil }
+			}
+			loadCachedSessionFn = func(string) (*webcore.AuthSession, bool, error) {
+				return &webcore.AuthSession{Client: &http.Client{}, UserEmail: "user@example.com"}, true, nil
+			}
+			codePrompts := 0
+			promptTwoFactorCodeFn = func() (string, error) { codePrompts++; return "654321", nil }
+			submitTwoFactorCodeFn = func(context.Context, *webcore.AuthSession, string) error {
+				return &webcore.TwoFactorFinalizationError{Status: http.StatusForbidden}
+			}
+			webLoginWithClientFn = func(context.Context, *http.Client, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+			}
+			webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				t.Fatal("did not expect a fresh sign-in after Apple accepted the code")
+				return nil, nil
+			}
+
+			_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+			if err == nil || !strings.Contains(err.Error(), "2fa finalization failed") {
+				t.Fatalf("expected the finalization failure, got %v", err)
+			}
+			if codePrompts != 1 {
+				t.Fatalf("expected one verification code prompt, got %d", codePrompts)
+			}
+		})
+	}
+}
+
 func TestTwoFactorSubmitFailureDistinguishesFinalizationFromVerification(t *testing.T) {
 	tests := []struct {
 		name               string
@@ -3262,6 +3300,44 @@ func TestResolveSessionExplainsConsumedCodeBeforeThePromptedRetry(t *testing.T) 
 	}
 	if !strings.Contains(notice, "new code") {
 		t.Fatalf("expected the operator to be pointed at the new code, got %q", notice)
+	}
+}
+
+// Apple has sent nothing new until the fresh sign-in raises its own challenge.
+func TestResolveSessionWithholdsConsumedCodeNoticeUntilTheFreshChallengeExists(t *testing.T) {
+	restoreStaleSessionRetryHooks(t)
+
+	var status bytes.Buffer
+	twoFactorStatusWriter = &status
+	staleSession := &webcore.AuthSession{}
+	freshSession := &webcore.AuthSession{UserEmail: "user@example.com"}
+
+	deleteStaleWebSessionFn = func(string, *webcore.AuthSession) (bool, error) { return true, nil }
+	loadCachedSessionFn = func(string) (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: &http.Client{}, UserEmail: "user@example.com"}, true, nil
+	}
+	promptTwoFactorCodeFn = func() (string, error) { return "111111", nil }
+	submitTwoFactorCodeFn = func(context.Context, *webcore.AuthSession, string) error {
+		return &webcore.TwoFactorFinalizationError{Status: http.StatusUnauthorized}
+	}
+	webLoginWithClientFn = func(context.Context, *http.Client, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return staleSession, &webcore.TwoFactorRequiredError{}
+	}
+	webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return freshSession, &webcore.TwoFactorRequiredError{}
+	}
+	prepareTwoFactorChallengeFn = func(_ context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		if session == freshSession {
+			return nil, errors.New("auth options unavailable")
+		}
+		return &webcore.TwoFactorChallenge{Method: "trusted-device"}, nil
+	}
+
+	if _, _, err := resolveSession(context.Background(), "user@example.com", "", ""); err == nil {
+		t.Fatal("expected the fresh challenge setup failure")
+	}
+	if notice := status.String(); strings.Contains(notice, "new code") {
+		t.Fatalf("notice written before the fresh challenge existed: %q", notice)
 	}
 }
 

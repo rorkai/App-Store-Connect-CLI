@@ -5,6 +5,9 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net/http"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -228,6 +231,73 @@ func TestGameCenterActivityLeaderboardsSetValidationErrors(t *testing.T) {
 	}
 }
 
+func TestGameCenterActivityRelationshipsSetRequestWiring(t *testing.T) {
+	const achievementsBody = `{"data":[{"type":"gameCenterAchievements","id":"RES_1"},{"type":"gameCenterAchievements","id":"RES_2"}]}`
+	const leaderboardsBody = `{"data":[{"type":"gameCenterLeaderboards","id":"RES_1"},{"type":"gameCenterLeaderboards","id":"RES_2"}]}`
+
+	tests := []struct {
+		name       string
+		resource   string
+		extraArgs  []string
+		wantMethod string
+		wantPath   string
+		wantBody   string
+	}{
+		{"achievements add", "achievements", nil, http.MethodPost, "/v1/gameCenterActivities/ACTIVITY_ID/relationships/achievements", achievementsBody},
+		{"achievements remove", "achievements", []string{"--remove", "--confirm"}, http.MethodDelete, "/v1/gameCenterActivities/ACTIVITY_ID/relationships/achievements", achievementsBody},
+		{"achievements add v2", "achievements", []string{"--v2"}, http.MethodPost, "/v1/gameCenterActivities/ACTIVITY_ID/relationships/achievementsV2", achievementsBody},
+		{"achievements remove v2", "achievements", []string{"--v2", "--remove", "--confirm"}, http.MethodDelete, "/v1/gameCenterActivities/ACTIVITY_ID/relationships/achievementsV2", achievementsBody},
+		{"leaderboards add", "leaderboards", nil, http.MethodPost, "/v1/gameCenterActivities/ACTIVITY_ID/relationships/leaderboards", leaderboardsBody},
+		{"leaderboards remove", "leaderboards", []string{"--remove", "--confirm"}, http.MethodDelete, "/v1/gameCenterActivities/ACTIVITY_ID/relationships/leaderboards", leaderboardsBody},
+		{"leaderboards add v2", "leaderboards", []string{"--v2"}, http.MethodPost, "/v1/gameCenterActivities/ACTIVITY_ID/relationships/leaderboardsV2", leaderboardsBody},
+		{"leaderboards remove v2", "leaderboards", []string{"--v2", "--remove", "--confirm"}, http.MethodDelete, "/v1/gameCenterActivities/ACTIVITY_ID/relationships/leaderboardsV2", leaderboardsBody},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			callCount := &lockedCounter{}
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				callCount.Inc()
+				if req.Method != test.wantMethod || req.URL.Path != test.wantPath {
+					t.Fatalf("request = %s %s, want %s %s", req.Method, req.URL.Path, test.wantMethod, test.wantPath)
+				}
+				body, err := io.ReadAll(req.Body)
+				if err != nil {
+					t.Fatalf("read request body: %v", err)
+				}
+				if string(body) != test.wantBody+"\n" {
+					t.Fatalf("request body = %q, want %q", body, test.wantBody+"\n")
+				}
+				return gameCenterCreateResponse(http.StatusNoContent, ""), nil
+			}))
+
+			args := []string{"game-center", "activities", test.resource, "set", "--activity-id", "ACTIVITY_ID", "--ids", "RES_1,RES_2"}
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(append(args, test.extraArgs...)); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			wantOutput := strings.TrimSuffix(test.wantBody, "}") + `,"links":{}}`
+			assertJSONDocumentEqual(t, []byte(stdout), []byte(wantOutput))
+			if got := callCount.Load(); got != 1 {
+				t.Fatalf("request count = %d, want 1", got)
+			}
+		})
+	}
+}
+
 func TestGameCenterActivityVersionsListValidationErrors(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -410,7 +480,7 @@ func TestGameCenterActivityImagesUploadValidationErrors(t *testing.T) {
 		args []string
 	}{
 		{
-			name: "missing localization-id",
+			name: "missing target",
 			args: []string{"game-center", "activities", "images", "upload", "--file", "test.png"},
 		},
 		{

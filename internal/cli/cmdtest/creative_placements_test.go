@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -80,6 +81,58 @@ func TestCreativePlacementsUsage(t *testing.T) {
 	}
 }
 
+// Every placement read shares Apple's enums, so a value must reach the server
+// in any localization context rather than stop as a usage error.
+func TestCreativePlacementsListSendsAppleEnumValues(t *testing.T) {
+	for _, tc := range []struct{ name, command, resource, flag, value, query string }{
+		{"ad types", "localizations", "appStoreVersionLocalizations", "--placement-type", "SEARCH_RESULTS_ADS_ASSET,TODAY_TAB_ADS_ASSET", "filter%5BplacementType%5D=SEARCH_RESULTS_ADS_ASSET%2CTODAY_TAB_ADS_ASSET"},
+		{"event type outside events", "localizations", "appStoreVersionLocalizations", "--placement-type", "EVENT_CARD_ASSET", "filter%5BplacementType%5D=EVENT_CARD_ASSET"},
+		{"store type on events", "app-events localizations", "appEventLocalizations", "--placement-type", "APP_SCREENSHOT", "filter%5BplacementType%5D=APP_SCREENSHOT"},
+		{"iMessage type on treatments", "product-pages experiments treatments localizations", "appStoreVersionExperimentTreatmentLocalizations", "--placement-type", "IMESSAGE_APP_SCREENSHOT", "filter%5BplacementType%5D=IMESSAGE_APP_SCREENSHOT"},
+		{"parent includes", "localizations", "appStoreVersionLocalizations", "--include", "appEventLocalization,appStoreVersionLocalization,appCustomProductPageLocalization,appStoreVersionExperimentTreatmentLocalization", "include=appEventLocalization%2CappStoreVersionLocalization%2CappCustomProductPageLocalization%2CappStoreVersionExperimentTreatmentLocalization"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupAuth(t)
+			original := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = original })
+			requests := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				if req.Method != "GET" || req.URL.Path != "/v1/"+tc.resource+"/loc/placements" || req.URL.RawQuery != tc.query {
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL)
+				}
+				return jsonResponse(200, `{"data":[]}`)
+			})
+			args := append(strings.Fields(tc.command), "placements", "list", "--localization-id", "loc", tc.flag, tc.value)
+			stdout, stderr, err := runCreativePlacements(t, args...)
+			if err != nil || stderr != "" || requests != 1 || !strings.Contains(stdout, `"data":[]`) {
+				t.Fatalf("requests=%d stdout=%s stderr=%s err=%v", requests, stdout, stderr, err)
+			}
+		})
+	}
+}
+
+// Apple's spec lists RETENTION_MESSAGE_ASSET, but production rejects it as a
+// placements filter with HTTP 400, so it must stop as a usage error locally.
+func TestCreativePlacementsListRejectsRetentionMessageType(t *testing.T) {
+	original := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = original })
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected request %s %s", req.Method, req.URL)
+		return nil, nil
+	})
+	for _, command := range []string{"localizations", "app-events localizations", "product-pages custom-pages localizations", "product-pages experiments treatments localizations"} {
+		t.Run(command, func(t *testing.T) {
+			setupAuth(t)
+			args := append(strings.Fields(command), "placements", "list", "--localization-id", "loc", "--placement-type", "APP_SCREENSHOT,RETENTION_MESSAGE_ASSET")
+			stdout, stderr, err := runCreativePlacements(t, args...)
+			if !isUsageClassError(err) || stdout != "" || !strings.Contains(stderr, "--placement-type") {
+				t.Fatalf("expected placement type usage error: %s %s %v", stdout, stderr, err)
+			}
+		})
+	}
+}
+
 func TestCreativePlacementsRejectOverLimitBeforeAuth(t *testing.T) {
 	for _, path := range [][]string{
 		{"localizations", "placements", "list"},
@@ -133,5 +186,102 @@ func TestCustomPageCreativePlacements(t *testing.T) {
 	stdout, stderr, err := runCreativePlacements(t, "product-pages", "custom-pages", "localizations", "placements", "list", "--localization-id", "loc", "--placement-type", "PRODUCT_PAGE_HEADER_ASSET")
 	if err != nil || stderr != "" || !strings.Contains(stdout, `"data":[]`) {
 		t.Fatalf("failed: %s %s %v", stdout, stderr, err)
+	}
+}
+
+var creativePlacementGroups = []string{
+	"localizations placements",
+	"product-pages custom-pages localizations placements",
+	"product-pages experiments treatments localizations placements",
+	"app-events localizations placements",
+}
+
+// Regression: a group loses view, the query params drift from the spec, or JSON stops being Apple's envelope.
+func TestCreativePlacementViewReadsOneResourceInEveryContext(t *testing.T) {
+	const body = `{"data":{"type":"appAssetLibraryPlacements","id":"placement-1","attributes":{"mediaType":"IMAGE","placementType":"PRODUCT_PAGE_HEADER_ASSET","placementGroup":"DEFAULT_PROFILE","state":"READY","unknown":null}},"included":[{"type":"appAssetLibraryImages","id":"img","attributes":{"future":true}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/appAssetLibraryPlacements/placement-1"},"newTopLevel":{"retain":true}}`
+	for _, group := range creativePlacementGroups {
+		for _, output := range []string{"json", "table"} {
+			t.Run(group+" "+output, func(t *testing.T) {
+				setupAuth(t)
+				original := http.DefaultTransport
+				t.Cleanup(func() { http.DefaultTransport = original })
+				http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					if req.Method != "GET" || req.URL.Path != "/v1/appAssetLibraryPlacements/placement-1" {
+						t.Fatalf("unexpected %s %s", req.Method, req.URL)
+					}
+					q := req.URL.Query()
+					if q.Get("include") != "image,appEventLocalization" || q.Get("fields[appAssetLibraryPlacements]") != "state,image" || len(q) != 2 {
+						t.Fatalf("query=%v", q)
+					}
+					return jsonResponse(200, body)
+				})
+				args := append(strings.Fields(group), "view", "--id", "placement-1", "--include", "image,appEventLocalization", "--fields", "state,image", "--output", output)
+				stdout, stderr, err := runCreativePlacements(t, args...)
+				if err != nil || stderr != "" {
+					t.Fatalf("error=%v stderr=%q", err, stderr)
+				}
+				if output == "table" {
+					if !strings.Contains(stdout, "placement-1") || !strings.Contains(stdout, "PRODUCT_PAGE_HEADER_ASSET") {
+						t.Fatalf("missing placement: %s", stdout)
+					}
+					return
+				}
+				var got, want any
+				if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+					t.Fatalf("stdout=%q: %v", stdout, err)
+				}
+				_ = json.Unmarshal([]byte(body), &want)
+				if !reflect.DeepEqual(got, want) {
+					t.Fatalf("changed envelope: %s", stdout)
+				}
+			})
+		}
+	}
+}
+
+// Regression: view prints a collection, an empty body, or an API failure as a successful read.
+func TestCreativePlacementViewRefusesFalseSuccess(t *testing.T) {
+	for name, response := range map[string]struct {
+		status int
+		body   string
+	}{
+		"collection": {200, `{"data":[{"type":"appAssetLibraryPlacements","id":"placement-1"}]}`},
+		"wrong type": {200, `{"data":{"type":"apps","id":"placement-1"}}`},
+		"empty":      {200, `{}`},
+		"not found":  {404, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			setupAuth(t)
+			original := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = original })
+			http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return jsonResponse(response.status, response.body)
+			})
+			stdout, _, err := runCreativePlacements(t, "localizations", "placements", "view", "--id", "placement-1")
+			if err == nil || isUsageClassError(err) || stdout != "" {
+				t.Fatalf("stdout=%q err=%v", stdout, err)
+			}
+		})
+	}
+}
+
+// Regression: bad input reaches auth or the network, or an unsupported value is silently dropped.
+func TestCreativePlacementViewUsage(t *testing.T) {
+	for _, args := range [][]string{
+		{},
+		{"--id", "   "},
+		{"--id", "../apps"},
+		{"--id", "placement-1", "extra"},
+		{"--id", "placement-1", "--include", "app"},
+		{"--id", "placement-1", "--include", "image,"},
+		{"--id", "placement-1", "--fields", "placementGroupPosition"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			full := append([]string{"localizations", "placements", "view"}, args...)
+			_, stderr, err := runCreativePlacements(t, full...)
+			if !isUsageClassError(err) || !strings.Contains(stderr, "localizations placements view: ") {
+				t.Fatalf("expected usage before auth, got %v %q", err, stderr)
+			}
+		})
 	}
 }

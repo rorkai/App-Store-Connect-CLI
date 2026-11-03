@@ -336,7 +336,7 @@ func TestGameCenterChallengeImagesUploadValidationErrors(t *testing.T) {
 		args []string
 	}{
 		{
-			name: "missing localization-id",
+			name: "missing target",
 			args: []string{"game-center", "challenges", "images", "upload", "--file", "test.png"},
 		},
 		{

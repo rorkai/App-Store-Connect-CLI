@@ -214,7 +214,10 @@ func GameCenterDetailsUpdateCommand() *ffcli.Command {
 
 	detailID := shared.BindResourceIDFlag(fs, "id", "gameCenterDetails", "Game Center detail ID")
 	gameCenterGroupID := shared.BindResourceIDFlag(fs, "game-center-group-id", "gameCenterGroups", "Game Center group ID to associate")
-	defaultLeaderboardID := shared.BindResourceIDFlag(fs, "default-leaderboard-id", "gameCenterLeaderboards", "Default leaderboard ID")
+	defaultLeaderboardID := shared.BindResourceIDFlag(fs, "default-leaderboard-id", "gameCenterLeaderboards", "Default leaderboard ID (deprecated by Apple; sets the same default as --default-leaderboard-v2-id)")
+	defaultLeaderboardV2ID := shared.BindResourceIDFlag(fs, "default-leaderboard-v2-id", "gameCenterLeaderboards", "Default V2 leaderboard ID")
+	defaultGroupLeaderboardID := shared.BindResourceIDFlag(fs, "default-group-leaderboard-id", "gameCenterLeaderboards", "Default group leaderboard ID (deprecated by Apple; sets the same default as --default-group-leaderboard-v2-id)")
+	defaultGroupLeaderboardV2ID := shared.BindResourceIDFlag(fs, "default-group-leaderboard-v2-id", "gameCenterLeaderboards", "Default V2 group leaderboard ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -225,7 +228,8 @@ func GameCenterDetailsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc game-center details update --id "DETAIL_ID" --game-center-group-id "GROUP_ID"
-  asc game-center details update --id "DETAIL_ID" --default-leaderboard-id "LEADERBOARD_ID"`,
+  asc game-center details update --id "DETAIL_ID" --default-leaderboard-v2-id "LEADERBOARD_ID"
+  asc game-center details update --id "DETAIL_ID" --default-group-leaderboard-v2-id "LEADERBOARD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -235,14 +239,19 @@ Examples:
 				return shared.MissingRequiredUsageError("--id")
 			}
 
-			var rels *asc.GameCenterDetailUpdateRelationships
+			// Live: Apple accepts both relationships in one PATCH and keeps only the V2 value.
+			if strings.TrimSpace(*defaultLeaderboardID) != "" && strings.TrimSpace(*defaultLeaderboardV2ID) != "" {
+				return shared.UsageError("--default-leaderboard-id and --default-leaderboard-v2-id set the same default; pass one")
+			}
+			if strings.TrimSpace(*defaultGroupLeaderboardID) != "" && strings.TrimSpace(*defaultGroupLeaderboardV2ID) != "" {
+				return shared.UsageError("--default-group-leaderboard-id and --default-group-leaderboard-v2-id set the same default; pass one")
+			}
+
+			rels := &asc.GameCenterDetailUpdateRelationships{}
 			hasUpdate := false
 
 			gcGroupID := strings.TrimSpace(*gameCenterGroupID)
 			if gcGroupID != "" {
-				if rels == nil {
-					rels = &asc.GameCenterDetailUpdateRelationships{}
-				}
 				rels.GameCenterGroup = &asc.Relationship{
 					Data: asc.ResourceData{
 						Type: asc.ResourceTypeGameCenterGroups,
@@ -252,22 +261,30 @@ Examples:
 				hasUpdate = true
 			}
 
-			defaultLBID := strings.TrimSpace(*defaultLeaderboardID)
-			if defaultLBID != "" {
-				if rels == nil {
-					rels = &asc.GameCenterDetailUpdateRelationships{}
+			for _, leaderboard := range []struct {
+				id     string
+				target **asc.Relationship
+			}{
+				{*defaultLeaderboardID, &rels.DefaultLeaderboard},
+				{*defaultLeaderboardV2ID, &rels.DefaultLeaderboardV2},
+				{*defaultGroupLeaderboardID, &rels.DefaultGroupLeaderboard},
+				{*defaultGroupLeaderboardV2ID, &rels.DefaultGroupLeaderboardV2},
+			} {
+				leaderboardID := strings.TrimSpace(leaderboard.id)
+				if leaderboardID == "" {
+					continue
 				}
-				rels.DefaultLeaderboard = &asc.Relationship{
+				*leaderboard.target = &asc.Relationship{
 					Data: asc.ResourceData{
 						Type: asc.ResourceTypeGameCenterLeaderboards,
-						ID:   defaultLBID,
+						ID:   leaderboardID,
 					},
 				}
 				hasUpdate = true
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (--game-center-group-id, --default-leaderboard-id)")
+				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (--game-center-group-id, --default-leaderboard-id, --default-leaderboard-v2-id, --default-group-leaderboard-id, --default-group-leaderboard-v2-id)")
 				return shared.MissingRequiredUsageError("")
 			}
 

@@ -1073,14 +1073,12 @@ func TestAuthSwitchCommand(t *testing.T) {
 		if cfg.DefaultKeyName != "other" {
 			t.Fatalf("DefaultKeyName = %q, want other", cfg.DefaultKeyName)
 		}
-		if cfg.KeyID != "KEY1" {
-			t.Fatalf("KeyID = %q, want KEY1", cfg.KeyID)
+		if cfg.KeyID != "" {
+			t.Fatalf("KeyID = %q, want empty top-level field for keychain default", cfg.KeyID)
 		}
-		if cfg.IssuerID != "ISSUER1" {
-			t.Fatalf("IssuerID = %q, want ISSUER1", cfg.IssuerID)
-		}
-		if cfg.PrivateKeyPath != "/tmp/personal.p8" {
-			t.Fatalf("PrivateKeyPath = %q, want /tmp/personal.p8", cfg.PrivateKeyPath)
+		want := config.Credential{Name: "personal", KeyID: "KEY1", IssuerID: "ISSUER1", PrivateKeyPath: "/tmp/personal.p8"}
+		if len(cfg.Keys) != 1 || cfg.Keys[0] != want {
+			t.Fatalf("Keys = %+v, want legacy credential preserved as %+v", cfg.Keys, want)
 		}
 	})
 }
