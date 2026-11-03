@@ -45,6 +45,33 @@ def normalize_packages(patterns: list[str]) -> set[str]:
     return set(go_list(patterns))
 
 
+def affected_packages(packages: list[str], files: list[str]) -> list[str] | None:
+    """Return the packages whose tests build against the given Go files.
+
+    A non-test file reaches every package that imports its package, tests
+    included; a _test.go file reaches only its own package. Returns None when
+    a file's package is not among packages (deleted or outside the module),
+    so the caller tests everything.
+    """
+    module = run_capture([GO, "list", "-m"])[0]
+    changed, changed_tests = set(), set()
+    for path in files:
+        directory = os.path.dirname(os.path.normpath(path))
+        package = f"{module}/{directory}" if directory else module
+        (changed_tests if path.endswith("_test.go") else changed).add(package)
+    if not (changed | changed_tests) <= set(packages):
+        return None
+    affected = changed | changed_tests
+    # Test variants print as "pkg [pkg.test]"; Deps is transitive and covers
+    # the package's own and external tests.
+    for line in run_capture([GO, "list", "-test", "-e", "-f", '{{.ImportPath}}{{range .Deps}}\t{{.}}{{end}}', *packages]):
+        name, *deps = line.split("\t")
+        if changed.intersection(dep.split(" [")[0] for dep in deps):
+            tested = name.split(" [")[1].rstrip("]") if " [" in name else name
+            affected.add(tested.removesuffix(".test"))
+    return [package for package in packages if package in affected]
+
+
 def select_shard(items: list[str], shard_index: int, shard_total: int) -> list[str]:
     return [item for index, item in enumerate(sorted(items)) if index % shard_total == shard_index]
 
@@ -101,13 +128,20 @@ def run_local(args: argparse.Namespace) -> int:
         return 2
     budget = args.jobs or int(gomaxprocs) or os.cpu_count() or 1
     packages = go_list(args.packages)
+    if args.affected_by:
+        affected = affected_packages(packages, args.affected_by)
+        if affected is not None:
+            print(f"Testing {len(affected)} of {len(packages)} package(s) reached by the changed Go files", flush=True)
+            packages = affected
+        if not packages:
+            return 0
     split = [package for package in dict.fromkeys(go_list(args.split) if args.split else []) if package in packages]
     rest = [package for package in packages if package not in split]
     # Half the budget runs shards of the split packages, one CPU per shard,
     # handed out in --split order; the other half runs the remaining packages.
     shard_slots = budget // 2
     if not split or shard_slots < len(split):
-        split, rest, shard_slots = [], args.packages, 0
+        split, rest, shard_slots = [], packages, 0
 
     failed = []
     with tempfile.TemporaryDirectory(prefix="go-test-local-") as directory:
@@ -189,6 +223,7 @@ def parse_args() -> argparse.Namespace:
     local_parser.add_argument("--packages", nargs="+", default=["./..."])
     local_parser.add_argument("--split", action="append", default=[])
     local_parser.add_argument("--jobs", type=int, default=0)
+    local_parser.add_argument("--affected-by", nargs="+", default=[])
     local_parser.add_argument("go_test_args", nargs=argparse.REMAINDER)
 
     args = parser.parse_args()

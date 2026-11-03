@@ -6,7 +6,7 @@ cd "$repo_root"
 
 export PATH="$(go env GOPATH)/bin:$PATH"
 
-staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+staged_files="$(git diff --cached --name-only --diff-filter=ACMRD)"
 if [ -z "$staged_files" ]; then
   exit 0
 fi
@@ -17,6 +17,8 @@ needs_agent_skills=0
 needs_website_docs=0
 needs_command_docs=0
 needs_wall_of_apps=0
+needs_all_tests=0
+go_files=""
 
 while IFS= read -r path; do
   [ -z "$path" ] && continue
@@ -58,13 +60,15 @@ while IFS= read -r path; do
   esac
 
   case "$path" in
-    *.go|go.mod|go.sum|Makefile)
+    *.go)
       needs_code=1
+      go_files="$go_files $path"
       ;;
     docs.json|.mintignore|.mintlify/*|*.mdx|cicd/*|commands/*|concepts/*|configuration/*|guides/*|resources/*|README.md|CONTRIBUTING.md|SUPPORT.md|docs/*)
       ;;
     *)
       needs_code=1
+      needs_all_tests=1
       ;;
   esac
 done <<EOF
@@ -110,4 +114,9 @@ make lint
 echo "Running short test suite..."
 # The make target strips inherited ASC_* settings and pins ASC_CONFIG_PATH so
 # the suite never reads the developer's stored config.
-make test-short
+if [ "$needs_all_tests" -eq 1 ]; then
+  make test-short
+else
+  # CI runs every package; locally, test only the packages these Go files reach.
+  make test-short TEST_AFFECTED_BY="${go_files# }"
+fi
