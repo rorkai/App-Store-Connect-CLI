@@ -196,7 +196,7 @@ type appBundleEnvelope[T any] struct {
 
 func (e appBundleEnvelope[T]) err() error {
 	if len(e.Messages.Error) > 0 {
-		return fmt.Errorf("app bundle request failed: %s", strings.Join(e.Messages.Error, "; "))
+		return fmt.Errorf("app bundle request failed: %s", htmlToPlainText(strings.Join(e.Messages.Error, "; ")))
 	}
 	if !strings.EqualFold(e.StatusCode, "SUCCESS") {
 		return fmt.Errorf("app bundle request failed with status %q", e.StatusCode)

@@ -24,6 +24,10 @@ var getWebAppBundleFn = func(ctx context.Context, client *webcore.Client, bundle
 	return client.GetAppBundle(ctx, bundleID)
 }
 
+var createWebAppBundleFn = func(ctx context.Context, client *webcore.Client, name, sku string, appIDs []string, priceTier string) (*webcore.AppBundleDetail, error) {
+	return client.CreateAppBundle(ctx, name, sku, appIDs, priceTier)
+}
+
 var listWebAppBundleEligibleAppsFn = func(ctx context.Context, client *webcore.Client) (*webcore.AppBundleEligibleAppsResponse, error) {
 	return client.ListAppBundleEligibleApps(ctx)
 }
@@ -57,6 +61,7 @@ Examples:
   asc web app-bundles list
   asc web app-bundles view --id "BUNDLE_ID" --output table
   asc web app-bundles apps eligible --output table
+  asc web app-bundles create --name "My Bundle" --sku "MY_BUNDLE" --apps "APP_ID_1,APP_ID_2" --confirm
   asc web app-bundles apps set --id "BUNDLE_ID" --apps "APP_ID_1,APP_ID_2" --confirm
   asc web app-bundles submit --id "BUNDLE_ID" --confirm
   asc web app-bundles remove-from-review --id "BUNDLE_ID" --confirm`,
@@ -65,6 +70,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			WebAppBundlesListCommand(),
 			WebAppBundlesViewCommand(),
+			WebAppBundlesCreateCommand(),
 			WebAppBundlesAppsCommand(),
 			webAppBundleReviewCommand("submit", "Submit an app bundle for App Review.", "Submit an app bundle for App Review. Apple must offer this: canSubmit in\nasc web app-bundles view has to be true. Reading the bundle back confirms the\nnew state.", submitWebAppBundleFn),
 			webAppBundleReviewCommand("remove-from-review", "Remove an app bundle from App Review.", "Remove a submitted app bundle from App Review so it can be edited. Apple must\noffer this: canRemoveFromReview in asc web app-bundles view has to be true.\nReading the bundle back confirms the new state.", removeWebAppBundleFromReviewFn),
@@ -164,6 +170,73 @@ Examples:
 				return withWebAuthHint(err, "web app-bundles view")
 			}
 
+			return shared.PrintOutputWithRenderers(
+				result,
+				*output.Output,
+				*output.Pretty,
+				func() error { return renderAppBundleDetail(result, asc.RenderTable) },
+				func() error { return renderAppBundleDetail(result, asc.RenderMarkdown) },
+			)
+		},
+	}
+}
+
+// WebAppBundlesCreateCommand creates an app bundle.
+func WebAppBundlesCreateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web app-bundles create", flag.ExitOnError)
+	name := fs.String("name", "", "Bundle name in the primary locale")
+	sku := fs.String("sku", "", "Bundle SKU, unique in your account")
+	apps := fs.String("apps", "", "Comma-separated app IDs, in the order they should appear")
+	priceTier := fs.String("price-tier", "", "Price tier stem (default: the first tier Apple marks compatible with the apps)")
+	confirm := fs.Bool("confirm", false, "Confirm creating the bundle (required)")
+	authFlags := bindWebSessionFlags(fs)
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "create",
+		ShortUsage: "asc web app-bundles create --name NAME --sku SKU --apps APP_ID,APP_ID --confirm [flags]",
+		ShortHelp:  "Create an app bundle.",
+		LongHelp: `Create an app bundle of approved apps, the way Apple's bundle page does. The
+first app is the primary app. Apple fills the primary locale, metadata, and
+compatible price tiers from the apps. The new bundle is not cleared for sale,
+and Apple offers no way to delete a bundle.
+
+Examples:
+  asc web app-bundles apps eligible --output table
+  asc web app-bundles create --name "My Bundle" --sku "MY_BUNDLE" --apps "APP_ID_1,APP_ID_2" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError("web app-bundles create does not accept positional arguments")
+			}
+			if strings.TrimSpace(*name) == "" {
+				return shared.UsageError("--name is required")
+			}
+			if strings.TrimSpace(*sku) == "" {
+				return shared.UsageError("--sku is required")
+			}
+			appIDs, err := parseAppBundleAppIDs(*apps)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			if !*confirm {
+				return shared.UsageError("--confirm is required")
+			}
+			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
+				return shared.UsageError(err.Error())
+			}
+
+			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			defer cancel()
+			if err != nil {
+				return withWebAuthHint(err, "web app-bundles create")
+			}
+
+			result, err := createWebAppBundleFn(requestCtx, newWebClientFn(session), *name, *sku, appIDs, *priceTier)
+			if err != nil {
+				return withWebAuthHint(fmt.Errorf("web app-bundles create failed: %w", err), "web app-bundles create")
+			}
 			return shared.PrintOutputWithRenderers(
 				result,
 				*output.Output,
