@@ -46,6 +46,13 @@ func BackgroundAssetsVersionsListCommand() *ffcli.Command {
 
 	assetID := shared.BindResourceIDFlag(fs, "background-asset-id", "backgroundAssets", "Background asset ID")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated (e.g., en-US,ja)")
+	platform := fs.String("platform", "", "Filter by platform(s), comma-separated: "+strings.Join(shared.PlatformList(), ", "))
+	state := fs.String("state", "", "Filter by state(s), comma-separated: "+strings.Join(backgroundAssetVersionStates, ", "))
+	version := fs.String("version", "", "Filter by version(s), comma-separated")
+	internalBetaState := fs.String("internal-beta-state", "", "Filter by internal beta release state(s), comma-separated: "+strings.Join(backgroundAssetInternalBetaState, ", "))
+	externalBetaState := fs.String("external-beta-state", "", "Filter by external beta release state(s), comma-separated: "+strings.Join(backgroundAssetExternalBetaState, ", "))
+	appStoreState := fs.String("app-store-state", "", "Filter by App Store release state(s), comma-separated: "+strings.Join(backgroundAssetAppStoreState, ", "))
+	sortBy := fs.String("sort", "", "Sort by: "+strings.Join(backgroundAssetVersionSortValues, ", "))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -60,6 +67,8 @@ func BackgroundAssetsVersionsListCommand() *ffcli.Command {
 Examples:
   asc background-assets versions list --background-asset-id "ASSET_ID"
   asc background-assets versions list --background-asset-id "ASSET_ID" --locale "en-US"
+  asc background-assets versions list --background-asset-id "ASSET_ID" --platform "IOS" --state "COMPLETE" --sort "-version"
+  asc background-assets versions list --background-asset-id "ASSET_ID" --app-store-state "READY_FOR_REVIEW,IN_REVIEW"
   asc background-assets versions list --background-asset-id "ASSET_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -75,8 +84,35 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("background-assets versions list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "background-assets versions list", "locale"); err != nil {
+			if err := shared.RejectNextFlagConflicts(fs, *next, "background-assets versions list", "locale", "platform", "state", "version", "internal-beta-state", "external-beta-state", "app-store-state", "sort"); err != nil {
 				return err
+			}
+			platforms, err := parseBackgroundAssetEnumCSV("--platform", *platform, shared.PlatformList())
+			if err != nil {
+				return shared.UsageErrorf("background-assets versions list: %v", err)
+			}
+			states, err := parseBackgroundAssetEnumCSV("--state", *state, backgroundAssetVersionStates)
+			if err != nil {
+				return shared.UsageErrorf("background-assets versions list: %v", err)
+			}
+			versions := shared.SplitCSV(*version)
+			if strings.TrimSpace(*version) != "" && len(versions) == 0 {
+				return shared.UsageErrorf("background-assets versions list: --version must include at least one value")
+			}
+			internalBetaStates, err := parseBackgroundAssetEnumCSV("--internal-beta-state", *internalBetaState, backgroundAssetInternalBetaState)
+			if err != nil {
+				return shared.UsageErrorf("background-assets versions list: %v", err)
+			}
+			externalBetaStates, err := parseBackgroundAssetEnumCSV("--external-beta-state", *externalBetaState, backgroundAssetExternalBetaState)
+			if err != nil {
+				return shared.UsageErrorf("background-assets versions list: %v", err)
+			}
+			appStoreStates, err := parseBackgroundAssetEnumCSV("--app-store-state", *appStoreState, backgroundAssetAppStoreState)
+			if err != nil {
+				return shared.UsageErrorf("background-assets versions list: %v", err)
+			}
+			if err := shared.ValidateSort(*sortBy, backgroundAssetVersionSortValues...); err != nil {
+				return shared.UsageErrorf("background-assets versions list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()
@@ -90,6 +126,13 @@ Examples:
 			opts := []asc.BackgroundAssetVersionsOption{
 				asc.WithBackgroundAssetVersionsLimit(*limit),
 				asc.WithBackgroundAssetVersionsNextURL(*next),
+				asc.WithBackgroundAssetVersionsFilterPlatforms(platforms),
+				asc.WithBackgroundAssetVersionsFilterState(states),
+				asc.WithBackgroundAssetVersionsFilterVersion(versions),
+				asc.WithBackgroundAssetVersionsFilterInternalBetaState(internalBetaStates),
+				asc.WithBackgroundAssetVersionsFilterExternalBetaState(externalBetaStates),
+				asc.WithBackgroundAssetVersionsFilterAppStoreState(appStoreStates),
+				asc.WithBackgroundAssetVersionsSort(*sortBy),
 			}
 			if locales := shared.SplitCSV(*locale); len(locales) > 0 {
 				opts = append(opts, asc.WithBackgroundAssetVersionsFilterLocale(locales))

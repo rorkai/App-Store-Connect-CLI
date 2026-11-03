@@ -67,7 +67,7 @@ func LocalizationsListCommand() *ffcli.Command {
 	platform := fs.String("platform", "", "Platform used to pick the version when --version is omitted or is a version string with --app: IOS, MAC_OS, TV_OS, or VISION_OS")
 	locType := fs.String("type", shared.LocalizationTypeVersion, "Localization type: version (default) or app-info")
 	appInfoFields := fs.String("app-info-fields", "", "Sparse app info fields for app-info localizations: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer age-rating data)")
-	include := shared.BindOnceCSVFlag(fs, "include", "Include related resources for version localizations, comma-separated: "+strings.Join(versionLocalizationIncludeList(), ", "))
+	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources for version localizations", versionLocalizationIncludeList())
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -103,6 +103,7 @@ Examples:
   asc localizations list --app "APP_ID" --type app-info --app-info-fields state,primaryCategory
   asc localizations list --version "VERSION_ID" --locale "en-US,ja"
   asc localizations list --version "VERSION_ID" --include "appScreenshotSets,appPreviewSets"
+  asc localizations list --version "VERSION_ID" --include placements --placements-limit 50
   asc localizations list --version "VERSION_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -113,7 +114,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("localizations list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "localizations list", "locale"); err != nil {
+			if err := shared.RejectNextFlagConflicts(fs, *next, "localizations list", "locale", "placements-limit"); err != nil {
 				return err
 			}
 
@@ -168,12 +169,9 @@ Examples:
 			if includeProvided && normalizedType != shared.LocalizationTypeVersion {
 				return shared.UsageError("--include requires --type version")
 			}
-			includeValues, err := shared.NormalizeSelection(include.String(), versionLocalizationIncludeList(), "--include")
+			includeValues, placementsLimit, err := include.Resolve()
 			if err != nil {
-				return shared.UsageError(err.Error())
-			}
-			if includeProvided && len(includeValues) == 0 {
-				return shared.UsageError("--include must not be empty")
+				return err
 			}
 			appInfoFieldValues, err := shared.NormalizeSelection(*appInfoFields, shared.AppInfoSparseFields, "--app-info-fields")
 			if err != nil {
@@ -241,7 +239,10 @@ Examples:
 					opts = append(opts, asc.WithAppStoreVersionLocalizationLocales(locales))
 				}
 				if len(includeValues) > 0 {
-					opts = append(opts, asc.WithAppStoreVersionLocalizationsInclude(includeValues))
+					opts = append(opts,
+						asc.WithAppStoreVersionLocalizationsInclude(includeValues),
+						asc.WithAppStoreVersionLocalizationsPlacementsLimit(placementsLimit),
+					)
 				}
 
 				if *paginate {
@@ -383,7 +384,7 @@ func resolveLocalizationsVersionString(ctx context.Context, client *asc.Client, 
 // versionLocalizationIncludeList reports the relationships the App Store
 // version localizations endpoint accepts for include.
 func versionLocalizationIncludeList() []string {
-	return []string{"appStoreVersion", "appScreenshotSets", "appPreviewSets", "searchKeywords"}
+	return []string{"appStoreVersion", "appScreenshotSets", "appPreviewSets", "searchKeywords", "placements"}
 }
 
 // LocalizationsDownloadCommand returns the download localizations subcommand.

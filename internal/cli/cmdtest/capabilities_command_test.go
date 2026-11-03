@@ -73,6 +73,7 @@ func TestRun_CapabilitiesJSONReportsKnownGaps(t *testing.T) {
 	}
 	for _, command := range []string{
 		"asc localizations placements list",
+		"asc localizations placements view",
 		"asc localizations placements reorder",
 		"asc localizations placements swap --confirm",
 		"asc product-pages custom-pages localizations placements",
@@ -101,6 +102,7 @@ func TestRun_CapabilitiesJSONReportsKnownGaps(t *testing.T) {
 	assertCapability(t, resp, "App Store Mac and Vision Pro compatibility opt-ins", "web-session", "asc web apps compatibility")
 	assertCapability(t, resp, "Regulated medical device declaration", "web-session", "asc web apps medical-device")
 	assertCapability(t, resp, "Removed apps inspection", "web-session", "asc web removed-apps")
+	assertCapability(t, resp, "App bundle management", "web-session", "asc web app-bundles")
 	assertCapability(t, resp, "Apple Developer Program agreements", "web-session", "asc web agreements")
 	assertCapability(t, resp, "App Store Connect API key web-session management", "web-session", "asc web api-keys")
 	assertCapability(t, resp, "Exact API key role lookup", "web-session", "asc web auth capabilities")

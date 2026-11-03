@@ -66,6 +66,11 @@ func TestGameCenterLeaderboardSetsV2CreateValidationErrors(t *testing.T) {
 			args:    []string{"game-center", "leaderboard-sets", "v2", "create", "--app", "APP_ID", "--reference-name", "Season"},
 			wantErr: "Error: --vendor-id is required",
 		},
+		{
+			name:    "empty leaderboard-ids",
+			args:    []string{"game-center", "leaderboard-sets", "v2", "create", "--app", "APP_ID", "--reference-name", "Season", "--vendor-id", "com.example.season", "--leaderboard-ids", " , "},
+			wantErr: "Error: --leaderboard-ids must include at least one ID",
+		},
 	}
 
 	for _, test := range tests {

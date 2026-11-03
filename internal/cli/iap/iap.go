@@ -390,6 +390,7 @@ func IAPCreateCommand() *ffcli.Command {
 	refName := fs.String("ref-name", "", "Reference name")
 	productID := fs.String("product-id", "", "Product ID (e.g., com.example.product)")
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
+	reviewNote := fs.String("review-note", "", "Review note for App Review")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -400,7 +401,8 @@ func IAPCreateCommand() *ffcli.Command {
 
 Examples:
   asc iap create --app "APP_ID" --type CONSUMABLE --ref-name "Pro" --product-id "com.example.pro"
-  asc iap create --app "APP_ID" --type NON_CONSUMABLE --ref-name "Lifetime" --product-id "com.example.lifetime" --family-sharable`,
+  asc iap create --app "APP_ID" --type NON_CONSUMABLE --ref-name "Lifetime" --product-id "com.example.lifetime" --family-sharable
+  asc iap create --app "APP_ID" --type CONSUMABLE --ref-name "Pro" --product-id "com.example.pro" --review-note "Purchase from Settings > Upgrade"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -428,6 +430,12 @@ Examples:
 				return shared.MissingRequiredUsageError("--product-id")
 			}
 
+			note := strings.TrimSpace(*reviewNote)
+			if flagSet(fs, "review-note") && note == "" {
+				fmt.Fprintln(os.Stderr, "Error: --review-note cannot be empty")
+				return flag.ErrHelp
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap create: %w", err)
@@ -440,6 +448,7 @@ Examples:
 				Name:              name,
 				ProductID:         product,
 				InAppPurchaseType: normalizedType,
+				ReviewNote:        note,
 			}
 			if *familySharable {
 				attrs.FamilySharable = true
@@ -462,6 +471,7 @@ func IAPUpdateCommand() *ffcli.Command {
 	iapID := shared.BindResourceIDFlag(fs, "id", "inAppPurchases", "In-app purchase ID")
 	refName := fs.String("ref-name", "", "Reference name")
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
+	reviewNote := fs.String("review-note", "", "Review note for App Review")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -472,7 +482,8 @@ func IAPUpdateCommand() *ffcli.Command {
 
 Examples:
   asc iap update --id "IAP_ID" --ref-name "New Name"
-  asc iap update --id "IAP_ID" --family-sharable`,
+  asc iap update --id "IAP_ID" --family-sharable
+  asc iap update --id "IAP_ID" --review-note "Purchase from Settings > Upgrade"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -483,7 +494,12 @@ Examples:
 			}
 
 			name := strings.TrimSpace(*refName)
-			if name == "" && !*familySharable {
+			note := strings.TrimSpace(*reviewNote)
+			if flagSet(fs, "review-note") && note == "" {
+				fmt.Fprintln(os.Stderr, "Error: --review-note cannot be empty")
+				return flag.ErrHelp
+			}
+			if name == "" && note == "" && !*familySharable {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError("")
 			}
@@ -499,6 +515,9 @@ Examples:
 			attrs := asc.InAppPurchaseV2UpdateAttributes{}
 			if name != "" {
 				attrs.Name = &name
+			}
+			if note != "" {
+				attrs.ReviewNote = &note
 			}
 			if *familySharable {
 				val := true

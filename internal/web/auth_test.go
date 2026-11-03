@@ -1595,7 +1595,7 @@ func TestIsStaleSessionAfterTwoFactorIgnoresUnrelatedFailures(t *testing.T) {
 	}{
 		{name: "nil", err: nil, want: false},
 		{name: "unauthorized", err: &TwoFactorFinalizationError{Status: http.StatusUnauthorized}, want: true},
-		{name: "forbidden", err: &TwoFactorFinalizationError{Status: http.StatusForbidden}, want: true},
+		{name: "forbidden", err: &TwoFactorFinalizationError{Status: http.StatusForbidden}, want: false},
 		{name: "server error", err: &TwoFactorFinalizationError{Status: http.StatusInternalServerError}, want: false},
 		{name: "wrapped", err: fmt.Errorf("wrapped: %w", &TwoFactorFinalizationError{Status: http.StatusUnauthorized}), want: true},
 		{name: "rejected code", err: &twoFAVerificationFailedError{Kind: "trusted-device", Status: http.StatusBadRequest}, want: false},

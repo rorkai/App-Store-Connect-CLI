@@ -344,7 +344,7 @@ func TestWebAppsAvailabilityCreatePreservesPreflightPermissionFailure(t *testing
 	if err == nil {
 		t.Fatal("expected permission failure")
 	}
-	if !strings.Contains(err.Error(), "web session is unauthorized or expired") {
+	if !strings.Contains(err.Error(), "Apple denied the request (403)") {
 		t.Fatalf("expected actionable auth diagnostic, got %v", err)
 	}
 	if !errors.Is(err, permissionErr) {

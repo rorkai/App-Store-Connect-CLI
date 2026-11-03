@@ -238,6 +238,7 @@ func AppsUpdateCommand() *ffcli.Command {
 	bundleID := fs.String("bundle-id", "", "Update bundle ID")
 	primaryLocale := fs.String("primary-locale", "", "Update primary locale (e.g., en-US)")
 	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
+	accessibilityURL := fs.String("accessibility-url", "", "Accessibility URL for the app")
 	subscriptionStatusURL := fs.String("subscription-status-url", "", "Production App Store Server Notifications HTTPS URL (sets version V2)")
 	sandboxSubscriptionStatusURL := fs.String("sandbox-subscription-status-url", "", "Sandbox App Store Server Notifications HTTPS URL (sets version V2)")
 	var streamlinedPurchasing shared.OptionalBool
@@ -246,7 +247,7 @@ func AppsUpdateCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "update",
-		ShortUsage: "asc apps update --id APP_ID [--bundle-id BUNDLE_ID] [--primary-locale LOCALE] [--content-rights DECLARATION] [--subscription-status-url URL] [--sandbox-subscription-status-url URL] [--streamlined-purchasing-enabled true|false]",
+		ShortUsage: "asc apps update --id APP_ID [--bundle-id BUNDLE_ID] [--primary-locale LOCALE] [--content-rights DECLARATION] [--accessibility-url URL] [--subscription-status-url URL] [--sandbox-subscription-status-url URL] [--streamlined-purchasing-enabled true|false]",
 		ShortHelp:  "Update app metadata and App Store Server Notifications URLs.",
 		LongHelp: `Update app metadata and App Store Server Notifications URLs.
 
@@ -257,6 +258,7 @@ Examples:
   asc apps update --id "APP_ID" --bundle-id "com.example.app"
   asc apps update --id "APP_ID" --primary-locale "en-US"
   asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"
+  asc apps update --id "APP_ID" --accessibility-url "https://example.com/accessibility"
   asc apps update --id "APP_ID" --subscription-status-url "https://example.com/notifications"
   asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"
   asc apps update --id "APP_ID" --streamlined-purchasing-enabled false`,
@@ -287,6 +289,13 @@ Examples:
 					return flag.ErrHelp
 				}
 			}
+			if _, provided := appFlagWasProvided(fs, "accessibility-url"); provided {
+				value, err := validateAccessibilityURL(*accessibilityURL)
+				if err != nil {
+					return shared.UsageErrorf("--accessibility-url: %v", err)
+				}
+				attrs.AccessibilityURL = &value
+			}
 			if _, provided := appFlagWasProvided(fs, "subscription-status-url"); provided {
 				value, err := validateNotificationURL(*subscriptionStatusURL)
 				if err != nil {
@@ -310,7 +319,7 @@ Examples:
 				attrs.StreamlinedPurchasingEnabled = &value
 			}
 			if attrs == (asc.AppUpdateAttributes{}) {
-				fmt.Fprintln(os.Stderr, "Error: at least one update field is required (--bundle-id, --primary-locale, --content-rights, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled)")
+				fmt.Fprintln(os.Stderr, "Error: at least one update field is required (--bundle-id, --primary-locale, --content-rights, --accessibility-url, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled)")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -475,8 +484,17 @@ func validateNotificationURL(value string) (string, error) {
 	return value, nil
 }
 
+func validateAccessibilityURL(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	parsed, err := url.Parse(value)
+	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Hostname() == "" || parsed.User != nil {
+		return "", fmt.Errorf("must be an absolute HTTP or HTTPS URL without credentials")
+	}
+	return value, nil
+}
+
 // These attributes are supported by GET /v1/apps/{id} and decoded by AppAttributes.
 var appAttributeFields = []string{
-	"name", "bundleId", "sku", "primaryLocale", "contentRightsDeclaration",
+	"name", "bundleId", "sku", "primaryLocale", "contentRightsDeclaration", "accessibilityUrl",
 	"subscriptionStatusUrl", "subscriptionStatusUrlVersion", "subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox",
 }

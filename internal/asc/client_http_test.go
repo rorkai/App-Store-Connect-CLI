@@ -2905,7 +2905,7 @@ func TestCreateBetaGroup_SendsRequest(t *testing.T) {
 
 	if _, err := client.CreateBetaGroupWithAttributes(context.Background(), "app-1", BetaGroupCreateAttributes{
 		Name: "Beta",
-	}); err != nil {
+	}, nil, nil); err != nil {
 		t.Fatalf("CreateBetaGroup() error: %v", err)
 	}
 }
@@ -3220,7 +3220,7 @@ func TestCreateBetaTester_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.CreateBetaTester(context.Background(), "tester@example.com", "Test", "User", []string{"group-1", "group-2"}); err != nil {
+	if _, err := client.CreateBetaTester(context.Background(), "tester@example.com", "Test", "User", []string{"group-1", "group-2"}, nil); err != nil {
 		t.Fatalf("CreateBetaTester() error: %v", err)
 	}
 }
@@ -10543,7 +10543,7 @@ func TestDeleteBetaRecruitmentCriteria_SendsRequest(t *testing.T) {
 }
 
 func TestGetBetaGroupPublicLinkUsages(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaGroupMetrics","id":"metric-1","attributes":{"installCount":5}}]}`)
+	response := jsonResponse(http.StatusOK, `{"data":[{"dataPoints":[{"start":"2026-08-01T00:00:00Z","end":"2026-08-02T00:00:00Z","values":{"viewCount":120,"acceptedCount":45,"notRelevantRatio":0.25}}]}],"links":{"self":"https://api.example.test/metrics"}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
@@ -10554,8 +10554,30 @@ func TestGetBetaGroupPublicLinkUsages(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetBetaGroupPublicLinkUsages(context.Background(), "group-1"); err != nil {
+	metrics, err := client.GetBetaGroupPublicLinkUsages(context.Background(), "group-1")
+	if err != nil {
 		t.Fatalf("GetBetaGroupPublicLinkUsages() error: %v", err)
+	}
+	if len(metrics.Data) != 1 || len(metrics.Data[0].DataPoints) != 1 {
+		t.Fatalf("unexpected decoded metrics: %+v", metrics)
+	}
+	values := metrics.Data[0].DataPoints[0].Values
+	if values.ViewCount == nil || *values.ViewCount != 120 || values.AcceptedCount == nil || *values.AcceptedCount != 45 || values.NotRelevantRatio == nil || *values.NotRelevantRatio != 0.25 {
+		t.Fatalf("unexpected decoded values: %+v", values)
+	}
+}
+
+func TestBetaGroupPublicLinkUsagesKeepsUnknownValuesInJSON(t *testing.T) {
+	var response BetaGroupPublicLinkUsagesResponse
+	if err := json.Unmarshal([]byte(`{"data":[{"dataPoints":[{"values":{"futureCount":7}}]}],"links":{}}`), &response); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	encoded, err := json.Marshal(&response)
+	if err != nil {
+		t.Fatalf("marshal response: %v", err)
+	}
+	if !strings.Contains(string(encoded), `"futureCount":7`) {
+		t.Fatalf("expected unknown value to survive, got %s", encoded)
 	}
 }
 

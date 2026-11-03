@@ -52,6 +52,7 @@ func AppEventLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations list", flag.ExitOnError)
 
 	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
+	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", appEventLocalizationIncludeList())
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -65,6 +66,7 @@ func AppEventLocalizationsListCommand() *ffcli.Command {
 
 Examples:
   asc app-events localizations list --event-id "EVENT_ID"
+  asc app-events localizations list --event-id "EVENT_ID" --include placements --placements-limit 50
   asc app-events localizations list --event-id "EVENT_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -80,6 +82,13 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("app-events localizations list: %v", err)
 			}
+			if err := shared.RejectNextFlagConflicts(fs, *next, "app-events localizations list", "include", "placements-limit"); err != nil {
+				return err
+			}
+			includeValues, placementsLimit, err := include.Resolve()
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -92,6 +101,8 @@ Examples:
 			opts := []asc.AppEventLocalizationsOption{
 				asc.WithAppEventLocalizationsLimit(*limit),
 				asc.WithAppEventLocalizationsNextURL(*next),
+				asc.WithAppEventLocalizationsInclude(includeValues),
+				asc.WithAppEventLocalizationsPlacementsLimit(placementsLimit),
 			}
 
 			if *paginate {
@@ -126,6 +137,7 @@ func AppEventLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations view", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
+	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", appEventLocalizationIncludeList())
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -135,7 +147,8 @@ func AppEventLocalizationsGetCommand() *ffcli.Command {
 		LongHelp: `View an in-app event localization by ID.
 
 Examples:
-  asc app-events localizations view --localization-id "LOC_ID"`,
+  asc app-events localizations view --localization-id "LOC_ID"
+  asc app-events localizations view --localization-id "LOC_ID" --include placements --placements-limit 50`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -143,6 +156,10 @@ Examples:
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
 				return shared.MissingRequiredUsageError("--localization-id")
+			}
+			includeValues, placementsLimit, err := include.Resolve()
+			if err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -153,7 +170,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetAppEventLocalization(requestCtx, id)
+			resp, err := client.GetAppEventLocalization(requestCtx, id, asc.WithLocalizationReadInclude(includeValues), asc.WithLocalizationReadPlacementsLimit(placementsLimit))
 			if err != nil {
 				return fmt.Errorf("app-events localizations view: failed to fetch: %w", err)
 			}

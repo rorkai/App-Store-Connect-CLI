@@ -2,9 +2,11 @@ package cmdtest
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 // TestGameCenterInputValidationReturnsUsageExitCode locks the usage-error
@@ -269,6 +271,26 @@ func TestGameCenterInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
+			name:    "activities images upload without a target",
+			args:    []string{"game-center", "activities", "images", "upload", "--file", "test.png"},
+			wantErr: "exactly one of --localization-id or --version-id is required",
+		},
+		{
+			name:    "activities images upload with both targets",
+			args:    []string{"game-center", "activities", "images", "upload", "--localization-id", "LOC_ID", "--version-id", "VERSION_ID", "--file", "test.png"},
+			wantErr: "exactly one of --localization-id or --version-id is required",
+		},
+		{
+			name:    "challenges images upload without a target",
+			args:    []string{"game-center", "challenges", "images", "upload", "--file", "test.png"},
+			wantErr: "exactly one of --localization-id or --version-id is required",
+		},
+		{
+			name:    "challenges images upload with both targets",
+			args:    []string{"game-center", "challenges", "images", "upload", "--localization-id", "LOC_ID", "--version-id", "VERSION_ID", "--file", "test.png"},
+			wantErr: "exactly one of --localization-id or --version-id is required",
+		},
+		{
 			name:    "matchmaking queues view without id",
 			args:    []string{"game-center", "matchmaking", "queues", "view"},
 			wantErr: "--id is required",
@@ -277,6 +299,36 @@ func TestGameCenterInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "matchmaking rule-sets view without id",
 			args:    []string{"game-center", "matchmaking", "rule-sets", "view"},
 			wantErr: "--id is required",
+		},
+		{
+			name:    "leaderboards update invalid formatter",
+			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--formatter", "MONEY_WHOLE"},
+			wantErr: "--formatter must be one of: " + strings.Join(asc.ValidLeaderboardFormatters, ", "),
+		},
+		{
+			name:    "leaderboards update invalid sort",
+			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--sort", "SIDEWAYS"},
+			wantErr: "--sort must be one of: ASC, DESC",
+		},
+		{
+			name:    "leaderboards update empty sort is not ignored",
+			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--reference-name", "Name", "--sort", ""},
+			wantErr: "--sort must be one of: ASC, DESC",
+		},
+		{
+			name:    "leaderboards update invalid submission type",
+			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--submission-type", "WORST_SCORE"},
+			wantErr: "--submission-type must be one of: BEST_SCORE, MOST_RECENT_SCORE",
+		},
+		{
+			name:    "leaderboards update empty score range start is not ignored",
+			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--reference-name", "Name", "--score-range-start", " "},
+			wantErr: "--score-range-start must not be empty",
+		},
+		{
+			name:    "leaderboards update empty score range end is not ignored",
+			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--reference-name", "Name", "--score-range-end", ""},
+			wantErr: "--score-range-end must not be empty",
 		},
 	}
 

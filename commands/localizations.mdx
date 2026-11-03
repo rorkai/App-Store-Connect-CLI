@@ -56,6 +56,17 @@ List localization metadata for an app or version.
   with `--next`.
 </ParamField>
 
+<ParamField path="--include" type="string">
+  Related resources for version localizations, comma-separated:
+  `appStoreVersion`, `appScreenshotSets`, `appPreviewSets`, `searchKeywords`,
+  `placements`. Requires `--type version` and cannot be combined with `--next`.
+</ParamField>
+
+<ParamField path="--placements-limit" type="integer">
+  Maximum included placements (1-50). Requires `--include placements` and
+  cannot be combined with `--next`.
+</ParamField>
+
 <ParamField path="--locale" type="string">
   Filter by locale(s), comma-separated (e.g., en-US,ja)
 </ParamField>
@@ -85,6 +96,7 @@ asc localizations list --app "APP_ID"
 asc localizations list --app "APP_ID" --platform IOS
 asc localizations list --app "APP_ID" --type app-info --app-info-fields state,primaryCategory
 asc localizations list --version "VERSION_ID" --locale "en-US,ja"
+asc localizations list --version "VERSION_ID" --include placements --placements-limit 50
 asc localizations list --version "VERSION_ID" --paginate
 ```
 
@@ -135,11 +147,22 @@ Store Connect's response envelope, unmodified, so `null` attributes are kept.
   `privacyPolicyUrl`, `privacyChoicesUrl`, `privacyPolicyText`, `appInfo`.
 </ParamField>
 
+<ParamField path="--include" type="string">
+  Related resources for version localizations, comma-separated:
+  `appStoreVersion`, `appScreenshotSets`, `appPreviewSets`, `searchKeywords`,
+  `placements`. Requires `--type version`.
+</ParamField>
+
+<ParamField path="--placements-limit" type="integer">
+  Maximum included placements (1-50). Requires `--include placements`.
+</ParamField>
+
 **Examples:**
 
 ```bash  theme={null}
 asc localizations view --id "LOCALIZATION_ID"
 asc localizations view --id "LOCALIZATION_ID" --fields "description,whatsNew"
+asc localizations view --id "LOCALIZATION_ID" --include placements --placements-limit 50
 asc localizations view --type app-info --id "LOCALIZATION_ID" --fields "name,subtitle"
 ```
 
