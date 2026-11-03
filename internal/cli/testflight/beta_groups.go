@@ -981,7 +981,10 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 		LongHelp: `Create a TestFlight beta group.
 
 --build-id and --tester attach existing builds and beta testers in the create
-request itself.
+request itself. App Store Connect can create the group even when that request
+fails, for example on an unknown build ID. The error then names the group it
+found and the commands to attach the builds and testers or delete it, so a
+retry does not make a duplicate group.
 
 Examples:
   asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"
@@ -1050,12 +1053,54 @@ Examples:
 
 			group, err := client.CreateBetaGroupWithAttributes(requestCtx, resolvedAppID, attrs, buildIDs, testerIDs)
 			if err != nil {
-				return fmt.Errorf("beta-groups create: failed to create: %w", err)
+				err = fmt.Errorf("beta-groups create: failed to create: %w", err)
+				if len(buildIDs) > 0 || len(testerIDs) > 0 {
+					return explainPartialBetaGroupCreate(ctx, client, resolvedAppID, attrs.Name, buildIDs, testerIDs, err)
+				}
+				return err
 			}
 
 			return shared.PrintOutput(group, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// explainPartialBetaGroupCreate adds what a failed create left behind. Live App
+// Store Connect returned 404 for a missing build ID yet still created the
+// group, so a blind retry would make a duplicate.
+func explainPartialBetaGroupCreate(ctx context.Context, client *asc.Client, appID, name string, buildIDs, testerIDs []string, createErr error) error {
+	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+	defer cancel()
+
+	groups, err := client.ListBetaGroups(lookupCtx, asc.WithBetaGroupsApps([]string{appID}), asc.WithBetaGroupsName(name))
+	if err != nil {
+		return fmt.Errorf("%w\nApp Store Connect may have created the group anyway. Check with `asc testflight groups list --app %q --name %q` before retrying", createErr, appID, name)
+	}
+	if len(groups.Data) == 0 {
+		return createErr
+	}
+
+	ids := make([]string, len(groups.Data))
+	for i, group := range groups.Data {
+		ids[i] = group.ID
+	}
+	groupID := "GROUP_ID"
+	var b strings.Builder
+	if len(ids) == 1 {
+		groupID = ids[0]
+		fmt.Fprintf(&b, "App Store Connect created group %q despite the failure, without its builds or testers.", groupID)
+	} else {
+		fmt.Fprintf(&b, "App Store Connect may have created one of the groups named %q despite the failure: %s.", name, strings.Join(ids, ", "))
+	}
+	b.WriteString(" Attach them after fixing the IDs, or delete the group before retrying:")
+	for _, buildID := range buildIDs {
+		fmt.Fprintf(&b, "\n  asc builds add-groups --build-id %q --group %q", buildID, groupID)
+	}
+	if len(testerIDs) > 0 {
+		fmt.Fprintf(&b, "\n  asc testflight groups add-testers --group %q --tester %q", groupID, strings.Join(testerIDs, ","))
+	}
+	fmt.Fprintf(&b, "\n  asc testflight groups delete --id %q --confirm", groupID)
+	return fmt.Errorf("%w\n%s", createErr, b.String())
 }
 
 func optionalBetaGroupCreateBool(value shared.OptionalBool) *bool {

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -444,6 +445,105 @@ func TestBetaGroupsCreateSendsRelationshipsInOneRequest(t *testing.T) {
 			}
 			if callCount != 1 {
 				t.Fatalf("expected one request, got %d", callCount)
+			}
+		})
+	}
+}
+
+// Live App Store Connect created the group even though the create request
+// failed with 404 for a missing build, so the error must name that group.
+func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	const notFound = `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'builds' with id 'missing-build'"}]}`
+	tests := []struct {
+		name       string
+		listStatus int
+		listBody   string
+		want       []string
+	}{
+		{
+			name:       "lookup finds the group",
+			listStatus: http.StatusOK,
+			listBody:   `{"data":[{"type":"betaGroups","id":"bg-partial","attributes":{"name":"Beta"}}],"links":{}}`,
+			want: []string{
+				"There is no resource of type 'builds' with id 'missing-build'",
+				`App Store Connect created group "bg-partial" despite the failure`,
+				`asc builds add-groups --build-id "missing-build" --group "bg-partial"`,
+				`asc testflight groups add-testers --group "bg-partial" --tester "tester-1"`,
+				`asc testflight groups delete --id "bg-partial" --confirm`,
+			},
+		},
+		{
+			name:       "lookup fails",
+			listStatus: http.StatusInternalServerError,
+			listBody:   `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"boom","detail":"boom"}]}`,
+			want: []string{
+				"There is no resource of type 'builds' with id 'missing-build'",
+				"App Store Connect may have created the group anyway",
+				`asc testflight groups list --app "app-1" --name "Beta"`,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			callCount := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				callCount++
+				switch callCount {
+				case 1:
+					if req.Method != http.MethodPost || req.URL.Path != "/v1/betaGroups" {
+						t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+					}
+					return &http.Response{
+						StatusCode: http.StatusNotFound,
+						Body:       io.NopCloser(strings.NewReader(notFound)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				case 2:
+					if req.Method != http.MethodGet || req.URL.Path != "/v1/betaGroups" {
+						t.Fatalf("unexpected lookup %s %s", req.Method, req.URL.Path)
+					}
+					query := req.URL.Query()
+					if query.Get("filter[app]") != "app-1" || query.Get("filter[name]") != "Beta" {
+						t.Fatalf("unexpected lookup query %s", req.URL.RawQuery)
+					}
+					return &http.Response{
+						StatusCode: test.listStatus,
+						Body:       io.NopCloser(strings.NewReader(test.listBody)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				default:
+					t.Fatalf("unexpected request count %d: %s %s", callCount, req.Method, req.URL)
+					return nil, nil
+				}
+			})
+
+			_, _, err := runCommand(t, []string{
+				"testflight", "groups", "create", "--app", "app-1", "--name", "Beta",
+				"--build-id", "missing-build", "--tester", "tester-1",
+			})
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !errors.Is(err, asc.ErrNotFound) {
+				t.Fatalf("expected the create's not-found error to be kept, got %v", err)
+			}
+			for _, want := range test.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error missing %q:\n%s", want, err)
+				}
+			}
+			if callCount != 2 {
+				t.Fatalf("expected create plus one lookup, got %d requests", callCount)
 			}
 		})
 	}

@@ -51,6 +51,11 @@ TestFlight allows you to distribute pre-release builds to internal and external 
       --build-id "BUILD_ID1,BUILD_ID2" \
       --tester "TESTER_ID1,TESTER_ID2"
     ```
+
+    App Store Connect can create the group even when this request fails, for
+    example on an unknown build ID. The error then names the group and the
+    commands to attach the builds and testers or delete it. Don't rerun the
+    create command, or you get a second group with the same name.
   </Step>
 
   <Step title="Configure group settings">
