@@ -471,6 +471,11 @@ func GameCenterLeaderboardsUpdateCommand() *ffcli.Command {
 	leaderboardID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboards", "Game Center leaderboard ID")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard")
 	archived := fs.String("archived", "", "Archive the leaderboard (true/false)")
+	formatter := fs.String("formatter", "", "Score formatter: "+strings.Join(asc.ValidLeaderboardFormatters, ", "))
+	sortType := fs.String("sort", "", "Score sort type: ASC, DESC")
+	submissionType := fs.String("submission-type", "", "Submission type: BEST_SCORE, MOST_RECENT_SCORE")
+	scoreRangeStart := fs.String("score-range-start", "", "Score range start")
+	scoreRangeEnd := fs.String("score-range-end", "", "Score range end")
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
 
@@ -483,7 +488,9 @@ func GameCenterLeaderboardsUpdateCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards update --id "LEADERBOARD_ID" --reference-name "New Name"
   asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true
-  asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true --v2`,
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --archived true --v2
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --formatter ELAPSED_TIME_SECOND --sort ASC --submission-type MOST_RECENT_SCORE
+  asc game-center leaderboards update --id "LEADERBOARD_ID" --score-range-start 0 --score-range-end 5000 --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -509,6 +516,54 @@ Examples:
 					return flag.ErrHelp
 				}
 				attrs.Archived = &val
+				hasUpdate = true
+			}
+
+			provided := map[string]bool{}
+			fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
+
+			if provided["formatter"] {
+				val := strings.TrimSpace(strings.ToUpper(*formatter))
+				if !isValidLeaderboardFormatter(val) {
+					return shared.UsageErrorf("--formatter must be one of: %s", strings.Join(asc.ValidLeaderboardFormatters, ", "))
+				}
+				attrs.DefaultFormatter = &val
+				hasUpdate = true
+			}
+
+			if provided["sort"] {
+				val := strings.TrimSpace(strings.ToUpper(*sortType))
+				if !isValidScoreSortType(val) {
+					return shared.UsageErrorf("--sort must be one of: %s", strings.Join(asc.ValidScoreSortTypes, ", "))
+				}
+				attrs.ScoreSortType = &val
+				hasUpdate = true
+			}
+
+			if provided["submission-type"] {
+				val := strings.TrimSpace(strings.ToUpper(*submissionType))
+				if !isValidSubmissionType(val) {
+					return shared.UsageErrorf("--submission-type must be one of: %s", strings.Join(asc.ValidSubmissionTypes, ", "))
+				}
+				attrs.SubmissionType = &val
+				hasUpdate = true
+			}
+
+			if provided["score-range-start"] {
+				val := strings.TrimSpace(*scoreRangeStart)
+				if val == "" {
+					return shared.UsageError("--score-range-start must not be empty")
+				}
+				attrs.ScoreRangeStart = &val
+				hasUpdate = true
+			}
+
+			if provided["score-range-end"] {
+				val := strings.TrimSpace(*scoreRangeEnd)
+				if val == "" {
+					return shared.UsageError("--score-range-end must not be empty")
+				}
+				attrs.ScoreRangeEnd = &val
 				hasUpdate = true
 			}
 
