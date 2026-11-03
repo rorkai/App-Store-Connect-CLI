@@ -498,6 +498,7 @@ func GameCenterActivityAchievementsSetCommand() *ffcli.Command {
 
 	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
 	ids := shared.BindOnceCSVFlag(fs, "ids", "Comma-separated achievement IDs")
+	v2 := fs.Bool("v2", false, "Use v2 relationships endpoint")
 	remove := fs.Bool("remove", false, "Remove relationships instead of adding")
 	confirm := fs.Bool("confirm", false, "Confirm removal (required with --remove)")
 	output := shared.BindOutputFlags(fs)
@@ -510,6 +511,7 @@ func GameCenterActivityAchievementsSetCommand() *ffcli.Command {
 
 Examples:
   asc game-center activities achievements set --activity-id "ACTIVITY_ID" --ids "ACH_1,ACH_2"
+  asc game-center activities achievements set --activity-id "ACTIVITY_ID" --ids "ACH_1" --v2
   asc game-center activities achievements set --activity-id "ACTIVITY_ID" --ids "ACH_1" --remove --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -540,12 +542,17 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			removeRelationships, addRelationships := client.RemoveGameCenterActivityAchievements, client.AddGameCenterActivityAchievements
+			if *v2 {
+				removeRelationships, addRelationships = client.RemoveGameCenterActivityAchievementsV2, client.AddGameCenterActivityAchievementsV2
+			}
+
 			if *remove {
-				if err := client.RemoveGameCenterActivityAchievements(requestCtx, id, idsValue); err != nil {
+				if err := removeRelationships(requestCtx, id, idsValue); err != nil {
 					return fmt.Errorf("game-center activities achievements set: failed to remove: %w", err)
 				}
 			} else {
-				if err := client.AddGameCenterActivityAchievements(requestCtx, id, idsValue); err != nil {
+				if err := addRelationships(requestCtx, id, idsValue); err != nil {
 					return fmt.Errorf("game-center activities achievements set: failed to add: %w", err)
 				}
 			}
@@ -588,6 +595,7 @@ func GameCenterActivityLeaderboardsSetCommand() *ffcli.Command {
 
 	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
 	ids := shared.BindOnceCSVFlag(fs, "ids", "Comma-separated leaderboard IDs")
+	v2 := fs.Bool("v2", false, "Use v2 relationships endpoint")
 	remove := fs.Bool("remove", false, "Remove relationships instead of adding")
 	confirm := fs.Bool("confirm", false, "Confirm removal (required with --remove)")
 	output := shared.BindOutputFlags(fs)
@@ -600,6 +608,7 @@ func GameCenterActivityLeaderboardsSetCommand() *ffcli.Command {
 
 Examples:
   asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1,LB_2"
+  asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1" --v2
   asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1" --remove --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -630,12 +639,17 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			removeRelationships, addRelationships := client.RemoveGameCenterActivityLeaderboards, client.AddGameCenterActivityLeaderboards
+			if *v2 {
+				removeRelationships, addRelationships = client.RemoveGameCenterActivityLeaderboardsV2, client.AddGameCenterActivityLeaderboardsV2
+			}
+
 			if *remove {
-				if err := client.RemoveGameCenterActivityLeaderboards(requestCtx, id, idsValue); err != nil {
+				if err := removeRelationships(requestCtx, id, idsValue); err != nil {
 					return fmt.Errorf("game-center activities leaderboards set: failed to remove: %w", err)
 				}
 			} else {
-				if err := client.AddGameCenterActivityLeaderboards(requestCtx, id, idsValue); err != nil {
+				if err := addRelationships(requestCtx, id, idsValue); err != nil {
 					return fmt.Errorf("game-center activities leaderboards set: failed to add: %w", err)
 				}
 			}
