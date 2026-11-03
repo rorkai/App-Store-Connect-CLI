@@ -339,7 +339,12 @@ asc app-events video-clips create \
   --locale "en-US" \
   --path "./event-preview.mov" \
   --asset-type EVENT_DETAILS_PAGE \
-  --preview-frame-time-code "00:00:02.500"
+  --time-code "00:00:02.500"
+
+# Change the poster frame of an existing clip
+asc app-events video-clips set-poster-frame \
+  --clip-id "VIDEO_ID" \
+  --time-code "00:00:02:15"
 
 # List video clips
 asc app-events video-clips list \
@@ -350,6 +355,8 @@ asc app-events video-clips delete \
   --clip-id "VIDEO_ID" \
   --confirm
 ```
+
+`--time-code` accepts `HH:MM:SS:FF` or `HH:MM:SS.mmm`. On `create`, `--preview-frame-time-code` is an alias.
 
 **Video Requirements:**
 
