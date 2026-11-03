@@ -244,6 +244,28 @@ func TestSubscriptionsSetupValidationErrors(t *testing.T) {
 			},
 			wantErr: "--enable-monthly-commitment requires --subscription-period ONE_YEAR",
 		},
+		{
+			name: "non-positive group level",
+			args: []string{
+				"subscriptions", "setup",
+				"--group-id", "group-1",
+				"--reference-name", "Pro Monthly",
+				"--product-id", "com.example.pro.monthly",
+				"--group-level", "-1",
+			},
+			wantErr: "--group-level must be a positive integer",
+		},
+		{
+			name: "blank review note",
+			args: []string{
+				"subscriptions", "setup",
+				"--group-id", "group-1",
+				"--reference-name", "Pro Monthly",
+				"--product-id", "com.example.pro.monthly",
+				"--review-note", "   ",
+			},
+			wantErr: "--review-note cannot be empty",
+		},
 	}
 
 	for _, test := range tests {

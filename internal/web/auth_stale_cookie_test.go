@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -106,32 +107,22 @@ func TestExpiredDomainScopedTrustCookieIsNotReplayedToSignin(t *testing.T) {
 	}
 	var sawStaleCookie bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/logout":
-			w.Header().Set("Location", "https://idmsa.apple.com/appleauth/signout?widgetKey=fixture-widget-key")
-			w.WriteHeader(http.StatusFound)
-		case "/appleauth/auth/signin/init":
-			for _, name := range cookieHeaderNames(r) {
-				if name == staleCookieTestTrust || name == "aasp" {
-					sawStaleCookie = true
-				}
-			}
-			if sawStaleCookie {
-				w.Header().Set("Retry-After", "60")
-				w.WriteHeader(http.StatusServiceUnavailable)
-				_, _ = w.Write([]byte(`{"serviceErrors":[{"code":"-20209","message":"Service unavailable."}]}`))
-				return
-			}
-			_, _ = w.Write(signinInitFixtureBody(t))
-		case "/appleauth/auth/signin":
-			w.WriteHeader(http.StatusOK)
-		case "/appleauth/auth/signin/complete":
-			w.Header().Set("X-Apple-ID-Session-Id", "fixture-session")
-			w.WriteHeader(http.StatusConflict)
-		default:
-			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
-			w.WriteHeader(http.StatusTeapot)
+		if r.URL.Path != "/appleauth/auth/signin/init" {
+			serveSigninFixture(t, w, r)
+			return
 		}
+		for _, name := range cookieHeaderNames(r) {
+			if name == staleCookieTestTrust || name == "aasp" {
+				sawStaleCookie = true
+			}
+		}
+		if sawStaleCookie {
+			w.Header().Set("Retry-After", "60")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"serviceErrors":[{"code":"-20209","message":"Service unavailable."}]}`))
+			return
+		}
+		_, _ = w.Write(signinInitFixtureBody(t))
 	}))
 	defer server.Close()
 	loaded.Client.Transport = newTestServerRoutedClient(t, server).Transport
@@ -143,6 +134,85 @@ func TestExpiredDomainScopedTrustCookieIsNotReplayedToSignin(t *testing.T) {
 	var tfa *TwoFactorRequiredError
 	if !errors.As(err, &tfa) {
 		t.Fatalf("expected sign-in to reach two-factor, got %v", err)
+	}
+}
+
+// TestSignInFromCachedSessionBootstrapsWithTheIssuedCookie reproduces a code
+// Apple accepted being followed by a 401 from a cached jar. Olympus here reads
+// only the first myacinfo, as Apple does.
+func TestSignInFromCachedSessionBootstrapsWithTheIssuedCookie(t *testing.T) {
+	t.Setenv(webSessionCacheDirEnv, t.TempDir())
+	t.Setenv(webSessionBackendEnv, "file")
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tracked := newSessionCookieTrackingJar(jar)
+	tracked.SetCookies(&url.URL{Scheme: "https", Host: "idmsa.apple.com", Path: "/appleauth/auth/2sv/trust"}, []*http.Cookie{
+		{Name: staleCookieTestTrust, Value: "trust-value", Domain: "idmsa.apple.com", Path: "/", MaxAge: 2592000, Secure: true, HttpOnly: true},
+		{Name: "myacinfo", Value: "expired-session", Domain: "apple.com", Path: "/", Secure: true, HttpOnly: true},
+	})
+	if err := PersistSession(&AuthSession{Client: &http.Client{Jar: tracked}, UserEmail: staleCookieTestAppleID}); err != nil {
+		t.Fatalf("PersistSession: %v", err)
+	}
+	trustDeadline := persistedTrustCookieDeadline(t)
+
+	loaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession ok=%v err=%v", ok, err)
+	}
+	var sawTrustCookie bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/appleauth/auth/signin/init":
+			sawTrustCookie = slices.Contains(cookieHeaderNames(r), staleCookieTestTrust)
+			_, _ = w.Write(signinInitFixtureBody(t))
+		case "/appleauth/auth":
+			_, _ = w.Write([]byte(`{"trustedDevices":[{}]}`))
+		case "/appleauth/auth/verify/trusteddevice/securitycode":
+			w.WriteHeader(http.StatusNoContent)
+		case "/appleauth/auth/2sv/trust":
+			w.Header().Add("Set-Cookie", "myacinfo=issued-session; Domain=apple.com; Path=/; Secure; HttpOnly")
+			w.WriteHeader(http.StatusNoContent)
+		case "/olympus/v1/session":
+			if cookie, err := r.Cookie("myacinfo"); err != nil || cookie.Value != "issued-session" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			_, _ = w.Write([]byte(`{"user":{"emailAddress":"` + staleCookieTestAppleID + `"},"provider":{"providerId":1}}`))
+		default:
+			serveSigninFixture(t, w, r)
+		}
+	}))
+	defer server.Close()
+	loaded.Client.Transport = newTestServerRoutedClient(t, server).Transport
+
+	session, err := LoginWithClient(context.Background(), loaded.Client, LoginCredentials{Username: staleCookieTestAppleID, Password: staleCookieTestPassword})
+	var tfa *TwoFactorRequiredError
+	if !errors.As(err, &tfa) {
+		t.Fatalf("expected sign-in to reach two-factor, got %v", err)
+	}
+	if !sawTrustCookie {
+		t.Fatal("expected the cached trust cookie to reach signin/init")
+	}
+	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {
+		t.Fatalf("SubmitTwoFactorCode: %v", err)
+	}
+
+	if err := PersistSession(session); err != nil {
+		t.Fatalf("PersistSession after sign-in: %v", err)
+	}
+	if got := persistedTrustCookieDeadline(t); !got.Equal(trustDeadline) {
+		t.Fatalf("trust cookie deadline after sign-in = %v, want %v", got, trustDeadline)
+	}
+	resumed, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession after sign-in ok=%v err=%v", ok, err)
+	}
+	cookies := resumed.Client.Jar.Cookies(&url.URL{Scheme: "https", Host: "appstoreconnect.apple.com", Path: "/"})
+	if observedCookieNameCount(cookies, "myacinfo") != 1 || cookieValue(cookies, "myacinfo") != "issued-session" {
+		t.Fatal("expected the cache to hold only the issued myacinfo")
 	}
 }
 
@@ -283,6 +353,25 @@ func TestSigninStageDebugLogShowsRedactedBodyExcerpt(t *testing.T) {
 	}
 }
 
+// serveSigninFixture answers the sign-in steps a test does not need to inspect.
+func serveSigninFixture(t *testing.T, w http.ResponseWriter, r *http.Request) {
+	t.Helper()
+	switch r.URL.Path {
+	case "/logout":
+		w.Header().Set("Location", "https://idmsa.apple.com/appleauth/signout?widgetKey=fixture-widget-key")
+		w.WriteHeader(http.StatusFound)
+	case "/appleauth/auth/signin":
+		w.WriteHeader(http.StatusOK)
+	case "/appleauth/auth/signin/complete":
+		w.Header().Set("X-Apple-ID-Session-Id", "fixture-session")
+		w.Header().Set("scnt", "fixture-scnt")
+		w.WriteHeader(http.StatusConflict)
+	default:
+		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusTeapot)
+	}
+}
+
 func signinInitFixtureBody(t *testing.T) []byte {
 	t.Helper()
 	salt := make([]byte, 16)
@@ -342,5 +431,114 @@ func shiftPersistedSessionClock(t *testing.T, appleID string, delta time.Duratio
 	}
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestResumedSessionReplacesHydratedCookieWithReissuedDomainCookie covers a
+// Domain cookie Apple re-issues mid-session on a cached jar. The cache
+// hydrates it host-only, so the re-issued cookie used to sit beside the old
+// one, be sent second, and make persistence drop both.
+func TestResumedSessionReplacesHydratedCookieWithReissuedDomainCookie(t *testing.T) {
+	withFileSessionCache(t)
+	expires := time.Now().UTC().Add(time.Hour)
+	if err := writeSessionToFile(webSessionCacheKey(staleCookieTestAppleID), persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: staleCookieTestAppleID,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{Name: "myacinfo", Value: "old", ScopeDomain: "apple.com", Path: "/", Expires: expires}},
+			"https://idmsa.apple.com/":           {{Name: "myacinfo", Value: "old", ScopeDomain: "apple.com", Path: "/", Expires: expires}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession ok=%v err=%v", ok, err)
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	loaded.Client.Jar.SetCookies(endpoint, []*http.Cookie{{Name: "myacinfo", Value: "new", Domain: "apple.com", Path: "/", Expires: expires.Add(time.Hour), Secure: true, HttpOnly: true}})
+
+	for _, origin := range []string{olympusSessionURL, "https://idmsa.apple.com/"} {
+		u, _ := url.Parse(origin)
+		cookies := loaded.Client.Jar.Cookies(u)
+		if observedCookieNameCount(cookies, "myacinfo") != 1 || cookieValue(cookies, "myacinfo") != "new" {
+			t.Fatalf("%s sends %v, want only the re-issued myacinfo", origin, cookies)
+		}
+	}
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession: %v", err)
+	}
+	reloaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("reload ok=%v err=%v", ok, err)
+	}
+	if got := cookieValue(reloaded.Client.Jar.Cookies(endpoint), "myacinfo"); got != "new" {
+		t.Fatalf("persisted myacinfo = %q, want the re-issued value", got)
+	}
+}
+
+func TestDomainCookieKeepsGenuineHostOnlyCookieOfTheSameName(t *testing.T) {
+	withFileSessionCache(t)
+	if err := writeSessionToFile(webSessionCacheKey(staleCookieTestAppleID), persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: staleCookieTestAppleID,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {{Name: "token", Value: "host-only", Path: "/", Expires: time.Now().UTC().Add(time.Hour)}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession ok=%v err=%v", ok, err)
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	loaded.Client.Jar.SetCookies(endpoint, []*http.Cookie{{Name: "token", Value: "domain", Domain: "apple.com", Path: "/"}})
+	if got := observedCookieNameCount(loaded.Client.Jar.Cookies(endpoint), "token"); got != 2 {
+		t.Fatalf("token sent %d times, want the host-only cookie kept beside the Domain cookie", got)
+	}
+}
+
+func TestResumedSessionDropsHydratedCookieWhenDomainCookieIsDeleted(t *testing.T) {
+	withFileSessionCache(t)
+	expires := time.Now().UTC().Add(time.Hour)
+	if err := writeSessionToFile(webSessionCacheKey(staleCookieTestAppleID), persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		UserEmail: staleCookieTestAppleID,
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "myacinfo", Value: "old", ScopeDomain: "apple.com", Path: "/", Expires: expires},
+				{Name: "itctx", Value: "provider", Path: "/", Expires: expires},
+			},
+			"https://idmsa.apple.com/": {{Name: "myacinfo", Value: "old", ScopeDomain: "apple.com", Path: "/", Expires: expires}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("LoadCachedSession ok=%v err=%v", ok, err)
+	}
+	endpoint, _ := url.Parse(olympusSessionURL)
+	loaded.Client.Jar.SetCookies(endpoint, []*http.Cookie{{Name: "myacinfo", Domain: "apple.com", Path: "/", MaxAge: -1}})
+
+	for _, origin := range []string{olympusSessionURL, "https://idmsa.apple.com/"} {
+		u, _ := url.Parse(origin)
+		if got := observedCookieNameCount(loaded.Client.Jar.Cookies(u), "myacinfo"); got != 0 {
+			t.Fatalf("%s still sends myacinfo %d times after Apple deleted it", origin, got)
+		}
+	}
+	if err := PersistSession(loaded); err != nil {
+		t.Fatalf("PersistSession: %v", err)
+	}
+	reloaded, ok, err := LoadCachedSession(staleCookieTestAppleID)
+	if err != nil || !ok {
+		t.Fatalf("reload ok=%v err=%v", ok, err)
+	}
+	if got := observedCookieNameCount(reloaded.Client.Jar.Cookies(endpoint), "myacinfo"); got != 0 {
+		t.Fatalf("persisted session resurrects deleted myacinfo %d times", got)
 	}
 }

@@ -358,10 +358,14 @@ func gameCenterChallengeImagesRows(resp *GameCenterChallengeImagesResponse) ([]s
 }
 
 func gameCenterChallengeImageUploadResultRows(result *GameCenterChallengeImageUploadResult) ([]string, [][]string) {
-	headers := []string{"ID", "Localization ID", "File Name", "File Size", "Delivery State", "Uploaded"}
+	targetHeader, targetID := "Localization ID", result.LocalizationID
+	if result.VersionID != "" {
+		targetHeader, targetID = "Version ID", result.VersionID
+	}
+	headers := []string{"ID", targetHeader, "File Name", "File Size", "Delivery State", "Uploaded"}
 	rows := [][]string{{
 		result.ID,
-		result.LocalizationID,
+		targetID,
 		result.FileName,
 		fmt.Sprintf("%d", result.FileSize),
 		result.AssetDeliveryState,
@@ -468,10 +472,14 @@ func gameCenterActivityImagesRows(resp *GameCenterActivityImagesResponse) ([]str
 }
 
 func gameCenterActivityImageUploadResultRows(result *GameCenterActivityImageUploadResult) ([]string, [][]string) {
-	headers := []string{"ID", "Localization ID", "File Name", "File Size", "Delivery State", "Uploaded"}
+	targetHeader, targetID := "Localization ID", result.LocalizationID
+	if result.VersionID != "" {
+		targetHeader, targetID = "Version ID", result.VersionID
+	}
+	headers := []string{"ID", targetHeader, "File Name", "File Size", "Delivery State", "Uploaded"}
 	rows := [][]string{{
 		result.ID,
-		result.LocalizationID,
+		targetID,
 		result.FileName,
 		fmt.Sprintf("%d", result.FileSize),
 		result.AssetDeliveryState,

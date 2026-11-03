@@ -81,6 +81,7 @@ type persistedSession struct {
 	Generation      string               `json:"generation,omitempty"`
 	UserEmail       string               `json:"user_email,omitempty"`
 	DeveloperTeamID string               `json:"developer_team_id,omitempty"`
+	ProviderID      int64                `json:"provider_id,omitempty"`
 	Cookies         map[string][]pCookie `json:"cookies"`
 }
 
@@ -298,8 +299,11 @@ func (j *sessionCookieTrackingJar) SetCookies(u *url.URL, cookies []*http.Cookie
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	j.CookieJar.SetCookies(u, cookies)
 	now := time.Now().UTC()
+	for _, supplied := range cookies {
+		j.expireHostOnlyAliases(u, supplied)
+	}
+	j.CookieJar.SetCookies(u, cookies)
 	for _, supplied := range cookies {
 		if supplied == nil || supplied.Name == "" {
 			continue
@@ -328,6 +332,47 @@ func (j *sessionCookieTrackingJar) SetCookies(u *url.URL, cookies []*http.Cookie
 			j.recordUpdate(trackedCookieKeyForCookie(origin, deadline), deadline, false)
 		}
 	}
+}
+
+// expireHostOnlyAliases removes the host-only copies the cache hydrated for a
+// Domain cookie. The jar keys cookies by domain, so a re-issued Domain cookie
+// would otherwise sit beside the hydrated copy, which is sent first. The
+// persisted format cannot keep both, so nothing restorable is lost. Genuine
+// host-only cookies are left alone, including on a Domain tombstone.
+func (j *sessionCookieTrackingJar) expireHostOnlyAliases(source *url.URL, supplied *http.Cookie) {
+	if source == nil || supplied == nil || supplied.Name == "" {
+		return
+	}
+	domain := normalizedCookieDomain(supplied.Domain)
+	if domain == "" || !cookieDomainMatchesHost(domain, source.Hostname()) {
+		return
+	}
+	path := effectiveCookiePath(source, supplied)
+	for _, origin := range sessionCookieURLs() {
+		if cookieDomainMatchesHost(domain, origin.Hostname()) && j.cachedNarrowedAlias(origin, supplied.Name, path, domain) {
+			j.CookieJar.SetCookies(origin, []*http.Cookie{{Name: supplied.Name, Path: path, MaxAge: -1}})
+		}
+	}
+}
+
+func (j *sessionCookieTrackingJar) cachedNarrowedAlias(origin *url.URL, name, path, domain string) bool {
+	if j.cached == nil {
+		return false
+	}
+	for cachedOrigin, list := range j.cached.Cookies {
+		base, err := url.Parse(cachedOrigin)
+		if err != nil || base == nil || !strings.EqualFold(base.Host, origin.Host) {
+			continue
+		}
+		for _, candidate := range list {
+			scope := persistedCookieScopeDomain(nil, candidate)
+			if candidate.Name == name && persistedCookiePath(candidate.Path) == persistedCookiePath(path) &&
+				scope != "" && strings.EqualFold(scope, domain) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func sessionCookieUpdateOrigins(source *url.URL, supplied *http.Cookie, deleting bool) []string {
@@ -756,7 +801,7 @@ func cachedCookieHasActiveScope(cached *persistedSession, origin string, cookie 
 		}
 		for _, candidate := range list {
 			candidate, usable := normalizePersistedCookieDeadline(candidate, cached.UpdatedAt)
-			if !usable || isExpiredCookie(candidate, now) ||
+			if !usable || isExpiredCookie(candidate, now) || isSessionOnlyCookie(candidate) ||
 				candidate.Name != cookie.Name ||
 				!cookieScopesMatchForOrigin(origin, candidate, cookie) {
 				continue
@@ -1396,10 +1441,14 @@ func removeLegacyLastKeyFromKeyring(kr keyring.Keyring) error {
 }
 
 func writeSessionToKeychain(key string, sess persistedSession) error {
-	return withSessionStoreLock(func() error { return writeSessionToKeychainUnlocked(key, sess) })
+	return writeMergedSessionToKeychain(key, sess, nil)
 }
 
-func writeSessionToKeychainUnlocked(key string, sess persistedSession) error {
+func writeMergedSessionToKeychain(key string, sess persistedSession, merge func(stored persistedSession) persistedSession) error {
+	return withSessionStoreLock(func() error { return writeSessionToKeychainUnlocked(key, sess, merge) })
+}
+
+func writeSessionToKeychainUnlocked(key string, sess persistedSession, merge func(stored persistedSession) persistedSession) error {
 	kr, err := openSessionKeyring()
 	if err != nil {
 		return err
@@ -1412,6 +1461,9 @@ func writeSessionToKeychainUnlocked(key string, sess persistedSession) error {
 		store = newPersistedSessionStore()
 	}
 	store = normalizePersistedSessionStore(store)
+	if stored, exists := store.Sessions[key]; exists && merge != nil {
+		sess = merge(stored)
+	}
 	store.Sessions[key] = sess
 	store.LastKey = key
 	return writeSessionStoreToKeyring(kr, store)
@@ -1999,16 +2051,16 @@ func persistSessionBySelection(selection backendSelection, key string, sess pers
 	// Hold the entry lock so a concurrent conditional delete cannot compare a
 	// stamp before this write and delete the entry it produces.
 	return withSessionEntryLock(key, func() error {
-		return persistSessionBySelectionLocked(selection, key, sess)
+		return persistSessionBySelectionLocked(selection, key, sess, nil)
 	})
 }
 
-func persistSessionBySelectionLocked(selection backendSelection, key string, sess persistedSession) error {
+func persistSessionBySelectionLocked(selection backendSelection, key string, sess persistedSession, mergeKeychain func(stored persistedSession) persistedSession) error {
 	switch selection.backend {
 	case sessionBackendOff:
 		return nil
 	case sessionBackendKeychain:
-		if err := writeSessionToKeychain(key, sess); err != nil {
+		if err := writeMergedSessionToKeychain(key, sess, mergeKeychain); err != nil {
 			if selection.fallbackFile && isKeyringUnavailable(err) {
 				return writeSessionToFile(key, sess)
 			}
@@ -2611,6 +2663,7 @@ func loadSessionFromPersistedSession(sess persistedSession) (*AuthSession, bool,
 		Client:           newWebHTTPClient(newSessionCookieTrackingJarWithCached(jar, &sess)),
 		UserEmail:        strings.TrimSpace(sess.UserEmail),
 		DeveloperTeamID:  strings.TrimSpace(sess.DeveloperTeamID),
+		ProviderID:       sess.ProviderID,
 		cachedUpdatedAt:  sess.UpdatedAt,
 		cachedGeneration: sess.Generation,
 		cachedSession:    &sess,
@@ -2657,7 +2710,30 @@ func PersistSession(session *AuthSession) error {
 	// after narrowing, before the cache is made visible to the next load.
 	narrowPersistedCookieDomains(&serialized)
 	serialized.DeveloperTeamID = strings.TrimSpace(session.DeveloperTeamID)
-	if err := persistSessionBySelection(selection, key, serialized); err != nil {
+	serialized.ProviderID = session.ProviderID
+	merged := false
+	mergeNewer := func(current persistedSession) persistedSession {
+		if current.Generation != session.cachedGeneration {
+			keepUntouchedPersistedCookies(&serialized, current, updates)
+			merged = true
+		}
+		return serialized
+	}
+	err = withSessionEntryLock(key, func() error {
+		var mergeKeychain func(persistedSession) persistedSession
+		if session.cachedGeneration != "" {
+			switch session.cachedSource {
+			case CachedSessionSourceFile:
+				if current, ok, err := readSessionFromFile(key); err == nil && ok {
+					mergeNewer(current)
+				}
+			case CachedSessionSourceKeychain:
+				mergeKeychain = mergeNewer
+			}
+		}
+		return persistSessionBySelectionLocked(selection, key, serialized, mergeKeychain)
+	})
+	if err != nil {
 		return err
 	}
 	if tracker != nil {
@@ -2666,13 +2742,58 @@ func PersistSession(session *AuthSession) error {
 	cached := serialized
 	session.cachedSession = &cached
 	session.cachedUpdatedAt = serialized.UpdatedAt
-	session.cachedGeneration = serialized.Generation
+	// After a merge the live jar still holds the older cookies, so later
+	// saves must keep merging instead of overwriting the newer entry.
+	if !merged {
+		session.cachedGeneration = serialized.Generation
+	}
 	if tracker != nil {
 		tracker.mu.Lock()
 		tracker.cached = &cached
 		tracker.mu.Unlock()
 	}
 	return nil
+}
+
+// keepUntouchedPersistedCookies merges onto an entry another process wrote
+// after this handle loaded it. Cookies this handle received a response for
+// replace the stored ones; every other cookie keeps the newer stored record.
+// Records are matched by host, name and path: the narrowed persisted format
+// cannot hold two cookies that differ only by domain.
+func keepUntouchedPersistedCookies(serialized *persistedSession, current persistedSession, updates map[trackedCookieKey]trackedCookieUpdate) {
+	type cookieScope struct{ host, name, path string }
+	scopeOf := func(origin, name, path string) cookieScope {
+		host := ""
+		if parsed, err := url.Parse(origin); err == nil && parsed != nil {
+			host = strings.ToLower(parsed.Hostname())
+		}
+		return cookieScope{host: host, name: name, path: persistedCookiePath(path)}
+	}
+	touched := make(map[cookieScope]bool, len(updates))
+	for key := range updates {
+		touched[scopeOf(key.origin, key.name, key.path)] = true
+	}
+	isTouched := func(origin string, cookie pCookie) bool {
+		return touched[scopeOf(origin, cookie.Name, cookie.Path)]
+	}
+	now := time.Now().UTC()
+	merged := make(map[string][]pCookie, len(current.Cookies))
+	for origin, list := range current.Cookies {
+		for _, cookie := range list {
+			cookie, usable := normalizePersistedCookieDeadline(cookie, current.UpdatedAt)
+			if usable && !isTouched(origin, cookie) && !isExpiredCookie(cookie, now) {
+				merged[origin] = append(merged[origin], cookie)
+			}
+		}
+	}
+	for origin, list := range serialized.Cookies {
+		for _, cookie := range list {
+			if isTouched(origin, cookie) {
+				merged[origin] = append(merged[origin], cookie)
+			}
+		}
+	}
+	serialized.Cookies = merged
 }
 
 // LoadCachedSession loads a cached web session cookie jar without validating it

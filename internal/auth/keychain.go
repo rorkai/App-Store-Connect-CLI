@@ -2309,8 +2309,8 @@ func removeAllFromLegacyKeychain() error {
 }
 
 func storeInConfig(name string, payload credentialPayload) error {
-	path, err := config.Path()
-	if err != nil {
+	_, path, err := loadDefaultNameConfig()
+	if err != nil && !errors.Is(err, config.ErrNotFound) {
 		return err
 	}
 	return storeInConfigAt(name, payload, path)
@@ -2607,15 +2607,23 @@ func SetDefaultCredentials(name string) error {
 }
 
 func saveDefaultName(name string) error {
-	cfg, err := config.Load()
+	cfg, path, err := loadDefaultNameConfig()
 	if err != nil && !errors.Is(err, config.ErrNotFound) {
 		return err
 	}
 	if cfg == nil {
 		cfg = &config.Config{}
 	}
+	legacyName := strings.TrimSpace(cfg.DefaultKeyName)
+	if legacyName == "" {
+		legacyName = "default"
+	}
+	if legacy, found, _ := findConfigCredential(cfg, legacyName); found {
+		upsertConfigCredential(cfg, legacy)
+	}
 	trimmedName := strings.TrimSpace(name)
 	cfg.DefaultKeyName = trimmedName
+	cfg.KeyID, cfg.IssuerID, cfg.PrivateKeyPath, cfg.KeyType = "", "", "", ""
 	if trimmedName != "" {
 		for _, cred := range cfg.Keys {
 			if strings.TrimSpace(cred.Name) == trimmedName {
@@ -2623,15 +2631,15 @@ func saveDefaultName(name string) error {
 				cfg.IssuerID = cred.IssuerID
 				cfg.PrivateKeyPath = cred.PrivateKeyPath
 				cfg.KeyType = normalizedStoredKeyType(cred.KeyType)
-				return config.Save(cfg)
+				break
 			}
 		}
 	}
-	return config.Save(cfg)
+	return config.SaveAt(path, cfg)
 }
 
 func defaultName() (string, error) {
-	cfg, err := config.Load()
+	cfg, _, err := loadDefaultNameConfig()
 	if err != nil {
 		if errors.Is(err, config.ErrNotFound) {
 			return "", nil
@@ -2642,7 +2650,7 @@ func defaultName() (string, error) {
 }
 
 func clearDefaultNameIf(name string) error {
-	cfg, err := config.Load()
+	cfg, path, err := loadDefaultNameConfig()
 	if err != nil {
 		if errors.Is(err, config.ErrNotFound) {
 			return nil
@@ -2651,9 +2659,39 @@ func clearDefaultNameIf(name string) error {
 	}
 	if strings.TrimSpace(cfg.DefaultKeyName) == strings.TrimSpace(name) {
 		cfg.DefaultKeyName = ""
-		return config.Save(cfg)
+		return config.SaveAt(path, cfg)
 	}
 	return nil
+}
+
+// loadDefaultNameConfig returns the config that holds the default profile
+// name: the active config when it selects credentials, otherwise the config
+// DefaultWritePath chooses, so a repo config without credentials neither hides
+// nor receives the global default.
+func loadDefaultNameConfig() (*config.Config, string, error) {
+	path, err := config.Path()
+	if err != nil {
+		return nil, "", err
+	}
+	cfg, err := config.LoadAt(path)
+	if err != nil && !errors.Is(err, config.ErrNotFound) {
+		return nil, path, err
+	}
+	if cfg != nil && (strings.TrimSpace(cfg.DefaultKeyName) != "" || hasAnyCredentials(cfg)) {
+		return cfg, path, nil
+	}
+	writePath, err := config.DefaultWritePath()
+	if err != nil {
+		return nil, "", err
+	}
+	if writePath != path {
+		cfg, err = config.LoadAt(writePath)
+		return cfg, writePath, err
+	}
+	if cfg == nil {
+		return nil, path, config.ErrNotFound
+	}
+	return cfg, path, nil
 }
 
 // configCleanupPaths returns the config files credential cleanup edits: the

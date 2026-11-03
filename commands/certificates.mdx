@@ -41,6 +41,9 @@ asc certificates view --id "CERT_ID"
 
 # Include related resources
 asc certificates view --id "CERT_ID" --include passTypeId
+
+# Limit the included resource to specific fields
+asc certificates view --id "CERT_ID" --include passTypeId --pass-type-id-fields "name,identifier"
 ```
 
 ## Check Developer ID Certificates

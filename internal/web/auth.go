@@ -76,7 +76,7 @@ var (
 	// account owner completes a prompt on the Apple Account website.
 	ErrAppleAccountActionRequired = errAppleAccountActionRequired
 	// ErrTwoFactorCodeRejected reports a verification code Apple refused.
-	ErrTwoFactorCodeRejected = errors.New("two-factor code rejected")
+	ErrTwoFactorCodeRejected = appleauth.ErrTwoFactorCodeRejected
 	// ErrInvalidProviderSelection reports a provider selection that matches
 	// none of the account's providers.
 	ErrInvalidProviderSelection = errors.New("invalid provider selection")
@@ -284,12 +284,7 @@ func IsStaleSessionAfterTwoFactor(err error) bool {
 	if !errors.As(err, &finalizeErr) {
 		return false
 	}
-	switch finalizeErr.Status {
-	case http.StatusUnauthorized, http.StatusForbidden:
-		return true
-	default:
-		return false
-	}
+	return finalizeErr.Status == http.StatusUnauthorized
 }
 
 func (e *APIError) Error() string {
@@ -350,6 +345,9 @@ func webAuthHTTPLogFields(stage string, req *http.Request, resp *http.Response, 
 		if codes := boundedWebAuthDiagnosticCodes(extractServiceErrorCodes(body)); len(codes) > 0 {
 			fields = append(fields, "codes", strings.Join(codes, ","))
 		}
+		if cookies := setCookieLogSummary(resp); cookies != "" {
+			fields = append(fields, "set_cookie", cookies)
+		}
 	}
 	if err != nil {
 		errorText := err.Error()
@@ -359,6 +357,36 @@ func webAuthHTTPLogFields(stage string, req *http.Request, resp *http.Response, 
 		fields = append(fields, "error", errorText)
 	}
 	return fields
+}
+
+// setCookieLogSummary describes each Set-Cookie by name, scope, and lifetime.
+// Cookie values and other attributes are never included.
+func setCookieLogSummary(resp *http.Response) string {
+	cookies := resp.Cookies()
+	parts := make([]string, 0, len(cookies))
+	for _, cookie := range cookies {
+		scope := "host-only"
+		if domain := strings.TrimPrefix(cookie.Domain, "."); domain != "" {
+			scope = "domain=" + domain
+		}
+		lifetime := "session"
+		switch {
+		case cookie.MaxAge < 0:
+			lifetime = "deletion"
+		case cookie.MaxAge > 0:
+			lifetime = "persistent"
+		case !cookie.Expires.IsZero() && !cookie.Expires.After(time.Now()):
+			lifetime = "deletion"
+		case !cookie.Expires.IsZero():
+			lifetime = "persistent"
+		}
+		part := sanitizeWebAuthDiagnosticValue(cookie.Name) + " " + sanitizeWebAuthDiagnosticValue(scope)
+		if cookie.Path != "" {
+			part += " path=" + sanitizeWebAuthDiagnosticValue(cookie.Path)
+		}
+		parts = append(parts, part+" "+lifetime)
+	}
+	return strings.Join(parts, "; ")
 }
 
 func sanitizeWebAuthDiagnosticValue(value string) string {
@@ -490,12 +518,7 @@ func (e *twoFAVerificationFailedError) Is(target error) bool {
 	if target != ErrTwoFactorCodeRejected || e.Kind == "phone-request" {
 		return false
 	}
-	switch e.Status {
-	case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden:
-		return true
-	default:
-		return false
-	}
+	return e.Status == http.StatusBadRequest
 }
 
 func (e *twoFAVerificationFailedError) HTTPStatusCode() int {
@@ -665,8 +688,9 @@ func Login(ctx context.Context, creds LoginCredentials) (*AuthSession, error) {
 }
 
 // LoginWithClient performs Apple ID SRP authentication reusing an existing HTTP
-// client and cookie jar. This is used for best-effort relogin attempts that
-// should preserve Apple trust cookies from a cached session.
+// client. This is used for best-effort relogin attempts that should preserve
+// Apple trust cookies from a cached session. A jar hydrated from the cache
+// contributes only those cookies; see trustedSignInClient.
 func LoginWithClient(ctx context.Context, client *http.Client, creds LoginCredentials) (*AuthSession, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -677,7 +701,56 @@ func LoginWithClient(ctx context.Context, client *http.Client, creds LoginCreden
 	if client.Jar == nil {
 		return nil, fmt.Errorf("client jar is required")
 	}
-	return loginWithHTTPClient(ctx, client, creds)
+	signInClient, cached, err := trustedSignInClient(client)
+	if err != nil {
+		return nil, err
+	}
+	session, err := loginWithHTTPClient(ctx, signInClient, creds)
+	if session != nil {
+		session.cachedSession = cached
+	}
+	return session, err
+}
+
+// trustedSignInClient copies a client hydrated from the session cache onto a
+// jar holding only Apple's trust cookies. The cache narrows Domain cookies to
+// host-only copies, so a myacinfo issued by the new sign-in would land beside
+// the cached one instead of replacing it. The jar sends the older cookie first
+// and Apple reads only the first, rejecting a session it has just accepted.
+func trustedSignInClient(client *http.Client) (*http.Client, *persistedSession, error) {
+	tracked, ok := client.Jar.(*sessionCookieTrackingJar)
+	if !ok {
+		return client, nil, nil
+	}
+	tracked.mu.Lock()
+	cached := tracked.cached
+	tracked.mu.Unlock()
+	if cached == nil {
+		return client, nil, nil
+	}
+
+	trusted := trustCookiesOnly(*cached)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create cookie jar: %w", err)
+	}
+	hydrateCookieJar(jar, trusted)
+	signInClient := *client
+	signInClient.Jar = newSessionCookieTrackingJarWithCached(jar, &trusted)
+	return &signInClient, &trusted, nil
+}
+
+func trustCookiesOnly(sess persistedSession) persistedSession {
+	cookies := make(map[string][]pCookie, len(sess.Cookies))
+	for origin, list := range sess.Cookies {
+		for _, cookie := range list {
+			if isAppleTrustCookieName(cookie.Name) {
+				cookies[origin] = append(cookies[origin], cookie)
+			}
+		}
+	}
+	sess.Cookies = cookies
+	return sess
 }
 
 func ensureSessionCookieTrackingJar(client *http.Client) {
@@ -1440,6 +1513,7 @@ func SelectProvider(ctx context.Context, session *AuthSession, selection Provide
 	}
 	if info.Provider.ProviderID == selected.ProviderID {
 		applySessionInfo(session, info)
+		session.DeveloperTeamID = ""
 		return nil
 	}
 
@@ -1483,6 +1557,7 @@ func SelectProvider(ctx context.Context, session *AuthSession, selection Provide
 		return fmt.Errorf("provider selection did not take effect: selected %d but session reports %d", selected.ProviderID, refreshed.Provider.ProviderID)
 	}
 	applySessionInfo(session, refreshed)
+	session.DeveloperTeamID = ""
 	return nil
 }
 

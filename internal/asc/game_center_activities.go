@@ -25,7 +25,7 @@ type GameCenterActivityCreateAttributes struct {
 	MinimumPlayersCount *int              `json:"minimumPlayersCount,omitempty"`
 	MaximumPlayersCount *int              `json:"maximumPlayersCount,omitempty"`
 	SupportsPartyCode   *bool             `json:"supportsPartyCode,omitempty"`
-	Properties          map[string]string `json:"properties,omitempty"`
+	Properties          map[string]string `json:"properties,omitzero"`
 }
 
 // GameCenterActivityUpdateAttributes describes attributes for updating an activity.
@@ -36,7 +36,7 @@ type GameCenterActivityUpdateAttributes struct {
 	MaximumPlayersCount *int              `json:"maximumPlayersCount,omitempty"`
 	SupportsPartyCode   *bool             `json:"supportsPartyCode,omitempty"`
 	Archived            *bool             `json:"archived,omitempty"`
-	Properties          map[string]string `json:"properties,omitempty"`
+	Properties          map[string]string `json:"properties,omitzero"`
 }
 
 // GameCenterActivityRelationships describes relationships for activities.
@@ -319,7 +319,8 @@ type GameCenterActivityImageUpdateAttributes struct {
 
 // GameCenterActivityImageRelationships describes relationships for activity images.
 type GameCenterActivityImageRelationships struct {
-	Localization *Relationship `json:"localization"`
+	Localization *Relationship `json:"localization,omitempty"`
+	Version      *Relationship `json:"version,omitempty"`
 }
 
 // GameCenterActivityImageCreateData is the data portion of an image create request.
@@ -361,7 +362,8 @@ type GameCenterActivityImageDeleteResult struct {
 // GameCenterActivityImageUploadResult represents CLI output for image uploads.
 type GameCenterActivityImageUploadResult struct {
 	ID                 string `json:"id"`
-	LocalizationID     string `json:"localizationId"`
+	LocalizationID     string `json:"localizationId,omitempty"`
+	VersionID          string `json:"versionId,omitempty"`
 	FileName           string `json:"fileName"`
 	FileSize           int64  `json:"fileSize"`
 	AssetDeliveryState string `json:"assetDeliveryState,omitempty"`

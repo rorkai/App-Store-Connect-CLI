@@ -102,9 +102,9 @@ Examples:
 func XcodeCloudProductsAppCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "id", "ciProducts", "Product ID")
-	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated; removed from API 4.5; prefer age-rating data)")
-	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
-	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
+	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer age-rating data)")
+	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: "+strings.Join(shared.AppInAppPurchaseSparseFields, ", "))
+	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: "+strings.Join(shared.SubscriptionGroupSparseFields, ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -115,7 +115,7 @@ func XcodeCloudProductsAppCommand() *ffcli.Command {
 
 Examples:
   asc xcode-cloud products app --id "PRODUCT_ID"
-  asc xcode-cloud products app --id "PRODUCT_ID" --app-info-fields kidsAgeBand --iap-fields versions
+  asc xcode-cloud products app --id "PRODUCT_ID" --app-info-fields state,primaryCategory --iap-fields versions
   asc xcode-cloud products app --id "PRODUCT_ID" --output table`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -124,15 +124,15 @@ Examples:
 			if idValue == "" {
 				return shared.UsageError("--id is required")
 			}
-			appInfoFieldValues, err := normalizeCiProductAppSparseField(fs, *appInfoFields, ciProductAppInfoSparseFields441, "--app-info-fields")
+			appInfoFieldValues, err := normalizeCiProductAppSparseField(fs, *appInfoFields, shared.AppInfoSparseFields, "--app-info-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			iapFieldValues, err := normalizeCiProductAppSparseField(fs, *iapFields, ciProductAppInAppPurchaseSparseFields441, "--iap-fields")
+			iapFieldValues, err := normalizeCiProductAppSparseField(fs, *iapFields, shared.AppInAppPurchaseSparseFields, "--iap-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			groupFieldValues, err := normalizeCiProductAppSparseField(fs, *subscriptionGroupFields, ciProductAppSubscriptionGroupSparseFields441, "--subscription-group-fields")
+			groupFieldValues, err := normalizeCiProductAppSparseField(fs, *subscriptionGroupFields, shared.SubscriptionGroupSparseFields, "--subscription-group-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}

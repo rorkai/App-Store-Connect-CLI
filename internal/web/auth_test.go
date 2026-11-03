@@ -144,6 +144,42 @@ func TestLogWebAuthHTTPRedactsSensitiveQueryValues(t *testing.T) {
 	}
 }
 
+func TestLogWebAuthHTTPSummarizesSetCookieWithoutValues(t *testing.T) {
+	origLogger := webDebugLogger
+	origDebugEnabled := webDebugEnabledFn
+	t.Cleanup(func() {
+		webDebugLogger = origLogger
+		webDebugEnabledFn = origDebugEnabled
+	})
+	var logs bytes.Buffer
+	webDebugLogger = slog.New(slog.NewTextHandler(&logs, nil))
+	webDebugEnabledFn = func() bool { return true }
+
+	req, err := http.NewRequest(http.MethodGet, "https://appstoreconnect.apple.com/olympus/v1/session", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{"Set-Cookie": {
+			"myacinfo=secret-myacinfo-value; Domain=.apple.com; Path=/; Max-Age=3600; Secure; HttpOnly",
+			"itctx=secret-itctx-value; Path=/",
+			"dqsid=secret-dqsid-value; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+		}},
+	}
+
+	logWebAuthHTTP("session_info", req, resp, nil, nil)
+
+	output := logs.String()
+	want := `set_cookie="myacinfo domain=apple.com path=/ persistent; itctx host-only path=/ session; dqsid host-only path=/ deletion"`
+	if !strings.Contains(output, want) {
+		t.Fatalf("expected %s in debug output, got %q", want, output)
+	}
+	if strings.Contains(output, "secret-") || strings.Contains(output, "HttpOnly") {
+		t.Fatalf("expected cookie values and other attributes to be omitted, got %q", output)
+	}
+}
+
 type diagnosticCaptureHandler struct {
 	values map[string]string
 }
@@ -1595,7 +1631,7 @@ func TestIsStaleSessionAfterTwoFactorIgnoresUnrelatedFailures(t *testing.T) {
 	}{
 		{name: "nil", err: nil, want: false},
 		{name: "unauthorized", err: &TwoFactorFinalizationError{Status: http.StatusUnauthorized}, want: true},
-		{name: "forbidden", err: &TwoFactorFinalizationError{Status: http.StatusForbidden}, want: true},
+		{name: "forbidden", err: &TwoFactorFinalizationError{Status: http.StatusForbidden}, want: false},
 		{name: "server error", err: &TwoFactorFinalizationError{Status: http.StatusInternalServerError}, want: false},
 		{name: "wrapped", err: fmt.Errorf("wrapped: %w", &TwoFactorFinalizationError{Status: http.StatusUnauthorized}), want: true},
 		{name: "rejected code", err: &twoFAVerificationFailedError{Kind: "trusted-device", Status: http.StatusBadRequest}, want: false},

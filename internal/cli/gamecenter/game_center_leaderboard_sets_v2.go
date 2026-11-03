@@ -188,10 +188,11 @@ Examples:
 func GameCenterLeaderboardSetsV2CreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env); not used with --leaderboard-ids")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID; not used with --leaderboard-ids")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard set")
 	vendorID := fs.String("vendor-id", "", "Vendor identifier (e.g., com.example.set)")
+	leaderboardIDs := shared.BindOnceCSVFlag(fs, "leaderboard-ids", "Comma-separated member leaderboard IDs; the set inherits its parent from them")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -202,9 +203,13 @@ func GameCenterLeaderboardSetsV2CreateCommand() *ffcli.Command {
 
 Creates the required initial leaderboard set version inline.
 
+With --leaderboard-ids, the set inherits its Game Center detail or group from the
+member leaderboards, so --app and --group-id are not used.
+
 Examples:
   asc game-center leaderboard-sets v2 create --app "APP_ID" --reference-name "Season 1" --vendor-id "com.example.season1"
-  asc game-center leaderboard-sets v2 create --group-id "GROUP_ID" --reference-name "Group Season" --vendor-id "grp.com.example.groupseason"`,
+  asc game-center leaderboard-sets v2 create --group-id "GROUP_ID" --reference-name "Group Season" --vendor-id "grp.com.example.groupseason"
+  asc game-center leaderboard-sets v2 create --reference-name "Season 2" --vendor-id "com.example.season2" --leaderboard-ids "id1,id2"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -214,10 +219,31 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if group == "" && resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("")
+			ids := shared.SplitUniqueCSV(leaderboardIDs.String())
+			if leaderboardIDs.Provided() && len(ids) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --leaderboard-ids must include at least one ID")
+				return flag.ErrHelp
+			}
+			// Apple returns 409 when gameCenterLeaderboards is sent with gameCenterDetail
+			// or gameCenterGroup; the set inherits its parent from the leaderboards.
+			if len(ids) > 0 {
+				if strings.TrimSpace(*appID) != "" {
+					fmt.Fprintln(os.Stderr, "Error: --app cannot be used with --leaderboard-ids; the set inherits its parent from the member leaderboards")
+					return flag.ErrHelp
+				}
+				if group != "" {
+					fmt.Fprintln(os.Stderr, "Error: --group-id cannot be used with --leaderboard-ids; the set inherits its parent from the member leaderboards")
+					return flag.ErrHelp
+				}
+			}
+
+			resolvedAppID := ""
+			if len(ids) == 0 {
+				resolvedAppID = shared.ResolveAppID(*appID)
+				if group == "" && resolvedAppID == "" {
+					fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+					return shared.MissingRequiredUsageError("")
+				}
 			}
 
 			name := strings.TrimSpace(*referenceName)
@@ -245,7 +271,7 @@ Examples:
 			defer cancel()
 
 			gcDetailID := ""
-			if group == "" {
+			if group == "" && len(ids) == 0 {
 				var err error
 				gcDetailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
 				if err != nil {
@@ -258,7 +284,7 @@ Examples:
 				VendorIdentifier: vendor,
 			}
 
-			resp, err := client.CreateGameCenterLeaderboardSetV2(requestCtx, gcDetailID, group, attrs)
+			resp, err := client.CreateGameCenterLeaderboardSetV2(requestCtx, gcDetailID, group, attrs, ids)
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets v2 create: failed to create: %w", err)
 			}

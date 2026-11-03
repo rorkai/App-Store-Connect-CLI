@@ -215,7 +215,7 @@ func TestCreateAppCustomProductPage_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, appResponse, createResponse)
 
-	if _, err := client.CreateAppCustomProductPage(context.Background(), "app-1", "Summer"); err != nil {
+	if _, err := client.CreateAppCustomProductPage(context.Background(), "app-1", "Summer", AppCustomProductPageTemplate{}); err != nil {
 		t.Fatalf("CreateAppCustomProductPage() error: %v", err)
 	}
 	if !sawAppGet {
@@ -232,7 +232,7 @@ func TestCreateAppCustomProductPage_RequiresAppPrimaryLocale(t *testing.T) {
 		assertAuthorized(t, req)
 	}, appResponse)
 
-	_, err := client.CreateAppCustomProductPage(context.Background(), "app-1", "Summer")
+	_, err := client.CreateAppCustomProductPage(context.Background(), "app-1", "Summer", AppCustomProductPageTemplate{})
 	if err == nil || err.Error() != "app primary locale is required" {
 		t.Fatalf("expected app primary locale error, got %v", err)
 	}

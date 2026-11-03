@@ -44,11 +44,16 @@ Examples:
 	}
 }
 
+func treatmentLocalizationIncludeList() []string {
+	return []string{"appStoreVersionExperimentTreatment", "appScreenshotSets", "appPreviewSets", "placements"}
+}
+
 // ExperimentTreatmentLocalizationsListCommand returns the treatment localizations list subcommand.
 func ExperimentTreatmentLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("treatment-localizations list", flag.ExitOnError)
 
 	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
+	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", treatmentLocalizationIncludeList())
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -62,6 +67,7 @@ func ExperimentTreatmentLocalizationsListCommand() *ffcli.Command {
 
 Examples:
   asc product-pages experiments treatments localizations list --treatment-id "TREATMENT_ID"
+  asc product-pages experiments treatments localizations list --treatment-id "TREATMENT_ID" --include placements --placements-limit 50
   asc product-pages experiments treatments localizations list --treatment-id "TREATMENT_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -71,6 +77,13 @@ Examples:
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("experiments treatments localizations list: %v", err)
+			}
+			if err := shared.RejectNextFlagConflicts(fs, *next, "experiments treatments localizations list", "include", "placements-limit"); err != nil {
+				return err
+			}
+			includeValues, placementsLimit, err := include.Resolve()
+			if err != nil {
+				return err
 			}
 
 			trimmedID := strings.TrimSpace(*treatmentID)
@@ -90,6 +103,8 @@ Examples:
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationsOption{
 				asc.WithAppStoreVersionExperimentTreatmentLocalizationsLimit(*limit),
 				asc.WithAppStoreVersionExperimentTreatmentLocalizationsNextURL(*next),
+				asc.WithAppStoreVersionExperimentTreatmentLocalizationsInclude(includeValues),
+				asc.WithAppStoreVersionExperimentTreatmentLocalizationsPlacementsLimit(placementsLimit),
 			}
 
 			if *paginate {
@@ -124,6 +139,7 @@ func ExperimentTreatmentLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("treatment-localizations view", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
+	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", treatmentLocalizationIncludeList())
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -133,7 +149,8 @@ func ExperimentTreatmentLocalizationsGetCommand() *ffcli.Command {
 		LongHelp: `View a treatment localization by ID.
 
 Examples:
-  asc product-pages experiments treatments localizations view --localization-id "LOCALIZATION_ID"`,
+  asc product-pages experiments treatments localizations view --localization-id "LOCALIZATION_ID"
+  asc product-pages experiments treatments localizations view --localization-id "LOCALIZATION_ID" --include placements --placements-limit 50`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -141,6 +158,10 @@ Examples:
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
 				return shared.MissingRequiredUsageError("--localization-id")
+			}
+			includeValues, placementsLimit, err := include.Resolve()
+			if err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -151,7 +172,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalization(requestCtx, trimmedID)
+			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalization(requestCtx, trimmedID, asc.WithLocalizationReadInclude(includeValues), asc.WithLocalizationReadPlacementsLimit(placementsLimit))
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations view: failed to fetch: %w", err)
 			}
