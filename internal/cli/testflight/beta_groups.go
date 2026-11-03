@@ -1034,9 +1034,6 @@ Examples:
 				return fmt.Errorf("beta-groups create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			var publicLinkLimitAttr *int
 			if visited["public-link-limit"] {
 				publicLinkLimitAttr = publicLinkLimit
@@ -1056,6 +1053,9 @@ Examples:
 			if hasRelationships {
 				existingIDs = listBetaGroupIDsByName(ctx, client, resolvedAppID, attrs.Name)
 			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 
 			group, err := client.CreateBetaGroupWithAttributes(requestCtx, resolvedAppID, attrs, buildIDs, testerIDs)
 			if err != nil {
