@@ -15,6 +15,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+const placeFlagUsage = "Place as a JSON object, or @file:PATH to read it from a file"
+
 type inlineLocalizationFlag []string
 
 func (f *inlineLocalizationFlag) String() string {
@@ -52,6 +54,23 @@ func parseInlineLocalizations(values []string) ([]asc.AppClipAdvancedExperienceL
 		localizations = append(localizations, localization)
 	}
 	return localizations, nil
+}
+
+// parseAppClipPlace requires exactly one JSON object and returns its bytes
+// untouched, leaving the fields for Apple to validate.
+func parseAppClipPlace(value string) (json.RawMessage, error) {
+	var place json.RawMessage
+	decoder := json.NewDecoder(strings.NewReader(value))
+	if err := decoder.Decode(&place); err != nil {
+		return nil, fmt.Errorf("--place must be a JSON object: %w", err)
+	}
+	if place[0] != '{' {
+		return nil, fmt.Errorf("--place must be a JSON object")
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return nil, fmt.Errorf("--place must contain exactly one JSON object")
+	}
+	return place, nil
 }
 
 // AppClipAdvancedExperiencesCommand returns the advanced experiences command group.
@@ -234,6 +253,7 @@ func AppClipAdvancedExperiencesCreateCommand() *ffcli.Command {
 	isPoweredBy := fs.Bool("is-powered-by", false, "Powered by your app")
 	action := fs.String("action", "", "Action (OPEN, VIEW, PLAY)")
 	category := fs.String("category", "", "Business category")
+	place := fs.String("place", "", placeFlagUsage)
 	headerImageID := shared.BindResourceIDFlag(fs, "header-image-id", "appClipAdvancedExperienceImages", "Header image ID")
 	localizationIDs := shared.BindOnceCSVFlag(fs, "localization-id", "Existing localization ID(s), comma-separated")
 	var inlineLocalizationJSON inlineLocalizationFlag
@@ -255,7 +275,8 @@ Provide existing localization IDs with ` + "`--localization-id`" + `, one inline
 Examples:
   asc app-clips advanced-experiences create --app-clip-id "CLIP_ID" --link "https://example.com" --default-language EN --is-powered-by --header-image-id "IMAGE_ID" --localization-id "LOCALIZATION_ID"
   asc app-clips advanced-experiences create --app "APP_ID" --bundle-id "com.example.clip" --link "https://example.com" --default-language EN --is-powered-by --header-image-id "IMAGE_ID" --language EN --title "Order ahead" --subtitle "Ready when you arrive"
-  asc app-clips advanced-experiences create --app-clip-id "CLIP_ID" --link "https://example.com" --default-language EN --is-powered-by --header-image-id "IMAGE_ID" --inline-localization '{"language":"EN","title":"Order ahead"}' --inline-localization '{"language":"FR","title":"Commander"}'`,
+  asc app-clips advanced-experiences create --app-clip-id "CLIP_ID" --link "https://example.com" --default-language EN --is-powered-by --header-image-id "IMAGE_ID" --inline-localization '{"language":"EN","title":"Order ahead"}' --inline-localization '{"language":"FR","title":"Commander"}'
+  asc app-clips advanced-experiences create --app-clip-id "CLIP_ID" --link "https://example.com" --default-language EN --is-powered-by --header-image-id "IMAGE_ID" --language EN --title "Order ahead" --place @file:place.json`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -345,6 +366,14 @@ Examples:
 				categoryValue = &parsed
 			}
 
+			var placeValue json.RawMessage
+			if visited["place"] {
+				placeValue, err = parseAppClipPlace(*place)
+				if err != nil {
+					return shared.UsageErrorf("app-clips advanced-experiences create: %v", err)
+				}
+			}
+
 			appClipValue := strings.TrimSpace(*appClipID)
 			bundleValue := strings.TrimSpace(*bundleID)
 			if appClipValue == "" && bundleValue == "" {
@@ -376,6 +405,7 @@ Examples:
 				IsPoweredBy:      *isPoweredBy,
 				Action:           actionValue,
 				BusinessCategory: categoryValue,
+				Place:            placeValue,
 			}
 
 			resp, err := client.CreateAppClipAdvancedExperience(requestCtx, appClipValue, attrs, headerImageValue, localizationValues, inlineLocalizations)
@@ -396,6 +426,7 @@ func AppClipAdvancedExperiencesUpdateCommand() *ffcli.Command {
 	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
 	action := fs.String("action", "", "Action (OPEN, VIEW, PLAY)")
 	category := fs.String("category", "", "Business category")
+	place := fs.String("place", "", placeFlagUsage)
 	defaultLanguage := fs.String("default-language", "", "Default language (e.g., EN)")
 	isPoweredBy := fs.Bool("is-powered-by", false, "Powered by your app")
 	removed := fs.Bool("removed", false, "Mark the experience as removed")
@@ -411,7 +442,9 @@ func AppClipAdvancedExperiencesUpdateCommand() *ffcli.Command {
 
 Examples:
   asc app-clips advanced-experiences update --experience-id "EXP_ID" --action VIEW
-  asc app-clips advanced-experiences update --experience-id "EXP_ID" --category FOOD_AND_DRINK`,
+  asc app-clips advanced-experiences update --experience-id "EXP_ID" --category FOOD_AND_DRINK
+  asc app-clips advanced-experiences update --experience-id "EXP_ID" --place '{"placeId":"PLACE_ID","mapAction":"RESTAURANT_ORDER_FOOD"}'
+  asc app-clips advanced-experiences update --experience-id "EXP_ID" --place @file:place.json`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -426,14 +459,14 @@ Examples:
 				visited[f.Name] = true
 			})
 
-			hasUpdate := visited["action"] || visited["category"] || visited["default-language"] || visited["is-powered-by"] || visited["removed"] || visited["header-image-id"] || visited["localization-id"] || visited["app-clip-id"]
+			hasUpdate := visited["action"] || visited["category"] || visited["place"] || visited["default-language"] || visited["is-powered-by"] || visited["removed"] || visited["header-image-id"] || visited["localization-id"] || visited["app-clip-id"]
 			if !hasUpdate {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
 			var attrs *asc.AppClipAdvancedExperienceUpdateAttributes
-			if visited["action"] || visited["category"] || visited["default-language"] || visited["is-powered-by"] || visited["removed"] {
+			if visited["action"] || visited["category"] || visited["place"] || visited["default-language"] || visited["is-powered-by"] || visited["removed"] {
 				update := asc.AppClipAdvancedExperienceUpdateAttributes{}
 				if visited["action"] {
 					parsed, err := normalizeAppClipAction(*action)
@@ -448,6 +481,13 @@ Examples:
 						return fmt.Errorf("app-clips advanced-experiences update: %w", err)
 					}
 					update.BusinessCategory = &parsed
+				}
+				if visited["place"] {
+					parsed, err := parseAppClipPlace(*place)
+					if err != nil {
+						return shared.UsageErrorf("app-clips advanced-experiences update: %v", err)
+					}
+					update.Place = parsed
 				}
 				if visited["default-language"] {
 					parsed, err := normalizeAppClipLanguage(*defaultLanguage)

@@ -41,6 +41,9 @@ func TestRunMediaUploadInputFailuresAreClassified(t *testing.T) {
 	treatmentScreenshots := func(path string) []string {
 		return []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "upload", "--localization-id", "LOC", "--path", path, "--device-type", "IPHONE_65"}
 	}
+	treatmentPreviews := func(path string) []string {
+		return []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "upload", "--localization-id", "LOC", "--path", path, "--device-type", "IPHONE_65"}
+	}
 	videoPreviews := func(path, deviceType string) []string {
 		return []string{"video-previews", "upload", "--version-localization", "LOC", "--path", path, "--device-type", deviceType}
 	}
@@ -103,6 +106,13 @@ func TestRunMediaUploadInputFailuresAreClassified(t *testing.T) {
 			wantStderrPrefix: "Error: custom-pages localizations preview-sets upload: ",
 			wantDiagnosis:    shared.DiagnosticInvalidInput,
 			wantParameter:    "--device-type",
+		},
+		{
+			name:             "treatment previews unsupported extension",
+			args:             treatmentPreviews(junk),
+			wantStderrPrefix: "Error: experiments treatments localizations preview-sets upload: unsupported preview file extension \".png\"; supported extensions are .mov, .m4v, and .mp4\n",
+			wantDiagnosis:    shared.DiagnosticFileInvalidFormat,
+			wantParameter:    "--path",
 		},
 		{
 			name:             "video previews unsupported extension",

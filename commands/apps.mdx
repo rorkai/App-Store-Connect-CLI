@@ -290,6 +290,10 @@ Update app metadata and App Store Server Notifications URLs.
   Content rights declaration: `DOES_NOT_USE_THIRD_PARTY_CONTENT` or `USES_THIRD_PARTY_CONTENT`
 </ParamField>
 
+<ParamField path="--accessibility-url" type="string">
+  Accessibility URL for the app. Must be an absolute HTTP or HTTPS URL without credentials. An empty value is rejected; this flag does not remove an existing URL.
+</ParamField>
+
 <ParamField path="--subscription-status-url" type="string">
   Production App Store Server Notifications HTTPS URL. Sets notification version V2.
 </ParamField>
@@ -313,6 +317,7 @@ these flags do not remove existing endpoints. Use `asc apps view --id "APP_ID" -
 asc apps update --id "APP_ID" --bundle-id "com.example.app"
 asc apps update --id "APP_ID" --primary-locale "en-US"
 asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"
+asc apps update --id "APP_ID" --accessibility-url "https://example.com/accessibility"
 asc apps update --id "APP_ID" --subscription-status-url "https://example.com/notifications"
 asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"
 asc apps update --id "APP_ID" --streamlined-purchasing-enabled false

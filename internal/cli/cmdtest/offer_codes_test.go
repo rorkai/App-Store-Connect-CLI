@@ -2,12 +2,15 @@ package cmdtest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -297,5 +300,233 @@ func TestOfferCodesValuesRejectsInvalidFormat(t *testing.T) {
 				t.Fatalf("expected format error, got %q", stderr)
 			}
 		})
+	}
+}
+
+// TestOfferCodeBatchUpdatesSendActive guards the path that turns codes off:
+// each command must PATCH its own resource and send false, not drop it.
+func TestOfferCodeBatchUpdatesSendActive(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	commands := []struct {
+		name         string
+		args         []string
+		resourceType string
+		confirmOff   bool
+	}{
+		{
+			name:         "subscription one-time codes",
+			args:         []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--batch-id", "code-1"},
+			resourceType: "subscriptionOfferCodeOneTimeUseCodes",
+			confirmOff:   true,
+		},
+		{
+			name:         "iap custom codes",
+			args:         []string{"iap", "offer-codes", "custom-codes", "update", "--custom-code-id", "code-1"},
+			resourceType: "inAppPurchaseOfferCodeCustomCodes",
+		},
+		{
+			name:         "iap one-time codes",
+			args:         []string{"iap", "offer-codes", "one-time-codes", "update", "--one-time-code-id", "code-1"},
+			resourceType: "inAppPurchaseOfferCodeOneTimeUseCodes",
+			confirmOff:   true,
+		},
+	}
+
+	for _, command := range commands {
+		for _, active := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s active=%t", command.name, active), func(t *testing.T) {
+				wantBody := map[string]any{"data": map[string]any{
+					"type":       command.resourceType,
+					"id":         "code-1",
+					"attributes": map[string]any{"active": active},
+				}}
+				requests := 0
+				http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					requests++
+					if req.Method != http.MethodPatch {
+						t.Fatalf("expected PATCH, got %s", req.Method)
+					}
+					if wantPath := "/v1/" + command.resourceType + "/code-1"; req.URL.Path != wantPath {
+						t.Fatalf("expected path %s, got %s", wantPath, req.URL.Path)
+					}
+					var gotBody map[string]any
+					if err := json.NewDecoder(req.Body).Decode(&gotBody); err != nil {
+						t.Fatalf("decode request body: %v", err)
+					}
+					if !reflect.DeepEqual(gotBody, wantBody) {
+						t.Fatalf("request body = %v, want %v", gotBody, wantBody)
+					}
+					body := fmt.Sprintf(`{"data":{"type":%q,"id":"code-1","attributes":{"active":%t}}}`, command.resourceType, active)
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(body)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				})
+
+				args := append(append([]string{}, command.args...), "--active", fmt.Sprint(active), "--output", "json")
+				if !active && command.confirmOff {
+					args = append(args, "--confirm")
+				}
+				stdout, _, err := runCommand(t, args)
+				if err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+				if requests != 1 {
+					t.Fatalf("expected 1 request, got %d", requests)
+				}
+				if !strings.Contains(stdout, `"id":"code-1"`) {
+					t.Fatalf("expected updated resource in stdout, got %q", stdout)
+				}
+			})
+		}
+	}
+}
+
+// TestOneTimeCodeBatchTurnOffRequiresConfirm guards against permanently
+// turning off a one-time use code batch without --confirm: Apple returns 409
+// "Given oneTimeUse code is inactive" when --active true follows.
+func TestOneTimeCodeBatchTurnOffRequiresConfirm(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	for _, args := range [][]string{
+		{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--batch-id", "code-1", "--active", "false"},
+		{"iap", "offer-codes", "one-time-codes", "update", "--one-time-code-id", "code-1", "--active", "false"},
+	} {
+		t.Run(args[0], func(t *testing.T) {
+			requests := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL.Path)
+			})
+
+			assertUsageExitCode(t, args, "--confirm is required to turn off a one-time use code batch; turning it off is permanent")
+			if requests != 0 {
+				t.Fatalf("expected no request, got %d", requests)
+			}
+		})
+	}
+}
+
+func TestOfferCodesGenerateEnvironmentRequestAndOutput(t *testing.T) {
+	baseArgs := []string{
+		"subscriptions", "offers", "offer-codes", "generate",
+		"--offer-code-id", "offer-1",
+		"--quantity", "5",
+		"--expiration-date", "2026-12-31",
+	}
+	withEnvironment := map[string]any{"numberOfCodes": float64(5), "expirationDate": "2026-12-31", "environment": "SANDBOX"}
+	withoutEnvironment := map[string]any{"numberOfCodes": float64(5), "expirationDate": "2026-12-31"}
+
+	tests := []struct {
+		name       string
+		extraArgs  []string
+		wantAttrs  map[string]any
+		wantStdout []string
+	}{
+		{
+			name:       "lowercase value is sent normalized and the JSON output keeps Apple's environment",
+			extraArgs:  []string{"--environment", "sandbox"},
+			wantAttrs:  withEnvironment,
+			wantStdout: []string{`"environment":"SANDBOX"`},
+		},
+		{
+			name:       "table output shows the environment",
+			extraArgs:  []string{"--environment", "SANDBOX", "--output-format", "table"},
+			wantAttrs:  withEnvironment,
+			wantStdout: []string{"Environment", "SANDBOX"},
+		},
+		{
+			name:      "omitted flag does not send the attribute",
+			wantAttrs: withoutEnvironment,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+			var gotAttrs map[string]any
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				var payload struct {
+					Data struct {
+						Attributes map[string]any `json:"attributes"`
+					} `json:"data"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+					t.Fatalf("decode request body: %v", err)
+				}
+				gotAttrs = payload.Data.Attributes
+
+				body := `{"data":{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"batch-1","attributes":{"numberOfCodes":5,"expirationDate":"2026-12-31","active":true,"environment":"SANDBOX"}}}`
+				return &http.Response{
+					StatusCode: http.StatusCreated,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			})
+
+			args := append(append([]string{}, baseArgs...), test.extraArgs...)
+			stdout, stderr, runErr := runCommand(t, args)
+			if runErr != nil {
+				t.Fatalf("run error: %v (stderr=%q)", runErr, stderr)
+			}
+			if !reflect.DeepEqual(gotAttrs, test.wantAttrs) {
+				t.Fatalf("request attributes = %v, want %v", gotAttrs, test.wantAttrs)
+			}
+			for _, want := range test.wantStdout {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("expected stdout to contain %q, got %q", want, stdout)
+				}
+			}
+		})
+	}
+}
+
+func TestOfferCodesGenerateInvalidEnvironmentFailsBeforeHTTP(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL)
+		return nil, nil
+	})
+
+	stdout, stderr, runErr := runCommand(t, []string{
+		"subscriptions", "offers", "offer-codes", "generate",
+		"--offer-code-id", "offer-1",
+		"--quantity", "5",
+		"--expiration-date", "2026-12-31",
+		"--environment", "beta",
+	})
+
+	if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: --environment must be one of: PRODUCTION, SANDBOX") {
+		t.Fatalf("expected environment validation error, got %q", stderr)
 	}
 }

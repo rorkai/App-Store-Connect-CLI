@@ -216,6 +216,7 @@ func TestUploadPreviewsRejectsUnsupportedFileBeforeRequests(t *testing.T) {
 				false,
 				tt.replace,
 				tt.dryRun,
+				"",
 			)
 			if err == nil {
 				t.Fatal("expected unsupported preview file error")
@@ -294,6 +295,7 @@ func TestUploadPreviewsSkipExistingSyncsSortedOrder(t *testing.T) {
 		true,
 		false,
 		false,
+		"",
 	)
 	if err != nil {
 		t.Fatalf("uploadPreviews() error: %v", err)
@@ -339,7 +341,7 @@ func TestUploadPreviewsRejectsAppendThatWouldExceedSetCapacityBeforeMutation(t *
 		}
 	}))
 
-	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, false, false, false)
+	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, false, false, false, "")
 	if err == nil {
 		t.Fatal("expected preview capacity error")
 	}
@@ -376,7 +378,7 @@ func TestUploadPreviewsCountsExistingPreviewsAcrossAllPages(t *testing.T) {
 		}
 	}))
 
-	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", []string{filePath}, false, false, true)
+	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", []string{filePath}, false, false, true, "")
 	if err == nil {
 		t.Fatal("expected preview capacity error")
 	}
@@ -419,7 +421,7 @@ func TestUploadPreviewsSkipsChecksumMatchFromLaterPage(t *testing.T) {
 		}
 	}))
 
-	result, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", []string{filePath}, true, false, true)
+	result, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", []string{filePath}, true, false, true, "")
 	if err != nil {
 		t.Fatalf("uploadPreviews() error: %v", err)
 	}
@@ -453,7 +455,7 @@ func TestUploadPreviewsRejectsLargeSkipExistingBatchBeforeCreatingMissingSet(t *
 		writeAssetsTestJSON(w, http.StatusOK, `{"data":[]}`)
 	}))
 
-	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, true, false, false)
+	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, true, false, false, "")
 	if err == nil {
 		t.Fatal("expected preview capacity error")
 	}
@@ -493,7 +495,7 @@ func TestUploadPreviewsAppliesSkipExistingBeforeCapacityCheck(t *testing.T) {
 		}
 	}))
 
-	result, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", []string{matchingPath, newPath}, true, false, true)
+	result, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", []string{matchingPath, newPath}, true, false, true, "")
 	if err != nil {
 		t.Fatalf("uploadPreviews() error: %v", err)
 	}
@@ -547,7 +549,7 @@ func TestUploadPreviewsAllowsLargeCandidateSetWhenChecksumSkipsFitCapacity(t *te
 		}
 	}))
 
-	result, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, true, false, true)
+	result, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, true, false, true, "")
 	if err != nil {
 		t.Fatalf("uploadPreviews() error: %v", err)
 	}
@@ -595,7 +597,7 @@ func TestUploadPreviewsRejectsReplaceBatchAboveCapacityAfterFiltering(t *testing
 		writeAssetsTestJSON(w, http.StatusInternalServerError, `{"errors":[{"status":"500","detail":"unexpected mutation"}]}`)
 	}))
 
-	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, true, true, false)
+	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, true, true, false, "")
 	if err == nil {
 		t.Fatal("expected replace capacity error")
 	}

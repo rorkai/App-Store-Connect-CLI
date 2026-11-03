@@ -3,7 +3,9 @@ package testflight
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -22,6 +24,17 @@ func usageErrorFromValidation(ctx context.Context, format string, err error) err
 		return shared.WithDiagnostic(usageErr, diagnostic.Code, diagnostic.Parameter)
 	}
 	return usageErr
+}
+
+// parseCreateRelationshipIDs reads a create command's relationship flag. A
+// provided flag with no IDs is a usage error, so it is never dropped silently.
+func parseCreateRelationshipIDs(value *shared.OnceCSVValue, flagName string) ([]string, error) {
+	ids := shared.SplitUniqueCSV(value.String())
+	if value.Provided() && len(ids) == 0 {
+		fmt.Fprintf(os.Stderr, "Error: %s must include at least one ID\n", flagName)
+		return nil, shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, flagName)
+	}
+	return ids, nil
 }
 
 func resolveBetaGroupID(ctx context.Context, client *asc.Client, appID, group string) (string, error) {

@@ -263,21 +263,26 @@ func TestVersionsViewIncludeValidationBeforeClient(t *testing.T) {
 	}
 }
 
-func TestVersionsReleaseTypeValidationBeforeAuth(t *testing.T) {
+func TestVersionsReleaseAttributeValidationBeforeAuth(t *testing.T) {
 	tests := []struct {
-		name   string
-		args   []string
-		prefix string
+		name string
+		args []string
+		want string
 	}{
 		{
-			name:   "create",
-			args:   []string{"versions", "create", "--app", "app-1", "--version", "1.0", "--release-type", "INVALID"},
-			prefix: "versions create",
+			name: "create",
+			args: []string{"versions", "create", "--app", "app-1", "--version", "1.0", "--release-type", "INVALID"},
+			want: "Error: versions create: --release-type must be one of: " + releaseTypeValues,
 		},
 		{
-			name:   "update",
-			args:   []string{"versions", "update", "--version-id", "version-1", "--release-type", "INVALID"},
-			prefix: "versions update",
+			name: "update",
+			args: []string{"versions", "update", "--version-id", "version-1", "--release-type", "INVALID"},
+			want: "Error: versions update: --release-type must be one of: " + releaseTypeValues,
+		},
+		{
+			name: "create date without a time",
+			args: []string{"versions", "create", "--app", "app-1", "--version", "1.0", "--earliest-release-date", "2026-02-01"},
+			want: "Error: versions create: --earliest-release-date must be an RFC3339 timestamp",
 		},
 	}
 
@@ -294,9 +299,8 @@ func TestVersionsReleaseTypeValidationBeforeAuth(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
-			want := "Error: " + test.prefix + ": --release-type must be one of: " + releaseTypeValues
-			if !strings.Contains(stderr, want) {
-				t.Fatalf("stderr = %q, want %q", stderr, want)
+			if !strings.Contains(stderr, test.want) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.want)
 			}
 			if strings.Contains(stderr, "missing authentication") {
 				t.Fatalf("stderr = %q, validation must run before auth", stderr)
@@ -307,11 +311,12 @@ func TestVersionsReleaseTypeValidationBeforeAuth(t *testing.T) {
 
 func TestVersionsReleaseTypePayloads(t *testing.T) {
 	tests := []struct {
-		name       string
-		args       []string
-		method     string
-		path       string
-		responseID string
+		name                string
+		args                []string
+		method              string
+		path                string
+		responseID          string
+		earliestReleaseDate string
 	}{
 		{
 			name:       "create",
@@ -319,6 +324,14 @@ func TestVersionsReleaseTypePayloads(t *testing.T) {
 			method:     http.MethodPost,
 			path:       "/v1/appStoreVersions",
 			responseID: "version-new",
+		},
+		{
+			name:                "create with earliest release date",
+			args:                []string{"versions", "create", "--app", "app-1", "--version", "2.0", "--release-type", "scheduled", "--earliest-release-date", "2026-02-01T08:00:00+00:00", "--output", "json"},
+			method:              http.MethodPost,
+			path:                "/v1/appStoreVersions",
+			responseID:          "version-new",
+			earliestReleaseDate: "2026-02-01T08:00:00+00:00",
 		},
 		{
 			name:       "update",
@@ -353,6 +366,12 @@ func TestVersionsReleaseTypePayloads(t *testing.T) {
 				if got := request.Data.Attributes["releaseType"]; got != "SCHEDULED" {
 					requestErr <- fmt.Errorf("releaseType = %#v, want SCHEDULED", got)
 					http.Error(w, "invalid release type", http.StatusBadRequest)
+					return
+				}
+				got, present := request.Data.Attributes["earliestReleaseDate"]
+				if present != (test.earliestReleaseDate != "") || (present && got != test.earliestReleaseDate) {
+					requestErr <- fmt.Errorf("earliestReleaseDate = %#v (present %t), want %q", got, present, test.earliestReleaseDate)
+					http.Error(w, "invalid earliest release date", http.StatusBadRequest)
 					return
 				}
 				requestErr <- nil

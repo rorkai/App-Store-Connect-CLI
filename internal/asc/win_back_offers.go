@@ -84,6 +84,7 @@ type WinBackOfferAttributes struct {
 	EndDate                                             *string                      `json:"endDate,omitempty"`
 	Priority                                            WinBackOfferPriority         `json:"priority,omitempty"`
 	PromotionIntent                                     *WinBackOfferPromotionIntent `json:"promotionIntent,omitempty"`
+	TargetSubscriptionPlanType                          SubscriptionPlanType         `json:"targetSubscriptionPlanType,omitempty"`
 }
 
 // WinBackOfferCreateAttributes describes attributes for creating a win-back offer.
@@ -100,6 +101,7 @@ type WinBackOfferCreateAttributes struct {
 	EndDate                                             *string                      `json:"endDate,omitempty"`
 	Priority                                            WinBackOfferPriority         `json:"priority"`
 	PromotionIntent                                     *WinBackOfferPromotionIntent `json:"promotionIntent,omitempty"`
+	TargetSubscriptionPlanType                          SubscriptionPlanType         `json:"targetSubscriptionPlanType,omitempty"`
 }
 
 // WinBackOfferUpdateAttributes describes attributes for updating a win-back offer.

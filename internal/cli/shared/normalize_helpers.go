@@ -18,6 +18,22 @@ func NormalizeEnumToken(value string) string {
 	return normalized
 }
 
+// NormalizeOfferCodeEnvironment validates the --environment flag of one-time
+// use offer code creation. An empty value stays empty so the attribute is omitted.
+func NormalizeOfferCodeEnvironment(value string) (string, error) {
+	normalized := strings.TrimSpace(strings.ToUpper(value))
+	if normalized == "" {
+		return "", nil
+	}
+
+	switch normalized {
+	case "PRODUCTION", "SANDBOX":
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("--environment must be one of: PRODUCTION, SANDBOX")
+	}
+}
+
 // ParseBoolFlag parses common bool-like flag values and returns a usage-style
 // error with the provided flagName when parsing fails.
 func ParseBoolFlag(value, flagName string) (bool, error) {

@@ -92,7 +92,7 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	}
 	c.captureDeveloperCSRFTokens(response.Header)
 	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
-		return developerPortalSessionError(response.StatusCode)
+		return developerPortalSessionError(response, body)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return &APIError{Status: response.StatusCode, AppleRequestID: extractAppleRequestID(response.Header), rawBody: body}
@@ -333,7 +333,7 @@ func (c *Client) doDeveloperPortalHTTPAndCapture(ctx context.Context, method, re
 	}
 	c.captureDeveloperCSRFTokens(response.Header)
 	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
-		return nil, developerPortalSessionError(response.StatusCode)
+		return nil, developerPortalSessionError(response, responseBody)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, &APIError{
@@ -487,6 +487,9 @@ type developerPortalSessionStatusError struct {
 }
 
 func (e *developerPortalSessionStatusError) Error() string {
+	if e.status == http.StatusForbidden {
+		return fmt.Sprintf("apple denied the Developer Portal request (%s); the account role likely lacks permission for this action, or the web session expired; run 'asc web auth status' to check the session", e.cause)
+	}
 	return fmt.Sprintf("web session is unauthorized or expired for Developer Portal (status %d); %s", e.status, developerPortalAuthHint)
 }
 
@@ -494,6 +497,11 @@ func (e *developerPortalSessionStatusError) Unwrap() error {
 	return e.cause
 }
 
-func developerPortalSessionError(status int) error {
-	return &developerPortalSessionStatusError{status: status, cause: &APIError{Status: status}}
+func developerPortalSessionError(response *http.Response, body []byte) error {
+	return &developerPortalSessionStatusError{status: response.StatusCode, cause: &APIError{
+		Status:         response.StatusCode,
+		AppleRequestID: extractAppleRequestID(response.Header),
+		CorrelationKey: strings.TrimSpace(response.Header.Get("X-Apple-Jingle-Correlation-Key")),
+		rawBody:        body,
+	}}
 }

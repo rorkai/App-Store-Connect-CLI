@@ -31,6 +31,7 @@ func SubscriptionsIntroductoryOffersImportCommand() *ffcli.Command {
 	numberOfPeriods := fs.Int("number-of-periods", 0, "Default number of periods")
 	startDate := fs.String("start-date", "", "Default start date (YYYY-MM-DD)")
 	endDate := fs.String("end-date", "", "Default end date (YYYY-MM-DD)")
+	targetPlanType := shared.BindTargetSubscriptionPlanTypeFlag(fs)
 	dryRun := fs.Bool("dry-run", false, "Validate input and print summary without creating offers")
 	confirm := fs.Bool("confirm", false, "Confirm creating introductory offers (required unless --dry-run)")
 	continueOnError := fs.Bool("continue-on-error", true, "Continue processing rows after runtime failures (default true)")
@@ -48,7 +49,8 @@ Required column:
   territory
 
 Optional columns:
-  offer_mode, offer_duration, number_of_periods, start_date, end_date, price_point_id
+  offer_mode, offer_duration, number_of_periods, start_date, end_date, price_point_id,
+  target_subscription_plan_type
 
 Header aliases:
   price_point -> price_point_id
@@ -58,6 +60,7 @@ Territory values:
 
 Precedence:
   Row values override command-level defaults.
+  target_subscription_plan_type falls back to UPFRONT when neither sets it.
 
 Examples:
   asc subscriptions introductory-offers import --subscription-id "SUB_ID" --input "./offers.csv" --confirm
@@ -114,6 +117,10 @@ Examples:
 				}
 				normalizedEndDate = date
 			}
+			normalizedPlanType, err := targetPlanType()
+			if err != nil {
+				return err
+			}
 			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
@@ -127,6 +134,7 @@ Examples:
 				*numberOfPeriods,
 				normalizedStartDate,
 				normalizedEndDate,
+				normalizedPlanType,
 			)
 			resolvedRows, err := resolveSubscriptionIntroductoryOfferImportRows(rows, defaults)
 			if err != nil {
