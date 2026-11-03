@@ -165,6 +165,18 @@ func TestIAPSetupValidationErrors(t *testing.T) {
 			},
 			wantErr: "--price-point-id, --tier, and --price are mutually exclusive",
 		},
+		{
+			name: "blank review note",
+			args: []string{
+				"iap", "setup",
+				"--app", "app-1",
+				"--type", "NON_CONSUMABLE",
+				"--reference-name", "Pro Lifetime",
+				"--product-id", "lifetime",
+				"--review-note", " ",
+			},
+			wantErr: "--review-note cannot be empty",
+		},
 	}
 
 	for _, test := range tests {
