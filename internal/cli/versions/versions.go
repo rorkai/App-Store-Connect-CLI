@@ -485,6 +485,7 @@ func VersionsCreateCommand() *ffcli.Command {
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
 	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)")
+	reviewType := fs.String("review-type", "", "Review type: APP_STORE, NOTARIZATION")
 	copyMetadataFrom := fs.String("copy-metadata-from", "", "Copy localization metadata from this source version string")
 	copyFields := shared.BindOnceCSVFlag(fs, "copy-fields", "Comma-separated metadata fields to copy: description, keywords, marketingUrl, promotionalText, supportUrl, whatsNew")
 	excludeFields := shared.BindOnceCSVFlag(fs, "exclude-fields", "Comma-separated metadata fields to exclude from copy")
@@ -502,6 +503,7 @@ Examples:
   asc versions create --app "123456789" --version "2.0.0" --platform IOS
   asc versions create --app "123456789" --version "2.0.0" --copyright "2026 My Company" --release-type MANUAL
   asc versions create --app "123456789" --version "2.0.0" --release-type SCHEDULED --earliest-release-date "2026-02-01T08:00:00+00:00"
+  asc versions create --app "123456789" --version "2.0.0" --review-type NOTARIZATION
   asc versions create --app "123456789" --version "2.4.0" --platform IOS --copy-metadata-from "2.3.2"
   asc versions create --app "123456789" --version "2.4.0" --copy-metadata-from "2.3.2" --copy-fields "description,keywords,supportUrl" --exclude-fields "whatsNew"
   asc versions create --app "123456789" --version "2.0.0" --if-exists skip
@@ -511,9 +513,10 @@ Examples:
 the version already exists for that platform. fail (default) returns the
 error. skip reads the existing version back, exits 0, and reports
 "action":"skipped" without changing it. update applies --copyright,
---release-type, and --earliest-release-date to the existing version with asc
-versions update and reports "action":"updated"; --copy-metadata-from still runs
-against the existing version. Any other 409 keeps failing.`,
+--release-type, --earliest-release-date, and --review-type to the existing
+version with asc versions update and reports "action":"updated";
+--copy-metadata-from still runs against the existing version. Any other 409
+keeps failing.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -570,6 +573,11 @@ against the existing version. Any other 409 keeps failing.`,
 				}
 			}
 
+			normalizedReviewType, err := normalizeAppStoreVersionReviewType(*reviewType)
+			if err != nil {
+				return shared.UsageErrorf("versions create: %v", err)
+			}
+
 			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
 			if err != nil {
 				return err
@@ -595,6 +603,9 @@ against the existing version. Any other 409 keeps failing.`,
 			}
 			if earliestReleaseDateValue != "" {
 				attrs.EarliestReleaseDate = earliestReleaseDateValue
+			}
+			if normalizedReviewType != "" {
+				attrs.ReviewType = normalizedReviewType
 			}
 
 			resp, err := client.CreateAppStoreVersion(requestCtx, resolvedAppID, attrs)
@@ -638,7 +649,10 @@ against the existing version. Any other 409 keeps failing.`,
 					if earliestReleaseDateValue != "" {
 						updateAttrs.EarliestReleaseDate = &earliestReleaseDateValue
 					}
-					if updateAttrs.Copyright != nil || updateAttrs.ReleaseType != nil || updateAttrs.EarliestReleaseDate != nil {
+					if normalizedReviewType != "" {
+						updateAttrs.ReviewType = &normalizedReviewType
+					}
+					if updateAttrs.Copyright != nil || updateAttrs.ReleaseType != nil || updateAttrs.EarliestReleaseDate != nil || updateAttrs.ReviewType != nil {
 						updated, updateErr := client.UpdateAppStoreVersion(requestCtx, existing.Data.ID, updateAttrs)
 						if updateErr != nil {
 							return fmt.Errorf("versions create: update existing version %s: %w", existing.Data.ID, updateErr)
@@ -751,6 +765,7 @@ func VersionsUpdateCommand() *ffcli.Command {
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
+	reviewType := fs.String("review-type", "", "Review type: APP_STORE, NOTARIZATION")
 	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)")
 	versionString := fs.String("version", "", "Version string (e.g., 1.0.1)")
 	var downloadable shared.OptionalBool
@@ -782,6 +797,7 @@ past the first page.
 Examples:
   asc versions update --version-id "VERSION_ID" --copyright "2026 My Company"
   asc versions update --version-id "VERSION_ID" --release-type MANUAL
+  asc versions update --version-id "VERSION_ID" --review-type NOTARIZATION
   asc versions update --version-id "VERSION_ID" --release-type SCHEDULED --earliest-release-date "2026-02-01T08:00:00+00:00"
   asc versions update --version-id "VERSION_ID" --version "1.0.1"
   asc versions update --version-id "VERSION_ID" --downloadable true
@@ -802,9 +818,14 @@ Examples:
 				return shared.UsageErrorf("versions update: %v", err)
 			}
 
+			normalizedReviewType, err := normalizeAppStoreVersionReviewType(*reviewType)
+			if err != nil {
+				return shared.UsageErrorf("versions update: %v", err)
+			}
+
 			// Check that at least one update field is provided
-			if *copyright == "" && normalizedReleaseType == "" && *earliestReleaseDate == "" && *versionString == "" && !downloadable.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: at least one of --copyright, --release-type, --earliest-release-date, --version, or --downloadable is required")
+			if *copyright == "" && normalizedReleaseType == "" && normalizedReviewType == "" && *earliestReleaseDate == "" && *versionString == "" && !downloadable.IsSet() {
+				fmt.Fprintln(os.Stderr, "Error: at least one of --copyright, --release-type, --review-type, --earliest-release-date, --version, or --downloadable is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -834,6 +855,9 @@ Examples:
 			}
 			if normalizedReleaseType != "" {
 				attrs.ReleaseType = &normalizedReleaseType
+			}
+			if normalizedReviewType != "" {
+				attrs.ReviewType = &normalizedReviewType
 			}
 			if *earliestReleaseDate != "" {
 				attrs.EarliestReleaseDate = earliestReleaseDate
@@ -1061,6 +1085,16 @@ func normalizeAppStoreVersionReleaseType(value string) (string, error) {
 		return normalized, nil
 	default:
 		return "", fmt.Errorf("--release-type must be one of: MANUAL, AFTER_APPROVAL, SCHEDULED")
+	}
+}
+
+func normalizeAppStoreVersionReviewType(value string) (string, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	switch {
+	case value == "", normalized == "APP_STORE", normalized == "NOTARIZATION":
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("--review-type must be one of: APP_STORE, NOTARIZATION")
 	}
 }
 
