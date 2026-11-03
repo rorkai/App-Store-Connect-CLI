@@ -63,7 +63,7 @@ func BundleIDsListCommand() *ffcli.Command {
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(bundleIDFieldsList(), ", "))
 	profileFields := fs.String("profile-fields", "", "Profile fields to include: "+strings.Join(bundleIDProfileFieldsList(), ", "))
 	capabilityFields := fs.String("capability-fields", "", "Capability fields to include: "+strings.Join(bundleIDCapabilityFieldsList(), ", "))
-	appFields := fs.String("app-fields", "", "App fields to include: "+strings.Join(bundleIDAppFieldsList(), ", "))
+	appFields := fs.String("app-fields", "", "App fields to include: "+strings.Join(shared.AppFieldsList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(bundleIDIncludeList(), ", "))
 	profilesLimit := fs.Int("profiles-limit", 0, "Maximum included profiles (1-50)")
 	capabilitiesLimit := fs.Int("capabilities-limit", 0, "Maximum included capabilities (1-50)")
@@ -132,7 +132,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
 			}
-			appFieldValues, err := normalizeBundleIDSelection(*appFields, bundleIDAppFieldsList(), "--app-fields")
+			appFieldValues, err := normalizeBundleIDSelection(*appFields, shared.AppFieldsList(), "--app-fields")
 			if err != nil {
 				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
 			}
@@ -527,25 +527,6 @@ func bundleIDProfileFieldsList() []string {
 
 func bundleIDCapabilityFieldsList() []string {
 	return []string{"capabilityType", "settings"}
-}
-
-func bundleIDAppFieldsList() []string {
-	return []string{
-		"accessibilityUrl", "name", "bundleId", "sku", "primaryLocale",
-		"isOrEverWasMadeForKids", "subscriptionStatusUrl", "subscriptionStatusUrlVersion",
-		"subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox",
-		"contentRightsDeclaration", "streamlinedPurchasingEnabled", "accessibilityDeclarations",
-		"appEncryptionDeclarations", "appStoreIcon", "ciProduct", "betaTesters", "betaGroups",
-		"appStoreVersions", "appTags", "preReleaseVersions", "betaAppLocalizations", "builds",
-		"betaLicenseAgreement", "betaAppReviewDetail", "appInfos", "appClips", "appPricePoints",
-		"endUserLicenseAgreement", "appPriceSchedule", "appAvailabilityV2", "inAppPurchases",
-		"subscriptionGroups", "gameCenterEnabledVersions", "perfPowerMetrics", "appCustomProductPages",
-		"inAppPurchasesV2", "promotedPurchases", "appEvents", "reviewSubmissions",
-		"subscriptionGracePeriod", "customerReviews", "customerReviewSummarizations", "gameCenterDetail",
-		"appStoreVersionExperimentsV2", "alternativeDistributionKey", "analyticsReportRequests",
-		"marketplaceSearchDetail", "buildUploads", "backgroundAssets", "betaFeedbackScreenshotSubmissions",
-		"betaFeedbackCrashSubmissions", "searchKeywords", "webhooks", "androidToIosAppMappingDetails",
-	}
 }
 
 func bundleIDIncludeList() []string {
