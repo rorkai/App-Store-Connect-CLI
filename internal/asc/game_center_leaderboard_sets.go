@@ -24,7 +24,7 @@ type GameCenterLeaderboardSetUpdateAttributes struct {
 
 // GameCenterLeaderboardSetRelationships describes relationships for leaderboard sets.
 type GameCenterLeaderboardSetRelationships struct {
-	GameCenterDetail       *Relationship     `json:"gameCenterDetail"`
+	GameCenterDetail       *Relationship     `json:"gameCenterDetail,omitempty"`
 	GameCenterLeaderboards *RelationshipList `json:"gameCenterLeaderboards,omitempty"`
 }
 
