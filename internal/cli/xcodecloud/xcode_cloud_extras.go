@@ -353,7 +353,7 @@ func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) erro
 	if err != nil {
 		return shared.UsageErrorf("xcode-cloud products: %v", err)
 	}
-	appFields, err := normalizeCiProductsSelection(flags.flagSet, *flags.appFields, shared.AppFieldsList(), "--app-fields")
+	appFields, err := normalizeCiProductsSelection(flags.flagSet, *flags.appFields, ciProductsAppFieldsValues, "--app-fields")
 	if err != nil {
 		return shared.UsageErrorf("xcode-cloud products: %v", err)
 	}

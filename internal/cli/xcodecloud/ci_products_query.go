@@ -25,6 +25,10 @@ var ciProductsFieldsValues = []string{
 	"buildRuns",
 }
 
+// Apple production returns HTTP 500 for fields[apps]=assetLibrary on
+// GET /v1/ciProducts (Nov 2026), although the spec lists it.
+var ciProductsAppFieldsValues = shared.AppFieldsList("assetLibrary")
+
 var ciProductsBundleIDFieldsValues = []string{
 	"name",
 	"platform",
@@ -77,7 +81,7 @@ func bindCiProductsListFlags(fs *flag.FlagSet) ciProductsListFlags {
 		appID:                    fs.String("app", "", xcodeCloudAppFlagUsage),
 		productType:              fs.String("product-type", "", "Filter by product type(s), comma-separated: "+strings.Join(ciProductsProductTypeValues, ", ")),
 		fields:                   fs.String("fields", "", "Fields to include for CI products, comma-separated: "+strings.Join(ciProductsFieldsValues, ", ")),
-		appFields:                fs.String("app-fields", "", "Fields to include for related apps, comma-separated: "+strings.Join(shared.AppFieldsList(), ", ")),
+		appFields:                fs.String("app-fields", "", "Fields to include for related apps, comma-separated: "+strings.Join(ciProductsAppFieldsValues, ", ")),
 		bundleIDFields:           fs.String("bundle-id-fields", "", "Fields to include for related bundle IDs, comma-separated: "+strings.Join(ciProductsBundleIDFieldsValues, ", ")),
 		scmRepositoryFields:      fs.String("scm-repository-fields", "", "Fields to include for related SCM repositories, comma-separated: "+strings.Join(ciProductsScmRepositoryFieldsValues, ", ")),
 		include:                  fs.String("include", "", "Include related resources: "+strings.Join(ciProductsIncludeValues, ", ")),

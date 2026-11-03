@@ -13,8 +13,12 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
+
+// Apple production rejects these spec values (400 "is not a valid field name"
+// or HTTP 500), so the CLI must reject them before sending a request.
+var appFieldsRejectedEverywhere = []string{"appEncryptionDeclarations"}
 
 func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 	tests := []struct {
@@ -22,6 +26,7 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 		specPath    string
 		requestPath string
 		args        []string
+		rejected    []string
 	}{
 		{
 			name:        "bundle-ids list",
@@ -46,58 +51,88 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 			specPath:    "/v1/users",
 			requestPath: "/v1/users",
 			args:        []string{"users", "list", "--include", "visibleApps"},
+			rejected: []string{
+				"appStoreIcon",
+				"performanceOverviews",
+				"customerReviewSummarizations",
+				"analyticsReportRequests",
+				"betaFeedbackScreenshotSubmissions",
+				"betaFeedbackCrashSubmissions",
+				"webhooks",
+				"androidToIosAppMappingDetails",
+			},
 		},
 		{
 			name:        "xcode-cloud products list",
 			specPath:    "/v1/ciProducts",
 			requestPath: "/v1/ciProducts",
 			args:        []string{"xcode-cloud", "products", "list", "--app", "123456789", "--include", "app"},
+			rejected:    []string{"assetLibrary"},
 		},
 	}
 
 	for _, test := range tests {
+		rejected := append(append([]string{}, appFieldsRejectedEverywhere...), test.rejected...)
+		accepted := slices.DeleteFunc(openAPIAppFieldsEnum(t, test.specPath), func(value string) bool {
+			return slices.Contains(rejected, value)
+		})
+
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-			enum := openAPIAppFieldsEnum(t, test.specPath)
-			if got := shared.AppFieldsList(); !slices.Equal(got, enum) {
-				t.Fatalf("shared.AppFieldsList() = %v, want %v", got, enum)
-			}
-			appFields := strings.Join(enum, ",")
-			var requests atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				requests.Add(1)
-				if req.URL.Path != test.requestPath {
-					t.Errorf("path = %q, want %q", req.URL.Path, test.requestPath)
-				}
-				if got := req.URL.Query().Get("fields[apps]"); got != appFields {
-					t.Errorf("fields[apps] = %q, want %q", got, appFields)
-				}
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = io.WriteString(w, `{"data":[],"links":{"next":""}}`)
-			}))
-			t.Cleanup(server.Close)
-			installDefaultTransportForServer(t, server)
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			args := append(append([]string{}, test.args...), "--app-fields", appFields, "--output", "json")
-			var runErr error
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			appFields := strings.Join(accepted, ",")
+			stderr, requests, runErr := runAppFieldsCommand(t, test.args, appFields, test.requestPath)
 			if runErr != nil {
 				t.Fatalf("run error: %v; stderr=%q", runErr, stderr)
 			}
-			if got := requests.Load(); got != 1 {
-				t.Fatalf("request count = %d, want 1", got)
+			if requests != 1 {
+				t.Fatalf("request count = %d, want 1", requests)
 			}
 		})
+
+		for _, value := range rejected {
+			t.Run(test.name+" rejects "+value, func(t *testing.T) {
+				stderr, requests, runErr := runAppFieldsCommand(t, test.args, value, test.requestPath)
+				if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
+					t.Fatalf("exit code = %d, want %d; err=%v stderr=%q", got, rootcmd.ExitUsage, runErr, stderr)
+				}
+				if requests != 0 {
+					t.Fatalf("request count = %d, want 0", requests)
+				}
+			})
+		}
 	}
+}
+
+func runAppFieldsCommand(t *testing.T, commandArgs []string, appFields, requestPath string) (string, int32, error) {
+	t.Helper()
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		requests.Add(1)
+		if req.URL.Path != requestPath {
+			t.Errorf("path = %q, want %q", req.URL.Path, requestPath)
+		}
+		if got := req.URL.Query().Get("fields[apps]"); got != appFields {
+			t.Errorf("fields[apps] = %q, want %q", got, appFields)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"data":[],"links":{"next":""}}`)
+	}))
+	t.Cleanup(server.Close)
+	installDefaultTransportForServer(t, server)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	args := append(append([]string{}, commandArgs...), "--app-fields", appFields, "--output", "json")
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse(args); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	return stderr, requests.Load(), runErr
 }
 
 func openAPIAppFieldsEnum(t *testing.T, path string) []string {

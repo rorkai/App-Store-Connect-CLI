@@ -7,7 +7,19 @@ func normalizeUsersFields(value, flagName string) ([]string, error) {
 }
 
 func normalizeUsersAppFields(value, flagName string) ([]string, error) {
-	return shared.NormalizeSelection(value, shared.AppFieldsList(), flagName)
+	// Apple production rejects these on GET /v1/users with 400
+	// "is not a valid field name" (Nov 2026), although the spec lists them.
+	allowed := shared.AppFieldsList(
+		"appStoreIcon",
+		"performanceOverviews",
+		"customerReviewSummarizations",
+		"analyticsReportRequests",
+		"betaFeedbackScreenshotSubmissions",
+		"betaFeedbackCrashSubmissions",
+		"webhooks",
+		"androidToIosAppMappingDetails",
+	)
+	return shared.NormalizeSelection(value, allowed, flagName)
 }
 
 func normalizeUsersSort(value, flagName string) ([]string, error) {
