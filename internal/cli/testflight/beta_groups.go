@@ -1103,6 +1103,12 @@ func BetaGroupsUpdateCommand() *ffcli.Command {
 	publicLinkLimitEnabled := fs.Bool("public-link-limit-enabled", false, "Enable public link limit")
 	publicLinkLimit := fs.Int("public-link-limit", 0, "Public link limit (1-10000)")
 	feedbackEnabled := fs.Bool("feedback-enabled", false, "Enable feedback")
+	var iosBuildsAvailableForAppleSiliconMac shared.OptionalBool
+	iosBuildsAvailableForAppleSiliconMac.EnableBoolFlag()
+	fs.Var(&iosBuildsAvailableForAppleSiliconMac, "ios-builds-available-for-apple-silicon-mac", "Make the group's iOS builds available on Apple silicon Macs")
+	var iosBuildsAvailableForAppleVision shared.OptionalBool
+	iosBuildsAvailableForAppleVision.EnableBoolFlag()
+	fs.Var(&iosBuildsAvailableForAppleVision, "ios-builds-available-for-apple-vision", "Make the group's iOS builds available on Apple Vision")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -1114,7 +1120,8 @@ func BetaGroupsUpdateCommand() *ffcli.Command {
 Examples:
   asc testflight beta-groups update --id "GROUP_ID" --name "New Name"
   asc testflight beta-groups update --id "GROUP_ID" --public-link-enabled --public-link-limit 100
-  asc testflight beta-groups update --id "GROUP_ID" --feedback-enabled`,
+  asc testflight beta-groups update --id "GROUP_ID" --feedback-enabled
+  asc testflight beta-groups update --id "GROUP_ID" --ios-builds-available-for-apple-silicon-mac --ios-builds-available-for-apple-vision=false`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1138,7 +1145,9 @@ Examples:
 				visited["public-link-enabled"] ||
 				visited["public-link-limit-enabled"] ||
 				visited["public-link-limit"] ||
-				visited["feedback-enabled"]
+				visited["feedback-enabled"] ||
+				iosBuildsAvailableForAppleSiliconMac.IsSet() ||
+				iosBuildsAvailableForAppleVision.IsSet()
 			if !hasUpdates {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError("")
@@ -1176,11 +1185,13 @@ Examples:
 					Type: asc.ResourceTypeBetaGroups,
 					ID:   trimmedID,
 					Attributes: &asc.BetaGroupUpdateAttributes{
-						Name:                   strings.TrimSpace(*name),
-						PublicLinkEnabled:      publicLinkEnabledAttr,
-						PublicLinkLimitEnabled: publicLinkLimitEnabledAttr,
-						PublicLinkLimit:        *publicLinkLimit,
-						FeedbackEnabled:        feedbackEnabledAttr,
+						Name:                                 strings.TrimSpace(*name),
+						PublicLinkEnabled:                    publicLinkEnabledAttr,
+						PublicLinkLimitEnabled:               publicLinkLimitEnabledAttr,
+						PublicLinkLimit:                      *publicLinkLimit,
+						FeedbackEnabled:                      feedbackEnabledAttr,
+						IOSBuildsAvailableForAppleSiliconMac: optionalBetaGroupCreateBool(iosBuildsAvailableForAppleSiliconMac),
+						IOSBuildsAvailableForAppleVision:     optionalBetaGroupCreateBool(iosBuildsAvailableForAppleVision),
 					},
 				},
 			}

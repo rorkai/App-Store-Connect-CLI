@@ -628,11 +628,13 @@ type BetaGroupCreateRequest struct {
 
 // BetaGroupUpdateAttributes describes attributes for updating a beta group.
 type BetaGroupUpdateAttributes struct {
-	Name                   string `json:"name,omitempty"`
-	PublicLinkEnabled      *bool  `json:"publicLinkEnabled,omitempty"`
-	PublicLinkLimitEnabled *bool  `json:"publicLinkLimitEnabled,omitempty"`
-	PublicLinkLimit        int    `json:"publicLinkLimit,omitempty"`
-	FeedbackEnabled        *bool  `json:"feedbackEnabled,omitempty"`
+	Name                                 string `json:"name,omitempty"`
+	PublicLinkEnabled                    *bool  `json:"publicLinkEnabled,omitempty"`
+	PublicLinkLimitEnabled               *bool  `json:"publicLinkLimitEnabled,omitempty"`
+	PublicLinkLimit                      int    `json:"publicLinkLimit,omitempty"`
+	FeedbackEnabled                      *bool  `json:"feedbackEnabled,omitempty"`
+	IOSBuildsAvailableForAppleSiliconMac *bool  `json:"iosBuildsAvailableForAppleSiliconMac,omitempty"`
+	IOSBuildsAvailableForAppleVision     *bool  `json:"iosBuildsAvailableForAppleVision,omitempty"`
 }
 
 // BetaGroupUpdateData is the data portion of a beta group update request.

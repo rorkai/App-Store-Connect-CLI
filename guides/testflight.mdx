@@ -60,6 +60,14 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     ```bash  theme={null}
     asc testflight groups edit --id "GROUP_ID" --feedback-enabled
     ```
+
+    Control whether the group's iOS builds are available on Apple silicon Macs and Apple Vision:
+
+    ```bash  theme={null}
+    asc testflight groups edit --id "GROUP_ID" \
+      --ios-builds-available-for-apple-silicon-mac \
+      --ios-builds-available-for-apple-vision=false
+    ```
   </Step>
 </Steps>
 
