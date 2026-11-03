@@ -1132,6 +1132,17 @@ asc subscriptions offers offer-codes create \
 # List offer codes
 asc subscriptions offers offer-codes list \
   --subscription-id "SUB_ID"
+
+# Turn off a custom code
+asc subscriptions offers offer-codes custom-codes update \
+  --custom-code-id "CUSTOM_CODE_ID" \
+  --active false
+
+# Turn off a one-time use code batch (permanent: Apple can't turn it back on)
+asc subscriptions offers offer-codes one-time-codes update \
+  --batch-id "ONE_TIME_USE_CODE_ID" \
+  --active false \
+  --confirm
 ```
 
 ## App Store Review

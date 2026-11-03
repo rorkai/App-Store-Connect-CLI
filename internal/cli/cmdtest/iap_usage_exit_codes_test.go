@@ -55,6 +55,36 @@ func TestIAPInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "iap offer-codes one-time-codes list: --limit must be between 1 and 200",
 		},
 		{
+			name:    "offer-codes custom-codes update missing id",
+			args:    []string{"iap", "offer-codes", "custom-codes", "update", "--active", "false"},
+			wantErr: "--custom-code-id is required",
+		},
+		{
+			name:    "offer-codes custom-codes update missing active",
+			args:    []string{"iap", "offer-codes", "custom-codes", "update", "--custom-code-id", "CODE_ID"},
+			wantErr: "--active is required",
+		},
+		{
+			name:    "offer-codes custom-codes update invalid active",
+			args:    []string{"iap", "offer-codes", "custom-codes", "update", "--custom-code-id", "CODE_ID", "--active", "maybe"},
+			wantErr: "iap offer-codes custom-codes update: --active must be true or false",
+		},
+		{
+			name:    "offer-codes one-time-codes update missing id",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "update", "--active", "false"},
+			wantErr: "--one-time-code-id is required",
+		},
+		{
+			name:    "offer-codes one-time-codes update missing active",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "update", "--one-time-code-id", "CODE_ID"},
+			wantErr: "--active is required",
+		},
+		{
+			name:    "offer-codes one-time-codes update invalid active",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "update", "--one-time-code-id", "CODE_ID", "--active", "maybe"},
+			wantErr: "iap offer-codes one-time-codes update: --active must be true or false",
+		},
+		{
 			name:    "offer-codes prices limit above maximum",
 			args:    []string{"iap", "offer-codes", "prices", "--offer-code-id", "OFFER_CODE_ID", "--limit", "201"},
 			wantErr: "iap offer-codes prices: --limit must be between 1 and 200",

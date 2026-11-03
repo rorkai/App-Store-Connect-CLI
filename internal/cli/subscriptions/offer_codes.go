@@ -425,12 +425,14 @@ func SubscriptionsOfferCodesOneTimeCodesCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
-  asc subscriptions offer-codes one-time-codes view --batch-id "ONE_TIME_USE_CODE_ID"`,
+  asc subscriptions offer-codes one-time-codes view --batch-id "ONE_TIME_USE_CODE_ID"
+  asc subscriptions offer-codes one-time-codes update --batch-id "ONE_TIME_USE_CODE_ID" --active false --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsOfferCodesOneTimeCodesListCommand(),
 			SubscriptionsOfferCodesOneTimeCodesGetCommand(),
+			SubscriptionsOfferCodesOneTimeCodesUpdateCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -553,6 +555,31 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// SubscriptionsOfferCodesOneTimeCodesUpdateCommand returns the one-time use code batch update subcommand.
+func SubscriptionsOfferCodesOneTimeCodesUpdateCommand() *ffcli.Command {
+	return offercodes.NewActiveUpdateCommand(offercodes.ActiveUpdateCommandConfig{
+		FlagSetName: "offer-codes one-time-codes update",
+		Name:        "update",
+		ShortUsage:  "asc subscriptions offer-codes one-time-codes update --batch-id \"ONE_TIME_USE_CODE_ID\" --active false --confirm",
+		ShortHelp:   "Turn off a one-time use code batch.",
+		LongHelp: `Turn off a one-time use code batch.
+
+Turning a batch off is permanent: Apple rejects --active true on an inactive
+batch, so --active false requires --confirm.
+
+Examples:
+  asc subscriptions offer-codes one-time-codes update --batch-id "ONE_TIME_USE_CODE_ID" --active false --confirm`,
+		IDFlag:      "batch-id",
+		IDUsage:     "One-time use code batch ID (required)",
+		IDType:      "subscriptionOfferCodeOneTimeUseCodes",
+		ErrorPrefix: "subscriptions offer-codes one-time-codes update",
+		ConfirmOff:  "a one-time use code batch",
+		Update: func(ctx context.Context, client *asc.Client, id string, active *bool) (any, error) {
+			return client.UpdateSubscriptionOfferCodeOneTimeUseCode(ctx, id, asc.SubscriptionOfferCodeOneTimeUseCodeUpdateAttributes{Active: active})
+		},
+	})
 }
 
 // SubscriptionsOfferCodesPricesCommand returns the offer code prices subcommand.
