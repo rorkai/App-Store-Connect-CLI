@@ -2,6 +2,7 @@ package cmdtest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -205,7 +207,7 @@ func TestBetaGroupsCreateSendsDistributionControls(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if callCount != 1 {
-		t.Fatalf("expected one request, got %d", callCount)
+		t.Fatalf("expected one create request, got %d", callCount)
 	}
 }
 
@@ -365,5 +367,254 @@ func TestBetaGroupsCreateRejectsInvalidPublicLinkLimitBeforeRequest(t *testing.T
 	}
 	if !strings.Contains(stderr, "--public-link-limit must be between 1 and 10000") {
 		t.Fatalf("expected limit diagnostic, got %q", stderr)
+	}
+}
+
+func createRequestRelationships(t *testing.T, req *http.Request) string {
+	t.Helper()
+
+	var payload struct {
+		Data struct {
+			Relationships json.RawMessage `json:"relationships"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode body error: %v", err)
+	}
+	return string(payload.Data.Relationships)
+}
+
+func TestBetaGroupsCreateSendsRelationshipsInOneRequest(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	const app = `"app":{"data":{"type":"apps","id":"app-1"}}`
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "omitted flags send only the app",
+			want: `{` + app + `}`,
+		},
+		{
+			name: "builds",
+			args: []string{"--build-id", "build-1, build-2,build-1"},
+			want: `{` + app + `,"builds":{"data":[{"type":"builds","id":"build-1"},{"type":"builds","id":"build-2"}]}}`,
+		},
+		{
+			name: "testers",
+			args: []string{"--tester", "tester-1,tester-2"},
+			want: `{` + app + `,"betaTesters":{"data":[{"type":"betaTesters","id":"tester-1"},{"type":"betaTesters","id":"tester-2"}]}}`,
+		},
+		{
+			name: "builds and testers",
+			args: []string{"--build-id", "build-1", "--tester", "tester-1"},
+			want: `{` + app + `,"builds":{"data":[{"type":"builds","id":"build-1"}]},"betaTesters":{"data":[{"type":"betaTesters","id":"tester-1"}]}}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			callCount := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method == http.MethodGet && req.URL.Path == "/v1/betaGroups" && len(test.args) > 0 {
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(`{"data":[],"links":{}}`)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				}
+				callCount++
+				if req.Method != http.MethodPost || req.URL.Path != "/v1/betaGroups" {
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+				}
+				if got := createRequestRelationships(t, req); got != test.want {
+					t.Fatalf("relationships = %s, want %s", got, test.want)
+				}
+				return &http.Response{
+					StatusCode: http.StatusCreated,
+					Body:       io.NopCloser(strings.NewReader(`{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Beta"}}}`)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			})
+
+			args := append([]string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta"}, test.args...)
+			if _, _, err := runCommand(t, args); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+			if callCount != 1 {
+				t.Fatalf("expected one create request, got %d", callCount)
+			}
+		})
+	}
+}
+
+// Live App Store Connect created the group even though the create request
+// failed with 404 for a missing build, so the error must name that group. A
+// same-name group that existed before the create must never be called new.
+func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	const (
+		notFound  = `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'builds' with id 'missing-build'"}]}`
+		conflict  = `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE","title":"duplicate","detail":"A group with this name already exists"}]}`
+		noGroups  = `{"data":[],"links":{}}`
+		oldGroup  = `{"data":[{"type":"betaGroups","id":"bg-old","attributes":{"name":"Beta"}}],"links":{}}`
+		oldPaged  = `{"data":[{"type":"betaGroups","id":"bg-old","attributes":{"name":"Beta"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/betaGroups?filter%5Bapp%5D=app-1&filter%5Bname%5D=Beta&cursor=2"}}`
+		serverErr = `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"boom","detail":"boom"}]}`
+	)
+	tests := []struct {
+		name         string
+		lookups      []string // GET responses in order; "" answers 500
+		createStatus int
+		createBody   string
+		wantErr      error
+		wantGets     int
+		getsBefore   int // lookups expected before the POST; 0 means 1
+		want         []string
+		notWant      []string
+	}{
+		{
+			name:         "group appears only after the failed create",
+			lookups:      []string{noGroups, `{"data":[{"type":"betaGroups","id":"bg-partial","attributes":{"name":"Beta"}}],"links":{}}`},
+			createStatus: http.StatusNotFound,
+			createBody:   notFound,
+			wantErr:      asc.ErrNotFound,
+			wantGets:     2,
+			want: []string{
+				"There is no resource of type 'builds' with id 'missing-build'",
+				`App Store Connect created group "bg-partial" despite the failure`,
+				`asc builds add-groups --build-id "missing-build" --group "bg-partial"`,
+				`asc testflight groups add-testers --group "bg-partial" --tester "tester-1"`,
+				`asc testflight groups delete --id "bg-partial" --confirm`,
+			},
+		},
+		{
+			name:         "same-name group existed before the create",
+			lookups:      []string{oldGroup, oldGroup},
+			createStatus: http.StatusConflict,
+			createBody:   conflict,
+			wantErr:      asc.ErrConflict,
+			wantGets:     2,
+			want:         []string{"A group with this name already exists"},
+			notWant:      []string{"bg-old", "created", "delete"},
+		},
+		{
+			name:         "new group on a later page",
+			lookups:      []string{oldPaged, noGroups, oldPaged, `{"data":[{"type":"betaGroups","id":"bg-partial","attributes":{"name":"Beta"}}],"links":{}}`},
+			createStatus: http.StatusNotFound,
+			createBody:   notFound,
+			wantErr:      asc.ErrNotFound,
+			wantGets:     4,
+			getsBefore:   2,
+			want:         []string{`App Store Connect created group "bg-partial" despite the failure`},
+			notWant:      []string{`"bg-old"`},
+		},
+		{
+			name:         "post-create lookup fails",
+			lookups:      []string{noGroups, ""},
+			createStatus: http.StatusNotFound,
+			createBody:   notFound,
+			wantErr:      asc.ErrNotFound,
+			wantGets:     2,
+			want: []string{
+				"There is no resource of type 'builds' with id 'missing-build'",
+				"App Store Connect may have created the group anyway",
+				`asc testflight groups list --app "app-1" --name "Beta"`,
+			},
+		},
+		{
+			name:         "pre-create lookup fails",
+			lookups:      []string{""},
+			createStatus: http.StatusNotFound,
+			createBody:   notFound,
+			wantErr:      asc.ErrNotFound,
+			wantGets:     1,
+			want: []string{
+				"There is no resource of type 'builds' with id 'missing-build'",
+				"App Store Connect may have created the group anyway",
+				`asc testflight groups list --app "app-1" --name "Beta"`,
+			},
+			notWant: []string{"created group", "delete"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gets, posts := 0, 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Path != "/v1/betaGroups" {
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+				}
+				status, body := test.createStatus, test.createBody
+				switch req.Method {
+				case http.MethodPost:
+					posts++
+					wantBefore := max(test.getsBefore, 1)
+					if gets != wantBefore {
+						t.Errorf("expected %d lookups before the create, got %d", wantBefore, gets)
+					}
+				case http.MethodGet:
+					if gets >= len(test.lookups) {
+						t.Fatalf("unexpected lookup %d", gets+1)
+					}
+					query := req.URL.Query()
+					if query.Get("filter[app]") != "app-1" || query.Get("filter[name]") != "Beta" {
+						t.Fatalf("unexpected lookup query %s", req.URL.RawQuery)
+					}
+					status, body = http.StatusOK, test.lookups[gets]
+					if body == "" {
+						status, body = http.StatusInternalServerError, serverErr
+					}
+					gets++
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+				}
+				return &http.Response{
+					StatusCode: status,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			})
+
+			_, _, err := runCommand(t, []string{
+				"testflight", "groups", "create", "--app", "app-1", "--name", "Beta",
+				"--build-id", "missing-build", "--tester", "tester-1",
+			})
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !errors.Is(err, test.wantErr) {
+				t.Fatalf("expected the create's error to be kept, got %v", err)
+			}
+			for _, want := range test.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error missing %q:\n%s", want, err)
+				}
+			}
+			for _, notWant := range test.notWant {
+				if strings.Contains(err.Error(), notWant) {
+					t.Errorf("error should not contain %q:\n%s", notWant, err)
+				}
+			}
+			if posts != 1 || gets != test.wantGets {
+				t.Fatalf("got %d creates and %d lookups, want 1 and %d", posts, gets, test.wantGets)
+			}
+		})
 	}
 }

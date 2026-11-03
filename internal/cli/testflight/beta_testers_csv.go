@@ -461,7 +461,7 @@ Examples:
 				}
 
 				requestCtx, cancel := shared.ContextWithTimeout(ctx)
-				created, err := client.CreateBetaTester(requestCtx, emailValue, row.firstName, row.lastName, groupIDs)
+				created, err := client.CreateBetaTester(requestCtx, emailValue, row.firstName, row.lastName, groupIDs, nil)
 				cancel()
 				if err != nil {
 					summary.Failed++

@@ -2905,7 +2905,7 @@ func TestCreateBetaGroup_SendsRequest(t *testing.T) {
 
 	if _, err := client.CreateBetaGroupWithAttributes(context.Background(), "app-1", BetaGroupCreateAttributes{
 		Name: "Beta",
-	}); err != nil {
+	}, nil, nil); err != nil {
 		t.Fatalf("CreateBetaGroup() error: %v", err)
 	}
 }
@@ -3220,7 +3220,7 @@ func TestCreateBetaTester_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.CreateBetaTester(context.Background(), "tester@example.com", "Test", "User", []string{"group-1", "group-2"}); err != nil {
+	if _, err := client.CreateBetaTester(context.Background(), "tester@example.com", "Test", "User", []string{"group-1", "group-2"}, nil); err != nil {
 		t.Fatalf("CreateBetaTester() error: %v", err)
 	}
 }
