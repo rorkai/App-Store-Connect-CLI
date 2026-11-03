@@ -1038,6 +1038,11 @@ func TestIAPValidationErrors(t *testing.T) {
 			wantErr: "--product-id is required",
 		},
 		{
+			name:    "iap create blank review-note",
+			args:    []string{"iap", "create", "--app", "APP_ID", "--type", "CONSUMABLE", "--ref-name", "Pro", "--product-id", "com.example.pro", "--review-note", " "},
+			wantErr: "--review-note cannot be empty",
+		},
+		{
 			name:    "iap update missing id",
 			args:    []string{"iap", "update"},
 			wantErr: "--id is required",
@@ -1046,6 +1051,16 @@ func TestIAPValidationErrors(t *testing.T) {
 			name:    "iap update missing update flags",
 			args:    []string{"iap", "update", "--id", "IAP_ID"},
 			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "iap update blank review-note",
+			args:    []string{"iap", "update", "--id", "IAP_ID", "--review-note", ""},
+			wantErr: "--review-note cannot be empty",
+		},
+		{
+			name:    "iap update blank review-note beside ref-name",
+			args:    []string{"iap", "update", "--id", "IAP_ID", "--ref-name", "Pro", "--review-note", " "},
+			wantErr: "--review-note cannot be empty",
 		},
 		{
 			name:    "iap delete missing id",
@@ -1494,6 +1509,16 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			name:    "subscriptions update invalid subscription period",
 			args:    []string{"subscriptions", "update", "--id", "SUB_ID", "--subscription-period", "BAD"},
 			wantErr: "--subscription-period must be one of",
+		},
+		{
+			name:    "subscriptions create invalid group-level zero",
+			args:    []string{"subscriptions", "create", "--group-id", "GROUP_ID", "--reference-name", "Monthly", "--product-id", "com.example.sub", "--group-level", "0"},
+			wantErr: "--group-level must be a positive integer",
+		},
+		{
+			name:    "subscriptions create blank review-note",
+			args:    []string{"subscriptions", "create", "--group-id", "GROUP_ID", "--reference-name", "Monthly", "--product-id", "com.example.sub", "--review-note", "   "},
+			wantErr: "--review-note cannot be empty",
 		},
 		{
 			name:    "subscriptions update invalid group-level zero",
@@ -4237,7 +4262,7 @@ func TestAppsUpdateValidationErrors(t *testing.T) {
 		{
 			name:    "apps update missing fields",
 			args:    []string{"apps", "update", "--id", "APP_ID"},
-			wantErr: "Error: at least one update field is required (--bundle-id, --primary-locale, --content-rights, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled)",
+			wantErr: "Error: at least one update field is required (--bundle-id, --primary-locale, --content-rights, --accessibility-url, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled)",
 		},
 		{
 			name:    "apps update invalid content rights",

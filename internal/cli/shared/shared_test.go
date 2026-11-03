@@ -1569,6 +1569,68 @@ func TestResolveCredentials_DefaultSelectionErrorFallsBackToEnv(t *testing.T) {
 	}
 }
 
+func TestResolveCredentials_PartialEnvIDsDifferingFromStoredWarn(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_KEY_TYPE", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv(strictAuthEnvVar, "")
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	previousStrict := strictAuth
+	t.Cleanup(func() {
+		selectedProfile = previousProfile
+		strictAuth = previousStrict
+	})
+
+	previous := getCredentialsWithSourceFn
+	getCredentialsWithSourceFn = func(string) (*config.Config, string, error) {
+		return &config.Config{KeyID: "STOREDKEY", IssuerID: "STOREDISS", PrivateKeyPath: "/tmp/stored.p8", DefaultKeyName: "a"}, "keychain", nil
+	}
+	t.Cleanup(func() { getCredentialsWithSourceFn = previous })
+
+	const warning = "Warning: ASC_KEY_ID ignored because the environment credentials are incomplete; using keychain credentials\n"
+	tests := []struct {
+		envKeyID   string
+		envKeyPath string
+		strict     bool
+		wantStderr string
+		wantErr    bool
+	}{
+		{envKeyID: "STOREDKEY"},
+		{envKeyID: "ENVKEY", wantStderr: warning},
+		{envKeyID: "ENVKEY", envKeyPath: "/tmp/env.p8", wantStderr: warning},
+		{envKeyID: "ENVKEY", strict: true, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Setenv("ASC_KEY_ID", tt.envKeyID)
+		t.Setenv("ASC_PRIVATE_KEY_PATH", tt.envKeyPath)
+		strictAuth = tt.strict
+		_, stderr := captureOutput(t, func() {
+			creds, err := resolveCredentials()
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "mixed authentication sources detected") {
+					t.Fatalf("expected strict-auth error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("resolveCredentials() error: %v", err)
+			}
+			if creds.keyID != "STOREDKEY" {
+				t.Fatalf("expected stored credentials, got %+v", creds)
+			}
+		})
+		if stderr != tt.wantStderr {
+			t.Fatalf("ASC_KEY_ID=%s strict=%v: expected stderr %q, got %q", tt.envKeyID, tt.strict, tt.wantStderr, stderr)
+		}
+	}
+}
+
 func TestResolveCredentials_CompleteEnvSkipsStoredLookup(t *testing.T) {
 	resetPrivateKeyTemp(t)
 

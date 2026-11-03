@@ -250,6 +250,7 @@ func SubscriptionsOfferCodesCreateCommand() *ffcli.Command {
 	prices := fs.String("prices", "", "Offer code prices (required): TERRITORY entries for FREE_TRIAL or TERRITORY:PRICE_POINT_ID entries for paid modes; territory accepts alpha-2, alpha-3, or exact English country name")
 	var autoRenewEnabled shared.OptionalBool
 	fs.Var(&autoRenewEnabled, "auto-renew-enabled", "Enable auto-renew: true or false")
+	targetPlanType := shared.BindTargetSubscriptionPlanTypeFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -260,7 +261,8 @@ func SubscriptionsOfferCodesCreateCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "US"
-  asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "US:PRICE_POINT_ID"`,
+  asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "US:PRICE_POINT_ID"
+  asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "US" --target-subscription-plan-type MONTHLY`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -315,6 +317,11 @@ Examples:
 				return shared.MissingRequiredUsageError("--prices")
 			}
 
+			planType, err := targetPlanType()
+			if err != nil {
+				return err
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions offer-codes create: %w", err)
@@ -329,12 +336,13 @@ Examples:
 			defer cancel()
 
 			attrs := asc.SubscriptionOfferCodeCreateAttributes{
-				Name:                  nameValue,
-				OfferEligibility:      eligibility,
-				CustomerEligibilities: customerEligibilityValues,
-				Duration:              duration,
-				OfferMode:             mode,
-				NumberOfPeriods:       *numberOfPeriods,
+				Name:                       nameValue,
+				OfferEligibility:           eligibility,
+				CustomerEligibilities:      customerEligibilityValues,
+				Duration:                   duration,
+				OfferMode:                  mode,
+				NumberOfPeriods:            *numberOfPeriods,
+				TargetSubscriptionPlanType: planType,
 			}
 			if autoRenewEnabled.IsSet() {
 				value := autoRenewEnabled.Value()
@@ -425,12 +433,14 @@ func SubscriptionsOfferCodesOneTimeCodesCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
-  asc subscriptions offer-codes one-time-codes view --batch-id "ONE_TIME_USE_CODE_ID"`,
+  asc subscriptions offer-codes one-time-codes view --batch-id "ONE_TIME_USE_CODE_ID"
+  asc subscriptions offer-codes one-time-codes update --batch-id "ONE_TIME_USE_CODE_ID" --active false --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsOfferCodesOneTimeCodesListCommand(),
 			SubscriptionsOfferCodesOneTimeCodesGetCommand(),
+			SubscriptionsOfferCodesOneTimeCodesUpdateCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -553,6 +563,31 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// SubscriptionsOfferCodesOneTimeCodesUpdateCommand returns the one-time use code batch update subcommand.
+func SubscriptionsOfferCodesOneTimeCodesUpdateCommand() *ffcli.Command {
+	return offercodes.NewActiveUpdateCommand(offercodes.ActiveUpdateCommandConfig{
+		FlagSetName: "offer-codes one-time-codes update",
+		Name:        "update",
+		ShortUsage:  "asc subscriptions offer-codes one-time-codes update --batch-id \"ONE_TIME_USE_CODE_ID\" --active false --confirm",
+		ShortHelp:   "Turn off a one-time use code batch.",
+		LongHelp: `Turn off a one-time use code batch.
+
+Turning a batch off is permanent: Apple rejects --active true on an inactive
+batch, so --active false requires --confirm.
+
+Examples:
+  asc subscriptions offer-codes one-time-codes update --batch-id "ONE_TIME_USE_CODE_ID" --active false --confirm`,
+		IDFlag:      "batch-id",
+		IDUsage:     "One-time use code batch ID (required)",
+		IDType:      "subscriptionOfferCodeOneTimeUseCodes",
+		ErrorPrefix: "subscriptions offer-codes one-time-codes update",
+		ConfirmOff:  "a one-time use code batch",
+		Update: func(ctx context.Context, client *asc.Client, id string, active *bool) (any, error) {
+			return client.UpdateSubscriptionOfferCodeOneTimeUseCode(ctx, id, asc.SubscriptionOfferCodeOneTimeUseCodeUpdateAttributes{Active: active})
+		},
+	})
 }
 
 // SubscriptionsOfferCodesPricesCommand returns the offer code prices subcommand.

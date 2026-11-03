@@ -23,6 +23,7 @@ type iapOfferCodesQuery struct {
 
 type iapPricePointsQuery struct {
 	listQuery
+	includedFieldsQuery
 	territory       string
 	fields          []string
 	territoryFields []string
@@ -295,6 +296,7 @@ func buildIAPPricePointsQuery(query *iapPricePointsQuery) string {
 	addCSV(values, "fields[territories]", query.territoryFields)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
+	query.includedFields.AddTo(values)
 	return values.Encode()
 }
 

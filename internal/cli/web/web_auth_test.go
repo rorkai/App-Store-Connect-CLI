@@ -2165,7 +2165,7 @@ func TestResolveSessionAutoReauthDoesNotRetryFreshLoginOnInvalidCredentials(t *t
 	}
 }
 
-func TestResolveSessionAutoReauthIgnoresPersistFailure(t *testing.T) {
+func TestResolveSessionAutoReauthWarnsOnPersistFailure(t *testing.T) {
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origLoadCachedSession := loadCachedSessionFn
@@ -2175,6 +2175,7 @@ func TestResolveSessionAutoReauthIgnoresPersistFailure(t *testing.T) {
 	origPersistWebSession := persistWebSessionFn
 	origWebLoginWithClient := webLoginWithClientFn
 	origExpiredWriter := sessionExpiredWriter
+	origCacheWarningWriter := sessionCacheWarningWriter
 	t.Cleanup(func() {
 		tryResumeSessionFn = origTryResume
 		tryResumeLastFn = origTryResumeLast
@@ -2185,12 +2186,15 @@ func TestResolveSessionAutoReauthIgnoresPersistFailure(t *testing.T) {
 		persistWebSessionFn = origPersistWebSession
 		webLoginWithClientFn = origWebLoginWithClient
 		sessionExpiredWriter = origExpiredWriter
+		sessionCacheWarningWriter = origCacheWarningWriter
 	})
 
 	t.Setenv(webPasswordEnv, "env-secret")
 
 	var notice bytes.Buffer
 	sessionExpiredWriter = &notice
+	var cacheWarning bytes.Buffer
+	sessionCacheWarningWriter = &cacheWarning
 
 	cachedClient := &http.Client{}
 	expected := &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}
@@ -2237,6 +2241,127 @@ func TestResolveSessionAutoReauthIgnoresPersistFailure(t *testing.T) {
 	if got := notice.String(); got != "" {
 		t.Fatalf("did not expect expired-session notice on successful auto-reauth, got %q", got)
 	}
+	if got := cacheWarning.String(); !strings.Contains(got, "keychain offline") || !strings.Contains(got, "may need to sign in again") {
+		t.Fatalf("expected cache write warning, got %q", got)
+	}
+}
+
+func TestResolveSessionAutoReauthRestoresCachedProvider(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origLoadCachedSession := loadCachedSessionFn
+	origWebLogin := webLoginFn
+	origPersistWebSession := persistWebSessionFn
+	origWebLoginWithClient := webLoginWithClientFn
+	origSelectProvider := selectWebProviderFn
+	origExpiredWriter := sessionExpiredWriter
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		loadCachedSessionFn = origLoadCachedSession
+		webLoginFn = origWebLogin
+		persistWebSessionFn = origPersistWebSession
+		webLoginWithClientFn = origWebLoginWithClient
+		selectWebProviderFn = origSelectProvider
+		sessionExpiredWriter = origExpiredWriter
+	})
+	t.Setenv(webPasswordEnv, "env-secret")
+	sessionExpiredWriter = io.Discard
+
+	cachedClient := &http.Client{}
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	loadCachedSessionFn = func(username string) (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com", ProviderID: 42, DeveloperTeamID: "TEAM42"}, true, nil
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("did not expect fresh login")
+		return nil, nil
+	}
+	webLoginWithClientFn = func(ctx context.Context, client *http.Client, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com", ProviderID: 7}, nil
+	}
+	var persisted []webcore.AuthSession
+	persistWebSessionFn = func(session *webcore.AuthSession) error {
+		persisted = append(persisted, webcore.AuthSession{ProviderID: session.ProviderID, DeveloperTeamID: session.DeveloperTeamID})
+		return nil
+	}
+
+	t.Run("restores provider and team", func(t *testing.T) {
+		persisted = nil
+		selectWebProviderFn = func(ctx context.Context, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
+			if selection.ProviderID != 42 {
+				t.Fatalf("expected cached provider 42 to be selected, got %+v", selection)
+			}
+			session.ProviderID = selection.ProviderID
+			session.DeveloperTeamID = ""
+			return nil
+		}
+		session, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+		if err != nil {
+			t.Fatalf("resolveSession returned error: %v", err)
+		}
+		if session.ProviderID != 42 || session.DeveloperTeamID != "TEAM42" {
+			t.Fatalf("expected provider 42 and team TEAM42, got %d and %q", session.ProviderID, session.DeveloperTeamID)
+		}
+		if len(persisted) != 1 || persisted[0].ProviderID != 42 || persisted[0].DeveloperTeamID != "TEAM42" {
+			t.Fatalf("expected the restored session to be persisted, got %+v", persisted)
+		}
+	})
+
+	t.Run("fails instead of continuing on another provider", func(t *testing.T) {
+		persisted = nil
+		selectWebProviderFn = func(ctx context.Context, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
+			return errors.New("provider not available")
+		}
+		_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+		if err == nil || !strings.Contains(err.Error(), "provider 42") || !strings.Contains(err.Error(), "--provider-id") {
+			t.Fatalf("expected provider restore error naming provider 42 and --provider-id, got %v", err)
+		}
+		if len(persisted) != 0 {
+			t.Fatalf("did not expect the default-provider session to be persisted, got %+v", persisted)
+		}
+	})
+
+	t.Run("restores provider on the fresh-login fallback", func(t *testing.T) {
+		origLoginWithClient := webLoginWithClientFn
+		origWebLogin := webLoginFn
+		t.Cleanup(func() {
+			webLoginWithClientFn = origLoginWithClient
+			webLoginFn = origWebLogin
+		})
+		persisted = nil
+		webLoginWithClientFn = func(ctx context.Context, client *http.Client, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+			return nil, errors.New("cached client rejected")
+		}
+		webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+			return &webcore.AuthSession{Client: &http.Client{}, UserEmail: "user@example.com", ProviderID: 7}, nil
+		}
+		selectWebProviderFn = func(ctx context.Context, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
+			session.ProviderID = selection.ProviderID
+			session.DeveloperTeamID = ""
+			return nil
+		}
+		session, source, err := resolveSession(context.Background(), "user@example.com", "", "")
+		if err != nil {
+			t.Fatalf("resolveSession returned error: %v", err)
+		}
+		if source != "fresh" || session.ProviderID != 42 || session.DeveloperTeamID != "TEAM42" {
+			t.Fatalf("expected fresh session on provider 42 with team TEAM42, got %q, %d, %q", source, session.ProviderID, session.DeveloperTeamID)
+		}
+		if len(persisted) != 1 || persisted[0].ProviderID != 42 || persisted[0].DeveloperTeamID != "TEAM42" {
+			t.Fatalf("expected the restored fresh session to be persisted, got %+v", persisted)
+		}
+	})
+
+	t.Run("explicit provider selection skips restore", func(t *testing.T) {
+		selectWebProviderFn = func(ctx context.Context, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
+			t.Fatal("did not expect the cached provider to be restored")
+			return nil
+		}
+		if _, _, err := resolveSessionWithoutPersist(context.Background(), "user@example.com", "", ""); err != nil {
+			t.Fatalf("resolveSessionWithoutPersist returned error: %v", err)
+		}
+	})
 }
 
 func TestResolveSessionRequiresAppleIDToRefreshLegacyLastCachedSession(t *testing.T) {
@@ -2639,6 +2764,44 @@ func TestResolveSessionDoesNotRetryFreshLoginOnRejectedTwoFactorCode(t *testing.
 	}
 	if got := err.Error(); !strings.Contains(got, "2fa verification failed") {
 		t.Fatalf("expected rejected-code wording, got %q", got)
+	}
+}
+
+// A 403 after Apple accepted the code (for example, an account without App
+// Store Connect access) fails the same way on a fresh jar, so retrying would
+// only burn a second code.
+func TestResolveSessionDoesNotRetryFreshLoginAfterTwoFactorFinalizationFailure(t *testing.T) {
+	for _, prompted := range []bool{false, true} {
+		t.Run(fmt.Sprintf("prompted=%t", prompted), func(t *testing.T) {
+			restoreStaleSessionRetryHooks(t)
+			if prompted {
+				t.Setenv(webPasswordEnv, "")
+				promptPasswordFn = func(context.Context) (string, error) { return "prompted-secret", nil }
+			}
+			loadCachedSessionFn = func(string) (*webcore.AuthSession, bool, error) {
+				return &webcore.AuthSession{Client: &http.Client{}, UserEmail: "user@example.com"}, true, nil
+			}
+			codePrompts := 0
+			promptTwoFactorCodeFn = func() (string, error) { codePrompts++; return "654321", nil }
+			submitTwoFactorCodeFn = func(context.Context, *webcore.AuthSession, string) error {
+				return &webcore.TwoFactorFinalizationError{Status: http.StatusForbidden}
+			}
+			webLoginWithClientFn = func(context.Context, *http.Client, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+			}
+			webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				t.Fatal("did not expect a fresh sign-in after Apple accepted the code")
+				return nil, nil
+			}
+
+			_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+			if err == nil || !strings.Contains(err.Error(), "2fa finalization failed") {
+				t.Fatalf("expected the finalization failure, got %v", err)
+			}
+			if codePrompts != 1 {
+				t.Fatalf("expected one verification code prompt, got %d", codePrompts)
+			}
+		})
 	}
 }
 
@@ -3262,6 +3425,44 @@ func TestResolveSessionExplainsConsumedCodeBeforeThePromptedRetry(t *testing.T) 
 	}
 	if !strings.Contains(notice, "new code") {
 		t.Fatalf("expected the operator to be pointed at the new code, got %q", notice)
+	}
+}
+
+// Apple has sent nothing new until the fresh sign-in raises its own challenge.
+func TestResolveSessionWithholdsConsumedCodeNoticeUntilTheFreshChallengeExists(t *testing.T) {
+	restoreStaleSessionRetryHooks(t)
+
+	var status bytes.Buffer
+	twoFactorStatusWriter = &status
+	staleSession := &webcore.AuthSession{}
+	freshSession := &webcore.AuthSession{UserEmail: "user@example.com"}
+
+	deleteStaleWebSessionFn = func(string, *webcore.AuthSession) (bool, error) { return true, nil }
+	loadCachedSessionFn = func(string) (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: &http.Client{}, UserEmail: "user@example.com"}, true, nil
+	}
+	promptTwoFactorCodeFn = func() (string, error) { return "111111", nil }
+	submitTwoFactorCodeFn = func(context.Context, *webcore.AuthSession, string) error {
+		return &webcore.TwoFactorFinalizationError{Status: http.StatusUnauthorized}
+	}
+	webLoginWithClientFn = func(context.Context, *http.Client, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return staleSession, &webcore.TwoFactorRequiredError{}
+	}
+	webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return freshSession, &webcore.TwoFactorRequiredError{}
+	}
+	prepareTwoFactorChallengeFn = func(_ context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		if session == freshSession {
+			return nil, errors.New("auth options unavailable")
+		}
+		return &webcore.TwoFactorChallenge{Method: "trusted-device"}, nil
+	}
+
+	if _, _, err := resolveSession(context.Background(), "user@example.com", "", ""); err == nil {
+		t.Fatal("expected the fresh challenge setup failure")
+	}
+	if notice := status.String(); strings.Contains(notice, "new code") {
+		t.Fatalf("notice written before the fresh challenge existed: %q", notice)
 	}
 }
 

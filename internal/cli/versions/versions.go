@@ -70,6 +70,7 @@ func VersionsListCommand() *ffcli.Command {
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS (comma-separated)")
 	state := fs.String("state", "", "Filter by state (comma-separated)")
 	include := shared.BindOnceCSVFlag(fs, "include", "Include related resources: "+strings.Join(appStoreVersionsIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, appStoreVersionIncludedResources)
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
@@ -146,6 +147,10 @@ Examples:
 			if len(includeValues) > 0 && strings.TrimSpace(*next) != "" {
 				return shared.UsageError("versions list: --next cannot be combined with --include")
 			}
+			included, err := includedFields.Resolve("versions list", *next, includeValues)
+			if err != nil {
+				return err
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
@@ -167,6 +172,7 @@ Examples:
 				asc.WithAppStoreVersionsVersionStrings(shared.SplitCSV(*version)),
 				asc.WithAppStoreVersionsStates(states),
 				asc.WithAppStoreVersionsInclude(includeValues),
+				asc.WithIncludedFields[asc.AppStoreVersionsOption](included),
 				asc.WithAppStoreVersionsNextURL(*next),
 			}
 
@@ -352,6 +358,7 @@ func VersionsViewCommand() *ffcli.Command {
 	includeBuild := fs.Bool("include-build", false, "Include attached build information")
 	includeSubmission := fs.Bool("include-submission", false, "Include submission information")
 	include := fs.String("include", "", "Include related resources: "+strings.Join(appStoreVersionIncludeList(), ", "))
+	includedFields := shared.BindIncludedFieldFlags(fs, appStoreVersionIncludedResources)
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
@@ -427,6 +434,10 @@ equivalent to --include appStoreVersionSubmission.`,
 			if *includeSubmission {
 				includeValues = append(includeValues, "appStoreVersionSubmission")
 			}
+			included, err := includedFields.Resolve("versions view", "", includeValues)
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -445,7 +456,7 @@ equivalent to --include appStoreVersionSubmission.`,
 			apiIncludes, includeAgeRating := splitCompatAppStoreVersionIncludes(includeValues)
 			var versionResp *asc.AppStoreVersionResponse
 			if len(apiIncludes) > 0 {
-				versionResp, err = client.GetAppStoreVersion(requestCtx, trimmedID, asc.WithAppStoreVersionInclude(apiIncludes))
+				versionResp, err = client.GetAppStoreVersion(requestCtx, trimmedID, asc.WithAppStoreVersionInclude(apiIncludes), asc.WithIncludedFields[asc.AppStoreVersionOption](included))
 			} else {
 				versionResp, err = client.GetAppStoreVersion(requestCtx, trimmedID)
 			}
@@ -484,6 +495,9 @@ func VersionsCreateCommand() *ffcli.Command {
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
+	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)")
+	reviewType := fs.String("review-type", "", "Review type: APP_STORE, NOTARIZATION")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to attach to the version")
 	copyMetadataFrom := fs.String("copy-metadata-from", "", "Copy localization metadata from this source version string")
 	copyFields := shared.BindOnceCSVFlag(fs, "copy-fields", "Comma-separated metadata fields to copy: description, keywords, marketingUrl, promotionalText, supportUrl, whatsNew")
 	excludeFields := shared.BindOnceCSVFlag(fs, "exclude-fields", "Comma-separated metadata fields to exclude from copy")
@@ -500,6 +514,9 @@ Examples:
   asc versions create --app "123456789" --version "2.0.0"
   asc versions create --app "123456789" --version "2.0.0" --platform IOS
   asc versions create --app "123456789" --version "2.0.0" --copyright "2026 My Company" --release-type MANUAL
+  asc versions create --app "123456789" --version "2.0.0" --release-type SCHEDULED --earliest-release-date "2026-02-01T08:00:00+00:00"
+  asc versions create --app "123456789" --version "2.0.0" --review-type NOTARIZATION
+  asc versions create --app "123456789" --version "2.0.0" --build-id "BUILD_ID"
   asc versions create --app "123456789" --version "2.4.0" --platform IOS --copy-metadata-from "2.3.2"
   asc versions create --app "123456789" --version "2.4.0" --copy-metadata-from "2.3.2" --copy-fields "description,keywords,supportUrl" --exclude-fields "whatsNew"
   asc versions create --app "123456789" --version "2.0.0" --if-exists skip
@@ -508,10 +525,15 @@ Examples:
 --if-exists controls what happens when App Store Connect answers 409 because
 the version already exists for that platform. fail (default) returns the
 error. skip reads the existing version back, exits 0, and reports
-"action":"skipped" without changing it. update applies --copyright and
---release-type to the existing version with asc versions update and reports
-"action":"updated"; --copy-metadata-from still runs against the existing
-version. Any other 409 keeps failing.`,
+"action":"skipped" without changing it. update applies --copyright,
+--release-type, --earliest-release-date, and --review-type to the existing
+version with asc versions update, attaches --build-id with asc versions
+attach-build, and reports "action":"updated";
+--copy-metadata-from still runs against the existing version. Apple rejects a
+bad --build-id with a 409 that does not say the version exists, so update
+with --build-id also looks the version up after that 409 and, when it finds
+it, reports the attach error. Any other 409 keeps failing. --build-id cannot
+be combined with skip, which would leave the build unattached.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -561,9 +583,39 @@ version. Any other 409 keeps failing.`,
 				return shared.UsageErrorf("versions create: %v", err)
 			}
 
+			earliestReleaseDateValue := strings.TrimSpace(*earliestReleaseDate)
+			if *earliestReleaseDate != "" {
+				if _, ok := shared.ParseRFC3339Date(earliestReleaseDateValue); !ok {
+					return shared.UsageErrorf("versions create: --earliest-release-date must be an RFC3339 timestamp (e.g., 2026-02-01T08:00:00+00:00), got %q", *earliestReleaseDate)
+				}
+			}
+
+			normalizedReviewType, err := normalizeAppStoreVersionReviewType(*reviewType)
+			if err != nil {
+				return shared.UsageErrorf("versions create: %v", err)
+			}
+
 			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
 			if err != nil {
 				return err
+			}
+
+			buildIDValue := *buildID
+			if buildIDValue == "" {
+				buildIDSet := false
+				fs.Visit(func(f *flag.Flag) {
+					buildIDSet = buildIDSet || f.Name == "build-id"
+				})
+				if buildIDSet {
+					return shared.UsageError("--build-id must not be empty")
+				}
+			}
+			if buildIDValue != "" && ifExistsMode == shared.IfExistsSkip {
+				return shared.WithDiagnostic(
+					shared.UsageError("--build-id cannot be used with --if-exists skip, which leaves an existing version unchanged; use --if-exists update"),
+					shared.DiagnosticConflictingInput,
+					"",
+				)
 			}
 
 			client, err := shared.GetASCClient()
@@ -584,14 +636,24 @@ version. Any other 409 keeps failing.`,
 			if normalizedReleaseType != "" {
 				attrs.ReleaseType = normalizedReleaseType
 			}
+			if earliestReleaseDateValue != "" {
+				attrs.EarliestReleaseDate = earliestReleaseDateValue
+			}
+			if normalizedReviewType != "" {
+				attrs.ReviewType = normalizedReviewType
+			}
 
-			resp, err := client.CreateAppStoreVersion(requestCtx, resolvedAppID, attrs)
+			resp, err := client.CreateAppStoreVersionWithBuild(requestCtx, resolvedAppID, buildIDValue, attrs)
 			action := asc.IdempotentWriteActionCreated
 			copyMetadata := copyMetadataFromValue != ""
 			conflictHandled := false
 			if err != nil {
 				readBackFailed := false
-				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, versionsCreateExistsCodes, func() (*asc.AppStoreVersionResponse, bool, error) {
+				existsCodes := versionsCreateExistsCodes
+				if buildIDValue != "" && ifExistsMode == shared.IfExistsUpdate {
+					existsCodes = versionsCreateWithBuildExistsCodes
+				}
+				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, existsCodes, func() (*asc.AppStoreVersionResponse, bool, error) {
 					found, ok, lookupErr := findExistingAppStoreVersion(requestCtx, client, resolvedAppID, attrs.VersionString, normalizedPlatform)
 					readBackFailed = lookupErr != nil && !asc.IsNotFound(lookupErr)
 					return found, ok, lookupErr
@@ -623,12 +685,24 @@ version. Any other 409 keeps failing.`,
 					if normalizedReleaseType != "" {
 						updateAttrs.ReleaseType = &normalizedReleaseType
 					}
-					if updateAttrs.Copyright != nil || updateAttrs.ReleaseType != nil {
+					if earliestReleaseDateValue != "" {
+						updateAttrs.EarliestReleaseDate = &earliestReleaseDateValue
+					}
+					if normalizedReviewType != "" {
+						updateAttrs.ReviewType = &normalizedReviewType
+					}
+					if updateAttrs.Copyright != nil || updateAttrs.ReleaseType != nil || updateAttrs.EarliestReleaseDate != nil || updateAttrs.ReviewType != nil {
 						updated, updateErr := client.UpdateAppStoreVersion(requestCtx, existing.Data.ID, updateAttrs)
 						if updateErr != nil {
 							return fmt.Errorf("versions create: update existing version %s: %w", existing.Data.ID, updateErr)
 						}
 						resp = updated
+						action = asc.IdempotentWriteActionUpdated
+					}
+					if buildIDValue != "" {
+						if attachErr := client.AttachBuildToVersion(requestCtx, existing.Data.ID, buildIDValue); attachErr != nil {
+							return fmt.Errorf("versions create: attach build %s to existing version %s: %w", buildIDValue, existing.Data.ID, attachErr)
+						}
 						action = asc.IdempotentWriteActionUpdated
 					}
 				}
@@ -680,6 +754,7 @@ version. Any other 409 keeps failing.`,
 				VersionString:          resp.Data.Attributes.VersionString,
 				Platform:               string(resp.Data.Attributes.Platform),
 				State:                  shared.ResolveAppStoreVersionState(resp.Data.Attributes),
+				BuildID:                buildIDValue,
 				IdempotentWriteReceipt: receipt,
 				MetadataCopy:           copySummary,
 			}
@@ -698,9 +773,18 @@ version. Any other 409 keeps failing.`,
 // ENTITY_ERROR.RELATIONSHIP.INVALID ("You cannot create a new version of the
 // App in the current state."), so shared.IsIfExistsConflict matches every code
 // in the response. A 409 that carries only the relationship rejection, or
-// STATE_ERROR.*, is not an existence conflict and keeps failing; so does a
+// STATE_ERROR.*, is not an existence conflict and keeps failing (except the
+// relationship rejection under --build-id with update, below); so does a
 // duplicate whose read-back finds no such version string.
 var versionsCreateExistsCodes = []string{"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE"}
+
+// versionsCreateWithBuildExistsCodes applies to --build-id with --if-exists
+// update. Live on 2026-11-03, a POST naming a build Apple rejects, for a
+// version string that already existed in PREPARE_FOR_SUBMISSION, came back as
+// a 409 with ENTITY_ERROR.RELATIONSHIP.INVALID alone and no DUPLICATE entry.
+// The read-back still decides: when it finds the version, the update path's
+// attach reports the build error; when it does not, Apple's 409 stands.
+var versionsCreateWithBuildExistsCodes = []string{"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE", "ENTITY_ERROR.RELATIONSHIP.INVALID"}
 
 // findExistingAppStoreVersion reads back the version a 409 conflict referred
 // to, keyed by version string and platform. It reports found=false when the
@@ -736,6 +820,7 @@ func VersionsUpdateCommand() *ffcli.Command {
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
+	reviewType := fs.String("review-type", "", "Review type: APP_STORE, NOTARIZATION")
 	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)")
 	versionString := fs.String("version", "", "Version string (e.g., 1.0.1)")
 	var downloadable shared.OptionalBool
@@ -767,6 +852,7 @@ past the first page.
 Examples:
   asc versions update --version-id "VERSION_ID" --copyright "2026 My Company"
   asc versions update --version-id "VERSION_ID" --release-type MANUAL
+  asc versions update --version-id "VERSION_ID" --review-type NOTARIZATION
   asc versions update --version-id "VERSION_ID" --release-type SCHEDULED --earliest-release-date "2026-02-01T08:00:00+00:00"
   asc versions update --version-id "VERSION_ID" --version "1.0.1"
   asc versions update --version-id "VERSION_ID" --downloadable true
@@ -787,9 +873,14 @@ Examples:
 				return shared.UsageErrorf("versions update: %v", err)
 			}
 
+			normalizedReviewType, err := normalizeAppStoreVersionReviewType(*reviewType)
+			if err != nil {
+				return shared.UsageErrorf("versions update: %v", err)
+			}
+
 			// Check that at least one update field is provided
-			if *copyright == "" && normalizedReleaseType == "" && *earliestReleaseDate == "" && *versionString == "" && !downloadable.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: at least one of --copyright, --release-type, --earliest-release-date, --version, or --downloadable is required")
+			if *copyright == "" && normalizedReleaseType == "" && normalizedReviewType == "" && *earliestReleaseDate == "" && *versionString == "" && !downloadable.IsSet() {
+				fmt.Fprintln(os.Stderr, "Error: at least one of --copyright, --release-type, --review-type, --earliest-release-date, --version, or --downloadable is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -819,6 +910,9 @@ Examples:
 			}
 			if normalizedReleaseType != "" {
 				attrs.ReleaseType = &normalizedReleaseType
+			}
+			if normalizedReviewType != "" {
+				attrs.ReviewType = &normalizedReviewType
 			}
 			if *earliestReleaseDate != "" {
 				attrs.EarliestReleaseDate = earliestReleaseDate
@@ -1046,6 +1140,16 @@ func normalizeAppStoreVersionReleaseType(value string) (string, error) {
 		return normalized, nil
 	default:
 		return "", fmt.Errorf("--release-type must be one of: MANUAL, AFTER_APPROVAL, SCHEDULED")
+	}
+}
+
+func normalizeAppStoreVersionReviewType(value string) (string, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	switch {
+	case value == "", normalized == "APP_STORE", normalized == "NOTARIZATION":
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("--review-type must be one of: APP_STORE, NOTARIZATION")
 	}
 }
 

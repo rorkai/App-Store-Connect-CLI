@@ -17,8 +17,8 @@ func AppsInfoListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps info list", flag.ExitOnError)
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
-	fields := fs.String("fields", "", "Sparse app info fields: kidsAgeBand (deprecated; removed from API 4.5; prefer asc age-rating view)")
-	ageRatingFields := fs.String("age-rating-fields", "", "Sparse fields for included age rating declaration: gracRatingClassificationNumber, socialMedia, socialMediaAgeRestricted")
+	fields := fs.String("fields", "", "Sparse app info fields: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
+	ageRatingFields := fs.String("age-rating-fields", "", "Sparse fields for included age rating declaration: "+strings.Join(shared.AgeRatingDeclarationSparseFields, ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -33,7 +33,7 @@ found" errors in other commands.
 
 Examples:
   asc apps info list --app "APP_ID"
-  asc apps info list --app "APP_ID" --fields kidsAgeBand
+  asc apps info list --app "APP_ID" --fields state,primaryCategory
   asc apps info list --app "APP_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted
   asc apps info list --app "APP_ID" --output table
   asc apps info list --app "APP_ID" --output markdown`,
@@ -45,11 +45,11 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
-			fieldValues, err := normalizeSparseField(fs, *fields, appInfoSparseFields441, "--fields")
+			fieldValues, err := normalizeSparseField(fs, *fields, shared.AppInfoSparseFields, "--fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			ageRatingFieldValues, err := normalizeSparseField(fs, *ageRatingFields, ageRatingSparseFields441, "--age-rating-fields")
+			ageRatingFieldValues, err := normalizeSparseField(fs, *ageRatingFields, shared.AgeRatingDeclarationSparseFields, "--age-rating-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}

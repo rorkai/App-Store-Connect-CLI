@@ -93,7 +93,7 @@ func StoreCredentials(name string, credentials Credentials) error {
 
 // StoreCredentialsConfig stores Apple Ads credentials in the active config file.
 func StoreCredentialsConfig(name string, credentials Credentials) error {
-	path, err := config.Path()
+	path, err := adsConfigPath()
 	if err != nil {
 		return err
 	}
@@ -423,7 +423,7 @@ func storeInConfigAt(name string, payload credentialPayload, path string) error 
 }
 
 func removeFromConfigIfPresent(name string) error {
-	path, err := config.Path()
+	path, err := adsConfigPath()
 	if err != nil {
 		return err
 	}
@@ -453,7 +453,7 @@ func removeFromConfigIfPresent(name string) error {
 }
 
 func clearConfigCredentials() error {
-	path, err := config.Path()
+	path, err := adsConfigPath()
 	if err != nil {
 		return err
 	}
@@ -473,7 +473,7 @@ func clearConfigCredentials() error {
 }
 
 func saveDefaultName(name, orgID, adAccountID string) error {
-	path, err := config.Path()
+	path, err := adsConfigPath()
 	if err != nil {
 		return err
 	}
@@ -491,7 +491,7 @@ func saveDefaultName(name, orgID, adAccountID string) error {
 }
 
 func clearDefaultNameIf(name string) error {
-	path, err := config.Path()
+	path, err := adsConfigPath()
 	if err != nil {
 		return err
 	}
@@ -588,32 +588,34 @@ func getCredentialFromConfig(profile string) (StoredCredential, error) {
 }
 
 func loadConfigWithPath() (*config.Config, string, error) {
-	path, err := config.Path()
+	path, err := adsConfigPath()
 	if err != nil {
 		return nil, "", err
 	}
 	cfg, err := config.LoadAt(path)
-	if err == nil {
-		return cfg, path, nil
-	}
-	if !errors.Is(err, config.ErrNotFound) {
-		return nil, "", err
-	}
-	if strings.TrimSpace(os.Getenv("ASC_CONFIG_PATH")) != "" {
-		return nil, "", err
-	}
-	global, globalErr := config.GlobalPath()
-	if globalErr != nil {
-		return nil, "", globalErr
-	}
-	if global == path {
-		return nil, "", err
-	}
-	cfg, err = config.LoadAt(global)
 	if err != nil {
 		return nil, "", err
 	}
-	return cfg, global, nil
+	return cfg, path, nil
+}
+
+// adsConfigPath returns the config that holds Apple Ads credentials: the active
+// config when it selects Apple Ads credentials, otherwise the config
+// DefaultWritePath chooses, so a repo config without them neither hides nor
+// receives the global ones.
+func adsConfigPath() (string, error) {
+	path, err := config.Path()
+	if err != nil {
+		return "", err
+	}
+	cfg, err := config.LoadAt(path)
+	if err != nil && !errors.Is(err, config.ErrNotFound) {
+		return "", err
+	}
+	if cfg != nil && (strings.TrimSpace(cfg.Ads.DefaultKeyName) != "" || len(cfg.Ads.Keys) > 0) {
+		return path, nil
+	}
+	return config.DefaultWritePath()
 }
 
 func selectCredential(profile string, credentials []StoredCredential) (StoredCredential, bool) {

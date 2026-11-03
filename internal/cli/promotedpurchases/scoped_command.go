@@ -44,7 +44,8 @@ var promotedPurchaseIAPFields = []string{
 
 var promotedPurchaseSubscriptionFields = []string{
 	"name", "productId", "familySharable", "state", "subscriptionPeriod", "reviewNote",
-	"groupLevel", "subscriptionLocalizations", "appStoreReviewScreenshot", "group",
+	"groupLevel", "multiSeatStatus", "marketSettings", "subscriptionLocalizations",
+	"appStoreReviewScreenshot", "group",
 	"introductoryOffers", "promotionalOffers", "offerCodes", "prices", "pricePoints",
 	"promotedPurchase", "subscriptionAvailability", "winBackOffers", "images",
 	"planAvailabilities", "versions",

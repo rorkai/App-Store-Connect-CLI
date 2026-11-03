@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -278,6 +279,13 @@ func TestMigrateStoreAssetsProductionRoundTrip(t *testing.T) {
 			}
 			return migrateJSONResponse(200, `{}`), nil
 		case "PATCH /v1/appClipHeaderImages/HEADER":
+			body, readErr := io.ReadAll(req.Body)
+			if readErr != nil {
+				return nil, readErr
+			}
+			if want := fmt.Sprintf(`"sourceFileChecksum":"%x"`, md5.Sum(header)); !strings.Contains(string(body), want) {
+				t.Errorf("header commit body %s lacks %s", body, want)
+			}
 			headerCommitted = true
 			return migrateJSONResponse(200, `{"data":{"type":"appClipHeaderImages","id":"HEADER"}}`), nil
 		case "PATCH /v1/appPreviews/VIDEO":

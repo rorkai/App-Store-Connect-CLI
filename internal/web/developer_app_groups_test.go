@@ -275,7 +275,11 @@ func TestDeveloperAppGroupsPreservesPortalAuthenticationStatus(t *testing.T) {
 			if !errors.As(err, &apiErr) || apiErr.Status != status {
 				t.Fatalf("error = %v, want typed API status %d", err, status)
 			}
-			if !strings.Contains(err.Error(), "web session is unauthorized or expired") {
+			want := "web session is unauthorized or expired"
+			if status == http.StatusForbidden {
+				want = "apple denied the Developer Portal request"
+			}
+			if !strings.Contains(err.Error(), want) {
 				t.Fatalf("error lost the authentication guidance: %v", err)
 			}
 		})

@@ -61,6 +61,7 @@ Examples:
   asc versions customer-reviews list --version-id "VERSION_ID"
   asc versions customer-reviews list --version-id "VERSION_ID" --stars 1,2
   asc versions customer-reviews list --version-id "VERSION_ID" --territory USA --sort -createdDate
+  asc versions customer-reviews list --version-id "VERSION_ID" --review-territory USA,GBR --include reviewTerritory
   asc versions customer-reviews list --version-id "VERSION_ID" --only-unresponded --include-response
   asc versions customer-reviews list --version-id "VERSION_ID" --paginate`,
 		FlagSet:   fs,

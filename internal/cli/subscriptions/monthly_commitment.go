@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -66,6 +67,8 @@ func SubscriptionsPricingMonthlyCommitmentEnableCommand() *ffcli.Command {
 	price := fs.String("price", "", "Monthly customer price; total commitment is price x 12")
 	priceTerritory := fs.String("price-territory", "", "Territory used to compare the upfront annual price")
 	territories := fs.String("territories", "", "Territories to enable, comma-separated; USA is excluded")
+	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD) for scheduled MONTHLY prices")
+	preserved := fs.Bool("preserved", false, "Preserve current prices for existing subscribers")
 	availableInNew := fs.Bool("available-in-new-territories", false, "Unsupported for MONTHLY plan availability")
 	confirm := fs.Bool("confirm", false, "Confirm enabling monthly-commitment prices and availability")
 	output := shared.BindOutputFlags(fs)
@@ -84,8 +87,13 @@ Store Connect. The CLI configures MONTHLY plan availability before
 creating MONTHLY subscriptionPrices because Apple rejects the reverse order.
 Each eligible territory must already have an UPFRONT subscription price.
 
+Use --start-date to schedule the MONTHLY prices; a territory already priced at
+--price on that date is skipped. Plan availability still changes immediately,
+and the upfront range checks use today's prices.
+
 Examples:
-  asc subscriptions pricing monthly-commitment enable --subscription-id "SUB_ID" --price "9.99" --price-territory "Norway" --territories "Norway,Germany,France" --confirm`,
+  asc subscriptions pricing monthly-commitment enable --subscription-id "SUB_ID" --price "9.99" --price-territory "Norway" --territories "Norway,Germany,France" --confirm
+  asc subscriptions pricing monthly-commitment enable --subscription-id "SUB_ID" --price "9.99" --price-territory "Norway" --territories "Norway" --start-date "2026-03-01" --preserved --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -129,6 +137,10 @@ Examples:
 			printMonthlyCommitmentTerritoryWarning(excluded)
 			if len(territoryIDs) == 0 {
 				return shared.UsageError("no eligible monthly-commitment territories remain after excluding USA")
+			}
+			explicitStartDate, effectiveAt, err := normalizeEqualizeStartDate(*startDate)
+			if err != nil {
+				return err
 			}
 			if !*confirm {
 				return shared.UsageError("--confirm is required to enable monthly-commitment billing")
@@ -191,7 +203,7 @@ Examples:
 			if err := validateMonthlyCommitmentUpfrontPrices(ctx, client, id, availabilityTerritoryIDs, monthlyPrice); err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
-			monthlyPriceCreates, err := prepareMonthlySubscriptionPrices(ctx, client, id, availabilityTerritoryIDs, monthlyPrice)
+			monthlyPriceCreates, err := prepareMonthlySubscriptionPrices(ctx, client, id, availabilityTerritoryIDs, monthlyPrice, effectiveAt)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
@@ -213,7 +225,14 @@ Examples:
 				}
 			}
 
-			if err := createMonthlySubscriptionPrices(ctx, client, id, monthlyPriceCreates); err != nil {
+			priceAttrs := asc.SubscriptionPriceCreateAttributes{
+				StartDate: explicitStartDate,
+				PlanType:  asc.SubscriptionPlanTypeMonthly,
+			}
+			if *preserved {
+				priceAttrs.Preserved = preserved
+			}
+			if err := createMonthlySubscriptionPrices(ctx, client, id, monthlyPriceCreates, priceAttrs); err != nil {
 				return fmt.Errorf(
 					"subscriptions pricing monthly-commitment enable: plan availability %q is ready, but failed to configure MONTHLY prices: %w",
 					availabilityResp.Data.ID,
@@ -394,15 +413,30 @@ func findMonthlySubscriptionPlanAvailability(resp *asc.SubscriptionPlanAvailabil
 }
 
 func normalizeSubscriptionPlanType(value string) (asc.SubscriptionPlanType, error) {
-	normalized := strings.ToUpper(strings.TrimSpace(value))
-	switch normalized {
-	case string(asc.SubscriptionPlanTypeMonthly):
-		return asc.SubscriptionPlanTypeMonthly, nil
-	case string(asc.SubscriptionPlanTypeUpfront):
-		return asc.SubscriptionPlanTypeUpfront, nil
-	default:
-		return "", fmt.Errorf("--plan-type must be one of: MONTHLY, UPFRONT")
+	return shared.NormalizeSubscriptionPlanType(value, "--plan-type")
+}
+
+// parseSubscriptionPricePlanType returns the --plan-type value, or "" when the
+// flag was omitted so the request keeps Apple's default.
+func parseSubscriptionPricePlanType(fs *flag.FlagSet, value string) (asc.SubscriptionPlanType, error) {
+	if !flagWasProvided(fs, "plan-type") {
+		return "", nil
 	}
+	planType, err := normalizeSubscriptionPlanType(value)
+	if err != nil {
+		return "", shared.UsageError(err.Error())
+	}
+	return planType, nil
+}
+
+func validatePlanTypeTerritory(planType asc.SubscriptionPlanType, territoryID string, label string) error {
+	if planType != asc.SubscriptionPlanTypeMonthly {
+		return nil
+	}
+	if _, excluded := monthlyCommitmentExcludedTerritories[territoryID]; excluded {
+		return fmt.Errorf("%s cannot be %s with plan type MONTHLY", label, territoryID)
+	}
+	return nil
 }
 
 func normalizeSubscriptionBillingMode(value string) (subscriptionBillingMode, error) {
@@ -563,6 +597,7 @@ func prepareMonthlySubscriptionPrices(
 	subscriptionID string,
 	territoryIDs []string,
 	monthlyPrice string,
+	effectiveAt time.Time,
 ) ([]monthlySubscriptionPriceCreate, error) {
 	resolvedPrices, err := fetchResolvedSubscriptionPrices(
 		ctx,
@@ -570,7 +605,7 @@ func prepareMonthlySubscriptionPrices(
 		subscriptionID,
 		200,
 		"",
-		subscriptionPricingToday(),
+		effectiveAt,
 		asc.SubscriptionPlanTypeMonthly,
 		"",
 	)
@@ -632,12 +667,11 @@ func createMonthlySubscriptionPrices(
 	client *asc.Client,
 	subscriptionID string,
 	creates []monthlySubscriptionPriceCreate,
+	attrs asc.SubscriptionPriceCreateAttributes,
 ) error {
 	for _, create := range creates {
 		createCtx, createCancel := shared.ContextWithTimeout(ctx)
-		_, err := client.CreateSubscriptionPrice(createCtx, subscriptionID, create.pricePointID, create.territoryID, asc.SubscriptionPriceCreateAttributes{
-			PlanType: asc.SubscriptionPlanTypeMonthly,
-		})
+		_, err := client.CreateSubscriptionPrice(createCtx, subscriptionID, create.pricePointID, create.territoryID, attrs)
 		createCancel()
 		if err != nil {
 			return fmt.Errorf("create monthly price for %s: %w", create.territoryID, err)

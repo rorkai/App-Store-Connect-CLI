@@ -426,7 +426,9 @@ func TestTwoFAVerificationFailedErrorIsRejectedCodeOnlyForRefusals(t *testing.T)
 		want   bool
 	}{
 		{kind: "trusted-device", status: http.StatusBadRequest, want: true},
-		{kind: "phone", status: http.StatusUnauthorized, want: true},
+		{kind: "phone", status: http.StatusBadRequest, want: true},
+		{kind: "phone", status: http.StatusUnauthorized},
+		{kind: "trusted-device", status: http.StatusForbidden},
 		{kind: "trusted-device", status: http.StatusTooManyRequests},
 		{kind: "trusted-device", status: http.StatusServiceUnavailable},
 		{kind: "phone-request", status: http.StatusBadRequest},

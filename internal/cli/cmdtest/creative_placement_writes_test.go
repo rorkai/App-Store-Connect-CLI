@@ -99,6 +99,31 @@ func TestCreativePlacementWriteUsageBeforeAuth(t *testing.T) {
 	}
 }
 
+// Read filter support does not establish creation support, so the wider list
+// filter must not widen create or swap.
+func TestCreativePlacementWritesRejectFilterOnlyTypes(t *testing.T) {
+	original := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = original })
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected request %s %s", req.Method, req.URL)
+		return nil, nil
+	})
+	for _, tc := range []struct{ command, operation, kind string }{
+		{"localizations", "create", "SEARCH_RESULTS_ADS_ASSET"},
+		{"app-events localizations", "create", "PRODUCT_PAGE_HEADER_ASSET"},
+		{"product-pages custom-pages localizations", "create", "IMESSAGE_APP_SCREENSHOT"},
+		{"product-pages experiments treatments localizations", "swap", "IMESSAGE_APP_SCREENSHOT"},
+	} {
+		t.Run(tc.command+" "+tc.operation, func(t *testing.T) {
+			args := append(strings.Fields(tc.command), "placements", tc.operation, "--localization-id", "loc", "--image-id", "image", "--placement-type", tc.kind)
+			stdout, stderr, err := runCreativePlacements(t, args...)
+			if !isUsageClassError(err) || stdout != "" || !strings.Contains(stderr, "--placement-type must be one of") {
+				t.Fatalf("expected placement type usage error: %s %s %v", stdout, stderr, err)
+			}
+		})
+	}
+}
+
 func TestCreativePlacementDeleteReceiptAndFailure(t *testing.T) {
 	setupAuth(t)
 	original := http.DefaultTransport

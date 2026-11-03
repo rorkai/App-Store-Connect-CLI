@@ -581,6 +581,10 @@ func staleSessionDiscardWarning(err error) error {
 
 type webSignInContextKey struct{}
 
+// consumedCodeNoticeContextKey marks a fresh sign-in that replaces one whose
+// verification code was already consumed.
+type consumedCodeNoticeContextKey struct{}
+
 type publicAPIAlternativeContextKey struct{}
 
 // contextForWebSignIn marks ctx as belonging to `asc web auth login`. That
@@ -813,9 +817,12 @@ func persistPromptedWebPassword(appleID string, password resolvedWebPassword) {
 	}
 }
 
-func printStoredPasswordRejected() {
+func forgetRejectedStoredPassword(appleID string) {
 	if passwordStoreWarningWriter != nil {
-		_, _ = fmt.Fprintln(passwordStoreWarningWriter, "Saved Apple Account password was rejected; enter the current password to replace it.")
+		_, _ = fmt.Fprintln(passwordStoreWarningWriter, "Saved Apple Account password was rejected; removing it. Enter the current password to save a new one.")
+	}
+	if err := deleteStoredWebPasswordFn(appleID); err != nil {
+		printPasswordStoreWarning(passwordStoreWarningWriter, "remove", err)
 	}
 }
 
@@ -869,6 +876,7 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 		return nil, err
 	}
 	explicitSignIn := isWebSignIn(ctx)
+	consumedCodeNotice, _ := ctx.Value(consumedCodeNoticeContextKey{}).(bool)
 	// Credential/keychain prompts may consume the initial command budget.
 	ctx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
@@ -940,6 +948,9 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 				return nil, twoFactorSubmitFailure(err, false, false)
 			}
 			return session, nil
+		}
+		if consumedCodeNotice && twoFactorStatusWriter != nil {
+			_, _ = fmt.Fprintln(twoFactorStatusWriter, "The previous verification code was consumed by the expired session. Enter the new code Apple just sent, not the previous one.")
 		}
 
 		writeDeliveryNotice := func(destination string) {
@@ -1091,6 +1102,7 @@ type webSessionResolveOptions struct {
 	persistFresh         func(*webcore.AuthSession) error
 	persistAutoReauth    func(*webcore.AuthSession)
 	twoFactorCodeCommand string
+	providerSelected     bool
 }
 
 func tryResumeKnownWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, bool, error) {
@@ -1245,6 +1257,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 
 	var (
 		expiredCachedSession  *webcore.AuthSession
+		cachedProviderSession *webcore.AuthSession
 		fallbackPassword      resolvedWebPassword
 		skipStoredPassword    bool
 		twoFactorCodeConsumed bool
@@ -1285,15 +1298,6 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			return
 		}
 		twoFactorCodeConsumed = true
-		// The retry raises a brand-new Apple challenge, so a replacement code has
-		// just been delivered. Only a prompted operator has to be told which one
-		// to type: the burned digits are still on screen from the first prompt,
-		// and retyping them earns nothing but an opaque rejection. A configured
-		// command fetches its own replacement and needs no notice. This is
-		// reached only once a replacement is known to be obtainable.
-		if command == "" && twoFactorStatusWriter != nil {
-			_, _ = fmt.Fprintln(twoFactorStatusWriter, "The previous verification code was consumed by the expired session. Enter the new code Apple just sent, not the previous one.")
-		}
 		if consumedTwoFactorCode != "" {
 			return
 		}
@@ -1380,6 +1384,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			printExpiredNotice()
 			return nil, "", false, nil
 		}
+		cachedProviderSession = expiredCachedSession
 
 		reauthAppleID := strings.TrimSpace(targetAppleID)
 		if reauthAppleID == "" {
@@ -1407,6 +1412,11 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 		session, twoFactorStarted, loginErr := loginWithOptionalTwoFactorClientTracked(ctx, expiredCachedSession.Client, reauthAppleID, silentPassword.value, twoFactorCode, readCommandTwoFactorCode, command)
 		policy.observe(reauthAppleID, loginErr, twoFactorStarted)
 		if loginErr == nil {
+			if !opts.providerSelected {
+				if err := restoreCachedWebProvider(ctx, session, expiredCachedSession); err != nil {
+					return nil, "", false, err
+				}
+			}
 			if opts.persistAutoReauth != nil {
 				opts.persistAutoReauth(session)
 			}
@@ -1437,7 +1447,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			if silentPassword.source != webPasswordSourceStored {
 				return nil, "", false, fmt.Errorf("web auth auto-reauth failed: %w", loginErr)
 			}
-			printStoredPasswordRejected()
+			forgetRejectedStoredPassword(reauthAppleID)
 			skipStoredPassword = true
 			printExpiredNotice()
 			return nil, "", false, nil
@@ -1576,6 +1586,12 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 		code := twoFactorCode
 		if twoFactorCodeConsumed {
 			code = ""
+			// Only a prompted operator has to be told which code to type: the
+			// burned digits are still on screen from the first prompt. The notice
+			// waits until the fresh sign-in has raised its own challenge.
+			if command == "" {
+				loginCtx = context.WithValue(loginCtx, consumedCodeNoticeContextKey{}, true)
+			}
 		}
 		if expiredCachedSession != nil && expiredCachedSession.Client != nil {
 			session, twoFactorStarted, err := loginWithOptionalTwoFactorClientTracked(loginCtx, expiredCachedSession.Client, resolvedAppleID, candidate.value, code, readCommandTwoFactorCode, command)
@@ -1619,7 +1635,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 
 	session, err := loginWithPromptedFreshFallback(resolvedPassword)
 	if errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) && resolvedPassword.source == webPasswordSourceStored {
-		printStoredPasswordRejected()
+		forgetRejectedStoredPassword(resolvedAppleID)
 		promptedPassword, promptErr := opts.resolvePassword(ctx, "")
 		if promptErr != nil {
 			return nil, "", promptErr
@@ -1643,6 +1659,11 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 		return nil, "", err
 	}
 	persistPromptedWebPassword(resolvedAppleID, resolvedPassword)
+	if !opts.providerSelected {
+		if err := restoreCachedWebProvider(ctx, session, cachedProviderSession); err != nil {
+			return nil, "", err
+		}
+	}
 	if opts.persistFresh != nil {
 		if err := opts.persistFresh(session); err != nil {
 			return nil, "", err
@@ -1689,7 +1710,32 @@ func persistFreshResolvedSession(session *webcore.AuthSession) error {
 }
 
 func persistAutoReauthResolvedSession(session *webcore.AuthSession) {
-	_ = persistWebSessionFn(session)
+	printSessionCacheWriteWarning(persistWebSessionFn(session))
+}
+
+func printSessionCacheWriteWarning(err error) {
+	if sessionCacheWarningWriter == nil || err == nil {
+		return
+	}
+	_, _ = fmt.Fprintf(sessionCacheWarningWriter, "Warning: signed in, but caching the web session failed: %v; the next asc web command may need to sign in again.\n", err)
+}
+
+// restoreCachedWebProvider returns a re-signed-in session to the provider the
+// expired cached session was on, since Apple starts every sign-in on the
+// account's default provider.
+func restoreCachedWebProvider(ctx context.Context, session, cached *webcore.AuthSession) error {
+	if cached == nil || cached.ProviderID == 0 {
+		return nil
+	}
+	if session.ProviderID != cached.ProviderID {
+		providerCtx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+		defer cancel()
+		if err := selectWebProviderFn(providerCtx, session, webcore.ProviderSelection{ProviderID: cached.ProviderID}); err != nil {
+			return fmt.Errorf("web auth signed in, but could not switch back to provider %d used by the cached web session: %w; pass --provider-id to choose the provider for this command", cached.ProviderID, err)
+		}
+	}
+	session.DeveloperTeamID = cached.DeveloperTeamID
+	return nil
 }
 
 func selectResolvedWebSessionProvider(ctx context.Context, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
@@ -1738,6 +1784,7 @@ func resolveSessionWithoutPersist(ctx context.Context, appleID, password, twoFac
 	return resolveWebSession(ctx, appleID, password, twoFactorCode, webSessionResolveOptions{
 		resolvePassword:      resolveSessionPassword,
 		twoFactorCodeCommand: command,
+		providerSelected:     true,
 	})
 }
 

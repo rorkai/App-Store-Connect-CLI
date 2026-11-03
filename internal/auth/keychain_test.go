@@ -365,14 +365,120 @@ func TestSaveDefaultNamePreservesLegacyFieldsOnMismatch(t *testing.T) {
 	if updated.DefaultKeyName != "other" {
 		t.Fatalf("expected DefaultKeyName to be other, got %q", updated.DefaultKeyName)
 	}
-	if updated.KeyID != "KEY1" {
-		t.Fatalf("expected legacy KeyID KEY1 to be preserved, got %q", updated.KeyID)
+	if updated.KeyID != "" || updated.IssuerID != "" || updated.PrivateKeyPath != "" {
+		t.Fatalf("expected top-level fields cleared for keychain default, got %+v", updated)
 	}
-	if updated.IssuerID != "ISSUER1" {
-		t.Fatalf("expected legacy IssuerID ISSUER1 to be preserved, got %q", updated.IssuerID)
+	if len(updated.Keys) != 1 || updated.Keys[0].Name != "personal" || updated.Keys[0].KeyID != "KEY1" {
+		t.Fatalf("expected personal credential preserved in keys, got %+v", updated.Keys)
 	}
-	if updated.PrivateKeyPath != "/tmp/personal.p8" {
-		t.Fatalf("expected legacy PrivateKeyPath /tmp/personal.p8 to be preserved, got %q", updated.PrivateKeyPath)
+}
+
+func withRepoConfigWithoutCredentials(t *testing.T) (string, string) {
+	t.Helper()
+	withArrayKeyring(t)
+	t.Setenv("ASC_CONFIG_PATH", "")
+	t.Setenv("HOME", t.TempDir())
+	outside := t.TempDir()
+	repo := t.TempDir()
+	if err := config.SaveAt(filepath.Join(repo, ".asc", "config.json"), &config.Config{AppID: "123"}); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+	t.Chdir(outside)
+	return outside, repo
+}
+
+func TestStoreCredentials_InRepoWritesDefaultToGlobalConfig(t *testing.T) {
+	outside, repo := withRepoConfigWithoutCredentials(t)
+	if err := StoreCredentials("old", "OLDKEY", "ISS", "/tmp/AuthKey.p8"); err != nil {
+		t.Fatalf("StoreCredentials(old) error: %v", err)
+	}
+
+	t.Chdir(repo)
+	if err := StoreCredentials("new", "NEWKEY", "ISS", "/tmp/AuthKey.p8"); err != nil {
+		t.Fatalf("StoreCredentials(new) error: %v", err)
+	}
+
+	t.Chdir(outside)
+	cfg, err := GetCredentials("")
+	if err != nil {
+		t.Fatalf("GetCredentials() error: %v", err)
+	}
+	if cfg.KeyID != "NEWKEY" {
+		t.Fatalf("expected new default NEWKEY outside the repo, got %q", cfg.KeyID)
+	}
+}
+
+func TestStoreCredentials_KeychainUnavailableInRepoWritesGlobalConfig(t *testing.T) {
+	_, repo := withRepoConfigWithoutCredentials(t)
+	previous := keyringOpener
+	keyringOpener = func() (keyring.Keyring, error) {
+		return nil, keyring.ErrNoAvailImpl
+	}
+	t.Cleanup(func() { keyringOpener = previous })
+
+	t.Chdir(repo)
+	if err := StoreCredentials("fallback", "KEY123", "ISS", "/tmp/AuthKey.p8"); err != nil {
+		t.Fatalf("StoreCredentials() error: %v", err)
+	}
+
+	repoCfg, err := config.LoadAt(filepath.Join(repo, ".asc", "config.json"))
+	if err != nil {
+		t.Fatalf("LoadAt(repo) error: %v", err)
+	}
+	if hasAnyCredentials(repoCfg) || repoCfg.DefaultKeyName != "" {
+		t.Fatalf("expected repo config to stay credential-free, got %+v", repoCfg)
+	}
+	globalPath, err := config.GlobalPath()
+	if err != nil {
+		t.Fatalf("GlobalPath() error: %v", err)
+	}
+	globalCfg, err := config.LoadAt(globalPath)
+	if err != nil {
+		t.Fatalf("LoadAt(global) error: %v", err)
+	}
+	if globalCfg.DefaultKeyName != "fallback" || globalCfg.KeyID != "KEY123" {
+		t.Fatalf("expected credentials in global config, got %+v", globalCfg)
+	}
+}
+
+func TestGetCredentials_RepoConfigWithoutCredentialsUsesGlobalDefault(t *testing.T) {
+	_, repo := withRepoConfigWithoutCredentials(t)
+	if err := StoreCredentials("a", "AKEY", "ISS", "/tmp/AuthKey.p8"); err != nil {
+		t.Fatalf("StoreCredentials(a) error: %v", err)
+	}
+	if err := StoreCredentials("b", "BKEY", "ISS", "/tmp/AuthKey.p8"); err != nil {
+		t.Fatalf("StoreCredentials(b) error: %v", err)
+	}
+
+	t.Chdir(repo)
+	cfg, err := GetCredentials("")
+	if err != nil {
+		t.Fatalf("GetCredentials() error: %v", err)
+	}
+	if cfg.KeyID != "BKEY" {
+		t.Fatalf("expected global default BKEY inside the repo, got %q", cfg.KeyID)
+	}
+}
+
+func TestStoreCredentials_KeychainDefaultDoesNotInheritConfigProfileKey(t *testing.T) {
+	withArrayKeyring(t)
+	if err := StoreCredentialsConfig("old", "OLDKEY", "ISS", "/tmp/old.p8"); err != nil {
+		t.Fatalf("StoreCredentialsConfig(old) error: %v", err)
+	}
+	if err := StoreCredentials("new", "NEWKEY", "ISS", "/tmp/new.p8"); err != nil {
+		t.Fatalf("StoreCredentials(new) error: %v", err)
+	}
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	if cfg, _, err := GetCredentialsWithSource(""); err == nil {
+		t.Fatalf("expected keychain default to be unavailable from config, got KeyID %q for %q", cfg.KeyID, cfg.DefaultKeyName)
+	}
+	cfg, err := GetCredentials("old")
+	if err != nil {
+		t.Fatalf("GetCredentials(old) error: %v", err)
+	}
+	if cfg.KeyID != "OLDKEY" {
+		t.Fatalf("expected profile old to keep OLDKEY, got %q", cfg.KeyID)
 	}
 }
 

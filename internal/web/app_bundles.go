@@ -12,7 +12,7 @@ import (
 
 const (
 	appBundlesListPath   = "/appBundles?include=appBundleVersions&limit=300"
-	appBundlesLegacyPath = "/WebObjects/iTunesConnect.woa/ra/appbundles"
+	appBundlesLegacyPath = "/WebObjects/iTunesConnect.woa/ra"
 )
 
 // AppBundlesListResponse is the normalized output for App Store app bundles.
@@ -119,23 +119,11 @@ func (c *Client) GetAppBundle(ctx context.Context, bundleID string) (*AppBundleD
 	if bundleID == "" {
 		return nil, errors.New("app bundle ID is required")
 	}
-	body, err := c.doAppBundleRequest(ctx, http.MethodGet, "/metadetail/"+url.PathEscape(bundleID), nil)
+	data, err := c.fetchAppBundleDetail(ctx, bundleID)
 	if err != nil {
 		return nil, err
 	}
 
-	var payload appBundleEnvelope[appBundleDetailData]
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return nil, fmt.Errorf("failed to parse app bundle response: %w", err)
-	}
-	if err := payload.err(); err != nil {
-		return nil, err
-	}
-	if payload.Data == nil {
-		return nil, errors.New("app bundle response is missing data")
-	}
-
-	data := payload.Data
 	detail := &AppBundleDetail{
 		ID:                     bundleID,
 		State:                  data.State,
@@ -160,6 +148,42 @@ func (c *Client) GetAppBundle(ctx context.Context, bundleID string) (*AppBundleD
 	return detail, nil
 }
 
+func (c *Client) fetchAppBundleDetail(ctx context.Context, bundleID string) (*appBundleDetailData, error) {
+	return doAppBundleJSON[appBundleDetailData](ctx, c, http.MethodGet, "/appbundles/metadetail/"+url.PathEscape(bundleID), nil)
+}
+
+func doAppBundleJSON[T any](ctx context.Context, c *Client, method, path string, body any) (*T, error) {
+	responseBody, err := c.doAppBundleRequest(ctx, method, path, body)
+	if err != nil {
+		return nil, err
+	}
+	var payload appBundleEnvelope[T]
+	if err := json.Unmarshal(responseBody, &payload); err != nil {
+		return nil, fmt.Errorf("failed to parse app bundle response: %w", err)
+	}
+	if err := payload.err(); err != nil {
+		return nil, err
+	}
+	if payload.Data == nil {
+		return nil, errors.New("app bundle response is missing data")
+	}
+	return payload.Data, nil
+}
+
+// postAppBundle sends a change and checks only Apple's verdict; callers confirm
+// the outcome by reading the bundle back.
+func (c *Client) postAppBundle(ctx context.Context, path string, body any) error {
+	responseBody, err := c.doAppBundleRequest(ctx, http.MethodPost, path, body)
+	if err != nil {
+		return err
+	}
+	var payload appBundleEnvelope[json.RawMessage]
+	if err := json.Unmarshal(responseBody, &payload); err != nil {
+		return fmt.Errorf("failed to parse app bundle response: %w", err)
+	}
+	return payload.err()
+}
+
 // appBundleEnvelope is the response wrapper of the legacy bundle endpoints,
 // which can report a failure with an HTTP 200.
 type appBundleEnvelope[T any] struct {
@@ -172,7 +196,7 @@ type appBundleEnvelope[T any] struct {
 
 func (e appBundleEnvelope[T]) err() error {
 	if len(e.Messages.Error) > 0 {
-		return fmt.Errorf("app bundle request failed: %s", strings.Join(e.Messages.Error, "; "))
+		return fmt.Errorf("app bundle request failed: %s", htmlToPlainText(strings.Join(e.Messages.Error, "; ")))
 	}
 	if !strings.EqualFold(e.StatusCode, "SUCCESS") {
 		return fmt.Errorf("app bundle request failed with status %q", e.StatusCode)
@@ -181,6 +205,8 @@ func (e appBundleEnvelope[T]) err() error {
 }
 
 type appBundleDetailData struct {
+	AdamID                 json.Number          `json:"adamId"`
+	VendorIdentifier       string               `json:"vendorIdentifier"`
 	State                  string               `json:"state"`
 	StateKey               string               `json:"stateKey"`
 	InFlightState          string               `json:"inFlightState"`
@@ -191,6 +217,19 @@ type appBundleDetailData struct {
 	CanSubmit              bool                 `json:"canSubmit"`
 	CanDevReject           bool                 `json:"canDevReject"`
 	MemberApps             []appBundleMemberApp `json:"memberApps"`
+	Details                []appBundleLocale    `json:"details"`
+	UserBundleIcon         json.RawMessage      `json:"userBundleIcon"`
+}
+
+type appBundleLocale struct {
+	Name          string             `json:"name"`
+	LocaleCode    string             `json:"localeCode"`
+	MarketingText appBundleTextField `json:"marketingText"`
+	MarketingURL  appBundleTextField `json:"marketingUrl"`
+}
+
+type appBundleTextField struct {
+	Value *string `json:"value"`
 }
 
 type appBundleMemberApp struct {
@@ -207,5 +246,8 @@ func (c *Client) doAppBundleRequest(ctx context.Context, method, path string, bo
 	headers.Set("X-Requested-With", "XMLHttpRequest")
 	headers.Set("Origin", appStoreBaseURL)
 	headers.Set("Referer", appStoreBaseURL+"/")
+	if method != http.MethodGet {
+		headers.Set("X-Csrf-Itc", "itc")
+	}
 	return c.doRequestBase(ctx, c.complianceFormBaseURL(), method, appBundlesLegacyPath+path, body, headers)
 }
