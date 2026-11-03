@@ -11,10 +11,13 @@ type reviewQuery struct {
 	listQuery
 	ratings                 []int
 	territory               string
+	reviewTerritory         string
 	sort                    string
 	publishedResponseExists *bool
-	includeResponse         bool
+	include                 []string
+	fields                  []string
 	responseFields          []string
+	territoryFields         []string
 }
 
 type appStoreVersionsQuery struct {
@@ -176,6 +179,9 @@ func buildReviewQuery(opts []ReviewOption) string {
 	if query.territory != "" {
 		values.Set("filter[territory]", query.territory)
 	}
+	if query.reviewTerritory != "" {
+		values.Set("filter[reviewTerritory]", query.reviewTerritory)
+	}
 	if len(query.ratings) > 0 {
 		ratings := make([]string, 0, len(query.ratings))
 		for _, rating := range query.ratings {
@@ -189,13 +195,30 @@ func buildReviewQuery(opts []ReviewOption) string {
 	if query.publishedResponseExists != nil {
 		values.Set("exists[publishedResponse]", strconv.FormatBool(*query.publishedResponseExists))
 	}
-	if query.includeResponse {
-		values.Set("include", "response")
-	}
-	addCSV(values, "fields[customerReviewResponses]", query.responseFields)
+	addReviewSelection(values, query)
 	addLimit(values, query.limit)
 
 	return values.Encode()
+}
+
+// buildCustomerReviewQuery builds the query for GET /v1/customerReviews/{id},
+// which accepts only the include and fields parameters.
+func buildCustomerReviewQuery(opts []ReviewOption) string {
+	query := &reviewQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values := url.Values{}
+	addReviewSelection(values, query)
+	return values.Encode()
+}
+
+func addReviewSelection(values url.Values, query *reviewQuery) {
+	addCSV(values, "include", normalizeUniqueList(query.include))
+	addCSV(values, "fields[customerReviews]", query.fields)
+	addCSV(values, "fields[customerReviewResponses]", query.responseFields)
+	addCSV(values, "fields[territories]", query.territoryFields)
 }
 
 func buildAppStoreReviewAttachmentsQuery(query *appStoreReviewAttachmentsQuery) string {
@@ -573,6 +596,13 @@ func WithTerritory(territory string) ReviewOption {
 	}
 }
 
+// WithReviewTerritory filters reviews by related reviewTerritory IDs.
+func WithReviewTerritory(territory string) ReviewOption {
+	return func(r *reviewQuery) {
+		r.reviewTerritory = strings.TrimSpace(territory)
+	}
+}
+
 // WithReviewSort sets the sort order for reviews.
 func WithReviewSort(sort string) ReviewOption {
 	return func(r *reviewQuery) {
@@ -593,7 +623,21 @@ func WithPublishedResponseExists(exists bool) ReviewOption {
 // WithReviewIncludeResponse includes review response relationships in review results.
 func WithReviewIncludeResponse() ReviewOption {
 	return func(r *reviewQuery) {
-		r.includeResponse = true
+		r.include = append(r.include, "response")
+	}
+}
+
+// WithReviewInclude adds relationships to include in review results.
+func WithReviewInclude(include []string) ReviewOption {
+	return func(r *reviewQuery) {
+		r.include = append(r.include, include...)
+	}
+}
+
+// WithReviewFields limits fields returned for customer reviews.
+func WithReviewFields(fields []string) ReviewOption {
+	return func(r *reviewQuery) {
+		r.fields = normalizeList(fields)
 	}
 }
 
@@ -601,6 +645,13 @@ func WithReviewIncludeResponse() ReviewOption {
 func WithReviewResponseFields(fields []string) ReviewOption {
 	return func(r *reviewQuery) {
 		r.responseFields = normalizeList(fields)
+	}
+}
+
+// WithReviewTerritoryFields limits fields returned for included territories.
+func WithReviewTerritoryFields(fields []string) ReviewOption {
+	return func(r *reviewQuery) {
+		r.territoryFields = normalizeList(fields)
 	}
 }
 

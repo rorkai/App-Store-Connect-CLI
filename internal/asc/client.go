@@ -76,6 +76,8 @@ type ReviewAttributes struct {
 	ReviewerNickname string `json:"reviewerNickname"`
 	CreatedDate      string `json:"createdDate"`
 	Territory        string `json:"territory"`
+
+	api apiAttributes
 }
 
 // FeedbackResponse is the response from beta feedback screenshots endpoint.
@@ -791,14 +793,19 @@ func (c *Client) GetReviews(ctx context.Context, appID string, opts ...ReviewOpt
 	return &response, nil
 }
 
-// GetCustomerReview retrieves a customer review by ID.
-func (c *Client) GetCustomerReview(ctx context.Context, reviewID string) (*CustomerReviewResponse, error) {
+// GetCustomerReview retrieves a customer review by ID. Only include and fields
+// options apply; Apple accepts no filters on this endpoint.
+func (c *Client) GetCustomerReview(ctx context.Context, reviewID string, opts ...ReviewOption) (*CustomerReviewResponse, error) {
 	reviewID = strings.TrimSpace(reviewID)
 	if reviewID == "" {
 		return nil, fmt.Errorf("reviewID is required")
 	}
 
 	path := fmt.Sprintf("/v1/customerReviews/%s", reviewID)
+	if queryString := buildCustomerReviewQuery(opts); queryString != "" {
+		path += "?" + queryString
+	}
+
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
