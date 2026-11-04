@@ -37,6 +37,9 @@ func TestUsersListNormalizesRoles(t *testing.T) {
 func TestUsersUpdateNormalizesRoles(t *testing.T) {
 	setupAuth(t)
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/users/user-1" {
+			return jsonResponse(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"],"provisioningAllowed":true}}}`)
+		}
 		if req.Method != http.MethodPatch || req.URL.Path != "/v1/users/user-1" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}

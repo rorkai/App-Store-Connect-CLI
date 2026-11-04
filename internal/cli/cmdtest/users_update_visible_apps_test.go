@@ -27,6 +27,11 @@ func TestUsersUpdateSendsRolesAndVisibleAppsInOneRequest(t *testing.T) {
 
 		switch req.URL.Path {
 		case "/v1/users/user-1":
+			if req.Method == http.MethodGet {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"],"provisioningAllowed":true}}}`))
+				return
+			}
 			var update asc.UserUpdateRequest
 			if err := json.NewDecoder(req.Body).Decode(&update); err != nil {
 				http.Error(w, "invalid request", http.StatusBadRequest)
@@ -74,8 +79,8 @@ func TestUsersUpdateSendsRolesAndVisibleAppsInOneRequest(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !reflect.DeepEqual(gotRequests, []string{"PATCH /v1/users/user-1"}) {
-		t.Fatalf("requests = %v, want one user PATCH", gotRequests)
+	if !reflect.DeepEqual(gotRequests, []string{"GET /v1/users/user-1", "PATCH /v1/users/user-1"}) {
+		t.Fatalf("requests = %v, want a user read then one user PATCH", gotRequests)
 	}
 	if gotPayload.Data.Attributes == nil {
 		t.Fatal("expected attributes in user PATCH")
@@ -85,6 +90,9 @@ func TestUsersUpdateSendsRolesAndVisibleAppsInOneRequest(t *testing.T) {
 	}
 	if gotPayload.Data.Attributes.AllAppsVisible == nil || *gotPayload.Data.Attributes.AllAppsVisible {
 		t.Fatalf("allAppsVisible = %v, want false", gotPayload.Data.Attributes.AllAppsVisible)
+	}
+	if gotPayload.Data.Attributes.ProvisioningAllowed == nil || !*gotPayload.Data.Attributes.ProvisioningAllowed {
+		t.Fatalf("provisioningAllowed = %v, want the current true", gotPayload.Data.Attributes.ProvisioningAllowed)
 	}
 	if gotPayload.Data.Relationships == nil || gotPayload.Data.Relationships.VisibleApps == nil {
 		t.Fatal("expected visibleApps in user PATCH")
@@ -108,6 +116,11 @@ func TestUsersUpdateRolesOnlyDoesNotRequireConfirm(t *testing.T) {
 	requestCount := 0
 	var payload asc.UserUpdateRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/users/user-1" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"],"provisioningAllowed":true}}}`))
+			return
+		}
 		if req.Method != http.MethodPatch || req.URL.Path != "/v1/users/user-1" {
 			http.NotFound(w, req)
 			return
@@ -305,6 +318,11 @@ func TestUsersUpdateRejectedRequestDoesNotChangeAccess(t *testing.T) {
 
 		switch req.URL.Path {
 		case "/v1/users/user-1":
+			if req.Method == http.MethodGet {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"],"provisioningAllowed":true}}}`))
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			_, _ = w.Write([]byte(`{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid user update"}]}`))
@@ -348,8 +366,8 @@ func TestUsersUpdateRejectedRequestDoesNotChangeAccess(t *testing.T) {
 	if !strings.Contains(stderr, "users update: failed to update") || !strings.Contains(stderr, "Invalid user update") {
 		t.Fatalf("unexpected stderr: %q", stderr)
 	}
-	if gotRequestCount != 1 || gotLastRequest != "PATCH /v1/users/user-1" {
-		t.Fatalf("requests = %d, last = %q; want one user PATCH", gotRequestCount, gotLastRequest)
+	if gotRequestCount != 2 || gotLastRequest != "PATCH /v1/users/user-1" {
+		t.Fatalf("requests = %d, last = %q; want a user read then one user PATCH", gotRequestCount, gotLastRequest)
 	}
 	if gotState != initial {
 		t.Fatalf("state = %+v, want unchanged %+v", gotState, initial)
