@@ -18,6 +18,9 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 		status    int
 		response  string
 		wantAttrs map[string]any
+		// current is the access the command reads back when the flag is
+		// omitted; nil means it must not read the user.
+		current any
 	}{
 		{
 			name:     "update",
@@ -29,6 +32,7 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 			wantAttrs: map[string]any{
 				"roles": []any{"DEVELOPER"},
 			},
+			current: true,
 		},
 		{
 			name:     "invite",
@@ -66,12 +70,20 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 				for key, attr := range command.wantAttrs {
 					wantAttrs[key] = attr
 				}
+				wantGet := value.want == nil && command.current != nil
 				if value.want != nil {
 					wantAttrs["provisioningAllowed"] = value.want
+				} else if wantGet {
+					wantAttrs["provisioningAllowed"] = command.current
 				}
 
 				var gotAttrs map[string]any
+				gotGet := false
 				installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					if wantGet && req.Method == http.MethodGet && req.URL.Path == command.path {
+						gotGet = true
+						return jsonResponse(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"],"provisioningAllowed":true}}}`)
+					}
 					if req.Method != command.method || req.URL.Path != command.path {
 						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 					}
@@ -97,6 +109,9 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 						t.Fatalf("run error: %v", err)
 					}
 				})
+				if gotGet != wantGet {
+					t.Fatalf("read current user = %v, want %v", gotGet, wantGet)
+				}
 				if !reflect.DeepEqual(gotAttrs, wantAttrs) {
 					t.Fatalf("attributes = %#v, want %#v", gotAttrs, wantAttrs)
 				}

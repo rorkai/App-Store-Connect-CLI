@@ -270,7 +270,7 @@ func UsersUpdateCommand() *ffcli.Command {
 	roles := shared.BindOnceCSVFlag(fs, "roles", "Comma-separated UserRole values: "+strings.Join(userRoleList(), ", "))
 	visibleApps := shared.BindOnceCSVFlag(fs, "visible-app", "Comma-separated app IDs for visible apps")
 	var provisioningAllowed shared.OptionalBool
-	fs.Var(&provisioningAllowed, "provisioning-allowed", "Grant or remove provisioning access: true or false (omit to leave unchanged)")
+	fs.Var(&provisioningAllowed, "provisioning-allowed", "Grant or remove provisioning access: true or false (omit to keep the current value)")
 	confirm := fs.Bool("confirm", false, "Confirm replacing visible apps (required with --visible-app)")
 	output := shared.BindOutputFlags(fs)
 
@@ -354,6 +354,15 @@ Examples:
 			}
 			if provisioningAllowed.IsSet() {
 				allowed := provisioningAllowed.Value()
+				attrs.ProvisioningAllowed = &allowed
+			} else if !client.IsEnterpriseProgramAPI() {
+				// App Store Connect doesn't keep provisioning access when the
+				// attribute is omitted, so send the current value.
+				current, err := client.GetUser(requestCtx, idValue)
+				if err != nil {
+					return fmt.Errorf("users update: failed to read current provisioning access: %w", err)
+				}
+				allowed := current.Data.Attributes.ProvisioningAllowed
 				attrs.ProvisioningAllowed = &allowed
 			}
 
