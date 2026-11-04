@@ -50,6 +50,31 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 			current: "false",
 		},
 		{
+			name:     "update app manager",
+			args:     []string{"users", "update", "--id", "user-1", "--roles", "app_manager", "--output", "json"},
+			method:   http.MethodPatch,
+			path:     "/v1/users/user-1",
+			status:   http.StatusOK,
+			response: `{"data":{"type":"users","id":"user-1","attributes":{"roles":["APP_MANAGER"]}}}`,
+			wantAttrs: map[string]any{
+				"roles": []any{"APP_MANAGER"},
+			},
+			current: "true",
+			omitted: true,
+		},
+		{
+			name:     "update with unknown current access",
+			args:     []string{"users", "update", "--id", "user-1", "--roles", "developer", "--output", "json"},
+			method:   http.MethodPatch,
+			path:     "/v1/users/user-1",
+			status:   http.StatusOK,
+			response: `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"]}}}`,
+			wantAttrs: map[string]any{
+				"roles": []any{"DEVELOPER"},
+			},
+			current: "null",
+		},
+		{
 			name:     "update to role without provisioning",
 			args:     []string{"users", "update", "--id", "user-1", "--roles", "marketing", "--output", "json"},
 			method:   http.MethodPatch,
