@@ -36,3 +36,9 @@ func normalizeUserRoles(value string, flagName string) ([]string, error) {
 	}
 	return roles, nil
 }
+
+// rolePermitsProvisioning reports whether App Store Connect lets a user with
+// role opt into provisioning access.
+func rolePermitsProvisioning(role string) bool {
+	return role == "APP_MANAGER" || role == "DEVELOPER"
+}

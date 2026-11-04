@@ -18,9 +18,11 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 		status    int
 		response  string
 		wantAttrs map[string]any
-		// current is the access the command reads back when the flag is
-		// omitted; nil means it must not read the user.
-		current any
+		// current is the provisioning access read back when the flag is
+		// omitted; empty means the command must not read the user.
+		current string
+		// omitted is the provisioningAllowed sent when the flag is omitted.
+		omitted any
 	}{
 		{
 			name:     "update",
@@ -32,7 +34,31 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 			wantAttrs: map[string]any{
 				"roles": []any{"DEVELOPER"},
 			},
-			current: true,
+			current: "true",
+			omitted: true,
+		},
+		{
+			name:     "update without current access",
+			args:     []string{"users", "update", "--id", "user-1", "--roles", "developer", "--output", "json"},
+			method:   http.MethodPatch,
+			path:     "/v1/users/user-1",
+			status:   http.StatusOK,
+			response: `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"]}}}`,
+			wantAttrs: map[string]any{
+				"roles": []any{"DEVELOPER"},
+			},
+			current: "false",
+		},
+		{
+			name:     "update to role without provisioning",
+			args:     []string{"users", "update", "--id", "user-1", "--roles", "marketing", "--output", "json"},
+			method:   http.MethodPatch,
+			path:     "/v1/users/user-1",
+			status:   http.StatusOK,
+			response: `{"data":{"type":"users","id":"user-1","attributes":{"roles":["MARKETING"]}}}`,
+			wantAttrs: map[string]any{
+				"roles": []any{"MARKETING"},
+			},
 		},
 		{
 			name:     "invite",
@@ -70,11 +96,11 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 				for key, attr := range command.wantAttrs {
 					wantAttrs[key] = attr
 				}
-				wantGet := value.want == nil && command.current != nil
+				wantGet := value.want == nil && command.current != ""
 				if value.want != nil {
 					wantAttrs["provisioningAllowed"] = value.want
-				} else if wantGet {
-					wantAttrs["provisioningAllowed"] = command.current
+				} else if command.omitted != nil {
+					wantAttrs["provisioningAllowed"] = command.omitted
 				}
 
 				var gotAttrs map[string]any
@@ -82,7 +108,7 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 				installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 					if wantGet && req.Method == http.MethodGet && req.URL.Path == command.path {
 						gotGet = true
-						return jsonResponse(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"],"provisioningAllowed":true}}}`)
+						return jsonResponse(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["APP_MANAGER"],"provisioningAllowed":`+command.current+`}}}`)
 					}
 					if req.Method != command.method || req.URL.Path != command.path {
 						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())

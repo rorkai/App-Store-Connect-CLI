@@ -91,6 +91,9 @@ func TestUsersUpdateSendsRolesAndVisibleAppsInOneRequest(t *testing.T) {
 	if gotPayload.Data.Attributes.AllAppsVisible == nil || *gotPayload.Data.Attributes.AllAppsVisible {
 		t.Fatalf("allAppsVisible = %v, want false", gotPayload.Data.Attributes.AllAppsVisible)
 	}
+	if gotPayload.Data.Attributes.ProvisioningAllowed == nil || !*gotPayload.Data.Attributes.ProvisioningAllowed {
+		t.Fatalf("provisioningAllowed = %v, want the current true", gotPayload.Data.Attributes.ProvisioningAllowed)
+	}
 	if gotPayload.Data.Relationships == nil || gotPayload.Data.Relationships.VisibleApps == nil {
 		t.Fatal("expected visibleApps in user PATCH")
 	}
