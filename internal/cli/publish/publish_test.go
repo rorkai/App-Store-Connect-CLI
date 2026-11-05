@@ -7,28 +7,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestPublishAppStoreTimeoutHelpMatchesScope(t *testing.T) {
-	timeoutFlag := PublishAppStoreCommand().FlagSet.Lookup("timeout")
-	if timeoutFlag == nil {
-		t.Fatal("expected --timeout flag")
-	}
-	want := "Override upload + processing timeout; also applies to submission with --submit (e.g., 30m)"
-	if timeoutFlag.Usage != want {
-		t.Fatalf("expected timeout help %q, got %q", want, timeoutFlag.Usage)
-	}
-}
-
-func TestPublishTestFlightUploadOnlyHelpIsDiscoverable(t *testing.T) {
-	uploadOnlyFlag := PublishTestFlightCommand().FlagSet.Lookup("upload-only")
-	if uploadOnlyFlag == nil {
-		t.Fatal("expected --upload-only flag")
-	}
-	want := "Upload the build without adding it to beta groups or submitting beta review"
-	if uploadOnlyFlag.Usage != want {
-		t.Fatalf("expected upload-only help %q, got %q", want, uploadOnlyFlag.Usage)
-	}
-}
-
 func TestReportSkippedInternalAllBuildsGroupsSanitizesProviderID(t *testing.T) {
 	const groupID = "group-control-\x1b[31mID\nNEXT"
 

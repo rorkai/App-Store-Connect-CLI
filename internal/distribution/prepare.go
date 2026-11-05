@@ -67,21 +67,10 @@ type ExpectedIPA struct {
 	SizeBytes int64
 }
 
-// PrepareIPA validates an already-open IPA and publishes an immutable local
-// bundle without replacing an existing destination.
-func PrepareIPA(file *os.File, size int64, options PrepareOptions) (result PrepareResult, resultErr error) {
-	return PrepareIPAContext(context.Background(), file, size, options)
-}
-
+// PrepareIPAContext validates an already-open IPA and publishes an immutable
+// local bundle without replacing an existing destination.
 func PrepareIPAContext(ctx context.Context, file *os.File, size int64, options PrepareOptions) (result PrepareResult, resultErr error) {
 	return prepareIPA(ctx, file, size, options, nil)
-}
-
-// PrepareIPAPath opens a relative IPA path beneath inputRoot without following
-// symlinks and prepares it with cancellation propagated through snapshotting
-// and code-signature verification.
-func PrepareIPAPath(ctx context.Context, inputRoot rootfs.Root, ipaPath string, options PrepareOptions) (PrepareResult, error) {
-	return prepareIPAPath(ctx, inputRoot, ipaPath, options, nil)
 }
 
 // PrepareIPAPathExact is the agent-facing preparation seam. It snapshots a

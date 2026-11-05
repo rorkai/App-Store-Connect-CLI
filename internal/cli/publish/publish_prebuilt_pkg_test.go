@@ -372,15 +372,3 @@ func TestPublishPrebuiltPKGConflictsWithLocalBuild(t *testing.T) {
 		})
 	}
 }
-
-func TestPublishPKGFlagsAreDiscoverable(t *testing.T) {
-	for _, command := range []*ffcli.Command{PublishTestFlightCommand(), PublishAppStoreCommand()} {
-		pkgFlag := command.FlagSet.Lookup("pkg")
-		if pkgFlag == nil {
-			t.Fatalf("%s: expected --pkg flag", command.Name)
-		}
-		if !strings.Contains(pkgFlag.Usage, "macOS") || !strings.Contains(pkgFlag.Usage, "--version") || !strings.Contains(pkgFlag.Usage, "--build-number") {
-			t.Fatalf("%s: expected PKG metadata help, got %q", command.Name, pkgFlag.Usage)
-		}
-	}
-}

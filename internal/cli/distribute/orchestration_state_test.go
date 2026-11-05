@@ -184,7 +184,6 @@ func TestDistributionProtectedPersistenceAndIDs(t *testing.T) {
 		generate      func() (string, error)
 	}{
 		{name: "plan", pattern: `^dplan_[0-9a-f]{32}$`, generate: newDistributionPlanID},
-		{name: "run", pattern: `^drun_[0-9a-f]{32}$`, generate: newDistributionRunID},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			one, err := test.generate()
@@ -983,4 +982,14 @@ func assertPrivateDirectory(t *testing.T, path string) {
 	if !info.IsDir() || info.Mode().Perm() != 0o700 {
 		t.Fatalf("%s mode = %v", path, info.Mode())
 	}
+}
+
+func newDistributionRunID() (string, error) { return newDistributionID("drun_") }
+
+func ensureDistributionStateRoot(path string) error {
+	rooted, err := openOrCreateDistributionDirectory(path)
+	if rooted != nil {
+		_ = rooted.Close()
+	}
+	return err
 }

@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -117,25 +118,13 @@ func (signing *PreparedSigning) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*signing = PreparedSigning(wire.plain)
-	if len(signing.ProfileCertificateSHA256Fingerprints) > 0 && len(wire.LegacyCertificateSHA256Fingerprints) > 0 && !equalStrings(signing.ProfileCertificateSHA256Fingerprints, wire.LegacyCertificateSHA256Fingerprints) {
+	if len(signing.ProfileCertificateSHA256Fingerprints) > 0 && len(wire.LegacyCertificateSHA256Fingerprints) > 0 && !slices.Equal(signing.ProfileCertificateSHA256Fingerprints, wire.LegacyCertificateSHA256Fingerprints) {
 		return fmt.Errorf("signing profileCertificateSha256Fingerprints conflicts with certificateSha256Fingerprints")
 	}
 	if len(signing.ProfileCertificateSHA256Fingerprints) == 0 {
 		signing.ProfileCertificateSHA256Fingerprints = wire.LegacyCertificateSHA256Fingerprints
 	}
 	return nil
-}
-
-func equalStrings(left, right []string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
 }
 
 type PreparedBundle struct {
@@ -300,7 +289,7 @@ func validateDescriptor(descriptor PreparedDescriptor) error {
 	if strings.TrimSpace(descriptor.Signing.ProfileUUID) == "" || strings.TrimSpace(descriptor.Signing.TeamID) == "" || strings.TrimSpace(descriptor.Signing.ExpiresAt) == "" {
 		return fmt.Errorf("bundle.json signing requires profileUuid, teamId, and expiresAt")
 	}
-	if descriptor.Signing.DeviceCount <= 0 || !isCanonicalSHA256(descriptor.Signing.DeviceSetSHA256) || !isCanonicalSHA256(descriptor.Signing.EmbeddedProfileSHA256) || len(descriptor.Signing.ProfileCertificateSHA256Fingerprints) == 0 {
+	if descriptor.Signing.DeviceCount <= 0 || !isCanonicalDigest(descriptor.Signing.DeviceSetSHA256) || !isCanonicalDigest(descriptor.Signing.EmbeddedProfileSHA256) || len(descriptor.Signing.ProfileCertificateSHA256Fingerprints) == 0 {
 		return fmt.Errorf("bundle.json signing requires a non-empty device set, embedded profile digest, and profile certificate fingerprints")
 	}
 	if descriptor.Signing.CodeSignatureVerification.Status != "verified" {
@@ -314,13 +303,13 @@ func validateDescriptor(descriptor PreparedDescriptor) error {
 	}
 	profileFingerprints := make(map[string]struct{}, len(descriptor.Signing.ProfileCertificateSHA256Fingerprints))
 	for _, fingerprint := range descriptor.Signing.ProfileCertificateSHA256Fingerprints {
-		if !isCanonicalSHA256(fingerprint) {
+		if !isCanonicalDigest(fingerprint) {
 			return fmt.Errorf("bundle.json signing.profileCertificateSha256Fingerprints must contain canonical SHA-256 values")
 		}
 		profileFingerprints[fingerprint] = struct{}{}
 	}
 	for _, fingerprint := range descriptor.Signing.CodeSignatureVerification.SignerCertificateSHA256Fingerprints {
-		if !isCanonicalSHA256(fingerprint) {
+		if !isCanonicalDigest(fingerprint) {
 			return fmt.Errorf("bundle.json signing.codeSignatureVerification.signerCertificateSha256Fingerprints must contain canonical SHA-256 values")
 		}
 		if _, ok := profileFingerprints[fingerprint]; !ok {
@@ -344,14 +333,6 @@ func validateDescriptor(descriptor PreparedDescriptor) error {
 		return fmt.Errorf("bundle.json artifact.relativePath must be payload/app.ipa")
 	}
 	return nil
-}
-
-func isCanonicalSHA256(value string) bool {
-	if len(value) != sha256.Size*2 || value != strings.ToLower(value) {
-		return false
-	}
-	decoded, err := hex.DecodeString(value)
-	return err == nil && len(decoded) == sha256.Size
 }
 
 type PutObject struct {
@@ -469,13 +450,13 @@ func (signing ReceiptSigning) MatchesPrepared(prepared PreparedSigning) bool {
 	want := receiptSigningFromPrepared(prepared)
 	return signing.ProfileClass == want.ProfileClass && signing.ProfileUUID == want.ProfileUUID && signing.EmbeddedProfileSHA256 == want.EmbeddedProfileSHA256 && signing.TeamID == want.TeamID &&
 		signing.ProfileExpiresAt == want.ProfileExpiresAt && signing.DeviceCount == want.DeviceCount && signing.DeviceSetSHA256 == want.DeviceSetSHA256 &&
-		equalStrings(signing.ProfileCertificateFingerprints, want.ProfileCertificateFingerprints) &&
+		slices.Equal(signing.ProfileCertificateFingerprints, want.ProfileCertificateFingerprints) &&
 		verificationMatches(signing.ProfileIntegrityVerification, want.ProfileIntegrityVerification) && verificationMatches(signing.ProfileTrustVerification, want.ProfileTrustVerification) &&
 		verificationMatches(signing.CodeSignatureVerification, want.CodeSignatureVerification)
 }
 
 func verificationMatches(left, right PreparedCodeSignatureVerification) bool {
-	return left.Status == right.Status && left.Reason == right.Reason && left.Scope == right.Scope && equalStrings(left.SignerCertificateSHA256Fingerprints, right.SignerCertificateSHA256Fingerprints)
+	return left.Status == right.Status && left.Reason == right.Reason && left.Scope == right.Scope && slices.Equal(left.SignerCertificateSHA256Fingerprints, right.SignerCertificateSHA256Fingerprints)
 }
 
 type SensitiveLinks struct {

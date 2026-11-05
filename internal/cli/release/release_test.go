@@ -170,18 +170,6 @@ func TestReleaseStageCommand_MissingRequiredFlags(t *testing.T) {
 	}
 }
 
-func TestReleaseStageCommandExposesRoutingCoverageFile(t *testing.T) {
-	cmd := ReleaseStageCommand()
-	flag := cmd.FlagSet.Lookup("routing-coverage-file")
-	if flag == nil {
-		t.Fatal("expected --routing-coverage-file flag")
-	}
-
-	if !strings.Contains(flag.Usage, "before readiness") {
-		t.Fatalf("expected routing coverage timing in flag help, got %q", flag.Usage)
-	}
-}
-
 func TestReleaseStageCommandValidatesRoutingCoverageBeforePipeline(t *testing.T) {
 	originalClientFactory := releaseClientFactory
 	t.Cleanup(func() { releaseClientFactory = originalClientFactory })

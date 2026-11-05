@@ -1,7 +1,6 @@
 package distribute
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1163,36 +1162,6 @@ func TestPreflightRejectsWorldReadableSensitiveLink(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 }
-
-func TestReadBoundedPublishStateEnforcesExactLimit(t *testing.T) {
-	exact := bytes.Repeat([]byte("x"), maxPublishStateBytes)
-	data, err := readBoundedPublishState(bytes.NewReader(exact))
-	if err != nil {
-		t.Fatalf("readBoundedPublishState() exact-limit error = %v", err)
-	}
-	if !bytes.Equal(data, exact) {
-		t.Fatalf("readBoundedPublishState() returned %d bytes, want %d", len(data), len(exact))
-	}
-
-	secret := "X-Amz-Security-Token=do-not-echo"
-	oversized := append(append([]byte(nil), exact...), secret...)
-	if _, err := readBoundedPublishState(bytes.NewReader(oversized)); err == nil || !strings.Contains(err.Error(), "exceeds 2 MiB") {
-		t.Fatalf("readBoundedPublishState() error = %v, want size rejection", err)
-	} else if strings.Contains(err.Error(), secret) {
-		t.Fatalf("size error leaked sensitive content: %q", err)
-	}
-}
-
-func TestReadBoundedPublishStatePreservesReadError(t *testing.T) {
-	want := errors.New("read failed")
-	if _, err := readBoundedPublishState(errorReader{err: want}); !errors.Is(err, want) {
-		t.Fatalf("readBoundedPublishState() error = %v, want %v", err, want)
-	}
-}
-
-type errorReader struct{ err error }
-
-func (reader errorReader) Read([]byte) (int, error) { return 0, reader.err }
 
 type noOpStore struct{}
 

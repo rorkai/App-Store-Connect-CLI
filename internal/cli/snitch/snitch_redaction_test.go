@@ -3365,6 +3365,23 @@ status: failed`,
 			input: "request failed for " + "rk_test_" + "51ABCDEFGHIJKLMNOPQRSTUVWXYZ",
 			want:  "request failed for [REDACTED]",
 		},
+		{
+			name: "boolean secret protection scoped to env-var set command",
+			input: "asc web xcode-cloud env-vars set --value public-value --secret=false; " +
+				"asc webhooks create --url https://example.test/hook --secret=true",
+			want: "asc web xcode-cloud env-vars set --value public-value --secret=false; " +
+				"asc webhooks create --url https://example.test/hook --secret=[REDACTED]",
+		},
+		{
+			name:  "combined curl user and certificate credentials",
+			input: `curl --user alice:opaque-user --cert client.p12:opaque-cert https://example.test`,
+			want:  `curl --user [REDACTED] --cert client.p12:[REDACTED] https://example.test`,
+		},
+		{name: "redis-cli password", input: `redis-cli -a opaque-redis-secret PING`, want: `redis-cli -a [REDACTED] PING`},
+		{name: "redis-cli attached password", input: `redis-cli -a=opaque-redis-secret PING`, want: `redis-cli -a=[REDACTED] PING`},
+		{name: "redis-cli quoted password flag", input: `redis-cli '-a' opaque-redis-secret PING`, want: `redis-cli '-a' [REDACTED] PING`},
+		{name: "redis-cli behind sudo", input: `sudo -u build /usr/local/bin/redis-cli -a opaque-redis-secret PING`, want: `sudo -u build /usr/local/bin/redis-cli -a [REDACTED] PING`},
+		{name: "redis-cli inside sh -c", input: `sh -c "redis-cli -a opaque-redis-secret PING"`, want: `sh -c "redis-cli -a [REDACTED] PING"`},
 	}
 
 	for _, tt := range tests {
@@ -3451,7 +3468,7 @@ func TestRedactSensitiveTextFailsClosedBeyondShellNestingLimit(t *testing.T) {
 }
 
 func TestRedactSensitiveTextPreservesBenignShellValues(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`set "STATUS=public value" & echo done`,
 		`set STATUS=opaque status value & echo done`,
 		`$description = ConvertTo-SecureString "public value" -AsPlainText -Force`,
@@ -3548,16 +3565,11 @@ func TestRedactSensitiveTextPreservesBenignShellValues(t *testing.T) {
 		`proxy-header = "@headers.txt"`,
 		`Pass through values`,
 		`pass through values`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextScopesKubectlSecretLiterals(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`echo kubectl create secret generic foo --from-literal=custom=public-value`,
 		`sudo echo kubectl create secret generic foo --from-literal=custom=public-value`,
 		`sudo -u build echo kubectl create secret generic foo --from-literal=custom=public-value`,
@@ -3567,16 +3579,11 @@ func TestRedactSensitiveTextScopesKubectlSecretLiterals(t *testing.T) {
 		`kubectl get pods create secret generic foo --from-literal=custom=public-value`,
 		`kubectl run demo -- echo create secret --from-literal=custom=public-value`,
 		"kubectl create\nsecret generic foo --from-literal=custom=public-value",
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextScopesSecurityCredentialArguments(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`sudo -p public-prompt security unlock-keychain build.keychain`,
 		`sudo -P security unlock-keychain build.keychain`,
 		`echo security unlock-keychain -p public-value build.keychain`,
@@ -3585,46 +3592,31 @@ func TestRedactSensitiveTextScopesSecurityCredentialArguments(t *testing.T) {
 		`security import signing.cer -k build.keychain`,
 		`security list-keychains -p public-value`,
 		`tool -p public-value`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextScopesKeytoolCredentialArguments(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`echo keytool -list -storepass public-value`,
 		`sudo echo keytool -list -storepass public-value`,
 		`echo keytool.exe -list -storepass:env PUBLIC_VALUE`,
 		`tool -storepass public-value`,
 		`keytool -list -keystore public-value`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextScopesJarsignerCredentialArguments(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`echo jarsigner -storepass public-value signed.jar alias`,
 		`sudo echo jarsigner -keypass public-value signed.jar alias`,
 		`tool -storepass public-value`,
 		`jarsigner -keystore public-value signed.jar alias`,
 		`jarsigner -signedjar public-output.jar input.jar alias`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextScopesDockerLoginCredentialArguments(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`sudo -p public-prompt docker login registry.example`,
 		`echo docker login -p public-value registry.example`,
 		`sudo echo docker login -p public-value registry.example`,
@@ -3633,48 +3625,48 @@ func TestRedactSensitiveTextScopesDockerLoginCredentialArguments(t *testing.T) {
 		`docker login --password-stdin registry.example`,
 		`docker --version login -p public-value registry.example`,
 		`tool login -p public-value`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextScopesZipCredentialArguments(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`sudo -P zip archive.zip file`,
 		`sudo -P unzip archive.zip`,
 		`echo zip -P public-value archive.zip file`,
 		`sudo echo zip -P public-value archive.zip file`,
 		`tool -P public-value`,
 		`zipinfo -P public-value archive.zip`,
+	)
+}
+
+func TestRedactSensitiveTextPreservesNonCredentialInputs(t *testing.T) {
+	for _, test := range []struct{ name, input string }{
+		{name: "PreservesTaggedConfigMapStructuralKeys", input: "!!str kind: ConfigMap\n!!str data:\n  config: public-value"},
+		{name: "PreservesTaggedYAMLNonCredentialKey", input: "!!str status: visible-value\n&field name: visible-name"},
+		{name: "PreservesDiscordWebhookWithoutToken", input: "request failed for https://discord.com/api/webhooks/123456789012345678"},
+		{name: "PreservesKubeconfigCertificateData", input: "client-certificate-data: public-certificate"},
+		{name: "PreservesMalformedCookieJarRow", input: ".example.test\tTRUE\t/\tTRUE\tnot-an-expiry\tJSESSIONID\tpublic-diagnostic"},
+		{name: "PreservesBenignYAMLAliasMappingKey", input: "key: &s status\n*s: failed"},
+		{name: "PreservesEmptyYAMLCredentialMappingBeforeComment", input: "password:\n# context\nstatus: failed"},
+		{name: "PreservesCurlUseASCII", input: `curl -B 'https://example.test/?name=value'`},
+		{name: "PreservesCurlReferer", input: `curl -e https://example.test/page https://target.test`},
+		{name: "DoesNotJoinEscapedBackslashLines", input: `asc unrelated --value public \\
+asc web xcode-cloud env-vars set --secret`},
+		{name: "PreservesUsernameOnlySCPRemote", input: "asc signing sync --repo git@github.com:team/certs.git"},
+		{name: "PreservesOrdinaryCodeFields", input: `{"error":{"code":"ENTITY_ERROR"},"status":400}`},
+		{name: "PreservesOrdinaryAuthField", input: `{"auth":"public mode","status":"ready"}`},
+		{name: "DoesNotResolveYAMLAliasesAcrossDocuments", input: "credential: &credential DB_PASSWORD\n---\nenv:\n  - name: *credential\n    value: preserve-public-value"},
+		{name: "PreservesCredentialCommandWordsInProse", input: "ads auth token: token request failed: dial tcp: connection refused"},
+		{name: "PreservesOrdinaryDottedTOMLKey", input: `metadata.value = "public context"`},
 	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
-}
-
-func TestRedactSensitiveTextPreservesTaggedConfigMapStructuralKeys(t *testing.T) {
-	input := "!!str kind: ConfigMap\n!!str data:\n  config: public-value"
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
-}
-
-func TestRedactSensitiveTextPreservesTaggedYAMLNonCredentialKey(t *testing.T) {
-	input := "!!str status: visible-value\n&field name: visible-name"
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
+		t.Run(test.name, func(t *testing.T) {
+			assertRedactSensitiveTextUnchanged(t, test.input)
+		})
 	}
 }
 
 func TestRedactSensitiveTextRejectsNonExecutingCredentialCommandWrappers(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`sudo -u build echo keytool -list -storepass public-value`,
 		`command -v keytool -storepass public-value`,
 		`doas -u build echo openssl -passout public-value`,
@@ -3766,16 +3758,11 @@ func TestRedactSensitiveTextRejectsNonExecutingCredentialCommandWrappers(t *test
 		`echo $(echo openssl pkcs12 -passout public-value)`,
 		`diff <(echo openssl pkcs12 -passout public-value) expected.txt`,
 		`sudo -p "enter credentials: " echo openssl pkcs12 -passout public-value`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesBearerProse(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		"Bearer authentication fails behind proxy",
 		"Bearer OAuth2 authentication fails",
 		"Bearer OAuth2.0 authentication fails",
@@ -3784,76 +3771,21 @@ func TestRedactSensitiveTextPreservesBearerProse(t *testing.T) {
 		"Bearer HTTP2 authentication fails",
 		"Bearer RFC6750 flow fails",
 		"Authorization: request failed because proxy unavailable",
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesEmbeddedSlackTokenLikeText(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		"prefixxoxp-123456789012-123456789012-abcdefghijklmnopqrstuvwx",
 		"prefixxapp-1-A0123456789-example",
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesEmbeddedGoogleAPIKeyLikeText(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		"prefixAIza0123456789abcdefghijklmnopqrstuvwxy",
 		"AIza0123456789abcdefghijklmnopqrstuvwxyz",
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
-}
-
-func TestRedactSensitiveTextPreservesDiscordWebhookWithoutToken(t *testing.T) {
-	const input = "request failed for https://discord.com/api/webhooks/123456789012345678"
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
-}
-
-func TestRedactSensitiveTextPreservesKubeconfigCertificateData(t *testing.T) {
-	const input = "client-certificate-data: public-certificate"
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
-}
-
-func TestRedactSensitiveTextPreservesMalformedCookieJarRow(t *testing.T) {
-	const input = ".example.test\tTRUE\t/\tTRUE\tnot-an-expiry\tJSESSIONID\tpublic-diagnostic"
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
-}
-
-func TestRedactSensitiveTextPreservesBenignYAMLAliasMappingKey(t *testing.T) {
-	input := "key: &s status\n*s: failed"
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
-}
-
-func TestRedactSensitiveTextPreservesEmptyYAMLCredentialMappingBeforeComment(t *testing.T) {
-	input := "password:\n# context\nstatus: failed"
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
+	)
 }
 
 func TestRedactSensitiveTextRedactsValueForTrueSecretMarkerLiterals(t *testing.T) {
@@ -3867,206 +3799,70 @@ func TestRedactSensitiveTextRedactsValueForTrueSecretMarkerLiterals(t *testing.T
 	}
 }
 
-func TestRedactSensitiveTextScopesBooleanSecretProtectionToEnvVarSetCommand(t *testing.T) {
-	input := "asc web xcode-cloud env-vars set --value public-value --secret=false; " +
-		"asc webhooks create --url https://example.test/hook --secret=true"
-	want := "asc web xcode-cloud env-vars set --value public-value --secret=false; " +
-		"asc webhooks create --url https://example.test/hook --secret=[REDACTED]"
-
-	got, changed := redactSensitiveText(input)
-	if !changed || got != want {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want %q", input, got, changed, want)
-	}
-}
-
 func TestRedactSensitiveTextPreservesCurlCookieFilenames(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`curl --cookie ./cookies.txt https://example.test`,
 		`curl --cookie=./cookies.txt https://example.test`,
 		`curl -b "$TMPDIR/cookies.jar" https://example.test`,
 		`curl -b./cookies.jar https://example.test`,
 		`cookie = "./cookies.txt"`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
-}
-
-func TestRedactSensitiveTextPreservesCurlUseASCII(t *testing.T) {
-	input := `curl -B 'https://example.test/?name=value'`
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesNonCurlShortUArguments(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`git diff -u HEAD~1:README.md HEAD:README.md`,
 		`diff -u before:file after:file`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextScopesCurlCertificatePasswordsToCurl(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`grep -E "host:port" logfile`,
 		`grep --cert client.p12:public-pattern logfile`,
 		`echo curl --cert client.p12:public-example`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
-}
-
-func TestRedactSensitiveTextRedactsCombinedCurlCredentials(t *testing.T) {
-	input := `curl --user alice:opaque-user --cert client.p12:opaque-cert https://example.test`
-	want := `curl --user [REDACTED] --cert client.p12:[REDACTED] https://example.test`
-
-	got, changed := redactSensitiveText(input)
-	if !changed || got != want {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want %q", input, got, changed, want)
-	}
-}
-
-func TestRedactSensitiveTextRedactsRedisCLIPassword(t *testing.T) {
-	for _, test := range []struct {
-		input string
-		want  string
-	}{
-		{input: `redis-cli -a opaque-redis-secret PING`, want: `redis-cli -a [REDACTED] PING`},
-		{input: `redis-cli -a=opaque-redis-secret PING`, want: `redis-cli -a=[REDACTED] PING`},
-		{input: `redis-cli '-a' opaque-redis-secret PING`, want: `redis-cli '-a' [REDACTED] PING`},
-		{input: `sudo -u build /usr/local/bin/redis-cli -a opaque-redis-secret PING`, want: `sudo -u build /usr/local/bin/redis-cli -a [REDACTED] PING`},
-		{input: `sh -c "redis-cli -a opaque-redis-secret PING"`, want: `sh -c "redis-cli -a [REDACTED] PING"`},
-	} {
-		got, changed := redactSensitiveText(test.input)
-		if !changed || got != test.want {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want %q", test.input, got, changed, test.want)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesNonCredentialRedisCLIArguments(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`redis-cli GET -akey`,
 		`redis-cli -aopaque-not-an-option PING`,
 		`echo redis-cli -a public-example PING`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
-}
-
-func TestRedactSensitiveTextPreservesCurlReferer(t *testing.T) {
-	input := `curl -e https://example.test/page https://target.test`
-
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesCurlCertificateWithoutPassword(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`curl --cert client.pem https://example.test`,
 		`curl --cert="client cert.pem" https://example.test`,
 		`curl -Eclient.p12 https://example.test`,
 		`cert = "client cert.pem"`,
 		`proxy-cert: client.p12`,
 		`cert = C:\client.p12`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesAttachedBenignCurlHeader(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`curl -HAccept:application/json https://example.test`,
 		`curl -H Accept:application/json https://example.test`,
 		`curl --header=Accept:application/json https://example.test`,
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
-}
-
-func TestRedactSensitiveTextDoesNotJoinEscapedBackslashLines(t *testing.T) {
-	input := `asc unrelated --value public \\
-asc web xcode-cloud env-vars set --secret`
-
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesURLQueryAndFragmentAtSigns(t *testing.T) {
-	tests := []string{
+	assertRedactSensitiveTextUnchanged(t,
 		"https://example.test?next=a:b@evil.test",
 		"https://example.test/path#value=a:b@evil.test",
-	}
-
-	for _, input := range tests {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesDiagnosticCodeQueryParameter(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		"request failed: https://example.com/error?code=404&message=not_found",
 		"login failed: https://example.com/auth/error?code=404&message=not_found",
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Fatalf("redactSensitiveText(%q) = (%q, %t), want unchanged", input, got, changed)
-		}
-	}
-}
-
-func TestRedactSensitiveTextPreservesUsernameOnlySCPRemote(t *testing.T) {
-	input := "asc signing sync --repo git@github.com:team/certs.git"
-
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
-}
-
-func TestRedactSensitiveTextPreservesOrdinaryCodeFields(t *testing.T) {
-	input := `{"error":{"code":"ENTITY_ERROR"},"status":400}`
-
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
-}
-
-func TestRedactSensitiveTextPreservesOrdinaryAuthField(t *testing.T) {
-	input := `{"auth":"public mode","status":"ready"}`
-
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesUnterminatedTOMLLiteralKey(t *testing.T) {
@@ -4079,28 +3875,14 @@ func TestRedactSensitiveTextPreservesUnterminatedTOMLLiteralKey(t *testing.T) {
 }
 
 func TestRedactSensitiveTextPreservesNameValuePairOutsideCookieJar(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		`{"cookies":{},"diagnostic":{"name":"failure","value":"preserve this explanation"}}`,
 		"env:\n  - name: |-\n      DB_PASSWORD\n      value: diagnostic text\n    value: preserve-public-value",
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
-}
-
-func TestRedactSensitiveTextDoesNotResolveYAMLAliasesAcrossDocuments(t *testing.T) {
-	input := "credential: &credential DB_PASSWORD\n---\nenv:\n  - name: *credential\n    value: preserve-public-value"
-
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesSimilarKubernetesDataKeys(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		"tls.keyUsage: digital signature\n.dockerconfigjson.backup: public metadata",
 		"apiVersion: v1\nkind: ConfigMap\ndata: {config: public-config}\nstringData:\n  settings: public-settings",
 		"apiVersion: v1\nkind: >-\n  Con\n  figMap\ndata:\n  config: public-config",
@@ -4119,42 +3901,14 @@ func TestRedactSensitiveTextPreservesSimilarKubernetesDataKeys(t *testing.T) {
 		"defaults: &defaults {kind: ConfigMap}\n<<: [*defaults]\ndata:\n  config: public-config",
 		"kind: ConfigMap\n<<: &defaults\n  kind: Secret\ndata:\n  config: public-config",
 		"data:\n  config: public-config\n<<: &defaults\n  kind: Secret\nkind: ConfigMap",
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
-}
-
-func TestRedactSensitiveTextPreservesCredentialCommandWordsInProse(t *testing.T) {
-	input := "ads auth token: token request failed: dial tcp: connection refused"
-
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
-}
-
-func TestRedactSensitiveTextPreservesOrdinaryDottedTOMLKey(t *testing.T) {
-	input := `metadata.value = "public context"`
-
-	got, changed := redactSensitiveText(input)
-	if changed || got != input {
-		t.Fatalf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-	}
+	)
 }
 
 func TestRedactSensitiveTextPreservesPasswordFileCommentsAndNonNumericPorts(t *testing.T) {
-	for _, input := range []string{
+	assertRedactSensitiveTextUnchanged(t,
 		"#db.example.com:5432:app:alice:documentation",
 		"db.example.com:postgres:app:alice:diagnostic context",
-	} {
-		got, changed := redactSensitiveText(input)
-		if changed || got != input {
-			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
-		}
-	}
+	)
 }
 
 func TestRedactSensitiveTextRedactsDeeplyEscapedJSONCredential(t *testing.T) {
@@ -4264,137 +4018,97 @@ func TestRedactSensitiveTextRedactsDeeplyEscapedContextualJSONCredentials(t *tes
 	}
 }
 
-func TestSnitchDryRunRedactsURLUserinfoCredentials(t *testing.T) {
+func assertRedactSensitiveTextUnchanged(t *testing.T, inputs ...string) {
+	t.Helper()
+	for _, input := range inputs {
+		got, changed := redactSensitiveText(input)
+		if changed || got != input {
+			t.Errorf("redactSensitiveText(%q) = %q, changed=%t; want unchanged", input, got, changed)
+		}
+	}
+}
+
+// assertSnitchDryRunRedacts runs a dry-run report and requires the preview on
+// stderr to omit every forbidden value and keep every preserved fragment.
+func assertSnitchDryRunRedacts(t *testing.T, args, forbidden, preserved []string) string {
+	t.Helper()
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("GH_TOKEN", "")
 
-	const userinfo = "user:p%40ss%2Fword"
-	const usernameOnly = "access-token"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", "requests to https://"+userinfo+"@example.test/private/path and sftp://"+usernameOnly+"@files.example.test/upload failed",
-		"userinfo redaction probe",
-	)
+	stdout, stderr, err := runSnitchCommand(t, "9.9.9", append([]string{"--dry-run"}, args...)...)
 	if err != nil {
 		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range []string{userinfo, usernameOnly} {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked URL userinfo credentials: %q", stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked URL userinfo credentials: %q", stdout)
-		}
 	}
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
 	}
-	if !strings.Contains(stderr, "https://[REDACTED]@example.test/private/path") {
-		t.Fatalf("stderr = %q, want the URL without userinfo credentials", stderr)
+	for _, value := range forbidden {
+		if strings.Contains(stderr, value) {
+			t.Fatalf("dry run leaked %q: %q", value, stderr)
+		}
 	}
-	if !strings.Contains(stderr, "sftp://[REDACTED]@files.example.test/upload") {
-		t.Fatalf("stderr = %q, want the username-only URL without credentials", stderr)
+	for _, want := range preserved {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
+		}
 	}
-	if !strings.Contains(stderr, "sensitive values were redacted") {
-		t.Fatalf("stderr = %q, want a generic redaction notice", stderr)
-	}
+	return stderr
+}
+
+func TestSnitchDryRunRedactsURLUserinfoCredentials(t *testing.T) {
+	const userinfo = "user:p%40ss%2Fword"
+	const usernameOnly = "access-token"
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", "requests to https://" + userinfo + "@example.test/private/path and sftp://" + usernameOnly + "@files.example.test/upload failed",
+			"userinfo redaction probe",
+		},
+		[]string{userinfo, usernameOnly},
+		[]string{"https://[REDACTED]@example.test/private/path", "sftp://[REDACTED]@files.example.test/upload", "sensitive values were redacted"},
+	)
 }
 
 func TestSnitchDryRunRedactsRegistryBase64AuthCredential(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const secret = "b3BhcXVlLXNlY3JldA=="
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", `//registry.npmjs.org/:_auth=`+secret,
-		"registry credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", `//registry.npmjs.org/:_auth=` + secret,
+			"registry credential redaction probe",
+		},
+		[]string{secret},
+		[]string{`//registry.npmjs.org/:_auth=[REDACTED]`},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-		t.Fatalf("dry run leaked registry credential: stdout=%q stderr=%q", stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	if want := `//registry.npmjs.org/:_auth=[REDACTED]`; !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want redacted assignment %q", stderr, want)
-	}
 }
 
 func TestSnitchDryRunRedactsKubernetesSecretData(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const privateKey = "b3BhcXVlLXByaXZhdGUta2V5"
 	const registryConfig = "eyJhdXRocyI6eyJyZWdpc3RyeS5leGFtcGxlIjp7ImF1dGgiOiJvcGFxdWUifX19"
 	actual := "apiVersion: v1\nkind: Secret\ndata:\n  tls.key: " + privateKey + "\n  .dockerconfigjson: " + registryConfig + "\nstatus: failed"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", actual,
-		"Kubernetes Secret redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", actual,
+			"Kubernetes Secret redaction probe",
+		},
+		[]string{privateKey, registryConfig},
+		[]string{"tls.key: [REDACTED]", ".dockerconfigjson: [REDACTED]", "sensitive values were redacted"},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	for _, secret := range []string{privateKey, registryConfig} {
-		if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-			t.Fatalf("dry run leaked Kubernetes Secret data: stdout=%q stderr=%q", stdout, stderr)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{"tls.key: [REDACTED]", ".dockerconfigjson: [REDACTED]"} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want redacted Secret data %q", stderr, want)
-		}
-	}
-	if !strings.Contains(stderr, "sensitive values were redacted") {
-		t.Fatalf("stderr = %q, want a generic redaction notice", stderr)
-	}
 }
 
 func TestSnitchDryRunRedactsCurlMultipartCredentialAndPreservesDiagnosticProse(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const secret = "opaque multipart secret tail"
 	const diagnostic = "ads auth token: token request failed: dial tcp: connection refused"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", `curl --form-string 'password=`+secret+`' https://example.test`,
-		"--repro", diagnostic,
-		"curl multipart redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", `curl --form-string 'password=` + secret + `' https://example.test`,
+			"--repro", diagnostic,
+			"curl multipart redaction probe",
+		},
+		[]string{secret},
+		[]string{`curl --form-string 'password=[REDACTED]' https://example.test`, diagnostic},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-		t.Fatalf("dry run leaked multipart credential: stdout=%q stderr=%q", stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	if want := `curl --form-string 'password=[REDACTED]' https://example.test`; !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want redacted multipart form %q", stderr, want)
-	}
-	if !strings.Contains(stderr, diagnostic) {
-		t.Fatalf("stderr = %q, want diagnostic prose preserved", stderr)
-	}
 }
 
 func TestSnitchDryRunRedactsDeeplyEscapedJSONCredential(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const secret = "opaque-deeply-escaped-dry-run-secret"
 	encoded := `{"password":"` + secret + `","status":"failed"}`
 	for range 6 {
@@ -4404,30 +4118,17 @@ func TestSnitchDryRunRedactsDeeplyEscapedJSONCredential(t *testing.T) {
 		}
 		encoded = string(encodedJSON)
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", encoded,
-		"deeply escaped JSON redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", encoded,
+			"deeply escaped JSON redaction probe",
+		},
+		[]string{secret},
+		[]string{redactionMarker, "status"},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-		t.Fatalf("dry run leaked deeply escaped JSON credential: stdout=%q stderr=%q", stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	if !strings.Contains(stderr, redactionMarker) || !strings.Contains(stderr, "status") {
-		t.Fatalf("stderr = %q, want redaction marker and surrounding context", stderr)
-	}
 }
 
 func TestSnitchDryRunRedactsDeeplyEscapedContextualJSONCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"opaque-deep-cookie-dry-run-secret",
 		"opaque-deep-registry-dry-run-secret",
@@ -4448,35 +4149,20 @@ func TestSnitchDryRunRedactsDeeplyEscapedContextualJSONCredentials(t *testing.T)
 		}
 		rawValues[index] = value
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", strings.Join(rawValues, "\n"),
-		"deeply escaped contextual JSON redaction probe",
+	stderr := assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", strings.Join(rawValues, "\n"),
+			"deeply escaped contextual JSON redaction probe",
+		},
+		secrets,
+		[]string{"status"},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-			t.Fatalf("dry run leaked contextual JSON credential %q: stdout=%q stderr=%q", secret, stdout, stderr)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
 	if count := strings.Count(stderr, redactionMarker); count < len(secrets) {
 		t.Fatalf("stderr = %q, want at least %d redaction markers, got %d", stderr, len(secrets), count)
-	}
-	if !strings.Contains(stderr, "status") {
-		t.Fatalf("stderr = %q, want surrounding context preserved", stderr)
 	}
 }
 
 func TestSnitchDryRunRedactsStructuredCredentialAssignments(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"opaque-here-string-tail",
 		"opaque-array-secret",
@@ -4486,40 +4172,23 @@ func TestSnitchDryRunRedactsStructuredCredentialAssignments(t *testing.T) {
 	repro := "$password = @'\nopaque-head\n" + secrets[0] + "\n'@\n" +
 		`$password = @("` + secrets[1] + `", "second")` + "\n" +
 		`$client_secret = @{ primary = "` + secrets[2] + `"; status = "failed" }`
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"--actual", `password.value = "`+secrets[3]+`"`+"\nstatus = \"failed\"",
-		"structured credential assignment redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"--actual", `password.value = "` + secrets[3] + `"` + "\nstatus = \"failed\"",
+			"structured credential assignment redaction probe",
+		},
+		secrets,
+		[]string{
+			"$password = [REDACTED]",
+			"$client_secret = [REDACTED]",
+			`password.value = [REDACTED]`,
+			`status = "failed"`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-			t.Fatalf("dry run leaked structured credential %q: stdout=%q stderr=%q", secret, stdout, stderr)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"$password = [REDACTED]",
-		"$client_secret = [REDACTED]",
-		`password.value = [REDACTED]`,
-		`status = "failed"`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsScopedPowerShellAndPasswordFileCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"opaque-scoped-here-string-tail",
 		"opaque-scoped-collection-secret",
@@ -4527,75 +4196,36 @@ func TestSnitchDryRunRedactsScopedPowerShellAndPasswordFileCredentials(t *testin
 	}
 	repro := "$env:PASSWORD = @'\nopaque-head\n" + secrets[0] + "\n'@\n" +
 		`${global:client_secret} = @("` + secrets[1] + `", "second")`
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"--actual", `db\:primary.example.com:5432:app:alice:`+secrets[2]+"\nstatus: failed",
-		"scoped shell and password file redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"--actual", `db\:primary.example.com:5432:app:alice:` + secrets[2] + "\nstatus: failed",
+			"scoped shell and password file redaction probe",
+		},
+		secrets,
+		[]string{
+			"$env:PASSWORD = [REDACTED]",
+			"${global:client_secret} = [REDACTED]",
+			`db\:primary.example.com:5432:app:alice:[REDACTED]`,
+			"status: failed",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-			t.Fatalf("dry run leaked credential %q: stdout=%q stderr=%q", secret, stdout, stderr)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"$env:PASSWORD = [REDACTED]",
-		"${global:client_secret} = [REDACTED]",
-		`db\:primary.example.com:5432:app:alice:[REDACTED]`,
-		"status: failed",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsRegistryConfigurationAuthCredential(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const secret = "YWxpY2U6b3BhcXVlLXNlY3JldA=="
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", `{"auths":{"registry.example":{"auth":"`+secret+`"}},"status":"failed"}`,
-		"registry configuration redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", `{"auths":{"registry.example":{"auth":"` + secret + `"}},"status":"failed"}`,
+			"registry configuration redaction probe",
+		},
+		[]string{secret},
+		[]string{`{"auths":{"registry.example":{"auth":"[REDACTED]"}},"status":"failed"}`},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-		t.Fatalf("dry run leaked registry configuration credential: stdout=%q stderr=%q", stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	if want := `{"auths":{"registry.example":{"auth":"[REDACTED]"}},"status":"failed"}`; !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want redacted configuration %q", stderr, want)
-	}
 }
 
 func TestSnitchDryRunPreservesLoneSingleQuote(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
-	stdout, stderr, err := runSnitchCommand(t, "9.9.9", "--dry-run", "'")
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	if !strings.Contains(stderr, "Title: '") {
-		t.Fatalf("stderr = %q, want the original report title", stderr)
-	}
+	assertSnitchDryRunRedacts(t, []string{"'"}, nil, []string{"Title: '"})
 }
 
 func TestRedactSensitiveTextBoundsOversizedInputBeforeScanning(t *testing.T) {
@@ -4705,33 +4335,18 @@ func TestSnitchDryRunBoundsOversizedReportFieldBeforePreview(t *testing.T) {
 }
 
 func TestSnitchDryRunRedactsKubeconfigClientKeyData(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const secret = "b3BhcXVlLXByaXZhdGUta2V5"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", "client-key-data: "+secret+"\nclient-certificate-data: public-certificate",
-		"kubeconfig credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", "client-key-data: " + secret + "\nclient-certificate-data: public-certificate",
+			"kubeconfig credential redaction probe",
+		},
+		[]string{secret},
+		[]string{
+			"client-key-data: [REDACTED]",
+			"client-certificate-data: public-certificate",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	if strings.Contains(stderr, secret) {
-		t.Fatalf("dry run leaked kubeconfig client key data: %q", stderr)
-	}
-	for _, want := range []string{
-		"client-key-data: [REDACTED]",
-		"client-certificate-data: public-certificate",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsEveryReportField(t *testing.T) {
@@ -4793,9 +4408,6 @@ func TestSnitchDryRunRedactsEveryReportField(t *testing.T) {
 }
 
 func TestSnitchDryRunRedactsMalformedAndCompoundCLISecrets(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"app-specific-password",
 		"xcode-cloud-value",
@@ -4842,220 +4454,120 @@ func TestSnitchDryRunRedactsMalformedAndCompoundCLISecrets(t *testing.T) {
 		`PASSWORD=prefix\ ` + secrets[9] + "\n" +
 		"PASSWORD=prefix\\\n" + secrets[20] + " asc builds list\n" +
 		`Authorization: Signature keyId="my-key",algorithm="rsa-sha256",signature="` + secrets[4] + `"`
-
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"--actual", actual,
-		"compound redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"--actual", actual,
+			"compound redaction probe",
+		},
+		secrets,
+		[]string{
+			"--demo-account-password [REDACTED] --notes ready",
+			"--name MY_SECRET --value [REDACTED] --secret --apple-id 123456789",
+			"--value [REDACTED] --name MY_SECRET --secret --apple-id 123456789",
+			"--password [REDACTED]",
+			"-password [REDACTED] -territory USA",
+			"--password [REDACTED] --territory USA",
+			"--password [REDACTED] --verbose",
+			"curl -u [REDACTED] https://example.test",
+			"curl --oauth2-bearer [REDACTED] https://example.test",
+			"curl -u[REDACTED] https://example.test",
+			"curl -U[REDACTED] https://example.test",
+			"curl --pass [REDACTED] --key client.pem https://example.test",
+			"curl --tlspassword [REDACTED] https://example.test",
+			"curl --proxy-tlspassword [REDACTED] https://example.test",
+			"asc deploy --password [REDACTED] --verbose",
+			"PASSWORD=[REDACTED]",
+			"Authorization: [REDACTED]",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"--demo-account-password [REDACTED] --notes ready",
-		"--name MY_SECRET --value [REDACTED] --secret --apple-id 123456789",
-		"--value [REDACTED] --name MY_SECRET --secret --apple-id 123456789",
-		"--password [REDACTED]",
-		"-password [REDACTED] -territory USA",
-		"--password [REDACTED] --territory USA",
-		"--password [REDACTED] --verbose",
-		"curl -u [REDACTED] https://example.test",
-		"curl --oauth2-bearer [REDACTED] https://example.test",
-		"curl -u[REDACTED] https://example.test",
-		"curl -U[REDACTED] https://example.test",
-		"curl --pass [REDACTED] --key client.pem https://example.test",
-		"curl --tlspassword [REDACTED] https://example.test",
-		"curl --proxy-tlspassword [REDACTED] https://example.test",
-		"asc deploy --password [REDACTED] --verbose",
-		"PASSWORD=[REDACTED]",
-		"Authorization: [REDACTED]",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsCompoundHeaderAndPlistCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const headerSecret = "compound-header-secret"
 	const plistSecret = "plist-credential-value"
 	const xmlElementSecret = "xml-element-credential-value"
 	const yamlSecret = "yaml-indentless-secret"
 	const tomlSecret = "toml-dotted-secret"
 	const netrcSecret = "netrc-password-secret"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "curl -H 'Authorization: Bearer '"+headerSecret+" https://example.test",
-		"--actual", `<plist><dict><key>pass&#x77;ord</key><!-- context --><data>`+plistSecret+`</data><key>status</key><string>failed</string></dict></plist>`+"\n"+
-			`<settings><server><password>`+xmlElementSecret+`</password><status>failed</status></server></settings>`+"\n"+
-			`credentials."pass\u0077ord" = "`+tomlSecret+`"`+"\n"+
-			"machine api.example.test login alice password "+netrcSecret,
-		"--expected", "password:\n- "+yamlSecret+"\nstatus: failed",
-		"compound header and property list credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "curl -H 'Authorization: Bearer '" + headerSecret + " https://example.test",
+			"--actual", `<plist><dict><key>pass&#x77;ord</key><!-- context --><data>` + plistSecret + `</data><key>status</key><string>failed</string></dict></plist>` + "\n" +
+				`<settings><server><password>` + xmlElementSecret + `</password><status>failed</status></server></settings>` + "\n" +
+				`credentials."pass\u0077ord" = "` + tomlSecret + `"` + "\n" +
+				"machine api.example.test login alice password " + netrcSecret,
+			"--expected", "password:\n- " + yamlSecret + "\nstatus: failed",
+			"compound header and property list credential redaction probe",
+		},
+		[]string{headerSecret, plistSecret, xmlElementSecret, yamlSecret, tomlSecret, netrcSecret},
+		[]string{
+			`curl -H "Authorization: [REDACTED]" https://example.test`,
+			`<key>pass&#x77;ord</key><!-- context --><data>[REDACTED]</data><key>status</key><string>failed</string>`,
+			`<settings><server><password>[REDACTED]</password><status>failed</status></server></settings>`,
+			"password: [REDACTED]\nstatus: failed",
+			`credentials."pass\u0077ord" = [REDACTED]`,
+			"machine api.example.test login alice password [REDACTED]",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range []string{headerSecret, plistSecret, xmlElementSecret, yamlSecret, tomlSecret, netrcSecret} {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		`curl -H "Authorization: [REDACTED]" https://example.test`,
-		`<key>pass&#x77;ord</key><!-- context --><data>[REDACTED]</data><key>status</key><string>failed</string>`,
-		`<settings><server><password>[REDACTED]</password><status>failed</status></server></settings>`,
-		"password: [REDACTED]\nstatus: failed",
-		`credentials."pass\u0077ord" = [REDACTED]`,
-		"machine api.example.test login alice password [REDACTED]",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunPreservesBearerProtocolProse(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const description = "Bearer OAuth2 authentication fails"
 	const actual = "Bearer HTTP2 authentication fails; Bearer RFC6750 flow fails"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", actual,
-		description,
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", actual,
+			description,
+		},
+		[]string{"Bearer [REDACTED]"},
+		[]string{description, actual},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{description, actual} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want benign protocol prose %q", stderr, want)
-		}
-	}
-	if strings.Contains(stderr, "Bearer [REDACTED]") {
-		t.Fatalf("stderr over-redacted benign protocol prose: %q", stderr)
-	}
 }
 
 func TestSnitchDryRunRedactsStandaloneWebhookAndTaggedExplicitYAML(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const webhookSecret = "standalone-webhook-secret"
 	const yamlSecret = "tagged-explicit-yaml-secret"
 	const flowSecret = "quoted-first-flow-secret"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "failed webhook https://hooks.slack-gov.com/services/T012/B034/"+webhookSecret+" after retry",
-		"--actual", "? !!str password\n: "+yamlSecret+"\nstatus: failed",
-		"--expected", "password: [\n  \""+flowSecret+"\",\n  \"second-secret\"\n]\nstatus: failed",
-		"standalone webhook and tagged explicit YAML credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "failed webhook https://hooks.slack-gov.com/services/T012/B034/" + webhookSecret + " after retry",
+			"--actual", "? !!str password\n: " + yamlSecret + "\nstatus: failed",
+			"--expected", "password: [\n  \"" + flowSecret + "\",\n  \"second-secret\"\n]\nstatus: failed",
+			"standalone webhook and tagged explicit YAML credential redaction probe",
+		},
+		[]string{webhookSecret, yamlSecret, flowSecret, "second-secret"},
+		[]string{
+			"failed webhook https://hooks.slack-gov.com/services/[REDACTED] after retry",
+			"? !!str password\n: [REDACTED]\nstatus: failed",
+			"password: [REDACTED]\nstatus: failed",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range []string{webhookSecret, yamlSecret, flowSecret, "second-secret"} {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"failed webhook https://hooks.slack-gov.com/services/[REDACTED] after retry",
-		"? !!str password\n: [REDACTED]\nstatus: failed",
-		"password: [REDACTED]\nstatus: failed",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsContinuedFlagAndCurlConfigCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"continued-flag-secret", "curl-user-secret", "curl-bearer-secret", "curl-cookie-secret", "curl-colon-user-secret", "curl-config-cert-secret", "curl-config-proxy-cert-secret"}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "asc deploy --password \\\n  "+secrets[0]+" --verbose",
-		"--actual", "user = \"alice:"+secrets[1]+"\"\noauth2-bearer \""+secrets[2]+"\"\ncookie: \"myacinfo="+secrets[3]+"\"\nproxy-user: \"alice:"+secrets[4]+"\"\ncert \"client.p12:"+secrets[5]+"\"\nproxy-cert = client.p12:"+secrets[6]+"\nurl = \"https://example.test\"",
-		"continued flag and curl config credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "asc deploy --password \\\n  " + secrets[0] + " --verbose",
+			"--actual", "user = \"alice:" + secrets[1] + "\"\noauth2-bearer \"" + secrets[2] + "\"\ncookie: \"myacinfo=" + secrets[3] + "\"\nproxy-user: \"alice:" + secrets[4] + "\"\ncert \"client.p12:" + secrets[5] + "\"\nproxy-cert = client.p12:" + secrets[6] + "\nurl = \"https://example.test\"",
+			"continued flag and curl config credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"asc deploy --password \\\n  [REDACTED] --verbose",
+			"user = [REDACTED]",
+			"oauth2-bearer [REDACTED]",
+			"cookie: [REDACTED]",
+			"proxy-user: [REDACTED]",
+			`cert "client.p12:[REDACTED]"`,
+			"proxy-cert = client.p12:[REDACTED]",
+			"url = \"https://example.test\"",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"asc deploy --password \\\n  [REDACTED] --verbose",
-		"user = [REDACTED]",
-		"oauth2-bearer [REDACTED]",
-		"cookie: [REDACTED]",
-		"proxy-user: [REDACTED]",
-		`cert "client.p12:[REDACTED]"`,
-		"proxy-cert = client.p12:[REDACTED]",
-		"url = \"https://example.test\"",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsPowerShellAndPlistStringCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const powerShellSecret = "powershell-secret-suffix"
 	const quotedPowerShellSecret = "powershell-quoted-secret-suffix"
 	const hereStringSecret = "powershell-here-string-secret"
@@ -5063,50 +4575,29 @@ func TestSnitchDryRunRedactsPowerShellAndPlistStringCredentials(t *testing.T) {
 	const unquotedCommandPromptSecret = "unquoted-command-prompt-set-secret"
 	const secureStringSecret = "powershell-secure-string-secret"
 	const plistSecret = "plist-string-credential-value"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "asc signing sync --password opaque` "+powerShellSecret+" --verbose\n"+
-			"asc signing sync --password \"opaque`\""+quotedPowerShellSecret+"\" --verbose\n"+
-			"asc signing sync --password @'\nopaque-head\n"+hereStringSecret+"\n'@ --verbose\n"+
-			`$password = ConvertTo-SecureString "opaque `+secureStringSecret+`" -AsPlainText -Force`+"\n"+
-			`set "PASSWORD=opaque `+commandPromptSecret+`" & echo done`+"\n"+
-			`set PASSWORD=opaque `+unquotedCommandPromptSecret+` value & echo done`,
-		"--actual", `<plist><dict><key>password</key><string>`+plistSecret+`</string><key>status</key><string>failed</string></dict></plist>`,
-		"shell and property list string credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "asc signing sync --password opaque` " + powerShellSecret + " --verbose\n" +
+				"asc signing sync --password \"opaque`\"" + quotedPowerShellSecret + "\" --verbose\n" +
+				"asc signing sync --password @'\nopaque-head\n" + hereStringSecret + "\n'@ --verbose\n" +
+				`$password = ConvertTo-SecureString "opaque ` + secureStringSecret + `" -AsPlainText -Force` + "\n" +
+				`set "PASSWORD=opaque ` + commandPromptSecret + `" & echo done` + "\n" +
+				`set PASSWORD=opaque ` + unquotedCommandPromptSecret + ` value & echo done`,
+			"--actual", `<plist><dict><key>password</key><string>` + plistSecret + `</string><key>status</key><string>failed</string></dict></plist>`,
+			"shell and property list string credential redaction probe",
+		},
+		[]string{powerShellSecret, quotedPowerShellSecret, hereStringSecret, secureStringSecret, commandPromptSecret, unquotedCommandPromptSecret, plistSecret},
+		[]string{
+			"asc signing sync --password [REDACTED] --verbose",
+			`$password = [REDACTED] -AsPlainText -Force`,
+			`set "PASSWORD=[REDACTED]" & echo done`,
+			`set PASSWORD=[REDACTED] & echo done`,
+			`<key>password</key><string>[REDACTED]</string><key>status</key><string>failed</string>`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range []string{powerShellSecret, quotedPowerShellSecret, hereStringSecret, secureStringSecret, commandPromptSecret, unquotedCommandPromptSecret, plistSecret} {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"asc signing sync --password [REDACTED] --verbose",
-		`$password = [REDACTED] -AsPlainText -Force`,
-		`set "PASSWORD=[REDACTED]" & echo done`,
-		`set PASSWORD=[REDACTED] & echo done`,
-		`<key>password</key><string>[REDACTED]</string><key>status</key><string>failed</string>`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsCustomCurlHeadersAndSecureStringSwitches(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"opaque-curl-api-key-secret",
 		"opaque-curl-auth-token-secret",
@@ -5117,39 +4608,22 @@ func TestSnitchDryRunRedactsCustomCurlHeadersAndSecureStringSwitches(t *testing.
 		`curl --header 'X-Auth-Token: ` + secrets[1] + `' https://example.test` + "\n" +
 		`$password = ConvertTo-SecureString -AsPlainText -String "` + secrets[2] + `" -Force` + "\n" +
 		`$client_secret = ConvertTo-SecureString -Force "` + secrets[3] + `" -AsPlainText`
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"custom header and SecureString switch redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"custom header and SecureString switch redaction probe",
+		},
+		secrets,
+		[]string{
+			`curl -H "X-API-Key: [REDACTED]" https://example.test`,
+			`curl --header "X-Auth-Token: [REDACTED]" https://example.test`,
+			`$password = [REDACTED] -Force`,
+			`$client_secret = [REDACTED] -AsPlainText`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-			t.Fatalf("dry run leaked %q: stdout=%q stderr=%q", secret, stdout, stderr)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		`curl -H "X-API-Key: [REDACTED]" https://example.test`,
-		`curl --header "X-Auth-Token: [REDACTED]" https://example.test`,
-		`$password = [REDACTED] -Force`,
-		`$client_secret = [REDACTED] -AsPlainText`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsPrefixedFlagsAndSessionEnvironmentCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"opaque-database-password",
 		"opaque-service-token",
@@ -5157,37 +4631,20 @@ func TestSnitchDryRunRedactsPrefixedFlagsAndSessionEnvironmentCredentials(t *tes
 	}
 	repro := `tool --database-password ` + secrets[0] + ` --github-token=` + secrets[1] + ` --password-file ./password.txt` + "\n" +
 		`AUTOMATION_SESSION=` + secrets[2]
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"prefixed flag and session environment redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"prefixed flag and session environment redaction probe",
+		},
+		secrets,
+		[]string{
+			`tool --database-password [REDACTED] --github-token=[REDACTED] --password-file ./password.txt`,
+			`AUTOMATION_SESSION=[REDACTED]`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-			t.Fatalf("dry run leaked %q: stdout=%q stderr=%q", secret, stdout, stderr)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		`tool --database-password [REDACTED] --github-token=[REDACTED] --password-file ./password.txt`,
-		`AUTOMATION_SESSION=[REDACTED]`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsXMLCredentialsAndPreservesDiagnosticContext(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"opaque-xml-attribute-secret",
 		"opaque-truncated-xml-secret",
@@ -5196,80 +4653,42 @@ func TestSnitchDryRunRedactsXMLCredentialsAndPreservesDiagnosticContext(t *testi
 	repro := `<configuration><add key="ClearTextPassword" value="` + secrets[0] + `" /><add key="status" value="failed" /></configuration>`
 	actual := "Authorization: request failed because proxy unavailable\ntool --no-token output.txt\n<settings><password>" + secrets[1]
 	expected := `<plist><dict><key>password</key><string>` + secrets[2]
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"--actual", actual,
-		"--expected", expected,
-		"XML credential redaction and diagnostic preservation probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"--actual", actual,
+			"--expected", expected,
+			"XML credential redaction and diagnostic preservation probe",
+		},
+		secrets,
+		[]string{
+			`<add key="ClearTextPassword" value="[REDACTED]" />`,
+			`<settings><password>[REDACTED]`,
+			`<plist><dict><key>password</key><string>[REDACTED]`,
+			"Authorization: request failed because proxy unavailable",
+			"tool --no-token output.txt",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-			t.Fatalf("dry run leaked %q: stdout=%q stderr=%q", secret, stdout, stderr)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		`<add key="ClearTextPassword" value="[REDACTED]" />`,
-		`<settings><password>[REDACTED]`,
-		`<plist><dict><key>password</key><string>[REDACTED]`,
-		"Authorization: request failed because proxy unavailable",
-		"tool --no-token output.txt",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsPrefixedCredentialHeaders(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const cookieSecret = "prefixed-cookie-secret"
 	const continuationSecret = "prefixed-continuation-secret"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", "request failed with Cookie: myacinfo="+cookieSecret+" after retry\n"+
-			"request failed with scnt: "+continuationSecret+" after retry",
-		"prefixed credential header redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", "request failed with Cookie: myacinfo=" + cookieSecret + " after retry\n" +
+				"request failed with scnt: " + continuationSecret + " after retry",
+			"prefixed credential header redaction probe",
+		},
+		[]string{cookieSecret, continuationSecret},
+		[]string{
+			"request failed with Cookie: [REDACTED] after retry",
+			"request failed with scnt: [REDACTED] after retry",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range []string{cookieSecret, continuationSecret} {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"request failed with Cookie: [REDACTED] after retry",
-		"request failed with scnt: [REDACTED] after retry",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsCookieJarAndFoldedHeaderValues(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"cookie-jar-secret",
 		"folded-authorization-head-secret",
@@ -5278,49 +4697,28 @@ func TestSnitchDryRunRedactsCookieJarAndFoldedHeaderValues(t *testing.T) {
 		"folded-session-head-secret",
 		"folded-session-tail-secret",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", ".appstoreconnect.apple.com\tTRUE\t/\tTRUE\t2147483647\tmyacinfo\t"+secrets[0]+"\n"+
-			"Authorization: Bearer "+secrets[1]+"\r\n "+secrets[2]+"\r\nstatus: failed\r\n"+
-			"< Cookie: dslang=US-EN;\r\n myacinfo="+secrets[3]+"\r\ncookie status: failed\r\n"+
-			"request failed with scnt: "+secrets[4]+"\r\n "+secrets[5]+"\r\nsession status: failed",
-		"cookie jar and folded header redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", ".appstoreconnect.apple.com\tTRUE\t/\tTRUE\t2147483647\tmyacinfo\t" + secrets[0] + "\n" +
+				"Authorization: Bearer " + secrets[1] + "\r\n " + secrets[2] + "\r\nstatus: failed\r\n" +
+				"< Cookie: dslang=US-EN;\r\n myacinfo=" + secrets[3] + "\r\ncookie status: failed\r\n" +
+				"request failed with scnt: " + secrets[4] + "\r\n " + secrets[5] + "\r\nsession status: failed",
+			"cookie jar and folded header redaction probe",
+		},
+		secrets,
+		[]string{
+			".appstoreconnect.apple.com TRUE / TRUE 2147483647 myacinfo [REDACTED]",
+			"Authorization: [REDACTED]",
+			"status: failed",
+			"< Cookie: [REDACTED]",
+			"cookie status: failed",
+			"request failed with scnt: [REDACTED]",
+			"session status: failed",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		".appstoreconnect.apple.com TRUE / TRUE 2147483647 myacinfo [REDACTED]",
-		"Authorization: [REDACTED]",
-		"status: failed",
-		"< Cookie: [REDACTED]",
-		"cookie status: failed",
-		"request failed with scnt: [REDACTED]",
-		"session status: failed",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsSecretAnswerAndEveryCookieJarValue(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"quoted-recovery-answer",
 		"equals-recovery-answer",
@@ -5328,238 +4726,122 @@ func TestSnitchDryRunRedactsSecretAnswerAndEveryCookieJarValue(t *testing.T) {
 		"csrf-cookie-value",
 		"locale-cookie-value",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", `tool --secret-answer "`+secrets[0]+`" --verbose`+"\n"+
-			`tool --secret-answer=`+secrets[1]+` --verbose`,
-		"--actual", ".example.test\tTRUE\t/\tTRUE\t2147483647\tJSESSIONID\t"+secrets[2]+"\n"+
-			"#HttpOnly_.example.test\tFALSE\t/\tTRUE\t0\tcsrftoken\t"+secrets[3]+"\n"+
-			".example.test\tFALSE\t/\tFALSE\t0\tlocale\t"+secrets[4],
-		"secret answer and cookie jar redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", `tool --secret-answer "` + secrets[0] + `" --verbose` + "\n" +
+				`tool --secret-answer=` + secrets[1] + ` --verbose`,
+			"--actual", ".example.test\tTRUE\t/\tTRUE\t2147483647\tJSESSIONID\t" + secrets[2] + "\n" +
+				"#HttpOnly_.example.test\tFALSE\t/\tTRUE\t0\tcsrftoken\t" + secrets[3] + "\n" +
+				".example.test\tFALSE\t/\tFALSE\t0\tlocale\t" + secrets[4],
+			"secret answer and cookie jar redaction probe",
+		},
+		secrets,
+		[]string{
+			"--secret-answer [REDACTED] --verbose",
+			"--secret-answer=[REDACTED] --verbose",
+			".example.test TRUE / TRUE 2147483647 JSESSIONID [REDACTED]",
+			"#HttpOnly_.example.test FALSE / TRUE 0 csrftoken [REDACTED]",
+			".example.test FALSE / FALSE 0 locale [REDACTED]",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"--secret-answer [REDACTED] --verbose",
-		"--secret-answer=[REDACTED] --verbose",
-		".example.test TRUE / TRUE 2147483647 JSESSIONID [REDACTED]",
-		"#HttpOnly_.example.test FALSE / TRUE 0 csrftoken [REDACTED]",
-		".example.test FALSE / FALSE 0 locale [REDACTED]",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsEnvironmentDumpAndKnownServiceTokens(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"opaque secret tail",
 		"xoxb-123456789012-123456789012-abcdefghijklmnopqrstuvwx",
 		"npm_abcdefghijklmnopqrstuvwxyz0123456789",
 		"glpat-abcdefghijklmnopqrstuvwxyz",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", "PASSWORD="+secrets[0]+"\ncredential "+secrets[1]+"\ncredential "+secrets[2]+"\ncredential "+secrets[3]+"\nstatus: failed",
-		"environment dump and service token redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", "PASSWORD=" + secrets[0] + "\ncredential " + secrets[1] + "\ncredential " + secrets[2] + "\ncredential " + secrets[3] + "\nstatus: failed",
+			"environment dump and service token redaction probe",
+		},
+		secrets,
+		[]string{
+			"PASSWORD=[REDACTED]",
+			"credential [REDACTED]",
+			"status: failed",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("dry run leaked %q: %q", secret, stderr)
-		}
-	}
-	for _, want := range []string{
-		"PASSWORD=[REDACTED]",
-		"credential [REDACTED]",
-		"status: failed",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsCommandPromptContinuedCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const secret = "command-prompt-secret-suffix"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "asc signing sync --password opaque^\r\n"+secret+" --verbose",
-		"Command Prompt credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "asc signing sync --password opaque^\r\n" + secret + " --verbose",
+			"Command Prompt credential redaction probe",
+		},
+		[]string{secret},
+		[]string{"asc signing sync --password [REDACTED] --verbose"},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	if strings.Contains(stderr, secret) {
-		t.Fatalf("stderr leaked %q: %q", secret, stderr)
-	}
-	if strings.Contains(stdout, secret) {
-		t.Fatalf("stdout leaked %q: %q", secret, stdout)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	if want := "asc signing sync --password [REDACTED] --verbose"; !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-	}
 }
 
 func TestSnitchDryRunRedactsTruncatedPrivateKeyAndProxyCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const keyMaterial = "truncated-key-material"
 	const proxyPassword = "proxy-password-tail"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "curl --proxy-user alice:"+proxyPassword+" https://example.test",
-		"--actual", "failed to load\n-----BEGIN PRIVATE KEY-----\n"+keyMaterial,
-		"malformed credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "curl --proxy-user alice:" + proxyPassword + " https://example.test",
+			"--actual", "failed to load\n-----BEGIN PRIVATE KEY-----\n" + keyMaterial,
+			"malformed credential redaction probe",
+		},
+		[]string{keyMaterial, proxyPassword},
+		[]string{
+			"curl --proxy-user [REDACTED] https://example.test",
+			"failed to load\n[REDACTED PRIVATE KEY]",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range []string{keyMaterial, proxyPassword} {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"curl --proxy-user [REDACTED] https://example.test",
-		"failed to load\n[REDACTED PRIVATE KEY]",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsExplicitMarkersAuthorizationAndStructuredKeys(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"marked-value", "authorization-credential", "structured-secret", "continued-secret", "pretty-structured-secret", "camel-structured-secret", "escaped-structured-secret", "fish-assignment-secret"}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "asc web xcode-cloud env-vars set --value "+secrets[0]+" --secret=true\n"+
-			"asc web xcode-cloud env-vars set --value "+secrets[3]+" \\\n  --secret\n"+
-			"set --global --export ASC_SIGNING_SYNC_PASSWORD "+secrets[7]+"; asc signing sync pull",
-		"--actual", `Authorization: ApiKey `+secrets[1]+"\n"+`{"MY_CLIENT_SECRET":"`+secrets[2]+`"}`+"\n"+
-			"{\n  \"client_secret\":\n    \""+secrets[4]+"\"\n}\n"+
-			`{"demoAccountPassword":"`+secrets[5]+`"}`+"\n"+
-			`response {\"client_secret\":\"`+secrets[6]+`\"}`,
-		"explicit credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "asc web xcode-cloud env-vars set --value " + secrets[0] + " --secret=true\n" +
+				"asc web xcode-cloud env-vars set --value " + secrets[3] + " \\\n  --secret\n" +
+				"set --global --export ASC_SIGNING_SYNC_PASSWORD " + secrets[7] + "; asc signing sync pull",
+			"--actual", `Authorization: ApiKey ` + secrets[1] + "\n" + `{"MY_CLIENT_SECRET":"` + secrets[2] + `"}` + "\n" +
+				"{\n  \"client_secret\":\n    \"" + secrets[4] + "\"\n}\n" +
+				`{"demoAccountPassword":"` + secrets[5] + `"}` + "\n" +
+				`response {\"client_secret\":\"` + secrets[6] + `\"}`,
+			"explicit credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"--value [REDACTED] --secret=true",
+			"--value [REDACTED] \\\n  --secret",
+			"set --global --export ASC_SIGNING_SYNC_PASSWORD [REDACTED]; asc signing sync pull",
+			"Authorization: [REDACTED]",
+			`{"MY_CLIENT_SECRET":"[REDACTED]"}`,
+			"\"client_secret\":\n    \"[REDACTED]\"",
+			`{"demoAccountPassword":"[REDACTED]"}`,
+			`response {\"client_secret\":\"[REDACTED]\"}`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"--value [REDACTED] --secret=true",
-		"--value [REDACTED] \\\n  --secret",
-		"set --global --export ASC_SIGNING_SYNC_PASSWORD [REDACTED]; asc signing sync pull",
-		"Authorization: [REDACTED]",
-		`{"MY_CLIENT_SECRET":"[REDACTED]"}`,
-		"\"client_secret\":\n    \"[REDACTED]\"",
-		`{"demoAccountPassword":"[REDACTED]"}`,
-		`response {\"client_secret\":\"[REDACTED]\"}`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsMultilineSecretMarkedValueAndPreservesFalseMarker(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const secret = "literal-newline-secret"
 	const publicValue = "public-value"
 	repro := "asc web xcode-cloud env-vars set --value \"credential-head\n" + secret + "\" --secret=T\n" +
 		"asc web xcode-cloud env-vars set --value " + publicValue + " --secret=0"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"multiline secret marker redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"multiline secret marker redaction probe",
+		},
+		[]string{secret},
+		[]string{
+			"--value [REDACTED] --secret=T",
+			"--value " + publicValue + " --secret=0",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	if strings.Contains(stderr, secret) {
-		t.Fatalf("stderr leaked %q: %q", secret, stderr)
-	}
-	if strings.Contains(stdout, secret) {
-		t.Fatalf("stdout leaked %q: %q", secret, stdout)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"--value [REDACTED] --secret=T",
-		"--value " + publicValue + " --secret=0",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsShellTerminatedMarkersProxyCertificatesAndNestedSubstitutions(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"terminated-marker-secret", "proxy-cert-secret", "nested-substitution-secret", "fish-substitution-secret", "quoted-executable-secret", "quoted-flag-secret", "nested-fish-secret", "yaml-continuation-secret", "multiline-backtick-secret"}
 	repro := "asc web xcode-cloud env-vars set --value " + secrets[0] + " --secret=true&& echo done\n" +
 		"curl --proxy-cert client.p12:" + secrets[1] + " https://example.test\n" +
@@ -5571,49 +4853,28 @@ func TestSnitchDryRunRedactsShellTerminatedMarkersProxyCertificatesAndNestedSubs
 		"asc signing sync --password (printf %s (printf prefix) " + secrets[6] + ") --verbose\n" +
 		"password: opaque-first\n  " + secrets[7] + "\nstatus: failed\n" +
 		"asc signing sync push --password `printf '%s' 'opaque-head\n" + secrets[8] + "'` --verbose"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"shell credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"shell credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"--value [REDACTED] --secret=true&& echo done",
+			"curl --proxy-cert client.p12:[REDACTED] https://example.test",
+			"asc deploy --password [REDACTED] --verbose",
+			"asc signing sync --password [REDACTED] --verbose",
+			"asc webhooks create --url https://example.test/hook --secret=[REDACTED]",
+			`"asc" web xcode-cloud env-vars set --value [REDACTED] --secret=true`,
+			`asc signing sync push "--password" [REDACTED]`,
+			`asc signing sync --password [REDACTED] --verbose`,
+			"password: [REDACTED]\nstatus: failed",
+			`asc signing sync push --password [REDACTED] --verbose`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"--value [REDACTED] --secret=true&& echo done",
-		"curl --proxy-cert client.p12:[REDACTED] https://example.test",
-		"asc deploy --password [REDACTED] --verbose",
-		"asc signing sync --password [REDACTED] --verbose",
-		"asc webhooks create --url https://example.test/hook --secret=[REDACTED]",
-		`"asc" web xcode-cloud env-vars set --value [REDACTED] --secret=true`,
-		`asc signing sync push "--password" [REDACTED]`,
-		`asc signing sync --password [REDACTED] --verbose`,
-		"password: [REDACTED]\nstatus: failed",
-		`asc signing sync push --password [REDACTED] --verbose`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsTOMLAndEscapedJSONCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"toml-multiline-secret", "json-unicode-key-secret", "escaped-json-unicode-key-secret", "toml-inline-sensitive", "toml-array-sensitive", "toml-key-sensitive", "yaml-key-sensitive", "double-escaped-json-secret"}
 	repro := "password = \"\"\"opaque-head\n" + secrets[0] + "\"\"\"\nstatus = \"failed\"\n" +
 		`{"pass\u0077ord":"` + secrets[1] + `","status":"failed"}` + "\n" +
@@ -5623,379 +4884,184 @@ func TestSnitchDryRunRedactsTOMLAndEscapedJSONCredentials(t *testing.T) {
 		`"pass\u0077ord" = "` + secrets[5] + `"` + "\n" +
 		`"pass\u0077ord": |` + "\n  " + secrets[6] + "\nstatus: failed\n" +
 		`trace {\\\"pass\\\\u0077ord\\\":\\\"` + secrets[7] + `\\\",\\\"status\\\":\\\"failed\\\"}`
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"structured credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"structured credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"password = [REDACTED]\nstatus = \"failed\"",
+			`{"pass\u0077ord":"[REDACTED]","status":"failed"}`,
+			`trace {\"pass\\u0077ord\":\"[REDACTED]\",\"status\":\"failed\"}`,
+			`trace {\\\"pass\\\\u0077ord\\\":\\\"[REDACTED]\\\",\\\"status\\\":\\\"failed\\\"}`,
+			`password = [REDACTED]`,
+			`"pass\u0077ord" = [REDACTED]`,
+			`"pass\u0077ord": [REDACTED]`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"password = [REDACTED]\nstatus = \"failed\"",
-		`{"pass\u0077ord":"[REDACTED]","status":"failed"}`,
-		`trace {\"pass\\u0077ord\":\"[REDACTED]\",\"status\":\"failed\"}`,
-		`trace {\\\"pass\\\\u0077ord\\\":\\\"[REDACTED]\\\",\\\"status\\\":\\\"failed\\\"}`,
-		`password = [REDACTED]`,
-		`"pass\u0077ord" = [REDACTED]`,
-		`"pass\u0077ord": [REDACTED]`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsQuotedTOMLAndSplitCurlCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"quoted-toml-scalar-secret", "quoted-toml-multiline-secret", "split-cert-secret", "split-user-secret"}
 	repro := `"asc_private_key_b64" = "` + secrets[0] + `"` + "\n" +
 		"'password' = '''opaque-head\n" + secrets[1] + "'''\n" +
 		`curl --cert "client cert.p12":` + secrets[2] + " https://example.test\n" +
 		`curl --user 'alice':` + secrets[3] + " https://example.test"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"quoted credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"quoted credential redaction probe",
+		},
+		secrets,
+		[]string{
+			`"asc_private_key_b64" = [REDACTED]`,
+			`'password' = [REDACTED]`,
+			`curl --cert "client cert.p12":[REDACTED] https://example.test`,
+			`curl --user [REDACTED] https://example.test`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		`"asc_private_key_b64" = [REDACTED]`,
-		`'password' = [REDACTED]`,
-		`curl --cert "client cert.p12":[REDACTED] https://example.test`,
-		`curl --user [REDACTED] https://example.test`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsHeterogeneousCredentialArrayAndPreservesCurlUseASCII(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"heterogeneous-first-secret", "heterogeneous-second-secret"}
 	const publicURL = "https://example.test/?name=value"
 	repro := `{"password":["` + secrets[0] + `",{"value":"` + secrets[1] + `"}],"status":"failed"}` + "\n" +
 		`curl -B '` + publicURL + `'`
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"structured array redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"structured array redaction probe",
+		},
+		secrets,
+		[]string{
+			`{"password":["[REDACTED]"],"status":"failed"}`,
+			`curl -B '` + publicURL + `'`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		`{"password":["[REDACTED]"],"status":"failed"}`,
-		`curl -B '` + publicURL + `'`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsCookieHeadersAndScopedPrivateKeys(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"web-session-secret",
 		"response-session-secret",
 		"c3RvcmVraXQtcHJpdmF0ZS1rZXk=",
 		"YWRzLXByaXZhdGUta2V5",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", `curl -H "Cookie: myacinfo=`+secrets[0]+`; dslang=US-EN" https://example.test`,
-		"--actual", "< Set-Cookie: myacinfo="+secrets[1]+"; Path=/; Secure\n"+
-			"ASC_STOREKIT_PRIVATE_KEY_B64="+secrets[2]+"\n"+
-			"ASC_ADS_PRIVATE_KEY_B64="+secrets[3],
-		"session credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", `curl -H "Cookie: myacinfo=` + secrets[0] + `; dslang=US-EN" https://example.test`,
+			"--actual", "< Set-Cookie: myacinfo=" + secrets[1] + "; Path=/; Secure\n" +
+				"ASC_STOREKIT_PRIVATE_KEY_B64=" + secrets[2] + "\n" +
+				"ASC_ADS_PRIVATE_KEY_B64=" + secrets[3],
+			"session credential redaction probe",
+		},
+		secrets,
+		[]string{
+			`curl -H "Cookie: [REDACTED]" https://example.test`,
+			"< Set-Cookie: [REDACTED]",
+			"ASC_STOREKIT_PRIVATE_KEY_B64=[REDACTED]",
+			"ASC_ADS_PRIVATE_KEY_B64=[REDACTED]",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		`curl -H "Cookie: [REDACTED]" https://example.test`,
-		"< Set-Cookie: [REDACTED]",
-		"ASC_STOREKIT_PRIVATE_KEY_B64=[REDACTED]",
-		"ASC_ADS_PRIVATE_KEY_B64=[REDACTED]",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsStructuredHeadersAndYAMLSecretBlocks(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"structured-authorization-secret",
 		"structured-cookie-secret",
 		"yaml-literal-secret",
 		"yaml-folded-secret",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "{\"Authorization\":\"Basic "+secrets[0]+"\",\"Cookie\":\"myacinfo="+secrets[1]+"\",\"status\":\"failed\"}",
-		"--actual", `{"Authorization":"Basic `+secrets[0]+`","Cookie":"myacinfo=`+secrets[1]+`","status":"failed"}`+"\n"+
-			"client_secret: |\n  "+secrets[2]+"\nstatus: failed\n"+
-			"private_key_b64: >-\n  "+secrets[3]+"\nnext: preserved",
-		"structured credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "{\"Authorization\":\"Basic " + secrets[0] + "\",\"Cookie\":\"myacinfo=" + secrets[1] + "\",\"status\":\"failed\"}",
+			"--actual", `{"Authorization":"Basic ` + secrets[0] + `","Cookie":"myacinfo=` + secrets[1] + `","status":"failed"}` + "\n" +
+				"client_secret: |\n  " + secrets[2] + "\nstatus: failed\n" +
+				"private_key_b64: >-\n  " + secrets[3] + "\nnext: preserved",
+			"structured credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"{\"Authorization\":\"[REDACTED]\",\"Cookie\":\"[REDACTED]\",\"status\":\"failed\"}",
+			`{"Authorization":"[REDACTED]","Cookie":"[REDACTED]","status":"failed"}`,
+			"client_secret: [REDACTED]\nstatus: failed",
+			"private_key_b64: [REDACTED]\nnext: preserved",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"{\"Authorization\":\"[REDACTED]\",\"Cookie\":\"[REDACTED]\",\"status\":\"failed\"}",
-		`{"Authorization":"[REDACTED]","Cookie":"[REDACTED]","status":"failed"}`,
-		"client_secret: [REDACTED]\nstatus: failed",
-		"private_key_b64: [REDACTED]\nnext: preserved",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsYAMLSingleQuotedScalarWithDoubledQuote(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const secret = "super''sensitive"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "password: '"+secret+"'\nstatus: failed",
-		"YAML quoted credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "password: '" + secret + "'\nstatus: failed",
+			"YAML quoted credential redaction probe",
+		},
+		[]string{secret},
+		[]string{"password: [REDACTED]\nstatus: failed"},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	if strings.Contains(stderr, secret) {
-		t.Fatalf("stderr leaked %q: %q", secret, stderr)
-	}
-	if strings.Contains(stdout, secret) {
-		t.Fatalf("stdout leaked %q: %q", secret, stdout)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	if want := "password: [REDACTED]\nstatus: failed"; !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-	}
 }
 
 func TestSnitchDryRunRedactsUploadOperationHeaderValues(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"authorization-upload-secret", "custom-upload-secret"}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", `{"uploadOperations":[{"method":"PUT","requestHeaders":[{"name":"Authorization","value":"`+secrets[0]+`"},{"name":"x-upload-token","value":"`+secrets[1]+`"}],"length":12}],"diagnostic":{"name":"failure","value":"preserve this explanation"}}`,
-		"upload operation credential redaction probe",
-	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
 	want := `{"uploadOperations":[{"method":"PUT","requestHeaders":[{"name":"Authorization","value":"[REDACTED]"},{"name":"x-upload-token","value":"[REDACTED]"}],"length":12}],"diagnostic":{"name":"failure","value":"preserve this explanation"}}`
-	if !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want preserved response context %q", stderr, want)
-	}
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", `{"uploadOperations":[{"method":"PUT","requestHeaders":[{"name":"Authorization","value":"` + secrets[0] + `"},{"name":"x-upload-token","value":"` + secrets[1] + `"}],"length":12}],"diagnostic":{"name":"failure","value":"preserve this explanation"}}`,
+			"upload operation credential redaction probe",
+		},
+		secrets,
+		[]string{want},
+	)
 }
 
 func TestSnitchDryRunRedactsTruncatedUploadOperationHeaderValue(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const secret = "truncated-upload-secret"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", `{"requestHeaders":[{"name":"Authorization","value":"`+secret,
-		"truncated upload credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", `{"requestHeaders":[{"name":"Authorization","value":"` + secret,
+			"truncated upload credential redaction probe",
+		},
+		[]string{secret},
+		[]string{`{"requestHeaders":[{"name":"Authorization","value":"[REDACTED]`},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if strings.Contains(stderr, secret) {
-		t.Fatalf("stderr leaked %q: %q", secret, stderr)
-	}
-	if strings.Contains(stdout, secret) {
-		t.Fatalf("stdout leaked %q: %q", secret, stdout)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	if want := `{"requestHeaders":[{"name":"Authorization","value":"[REDACTED]`; !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want redacted truncated value %q", stderr, want)
-	}
 }
 
 func TestSnitchDryRunRedactsYAMLCredentialAliasMappingKey(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	const aliasSecret = "yaml-alias-key-secret"
 	const explicitSecret = "yaml-explicit-comment-secret"
 	const implicitSecret = "yaml-implicit-comment-secret"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", "key: &s api_key\n*s: "+aliasSecret+"\n? password\n# context\n\n: "+explicitSecret+"\npassword:\n# context\n  "+implicitSecret+"\nstatus: failed",
-		"YAML alias credential key redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", "key: &s api_key\n*s: " + aliasSecret + "\n? password\n# context\n\n: " + explicitSecret + "\npassword:\n# context\n  " + implicitSecret + "\nstatus: failed",
+			"YAML alias credential key redaction probe",
+		},
+		[]string{aliasSecret, explicitSecret, implicitSecret},
+		[]string{"key: &s api_key", "*s: [REDACTED]", "? password\n# context\n\n: [REDACTED]", "password: [REDACTED]", "status: failed"},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	for _, secret := range []string{aliasSecret, explicitSecret, implicitSecret} {
-		if strings.Contains(stderr, secret) || strings.Contains(stdout, secret) {
-			t.Fatalf("dry run leaked %q: stdout=%q stderr=%q", secret, stdout, stderr)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{"key: &s api_key", "*s: [REDACTED]", "? password\n# context\n\n: [REDACTED]", "password: [REDACTED]", "status: failed"} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsNestedYAMLAndCommandSubstitutionCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"yaml-sequence-secret", "backtick-substitution-secret", "dollar-substitution-secret", "certificate-suffix-secret", "unquoted-flow-credential", "quoted-flow-credential", "yaml-block-mapping-secret"}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "items:\n  - password: |\n      "+secrets[0]+"\nstatus: failed\nasc deploy --password `printf "+secrets[1]+"` --verbose\nasc deploy --password $(printf "+secrets[2]+") --verbose\ncurl --cert client.p12:'"+secrets[3]+" password' https://example.test\npassword: [first-value, "+secrets[4]+"]\n\"password\": [first-value, "+secrets[5]+"]\nresponse:\n  token:\n    type: bearer\n    value: "+secrets[6]+"\n  status: failed\nnext: preserved",
-		"nested credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "items:\n  - password: |\n      " + secrets[0] + "\nstatus: failed\nasc deploy --password `printf " + secrets[1] + "` --verbose\nasc deploy --password $(printf " + secrets[2] + ") --verbose\ncurl --cert client.p12:'" + secrets[3] + " password' https://example.test\npassword: [first-value, " + secrets[4] + "]\n\"password\": [first-value, " + secrets[5] + "]\nresponse:\n  token:\n    type: bearer\n    value: " + secrets[6] + "\n  status: failed\nnext: preserved",
+			"nested credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"items:\n  - password: [REDACTED]\nstatus: failed",
+			"asc deploy --password [REDACTED] --verbose",
+			"curl --cert client.p12:[REDACTED] https://example.test",
+			"password: [REDACTED]",
+			"\"password\": [REDACTED]",
+			"response:\n  token: [REDACTED]\n  status: failed\nnext: preserved",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"items:\n  - password: [REDACTED]\nstatus: failed",
-		"asc deploy --password [REDACTED] --verbose",
-		"curl --cert client.p12:[REDACTED] https://example.test",
-		"password: [REDACTED]",
-		"\"password\": [REDACTED]",
-		"response:\n  token: [REDACTED]\n  status: failed\nnext: preserved",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsMultilineCurlAndYAMLCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"multiline-user-secret", "multiline-cert-secret", "quoted-yaml-secret", "sequence-yaml-secret", "anchored-yaml-secret", "multiline-flow-secret", "quoted-block-secret", "property-block-secret", "explicit-yaml-secret", "alias-definition-secret", "nested-single-line-flow-secret", "quoted-first-nested-flow-secret"}
 	repro := "curl --user \"alice:first\n" + secrets[0] + "\" https://example.test\n" +
 		"curl --cert \"client.p12:first\n" + secrets[1] + "\" https://example.test\n" +
@@ -6009,51 +5075,30 @@ func TestSnitchDryRunRedactsMultilineCurlAndYAMLCredentials(t *testing.T) {
 		"alias-key:\n  shared: &credential " + secrets[9] + "\n  password: *credential\n  status: failed\n" +
 		"nested-flow:\n  password: [first-secret, [" + secrets[10] + "], third-secret]\n  status: failed\n" +
 		"quoted-first-flow:\n  'password': [\"first-secret\", [" + secrets[11] + "], third-secret]\n  status: failed"
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", repro,
-		"multiline credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", repro,
+			"multiline credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"curl --user [REDACTED] https://example.test",
+			"curl --cert \"client.p12:[REDACTED]\" https://example.test",
+			"response:\n  \"password\": [REDACTED]\n  status: failed",
+			"items:\n  - token: [REDACTED]\n    status: failed",
+			"auth:\n  token: [REDACTED]\n  status: failed",
+			"config:\n  password: [REDACTED]\n  status: failed",
+			"quoted-block:\n  \"password\": [REDACTED]\n  status: failed",
+			"property-block:\n  password: [REDACTED]\n  status: failed",
+			"explicit-key:\n  ? password\n  : [REDACTED]\n  status: failed",
+			"alias-key:\n  shared: &credential [REDACTED]\n  password: [REDACTED]\n  status: failed",
+			"nested-flow:\n  password: [REDACTED]\n  status: failed",
+			"quoted-first-flow:\n  'password': [REDACTED]\n  status: failed",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"curl --user [REDACTED] https://example.test",
-		"curl --cert \"client.p12:[REDACTED]\" https://example.test",
-		"response:\n  \"password\": [REDACTED]\n  status: failed",
-		"items:\n  - token: [REDACTED]\n    status: failed",
-		"auth:\n  token: [REDACTED]\n  status: failed",
-		"config:\n  password: [REDACTED]\n  status: failed",
-		"quoted-block:\n  \"password\": [REDACTED]\n  status: failed",
-		"property-block:\n  password: [REDACTED]\n  status: failed",
-		"explicit-key:\n  ? password\n  : [REDACTED]\n  status: failed",
-		"alias-key:\n  shared: &credential [REDACTED]\n  password: [REDACTED]\n  status: failed",
-		"nested-flow:\n  password: [REDACTED]\n  status: failed",
-		"quoted-first-flow:\n  'password': [REDACTED]\n  status: failed",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsWebAuthenticationPayloads(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"array-authorization-secret",
 		"header-service-secret",
@@ -6061,432 +5106,209 @@ func TestSnitchDryRunRedactsWebAuthenticationPayloads(t *testing.T) {
 		"response-service-secret",
 		"123456",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", `{"Authorization":["Bearer `+secrets[0]+`"],"X-Apple-Widget-Key":["`+secrets[1]+`"],"status":"failed"}`,
-		"--actual", `{"authServiceKey":"`+secrets[2]+`","serviceKey":"`+secrets[3]+`","securityCode":{"code":"`+secrets[4]+`"},"mode":"sms"}`,
-		"web authentication payload redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", `{"Authorization":["Bearer ` + secrets[0] + `"],"X-Apple-Widget-Key":["` + secrets[1] + `"],"status":"failed"}`,
+			"--actual", `{"authServiceKey":"` + secrets[2] + `","serviceKey":"` + secrets[3] + `","securityCode":{"code":"` + secrets[4] + `"},"mode":"sms"}`,
+			"web authentication payload redaction probe",
+		},
+		secrets,
+		[]string{
+			`{"Authorization":["[REDACTED]"],"X-Apple-Widget-Key":["[REDACTED]"],"status":"failed"}`,
+			`{"authServiceKey":"[REDACTED]","serviceKey":"[REDACTED]","securityCode":{"code":"[REDACTED]"},"mode":"sms"}`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		`{"Authorization":["[REDACTED]"],"X-Apple-Widget-Key":["[REDACTED]"],"status":"failed"}`,
-		`{"authServiceKey":"[REDACTED]","serviceKey":"[REDACTED]","securityCode":{"code":"[REDACTED]"},"mode":"sms"}`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsCurlCertificatePasswords(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"space-secret", "equals-secret", "attached-secret"}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "curl --cert client.p12:"+secrets[0]+" --cert=client.pem:"+secrets[1]+" -Eclient.pfx:"+secrets[2]+" https://example.test",
-		"certificate password redaction probe",
-	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
 	want := "curl --cert client.p12:[REDACTED] --cert=client.pem:[REDACTED] -Eclient.pfx:[REDACTED] https://example.test"
-	if !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-	}
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "curl --cert client.p12:" + secrets[0] + " --cert=client.pem:" + secrets[1] + " -Eclient.pfx:" + secrets[2] + " https://example.test",
+			"certificate password redaction probe",
+		},
+		secrets,
+		[]string{want},
+	)
 }
 
 func TestSnitchDryRunRedactsAttachedCurlCredentialHeaders(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"cookie-session-secret", "widget-service-secret", "separated-cookie-secret", "long-cookie-secret"}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "curl -HCookie:myacinfo="+secrets[0]+" -HX-Apple-Widget-Key:"+secrets[1]+" -H Cookie:myacinfo="+secrets[2]+" --header=Cookie:myacinfo="+secrets[3]+" -HAccept:application/json https://example.test",
-		"attached credential header redaction probe",
-	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
 	want := "curl -HCookie:[REDACTED] -HX-Apple-Widget-Key:[REDACTED] -H Cookie:[REDACTED] --header=Cookie:[REDACTED] -HAccept:application/json https://example.test"
-	if !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-	}
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "curl -HCookie:myacinfo=" + secrets[0] + " -HX-Apple-Widget-Key:" + secrets[1] + " -H Cookie:myacinfo=" + secrets[2] + " --header=Cookie:myacinfo=" + secrets[3] + " -HAccept:application/json https://example.test",
+			"attached credential header redaction probe",
+		},
+		secrets,
+		[]string{want},
+	)
 }
 
 func TestSnitchDryRunRedactsQuotedAuthorizationAndSCPRemoteCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"quoted-authorization-secret", "remote-password-secret"}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "curl -H 'Authorization: Bearer "+secrets[0]+"' https://example.test",
-		"--actual", "asc signing sync --repo user:"+secrets[1]+"@github.com:team/certs.git",
-		"quoted authorization and remote credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "curl -H 'Authorization: Bearer " + secrets[0] + "' https://example.test",
+			"--actual", "asc signing sync --repo user:" + secrets[1] + "@github.com:team/certs.git",
+			"quoted authorization and remote credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"curl -H 'Authorization: [REDACTED]' https://example.test",
+			"asc signing sync --repo [REDACTED]@github.com:team/certs.git",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"curl -H 'Authorization: [REDACTED]' https://example.test",
-		"asc signing sync --repo [REDACTED]@github.com:team/certs.git",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsCompositeYAMLAndProxyHeaderCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"yaml secret tail", "nested-object-secret", "proxy-header-secret", "webhook-secret", "truncated-object-secret"}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "curl --proxy-header Cookie:myacinfo="+secrets[2]+" https://example.test\nasc notify slack --webhook https://hooks.slack.com/services/T/B/"+secrets[3]+" --message ready",
-		"--expected", "password: [REDACTED]",
-		"--actual", "password: "+secrets[0]+"\nresponse: {\"token\":{\"type\":\"bearer\",\"value\":\""+secrets[1]+"\"},\"status\":\"failed\"}\ntruncated: {\"token\":{\"value\":\""+secrets[4]+"\"",
-		"composite credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "curl --proxy-header Cookie:myacinfo=" + secrets[2] + " https://example.test\nasc notify slack --webhook https://hooks.slack.com/services/T/B/" + secrets[3] + " --message ready",
+			"--expected", "password: [REDACTED]",
+			"--actual", "password: " + secrets[0] + "\nresponse: {\"token\":{\"type\":\"bearer\",\"value\":\"" + secrets[1] + "\"},\"status\":\"failed\"}\ntruncated: {\"token\":{\"value\":\"" + secrets[4] + "\"",
+			"composite credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"curl --proxy-header Cookie:[REDACTED] https://example.test",
+			"asc notify slack --webhook [REDACTED] --message ready",
+			"password: [REDACTED]",
+			`response: {"token":"[REDACTED]","status":"failed"}`,
+			`truncated: {"token":"[REDACTED]"`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"curl --proxy-header Cookie:[REDACTED] https://example.test",
-		"asc notify slack --webhook [REDACTED] --message ready",
-		"password: [REDACTED]",
-		`response: {"token":"[REDACTED]","status":"failed"}`,
-		`truncated: {"token":"[REDACTED]"`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsGoHeaderMapsAndContinuedCurlCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"continued-user-secret", "go-header-secret", "proxy-authorization-secret", "split-user-secret"}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "curl --user alice:"+secrets[0]+"\\\n-tail https://example.test\n"+
-			"curl --user alice:'"+secrets[3]+" password' https://example.test/split",
-		"--actual", "request headers: map[Cookie:[myacinfo="+secrets[1]+"] Content-Type:[application/json]]\n{\"Proxy-Authorization\":[\"Basic "+secrets[2]+"\"],\"status\":\"failed\"}",
-		"header map and continued credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "curl --user alice:" + secrets[0] + "\\\n-tail https://example.test\n" +
+				"curl --user alice:'" + secrets[3] + " password' https://example.test/split",
+			"--actual", "request headers: map[Cookie:[myacinfo=" + secrets[1] + "] Content-Type:[application/json]]\n{\"Proxy-Authorization\":[\"Basic " + secrets[2] + "\"],\"status\":\"failed\"}",
+			"header map and continued credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"curl --user [REDACTED] https://example.test",
+			"curl --user [REDACTED] https://example.test/split",
+			"request headers: map[Cookie:[REDACTED] Content-Type:[application/json]]",
+			`{"Proxy-Authorization":["[REDACTED]"],"status":"failed"}`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"curl --user [REDACTED] https://example.test",
-		"curl --user [REDACTED] https://example.test/split",
-		"request headers: map[Cookie:[REDACTED] Content-Type:[application/json]]",
-		`{"Proxy-Authorization":["[REDACTED]"],"status":"failed"}`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunPreservesOperatorsAroundContinuedHeaderCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{"continued-header-secret", "boundary-assignment-credential", "operator-flag-credential", "fragmented-flag-credential", "fragmented-env-credential", "environment-webhook-secret", "custom-header-secret"}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "curl -H \"Cookie: myacinfo="+secrets[0]+"\\\n-tail\" https://example.test\nPASSWORD="+secrets[1]+"; echo next\nasc deploy --password "+secrets[2]+" && echo done\nasc deploy --password 'adjacent-'\""+secrets[3]+"\" --verbose\nPASSWORD='adjacent-'\""+secrets[4]+"\" asc builds list\nASC_SLACK_WEBHOOK=https://hooks.slack.com/services/T/B/"+secrets[5]+" asc notify slack --message ready\nasc web xcode-cloud usage alert --webhook-header \"X-API-Key: "+secrets[6]+"\" --webhook https://example.test",
-		"continued header and operator preservation probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "curl -H \"Cookie: myacinfo=" + secrets[0] + "\\\n-tail\" https://example.test\nPASSWORD=" + secrets[1] + "; echo next\nasc deploy --password " + secrets[2] + " && echo done\nasc deploy --password 'adjacent-'\"" + secrets[3] + "\" --verbose\nPASSWORD='adjacent-'\"" + secrets[4] + "\" asc builds list\nASC_SLACK_WEBHOOK=https://hooks.slack.com/services/T/B/" + secrets[5] + " asc notify slack --message ready\nasc web xcode-cloud usage alert --webhook-header \"X-API-Key: " + secrets[6] + "\" --webhook https://example.test",
+			"continued header and operator preservation probe",
+		},
+		secrets,
+		[]string{
+			`curl -H "Cookie: [REDACTED]" https://example.test`,
+			"PASSWORD=[REDACTED]; echo next",
+			"asc deploy --password [REDACTED] && echo done",
+			"asc deploy --password [REDACTED] --verbose",
+			"PASSWORD=[REDACTED] asc builds list",
+			"ASC_SLACK_WEBHOOK=[REDACTED] asc notify slack --message ready",
+			`asc web xcode-cloud usage alert --webhook-header [REDACTED] --webhook [REDACTED]`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		`curl -H "Cookie: [REDACTED]" https://example.test`,
-		"PASSWORD=[REDACTED]; echo next",
-		"asc deploy --password [REDACTED] && echo done",
-		"asc deploy --password [REDACTED] --verbose",
-		"PASSWORD=[REDACTED] asc builds list",
-		"ASC_SLACK_WEBHOOK=[REDACTED] asc notify slack --message ready",
-		`asc web xcode-cloud usage alert --webhook-header [REDACTED] --webhook [REDACTED]`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsMultilineQuotedAndSecretAnswerValues(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"multiline-head",
 		"multiline-tail-secret",
 		"recovery-answer-secret",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "asc deploy --password \""+secrets[0]+"\n"+secrets[1]+" with space\" --verbose",
-		"--actual", `{"secretQuestion":"Public question","secretAnswer":"`+secrets[2]+`","status":"active"}`,
-		"multiline and recovery credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "asc deploy --password \"" + secrets[0] + "\n" + secrets[1] + " with space\" --verbose",
+			"--actual", `{"secretQuestion":"Public question","secretAnswer":"` + secrets[2] + `","status":"active"}`,
+			"multiline and recovery credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"asc deploy --password [REDACTED] --verbose",
+			`{"secretQuestion":"Public question","secretAnswer":"[REDACTED]","status":"active"}`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"asc deploy --password [REDACTED] --verbose",
-		`{"secretQuestion":"Public question","secretAnswer":"[REDACTED]","status":"active"}`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsTwoFactorContinuationCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"123456",
 		"opaque-lowercase-continuation",
 		"opaque-lowercase-session",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "asc web auth login --two-factor-code "+secrets[0]+" --apple-id user@example.test",
-		"--actual", "< scnt: "+secrets[1]+"\n< X-Apple-ID-Session-Id: "+secrets[2],
-		"two factor continuation credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "asc web auth login --two-factor-code " + secrets[0] + " --apple-id user@example.test",
+			"--actual", "< scnt: " + secrets[1] + "\n< X-Apple-ID-Session-Id: " + secrets[2],
+			"two factor continuation credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"asc web auth login --two-factor-code [REDACTED] --apple-id user@example.test",
+			"< scnt: [REDACTED]",
+			"< X-Apple-ID-Session-Id: [REDACTED]",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"asc web auth login --two-factor-code [REDACTED] --apple-id user@example.test",
-		"< scnt: [REDACTED]",
-		"< X-Apple-ID-Session-Id: [REDACTED]",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsPortalCSRFCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"opaque-lowercase-csrf",
 		"opaque-lowercase-csrf-timestamp",
 		"structured-csrf-secret",
 		"structured-csrf-timestamp-secret",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "< csrf: "+secrets[0]+"\n< csrf_ts: "+secrets[1],
-		"--actual", `{"csrf":"`+secrets[2]+`","csrf_ts":"`+secrets[3]+`","status":"failed"}`,
-		"portal csrf credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "< csrf: " + secrets[0] + "\n< csrf_ts: " + secrets[1],
+			"--actual", `{"csrf":"` + secrets[2] + `","csrf_ts":"` + secrets[3] + `","status":"failed"}`,
+			"portal csrf credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"< csrf: [REDACTED]",
+			"< csrf_ts: [REDACTED]",
+			`{"csrf":"[REDACTED]","csrf_ts":"[REDACTED]","status":"failed"}`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"< csrf: [REDACTED]",
-		"< csrf_ts: [REDACTED]",
-		`{"csrf":"[REDACTED]","csrf_ts":"[REDACTED]","status":"failed"}`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsCGICredentialHeaderVariables(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"opaque-bearer-secret",
 		"dXNlcjpwYXNz",
 		"opaque-session-secret",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--actual", "HTTP_AUTHORIZATION=Bearer "+secrets[0]+"\n"+
-			"REDIRECT_HTTP_AUTHORIZATION=Basic "+secrets[1]+"\n"+
-			"HTTP_COOKIE=sessionid="+secrets[2]+"; locale=en-US\n"+
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--actual", "HTTP_AUTHORIZATION=Bearer " + secrets[0] + "\n" +
+				"REDIRECT_HTTP_AUTHORIZATION=Basic " + secrets[1] + "\n" +
+				"HTTP_COOKIE=sessionid=" + secrets[2] + "; locale=en-US\n" +
+				"REQUEST_METHOD=GET",
+			"CGI credential header redaction probe",
+		},
+		secrets,
+		[]string{
+			"HTTP_AUTHORIZATION=[REDACTED]",
+			"REDIRECT_HTTP_AUTHORIZATION=[REDACTED]",
+			"HTTP_COOKIE=[REDACTED]",
 			"REQUEST_METHOD=GET",
-		"CGI credential header redaction probe",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("dry run leaked %q: %q", secret, stderr)
-		}
-	}
-	for _, want := range []string{
-		"HTTP_AUTHORIZATION=[REDACTED]",
-		"REDIRECT_HTTP_AUTHORIZATION=[REDACTED]",
-		"HTTP_COOKIE=[REDACTED]",
-		"REQUEST_METHOD=GET",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsQuotedFormAndUnterminatedMultilineCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"form-password-secret",
 		"form-password-tail-secret",
@@ -6495,82 +5317,44 @@ func TestSnitchDryRunRedactsQuotedFormAndUnterminatedMultilineCredentials(t *tes
 		"opaque-head",
 		"opaque-tail-secret",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", `curl --data 'password=`+secrets[0]+` `+secrets[1]+`' https://example.test`+"\n"+
-			`curl --data-urlencode "client_secret=`+secrets[2]+` `+secrets[3]+`" https://example.test`,
-		"--actual", "PASSWORD=\""+secrets[4]+"\n"+secrets[5],
-		"quoted form and multiline credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", `curl --data 'password=` + secrets[0] + ` ` + secrets[1] + `' https://example.test` + "\n" +
+				`curl --data-urlencode "client_secret=` + secrets[2] + ` ` + secrets[3] + `" https://example.test`,
+			"--actual", "PASSWORD=\"" + secrets[4] + "\n" + secrets[5],
+			"quoted form and multiline credential redaction probe",
+		},
+		secrets,
+		[]string{
+			`curl --data 'password=[REDACTED]' https://example.test`,
+			`curl --data-urlencode "client_secret=[REDACTED]" https://example.test`,
+			"PASSWORD=[REDACTED]",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("dry run leaked %q: %q", secret, stderr)
-		}
-	}
-	for _, want := range []string{
-		`curl --data 'password=[REDACTED]' https://example.test`,
-		`curl --data-urlencode "client_secret=[REDACTED]" https://example.test`,
-		"PASSWORD=[REDACTED]",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsWebAuthQueryCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"widget-query-secret",
 		"123456",
 		"continuation-query-secret",
 		"encoded-name-query-secret",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", "curl 'https://example.test/auth?widgetKey="+secrets[0]+"&code="+secrets[1]+"&scnt="+secrets[2]+"&flow=login'",
-		"--actual", "callback https://example.test/path?pass%77ord="+secrets[3]+"&state=ready",
-		"web auth query credential redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", "curl 'https://example.test/auth?widgetKey=" + secrets[0] + "&code=" + secrets[1] + "&scnt=" + secrets[2] + "&flow=login'",
+			"--actual", "callback https://example.test/path?pass%77ord=" + secrets[3] + "&state=ready",
+			"web auth query credential redaction probe",
+		},
+		secrets,
+		[]string{
+			"curl 'https://example.test/auth?widgetKey=[REDACTED]&code=[REDACTED]&scnt=[REDACTED]&flow=login'",
+			"callback https://example.test/path?pass%77ord=[REDACTED]&state=ready",
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		"curl 'https://example.test/auth?widgetKey=[REDACTED]&code=[REDACTED]&scnt=[REDACTED]&flow=login'",
-		"callback https://example.test/path?pass%77ord=[REDACTED]&state=ready",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestSnitchDryRunRedactsCurlCookieDataAndSessionCacheValues(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
-	t.Setenv("GH_TOKEN", "")
-
 	secrets := []string{
 		"curl-cookie-secret",
 		"cached-cookie-secret",
@@ -6578,38 +5362,20 @@ func TestSnitchDryRunRedactsCurlCookieDataAndSessionCacheValues(t *testing.T) {
 		"reordered-cached-cookie-secret",
 		"browser-cookie-secret",
 	}
-	stdout, stderr, err := runSnitchCommand(
-		t, "9.9.9",
-		"--dry-run",
-		"--repro", `curl --cookie 'myacinfo=`+secrets[0]+`' --cookie ./cookies.txt https://example.test`,
-		"--actual", `{"cookies":{"https://appstoreconnect.apple.com":[{"name":"myacinfo","value":"`+secrets[1]+`","path":"/"},{"name":"dqsid","value":"`+secrets[2]+`"},{"value":"`+secrets[3]+`","name":"itctx"}]},"diagnostic":{"name":"failure","value":"preserve this explanation"},"version":1}`+"\n"+
-			`{"cookies":[{"name":"sessionid","value":"`+secrets[4]+`","domain":"example.test"}],"version":1}`,
-		"session cookie redaction probe",
+	assertSnitchDryRunRedacts(t,
+		[]string{
+			"--repro", `curl --cookie 'myacinfo=` + secrets[0] + `' --cookie ./cookies.txt https://example.test`,
+			"--actual", `{"cookies":{"https://appstoreconnect.apple.com":[{"name":"myacinfo","value":"` + secrets[1] + `","path":"/"},{"name":"dqsid","value":"` + secrets[2] + `"},{"value":"` + secrets[3] + `","name":"itctx"}]},"diagnostic":{"name":"failure","value":"preserve this explanation"},"version":1}` + "\n" +
+				`{"cookies":[{"name":"sessionid","value":"` + secrets[4] + `","domain":"example.test"}],"version":1}`,
+			"session cookie redaction probe",
+		},
+		secrets,
+		[]string{
+			`curl --cookie [REDACTED] --cookie ./cookies.txt https://example.test`,
+			`{"cookies":{"https://appstoreconnect.apple.com":[{"name":"myacinfo","value":"[REDACTED]","path":"/"},{"name":"dqsid","value":"[REDACTED]"},{"value":"[REDACTED]","name":"itctx"}]},"diagnostic":{"name":"failure","value":"preserve this explanation"},"version":1}`,
+			`{"cookies":[{"name":"sessionid","value":"[REDACTED]","domain":"example.test"}],"version":1}`,
+		},
 	)
-	if err != nil {
-		t.Fatalf("run snitch: %v", err)
-	}
-
-	for _, secret := range secrets {
-		if strings.Contains(stderr, secret) {
-			t.Fatalf("stderr leaked %q: %q", secret, stderr)
-		}
-		if strings.Contains(stdout, secret) {
-			t.Fatalf("stdout leaked %q: %q", secret, stdout)
-		}
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want dry-run diagnostics on stderr only", stdout)
-	}
-	for _, want := range []string{
-		`curl --cookie [REDACTED] --cookie ./cookies.txt https://example.test`,
-		`{"cookies":{"https://appstoreconnect.apple.com":[{"name":"myacinfo","value":"[REDACTED]","path":"/"},{"name":"dqsid","value":"[REDACTED]"},{"value":"[REDACTED]","name":"itctx"}]},"diagnostic":{"name":"failure","value":"preserve this explanation"},"version":1}`,
-		`{"cookies":[{"name":"sessionid","value":"[REDACTED]","domain":"example.test"}],"version":1}`,
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want preserved context %q", stderr, want)
-		}
-	}
 }
 
 func TestWriteLocalLogRedactsEveryStringField(t *testing.T) {
