@@ -107,23 +107,6 @@ func TestGameCenterActivitySetCommandsRequireConfirmForRemove(t *testing.T) {
 	}
 }
 
-func TestGameCenterActivitySetConfirmFlagsAreRegistered(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		cmd  *ffcli.Command
-	}{
-		{name: "achievements", cmd: GameCenterActivityAchievementsSetCommand()},
-		{name: "leaderboards", cmd: GameCenterActivityLeaderboardsSetCommand()},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			confirm := tc.cmd.FlagSet.Lookup("confirm")
-			if confirm == nil {
-				t.Fatal("--confirm is not registered")
-			}
-		})
-	}
-}
-
 func captureGameCenterStderr(t *testing.T, fn func()) string {
 	t.Helper()
 

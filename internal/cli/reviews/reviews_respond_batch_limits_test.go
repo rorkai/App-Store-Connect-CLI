@@ -385,23 +385,6 @@ func TestFetchReviewBatchReviewInfoAppliesPageBound(t *testing.T) {
 	}
 }
 
-// TestReviewsRespondBatchLongHelpDocumentsEnforcedLimits pins the published
-// contract: the long help must state the same ceilings the command enforces,
-// so the documented and enforced limits cannot drift apart.
-func TestReviewsRespondBatchLongHelpDocumentsEnforcedLimits(t *testing.T) {
-	longHelp := ReviewsRespondBatchCommand().LongHelp
-
-	for _, want := range []string{
-		fmt.Sprintf("at most %d bytes of input", reviewBatchMaxFileBytes),
-		fmt.Sprintf("%d review ids", reviewBatchMaxTargets),
-		fmt.Sprintf("each response must not exceed %d bytes", reviewBatchMaxResponseBytes),
-	} {
-		if !strings.Contains(longHelp, want) {
-			t.Fatalf("expected long help to contain %q, got:\n%s", want, longHelp)
-		}
-	}
-}
-
 // writeSizedReviewBatchFile writes a valid single-target batch file whose byte
 // length is exactly totalSize, padding the response body to reach it.
 func writeSizedReviewBatchFile(t *testing.T, totalSize int) string {

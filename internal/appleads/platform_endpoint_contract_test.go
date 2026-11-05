@@ -177,8 +177,9 @@ func assertPlatformV1FixtureContract(t *testing.T, spec EndpointSpec, want platf
 	}
 
 	isQuery := spec.Method == "POST" && strings.HasSuffix(spec.Path, "/query")
-	if isQuery && !spec.RetrySafe {
-		t.Errorf("%q query endpoint must be retry-safe", want.command)
+	// Apple serves geolocation resolution as a read-only POST search.
+	if (isQuery || want.command == "geo resolve") && !spec.RetrySafe {
+		t.Errorf("%q read-only POST must be retry-safe", want.command)
 	}
 
 	// Apple’s SDK marks some request bodies optional, but the CLI keeps

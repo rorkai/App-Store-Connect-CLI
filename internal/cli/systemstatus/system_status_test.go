@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -303,6 +302,10 @@ func TestFetchDeveloperSystemStatusErrors(t *testing.T) {
 		{name: "unknown wrapper", statusCode: http.StatusOK, body: `otherCallback({"services":[]})`, want: "unsupported response wrapper"},
 		{name: "invalid JSON", statusCode: http.StatusOK, body: `jsonCallback({)`, want: "decode response"},
 		{name: "empty services", statusCode: http.StatusOK, body: `{"services":[]}`, want: "contained no services"},
+		{name: "oversized body", statusCode: http.StatusOK, body: strings.Repeat("x", maxStatusResponseBytes+1), want: "response exceeds"},
+		{name: "missing events", statusCode: http.StatusOK, body: `{"services":[{"serviceName":"TestFlight"}]}`, want: `service "TestFlight" is missing events`},
+		{name: "null events", statusCode: http.StatusOK, body: `{"services":[{"serviceName":"TestFlight","events":null}]}`, want: `service "TestFlight" is missing events`},
+		{name: "unknown event status", statusCode: http.StatusOK, body: `{"services":[{"serviceName":"TestFlight","events":[{"eventStatus":"investigating"}]}]}`, want: `service "TestFlight" event 1 has unknown eventStatus "investigating"`},
 	}
 
 	for _, test := range tests {
@@ -448,36 +451,5 @@ func TestDecodeDeveloperSystemStatusFeedShapes(t *testing.T) {
 			}
 			test.assert(t, report)
 		})
-	}
-}
-
-func TestFetchDeveloperSystemStatusRejectsOversizedBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = fmt.Fprint(w, strings.Repeat("x", maxStatusResponseBytes+1))
-	}))
-	defer server.Close()
-
-	_, err := fetchDeveloperSystemStatus(context.Background(), server.Client(), server.URL)
-	if err == nil || !strings.Contains(err.Error(), "response exceeds") {
-		t.Fatalf("error = %v, want oversized response error", err)
-	}
-}
-
-func TestDecodeDeveloperSystemStatusRejectsMissingOrNullEvents(t *testing.T) {
-	for _, body := range []string{
-		`{"services":[{"serviceName":"TestFlight"}]}`,
-		`{"services":[{"serviceName":"TestFlight","events":null}]}`,
-	} {
-		_, err := decodeDeveloperSystemStatus([]byte(body))
-		if err == nil || !strings.Contains(err.Error(), `service "TestFlight" is missing events`) {
-			t.Fatalf("decode error = %v, want missing-events failure for %s", err, body)
-		}
-	}
-}
-
-func TestDecodeDeveloperSystemStatusRejectsUnknownEventStatus(t *testing.T) {
-	_, err := decodeDeveloperSystemStatus([]byte(`{"services":[{"serviceName":"TestFlight","events":[{"eventStatus":"investigating"}]}]}`))
-	if err == nil || !strings.Contains(err.Error(), `service "TestFlight" event 1 has unknown eventStatus "investigating"`) {
-		t.Fatalf("decode error = %v, want unknown-event-status failure", err)
 	}
 }

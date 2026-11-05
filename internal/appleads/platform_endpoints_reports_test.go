@@ -1,9 +1,7 @@
 package appleads
 
 import (
-	"encoding/csv"
 	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 )
@@ -82,90 +80,6 @@ func TestPlatformReportsOptimizationEndpointSpecs(t *testing.T) {
 	if len(wants) != 0 {
 		t.Fatalf("missing reports/optimization commands: %+v", wants)
 	}
-}
-
-func TestPlatformReportsOptimizationMatchesIndependentFixture(t *testing.T) {
-	file, err := os.Open("testdata/platform_v1_endpoints.tsv")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	reader.Comma = '\t'
-	reader.FieldsPerRecord = -1
-	records, err := reader.ReadAll()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fixture := map[string][]string{}
-	for _, record := range records[1:] {
-		if len(record) < 14 {
-			t.Fatalf("fixture row has %d columns, want at least 14: %#v", len(record), record)
-		}
-		collection := record[0]
-		path := record[4]
-		if !strings.HasPrefix(path, "/v1/reports/") && collection != "insights-endpoints" && collection != "recommendations-endpoints" && collection != "suggestions-endpoints" && collection != "change-history-endpoints" {
-			continue
-		}
-		fixture[record[12]] = record
-	}
-	if got, want := len(fixture), 24; got != want {
-		t.Fatalf("reports/optimization fixture count = %d, want %d", got, want)
-	}
-
-	for _, spec := range platformReportsOptimizationEndpointSpecs() {
-		command := strings.Join(spec.CommandPath, " ")
-		record, ok := fixture[command]
-		if !ok {
-			t.Fatalf("%s missing from independent fixture", command)
-		}
-		if spec.Method != record[3] || spec.Path != strings.TrimPrefix(record[4], "/") {
-			t.Fatalf("%s method/path = %s %s, fixture = %s %s", command, spec.Method, spec.Path, record[3], record[4])
-		}
-		wantBodyKind := BodyNone
-		switch record[6] {
-		case "JSON object":
-			wantBodyKind = BodyObject
-		case "JSON array":
-			wantBodyKind = BodyArray
-		case "none":
-		default:
-			t.Fatalf("%s unexpected fixture body kind %q", command, record[6])
-		}
-		if spec.BodyKind != wantBodyKind || spec.BodyType != fixtureNone(record[7]) {
-			t.Fatalf("%s body = %q/%q, fixture = %q/%q", command, spec.BodyKind, spec.BodyType, wantBodyKind, record[7])
-		}
-		isQuery := spec.Method == "POST" && strings.HasSuffix(spec.Path, "/query")
-		wantOptional := isQuery && record[8] != "yes"
-		if spec.BodyKind == BodyNone {
-			wantOptional = false
-		}
-		if spec.BodyOptional != wantOptional {
-			t.Fatalf("%s body optional = %t, want %t (SDK body required = %q)", command, spec.BodyOptional, wantOptional, record[8])
-		}
-		if spec.ResponseType != strings.TrimPrefix(record[9], "200 ") {
-			t.Fatalf("%s response = %q, fixture = %q", command, spec.ResponseType, record[9])
-		}
-		if spec.Context != ContextAdAccount || record[10] != "ad-account" {
-			t.Fatalf("%s context = %v, fixture = %q", command, spec.Context, record[10])
-		}
-		if spec.RequiresConfirm != (record[11] == "yes") {
-			t.Fatalf("%s confirmation = %t, fixture destructive = %q", command, spec.RequiresConfirm, record[11])
-		}
-		delete(fixture, command)
-	}
-	if len(fixture) != 0 {
-		t.Fatalf("fixture commands missing from implementation: %+v", fixture)
-	}
-}
-
-func fixtureNone(value string) string {
-	if value == "none" {
-		return ""
-	}
-	return value
 }
 
 func TestPlatformChangeHistoryDetailParameters(t *testing.T) {

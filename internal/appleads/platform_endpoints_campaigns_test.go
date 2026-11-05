@@ -2,92 +2,13 @@ package appleads
 
 import (
 	"context"
-	"encoding/csv"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
 )
-
-var platformCampaignCollections = map[string]struct{}{
-	"adgroups-endpoints":          {},
-	"ads-endpoints":               {},
-	"budget-orders-endpoints":     {},
-	"bulk-operations-endpoints":   {},
-	"campaigns-endpoints":         {},
-	"geo-targeting-endpoints":     {},
-	"keywords-endpoints":          {},
-	"negative-keywords-endpoints": {},
-	"product-pages-endpoints":     {},
-}
-
-type platformFixtureEndpoint struct {
-	collection      string
-	method          string
-	path            string
-	bodyKind        string
-	bodyType        string
-	sdkBodyRequired string
-	responseType    string
-	context         string
-	destructive     string
-	command         string
-}
-
-func TestPlatformCampaignEndpointSpecsMatchFixture(t *testing.T) {
-	wants := readPlatformCampaignFixture(t)
-	got := map[string]EndpointSpec{}
-	for _, spec := range PlatformEndpointSpecs() {
-		command := strings.Join(spec.CommandPath, " ")
-		if _, ok := wants[command]; ok {
-			got[command] = spec
-		}
-	}
-	if len(got) != len(wants) {
-		t.Fatalf("campaign lane specs = %d, fixture = %d", len(got), len(wants))
-	}
-	if len(wants) != 41 {
-		t.Fatalf("campaign fixture lane = %d, want 41", len(wants))
-	}
-
-	for command, fixture := range wants {
-		spec, ok := got[command]
-		if !ok {
-			t.Errorf("missing platform command %q", command)
-			continue
-		}
-		wantBodyKind := BodyNone
-		if fixture.bodyKind == "JSON object" {
-			wantBodyKind = BodyObject
-		}
-		wantContext := map[string]ContextKind{
-			"none":                ContextNone,
-			"ad-account":          ContextAdAccount,
-			"optional-ad-account": ContextAdAccountOptional,
-		}[fixture.context]
-		wantResponse := strings.TrimPrefix(fixture.responseType, "200 ")
-		if spec.Method != fixture.method || spec.Path != strings.TrimPrefix(fixture.path, "/") || spec.BodyKind != wantBodyKind || spec.BodyType != noneAsEmpty(fixture.bodyType) || spec.ResponseType != wantResponse || spec.Context != wantContext {
-			t.Errorf("%q contract = %s %s body=%q/%q response=%q context=%d; fixture = %s %s body=%q/%q response=%q context=%d", command, spec.Method, spec.Path, spec.BodyKind, spec.BodyType, spec.ResponseType, spec.Context, fixture.method, strings.TrimPrefix(fixture.path, "/"), wantBodyKind, noneAsEmpty(fixture.bodyType), wantResponse, wantContext)
-		}
-
-		wantConfirm := fixture.destructive == "yes"
-		if spec.RequiresConfirm != wantConfirm {
-			t.Errorf("%q RequiresConfirm = %t, want %t", command, spec.RequiresConfirm, wantConfirm)
-		}
-		if spec.Method == "POST" && (strings.HasSuffix(spec.Path, "/query") || command == "geo resolve") && !spec.RetrySafe {
-			t.Errorf("read-only POST %q must be retry-safe", command)
-		}
-		if spec.BodyKind != BodyNone {
-			wantOptional := fixture.sdkBodyRequired == "no" && strings.HasSuffix(spec.Path, "/query")
-			if spec.BodyOptional != wantOptional {
-				t.Errorf("%q BodyOptional = %t, want %t", command, spec.BodyOptional, wantOptional)
-			}
-		}
-	}
-}
 
 func TestPlatformEndpointCommandPathsAreUnique(t *testing.T) {
 	seen := map[string]string{}
@@ -330,49 +251,4 @@ func TestPlatformCampaignSpecsRouteRepresentativeHTTPContracts(t *testing.T) {
 	if _, err := clientWithoutAccount.Do(context.Background(), viewBudget, map[string]string{"id": "budget-string"}, nil, nil); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func readPlatformCampaignFixture(t *testing.T) map[string]platformFixtureEndpoint {
-	t.Helper()
-	file, err := os.Open("testdata/platform_v1_endpoints.tsv")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	reader := csv.NewReader(file)
-	reader.Comma = '\t'
-	records, err := reader.ReadAll()
-	if err != nil {
-		t.Fatal(err)
-	}
-	wants := map[string]platformFixtureEndpoint{}
-	for _, record := range records[1:] {
-		if _, ok := platformCampaignCollections[record[0]]; !ok {
-			continue
-		}
-		endpoint := platformFixtureEndpoint{
-			collection:      record[0],
-			method:          record[3],
-			path:            record[4],
-			bodyKind:        record[6],
-			bodyType:        record[7],
-			sdkBodyRequired: record[8],
-			responseType:    record[9],
-			context:         record[10],
-			destructive:     record[11],
-			command:         record[12],
-		}
-		if _, exists := wants[endpoint.command]; exists {
-			t.Fatalf("duplicate campaign fixture command %q", endpoint.command)
-		}
-		wants[endpoint.command] = endpoint
-	}
-	return wants
-}
-
-func noneAsEmpty(value string) string {
-	if value == "none" {
-		return ""
-	}
-	return value
 }

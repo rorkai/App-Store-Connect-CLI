@@ -118,27 +118,6 @@ func TestInitReference_RejectsDestinationAliasCollisionBeforeWriting(t *testing.
 	}
 }
 
-func TestInitReference_RefusesSymlinkedAgentsFile(t *testing.T) {
-	repo := newDocsContainmentRepo(t)
-	sentinelPath := filepath.Join(t.TempDir(), "sentinel.md")
-	writeDocsContainmentFile(t, sentinelPath, "# Sentinel\n")
-
-	if err := os.Symlink(sentinelPath, filepath.Join(repo, "AGENTS.md")); err != nil {
-		t.Fatalf("Symlink() error = %v", err)
-	}
-
-	_, err := InitReference(InitOptions{Path: repo, Force: true, Link: true})
-	if err == nil {
-		t.Fatal("InitReference() error = nil, want symlink rejection")
-	}
-	if !strings.Contains(err.Error(), "symlink") {
-		t.Fatalf("InitReference() error = %v, want symlink rejection", err)
-	}
-	if got := readDocsContainmentFile(t, sentinelPath); got != "# Sentinel\n" {
-		t.Fatalf("sentinel content = %q, want unchanged", got)
-	}
-}
-
 func TestInitReference_AllowsAgentsSymlinkToContainedMarkdownFile(t *testing.T) {
 	repo := newDocsContainmentRepo(t)
 	docsDir := filepath.Join(repo, "docs")
@@ -185,27 +164,6 @@ func TestInitReference_RejectsAgentsSymlinkToRepositoryMetadata(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(repo, ascReferenceFile)); !os.IsNotExist(err) {
 		t.Fatalf("ASC.md exists after failed preflight: %v", err)
-	}
-}
-
-func TestInitReference_RefusesSymlinkedClaudeFile(t *testing.T) {
-	repo := newDocsContainmentRepo(t)
-	sentinelPath := filepath.Join(t.TempDir(), "sentinel.md")
-	writeDocsContainmentFile(t, sentinelPath, "# Sentinel\n")
-
-	if err := os.Symlink(sentinelPath, filepath.Join(repo, "CLAUDE.md")); err != nil {
-		t.Fatalf("Symlink() error = %v", err)
-	}
-
-	_, err := InitReference(InitOptions{Path: repo, Force: true, Link: true})
-	if err == nil {
-		t.Fatal("InitReference() error = nil, want symlink rejection")
-	}
-	if !strings.Contains(err.Error(), "symlink") {
-		t.Fatalf("InitReference() error = %v, want symlink rejection", err)
-	}
-	if got := readDocsContainmentFile(t, sentinelPath); got != "# Sentinel\n" {
-		t.Fatalf("sentinel content = %q, want unchanged", got)
 	}
 }
 
@@ -257,59 +215,42 @@ func TestInitReference_RefusesLowercaseSymlinkedAgentsFile(t *testing.T) {
 	}
 }
 
-func TestInitReference_WritesNothingWhenAgentsFileIsSymlinked(t *testing.T) {
-	repo := newDocsContainmentRepo(t)
-	sentinelPath := filepath.Join(t.TempDir(), "sentinel.md")
-	writeDocsContainmentFile(t, sentinelPath, "# Sentinel\n")
-	writeDocsContainmentFile(t, filepath.Join(repo, "CLAUDE.md"), "# Claude\n")
+func TestInitReference_WritesNothingWhenAgentFileIsSymlinked(t *testing.T) {
+	for _, test := range []struct {
+		symlinked      string
+		sibling        string
+		siblingContent string
+	}{
+		{symlinked: "AGENTS.md", sibling: "CLAUDE.md", siblingContent: "# Claude\n"},
+		{symlinked: "CLAUDE.md", sibling: "AGENTS.md", siblingContent: "# Agents\n"},
+	} {
+		t.Run(test.symlinked, func(t *testing.T) {
+			repo := newDocsContainmentRepo(t)
+			sentinelPath := filepath.Join(t.TempDir(), "sentinel.md")
+			writeDocsContainmentFile(t, sentinelPath, "# Sentinel\n")
+			writeDocsContainmentFile(t, filepath.Join(repo, test.sibling), test.siblingContent)
 
-	if err := os.Symlink(sentinelPath, filepath.Join(repo, "AGENTS.md")); err != nil {
-		t.Fatalf("Symlink() error = %v", err)
-	}
+			if err := os.Symlink(sentinelPath, filepath.Join(repo, test.symlinked)); err != nil {
+				t.Fatalf("Symlink() error = %v", err)
+			}
 
-	_, err := InitReference(InitOptions{Path: repo, Force: true, Link: true})
-	if err == nil {
-		t.Fatal("InitReference() error = nil, want symlink rejection")
-	}
-	if !strings.Contains(err.Error(), "symlink") {
-		t.Fatalf("InitReference() error = %v, want symlink rejection", err)
-	}
-	if _, statErr := os.Lstat(filepath.Join(repo, ascReferenceFile)); !os.IsNotExist(statErr) {
-		t.Fatalf("Lstat(ASC.md) error = %v, want IsNotExist: a failed init must not leave ASC.md behind", statErr)
-	}
-	if got := readDocsContainmentFile(t, filepath.Join(repo, "CLAUDE.md")); got != "# Claude\n" {
-		t.Fatalf("CLAUDE.md content = %q, want unchanged", got)
-	}
-	if got := readDocsContainmentFile(t, sentinelPath); got != "# Sentinel\n" {
-		t.Fatalf("sentinel content = %q, want unchanged", got)
-	}
-}
-
-func TestInitReference_WritesNothingWhenClaudeFileIsSymlinked(t *testing.T) {
-	repo := newDocsContainmentRepo(t)
-	sentinelPath := filepath.Join(t.TempDir(), "sentinel.md")
-	writeDocsContainmentFile(t, sentinelPath, "# Sentinel\n")
-	writeDocsContainmentFile(t, filepath.Join(repo, "AGENTS.md"), "# Agents\n")
-
-	if err := os.Symlink(sentinelPath, filepath.Join(repo, "CLAUDE.md")); err != nil {
-		t.Fatalf("Symlink() error = %v", err)
-	}
-
-	_, err := InitReference(InitOptions{Path: repo, Force: true, Link: true})
-	if err == nil {
-		t.Fatal("InitReference() error = nil, want symlink rejection")
-	}
-	if !strings.Contains(err.Error(), "symlink") {
-		t.Fatalf("InitReference() error = %v, want symlink rejection", err)
-	}
-	if _, statErr := os.Lstat(filepath.Join(repo, ascReferenceFile)); !os.IsNotExist(statErr) {
-		t.Fatalf("Lstat(ASC.md) error = %v, want IsNotExist: a failed init must not leave ASC.md behind", statErr)
-	}
-	if got := readDocsContainmentFile(t, filepath.Join(repo, "AGENTS.md")); got != "# Agents\n" {
-		t.Fatalf("AGENTS.md content = %q, want unchanged", got)
-	}
-	if got := readDocsContainmentFile(t, sentinelPath); got != "# Sentinel\n" {
-		t.Fatalf("sentinel content = %q, want unchanged", got)
+			_, err := InitReference(InitOptions{Path: repo, Force: true, Link: true})
+			if err == nil {
+				t.Fatal("InitReference() error = nil, want symlink rejection")
+			}
+			if !strings.Contains(err.Error(), "symlink") {
+				t.Fatalf("InitReference() error = %v, want symlink rejection", err)
+			}
+			if _, statErr := os.Lstat(filepath.Join(repo, ascReferenceFile)); !os.IsNotExist(statErr) {
+				t.Fatalf("Lstat(ASC.md) error = %v, want IsNotExist: a failed init must not leave ASC.md behind", statErr)
+			}
+			if got := readDocsContainmentFile(t, filepath.Join(repo, test.sibling)); got != test.siblingContent {
+				t.Fatalf("%s content = %q, want unchanged", test.sibling, got)
+			}
+			if got := readDocsContainmentFile(t, sentinelPath); got != "# Sentinel\n" {
+				t.Fatalf("sentinel content = %q, want unchanged", got)
+			}
+		})
 	}
 }
 

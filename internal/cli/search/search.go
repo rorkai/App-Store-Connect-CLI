@@ -163,8 +163,7 @@ Examples:
   asc search --limit 5 "cert profiles"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			_ = ctx
+		Exec: func(_ context.Context, args []string) error {
 			defer resetFlagSet(fs)
 
 			args, err := parseInterspersedSearchFlags(fs, args)
@@ -189,15 +188,11 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: search query is required")
 				return shared.MissingRequiredUsageError("")
 			}
-			selectedOutput := *output.Output
-			selectedPretty := *output.Pretty
-			selectedLimit := *limit
-
-			response := SearchCommands(commands(), query, selectedLimit)
+			response := SearchCommands(commands(), query, *limit)
 			if err := shared.PrintOutputWithRenderers(
 				response,
-				selectedOutput,
-				selectedPretty,
+				*output.Output,
+				*output.Pretty,
 				func() error {
 					asc.RenderTable([]string{"score", "command", "summary", "matched"}, searchRows(response.Results))
 					return nil
@@ -215,19 +210,13 @@ Examples:
 }
 
 func resetFlagSet(fs *flag.FlagSet) {
-	if fs == nil {
-		return
-	}
 	fs.VisitAll(func(f *flag.Flag) {
-		if f == nil {
-			return
-		}
 		_ = f.Value.Set(f.DefValue)
 	})
 }
 
 func parseInterspersedSearchFlags(fs *flag.FlagSet, args []string) ([]string, error) {
-	if fs == nil || len(args) == 0 {
+	if len(args) == 0 {
 		return args, nil
 	}
 	if args[0] == shared.FlagTerminatorSentinel {
@@ -310,9 +299,6 @@ func isBoolSearchFlag(f *flag.Flag) bool {
 		IsBoolFlag() bool
 	}
 
-	if f == nil {
-		return false
-	}
 	boolValue, ok := f.Value.(boolFlag)
 	return ok && boolValue.IsBoolFlag()
 }

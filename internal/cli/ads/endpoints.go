@@ -76,9 +76,6 @@ func platformEndpointCommands() []*ffcli.Command {
 func addSpec(root *commandNode, spec appleads.EndpointSpec) {
 	current := root
 	for _, part := range spec.CommandPath {
-		if current.children == nil {
-			current.children = map[string]*commandNode{}
-		}
 		child := current.children[part]
 		if child == nil {
 			child = &commandNode{name: part, children: map[string]*commandNode{}}
@@ -344,7 +341,7 @@ func bindEndpointFlags(spec appleads.EndpointSpec, flagSetName string) (*flag.Fl
 	for _, param := range spec.QueryParams {
 		switch param.Type {
 		case appleads.ParamInt:
-			values.queryInts[param.Name] = fs.Int(param.Flag, intParamDefault(param), flagUsage(param))
+			values.queryInts[param.Name] = fs.Int(param.Flag, param.Default, flagUsage(param))
 		case appleads.ParamBool:
 			values.queryBools[param.Name] = fs.Bool(param.Flag, false, flagUsage(param))
 		default:
@@ -402,10 +399,6 @@ func confirmFlagUsage(spec appleads.EndpointSpec) string {
 	default:
 		return "Confirm this Apple Ads operation"
 	}
-}
-
-func intParamDefault(param appleads.ParamSpec) int {
-	return param.Default
 }
 
 func executeEndpoint(ctx context.Context, spec appleads.EndpointSpec, flags endpointFlagValues) error {
