@@ -251,3 +251,54 @@ func TestRetentionMessagesValidationBeforeClient(t *testing.T) {
 		})
 	}
 }
+
+func TestRetentionMessagesRawReadsRenderTables(t *testing.T) {
+	tests := []struct {
+		name, response string
+		args, want     []string
+	}{
+		{
+			name:     "assigned message",
+			args:     []string{"assigned", "--subscription-id", "sub-1"},
+			response: `{"data":{"type":"retentionMessages","id":"msg-1","attributes":{"referenceName":"winter"}},"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/retentionMessage"}}`,
+			want:     []string{"Reference Name", "msg-1", "winter"},
+		},
+		{
+			name:     "no assigned message",
+			args:     []string{"assigned", "--subscription-id", "sub-1"},
+			response: `{"data":null,"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/retentionMessage"}}`,
+			want:     []string{"Reference Name"},
+		},
+		{
+			name:     "no placement",
+			args:     []string{"versions", "placement", "view", "--version-id", "ver-1"},
+			response: `{"data":null,"links":{"self":"https://api.appstoreconnect.apple.com/v1/retentionMessageVersions/ver-1/placement"}}`,
+			want:     []string{"Placement Type"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			useSubscriptionVersionServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				writeSubscriptionVersionJSON(w, http.StatusOK, test.response)
+			}))
+			args := append(append([]string{"subscriptions", "retention-messages"}, test.args...), "--output", "table")
+			stdout, stderr := captureOutput(t, func() {
+				if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitSuccess {
+					t.Errorf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("stderr = %q", stderr)
+			}
+			if strings.HasPrefix(strings.TrimSpace(stdout), "{") {
+				t.Fatalf("table output printed JSON: %s", stdout)
+			}
+			for _, want := range test.want {
+				if !strings.Contains(stdout, want) {
+					t.Errorf("stdout missing %q:\n%s", want, stdout)
+				}
+			}
+		})
+	}
+}

@@ -1,6 +1,10 @@
 package asc
 
-import "strconv"
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+)
 
 // RetentionMessageAssignResult records a subscription's retention message assignment.
 type RetentionMessageAssignResult struct {
@@ -18,6 +22,27 @@ type RetentionMessagePlacementCreateResult struct {
 	PlacementType             string `json:"placementType"`
 	PlacementGroup            string `json:"placementGroup"`
 	State                     string `json:"state,omitempty"`
+}
+
+// RetentionMessageResourceRows renders a raw single retention message response,
+// such as a subscription's assigned message, whose data may be null.
+func RetentionMessageResourceRows(payload []byte) ([]string, [][]string, error) {
+	var envelope struct {
+		Data *struct {
+			ID         string `json:"id"`
+			Attributes struct {
+				ReferenceName string `json:"referenceName"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(payload, &envelope); err != nil {
+		return nil, nil, fmt.Errorf("retention message: invalid response: %w", err)
+	}
+	rows := [][]string{}
+	if envelope.Data != nil {
+		rows = append(rows, []string{envelope.Data.ID, compactWhitespace(envelope.Data.Attributes.ReferenceName)})
+	}
+	return []string{"ID", "Reference Name"}, rows, nil
 }
 
 func retentionMessagesRows(resp *RetentionMessagesResponse) ([]string, [][]string) {

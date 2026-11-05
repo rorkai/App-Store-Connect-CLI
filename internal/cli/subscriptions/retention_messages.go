@@ -304,6 +304,14 @@ func SubscriptionsRetentionMessagesCommand() *ffcli.Command {
 			ownerFlag: "subscription-id", ownerType: "subscriptions", ownerUsage: "Subscription ID",
 			primary: "retentionMessages", includes: retentionMessageIncludes, limits: retentionMessageLimits,
 			fetch: retentionFetch((*asc.Client).GetSubscriptionRetentionMessage),
+			print: func(resp any, output shared.OutputFlags) error {
+				raw := *resp.(*json.RawMessage)
+				headers, rows, err := asc.RetentionMessageResourceRows(raw)
+				if err != nil {
+					return err
+				}
+				return shared.PrintOutputRows(raw, *output.Output, *output.Pretty, headers, rows)
+			},
 		}),
 		retentionMessagesAssignCommand(),
 		retentionGroupCommand("subscriptions", "List subscriptions that use a retention message.",
