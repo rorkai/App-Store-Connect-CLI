@@ -30,9 +30,11 @@ asc analytics sales \
 **Required Flags:**
 
 * `--vendor` - Vendor number (or `ASC_VENDOR_NUMBER` env)
-* `--type` - Report type: `SALES`, `PRE_ORDER`, `NEWSSTAND`, `SUBSCRIPTION`, `SUBSCRIPTION_EVENT`, `SUBSCRIBER`, `SUBSCRIPTION_OFFER_CODE_REDEMPTION`, `INSTALLS`, `FIRST_ANNUAL`, `WIN_BACK_ELIGIBILITY`
+* `--type` - Report type: `SALES`, `PRE_ORDER`, `NEWSSTAND`, `SUBSCRIPTION`, `SUBSCRIPTION_EVENT`, `SUBSCRIBER`, `SUBSCRIPTION_OFFER_CODE_REDEMPTION`, `INSTALLS` (deprecated), `FIRST_ANNUAL`, `WIN_BACK_ELIGIBILITY`
 * `--subtype` - Report subtype: `SUMMARY`, `DETAILED`, `SUMMARY_INSTALL_TYPE`, `SUMMARY_TERRITORY`, `SUMMARY_CHANNEL`
 * `--frequency` - Frequency: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`
+
+Apple stopped generating new `INSTALLS` reports on November 4, 2026. Historical reports remain downloadable with `--date` set to their reporting period; recurring jobs should no longer expect new `INSTALLS` reports. See Apple's [API 4.6 release notes](https://developer.apple.com/documentation/appstoreconnectapi/app-store-connect-api-4-6-release-notes).
 
 **Date Formats:**
 
