@@ -106,7 +106,7 @@ func TestCreativePlacementsListSendsAppleEnumValues(t *testing.T) {
 		{"event type outside events", "localizations", "appStoreVersionLocalizations", "--placement-type", "EVENT_CARD_ASSET", "filter%5BplacementType%5D=EVENT_CARD_ASSET"},
 		{"store type on events", "app-events localizations", "appEventLocalizations", "--placement-type", "APP_SCREENSHOT", "filter%5BplacementType%5D=APP_SCREENSHOT"},
 		{"iMessage type on treatments", "product-pages experiments treatments localizations", "appStoreVersionExperimentTreatmentLocalizations", "--placement-type", "IMESSAGE_APP_SCREENSHOT", "filter%5BplacementType%5D=IMESSAGE_APP_SCREENSHOT"},
-		{"parent includes", "localizations", "appStoreVersionLocalizations", "--include", "appEventLocalization,appStoreVersionLocalization,appCustomProductPageLocalization,appStoreVersionExperimentTreatmentLocalization", "include=appEventLocalization%2CappStoreVersionLocalization%2CappCustomProductPageLocalization%2CappStoreVersionExperimentTreatmentLocalization"},
+		{"parent includes", "localizations", "appStoreVersionLocalizations", "--include", "appEventLocalization,appStoreVersionLocalization,appCustomProductPageLocalization,appStoreVersionExperimentTreatmentLocalization,retentionMessageVersion", "include=appEventLocalization%2CappStoreVersionLocalization%2CappCustomProductPageLocalization%2CappStoreVersionExperimentTreatmentLocalization%2CretentionMessageVersion"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			setupAuth(t)
@@ -300,12 +300,12 @@ func TestCreativePlacementViewReadsOneResourceInEveryContext(t *testing.T) {
 						t.Fatalf("unexpected %s %s", req.Method, req.URL)
 					}
 					q := req.URL.Query()
-					if q.Get("include") != "image,appEventLocalization" || q.Get("fields[appAssetLibraryPlacements]") != "state,image" || len(q) != 2 {
+					if q.Get("include") != "image,appEventLocalization,retentionMessageVersion" || q.Get("fields[appAssetLibraryPlacements]") != "state,image,retentionMessageVersion" || len(q) != 2 {
 						t.Fatalf("query=%v", q)
 					}
 					return jsonResponse(200, body)
 				})
-				args := append(strings.Fields(group), "view", "--id", "placement-1", "--include", "image,appEventLocalization", "--fields", "state,image", "--output", output)
+				args := append(strings.Fields(group), "view", "--id", "placement-1", "--include", "image,appEventLocalization,retentionMessageVersion", "--fields", "state,image,retentionMessageVersion", "--output", output)
 				stdout, stderr, err := runCreativePlacements(t, args...)
 				if err != nil || stderr != "" {
 					t.Fatalf("error=%v stderr=%q", err, stderr)

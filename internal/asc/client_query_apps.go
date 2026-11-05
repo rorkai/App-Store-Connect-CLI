@@ -17,6 +17,7 @@ type appsQuery struct {
 	appInfoFields           []string
 	inAppPurchaseFields     []string
 	subscriptionGroupFields []string
+	retentionMessageFields  []string
 	include                 []string
 }
 
@@ -117,6 +118,7 @@ func buildAppsQuery(query *appsQuery) string {
 	addCSV(values, "fields[appInfos]", query.appInfoFields)
 	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
 	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
+	addCSV(values, "fields[retentionMessages]", query.retentionMessageFields)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
@@ -494,6 +496,13 @@ func WithAppsAppInfoFields(fields []string) AppsOption {
 func WithAppsSubscriptionGroupFields(fields []string) AppsOption {
 	return func(q *appsQuery) {
 		q.subscriptionGroupFields = normalizeList(fields)
+	}
+}
+
+// WithAppsRetentionMessageFields sets fields[retentionMessages].
+func WithAppsRetentionMessageFields(fields []string) AppsOption {
+	return func(q *appsQuery) {
+		q.retentionMessageFields = normalizeList(fields)
 	}
 }
 

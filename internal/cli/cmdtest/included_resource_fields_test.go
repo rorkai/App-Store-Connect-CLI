@@ -332,8 +332,8 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "localization placements list", operation: "appStoreVersionLocalizations_placements_getToManyRelated",
 			command: []string{"localizations", "placements", "list"}, selector: []string{"--localization-id", "localization-1"},
-			include: "image,video", path: "/v1/appStoreVersionLocalizations/localization-1/placements",
-			flags: map[string]string{"asset-image-fields": "appAssetLibraryImages", "asset-video-fields": "appAssetLibraryVideos"},
+			include: "image,video,retentionMessageVersion", path: "/v1/appStoreVersionLocalizations/localization-1/placements",
+			flags: map[string]string{"asset-image-fields": "appAssetLibraryImages", "asset-video-fields": "appAssetLibraryVideos", "retention-message-version-fields": "retentionMessageVersions"},
 		},
 		{
 			name: "iap list", operation: "apps_inAppPurchasesV2_getToManyRelated",

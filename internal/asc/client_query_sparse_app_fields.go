@@ -9,6 +9,7 @@ type appQuery struct {
 	appInfoFields           []string
 	inAppPurchaseFields     []string
 	subscriptionGroupFields []string
+	retentionMessageFields  []string
 	include                 []string
 }
 
@@ -25,6 +26,7 @@ type ciProductAppQuery struct {
 	appInfoFields           []string
 	inAppPurchaseFields     []string
 	subscriptionGroupFields []string
+	retentionMessageFields  []string
 	include                 []string
 }
 
@@ -46,6 +48,7 @@ func buildAppQuery(query *appQuery) string {
 	addCSV(values, "fields[appInfos]", query.appInfoFields)
 	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
 	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
+	addCSV(values, "fields[retentionMessages]", query.retentionMessageFields)
 	addCSV(values, "include", query.include)
 	return values.Encode()
 }
@@ -68,6 +71,7 @@ func buildCiProductAppQuery(query *ciProductAppQuery) string {
 	addCSV(values, "fields[appInfos]", query.appInfoFields)
 	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
 	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
+	addCSV(values, "fields[retentionMessages]", query.retentionMessageFields)
 	addCSV(values, "include", query.include)
 	return values.Encode()
 }
@@ -90,6 +94,11 @@ func WithAppAppInfoFields(fields []string) AppOption {
 // WithAppSubscriptionGroupFields sets fields[subscriptionGroups].
 func WithAppSubscriptionGroupFields(fields []string) AppOption {
 	return func(q *appQuery) { q.subscriptionGroupFields = normalizeList(fields) }
+}
+
+// WithAppRetentionMessageFields sets fields[retentionMessages].
+func WithAppRetentionMessageFields(fields []string) AppOption {
+	return func(q *appQuery) { q.retentionMessageFields = normalizeList(fields) }
 }
 
 // WithAppInclude includes related resources in an app detail response.
@@ -125,6 +134,11 @@ func WithCiProductAppAppInfoFields(fields []string) CiProductAppOption {
 // WithCiProductAppSubscriptionGroupFields sets fields[subscriptionGroups].
 func WithCiProductAppSubscriptionGroupFields(fields []string) CiProductAppOption {
 	return func(q *ciProductAppQuery) { q.subscriptionGroupFields = normalizeList(fields) }
+}
+
+// WithCiProductAppRetentionMessageFields sets fields[retentionMessages].
+func WithCiProductAppRetentionMessageFields(fields []string) CiProductAppOption {
+	return func(q *ciProductAppQuery) { q.retentionMessageFields = normalizeList(fields) }
 }
 
 // WithCiProductAppInclude includes related resources in the app response.

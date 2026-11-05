@@ -14,7 +14,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *string, name *string, sku *string, versionState *string, reviewSubmissionState *string, sort *string, limit *int, next *string, paginate *bool, appInfoFields *string, iapFields *string, subscriptionGroupFields *string) {
+func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *string, name *string, sku *string, versionState *string, reviewSubmissionState *string, sort *string, limit *int, next *string, paginate *bool, appInfoFields *string, iapFields *string, subscriptionGroupFields *string, retentionMessageFields *string) {
 	output = shared.BindOutputFlags(fs)
 	bundleID = fs.String("bundle-id", "", "Filter by bundle ID(s), comma-separated")
 	name = fs.String("name", "", "Filter by app name(s), comma-separated")
@@ -28,6 +28,7 @@ func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *strin
 	appInfoFields = fs.String("app-info-fields", "", "Sparse fields for included app info records: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
 	iapFields = fs.String("iap-fields", "", "Sparse fields for included in-app purchases: "+strings.Join(shared.AppInAppPurchaseSparseFields, ", "))
 	subscriptionGroupFields = fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: "+strings.Join(shared.SubscriptionGroupSparseFields, ", "))
+	retentionMessageFields = fs.String("retention-message-fields", "", "Sparse fields for included retention messages: "+strings.Join(shared.RetentionMessageSparseFields, ", "))
 	return
 }
 
@@ -35,7 +36,7 @@ func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *strin
 func AppsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps", flag.ExitOnError)
 
-	output, bundleID, name, sku, versionState, reviewSubmissionState, sort, limit, next, paginate, appInfoFields, iapFields, subscriptionGroupFields := appsListFlags(fs)
+	output, bundleID, name, sku, versionState, reviewSubmissionState, sort, limit, next, paginate, appInfoFields, iapFields, subscriptionGroupFields, retentionMessageFields := appsListFlags(fs)
 	subcommands := []*ffcli.Command{
 		AppsListCommand(),
 		AppsPublishedCommand(),
@@ -105,7 +106,7 @@ Examples:
 				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n", subcommand)
 				return flag.ErrHelp
 			}
-			return appsList(ctx, fs, *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields)
+			return appsList(ctx, fs, *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields, *retentionMessageFields)
 		},
 	}
 }
@@ -114,7 +115,7 @@ Examples:
 func AppsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps list", flag.ExitOnError)
 
-	output, bundleID, name, sku, versionState, reviewSubmissionState, sort, limit, next, paginate, appInfoFields, iapFields, subscriptionGroupFields := appsListFlags(fs)
+	output, bundleID, name, sku, versionState, reviewSubmissionState, sort, limit, next, paginate, appInfoFields, iapFields, subscriptionGroupFields, retentionMessageFields := appsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -138,7 +139,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return appsList(ctx, fs, *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields)
+			return appsList(ctx, fs, *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields, *retentionMessageFields)
 		},
 	}
 }
@@ -152,6 +153,7 @@ func AppsGetCommand() *ffcli.Command {
 	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
 	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: "+strings.Join(shared.AppInAppPurchaseSparseFields, ", "))
 	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: "+strings.Join(shared.SubscriptionGroupSparseFields, ", "))
+	retentionMessageFields := fs.String("retention-message-fields", "", "Sparse fields for included retention messages: "+strings.Join(shared.RetentionMessageSparseFields, ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -189,6 +191,10 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			retentionMessageFieldValues, err := normalizeSparseField(fs, *retentionMessageFields, shared.RetentionMessageSparseFields, "--retention-message-fields")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 
 			shared.WarnDeprecatedAppInfoFields(appInfoFieldValues, "")
 
@@ -210,6 +216,9 @@ Examples:
 			if len(groupFieldValues) > 0 {
 				includeValues = addInclude(includeValues, "subscriptionGroups")
 			}
+			if len(retentionMessageFieldValues) > 0 {
+				includeValues = addInclude(includeValues, "retentionMessages")
+			}
 			if len(fieldValues) > 0 {
 				fieldValues = append(fieldValues, includeValues...)
 			}
@@ -218,6 +227,7 @@ Examples:
 				asc.WithAppAppInfoFields(appInfoFieldValues),
 				asc.WithAppInAppPurchaseFields(iapFieldValues),
 				asc.WithAppSubscriptionGroupFields(groupFieldValues),
+				asc.WithAppRetentionMessageFields(retentionMessageFieldValues),
 				asc.WithAppInclude(includeValues),
 			}
 			app, err := client.GetAppWithOptions(requestCtx, idValue, opts...)
@@ -341,7 +351,7 @@ Examples:
 	}
 }
 
-func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool, bundleID string, name string, sku string, versionState string, reviewSubmissionState string, sort string, limit int, next string, paginate bool, appInfoFields string, iapFields string, subscriptionGroupFields string) error {
+func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool, bundleID string, name string, sku string, versionState string, reviewSubmissionState string, sort string, limit int, next string, paginate bool, appInfoFields string, iapFields string, subscriptionGroupFields string, retentionMessageFields string) error {
 	if limit != 0 && (limit < 1 || limit > 200) {
 		return shared.UsageErrorf("apps: --limit must be between 1 and 200")
 	}
@@ -355,7 +365,7 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 		if flagName, ok := appFlagWasProvided(
 			fs,
 			"bundle-id", "name", "sku", "version-state", "review-submission-state", "sort", "limit",
-			"app-info-fields", "iap-fields", "subscription-group-fields",
+			"app-info-fields", "iap-fields", "subscription-group-fields", "retention-message-fields",
 		); ok {
 			return shared.WithDiagnostic(
 				shared.UsageErrorf("--next cannot be combined with %s", flagName),
@@ -402,6 +412,10 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 	if err != nil {
 		return shared.UsageError(err.Error())
 	}
+	retentionMessageFieldValues, err := normalizeSparseField(fs, retentionMessageFields, shared.RetentionMessageSparseFields, "--retention-message-fields")
+	if err != nil {
+		return shared.UsageError(err.Error())
+	}
 
 	shared.WarnDeprecatedAppInfoFields(appInfoFieldValues, next)
 
@@ -424,6 +438,7 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 		asc.WithAppsAppInfoFields(appInfoFieldValues),
 		asc.WithAppsInAppPurchaseFields(iapFieldValues),
 		asc.WithAppsSubscriptionGroupFields(groupFieldValues),
+		asc.WithAppsRetentionMessageFields(retentionMessageFieldValues),
 	}
 	includeValues := []string{}
 	if len(appInfoFieldValues) > 0 {
@@ -434,6 +449,9 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 	}
 	if len(groupFieldValues) > 0 {
 		includeValues = addInclude(includeValues, "subscriptionGroups")
+	}
+	if len(retentionMessageFieldValues) > 0 {
+		includeValues = addInclude(includeValues, "retentionMessages")
 	}
 	opts = append(opts, asc.WithAppsInclude(includeValues))
 	if strings.TrimSpace(sort) != "" {
