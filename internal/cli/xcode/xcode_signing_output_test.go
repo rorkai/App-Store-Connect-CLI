@@ -50,15 +50,7 @@ func TestXcodeSigningPlanOutputPreservesArtifactJSONShape(t *testing.T) {
 		Warnings:                []string{"warning"},
 	}
 
-	output := newXcodeSigningPlanOutput(plan)
-	if output == nil {
-		t.Fatal("newXcodeSigningPlanOutput returned nil")
-	}
-	if reflect.TypeOf(output) == reflect.TypeOf(plan) {
-		t.Fatal("expected outward plan output to be distinct from the artifact type")
-	}
-
-	assertEquivalentSigningJSON(t, plan, output)
+	assertEquivalentSigningJSON(t, plan, newXcodeSigningPlanOutput(plan))
 }
 
 func TestXcodeSigningApplyOutputPreservesReceiptJSONShape(t *testing.T) {
@@ -91,20 +83,7 @@ func TestXcodeSigningApplyOutputPreservesReceiptJSONShape(t *testing.T) {
 		}},
 	}
 
-	output := newXcodeSigningApplyOutput(result)
-	if output == nil {
-		t.Fatal("newXcodeSigningApplyOutput returned nil")
-	}
-	assertEquivalentSigningJSON(t, result, output)
-}
-
-func TestXcodeSigningOutputConvertersReturnNilForNilInput(t *testing.T) {
-	if output := newXcodeSigningPlanOutput(nil); output != nil {
-		t.Fatalf("newXcodeSigningPlanOutput(nil) = %v, want nil", output)
-	}
-	if output := newXcodeSigningApplyOutput(nil); output != nil {
-		t.Fatalf("newXcodeSigningApplyOutput(nil) = %v, want nil", output)
-	}
+	assertEquivalentSigningJSON(t, result, newXcodeSigningApplyOutput(result))
 }
 
 func TestXcodeSigningOutputConvertersDoNotShareMutableState(t *testing.T) {

@@ -381,39 +381,40 @@ func TestDoctorHasAppStorePreparationIssueUsesFailedErrorActions(t *testing.T) {
 	}
 }
 
-func TestAnalyzeDoctorLogBundleRejectsOversizedTextEntry(t *testing.T) {
-	data := doctorLogBundleFixture(t, map[string]string{
-		"Export/IDEDistribution.standard.log": strings.Repeat("x", maxDoctorLogEntryBytes+1),
-	})
-
-	_, err := analyzeDoctorLogBundle(data)
-	if err == nil || !strings.Contains(err.Error(), "IDEDistribution.standard.log") {
-		t.Fatalf("analyzeDoctorLogBundle() error = %v, want oversized entry error", err)
+func TestAnalyzeDoctorLogBundleRejectsUninspectableBundles(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    []byte
+		wantErr string
+	}{
+		{
+			name: "oversized text entry",
+			data: doctorLogBundleFixture(t, map[string]string{
+				"Export/IDEDistribution.standard.log": strings.Repeat("x", maxDoctorLogEntryBytes+1),
+			}),
+			wantErr: "IDEDistribution.standard.log",
+		},
+		{
+			name: "no readable text entries",
+			data: doctorLogBundleFixture(t, map[string]string{
+				"Build/Build.xcactivitylog": "binary activity log",
+				"Export/binary.log":         "ignored\x00binary",
+			}),
+			wantErr: "no readable text entries",
+		},
+		{name: "empty plain content", data: nil, wantErr: "log bundle is empty"},
+		{
+			name:    "empty zip entry",
+			data:    doctorLogBundleFixture(t, map[string]string{"Build/empty.log": ""}),
+			wantErr: "no readable text entries",
+		},
+		{name: "unknown binary", data: []byte{'P', 'K', 0, 1, 2}, wantErr: "neither a ZIP archive nor plain text"},
 	}
-}
-
-func TestAnalyzeDoctorLogBundleRejectsArchiveWithoutReadableTextEntries(t *testing.T) {
-	data := doctorLogBundleFixture(t, map[string]string{
-		"Build/Build.xcactivitylog": "binary activity log",
-		"Export/binary.log":         "ignored\x00binary",
-	})
-
-	_, err := analyzeDoctorLogBundle(data)
-	if err == nil || !strings.Contains(err.Error(), "no readable text entries") {
-		t.Fatalf("analyzeDoctorLogBundle() error = %v, want readable-text coverage error", err)
-	}
-}
-
-func TestAnalyzeDoctorLogBundleRejectsEmptyContent(t *testing.T) {
-	tests := map[string][]byte{
-		"plain": nil,
-		"zip":   doctorLogBundleFixture(t, map[string]string{"Build/empty.log": ""}),
-	}
-	for name, data := range tests {
-		t.Run(name, func(t *testing.T) {
-			_, err := analyzeDoctorLogBundle(data)
-			if err == nil {
-				t.Fatal("analyzeDoctorLogBundle() error = nil, want empty-content error")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := analyzeDoctorLogBundle(test.data)
+			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("analyzeDoctorLogBundle() error = %v, want %q", err, test.wantErr)
 			}
 		})
 	}
@@ -551,12 +552,6 @@ type doctorZeroReader struct{}
 func (doctorZeroReader) Read(buffer []byte) (int, error) {
 	clear(buffer)
 	return len(buffer), nil
-}
-
-func TestAnalyzeDoctorLogBundleRejectsUnknownBinary(t *testing.T) {
-	if _, err := analyzeDoctorLogBundle([]byte{'P', 'K', 0, 1, 2}); err == nil {
-		t.Fatal("analyzeDoctorLogBundle() error = nil, want binary format error")
-	}
 }
 
 func TestDoctorSavedLogBundleNameSanitizesRemoteComponents(t *testing.T) {

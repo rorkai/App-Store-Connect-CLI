@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -615,7 +616,7 @@ func discoverInstallDevice(ctx context.Context, runner installDeviceRunner, devi
 	if !isUsableInstallDevice(*matched) {
 		return installDevice{}, &installDeviceUnavailableError{}
 	}
-	if !containsExactDevice(provisioned, matched.UDID) {
+	if !slices.Contains(provisioned, matched.UDID) {
 		return installDevice{}, &installDeviceProfileMismatchError{}
 	}
 	return *matched, nil
@@ -1157,15 +1158,6 @@ func isUsableInstallDevice(device installDevice) bool {
 		return false
 	}
 	return true
-}
-
-func containsExactDevice(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }
 
 func requiredInstallString(values map[string]json.RawMessage, keys ...string) (string, error) {

@@ -1,4 +1,4 @@
-//go:build !darwin && !windows
+//go:build !windows
 
 package xcode
 
@@ -18,6 +18,9 @@ type xcodeProcessGroupAnchor struct {
 	pid     int
 }
 
+// runXcodeCommandWithProcessGroupCleanup owns a fresh process group whose
+// anchor remains live until post-Wait cleanup completes. The anchor prevents
+// the numeric group ID from being reused after the command leader is reaped.
 func runXcodeCommandWithProcessGroupCleanup(cmd *exec.Cmd) (result error) {
 	anchor, err := startXcodeProcessGroupAnchor()
 	if err != nil {
@@ -77,6 +80,8 @@ func (anchor *xcodeProcessGroupAnchor) Close() error {
 }
 
 func killExactXcodeProcessGroup(pid int) error {
+	// The group ID belongs to the live anchor process. Check it immediately
+	// before signalling so an already-finished group remains benign.
 	if err := syscall.Kill(-pid, 0); errors.Is(err, syscall.ESRCH) {
 		return os.ErrProcessDone
 	} else if err != nil {
@@ -97,5 +102,9 @@ func terminateExactXcodeProcessGroup(pid int) error {
 	if err != nil {
 		return fmt.Errorf("terminate xcodebuild process group: %w", err)
 	}
+	// A successful SIGKILL syscall has synchronously delivered an uncatchable
+	// signal to every current member. Do not poll the numeric PGID afterward:
+	// once the group disappears, that number can be reused by an unrelated
+	// process group before a subsequent probe.
 	return nil
 }

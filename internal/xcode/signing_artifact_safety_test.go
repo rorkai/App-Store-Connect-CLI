@@ -9,6 +9,10 @@ import (
 	"testing"
 )
 
+func validateSigningArtifactAliases(planPath, receiptPath string, inputPaths, protectedPaths []string) error {
+	return validateSigningArtifactAliasesWithAuthorizedProtectedPaths(planPath, receiptPath, inputPaths, protectedPaths, protectedPaths)
+}
+
 func TestBuildSigningPlanRejectsPlanAliasToXCConfig(t *testing.T) {
 	project := writeStructuredVersionProject(t, true)
 	sharedPath := filepath.Join(filepath.Dir(project), "Configs", "Shared.xcconfig")

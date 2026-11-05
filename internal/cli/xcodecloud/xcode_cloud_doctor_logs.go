@@ -35,16 +35,10 @@ type doctorLogBundleAnalysis struct {
 }
 
 func inspectXcodeCloudDoctorLogs(ctx context.Context, client *asc.Client, result *asc.XcodeCloudDoctorResult, options xcodeCloudDoctorOptions) error {
-	failedActions := make(map[string]struct{})
-	for _, action := range result.Actions {
-		if isFailedDoctorAction(action.CompletionStatus) {
-			failedActions[action.ID] = struct{}{}
-		}
-	}
-
+	failedActions := doctorFailedActionIDs(result)
 	inspectAll := strings.TrimSpace(options.SaveLogs) != ""
 	var saveRoot rootfs.Root
-	if strings.TrimSpace(options.SaveLogs) != "" {
+	if inspectAll {
 		var err error
 		saveRoot, err = rootfs.New(options.SaveLogs)
 		if err != nil {
@@ -70,7 +64,7 @@ func inspectXcodeCloudDoctorLogs(ctx context.Context, client *asc.Client, result
 				bundleResult asc.XcodeCloudDoctorLogBundle
 				inspectErr   error
 			)
-			if strings.TrimSpace(options.SaveLogs) != "" {
+			if inspectAll {
 				name := doctorSavedLogBundleName(artifact)
 				bundleResult, inspectErr = downloadSaveAndAnalyzeDoctorLogBundle(ctx, client, action.ID, artifact, saveRoot, options.SaveLogs, name)
 			} else {
@@ -141,16 +135,7 @@ func downloadAndAnalyzeDoctorLogBundle(ctx context.Context, client *asc.Client, 
 	if len(data) > maxDoctorLogBundleBytes {
 		return result, fmt.Errorf("download exceeds the %d-byte inspection limit", maxDoctorLogBundleBytes)
 	}
-
-	analysis, err := analyzeDoctorLogBundle(data)
-	if err != nil {
-		return result, err
-	}
-	result.Inspected = true
-	result.ExportStatus = analysis.ExportStatus
-	result.Diagnostics = analysis.Diagnostics
-	result.DiagnosticsTruncated = analysis.DiagnosticsTruncated
-	return result, nil
+	return analyzeDoctorLogBundleInto(result, data)
 }
 
 func downloadSaveAndAnalyzeDoctorLogBundle(
@@ -191,6 +176,10 @@ func saveAndAnalyzeDoctorLogBundle(
 	if err != nil {
 		return result, fmt.Errorf("read saved log bundle: %w", err)
 	}
+	return analyzeDoctorLogBundleInto(result, data)
+}
+
+func analyzeDoctorLogBundleInto(result asc.XcodeCloudDoctorLogBundle, data []byte) (asc.XcodeCloudDoctorLogBundle, error) {
 	analysis, err := analyzeDoctorLogBundle(data)
 	if err != nil {
 		return result, err

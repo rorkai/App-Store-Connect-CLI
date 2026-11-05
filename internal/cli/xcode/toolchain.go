@@ -64,7 +64,7 @@ Examples:
 				LogWriter:    os.Stderr,
 			})
 			if report != nil {
-				if outputErr := printToolchainReport(report, *output.Output, *output.Pretty); outputErr != nil {
+				if outputErr := shared.PrintOutput(toolchainReportOutput(report), *output.Output, *output.Pretty); outputErr != nil {
 					if doctorErr != nil {
 						return shared.NewErrorWithCause(outputErr, doctorErr)
 					}
@@ -102,14 +102,7 @@ func toolchainUsageError(message, parameter string) error {
 	)
 }
 
-func printToolchainReport(report *localxcode.ToolchainReport, output string, pretty bool) error {
-	return shared.PrintOutput(toolchainReportOutput(report), output, pretty)
-}
-
 func toolchainReportOutput(report *localxcode.ToolchainReport) *asc.XcodeToolchainDoctorResult {
-	if report == nil {
-		return nil
-	}
 	checks := make([]asc.XcodeToolchainDoctorCheck, 0, len(report.Checks))
 	for _, check := range report.Checks {
 		checks = append(checks, asc.XcodeToolchainDoctorCheck{

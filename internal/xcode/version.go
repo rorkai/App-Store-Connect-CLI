@@ -191,11 +191,6 @@ func resolvedProjectDir(projectDir string) string {
 	return projectDir
 }
 
-// GetVersion reads the current marketing version and build number.
-func GetVersion(ctx context.Context, projectDir, target string) (*VersionInfo, error) {
-	return GetVersionScoped(ctx, GetVersionOptions{ProjectDir: projectDir, Target: target})
-}
-
 func getVersionLegacy(
 	ctx context.Context,
 	projectDir string,

@@ -31,7 +31,7 @@ func TestStapleRunsResolutionThenStapleThenValidation(t *testing.T) {
 	t.Setenv("ASC_STAPLER_VALIDATE_STDERR", "validate stderr\n")
 
 	var diagnostics bytes.Buffer
-	result, err := Staple(context.Background(), target, &diagnostics)
+	result, err := StapleWithVerifier(context.Background(), target, &diagnostics, nil)
 	if err != nil {
 		t.Fatalf("Staple() error = %v", err)
 	}
@@ -360,7 +360,7 @@ func TestStaplerPreservesStartFailureWhenContextCancelsDuringFormatting(t *testi
 	// The start failure is followed by a cancellation observed while formatting
 	// that failure.
 	ctx := newStaplerCancelAfterContextChecks(1)
-	result, err := Staple(ctx, target, nil)
+	result, err := StapleWithVerifier(ctx, target, nil, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil after child start failure", result)
 	}
@@ -480,7 +480,7 @@ func TestValidateStapleRunsOnlyValidationAfterResolution(t *testing.T) {
 	logPath := filepath.Join(t.TempDir(), "commands.log")
 	configureStaplerTestEnvironment(t, logPath)
 
-	result, err := ValidateStaple(context.Background(), target, ioDiscardForStaplerTest{})
+	result, err := ValidateWithVerifier(context.Background(), target, ioDiscardForStaplerTest{}, nil)
 	if err != nil {
 		t.Fatalf("ValidateStaple() error = %v", err)
 	}
@@ -830,7 +830,7 @@ func TestStapleStopsBeforeValidationWhenStapleFails(t *testing.T) {
 	t.Setenv("ASC_STAPLER_STAPLE_STDERR", "not a supported artifact\n")
 
 	var diagnostics bytes.Buffer
-	result, err := Staple(context.Background(), target, &diagnostics)
+	result, err := StapleWithVerifier(context.Background(), target, &diagnostics, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil on staple failure", result)
 	}
@@ -903,7 +903,7 @@ func TestStaplePreservesChildExitWhenContextCancelsAfterWait(t *testing.T) {
 	afterStaplerCommandWaitFn = cancel
 	t.Cleanup(func() { afterStaplerCommandWaitFn = previousWaitHook })
 
-	result, err := Staple(ctx, target, nil)
+	result, err := StapleWithVerifier(ctx, target, nil, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil after canceled failed child", result)
 	}
@@ -941,7 +941,7 @@ func TestStaplePreservesSignaledChildWhenContextCancelsAfterWait(t *testing.T) {
 	afterStaplerCommandWaitFn = cancel
 	t.Cleanup(func() { afterStaplerCommandWaitFn = previousWaitHook })
 
-	result, err := Staple(ctx, target, nil)
+	result, err := StapleWithVerifier(ctx, target, nil, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil after signaled child", result)
 	}
@@ -986,7 +986,7 @@ func TestValidatePreservesSignaledChildWhenContextCancelsAfterWait(t *testing.T)
 	afterStaplerCommandWaitFn = cancel
 	t.Cleanup(func() { afterStaplerCommandWaitFn = previousWaitHook })
 
-	result, err := ValidateStaple(ctx, target, nil)
+	result, err := ValidateWithVerifier(ctx, target, nil, nil)
 	if result != nil {
 		t.Fatalf("ValidateStaple() result = %#v, want nil after signaled child", result)
 	}
@@ -1028,7 +1028,7 @@ func TestValidateClassifiesContextKilledChildAsCancellation(t *testing.T) {
 		err    error
 	}, 1)
 	go func() {
-		result, err := ValidateStaple(ctx, target, nil)
+		result, err := ValidateWithVerifier(ctx, target, nil, nil)
 		done <- struct {
 			result *StaplerResult
 			err    error
@@ -1092,7 +1092,7 @@ func TestStaplePreservesChildExitWhenContextCancelsAfterStartBeforeWait(t *testi
 	}
 	t.Cleanup(func() { afterStaplerCommandStartFn = previousStartHook })
 
-	result, err := Staple(ctx, target, nil)
+	result, err := StapleWithVerifier(ctx, target, nil, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil after canceled failed child", result)
 	}
@@ -1157,7 +1157,7 @@ func TestValidatePreservesChildExitWhenContextCancelSucceedsBeforeWait(t *testin
 	}
 	t.Cleanup(func() { afterStaplerCommandStartFn = previousStartHook })
 
-	result, err := ValidateStaple(ctx, target, nil)
+	result, err := ValidateWithVerifier(ctx, target, nil, nil)
 	if result != nil {
 		t.Fatalf("ValidateStaple() result = %#v, want nil after canceled failed child", result)
 	}
@@ -1188,7 +1188,7 @@ func TestStapleReturnsValidationFailureAfterMutation(t *testing.T) {
 	t.Setenv("ASC_STAPLER_VALIDATE_STDERR", "ticket mismatch\n")
 
 	var diagnostics bytes.Buffer
-	result, err := Staple(context.Background(), target, &diagnostics)
+	result, err := StapleWithVerifier(context.Background(), target, &diagnostics, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil when follow-up validation fails", result)
 	}
@@ -1224,7 +1224,7 @@ func TestStaplerRejectsUnsupportedPlatformBeforeToolLookup(t *testing.T) {
 	}
 	t.Cleanup(func() { lookPathFn = previousLookPath })
 
-	result, err := Staple(context.Background(), "/tmp/MyApp.dmg", nil)
+	result, err := StapleWithVerifier(context.Background(), "/tmp/MyApp.dmg", nil, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil", result)
 	}
@@ -1247,7 +1247,7 @@ func TestStaplerReportsMissingXcrunWithoutStartingChild(t *testing.T) {
 	}
 	t.Cleanup(func() { commandContextFn = previousCommandContext })
 
-	_, err := Staple(context.Background(), "/tmp/MyApp.dmg", nil)
+	_, err := StapleWithVerifier(context.Background(), "/tmp/MyApp.dmg", nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "xcrun not available") {
 		t.Fatalf("Staple() error = %v, want missing-xcrun failure", err)
 	}
@@ -1263,7 +1263,7 @@ func TestStaplerRedactsNonNotFoundXcrunLookupFailure(t *testing.T) {
 	trustedXcrunPathFn = func() (string, error) { return "", wantErr }
 	t.Cleanup(func() { trustedXcrunPathFn = previousTrustedXcrunPath })
 
-	result, err := Staple(context.Background(), "/tmp/MyApp.dmg", nil)
+	result, err := StapleWithVerifier(context.Background(), "/tmp/MyApp.dmg", nil, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil", result)
 	}
@@ -1288,7 +1288,7 @@ func TestStaplerPreservesResolutionExitStatus(t *testing.T) {
 	configureStaplerTestEnvironment(t, logPath)
 	t.Setenv("ASC_STAPLER_FIND_EXIT_CODE", "64")
 
-	_, err := Staple(context.Background(), target, nil)
+	_, err := StapleWithVerifier(context.Background(), target, nil, nil)
 	var commandErr *StaplerCommandError
 	if !errors.As(err, &commandErr) {
 		t.Fatalf("Staple() error = %T %v, want StaplerCommandError", err, err)
@@ -1310,7 +1310,7 @@ func TestStaplerDoesNotStreamResolverDiagnosticsToLogWriter(t *testing.T) {
 	t.Setenv("ASC_STAPLER_FIND_STDERR", "/private/tmp/"+canary+"/developer-dir\n")
 
 	var diagnostics bytes.Buffer
-	_, err := Staple(context.Background(), target, &diagnostics)
+	_, err := StapleWithVerifier(context.Background(), target, &diagnostics, nil)
 	var commandErr *StaplerCommandError
 	if !errors.As(err, &commandErr) {
 		t.Fatalf("Staple() error = %T %v, want resolver command error", err, err)
@@ -1335,7 +1335,7 @@ func TestStaplerPreservesResolutionExitStatusWhenContextCancelsAfterLookup(t *te
 	afterStaplerResolutionFn = cancel
 	t.Cleanup(func() { afterStaplerResolutionFn = previousHook })
 
-	_, err := Staple(ctx, target, nil)
+	_, err := StapleWithVerifier(ctx, target, nil, nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Staple() error = %v, want context cancellation", err)
 	}
@@ -1402,7 +1402,7 @@ func TestStaplerPreservesResolutionExitStatusWhenCancellationCleanupWinsRace(t *
 	}
 	t.Cleanup(func() { beforeStaplerResolutionRunFn = previousHook })
 
-	_, err = Staple(ctx, "/tmp/MyApp.dmg", nil)
+	_, err = StapleWithVerifier(ctx, "/tmp/MyApp.dmg", nil, nil)
 	if err == nil {
 		t.Fatal("Staple() error = nil, want resolver failure")
 	}
@@ -1440,7 +1440,7 @@ func TestStaplerClassifiesContextKilledResolverAsCancellation(t *testing.T) {
 	}
 	done := make(chan outcome, 1)
 	go func() {
-		result, err := Staple(ctx, target, nil)
+		result, err := StapleWithVerifier(ctx, target, nil, nil)
 		done <- outcome{result: result, err: err}
 	}()
 
@@ -1498,7 +1498,7 @@ func TestStaplerPreservesSignaledResolutionWhenContextCancelsAfterLookup(t *test
 	afterStaplerResolutionFn = cancel
 	t.Cleanup(func() { afterStaplerResolutionFn = previousHook })
 
-	_, err := Staple(ctx, target, nil)
+	_, err := StapleWithVerifier(ctx, target, nil, nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Staple() error = %v, want context cancellation", err)
 	}
@@ -1533,7 +1533,7 @@ func TestStaplerPreservesResolutionStartFailureWhenContextCancelsAfterLookup(t *
 	afterStaplerResolutionFn = cancel
 	t.Cleanup(func() { afterStaplerResolutionFn = previousHook })
 
-	_, err := Staple(ctx, target, nil)
+	_, err := StapleWithVerifier(ctx, target, nil, nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Staple() error = %v, want context cancellation", err)
 	}
@@ -1560,7 +1560,7 @@ func TestStaplerPropagatesCancellationWithoutSuccess(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
 	defer cancel()
-	result, err := Staple(ctx, target, nil)
+	result, err := StapleWithVerifier(ctx, target, nil, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil after cancellation", result)
 	}
@@ -1819,7 +1819,7 @@ func TestStapleDiagnosticWriterFailurePreservesPartialMutation(t *testing.T) {
 	t.Setenv("ASC_STAPLER_STAPLE_STDOUT", "staple diagnostic\n")
 	writerErr := errors.New("diagnostic sink unavailable")
 
-	result, err := Staple(context.Background(), target, staplerDiagnosticFailureWriter{err: writerErr})
+	result, err := StapleWithVerifier(context.Background(), target, staplerDiagnosticFailureWriter{err: writerErr}, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil after diagnostic writer failure", result)
 	}
@@ -1855,7 +1855,7 @@ func TestStapleDiagnosticWriterFailurePreservesLateCancellationCause(t *testing.
 	afterStaplerCommandWaitFn = cancel
 	t.Cleanup(func() { afterStaplerCommandWaitFn = previousHook })
 
-	result, err := Staple(ctx, target, staplerDiagnosticFailureWriter{err: writerErr})
+	result, err := StapleWithVerifier(ctx, target, staplerDiagnosticFailureWriter{err: writerErr}, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil after diagnostic writer failure", result)
 	}
@@ -1886,7 +1886,7 @@ func TestValidateStapleDiagnosticWriterFailurePreservesLateCancellationCause(t *
 	afterStaplerCommandWaitFn = cancel
 	t.Cleanup(func() { afterStaplerCommandWaitFn = previousHook })
 
-	result, err := ValidateStaple(ctx, target, staplerDiagnosticFailureWriter{err: writerErr})
+	result, err := ValidateWithVerifier(ctx, target, staplerDiagnosticFailureWriter{err: writerErr}, nil)
 	if result != nil {
 		t.Fatalf("ValidateStaple() result = %#v, want nil after diagnostic writer failure", result)
 	}
@@ -2278,7 +2278,7 @@ func TestStapleMarksDiagnosticCopyFailureAfterSuccessfulChild(t *testing.T) {
 	configureStaplerTestEnvironment(t, logPath)
 	t.Setenv("ASC_STAPLER_STAPLE_STDERR", "stapler progress\n")
 
-	result, err := Staple(context.Background(), target, failingStaplerDiagnosticWriter{})
+	result, err := StapleWithVerifier(context.Background(), target, failingStaplerDiagnosticWriter{}, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil after diagnostic copy failure", result)
 	}
@@ -2312,7 +2312,7 @@ func TestStapleKeepsValidationDiagnosticCopyFailureOutOfPartialMutation(t *testi
 	// without touching the failing diagnostic writer.
 	t.Setenv("ASC_STAPLER_VALIDATE_STDERR", "validation detail\n")
 
-	result, err := Staple(context.Background(), target, failingStaplerDiagnosticWriter{})
+	result, err := StapleWithVerifier(context.Background(), target, failingStaplerDiagnosticWriter{}, nil)
 	if result != nil {
 		t.Fatalf("Staple() result = %#v, want nil after diagnostic copy failure", result)
 	}

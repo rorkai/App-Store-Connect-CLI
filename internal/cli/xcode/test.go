@@ -125,7 +125,7 @@ Examples:
 
 			result, testErr := runTest(ctx, opts)
 			if result != nil {
-				if outputErr := printTestResult(result, *output.Output, *output.Pretty); outputErr != nil {
+				if outputErr := shared.PrintOutput(toXcodeTestResult(result), *output.Output, *output.Pretty); outputErr != nil {
 					if testErr != nil {
 						return shared.NewErrorWithCause(outputErr, testErr)
 					}
@@ -139,7 +139,7 @@ Examples:
 				if result == nil {
 					return xcodeCommandError("xcode test", testErr)
 				}
-				reportTestFailure(result, testErr)
+				reportXcodeFailure("xcode test", result.ExitStatus, testErr)
 				return shared.NewStderrReportedError(classifyXcodeLocalFailure(fmt.Errorf("xcode test: %w", testErr)))
 			}
 			if result == nil {
@@ -150,38 +150,7 @@ Examples:
 	}
 }
 
-func reportTestFailure(result *localxcode.TestResult, testErr error) {
-	message := "xcode test failed"
-	if result.ExitStatus != nil {
-		message = fmt.Sprintf("%s with exit status %d", message, *result.ExitStatus)
-	} else {
-		message = fmt.Sprintf("%s: %v", message, testInterruptionReason(testErr))
-	}
-	fmt.Fprintf(os.Stderr, "Error: %s\n", message)
-}
-
-func testInterruptionReason(err error) error {
-	if errors.Is(err, context.DeadlineExceeded) {
-		return context.DeadlineExceeded
-	}
-	if errors.Is(err, context.Canceled) {
-		return context.Canceled
-	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) && exitErr.ExitCode() < 0 {
-		return exitErr
-	}
-	return err
-}
-
-func printTestResult(result *localxcode.TestResult, output string, pretty bool) error {
-	return shared.PrintOutput(toXcodeTestResult(result), output, pretty)
-}
-
 func toXcodeTestResult(result *localxcode.TestResult) *asc.XcodeTestResult {
-	if result == nil {
-		return nil
-	}
 	output := &asc.XcodeTestResult{
 		Workspace:        result.WorkspacePath,
 		Project:          result.ProjectPath,
@@ -239,14 +208,7 @@ const maxJUnitFailureMessage = 4096
 
 func testResultJUnitReport(result *localxcode.TestResult, commandErr error) *shared.JUnitReport {
 	report := &shared.JUnitReport{Timestamp: time.Now(), Name: "asc xcode test"}
-	if result == nil {
-		return report
-	}
-
-	var summary *localxcode.TestSummary
-	if result.Tests != nil {
-		summary = result.Tests
-	}
+	summary := result.Tests
 	tests := make([]shared.JUnitTestCase, 0)
 	if summary != nil {
 		capacity := len(summary.Cases)
@@ -348,7 +310,7 @@ func junitStatusCounts(tests []shared.JUnitTestCase) (passed, failed, skipped in
 }
 
 func shouldAddJUnitInfrastructureFailure(result *localxcode.TestResult, summary *localxcode.TestSummary, tests []shared.JUnitTestCase, commandErr error) bool {
-	if result == nil || result.Success {
+	if result.Success {
 		return false
 	}
 	if summary == nil {

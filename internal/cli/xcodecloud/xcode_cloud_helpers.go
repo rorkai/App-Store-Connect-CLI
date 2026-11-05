@@ -3,6 +3,7 @@ package xcodecloud
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"time"
 
@@ -111,4 +112,15 @@ func contextWithXcodeCloudTimeout(ctx context.Context, timeout time.Duration) (c
 
 func getCiBuildRun(ctx context.Context, client *asc.Client, buildRunID string, opts ...asc.CiBuildRunGetOption) (*asc.CiBuildRunResponse, error) {
 	return client.GetCiBuildRun(ctx, buildRunID, opts...)
+}
+
+// flagProvided reports whether a flag was set explicitly on the command line.
+func flagProvided(fs *flag.FlagSet, name string) bool {
+	provided := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			provided = true
+		}
+	})
+	return provided
 }

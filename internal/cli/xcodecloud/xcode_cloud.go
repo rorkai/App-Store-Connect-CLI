@@ -330,7 +330,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("xcode-cloud run: diagnose build: %w", err)
 				}
-				return printXcodeCloudDoctorResult(doctorResult, *output.Output, *output.Pretty)
+				return shared.PrintOutput(doctorResult, *output.Output, *output.Pretty)
 			}
 
 			// Wait for completion

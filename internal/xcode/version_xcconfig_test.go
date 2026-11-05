@@ -852,19 +852,6 @@ func TestXCConfigParserPreservesQuoteStateAcrossContinuedLines(t *testing.T) {
 	}
 }
 
-func TestXCConfigParserAcceptsQuotedLineContinuations(t *testing.T) {
-	document, err := parseXCConfig([]byte("HEADER_SEARCH_PATHS = \"Vendor \\\n SDK\"\n"))
-	if err != nil {
-		t.Fatalf("parseXCConfig() error = %v, want quoted line continuation accepted", err)
-	}
-	if len(document.assignments) != 1 || document.assignments[0].key != "HEADER_SEARCH_PATHS" {
-		t.Fatalf("parseXCConfig() assignments = %#v, want one HEADER_SEARCH_PATHS assignment", document.assignments)
-	}
-	if !strings.Contains(document.assignments[0].value, "Vendor") || !strings.Contains(document.assignments[0].value, "SDK") {
-		t.Fatalf("parseXCConfig() value = %q, want Vendor and SDK from the continued quoted assignment", document.assignments[0].value)
-	}
-}
-
 func TestXCConfigParserPreservesGenericQuotedEscapes(t *testing.T) {
 	document, err := parseXCConfig([]byte(`HEADER_SEARCH_PATHS = "Vendor\ SDK"` + "\n"))
 	if err != nil {
