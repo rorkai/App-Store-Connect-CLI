@@ -87,57 +87,53 @@ func TestClientDo_BuildUploadsNotFoundRetryIsBoundedAndSurfacesAppleDetail(t *te
 	}
 }
 
-func TestClientDo_DoesNotRetryNotFoundOutsideBuildUploads(t *testing.T) {
+func TestClientDo_DoesNotRetryOtherNotFoundResponses(t *testing.T) {
 	setFastRetryEnv(t, "3")
 
-	for _, path := range []string{
-		"/v1/apps/6759231657/builds",
-		"/v1/apps/6759231657",
-		"/v1/builds/b-1",
-		"/v1/buildUploadsArchive/x",
-		"/v1/apps/6759231657/buildUploads/extra",
-	} {
-		t.Run(path, func(t *testing.T) {
-			var attempts atomic.Int32
-			server := newBuildUploadsNotFoundServer(t, 4, &attempts)
-			client := newMutationRetryTestClient(t, server.Client())
-
-			_, err := client.do(context.Background(), http.MethodGet, server.URL+path, nil)
-			if err == nil {
-				t.Fatal("expected 404 error")
-			}
-			if got := attempts.Load(); got != 1 {
-				t.Fatalf("expected a single attempt for a non-buildUploads 404, got %d", got)
-			}
-			if IsRetryable(err) {
-				t.Fatalf("expected a plain terminal error, got retryable %v", err)
-			}
-			if !IsNotFound(err) {
-				t.Fatalf("expected not-found error, got %v", err)
-			}
-		})
+	notFound := func(code, detail string) string {
+		return `{"errors":[{"status":"404","code":"` + code + `","title":"The specified resource does not exist","detail":"` + detail + `"}]}`
 	}
-}
-
-func TestClientDo_DoesNotRetryNotFoundOnBuildUploadsWrites(t *testing.T) {
-	setFastRetryEnv(t, "3")
-
-	for _, tc := range []struct {
+	const appDetail = "There is no resource of type 'apps' with id '6759231657'"
+	tests := []struct {
+		name   string
 		method string
 		path   string
+		body   string
 	}{
-		{http.MethodPost, "/v1/buildUploads"},
-		{http.MethodPost, "/v1/buildUploadFiles"},
-		{http.MethodPatch, "/v1/buildUploadFiles/f-1"},
-		{http.MethodDelete, "/v1/buildUploads/bu-1"},
-	} {
-		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+		{"app builds", http.MethodGet, "/v1/apps/6759231657/builds", buildUploadsFlakyNotFoundBody},
+		{"app", http.MethodGet, "/v1/apps/6759231657", buildUploadsFlakyNotFoundBody},
+		{"build", http.MethodGet, "/v1/builds/b-1", buildUploadsFlakyNotFoundBody},
+		{"lookalike collection", http.MethodGet, "/v1/buildUploadsArchive/x", buildUploadsFlakyNotFoundBody},
+		{"app build uploads subpath", http.MethodGet, "/v1/apps/6759231657/buildUploads/extra", buildUploadsFlakyNotFoundBody},
+		{"create upload", http.MethodPost, "/v1/buildUploads", buildUploadsFlakyNotFoundBody},
+		{"create upload file", http.MethodPost, "/v1/buildUploadFiles", buildUploadsFlakyNotFoundBody},
+		{"update upload file", http.MethodPatch, "/v1/buildUploadFiles/f-1", buildUploadsFlakyNotFoundBody},
+		{"delete upload", http.MethodDelete, "/v1/buildUploads/bu-1", buildUploadsFlakyNotFoundBody},
+		{"non-NOT_FOUND code", http.MethodGet, "/v1/buildUploads/bu-1", notFound("PATH_ERROR", appDetail)},
+		// A genuinely missing upload or file id names that resource, not the app.
+		{"missing upload", http.MethodGet, "/v1/buildUploads/bu-missing", notFound("NOT_FOUND", "There is no resource of type 'buildUploads' with id 'bu-missing'")},
+		{"missing upload files parent", http.MethodGet, "/v1/buildUploads/bu-missing/buildUploadFiles", notFound("NOT_FOUND", "There is no resource of type 'buildUploads' with id 'bu-missing'")},
+		{"missing upload file", http.MethodGet, "/v1/buildUploadFiles/f-missing", notFound("NOT_FOUND", "There is no resource of type 'buildUploadFiles' with id 'f-missing'")},
+		{"missing upload without detail", http.MethodGet, "/v1/buildUploads/bu-missing", notFound("NOT_FOUND", "")},
+		{"app uploads without detail", http.MethodGet, "/v1/apps/6759231657/buildUploads", notFound("NOT_FOUND", "")},
+		{"app uploads naming app", http.MethodGet, "/v1/apps/6759231657/buildUploads", notFound("NOT_FOUND", appDetail)},
+		{"app upload linkages without detail", http.MethodGet, "/v1/apps/6759231657/relationships/buildUploads", notFound("NOT_FOUND", "")},
+		{"app upload linkages naming app", http.MethodGet, "/v1/apps/6759231657/relationships/buildUploads", notFound("NOT_FOUND", appDetail)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			var attempts atomic.Int32
-			server := newBuildUploadsNotFoundServer(t, 4, &attempts)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				attempts.Add(1)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = io.WriteString(w, tc.body)
+			}))
+			t.Cleanup(server.Close)
 			client := newMutationRetryTestClient(t, server.Client())
 
 			var body io.Reader
-			if tc.method != http.MethodDelete {
+			if tc.method == http.MethodPost || tc.method == http.MethodPatch {
 				body = strings.NewReader(`{"data":{"type":"buildUploads"}}`)
 			}
 			_, err := client.do(context.Background(), tc.method, server.URL+tc.path, body)
@@ -145,120 +141,10 @@ func TestClientDo_DoesNotRetryNotFoundOnBuildUploadsWrites(t *testing.T) {
 				t.Fatal("expected 404 error")
 			}
 			if got := attempts.Load(); got != 1 {
-				t.Fatalf("expected a single attempt for a write 404, got %d", got)
-			}
-			if IsRetryable(err) {
-				t.Fatalf("expected a plain terminal error for a write, got retryable %v", err)
-			}
-			if !IsNotFound(err) {
-				t.Fatalf("expected not-found error, got %v", err)
-			}
-		})
-	}
-}
-
-func TestClientDo_DoesNotRetryBuildUploadsNotFoundWithOtherCode(t *testing.T) {
-	setFastRetryEnv(t, "3")
-
-	var attempts atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		attempts.Add(1)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = io.WriteString(w, `{"errors":[{"status":"404","code":"PATH_ERROR","title":"Unknown path"}]}`)
-	}))
-	t.Cleanup(server.Close)
-	client := newMutationRetryTestClient(t, server.Client())
-
-	_, err := client.do(context.Background(), http.MethodGet, server.URL+"/v1/apps/6759231657/buildUploads", nil)
-	if err == nil {
-		t.Fatal("expected 404 error")
-	}
-	if got := attempts.Load(); got != 1 {
-		t.Fatalf("expected a single attempt for a non-NOT_FOUND 404, got %d", got)
-	}
-	if IsRetryable(err) {
-		t.Fatalf("expected a plain terminal error, got retryable %v", err)
-	}
-}
-
-// A genuinely missing upload or file id is a terminal 404, not the flake:
-// the detail names the buildUploads/buildUploadFiles resource, not the app.
-func TestClientDo_DoesNotRetryGenuinelyMissingBuildUploadResources(t *testing.T) {
-	setFastRetryEnv(t, "3")
-
-	for _, tc := range []struct {
-		path   string
-		detail string
-	}{
-		{"/v1/buildUploads/bu-missing", "There is no resource of type 'buildUploads' with id 'bu-missing'"},
-		{"/v1/buildUploads/bu-missing/buildUploadFiles", "There is no resource of type 'buildUploads' with id 'bu-missing'"},
-		{"/v1/buildUploadFiles/f-missing", "There is no resource of type 'buildUploadFiles' with id 'f-missing'"},
-		{"/v1/buildUploads/bu-missing", ""},
-	} {
-		t.Run(tc.path+"|"+tc.detail, func(t *testing.T) {
-			var attempts atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				attempts.Add(1)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusNotFound)
-				_, _ = io.WriteString(w, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+tc.detail+`"}]}`)
-			}))
-			t.Cleanup(server.Close)
-			client := newMutationRetryTestClient(t, server.Client())
-
-			_, err := client.do(context.Background(), http.MethodGet, server.URL+tc.path, nil)
-			if err == nil {
-				t.Fatal("expected 404 error")
-			}
-			if got := attempts.Load(); got != 1 {
-				t.Fatalf("expected a single attempt for a genuinely missing resource, got %d", got)
-			}
-			if IsRetryable(err) {
-				t.Fatalf("expected a plain terminal error, got retryable %v", err)
-			}
-			if !IsNotFound(err) {
-				t.Fatalf("expected not-found error, got %v", err)
-			}
-			if IsRetryBudgetExhausted(err) {
-				t.Fatalf("expected no retry-budget marker, got %v", err)
-			}
-		})
-	}
-}
-
-func TestClientDo_DoesNotRetryAppBuildUploadsNotFound(t *testing.T) {
-	setFastRetryEnv(t, "3")
-
-	for _, tc := range []struct {
-		path   string
-		detail string
-	}{
-		{path: "/v1/apps/6759231657/buildUploads"},
-		{path: "/v1/apps/6759231657/buildUploads", detail: "There is no resource of type 'apps' with id '6759231657'"},
-		{path: "/v1/apps/6759231657/relationships/buildUploads"},
-		{path: "/v1/apps/6759231657/relationships/buildUploads", detail: "There is no resource of type 'apps' with id '6759231657'"},
-	} {
-		t.Run(tc.path+"|"+tc.detail, func(t *testing.T) {
-			var attempts atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				attempts.Add(1)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusNotFound)
-				_, _ = io.WriteString(w, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+tc.detail+`"}]}`)
-			}))
-			t.Cleanup(server.Close)
-			client := newMutationRetryTestClient(t, server.Client())
-
-			_, err := client.do(context.Background(), http.MethodGet, server.URL+tc.path, nil)
-			if err == nil {
-				t.Fatal("expected 404 error")
-			}
-			if got := attempts.Load(); got != 1 {
-				t.Fatalf("expected a single attempt for an app-scoped 404, got %d", got)
+				t.Fatalf("attempts = %d, want 1", got)
 			}
 			if IsRetryable(err) || IsRetryBudgetExhausted(err) {
-				t.Fatalf("expected a terminal app-scoped 404, got %v", err)
+				t.Fatalf("expected a terminal 404, got %v", err)
 			}
 			if !IsNotFound(err) {
 				t.Fatalf("expected not-found error, got %v", err)

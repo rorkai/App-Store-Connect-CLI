@@ -3,13 +3,7 @@ package asc
 // UnmarshalJSON keeps the original attribute shape for sparse app responses.
 func (a *AppAttributes) UnmarshalJSON(data []byte) error {
 	type alias AppAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = AppAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 // MarshalJSON preserves absent, null, and unknown API attributes while retaining
