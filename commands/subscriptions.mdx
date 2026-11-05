@@ -1209,6 +1209,8 @@ asc subscriptions offers offer-codes one-time-codes update \
 
 Retention offers are discounts shown with a subscription's retention message when people start to cancel. Each `--price` is a subscription price point ID, one per territory. Creating an offer does not present it; add it to the subscription's presented offers.
 
+Apple rejects `presented add` until a retention message is assigned to the subscription. The target plan type defaults to `UPFRONT`; `--target-subscription-plan-type MONTHLY` only works when the subscription offers the Monthly with 12-Month Commitment plan in that territory. Apple doesn't accept clearing the wait between offers, so set a new value instead.
+
 ```bash  theme={null}
 # Create a retention offer
 asc subscriptions offers retention create \
@@ -1298,6 +1300,12 @@ asc subscriptions retention-messages versions view --id "VERSION_ID"
 ```
 
 To choose messages in real time from your server, use `asc storekit retention-messaging`.
+
+Things Apple enforces that the API schema doesn't show:
+
+- **Images:** a version takes at most one image, in the `DEFAULT_PROFILE` group. Apple's current spec is 3840×2160 (PNG or JPEG) or 5244×2950 (PNG), with no alpha channel. Check it with `asc asset-library specs --placement-type RETENTION_MESSAGE_ASSET --feature RETENTION_MESSAGING`. Image processing can take longer than the default upload wait, so raise `ASC_UPLOAD_TIMEOUT` or check the image with `asc asset-library images view` before placing it.
+- **Review:** Apple accepts a submission containing a retention message version only when the app already has an approved App Store version, or when the submission also includes one.
+- **Assignment:** there is no unassign request; deleting the message clears it. Assign a message before presenting retention offers with it.
 
 ## Promoted Subscriptions
 

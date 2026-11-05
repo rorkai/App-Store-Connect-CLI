@@ -340,6 +340,8 @@ A message holds its content in versions. Create a version, add localized text,
 optionally place an asset library image, assign the message to a subscription,
 then submit the version for review:
   asc review items add --submission "SUBMISSION_ID" --item-type retentionMessageVersions --item-id "VERSION_ID"
+Apple only accepts that submission when the app already has an approved App
+Store version, or when the submission also includes an App Store version.
 
 An app can have at most 10 retention messages, and a subscription has at most
 one. To choose messages in real time from your server, use
@@ -413,7 +415,7 @@ func retentionMessagesDeleteCommand() *ffcli.Command {
 
 func retentionMessagesAssignCommand() *ffcli.Command {
 	return retentionWriteCommand("assign", `--subscription-id "SUB_ID" --message-id "MESSAGE_ID"`,
-		"Assign a retention message to a subscription.\n\nA subscription has at most one retention message; assigning one replaces the current message.",
+		"Assign a retention message to a subscription.\n\nA subscription has at most one retention message; assigning one replaces the current message.\nApple has no unassign request; deleting the message clears the assignment.\nAssign a message before presenting retention offers with it.",
 		[]string{`asc subscriptions retention-messages assign --subscription-id "SUB_ID" --message-id "MESSAGE_ID"`},
 		func(fs *flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error) {
 			subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID")
@@ -487,7 +489,7 @@ func retentionMessageVersionsCommand() *ffcli.Command {
 				},
 			}),
 			retentionWriteCommand("versions placement create", `--version-id "VERSION_ID" --image-id "IMAGE_ID"`,
-				"Place an asset library image on a retention message version.\n\nRetention messages accept images only, with placement type RETENTION_MESSAGE_ASSET\nin the DEFAULT_PROFILE group. This does not submit the version for review.",
+				"Place an asset library image on a retention message version.\n\nRetention messages accept images only, with placement type RETENTION_MESSAGE_ASSET\nin the DEFAULT_PROFILE group, at most one image per version. Apple's current spec\nis 3840x2160 (PNG or JPEG) or 5244x2950 (PNG), no alpha channel; check it with\n  asc asset-library specs --placement-type RETENTION_MESSAGE_ASSET --feature RETENTION_MESSAGING\nUpload the image with \"asc asset-library images upload\" first; Apple can take\nlonger than the default upload wait to process it, so raise ASC_UPLOAD_TIMEOUT\nor check the image state with \"asc asset-library images view\" before placing it.\nThis does not submit the version for review.",
 				[]string{`asc subscriptions retention-messages versions placement create --version-id "VERSION_ID" --image-id "IMAGE_ID"`},
 				func(fs *flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error) {
 					versionID := shared.BindResourceIDFlag(fs, "version-id", "retentionMessageVersions", "Retention message version ID")
