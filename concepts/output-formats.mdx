@@ -191,13 +191,7 @@ The CLI uses `term.IsTerminal()` to check stdout's file descriptor. This works c
 
 ## Format Registry
 
-The CLI uses a type-safe output registry system (`internal/asc/output_registry.go`) that maps response types to rendering functions. This ensures:
-
-* Consistent formatting across all commands
-* Type-safe row extraction
-* Automatic handling of single vs. list responses
-
-Most commands automatically support all three formats without additional code.
+The CLI maps each response type to its table and Markdown renderer in a typed output registry (`internal/asc/output_registry.go`), which also handles single-resource and list responses. Most commands support all three formats without command-specific rendering code.
 
 ## Piping Resource Links Back In
 
