@@ -49,6 +49,9 @@ func subscriptionFieldsList() []string {
 		"images",
 		"planAvailabilities",
 		"versions",
+		"retentionOffers",
+		"retentionMessage",
+		"retentionMessageOffers",
 	}
 }
 
@@ -124,6 +127,16 @@ var subscriptionRelatedFieldFlags = []subscriptionRelatedFieldFlag{
 		[]string{"availableInNewTerritories", "planType", "availableTerritories"},
 		func(f *asc.SubscriptionRelatedFields, v []string) { f.PlanAvailabilities = v },
 	},
+	{
+		"retention-offer-fields", "retentionOffers",
+		[]string{"referenceName", "offerId", "duration", "offerMode", "periodCount", "customerEligibilityPaidSubscriptionDurationInMonths", "customerEligibilityWaitBetweenOffersInMonths", "targetSubscriptionPlanType", "subscription", "prices"},
+		func(f *asc.SubscriptionRelatedFields, v []string) { f.RetentionOffers = v },
+	},
+	{
+		"retention-message-fields", "retentionMessages",
+		[]string{"referenceName", "versions", "subscriptions"},
+		func(f *asc.SubscriptionRelatedFields, v []string) { f.RetentionMessages = v },
+	},
 }
 
 func bindSubscriptionRelatedFieldFlags(fs *flag.FlagSet) map[string]*string {
@@ -189,5 +202,8 @@ func subscriptionIncludeList() []string {
 		"images",
 		"planAvailabilities",
 		"versions",
+		"retentionOffers",
+		"retentionMessage",
+		"retentionMessageOffers",
 	}
 }
