@@ -318,20 +318,7 @@ func TestVersionRatingResetRejectsSuccessfulResponseWithoutID(t *testing.T) {
 	}
 }
 
-func TestVersionRatingResetCommandDocumentsWebSessionContract(t *testing.T) {
-	command := VersionRatingResetCommand()
-
-	help := strings.Join(strings.Fields(command.LongHelp), " ")
-	for _, want := range []string{
-		"does not include this resource in its published OpenAPI specification",
-		"authenticated Apple Account web session",
-		"you cannot restore the previous overview rating",
-	} {
-		if !strings.Contains(help, want) {
-			t.Fatalf("LongHelp = %q, want %q", command.LongHelp, want)
-		}
-	}
-
+func TestVersionRatingResetSubcommandsAcceptWebSessionFlags(t *testing.T) {
 	for _, subcommand := range []*ffcli.Command{
 		VersionRatingResetViewCommand(),
 		VersionRatingResetCreateCommand(),

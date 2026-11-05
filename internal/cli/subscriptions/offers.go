@@ -24,7 +24,8 @@ Examples:
   asc subscriptions offers introductory import --subscription-id "SUB_ID" --input "./offers.csv" --offer-duration ONE_WEEK --offer-mode FREE_TRIAL --number-of-periods 1 --confirm
   asc subscriptions offers promotional create --subscription-id "SUB_ID" --offer-code "SPRING" --name "Spring" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "US"
   asc subscriptions offers offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
-  asc subscriptions offers win-back list --subscription-id "SUB_ID"`,
+  asc subscriptions offers win-back list --subscription-id "SUB_ID"
+  asc subscriptions offers retention list --subscription-id "SUB_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -56,6 +57,7 @@ Examples:
 				"win-back",
 				"Manage subscription win-back offers.",
 			),
+			SubscriptionsRetentionOffersCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

@@ -6,8 +6,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -110,6 +112,88 @@ func TestPublicDialControlRejectsPrivateAddresses(t *testing.T) {
 	if err := PublicDialControl(context.Background(), "tcp4", "8.8.8.8:443", nil); err != nil {
 		t.Fatalf("PublicDialControl() public error = %v", err)
 	}
+}
+
+func TestIsPublicIP(t *testing.T) {
+	tests := map[string]bool{
+		"8.8.8.8":              true,
+		"2606:4700::1111":      true,
+		"0.0.0.0":              false,
+		"10.0.0.1":             false,
+		"100.64.0.1":           false,
+		"127.0.0.1":            false,
+		"169.254.1.1":          false,
+		"192.0.0.9":            true,
+		"192.0.0.10":           true,
+		"192.0.2.1":            false,
+		"192.88.99.1":          false,
+		"192.88.99.2":          false,
+		"198.18.0.1":           false,
+		"203.0.113.1":          false,
+		"224.0.0.1":            false,
+		"255.255.255.255":      false,
+		"::1":                  false,
+		"fc00::1":              false,
+		"fe80::1":              false,
+		"::ffff:0:192.168.1.1": false,
+		"64:ff9b::a9fe:a9fe":   false,
+		"100:0:0:1::1":         false,
+		"2001::1":              false,
+		"2001:1::1":            true,
+		"2001:2::1":            false,
+		"2001:3::1":            true,
+		"2001:4:112::1":        true,
+		"2001:20::1":           true,
+		"2001:30::1":           true,
+		"2001:100::1":          false,
+		"2002:a9fe:a9fe::1":    false,
+		"2001:db8::1":          false,
+		"3ffe::1":              false,
+		"3fff::1":              false,
+		"5f00::1":              false,
+		"5f01::1":              false,
+		"fec0::1":              false,
+	}
+	for rawIP, want := range tests {
+		t.Run(rawIP, func(t *testing.T) {
+			address := netip.MustParseAddr(rawIP)
+			if got := IsPublicIP(address); got != want {
+				t.Fatalf("IsPublicIP(%s) = %t, want %t", rawIP, got, want)
+			}
+		})
+	}
+}
+
+func TestCheckWithClientUsesOrdinaryGET(t *testing.T) {
+	var request *http.Request
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		request = req
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("ignored body")),
+			Request:    req,
+		}, nil
+	})}
+
+	result, err := CheckWithClient(context.Background(), client, "https://example.com/support")
+	if err != nil {
+		t.Fatalf("CheckWithClient() error: %v", err)
+	}
+	if request == nil || request.Method != http.MethodGet {
+		t.Fatalf("expected GET request, got %+v", request)
+	}
+	if request.Header.Get("Range") != "" {
+		t.Fatalf("expected an ordinary GET without a Range header, got %q", request.Header.Get("Range"))
+	}
+	if result.StatusCode != http.StatusOK || result.FinalURL.String() != "https://example.com/support" {
+		t.Fatalf("unexpected check result: %+v", result)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
 
 func TestCheckWithClientRejectsInitialUserinfoBeforeRoundTrip(t *testing.T) {

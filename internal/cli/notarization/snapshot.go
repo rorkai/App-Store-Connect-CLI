@@ -23,9 +23,6 @@ var (
 // Subsequent changes to the source path or inode cannot change the bytes used
 // for the submission hash or S3 upload.
 func snapshotNotarizationArtifact(ctx context.Context, source *os.File, size int64) (*os.File, int64, string, func(), error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if err := ctx.Err(); err != nil {
 		return nil, 0, "", nil, err
 	}
@@ -176,9 +173,6 @@ func snapshotNotarizationArtifact(ctx context.Context, source *os.File, size int
 }
 
 func copySnapshotWithContext(ctx context.Context, destination io.Writer, source io.Reader, hook func()) (int64, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	buffer := make([]byte, 64<<10)
 	var written int64
 	for {

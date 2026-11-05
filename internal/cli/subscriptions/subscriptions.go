@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -130,7 +131,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
@@ -299,7 +300,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*groupID)
@@ -493,7 +494,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
@@ -779,7 +780,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*subID)
@@ -1185,15 +1186,15 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if containsString(selectedPriceFields, "territory") || len(selectedTerritoryFields) != 0 {
+			if slices.Contains(selectedPriceFields, "territory") || len(selectedTerritoryFields) != 0 {
 				selectedIncludes = appendIncludeForFields(selectedIncludes, []string{"territory"}, "territory")
 			}
-			if containsString(selectedPriceFields, "subscriptionPricePoint") || len(selectedPricePointFields) != 0 {
+			if slices.Contains(selectedPriceFields, "subscriptionPricePoint") || len(selectedPricePointFields) != 0 {
 				selectedIncludes = appendIncludeForFields(selectedIncludes, []string{"subscriptionPricePoint"}, "subscriptionPricePoint")
 			}
 			if len(selectedPriceFields) > 0 {
 				for _, relationship := range selectedIncludes {
-					if !containsString(selectedPriceFields, relationship) {
+					if !slices.Contains(selectedPriceFields, relationship) {
 						selectedPriceFields = append(selectedPriceFields, relationship)
 					}
 				}

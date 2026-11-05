@@ -34,9 +34,7 @@ type RetentionMessageLocalizationAttributes struct {
 
 func (a *RetentionMessageAttributes) UnmarshalJSON(data []byte) error {
 	type alias RetentionMessageAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	*a, a.api = RetentionMessageAttributes(decoded), api
-	return err
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a RetentionMessageAttributes) MarshalJSON() ([]byte, error) {
@@ -46,9 +44,7 @@ func (a RetentionMessageAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *RetentionMessageVersionAttributes) UnmarshalJSON(data []byte) error {
 	type alias RetentionMessageVersionAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	*a, a.api = RetentionMessageVersionAttributes(decoded), api
-	return err
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a RetentionMessageVersionAttributes) MarshalJSON() ([]byte, error) {
@@ -58,9 +54,7 @@ func (a RetentionMessageVersionAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *RetentionMessageLocalizationAttributes) UnmarshalJSON(data []byte) error {
 	type alias RetentionMessageLocalizationAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	*a, a.api = RetentionMessageLocalizationAttributes(decoded), api
-	return err
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a RetentionMessageLocalizationAttributes) MarshalJSON() ([]byte, error) {

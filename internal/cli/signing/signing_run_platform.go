@@ -276,9 +276,6 @@ func removeSigningRunJournal() error {
 }
 
 func recoverSigningRunJournal(ctx context.Context) error {
-	if ctx == nil {
-		return fmt.Errorf("recover signing environment: context is required")
-	}
 	anchor, err := signingRunStateAnchorFn()
 	if err != nil {
 		return err
@@ -421,9 +418,6 @@ func validateSigningRunJournal(journal signingRunJournal) error {
 }
 
 func acquireSigningRunLock(ctx context.Context) (func() error, error) {
-	if ctx == nil {
-		return nil, fmt.Errorf("acquire signing environment lock: context is required")
-	}
 	anchor, err := signingRunStateAnchorFn()
 	if err != nil {
 		return nil, err
@@ -584,8 +578,8 @@ func verifySigningRunIdentityUsable(ctx context.Context, tempDir, keychainPath, 
 	}()
 	cmd := signingRunCommandContext(ctx, "/usr/bin/codesign", "--force", "--sign", expectedSHA1, "--keychain", keychainPath, probePath)
 	cmd.Env = SanitizedChildEnvironment(os.Environ())
-	stdout := &limitedSigningBuffer{limit: signingRunDiagnosticLimit}
-	stderr := &limitedSigningBuffer{limit: signingRunDiagnosticLimit}
+	stdout := &boundedOutputBuffer{limit: signingRunDiagnosticLimit}
+	stderr := &boundedOutputBuffer{limit: signingRunDiagnosticLimit}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
@@ -649,9 +643,6 @@ func deleteSigningRunKeychain(ctx context.Context, keychainPath string) error {
 }
 
 func installSigningRunProfile(ctx context.Context, uuid string, data []byte, digest string, recordCreate func(signingRunProfileInstall) error) (result signingRunProfileInstall, resultErr error) {
-	if ctx == nil {
-		return signingRunProfileInstall{}, fmt.Errorf("install provisioning profile: context is required")
-	}
 	if err := ctx.Err(); err != nil {
 		return signingRunProfileInstall{}, err
 	}
@@ -1133,16 +1124,13 @@ func writeSigningRunStagedProfile(file io.Writer, data []byte) (string, error) {
 var signingRunXcodeVersionPattern = regexp.MustCompile(`(?m)^Xcode[\t ]+([0-9]+)(?:[.][0-9]+)*(?:[\t ].*)?$`)
 
 func activeSigningRunXcodeMajorVersion(ctx context.Context) (int, error) {
-	if ctx == nil {
-		return 0, fmt.Errorf("inspect active Xcode version: context is required")
-	}
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
 	cmd := signingRunCommandContext(ctx, signingRunXcodebuildPath, "-version")
 	cmd.Env = SanitizedChildEnvironment(os.Environ())
-	stdout := &limitedSigningBuffer{limit: signingRunDiagnosticLimit}
-	stderr := &limitedSigningBuffer{limit: signingRunDiagnosticLimit}
+	stdout := &boundedOutputBuffer{limit: signingRunDiagnosticLimit}
+	stderr := &boundedOutputBuffer{limit: signingRunDiagnosticLimit}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
@@ -1163,9 +1151,6 @@ func activeSigningRunXcodeMajorVersion(ctx context.Context) (int, error) {
 }
 
 func signingRunProfileInstallDir(ctx context.Context) (string, error) {
-	if ctx == nil {
-		return "", fmt.Errorf("discover provisioning profile directory: context is required")
-	}
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -1186,9 +1171,6 @@ func signingRunProfileInstallDir(ctx context.Context) (string, error) {
 }
 
 func runSigningRunChild(ctx context.Context, argv []string) error {
-	if ctx == nil {
-		return fmt.Errorf("run signing child: context is required")
-	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -1237,36 +1219,18 @@ func runSigningRunChild(ctx context.Context, argv []string) error {
 }
 
 func runSigningUtility(ctx context.Context, stdin []byte, args ...string) ([]byte, []byte, error) {
-	if ctx == nil {
-		return nil, nil, fmt.Errorf("run signing utility: context is required")
-	}
 	cmd := exec.CommandContext(ctx, "/usr/bin/security", args...)
 	cmd.Env = SanitizedChildEnvironment(os.Environ())
 	cmd.Stdin = bytes.NewReader(stdin)
 	// security prompts on a controlling terminal and ignores stdin if it has one.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	stdout := &limitedSigningBuffer{limit: signingRunDiagnosticLimit}
-	stderr := &limitedSigningBuffer{limit: signingRunDiagnosticLimit}
+	stdout := &boundedOutputBuffer{limit: signingRunDiagnosticLimit}
+	stderr := &boundedOutputBuffer{limit: signingRunDiagnosticLimit}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	err := cmd.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
 }
-
-type limitedSigningBuffer struct {
-	data  []byte
-	limit int
-}
-
-func (b *limitedSigningBuffer) Write(data []byte) (int, error) {
-	if len(b.data) < b.limit {
-		remaining := b.limit - len(b.data)
-		b.data = append(b.data, data[:min(len(data), remaining)]...)
-	}
-	return len(data), nil
-}
-
-func (b *limitedSigningBuffer) Bytes() []byte { return append([]byte(nil), b.data...) }
 
 func utilityFailure(operation string, stderr []byte, err error, sensitive ...[]byte) error {
 	diagnostic := signingUtilityDiagnostic(stderr, sensitive...)

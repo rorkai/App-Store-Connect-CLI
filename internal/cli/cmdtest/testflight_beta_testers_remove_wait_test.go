@@ -66,57 +66,43 @@ func betaTesterRemoveWaitTransport(t *testing.T, pollResponses func(pollCount in
 	})
 }
 
-func TestBetaTestersRemoveWaitCompletesOnNotFound(t *testing.T) {
-	setupBetaTesterRemoveWaitEnv(t)
-	betaTesterRemoveWaitTransport(t, func(int) (int, string) {
-		return http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist"}]}`
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "testers", "remove",
-			"--app", "app-1", "--email", "tester@example.com", "--confirm",
-			"--wait", "--poll-interval", "10ms", "--timeout", "5s",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if !strings.Contains(stdout, `"deleted":true`) {
-		t.Fatalf("expected delete receipt, got %q", stdout)
+func TestBetaTestersRemoveWaitCompletesWhenTesterIsGone(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{name: "not found", status: http.StatusNotFound, body: `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist"}]}`},
+		{name: "revoked", status: http.StatusOK, body: `{"data":{"type":"betaTesters","id":"tester-1","attributes":{"state":"REVOKED"}}}`},
 	}
-}
 
-func TestBetaTestersRemoveWaitCompletesOnRevoked(t *testing.T) {
-	setupBetaTesterRemoveWaitEnv(t)
-	betaTesterRemoveWaitTransport(t, func(int) (int, string) {
-		return http.StatusOK, `{"data":{"type":"betaTesters","id":"tester-1","attributes":{"state":"REVOKED"}}}`
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupBetaTesterRemoveWaitEnv(t)
+			betaTesterRemoveWaitTransport(t, func(int) (int, string) {
+				return tt.status, tt.body
+			})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "testers", "remove",
-			"--app", "app-1", "--email", "tester@example.com", "--confirm",
-			"--wait", "--poll-interval", "10ms", "--timeout", "5s",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+			stdout, _ := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"testflight", "testers", "remove",
+					"--app", "app-1", "--email", "tester@example.com", "--confirm",
+					"--wait", "--poll-interval", "10ms", "--timeout", "5s",
+				}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
 
-	if !strings.Contains(stdout, `"deleted":true`) {
-		t.Fatalf("expected delete receipt, got %q", stdout)
+			if !strings.Contains(stdout, `"deleted":true`) {
+				t.Fatalf("expected delete receipt, got %q", stdout)
+			}
+		})
 	}
 }
 

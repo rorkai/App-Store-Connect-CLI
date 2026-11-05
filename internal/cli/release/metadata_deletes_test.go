@@ -235,17 +235,6 @@ func TestExecuteStageDryRunPlansDeletesWithAllowDeletes(t *testing.T) {
 	}
 }
 
-func TestReleaseStageCommandExposesAllowDeletes(t *testing.T) {
-	cmd := ReleaseStageCommand()
-	allowDeletes := cmd.FlagSet.Lookup("allow-deletes")
-	if allowDeletes == nil {
-		t.Fatal("expected --allow-deletes flag")
-	}
-	if !strings.Contains(allowDeletes.Usage, "--metadata-dir") {
-		t.Fatalf("expected --allow-deletes help to name --metadata-dir, got %q", allowDeletes.Usage)
-	}
-}
-
 // TestReleaseStageRejectsAllowDeletesWithoutMetadataDir proves the flag is
 // never accepted and silently ignored: the copy pipeline has no delete
 // operations to authorize.

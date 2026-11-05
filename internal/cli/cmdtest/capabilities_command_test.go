@@ -213,48 +213,29 @@ func TestRun_CapabilitiesFiltersByAreaInMarkdown(t *testing.T) {
 	}
 }
 
-func TestRun_CapabilitiesInvalidStatusReturnsUsage(t *testing.T) {
+func TestRun_CapabilitiesUsageErrors(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"capabilities", "--status", "maybe"}, "1.0.0")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
+	for _, test := range []struct {
+		args    []string
+		wantErr string
+	}{
+		{args: []string{"capabilities", "--status", "maybe"}, wantErr: "invalid --status"},
+		{args: []string{"capabilities", "--area", "nope"}, wantErr: "invalid --area"},
+		{args: []string{"capabilities", "typo"}, wantErr: `unexpected argument "typo"`},
+	} {
+		t.Run(strings.Join(test.args[1:], " "), func(t *testing.T) {
+			_, stderr := captureOutput(t, func() {
+				code := cmd.Run(test.args, "1.0.0")
+				if code != cmd.ExitUsage {
+					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+				}
+			})
 
-	if !strings.Contains(stderr, "invalid --status") {
-		t.Fatalf("expected invalid --status error, got stderr: %s", stderr)
-	}
-}
-
-func TestRun_CapabilitiesInvalidAreaReturnsUsage(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"capabilities", "--area", "nope"}, "1.0.0")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if !strings.Contains(stderr, "invalid --area") {
-		t.Fatalf("expected invalid --area error, got stderr: %s", stderr)
-	}
-}
-
-func TestRun_CapabilitiesUnexpectedArgsReturnsUsage(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"capabilities", "typo"}, "1.0.0")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if !strings.Contains(stderr, `unexpected argument "typo"`) {
-		t.Fatalf("expected unexpected argument error, got stderr: %s", stderr)
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q error, got stderr: %s", test.wantErr, stderr)
+			}
+		})
 	}
 }
 

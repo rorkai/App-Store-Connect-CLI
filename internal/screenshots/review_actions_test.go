@@ -821,18 +821,12 @@ func TestApproveReview_AllReady(t *testing.T) {
 	}
 }
 
-func TestApproveReviewPreservesExplicitWhitespaceManifestPath(t *testing.T) {
+func TestApproveReviewPreservesExplicitWhitespacePaths(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows trims trailing spaces from path components")
 	}
-	runApproveReviewWhitespacePathTest(t, true, false)
-}
-
-func TestApproveReviewPreservesExplicitWhitespaceApprovalPath(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows trims trailing spaces from path components")
-	}
-	runApproveReviewWhitespacePathTest(t, false, true)
+	t.Run("manifest", func(t *testing.T) { runApproveReviewWhitespacePathTest(t, true, false) })
+	t.Run("approval", func(t *testing.T) { runApproveReviewWhitespacePathTest(t, false, true) })
 }
 
 func runApproveReviewWhitespacePathTest(t *testing.T, whitespaceManifest, whitespaceApproval bool) {
@@ -956,4 +950,12 @@ func writeReviewManifest(t *testing.T, path string, manifest ReviewManifest) {
 	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
+}
+
+func matrixReviewBrowserAssets(htmlPath string, htmlData []byte, manifest *MatrixReviewManifest) ([]matrixReviewBrowserAsset, error) {
+	return matrixReviewBrowserAssetsWithExpectedRoots(context.Background(), htmlPath, htmlData, manifest, nil)
+}
+
+func createMatrixReviewBrowserSnapshot(data []byte) (string, error) {
+	return createMatrixReviewBrowserSnapshotWithContext(context.Background(), data, nil)
 }

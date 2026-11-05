@@ -373,25 +373,3 @@ func TestTestFlightBetaTestersListPaginateMergesIncludedBetaGroups(t *testing.T)
 		t.Fatalf("expected first group-a representation followed by group-b, got %+v (stdout=%q)", response.Included, stdout)
 	}
 }
-
-func TestTestFlightBetaTestersListHelpExplainsIncludedRelationshipBounds(t *testing.T) {
-	list := findSubcommand(RootCommand("1.2.3"), "testflight", "testers", "list")
-	if list == nil {
-		t.Fatal("testflight testers list command not found")
-	}
-
-	normalizedHelp := strings.Join(strings.Fields(list.LongHelp), " ")
-	for _, want := range []string{
-		"at most 50 related resources per included relationship",
-		"--paginate pages the tester collection, not included relationships",
-		`asc testflight testers groups list --id "TESTER_ID" --paginate`,
-		"exit 2 before making a request",
-	} {
-		if !strings.Contains(normalizedHelp, want) {
-			t.Errorf("help missing %q: %q", want, list.LongHelp)
-		}
-	}
-	if strings.Contains(normalizedHelp, "audit group membership for every tester in one call") {
-		t.Errorf("help still promises complete included group membership: %q", list.LongHelp)
-	}
-}

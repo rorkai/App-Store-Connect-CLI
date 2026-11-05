@@ -33,9 +33,9 @@ var (
 	afterPrivatePublicationIntentExecuted  = func() error { return nil }
 )
 
-// privatePublishIntentRequest is intentionally separate from the standalone
-// publisher request. The agent orchestrator cannot express public access and
-// must provide a dedicated protected intent path.
+// privatePublishIntentRequest has no access or public-base fields, so the
+// agent orchestrator cannot express public access, and it must provide a
+// dedicated protected intent path.
 type privatePublishIntentRequest struct {
 	BundleDir        string
 	ExpectedBundle   privatePublishBundleAuthorization

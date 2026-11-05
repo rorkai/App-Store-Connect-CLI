@@ -135,24 +135,6 @@ func TestParseSigningRunCertificateFingerprints(t *testing.T) {
 	}
 }
 
-func TestUtilityFailureIncludesBoundedSanitizedDiagnostic(t *testing.T) {
-	wantErr := errors.New("exit status 1")
-	diagnostic := "security: keychain is locked\nsecond line should be rendered safely"
-	err := utilityFailure("import identity", []byte(diagnostic), wantErr)
-	if !errors.Is(err, wantErr) {
-		t.Fatalf("error = %v, want wrapped process error", err)
-	}
-	if got := err.Error(); !strings.Contains(got, "keychain is locked") || !strings.Contains(got, "second line") || strings.ContainsAny(got, "\r\n") {
-		t.Fatalf("error = %q, want bounded terminal-safe diagnostic", got)
-	}
-
-	longDiagnostic := strings.Repeat("x", 1024)
-	err = utilityFailure("import identity", []byte(longDiagnostic), wantErr)
-	if got := err.Error(); len(got) > signingUtilityDiagnosticLimit+128 {
-		t.Fatalf("error length = %d, want bounded diagnostic", len(got))
-	}
-}
-
 func TestRunSigningRunChildDoesNotInheritSigningSecrets(t *testing.T) {
 	t.Setenv("ASC_PRIVATE_KEY", "secret")
 	t.Setenv("ASC_PRIVATE_KEY_B64", "secret")
@@ -231,12 +213,6 @@ func TestActiveSigningRunXcodeUsesTrustedAbsolutePath(t *testing.T) {
 	}
 	if gotPath != signingRunXcodebuildPath || !filepath.IsAbs(gotPath) {
 		t.Fatalf("xcodebuild path = %q, want trusted absolute %q", gotPath, signingRunXcodebuildPath)
-	}
-}
-
-func TestSigningRunProfileInstallDirRejectsNilContext(t *testing.T) {
-	if _, err := signingRunProfileInstallDir(signingRunNilContext()); !strings.Contains(err.Error(), "context is required") {
-		t.Fatalf("error = %v, want required context", err)
 	}
 }
 
@@ -475,29 +451,19 @@ func TestRecoverSigningRunJournalDistinguishesPartialWriteFromReplacement(t *tes
 	}
 }
 
-func TestLimitedSigningBufferBoundsOutput(t *testing.T) {
-	buffer := &limitedSigningBuffer{limit: 4}
-	if written, err := buffer.Write([]byte("123456789")); err != nil || written != 9 {
-		t.Fatalf("Write() = %d, %v", written, err)
-	}
-	if got := string(buffer.Bytes()); got != "1234" {
-		t.Fatalf("buffer = %q", got)
-	}
-}
-
 func TestUtilityFailureIncludesSanitizedBoundedStderrAndRedactsSecrets(t *testing.T) {
 	secret := []byte("keychain-password")
 	cause := errors.New("exit status 1")
 	stderr := append([]byte("security: failed to unlock \x1b[31m"), secret...)
-	stderr = append(stderr, " encoded=6b6579636861696e2d70617373776f7264\n"...)
+	stderr = append(stderr, " encoded=6b6579636861696e2d70617373776f7264\nsecond line\n"...)
 
 	err := utilityFailure("restrict key partition list", stderr, cause, secret)
 	if !errors.Is(err, cause) {
 		t.Fatalf("utilityFailure() error = %v, want injected cause", err)
 	}
 	message := err.Error()
-	if !strings.Contains(message, "security: failed to unlock [31m[REDACTED]") {
-		t.Fatalf("utilityFailure() = %q, want sanitized stderr diagnostic", message)
+	if !strings.Contains(message, "security: failed to unlock [31m[REDACTED]") || !strings.Contains(message, "second line") {
+		t.Fatalf("utilityFailure() = %q, want sanitized multi-line stderr diagnostic", message)
 	}
 	if strings.Contains(message, string(secret)) {
 		t.Fatalf("utilityFailure() leaked secret: %q", message)

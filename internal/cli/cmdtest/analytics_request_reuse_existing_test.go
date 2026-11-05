@@ -160,145 +160,77 @@ func TestAnalyticsRequestReuseExistingUsesExistingRequest(t *testing.T) {
 	}
 }
 
-func TestAnalyticsRequestReuseExistingUsesExistingRequestFromLaterPage(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	var requestCount lockedCounter
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch count := requestCount.Inc(); count {
-		case 1:
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected first request GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/apps/app-1/analyticsReportRequests" {
-				t.Fatalf("expected analytics requests path, got %s", req.URL.Path)
-			}
-			body := `{"data":[` +
-				`{"type":"analyticsReportRequests","id":"req-snapshot","attributes":{"accessType":"ONE_TIME_SNAPSHOT","stoppedDueToInactivity":false}}` +
-				`],"links":{"next":"/v1/apps/app-1/analyticsReportRequests?cursor=2"}}`
-			return analyticsReuseExistingJSONResponse(http.StatusOK, body), nil
-		case 2:
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected second request GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/apps/app-1/analyticsReportRequests" {
-				t.Fatalf("expected analytics requests path, got %s", req.URL.Path)
-			}
-			if req.URL.Query().Get("cursor") != "2" {
-				t.Fatalf("expected cursor=2, got %q", req.URL.Query().Get("cursor"))
-			}
-			body := `{"data":[` +
-				`{"type":"analyticsReportRequests","id":"req-existing-page-2","attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}}` +
-				`],"links":{"next":""}}`
-			return analyticsReuseExistingJSONResponse(http.StatusOK, body), nil
-		default:
-			t.Fatalf("unexpected extra request %d: %s %s", count, req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"analytics", "request",
-			"--app", "app-1",
-			"--access-type", "ONGOING",
-			"--reuse-existing",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+func TestAnalyticsRequestReuseExistingScansEveryPage(t *testing.T) {
+	const (
+		snapshot = `{"type":"analyticsReportRequests","id":"req-snapshot","attributes":{"accessType":"ONE_TIME_SNAPSHOT","stoppedDueToInactivity":false}}`
+		ongoing  = `{"type":"analyticsReportRequests","id":"req-ongoing","attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}}`
+	)
+	tests := []struct {
+		name  string
+		pages [2]string
+	}{
+		{name: "match on later page", pages: [2]string{snapshot, ongoing}},
+		{name: "match on first of multiple pages", pages: [2]string{ongoing, snapshot}},
 	}
-	var result map[string]any
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("failed to parse JSON output %q: %v", stdout, err)
-	}
-	if result["requestId"] != "req-existing-page-2" {
-		t.Fatalf("expected existing request id from second page, got %#v", result["requestId"])
-	}
-	if result["created"] != false {
-		t.Fatalf("expected created=false, got %#v", result["created"])
-	}
-}
 
-func TestAnalyticsRequestReuseExistingUsesExistingRequestFromFirstPageWithMultiplePages(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	var requestCount lockedCounter
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch count := requestCount.Inc(); count {
-		case 1:
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected first request GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/apps/app-1/analyticsReportRequests" {
-				t.Fatalf("expected analytics requests path, got %s", req.URL.Path)
-			}
-			body := `{"data":[` +
-				`{"type":"analyticsReportRequests","id":"req-existing-page-1","attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}}` +
-				`],"links":{"next":"/v1/apps/app-1/analyticsReportRequests?cursor=2"}}`
-			return analyticsReuseExistingJSONResponse(http.StatusOK, body), nil
-		case 2:
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected second request GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/apps/app-1/analyticsReportRequests" {
-				t.Fatalf("expected analytics requests path, got %s", req.URL.Path)
-			}
-			if req.URL.Query().Get("cursor") != "2" {
-				t.Fatalf("expected cursor=2, got %q", req.URL.Query().Get("cursor"))
-			}
-			body := `{"data":[` +
-				`{"type":"analyticsReportRequests","id":"req-snapshot","attributes":{"accessType":"ONE_TIME_SNAPSHOT","stoppedDueToInactivity":false}}` +
-				`],"links":{"next":""}}`
-			return analyticsReuseExistingJSONResponse(http.StatusOK, body), nil
-		default:
-			t.Fatalf("unexpected extra request %d: %s %s", count, req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+			var requestCount lockedCounter
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				count := requestCount.Inc()
+				if count > 2 {
+					t.Fatalf("unexpected extra request %d: %s %s", count, req.Method, req.URL.String())
+				}
+				if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/analyticsReportRequests" {
+					t.Fatalf("request %d = %s %s, want GET analytics requests", count, req.Method, req.URL.Path)
+				}
+				if count == 1 {
+					return analyticsReuseExistingJSONResponse(http.StatusOK, `{"data":[`+test.pages[0]+`],"links":{"next":"/v1/apps/app-1/analyticsReportRequests?cursor=2"}}`), nil
+				}
+				if req.URL.Query().Get("cursor") != "2" {
+					t.Fatalf("expected cursor=2, got %q", req.URL.Query().Get("cursor"))
+				}
+				return analyticsReuseExistingJSONResponse(http.StatusOK, `{"data":[`+test.pages[1]+`],"links":{"next":""}}`), nil
+			}))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"analytics", "request",
-			"--app", "app-1",
-			"--access-type", "ONGOING",
-			"--reuse-existing",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"analytics", "request",
+					"--app", "app-1",
+					"--access-type", "ONGOING",
+					"--reuse-existing",
+					"--output", "json",
+				}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	var result map[string]any
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("failed to parse JSON output %q: %v", stdout, err)
-	}
-	if result["requestId"] != "req-existing-page-1" {
-		t.Fatalf("expected existing request id from first page, got %#v", result["requestId"])
-	}
-	if result["created"] != false {
-		t.Fatalf("expected created=false, got %#v", result["created"])
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			var result map[string]any
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("failed to parse JSON output %q: %v", stdout, err)
+			}
+			if result["requestId"] != "req-ongoing" {
+				t.Fatalf("expected existing ONGOING request id, got %#v", result["requestId"])
+			}
+			if result["created"] != false {
+				t.Fatalf("expected created=false, got %#v", result["created"])
+			}
+			if got := requestCount.Load(); got != 2 {
+				t.Fatalf("request count = %d, want 2", got)
+			}
+		})
 	}
 }
 

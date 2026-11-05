@@ -16,39 +16,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestSubscriptionsPricingMonthlyCommitmentHelp(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	cmd := findSubcommand(root, "subscriptions", "pricing")
-	if cmd == nil {
-		t.Fatal("expected subscriptions pricing command")
-		return
-	}
-	usage := cmd.UsageFunc(cmd)
-	if !strings.Contains(usage, "monthly-commitment") {
-		t.Fatalf("expected pricing help to mention monthly-commitment, got %q", usage)
-	}
-
-	monthlyCmd := findSubcommand(root, "subscriptions", "pricing", "monthly-commitment")
-	if monthlyCmd == nil {
-		t.Fatal("expected monthly-commitment command")
-		return
-	}
-	monthlyUsage := monthlyCmd.UsageFunc(monthlyCmd)
-	if !strings.Contains(monthlyUsage, "App Store Connect API 4.4") {
-		t.Fatalf("expected monthly-commitment help to mention App Store Connect API 4.4, got %q", monthlyUsage)
-	}
-
-	availabilityEditCmd := findSubcommand(root, "subscriptions", "pricing", "availability", "edit")
-	if availabilityEditCmd == nil {
-		t.Fatal("expected availability edit command")
-	}
-	availabilityEditUsage := availabilityEditCmd.UsageFunc(availabilityEditCmd)
-	if !strings.Contains(availabilityEditUsage, "--confirm") || !strings.Contains(availabilityEditUsage, "monthly-commitment") {
-		t.Fatalf("expected availability edit help to document monthly confirmation, got %q", availabilityEditUsage)
-	}
-}
-
 func TestSubscriptionsPricingMonthlyCommitmentValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 

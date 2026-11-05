@@ -417,30 +417,45 @@ func TestSyncAppClipBundleIDCapabilitySkipsPatchWhenAnyDuplicateRecordAlreadyMat
 }
 
 func TestSyncAppClipBundleIDCapabilitySkipsPatchWhenExplicitSettingsMatch(t *testing.T) {
-	var patchCount atomic.Int32
-	var patchBody []byte
-	client := newSyncAppClipBundleIDTestServer(t, syncedAppClipBundleIDGetBody, &patchCount, &patchBody)
+	tests := []struct {
+		name       string
+		getBody    string
+		capability string
+		settingKey string
+		optionKey  string
+	}{
+		{name: "exact settings", getBody: syncedAppClipBundleIDGetBody, capability: "PUSH_NOTIFICATIONS", settingKey: "PUSH_NOTIFICATION_FEATURES", optionKey: "PUSH_NOTIFICATION_FEATURE_BROADCAST"},
+		{name: "read-only fields enriched by Apple", getBody: enrichedSettingsAppClipBundleIDGetBody, capability: "PUSH_NOTIFICATIONS", settingKey: "PUSH_NOTIFICATION_FEATURES", optionKey: "PUSH_NOTIFICATION_FEATURE_BROADCAST"},
+		{name: "extra keyed options", getBody: multiOptionSettingsAppClipBundleIDGetBody, capability: "ICLOUD", settingKey: "ICLOUD_VERSION", optionKey: "XCODE_6"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var patchCount atomic.Int32
+			var patchBody []byte
+			client := newSyncAppClipBundleIDTestServer(t, tc.getBody, &patchCount, &patchBody)
 
-	enabled := true
-	result, err := client.SyncAppClipBundleIDCapability(context.Background(), AppClipBundleIDCapabilitySyncRequest{
-		BundleID:         "clip-bundle",
-		ParentBundleID:   "parent-bundle",
-		Capability:       "PUSH_NOTIFICATIONS",
-		Enabled:          true,
-		SettingsProvided: true,
-		Settings: []BundleIDCapabilitySetting{{
-			Key:     "PUSH_NOTIFICATION_FEATURES",
-			Options: []BundleIDCapabilityOption{{Key: "PUSH_NOTIFICATION_FEATURE_BROADCAST", Enabled: &enabled}},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("SyncAppClipBundleIDCapability error: %v", err)
-	}
-	if got := patchCount.Load(); got != 0 {
-		t.Fatalf("expected no PATCH when explicit settings already match, got %d: %s", got, patchBody)
-	}
-	if result.Changed || result.Status != "already-synced" {
-		t.Fatalf("expected already-synced receipt, got %+v", result)
+			enabled := true
+			result, err := client.SyncAppClipBundleIDCapability(context.Background(), AppClipBundleIDCapabilitySyncRequest{
+				BundleID:         "clip-bundle",
+				ParentBundleID:   "parent-bundle",
+				Capability:       tc.capability,
+				Enabled:          true,
+				SettingsProvided: true,
+				Settings: []BundleIDCapabilitySetting{{
+					Key:     tc.settingKey,
+					Options: []BundleIDCapabilityOption{{Key: tc.optionKey, Enabled: &enabled}},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("SyncAppClipBundleIDCapability error: %v", err)
+			}
+			if got := patchCount.Load(); got != 0 {
+				t.Fatalf("expected no PATCH when the requested settings already match, got %d: %s", got, patchBody)
+			}
+			if result.Changed || result.Status != "already-synced" {
+				t.Fatalf("expected already-synced receipt, got %+v", result)
+			}
+		})
 	}
 }
 
@@ -485,34 +500,6 @@ const enrichedSettingsAppClipBundleIDGetBody = `{
 	]
 }`
 
-func TestSyncAppClipBundleIDCapabilitySkipsPatchWhenExplicitSettingsMatchEnrichedResponse(t *testing.T) {
-	var patchCount atomic.Int32
-	var patchBody []byte
-	client := newSyncAppClipBundleIDTestServer(t, enrichedSettingsAppClipBundleIDGetBody, &patchCount, &patchBody)
-
-	enabled := true
-	result, err := client.SyncAppClipBundleIDCapability(context.Background(), AppClipBundleIDCapabilitySyncRequest{
-		BundleID:         "clip-bundle",
-		ParentBundleID:   "parent-bundle",
-		Capability:       "PUSH_NOTIFICATIONS",
-		Enabled:          true,
-		SettingsProvided: true,
-		Settings: []BundleIDCapabilitySetting{{
-			Key:     "PUSH_NOTIFICATION_FEATURES",
-			Options: []BundleIDCapabilityOption{{Key: "PUSH_NOTIFICATION_FEATURE_BROADCAST", Enabled: &enabled}},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("SyncAppClipBundleIDCapability error: %v", err)
-	}
-	if got := patchCount.Load(); got != 0 {
-		t.Fatalf("expected no PATCH when Apple only enriched the requested settings with read-only fields, got %d: %s", got, patchBody)
-	}
-	if result.Changed || result.Status != "already-synced" {
-		t.Fatalf("expected already-synced receipt, got %+v", result)
-	}
-}
-
 const multiOptionSettingsAppClipBundleIDGetBody = `{
 	"data":{
 		"id":"clip-bundle",
@@ -544,34 +531,6 @@ const multiOptionSettingsAppClipBundleIDGetBody = `{
 		}
 	]
 }`
-
-func TestSyncAppClipBundleIDCapabilitySkipsPatchWhenCurrentSettingsCarryExtraKeyedOptions(t *testing.T) {
-	var patchCount atomic.Int32
-	var patchBody []byte
-	client := newSyncAppClipBundleIDTestServer(t, multiOptionSettingsAppClipBundleIDGetBody, &patchCount, &patchBody)
-
-	enabled := true
-	result, err := client.SyncAppClipBundleIDCapability(context.Background(), AppClipBundleIDCapabilitySyncRequest{
-		BundleID:         "clip-bundle",
-		ParentBundleID:   "parent-bundle",
-		Capability:       "ICLOUD",
-		Enabled:          true,
-		SettingsProvided: true,
-		Settings: []BundleIDCapabilitySetting{{
-			Key:     "ICLOUD_VERSION",
-			Options: []BundleIDCapabilityOption{{Key: "XCODE_6", Enabled: &enabled}},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("SyncAppClipBundleIDCapability error: %v", err)
-	}
-	if got := patchCount.Load(); got != 0 {
-		t.Fatalf("expected no PATCH when the requested option already matches among extra keyed options, got %d: %s", got, patchBody)
-	}
-	if result.Changed || result.Status != "already-synced" {
-		t.Fatalf("expected already-synced receipt, got %+v", result)
-	}
-}
 
 func TestSyncAppClipBundleIDCapabilityPatchesWhenRequestedKeysAreDuplicated(t *testing.T) {
 	var patchCount atomic.Int32

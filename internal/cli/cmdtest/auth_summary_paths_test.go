@@ -101,72 +101,48 @@ func TestAuthStatusValidateUsesStoredCredentials(t *testing.T) {
 	}
 }
 
-func TestAuthStatusVerboseUsesCredentialSummaries(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+func TestAuthCommandsUseCredentialSummaries(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		args       []string
+		wantStdout string
+	}{
+		{name: "status verbose", args: []string{"auth", "status", "--output", "json", "--verbose"}, wantStdout: `"storedIn":"keychain"`},
+		{name: "switch", args: []string{"auth", "switch", "--name", "default"}, wantStdout: "Default profile set to 'default'"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
-	restoreSummary := authcmd.SetListCredentialSummaries(func() ([]authsvc.Credential, error) {
-		return []authsvc.Credential{{
-			Name:      "default",
-			KeyID:     "KEY123",
-			IsDefault: true,
-			Source:    "keychain",
-		}}, nil
-	})
-	t.Cleanup(restoreSummary)
+			restoreSummary := authcmd.SetListCredentialSummaries(func() ([]authsvc.Credential, error) {
+				return []authsvc.Credential{{
+					Name:      "default",
+					KeyID:     "KEY123",
+					IsDefault: true,
+					Source:    "keychain",
+				}}, nil
+			})
+			t.Cleanup(restoreSummary)
 
-	restoreFull := authcmd.SetListStoredCredentials(func() ([]authsvc.Credential, error) {
-		t.Fatal("expected --verbose without --validate to avoid full credential loading")
-		return nil, nil
-	})
-	t.Cleanup(restoreFull)
+			restoreFull := authcmd.SetListStoredCredentials(func() ([]authsvc.Credential, error) {
+				t.Fatal("expected credential summaries, not full credential loading")
+				return nil, nil
+			})
+			t.Cleanup(restoreFull)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{"auth", "status", "--output", "json", "--verbose"}, "1.0.0")
-	})
-	if code != cmd.ExitSuccess {
-		t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitSuccess, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"storedIn":"keychain"`) {
-		t.Fatalf("expected verbose status payload, got %q", stdout)
-	}
-}
-
-func TestAuthSwitchUsesCredentialSummaries(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	restoreSummary := authcmd.SetListCredentialSummaries(func() ([]authsvc.Credential, error) {
-		return []authsvc.Credential{{
-			Name:      "default",
-			KeyID:     "KEY123",
-			IsDefault: true,
-			Source:    "keychain",
-		}}, nil
-	})
-	t.Cleanup(restoreSummary)
-
-	restoreFull := authcmd.SetListStoredCredentials(func() ([]authsvc.Credential, error) {
-		t.Fatal("expected auth switch to avoid full credential loading")
-		return nil, nil
-	})
-	t.Cleanup(restoreFull)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{"auth", "switch", "--name", "default"}, "1.0.0")
-	})
-	if code != cmd.ExitSuccess {
-		t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitSuccess, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, "Default profile set to 'default'") {
-		t.Fatalf("expected switch confirmation, got %q", stdout)
+			var code int
+			stdout, stderr := captureOutput(t, func() {
+				code = cmd.Run(test.args, "1.0.0")
+			})
+			if code != cmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitSuccess, stderr)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if !strings.Contains(stdout, test.wantStdout) {
+				t.Fatalf("expected %q in stdout, got %q", test.wantStdout, stdout)
+			}
+		})
 	}
 }

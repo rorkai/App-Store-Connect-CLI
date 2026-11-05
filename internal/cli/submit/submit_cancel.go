@@ -124,7 +124,7 @@ Examples:
 					if submission != nil {
 						_, cancelErr := client.CancelReviewSubmission(requestCtx, submission.ID)
 						if cancelErr != nil {
-							if isExpectedNonCancellableReviewSubmissionError(cancelErr) {
+							if isResourceStateInvalid(cancelErr) {
 								refreshed, refreshErr := refreshReviewSubmission(requestCtx, client, submission.ID)
 								if refreshErr == nil && refreshed != nil {
 									refreshedState := refreshed.Attributes.SubmissionState

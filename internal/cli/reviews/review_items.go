@@ -468,16 +468,10 @@ Examples:
 	}
 }
 
-func reviewFlagWasProvided(fs *flag.FlagSet, names ...string) bool {
-	wanted := make(map[string]struct{}, len(names))
-	for _, name := range names {
-		wanted[name] = struct{}{}
-	}
+func reviewFlagWasProvided(fs *flag.FlagSet, name string) bool {
 	provided := false
 	fs.Visit(func(f *flag.Flag) {
-		if _, ok := wanted[f.Name]; ok {
-			provided = true
-		}
+		provided = provided || f.Name == name
 	})
 	return provided
 }

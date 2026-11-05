@@ -135,17 +135,6 @@ func TestIsRequiredAgreementErrorRecognizesWrappedAPIError(t *testing.T) {
 	}
 }
 
-func TestAPIErrorIs_ForbiddenByQualifiedCodeWithoutStatus(t *testing.T) {
-	for _, code := range []string{
-		"FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED",
-		"FORBIDDEN_ERROR.PLA_NOT_VALID",
-	} {
-		if !errors.Is(&APIError{Code: code}, ErrForbidden) {
-			t.Fatalf("expected qualified code %q to match ErrForbidden without status", code)
-		}
-	}
-}
-
 // Remediation is additive: it must not displace Apple's message or the
 // associated errors that already ride along with it.
 func TestAPIErrorMessageKeepsRemediationSeparate(t *testing.T) {

@@ -91,16 +91,6 @@ func TestWebAPIKeysCreateSavesP8AndPrintsMetadata(t *testing.T) {
 	}
 }
 
-func TestWebAPIKeysCreateHelpDocumentsCaseInsensitiveRole(t *testing.T) {
-	help := WebAPIKeysCreateCommand().LongHelp
-	if strings.Contains(help, "must\nbe an uppercase identifier") || strings.Contains(help, "must be an uppercase identifier") {
-		t.Fatalf("help still claims --role must be uppercase even though lowercase input is accepted:\n%s", help)
-	}
-	if !strings.Contains(help, "case-insensitive") {
-		t.Fatalf("help should say --role is case-insensitive:\n%s", help)
-	}
-}
-
 func TestWebAPIKeysCreateUpperCasesLowercaseRole(t *testing.T) {
 	restore := installWebAPIKeyCreateFakes(t)
 	t.Cleanup(restore)
@@ -133,78 +123,43 @@ func TestWebAPIKeysCreateUpperCasesLowercaseRole(t *testing.T) {
 	}
 }
 
-func TestWebAPIKeysCreateValidatesBeforeResolvingSession(t *testing.T) {
-	resolveCalled := false
-	restoreSession := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		resolveCalled = true
-		return &webcore.AuthSession{}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
+func TestWebAPIKeysCreateValidatesRoleBeforeResolvingSession(t *testing.T) {
+	tests := []struct {
+		name    string
+		role    string
+		wantErr []string
+	}{
+		{name: "malformed role", role: "not-a-role", wantErr: []string{"--role must be a role identifier such as ADMIN or APP_MANAGER"}},
+		{name: "empty role", role: "   ", wantErr: []string{"--role is required"}},
+		{name: "known non-selectable role", role: "ACCOUNT_HOLDER", wantErr: []string{"ACCOUNT_HOLDER", "not a selectable team API key role"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resolveCalled := false
+			restoreSession := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+				resolveCalled = true
+				return &webcore.AuthSession{}, "cache", nil
+			})
+			t.Cleanup(restoreSession)
 
-	cmd := WebAPIKeysCreateCommand()
-	if err := cmd.FlagSet.Parse([]string{"--name", "Release automation", "--role", "not-a-role"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
+			cmd := WebAPIKeysCreateCommand()
+			if err := cmd.FlagSet.Parse([]string{"--name", "Release automation", "--role", tc.role}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
 
-	err := cmd.Exec(context.Background(), nil)
-	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected usage error, got %v", err)
-	}
-	if !strings.Contains(err.Error(), "--role must be a role identifier such as ADMIN or APP_MANAGER") {
-		t.Fatalf("expected identifier-shape stderr, got %v", err)
-	}
-	if resolveCalled {
-		t.Fatal("did not expect session resolution before role validation")
-	}
-}
-
-func TestWebAPIKeysCreateRejectsEmptyRoleBeforeResolvingSession(t *testing.T) {
-	resolveCalled := false
-	restoreSession := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		resolveCalled = true
-		return &webcore.AuthSession{}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	cmd := WebAPIKeysCreateCommand()
-	if err := cmd.FlagSet.Parse([]string{"--name", "Release automation", "--role", "   "}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	err := cmd.Exec(context.Background(), nil)
-	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected usage error, got %v", err)
-	}
-	if !strings.Contains(err.Error(), "--role is required") {
-		t.Fatalf("expected required-role stderr, got %v", err)
-	}
-	if resolveCalled {
-		t.Fatal("did not expect session resolution before role validation")
-	}
-}
-
-func TestWebAPIKeysCreateRejectsKnownNonSelectableRole(t *testing.T) {
-	resolveCalled := false
-	restoreSession := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		resolveCalled = true
-		return &webcore.AuthSession{}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	cmd := WebAPIKeysCreateCommand()
-	if err := cmd.FlagSet.Parse([]string{"--name", "Release automation", "--role", "ACCOUNT_HOLDER"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	err := cmd.Exec(context.Background(), nil)
-	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected usage error, got %v", err)
-	}
-	if !strings.Contains(err.Error(), "ACCOUNT_HOLDER") || !strings.Contains(err.Error(), "not a selectable team API key role") {
-		t.Fatalf("expected known non-selectable role stderr, got %v", err)
-	}
-	if resolveCalled {
-		t.Fatal("did not expect session resolution for a documented non-selectable role")
+			err := cmd.Exec(context.Background(), nil)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected usage error, got %v", err)
+			}
+			for _, want := range tc.wantErr {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("error = %v, want %q", err, want)
+				}
+			}
+			if resolveCalled {
+				t.Fatal("did not expect session resolution before role validation")
+			}
+		})
 	}
 }
 

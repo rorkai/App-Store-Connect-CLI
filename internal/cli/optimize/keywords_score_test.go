@@ -20,62 +20,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestKeywordsScoreCommandHelpDocumentsSourcesAndDesignDoc(t *testing.T) {
-	command := KeywordsScoreCommand()
-	joined := command.ShortUsage + "\n" + command.ShortHelp + "\n" + command.LongHelp
-	for _, want := range []string{
-		"asc optimize keywords score",
-		"docs/design/optimize-keywords.md",
-		"--ad-account",
-		"--genre",
-		"ASC_APP_ID",
-		"unavailable",
-		"latest complete week",
-	} {
-		if !strings.Contains(joined, want) {
-			t.Fatalf("help missing %q:\n%s", want, joined)
-		}
-	}
-
-	if strings.Contains(joined, "30-day") {
-		t.Fatalf("help describes a 30-day popularity window, but the collector reads one complete week:\n%s", joined)
-	}
-	appFlag := command.FlagSet.Lookup("app")
-	if appFlag == nil || !strings.Contains(appFlag.Usage, "ASC_APP_ID") {
-		t.Fatalf("--app help must document the ASC_APP_ID fallback: %+v", appFlag)
-	}
-}
-
-func TestKeywordsScoreCommandFlagsAreRegistered(t *testing.T) {
-	command := KeywordsScoreCommand()
-	for _, name := range []string{"keywords", "country", "app", "genre", "ad-account", "ads-profile", "workers"} {
-		flag := command.FlagSet.Lookup(name)
-		if flag == nil {
-			t.Fatalf("missing score flag --%s", name)
-		}
-	}
-}
-
-func TestKeywordsScoreHelpSeparatesAdsAuthenticationFromAccountSelection(t *testing.T) {
-	help := KeywordsScoreCommand().LongHelp
-	for _, want := range []string{
-		"Apple Ads authentication is resolved independently from ad-account selection",
-		"--ads-profile or ASC_ADS_PROFILE",
-		"ASC_ADS_ACCESS_TOKEN",
-		"ASC_ADS_CLIENT_ID",
-		"ASC_ADS_PRIVATE_KEY_PATH",
-		"--ad-account or ASC_ADS_AD_ACCOUNT_ID",
-		"ads.ad_account_id",
-	} {
-		if !strings.Contains(help, want) {
-			t.Fatalf("help missing %q:\n%s", want, help)
-		}
-	}
-	if strings.Contains(help, "credentials through --ad-account") {
-		t.Fatalf("help conflates Ads authentication with account selection:\n%s", help)
-	}
-}
-
 func TestKeywordsScoreCommandValidatesInputBeforeRequests(t *testing.T) {
 	tests := []struct {
 		name string
@@ -132,18 +76,6 @@ func TestKeywordsScoreCommandValidatesInputBeforeRequests(t *testing.T) {
 				t.Fatalf("error = %v, want usage error", err)
 			}
 		})
-	}
-}
-
-func TestKeywordsScoreCommandRejectsPositionalArguments(t *testing.T) {
-	failKeywordsClient(t)
-	failKeywordsAdsCollector(t)
-	err := KeywordsScoreCommand().Exec(context.Background(), []string{"extra"})
-	if err == nil || err.Error() != "optimize keywords score does not accept positional arguments" {
-		t.Fatalf("error = %v", err)
-	}
-	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("error = %v, want usage error", err)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -98,7 +99,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
@@ -165,7 +166,7 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if priceFilter.HasFilter() && selectedFields != nil && !containsString(selectedFields, "customerPrice") {
+			if priceFilter.HasFilter() && selectedFields != nil && !slices.Contains(selectedFields, "customerPrice") {
 				selectedFields = append(selectedFields, "customerPrice")
 			}
 			selectedTerritoryFields, err := normalizeOptionalSelection(fs, "territory-fields", *territoryFields, []string{"currency"})
@@ -176,7 +177,7 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if len(selectedTerritoryFields) != 0 && !containsString(selectedIncludes, "territory") {
+			if len(selectedTerritoryFields) != 0 && !slices.Contains(selectedIncludes, "territory") {
 				selectedIncludes = append(selectedIncludes, "territory")
 			}
 			selectedFields = ensureTerritoryInSparsePricePointFields(selectedFields, selectedIncludes)
@@ -285,17 +286,8 @@ Examples:
 	}
 }
 
-func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
-}
-
 func ensureTerritoryInSparsePricePointFields(fields, includes []string) []string {
-	if fields == nil || !containsString(includes, "territory") || containsString(fields, "territory") {
+	if fields == nil || !slices.Contains(includes, "territory") || slices.Contains(fields, "territory") {
 		return fields
 	}
 	return append(fields, "territory")
@@ -522,7 +514,7 @@ Examples:
 				return shared.UsageError("--plan-type is required for adjusted equalizations")
 			}
 		}
-		if len(selectedTerritoryFields) != 0 && !containsString(selectedIncludes, "territory") {
+		if len(selectedTerritoryFields) != 0 && !slices.Contains(selectedIncludes, "territory") {
 			selectedIncludes = append(selectedIncludes, "territory")
 		}
 		selectedFields = ensureTerritoryInSparsePricePointFields(selectedFields, selectedIncludes)

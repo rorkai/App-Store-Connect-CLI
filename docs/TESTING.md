@@ -22,7 +22,7 @@ When consolidating repetitive client tests:
 
 ### Table-Driven Tests
 
-Table-driven tests are preferred for repetitive endpoint coverage, but they should not weaken the regression signal. Group repeated limit/next-url/request-wiring cases together, then keep one focused representative assertion that proves the endpoint still decodes the correct response shape.
+Group repeated limit, next-URL, and request-wiring cases in one table, keeping the representative decode assertions listed above.
 
 ```go
 func TestSomething(t *testing.T) {

@@ -32,17 +32,6 @@ type ciWorkflowDuplicateOptions struct {
 	sourceWorkflowID string
 }
 
-// flagProvided reports whether a flag was set explicitly on the command line.
-func flagProvided(fs *flag.FlagSet, name string) bool {
-	provided := false
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			provided = true
-		}
-	})
-	return provided
-}
-
 // buildCiWorkflowDuplicatePayload turns a GET /v1/ciWorkflows/{id} envelope into a
 // CiWorkflowCreateRequest body that recreates the same configuration under a new name.
 func buildCiWorkflowDuplicatePayload(source json.RawMessage, opts ciWorkflowDuplicateOptions) (json.RawMessage, error) {

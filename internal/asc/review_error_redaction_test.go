@@ -59,37 +59,30 @@ func assertSubmittedPasswordRedacted(t *testing.T, err error) {
 	}
 }
 
-func TestCreateAppStoreReviewDetailRedactsSubmittedPasswordFromAPIError(t *testing.T) {
-	client := newTestClient(t, nil, echoedPasswordErrorResponse())
+func TestReviewDetailWritesRedactSubmittedPasswordFromAPIError(t *testing.T) {
 	password := submittedPasswordErrorSentinel
-	_, err := client.CreateAppStoreReviewDetail(
-		context.Background(),
-		"version-1",
-		&AppStoreReviewDetailCreateAttributes{DemoAccountPassword: &password},
-	)
-	assertSubmittedPasswordRedacted(t, err)
-}
-
-func TestUpdateAppStoreReviewDetailRedactsSubmittedPasswordFromAPIError(t *testing.T) {
-	client := newTestClient(t, nil, echoedPasswordErrorResponse())
-	password := submittedPasswordErrorSentinel
-	_, err := client.UpdateAppStoreReviewDetail(
-		context.Background(),
-		"detail-1",
-		AppStoreReviewDetailUpdateAttributes{DemoAccountPassword: &password},
-	)
-	assertSubmittedPasswordRedacted(t, err)
-}
-
-func TestUpdateBetaAppReviewDetailRedactsSubmittedPasswordFromAPIError(t *testing.T) {
-	client := newTestClient(t, nil, echoedPasswordErrorResponse())
-	password := submittedPasswordErrorSentinel
-	_, err := client.UpdateBetaAppReviewDetail(
-		context.Background(),
-		"detail-1",
-		BetaAppReviewDetailUpdateAttributes{DemoAccountPassword: &password},
-	)
-	assertSubmittedPasswordRedacted(t, err)
+	tests := []struct {
+		name string
+		call func(*Client) error
+	}{
+		{"create app store review detail", func(c *Client) error {
+			_, err := c.CreateAppStoreReviewDetail(context.Background(), "version-1", &AppStoreReviewDetailCreateAttributes{DemoAccountPassword: &password})
+			return err
+		}},
+		{"update app store review detail", func(c *Client) error {
+			_, err := c.UpdateAppStoreReviewDetail(context.Background(), "detail-1", AppStoreReviewDetailUpdateAttributes{DemoAccountPassword: &password})
+			return err
+		}},
+		{"update beta app review detail", func(c *Client) error {
+			_, err := c.UpdateBetaAppReviewDetail(context.Background(), "detail-1", BetaAppReviewDetailUpdateAttributes{DemoAccountPassword: &password})
+			return err
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assertSubmittedPasswordRedacted(t, tc.call(newTestClient(t, nil, echoedPasswordErrorResponse())))
+		})
+	}
 }
 
 func TestSubmittedPasswordRedactionPreservesProtocolCodeClassification(t *testing.T) {

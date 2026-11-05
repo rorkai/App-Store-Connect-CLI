@@ -99,6 +99,7 @@ func TestCommandOutputTypesHaveTableRenderers(t *testing.T) {
 		typeKey[CertificatePassTypeIDLinkageResponse](),
 		typeKey[ProfileBundleIDLinkageResponse](),
 		typeKey[AppStoreVersionDeleteResult](),
+		typeKey[AppPriceScheduleNotConfiguredResult](),
 		typeKey[GameCenterAchievementImageResponse](),
 		typeKey[GameCenterLeaderboardImageResponse](),
 		typeKey[GameCenterLeaderboardSetImageResponse](),

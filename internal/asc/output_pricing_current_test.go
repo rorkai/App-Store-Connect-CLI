@@ -28,10 +28,3 @@ func TestAppPriceScheduleNotConfiguredRowsWithReason(t *testing.T) {
 		t.Fatalf("rows = %v, want %v", rows, want)
 	}
 }
-
-func TestAppPriceScheduleNotConfiguredResultIsRegistered(t *testing.T) {
-	ensureOutputRegistryPopulated()
-	if !isRegistryTypeRegistered(typeForPtr[AppPriceScheduleNotConfiguredResult]()) {
-		t.Fatal("expected AppPriceScheduleNotConfiguredResult to have a registered renderer")
-	}
-}

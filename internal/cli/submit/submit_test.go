@@ -2130,3 +2130,11 @@ func captureSubmitCommandOutput(t *testing.T, fn func() error) (string, error) {
 
 	return stdout, runErr
 }
+
+func extractExistingSubmissionID(err error) string {
+	conflict := extractSubmissionConflict(err)
+	if conflict.Kind != submissionConflictAlreadyAttached {
+		return ""
+	}
+	return conflict.SubmissionID
+}

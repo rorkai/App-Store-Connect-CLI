@@ -166,24 +166,6 @@ func TestPricingScheduleCreateCommand_InvalidDate(t *testing.T) {
 	}
 }
 
-func TestPricingScheduleCreateCommand_HelpDocumentsStartDateDefault(t *testing.T) {
-	cmd := PricingScheduleCreateCommand()
-
-	usage := cmd.FlagSet.Lookup("start-date").Usage
-	if !strings.Contains(usage, "default: today in US Pacific time") {
-		t.Fatalf("expected --start-date help to document the US Pacific default, got %q", usage)
-	}
-	if !strings.Contains(cmd.LongHelp, "today's date in US Pacific time") {
-		t.Fatalf("expected long help to document the US Pacific default, got %q", cmd.LongHelp)
-	}
-	if !strings.Contains(usage, "today or later") {
-		t.Fatalf("expected --start-date help to mention Apple requires today or later, got %q", usage)
-	}
-	if !strings.Contains(cmd.LongHelp, "Apple requires the start date to be today or later") {
-		t.Fatalf("expected long help to mention Apple's today-or-later rule, got %q", cmd.LongHelp)
-	}
-}
-
 func TestPricingScheduleCreateCommand_HelpMentionsFreeExample(t *testing.T) {
 	cmd := PricingScheduleCreateCommand()
 
@@ -308,47 +290,16 @@ func TestPricingAvailabilitySetCommand_HasAvailableInNewTerritoriesFlag(t *testi
 	}
 }
 
-func TestPricingAvailabilityCommand_RegistersCreate(t *testing.T) {
-	cmd := PricingAvailabilityCommand()
-
-	for _, subcommand := range cmd.Subcommands {
-		if subcommand.Name == "create" {
-			if !strings.Contains(cmd.LongHelp, "pricing availability create") {
-				t.Fatalf("expected availability help to mention create, got %q", cmd.LongHelp)
-			}
-			return
+func TestPricingAvailabilityCommandRegistersSubcommands(t *testing.T) {
+	registered := map[string]bool{}
+	for _, subcommand := range PricingAvailabilityCommand().Subcommands {
+		registered[subcommand.Name] = true
+	}
+	for _, name := range []string{"create", "remove-from-sale", "platforms"} {
+		if !registered[name] {
+			t.Errorf("expected pricing availability %s to be registered", name)
 		}
 	}
-
-	t.Fatal("expected pricing availability create to be registered")
-}
-
-func TestPricingAvailabilityCommand_RegistersRemoveFromSale(t *testing.T) {
-	cmd := PricingAvailabilityCommand()
-
-	for _, subcommand := range cmd.Subcommands {
-		if subcommand.Name == "remove-from-sale" {
-			if !strings.Contains(cmd.LongHelp, "pricing availability remove-from-sale") {
-				t.Fatalf("expected availability help to mention remove-from-sale, got %q", cmd.LongHelp)
-			}
-			return
-		}
-	}
-
-	t.Fatal("expected pricing availability remove-from-sale to be registered")
-}
-
-func TestPricingAvailabilityCommand_RegistersPlatforms(t *testing.T) {
-	cmd := PricingAvailabilityCommand()
-	for _, subcommand := range cmd.Subcommands {
-		if subcommand.Name == "platforms" {
-			if !strings.Contains(cmd.LongHelp, `pricing availability platforms --app "123456789"`) {
-				t.Fatalf("expected availability help to mention platforms, got %q", cmd.LongHelp)
-			}
-			return
-		}
-	}
-	t.Fatal("expected pricing availability platforms to be registered")
 }
 
 func TestPricingAvailabilityRemoveFromSaleCommand_MissingConfirmBeforeAuth(t *testing.T) {

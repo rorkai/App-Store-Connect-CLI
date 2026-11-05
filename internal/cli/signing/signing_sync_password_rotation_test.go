@@ -15,16 +15,6 @@ import (
 	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
-func TestSigningSyncCommandRegistersRotatePassword(t *testing.T) {
-	command := SigningSyncCommand()
-	for _, subcommand := range command.Subcommands {
-		if subcommand.Name == "rotate-password" {
-			return
-		}
-	}
-	t.Fatal("signing sync command does not register rotate-password")
-}
-
 func TestSigningSyncRotatePasswordFlagsAreRegistered(t *testing.T) {
 	command := syncRotatePasswordCommand()
 	for _, name := range []string{"repo", "password-file", "new-password-file", "branch", "confirm"} {

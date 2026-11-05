@@ -425,11 +425,6 @@ func VerifyApprovedMetadataPlan(opts PushExecutionOptions, currentPlan PushPlanR
 	return nil
 }
 
-func ExecuteApprovedMetadataApplyWithWarnings(ctx context.Context, opts PushExecutionOptions, reviewDir string) (PushPlanResult, []shared.SubmitReadinessCreateWarning, error) {
-	opts.ReviewDir = reviewDir
-	return ExecutePushWithWarnings(ctx, opts)
-}
-
 func metadataReviewDir(reviewDir string) string {
 	trimmed := strings.TrimSpace(reviewDir)
 	if trimmed == "" {

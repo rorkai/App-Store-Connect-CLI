@@ -380,3 +380,7 @@ func TestReadVersionLocalizationPatchRejectsOverLimitKeywordCharacters(t *testin
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
+	return loadLocalMetadataWithAssets(dir, version, false)
+}

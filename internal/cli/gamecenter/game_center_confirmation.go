@@ -14,13 +14,7 @@ func validateGameCenterReplacementConfirm(fs *flag.FlagSet, confirmed bool) erro
 	if confirmed {
 		return nil
 	}
-	confirmProvided := false
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == "confirm" {
-			confirmProvided = true
-		}
-	})
-	if confirmProvided {
+	if flagPassed(fs, "confirm") {
 		return shared.UsageError("--confirm must be true when specified")
 	}
 	fmt.Fprintln(os.Stderr, "Error: --confirm is required")

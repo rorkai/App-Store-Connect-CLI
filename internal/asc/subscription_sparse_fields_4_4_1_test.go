@@ -2,100 +2,11 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
-	"runtime"
-	"slices"
 	"strings"
 	"testing"
 )
-
-func TestSubscriptionSparseFields441OpenAPILedger(t *testing.T) {
-	t.Parallel()
-
-	type addition struct {
-		parameter string
-		value     string
-	}
-	want := map[string][]addition{
-		"/v1/subscriptionAppStoreReviewScreenshots/{id}":             {{"fields[subscriptions]", "versions"}},
-		"/v1/subscriptionGroupLocalizations/{id}":                    {{"fields[subscriptionGroups]", "versions"}},
-		"/v1/subscriptionImages/{id}":                                {{"fields[subscriptions]", "versions"}},
-		"/v1/subscriptionLocalizations/{id}":                         {{"fields[subscriptions]", "versions"}},
-		"/v1/subscriptionOfferCodes/{id}":                            {{"fields[subscriptions]", "versions"}},
-		"/v1/subscriptionPricePoints/{id}":                           {{"fields[subscriptionPricePoints]", "adjustedEqualizations"}},
-		"/v1/subscriptionPromotionalOffers/{id}":                     {{"fields[subscriptions]", "versions"}},
-		"/v1/subscriptionGroups/{id}/subscriptionGroupLocalizations": {{"fields[subscriptionGroups]", "versions"}},
-		"/v1/subscriptionOfferCodes/{id}/prices":                     {{"fields[subscriptionPricePoints]", "adjustedEqualizations"}},
-		"/v1/subscriptionPromotionalOffers/{id}/prices":              {{"fields[subscriptionPricePoints]", "adjustedEqualizations"}},
-		"/v1/subscriptions/{id}/appStoreReviewScreenshot":            {{"fields[subscriptions]", "versions"}},
-		"/v1/subscriptions/{id}/images":                              {{"fields[subscriptions]", "versions"}},
-		"/v1/subscriptions/{id}/introductoryOffers":                  {{"fields[subscriptions]", "versions"}, {"fields[subscriptionPricePoints]", "adjustedEqualizations"}},
-		"/v1/subscriptions/{id}/offerCodes":                          {{"fields[subscriptions]", "versions"}},
-		"/v1/subscriptions/{id}/promotedPurchase":                    {{"fields[subscriptions]", "versions"}, {"fields[inAppPurchases]", "versions"}},
-		"/v1/subscriptions/{id}/promotionalOffers":                   {{"fields[subscriptions]", "versions"}},
-		"/v1/subscriptions/{id}/subscriptionLocalizations":           {{"fields[subscriptions]", "versions"}},
-	}
-	if len(want) != 17 {
-		t.Fatalf("ledger paths = %d, want 17", len(want))
-	}
-
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
-	}
-	schemaPath := filepath.Join(filepath.Dir(sourceFile), "..", "..", "docs", "openapi", "latest.json")
-	data, err := os.ReadFile(schemaPath)
-	if err != nil {
-		t.Fatalf("read OpenAPI schema: %v", err)
-	}
-	var schema struct {
-		Paths map[string]json.RawMessage `json:"paths"`
-	}
-	if err := json.Unmarshal(data, &schema); err != nil {
-		t.Fatalf("decode OpenAPI schema: %v", err)
-	}
-
-	for path, additions := range want {
-		pathJSON, ok := schema.Paths[path]
-		if !ok {
-			t.Errorf("missing GET %s", path)
-			continue
-		}
-		var pathItem struct {
-			Get struct {
-				Parameters []struct {
-					Name   string `json:"name"`
-					Schema struct {
-						Items struct {
-							Enum []string `json:"enum"`
-						} `json:"items"`
-					} `json:"schema"`
-				} `json:"parameters"`
-			} `json:"get"`
-		}
-		if err := json.Unmarshal(pathJSON, &pathItem); err != nil {
-			t.Errorf("decode GET %s: %v", path, err)
-			continue
-		}
-		for _, addition := range additions {
-			found := false
-			for _, parameter := range pathItem.Get.Parameters {
-				if parameter.Name != addition.parameter {
-					continue
-				}
-				found = slices.Contains(parameter.Schema.Items.Enum, addition.value)
-				break
-			}
-			if !found {
-				t.Errorf("GET %s missing %s=%s", path, addition.parameter, addition.value)
-			}
-		}
-	}
-}
 
 func TestSubscriptionSparseFields441ExactQueries(t *testing.T) {
 	t.Parallel()

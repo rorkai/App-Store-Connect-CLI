@@ -101,10 +101,6 @@ func removeMatrixReviewBrowserSnapshot(path string) {
 	_ = os.RemoveAll(dir)
 }
 
-func createMatrixReviewBrowserSnapshot(data []byte) (string, error) {
-	return createMatrixReviewBrowserSnapshotWithContext(context.Background(), data, nil)
-}
-
 func openCreatedMatrixReviewSnapshotRoot(path string) (*os.Root, error) {
 	createdInfo, err := os.Lstat(path)
 	if err != nil || !createdInfo.IsDir() || createdInfo.Mode()&os.ModeSymlink != 0 {

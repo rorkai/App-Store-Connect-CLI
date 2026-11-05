@@ -34,38 +34,38 @@ func TestAPIErrorError_SanitizesControlCharacters(t *testing.T) {
 	}
 }
 
-func TestAPIErrorIs_UnauthorizedByStatusCode(t *testing.T) {
-	// Apple returns 401 responses with code NOT_AUTHORIZED, not UNAUTHORIZED.
-	payload := `{"errors":[{"id":"7091e344-4b31-4b6b-9f04-16d61a1c8c9e","status":"401","code":"NOT_AUTHORIZED","title":"Authentication credentials are missing or invalid.","detail":"Provide a properly configured and signed bearer token, and make sure that it has not expired."}]}`
-	err := ParseErrorWithStatus([]byte(payload), 401)
-
-	if !errors.Is(err, ErrUnauthorized) {
-		t.Fatalf("expected 401 NOT_AUTHORIZED response to match ErrUnauthorized, got %v", err)
+func TestAPIErrorIs_AuthSentinels(t *testing.T) {
+	tests := []struct {
+		name             string
+		err              error
+		wantUnauthorized bool
+		wantForbidden    bool
+	}{
+		{
+			// Apple returns 401 responses with code NOT_AUTHORIZED, not UNAUTHORIZED.
+			name:             "401 NOT_AUTHORIZED",
+			err:              ParseErrorWithStatus([]byte(`{"errors":[{"id":"7091e344-4b31-4b6b-9f04-16d61a1c8c9e","status":"401","code":"NOT_AUTHORIZED","title":"Authentication credentials are missing or invalid.","detail":"Provide a properly configured and signed bearer token, and make sure that it has not expired."}]}`), 401),
+			wantUnauthorized: true,
+		},
+		{
+			name:          "403 FORBIDDEN_ERROR",
+			err:           ParseErrorWithStatus([]byte(`{"errors":[{"status":"403","code":"FORBIDDEN_ERROR","title":"The given operation is not allowed","detail":"This request is forbidden for security reasons"}]}`), 403),
+			wantForbidden: true,
+		},
+		{name: "UNAUTHORIZED code without status", err: &APIError{Code: "UNAUTHORIZED"}, wantUnauthorized: true},
+		{name: "FORBIDDEN code without status", err: &APIError{Code: "FORBIDDEN"}, wantForbidden: true},
+		{name: "qualified FORBIDDEN code without status", err: &APIError{Code: "FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED"}, wantForbidden: true},
+		{name: "qualified FORBIDDEN_ERROR code without status", err: &APIError{Code: "FORBIDDEN_ERROR.PLA_NOT_VALID"}, wantForbidden: true},
 	}
-	if errors.Is(err, ErrForbidden) {
-		t.Fatalf("expected 401 response not to match ErrForbidden, got %v", err)
-	}
-}
-
-func TestAPIErrorIs_ForbiddenByStatusCode(t *testing.T) {
-	payload := `{"errors":[{"status":"403","code":"FORBIDDEN_ERROR","title":"The given operation is not allowed","detail":"This request is forbidden for security reasons"}]}`
-	err := ParseErrorWithStatus([]byte(payload), 403)
-
-	if !errors.Is(err, ErrForbidden) {
-		t.Fatalf("expected 403 response to match ErrForbidden, got %v", err)
-	}
-	if errors.Is(err, ErrUnauthorized) {
-		t.Fatalf("expected 403 response not to match ErrUnauthorized, got %v", err)
-	}
-}
-
-func TestAPIErrorIs_AuthCodesWithoutStatusCode(t *testing.T) {
-	// Code-string matching must keep working when no HTTP status is known.
-	if !errors.Is(&APIError{Code: "UNAUTHORIZED"}, ErrUnauthorized) {
-		t.Fatal("expected UNAUTHORIZED code to match ErrUnauthorized")
-	}
-	if !errors.Is(&APIError{Code: "FORBIDDEN"}, ErrForbidden) {
-		t.Fatal("expected FORBIDDEN code to match ErrForbidden")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := errors.Is(tc.err, ErrUnauthorized); got != tc.wantUnauthorized {
+				t.Errorf("errors.Is(%v, ErrUnauthorized) = %t, want %t", tc.err, got, tc.wantUnauthorized)
+			}
+			if got := errors.Is(tc.err, ErrForbidden); got != tc.wantForbidden {
+				t.Errorf("errors.Is(%v, ErrForbidden) = %t, want %t", tc.err, got, tc.wantForbidden)
+			}
+		})
 	}
 }
 

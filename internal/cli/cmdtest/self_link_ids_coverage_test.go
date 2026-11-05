@@ -33,6 +33,34 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 		bodies   map[string]string
 	}{
 		{
+			name:     "builds info",
+			args:     []string{"builds", "info", "--build-id", selfLinkTestBase + "/v1/builds/build-1"},
+			wantPath: "GET /v1/builds/build-1",
+			wantID:   "build-1",
+			bodies: map[string]string{
+				"/v1/builds/build-1":                   `{"data":{"type":"builds","id":"build-1","attributes":{"version":"9","processingState":"VALID","expired":false}}}`,
+				"/v1/builds/build-1/preReleaseVersion": `{"data":{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`,
+			},
+		},
+		{
+			name:     "versions view with query string",
+			args:     []string{"versions", "view", "--version-id", selfLinkTestBase + "/v1/appStoreVersions/version-1?include=app"},
+			wantPath: "GET /v1/appStoreVersions/version-1",
+			wantID:   "version-1",
+			bodies: map[string]string{
+				"/v1/appStoreVersions/version-1": `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}}`,
+			},
+		},
+		{
+			name:     "testflight crashes view",
+			args:     []string{"testflight", "crashes", "view", "--submission-id", selfLinkTestBase + "/v1/betaFeedbackCrashSubmissions/crash-1"},
+			wantPath: "GET /v1/betaFeedbackCrashSubmissions/crash-1",
+			wantID:   "crash-1",
+			bodies: map[string]string{
+				"/v1/betaFeedbackCrashSubmissions/crash-1": `{"data":{"type":"betaFeedbackCrashSubmissions","id":"crash-1","attributes":{"createdDate":"2026-09-01T00:00:00Z"}}}`,
+			},
+		},
+		{
 			name:     "localizations preview-sets list",
 			args:     []string{"localizations", "preview-sets", "list", "--localization-id", selfLinkTestBase + "/v1/appStoreVersionLocalizations/loc-1"},
 			wantPath: "GET /v1/appStoreVersionLocalizations/loc-1/appPreviewSets",
@@ -543,6 +571,7 @@ var selfLinkIDFlagExclusions = map[string]string{
 	"asc game-center achievements submit --scoped-player-id":    "Game Center player identifier",
 	"asc game-center leaderboards submit --scoped-player-id":    "Game Center player identifier",
 	"asc subscriptions offers win-back create --offer-id":       "offerId attribute, not a resource ID",
+	"asc subscriptions offers retention create --offer-id":      "offerId attribute, not a resource ID",
 	"asc validate --apple-id":                                   "cached Apple Account for the web session",
 }
 

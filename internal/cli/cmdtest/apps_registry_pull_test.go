@@ -420,83 +420,63 @@ func TestAppsRegistryPullRejectsInvalidRegistryJSON(t *testing.T) {
 	}
 }
 
-func TestAppsRegistryPullRejectsDuplicateExistingASCAppIDs(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	registryPath := filepath.Join(t.TempDir(), "app_registry.json")
-	duplicateRegistry := `{"apps":[` +
-		`{"key":"first","name":"First","asc_app_id":"app-1","bundle_id":"one.bundle","platform":null,"primary_locale":"en-US","repo_path":null,"ga4_property_id":null,"aliases":[]},` +
-		`{"key":"second","name":"Second","asc_app_id":"app-1","bundle_id":"two.bundle","platform":null,"primary_locale":"en-US","repo_path":null,"ga4_property_id":null,"aliases":[]}` +
-		`]}`
-	if err := os.WriteFile(registryPath, []byte(duplicateRegistry), 0o600); err != nil {
-		t.Fatalf("WriteFile() error: %v", err)
+func TestAppsRegistryPullRejectsDuplicateExistingEntries(t *testing.T) {
+	entry := func(key, appID, bundleID string) string {
+		return `{"key":"` + key + `","name":"` + key + `","asc_app_id":"` + appID + `","bundle_id":"` + bundleID + `","platform":null,"primary_locale":"en-US","repo_path":null,"ga4_property_id":null,"aliases":[]}`
+	}
+	tests := []struct {
+		name    string
+		apps    []string
+		wantErr string
+	}{
+		{
+			name:    "asc app id",
+			apps:    []string{entry("first", "app-1", "one.bundle"), entry("second", "app-1", "two.bundle")},
+			wantErr: `duplicate asc_app_id "app-1"`,
+		},
+		{
+			name:    "key",
+			apps:    []string{entry("same", "app-1", "one.bundle"), entry("same", "app-2", "two.bundle")},
+			wantErr: `duplicate key "same"`,
+		},
 	}
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
-	}))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			registryPath := filepath.Join(t.TempDir(), "app_registry.json")
+			if err := os.WriteFile(registryPath, []byte(`{"apps":[`+strings.Join(test.apps, ",")+`]}`), 0o600); err != nil {
+				t.Fatalf("WriteFile() error: %v", err)
+			}
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"apps", "registry", "pull",
-			"--path", registryPath,
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+			}))
 
-	if runErr == nil || !strings.Contains(runErr.Error(), `duplicate asc_app_id "app-1"`) {
-		t.Fatalf("expected duplicate asc_app_id error, got %v", runErr)
-	}
-	if stdout != "" || stderr != "" {
-		t.Fatalf("expected empty output, got stdout=%q stderr=%q", stdout, stderr)
-	}
-}
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-func TestAppsRegistryPullRejectsDuplicateExistingKeys(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"apps", "registry", "pull",
+					"--path", registryPath,
+					"--dry-run",
+				}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
 
-	registryPath := filepath.Join(t.TempDir(), "app_registry.json")
-	duplicateRegistry := `{"apps":[` +
-		`{"key":"same","name":"First","asc_app_id":"app-1","bundle_id":"one.bundle","platform":null,"primary_locale":"en-US","repo_path":null,"ga4_property_id":null,"aliases":[]},` +
-		`{"key":"same","name":"Second","asc_app_id":"app-2","bundle_id":"two.bundle","platform":null,"primary_locale":"en-US","repo_path":null,"ga4_property_id":null,"aliases":[]}` +
-		`]}`
-	if err := os.WriteFile(registryPath, []byte(duplicateRegistry), 0o600); err != nil {
-		t.Fatalf("WriteFile() error: %v", err)
-	}
-
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"apps", "registry", "pull",
-			"--path", registryPath,
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil || !strings.Contains(runErr.Error(), `duplicate key "same"`) {
-		t.Fatalf("expected duplicate key error, got %v", runErr)
-	}
-	if stdout != "" || stderr != "" {
-		t.Fatalf("expected empty output, got stdout=%q stderr=%q", stdout, stderr)
+			if runErr == nil || !strings.Contains(runErr.Error(), test.wantErr) {
+				t.Fatalf("expected %s error, got %v", test.wantErr, runErr)
+			}
+			if stdout != "" || stderr != "" {
+				t.Fatalf("expected empty output, got stdout=%q stderr=%q", stdout, stderr)
+			}
+		})
 	}
 }
 

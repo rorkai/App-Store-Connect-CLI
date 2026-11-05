@@ -417,25 +417,20 @@ func TestFindReviewIAPRejectsUnexpectedResourceType(t *testing.T) {
 	}
 }
 
-func TestFindReviewIAPRejectsEmptyAppID(t *testing.T) {
-	client := &Client{}
-	_, found, err := client.FindReviewIAP(context.Background(), "   ", "iap-1")
-	if err == nil {
-		t.Fatal("expected error for empty app id, got nil")
-	}
-	if found {
-		t.Fatal("expected empty app id to return found=false")
-	}
-}
-
-func TestFindReviewIAPRejectsEmptyIAPID(t *testing.T) {
-	client := &Client{}
-	_, found, err := client.FindReviewIAP(context.Background(), "app-123", "   ")
-	if err == nil {
-		t.Fatal("expected error for empty iap id, got nil")
-	}
-	if found {
-		t.Fatal("expected empty iap id to return found=false")
+func TestFindReviewIAPRejectsEmptyIDs(t *testing.T) {
+	for _, tc := range []struct{ name, appID, iapID string }{
+		{name: "empty app id", appID: "   ", iapID: "iap-1"},
+		{name: "empty iap id", appID: "app-123", iapID: "   "},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, found, err := (&Client{}).FindReviewIAP(context.Background(), tc.appID, tc.iapID)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if found {
+				t.Fatal("expected found=false")
+			}
+		})
 	}
 }
 

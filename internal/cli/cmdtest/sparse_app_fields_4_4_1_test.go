@@ -32,6 +32,28 @@ func TestSparseAppFieldFlagsValidateBeforeAuth(t *testing.T) {
 		{"app info localizations", []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--app-info-fields", "bogus"}, "--app-info-fields must be one of: appStoreState"},
 		{"xcode cloud product app", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--iap-fields", "bogus"}, "--iap-fields must be one of: referenceName"},
 		{"xcode cloud product app app info", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--app-info-fields", "bogus"}, "--app-info-fields must be one of: appStoreState"},
+		{"apps list iap empty", []string{"apps", "list", "--iap-fields", ""}, "--iap-fields must not be empty"},
+		{"apps list app info empty", []string{"apps", "list", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
+		{"apps list group whitespace", []string{"apps", "list", "--subscription-group-fields", " \t"}, "--subscription-group-fields must not be empty"},
+		{"apps view iap whitespace", []string{"apps", "view", "--id", "app-1", "--iap-fields", " \t"}, "--iap-fields must not be empty"},
+		{"apps view group empty", []string{"apps", "view", "--id", "app-1", "--subscription-group-fields", ""}, "--subscription-group-fields must not be empty"},
+		{"apps view app info empty", []string{"apps", "view", "--id", "app-1", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
+		{"app infos list fields empty", []string{"apps", "info", "list", "--app", "app-1", "--fields", ""}, "--fields must not be empty"},
+		{"app infos list age rating whitespace", []string{"apps", "info", "list", "--app", "app-1", "--age-rating-fields", " \t"}, "--age-rating-fields must not be empty"},
+		{"app info view fields whitespace", []string{"apps", "info", "view", "--info-id", "info-1", "--fields", " \t"}, "--fields must not be empty"},
+		{"app info view age rating empty", []string{"apps", "info", "view", "--info-id", "info-1", "--age-rating-fields", ""}, "--age-rating-fields must not be empty"},
+		{"age rating view fields empty", []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", ""}, "--fields must not be empty"},
+		{"app info localizations fields empty", []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
+		{"xcode cloud product app iap empty", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--iap-fields", ""}, "--iap-fields must not be empty"},
+		{"xcode cloud product app group whitespace", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--subscription-group-fields", " \t"}, "--subscription-group-fields must not be empty"},
+		{"xcode cloud product app app info empty", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
+		{"app info localizations next conflict", []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/appInfoLocalizations?cursor=next", "--app-info-fields", ""}, "--next cannot be combined with --app-info-fields"},
+		{"app info localizations version type", []string{"localizations", "list", "--version", "version-1", "--app-info-fields", "kidsAgeBand"}, "--app-info-fields requires --type app-info"},
+		{"apps list next app info", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--app-info-fields", ""}, "--next cannot be combined with --app-info-fields"},
+		{"apps list next iap", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--iap-fields", ""}, "--next cannot be combined with --iap-fields"},
+		{"apps list next group", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--subscription-group-fields", ""}, "--next cannot be combined with --subscription-group-fields"},
+		{"app info view next fields", []string{"apps", "info", "view", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--fields", ""}, "--next cannot be combined with --fields"},
+		{"app info view next age rating", []string{"apps", "info", "view", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--age-rating-fields", ""}, "--next cannot be combined with --age-rating-fields"},
 	}
 
 	for _, test := range tests {
@@ -52,135 +74,6 @@ func TestSparseAppFieldFlagsValidateBeforeAuth(t *testing.T) {
 			}
 			if !strings.Contains(stderr, test.want) {
 				t.Fatalf("stderr = %q, want %q", stderr, test.want)
-			}
-		})
-	}
-}
-
-func TestSparseAppFieldFlagsRejectExplicitEmptyBeforeAuth(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{"apps list iap empty", []string{"apps", "list", "--iap-fields", ""}, "--iap-fields must not be empty"},
-		{"apps list app info empty", []string{"apps", "list", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
-		{"apps list group whitespace", []string{"apps", "list", "--subscription-group-fields", " \t"}, "--subscription-group-fields must not be empty"},
-		{"apps view iap whitespace", []string{"apps", "view", "--id", "app-1", "--iap-fields", " \t"}, "--iap-fields must not be empty"},
-		{"apps view group empty", []string{"apps", "view", "--id", "app-1", "--subscription-group-fields", ""}, "--subscription-group-fields must not be empty"},
-		{"apps view app info empty", []string{"apps", "view", "--id", "app-1", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
-		{"app infos list fields empty", []string{"apps", "info", "list", "--app", "app-1", "--fields", ""}, "--fields must not be empty"},
-		{"app infos list age rating whitespace", []string{"apps", "info", "list", "--app", "app-1", "--age-rating-fields", " \t"}, "--age-rating-fields must not be empty"},
-		{"app info view fields whitespace", []string{"apps", "info", "view", "--info-id", "info-1", "--fields", " \t"}, "--fields must not be empty"},
-		{"app info view age rating empty", []string{"apps", "info", "view", "--info-id", "info-1", "--age-rating-fields", ""}, "--age-rating-fields must not be empty"},
-		{"age rating view fields empty", []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", ""}, "--fields must not be empty"},
-		{"app info localizations fields empty", []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
-		{"xcode cloud product app iap empty", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--iap-fields", ""}, "--iap-fields must not be empty"},
-		{"xcode cloud product app group whitespace", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--subscription-group-fields", " \t"}, "--subscription-group-fields must not be empty"},
-		{"xcode cloud product app app info empty", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want flag.ErrHelp", err)
-				}
-			})
-			if stdout != "" {
-				t.Fatalf("stdout = %q, want empty", stdout)
-			}
-			if !strings.Contains(stderr, test.want) {
-				t.Fatalf("stderr = %q, want %q", stderr, test.want)
-			}
-		})
-	}
-}
-
-func TestAppInfoLocalizationSparseFieldsRejectNextAndOtherTypesBeforeAuth(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/appInfoLocalizations?cursor=next"
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{
-			name: "next conflict",
-			args: []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--next", next, "--app-info-fields", ""},
-			want: "--next cannot be combined with --app-info-fields",
-		},
-		{
-			name: "version type",
-			args: []string{"localizations", "list", "--version", "version-1", "--app-info-fields", "kidsAgeBand"},
-			want: "--app-info-fields requires --type app-info",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want flag.ErrHelp", err)
-				}
-			})
-			if stdout != "" {
-				t.Fatalf("stdout = %q, want empty", stdout)
-			}
-			if !strings.Contains(stderr, test.want) {
-				t.Fatalf("stderr = %q, want %q", stderr, test.want)
-			}
-		})
-	}
-}
-
-func TestAppsListSparseFieldsConflictWithNextBeforeAuth(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/apps?cursor=next"
-	for _, flagName := range []string{"--app-info-fields", "--iap-fields", "--subscription-group-fields"} {
-		t.Run(flagName, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"apps", "list", "--next", next, flagName, ""}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want flag.ErrHelp", err)
-				}
-			})
-			if !strings.Contains(stderr, "--next cannot be combined with "+flagName) {
-				t.Fatalf("stderr = %q", stderr)
-			}
-		})
-	}
-}
-
-func TestAppInfoSparseFieldsConflictWithNextBeforeAuth(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next"
-	for _, flagName := range []string{"--fields", "--age-rating-fields"} {
-		t.Run(flagName, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"apps", "info", "view", "--app", "app-1", "--next", next, flagName, ""}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want flag.ErrHelp", err)
-				}
-			})
-			if !strings.Contains(stderr, "--next cannot be combined with "+flagName) {
-				t.Fatalf("stderr = %q", stderr)
 			}
 		})
 	}
@@ -417,43 +310,5 @@ func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
 				t.Fatalf("calls = %d, want 1", calls)
 			}
 		})
-	}
-}
-
-func TestSparseAppFieldHelp441(t *testing.T) {
-	root := RootCommand("1.2.3")
-	for _, path := range [][]string{
-		{"apps", "list"},
-		{"apps", "view"},
-		{"xcode-cloud", "products", "app"},
-	} {
-		command := findSubcommand(root, path...)
-		if command == nil {
-			t.Fatalf("command %v not found", path)
-		}
-		usage := command.UsageFunc(command)
-		for _, flagName := range []string{"--app-info-fields", "--iap-fields", "--subscription-group-fields"} {
-			if !strings.Contains(usage, flagName) {
-				t.Errorf("help for %v does not contain %s: %q", path, flagName, usage)
-			}
-		}
-	}
-
-	localizations := findSubcommand(root, "localizations", "list")
-	if localizations == nil {
-		t.Fatal("command [localizations list] not found")
-	}
-	if usage := localizations.UsageFunc(localizations); !strings.Contains(usage, "--app-info-fields") {
-		t.Fatalf("help for [localizations list] does not contain --app-info-fields: %q", usage)
-	}
-
-	appInfoView := findSubcommand(root, "apps", "info", "view")
-	if appInfoView == nil {
-		t.Fatal("command [apps info view] not found")
-	}
-	usage := appInfoView.FlagSet.Lookup("include").Usage
-	wantIncludes := "app, ageRatingDeclaration, appInfoLocalizations, primaryCategory, primarySubcategoryOne, primarySubcategoryTwo, secondaryCategory, secondarySubcategoryOne, secondarySubcategoryTwo"
-	if !strings.Contains(usage, wantIncludes) || strings.Contains(usage, "territoryAgeRatings") {
-		t.Fatalf("help for [apps info view] does not teach exact app-info includes: %q", usage)
 	}
 }

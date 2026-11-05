@@ -153,6 +153,8 @@ const (
 	ResourceTypeSubscriptionOfferCodeOneTimeUseCodes            ResourceType = "subscriptionOfferCodeOneTimeUseCodes"
 	ResourceTypeWinBackOffers                                   ResourceType = "winBackOffers"
 	ResourceTypeWinBackOfferPrices                              ResourceType = "winBackOfferPrices"
+	ResourceTypeRetentionOffers                                 ResourceType = "retentionOffers"
+	ResourceTypeRetentionOfferPrices                            ResourceType = "retentionOfferPrices"
 	ResourceTypeNominations                                     ResourceType = "nominations"
 	ResourceTypeMarketplaceSearchDetails                        ResourceType = "marketplaceSearchDetails"
 	ResourceTypeMarketplaceWebhooks                             ResourceType = "marketplaceWebhooks"

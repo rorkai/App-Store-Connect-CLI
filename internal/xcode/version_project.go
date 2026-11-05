@@ -258,10 +258,6 @@ func (project *structuredVersionProject) hasStructuredVersionSettingsForView(tar
 	return project.configurationsResolveStructuredSettings([]*versionConfiguration{selected})
 }
 
-func (project *structuredVersionProject) hasStructuredVersionSettingsForMutation(target, configuration string) (bool, error) {
-	return project.hasStructuredSettingsForMutation(target, configuration, marketingVersionSetting, currentProjectSetting)
-}
-
 func (project *structuredVersionProject) hasStructuredSettingsForMutation(target, configuration string, settings ...string) (bool, error) {
 	anyProjectSetting, err := project.hasAnyStructuredSetting(settings...)
 	if err != nil {

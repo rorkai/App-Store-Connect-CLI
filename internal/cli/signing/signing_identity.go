@@ -538,16 +538,6 @@ func prepareSigningIdentityArtifacts(identity *signingIdentity, password, bundle
 	}, nil
 }
 
-func preflightSigningIdentityArtifacts(store *signingpkg.GitStore, artifacts *signingIdentityArtifacts, password string) error {
-	if _, err := preflightSigningArtifact(store, artifacts.IdentityPath, artifacts.IdentityData, password, artifacts.IdentityMetadata, func(existing, wanted []byte) bool {
-		return samePKCS12Identity(existing, wanted, password)
-	}); err != nil {
-		return err
-	}
-	_, err := preflightSigningArtifact(store, artifacts.BindingPath, artifacts.BindingData, password, artifacts.BindingMetadata, bytes.Equal)
-	return err
-}
-
 func preflightSigningIdentityArtifactsForContextUpdate(store *signingpkg.GitStore, artifacts *signingIdentityArtifacts, password string) error {
 	if _, err := preflightSigningArtifact(store, artifacts.IdentityPath, artifacts.IdentityData, password, artifacts.IdentityMetadata, func(existing, wanted []byte) bool {
 		return samePKCS12Identity(existing, wanted, password)

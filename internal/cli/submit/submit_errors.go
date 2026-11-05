@@ -162,17 +162,6 @@ func extractSubmissionConflict(err error) submissionConflict {
 	}
 }
 
-// extractExistingSubmissionID inspects an error returned by AddReviewSubmissionItem
-// to see if it indicates the version is already in another review submission.
-// If so, it returns the existing submission's ID; otherwise it returns "".
-func extractExistingSubmissionID(err error) string {
-	conflict := extractSubmissionConflict(err)
-	if conflict.Kind != submissionConflictAlreadyAttached {
-		return ""
-	}
-	return conflict.SubmissionID
-}
-
 // printSubmissionErrorHints inspects an error returned by App Store Connect
 // during submission and prints actionable fix suggestions to stderr.
 func printSubmissionErrorHints(err error, ctx submissionErrorHintContext) {
@@ -266,10 +255,6 @@ func appendUniqueHints(hints []string, values ...string) []string {
 		seen[value] = struct{}{}
 	}
 	return hints
-}
-
-func isExpectedNonCancellableReviewSubmissionError(err error) bool {
-	return isResourceStateInvalid(err)
 }
 
 // isResourceStateInvalid returns true if the error message indicates the

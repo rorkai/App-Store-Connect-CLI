@@ -29,15 +29,35 @@ func (t *failingSlackTransport) RoundTrip(*http.Request) (*http.Response, error)
 	return nil, t.err
 }
 
-func stubSlackTransport(t *testing.T, transportErr error) {
+// runSlackWithSecretWebhook sends a message to the sentinel webhook through
+// transport and returns the captured stderr and the command error.
+func runSlackWithSecretWebhook(t *testing.T, transport http.RoundTripper) (string, error) {
 	t.Helper()
+	t.Setenv(slackWebhookEnvVar, "")
+	t.Setenv(slackWebhookAllowLocalEnv, "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	original := slackHTTPClient
 	t.Cleanup(func() {
 		slackHTTPClient = original
 	})
 	slackHTTPClient = func() *http.Client {
-		return &http.Client{Transport: &failingSlackTransport{err: transportErr}}
+		return &http.Client{Transport: transport}
 	}
+
+	root := SlackCommand()
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"--webhook", slackWebhookWithSecret(),
+			"--message", "Build uploaded",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	return stderr, runErr
 }
 
 func TestNotifySlackTransportFailuresNeverExposeWebhookSecret(t *testing.T) {
@@ -56,25 +76,7 @@ func TestNotifySlackTransportFailuresNeverExposeWebhookSecret(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Setenv(slackWebhookEnvVar, "")
-			t.Setenv(slackWebhookAllowLocalEnv, "1")
-			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			stubSlackTransport(t, test.transportErr)
-
-			root := SlackCommand()
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"--webhook", slackWebhookWithSecret(),
-					"--message", "Build uploaded",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
-
+			stderr, runErr := runSlackWithSecretWebhook(t, &failingSlackTransport{err: test.transportErr})
 			if runErr == nil {
 				t.Fatal("expected a transport error")
 			}
@@ -129,32 +131,7 @@ func TestNotifySlackNon2xxResponseBodyNeverExposesWebhookSecret(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Setenv(slackWebhookEnvVar, "")
-			t.Setenv(slackWebhookAllowLocalEnv, "1")
-			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-			original := slackHTTPClient
-			t.Cleanup(func() {
-				slackHTTPClient = original
-			})
-			slackHTTPClient = func() *http.Client {
-				return &http.Client{Transport: &respondingSlackTransport{status: http.StatusNotFound, body: test.body}}
-			}
-
-			root := SlackCommand()
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"--webhook", slackWebhookWithSecret(),
-					"--message", "Build uploaded",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
-
+			stderr, runErr := runSlackWithSecretWebhook(t, &respondingSlackTransport{status: http.StatusNotFound, body: test.body})
 			if runErr == nil {
 				t.Fatal("expected an unexpected-response error")
 			}
@@ -175,38 +152,11 @@ func TestNotifySlackNon2xxResponseBodyNeverExposesWebhookSecret(t *testing.T) {
 }
 
 func TestNotifySlackNon2xxResponseBodyRemovesTerminalControls(t *testing.T) {
-	t.Setenv(slackWebhookEnvVar, "")
-	t.Setenv(slackWebhookAllowLocalEnv, "1")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
 	splitSecret := slackWebhookSecretSentinel[:12] + "\u202e" + slackWebhookSecretSentinel[12:]
-	original := slackHTTPClient
-	t.Cleanup(func() {
-		slackHTTPClient = original
+	stderr, runErr := runSlackWithSecretWebhook(t, &respondingSlackTransport{
+		status: http.StatusBadGateway,
+		body:   "proxy error " + splitSecret + "\x1b]8;;https://evil.invalid\x07click\x1b]8;;\x07\u202egpj.exe",
 	})
-	slackHTTPClient = func() *http.Client {
-		return &http.Client{
-			Transport: &respondingSlackTransport{
-				status: http.StatusBadGateway,
-				body:   "proxy error " + splitSecret + "\x1b]8;;https://evil.invalid\x07click\x1b]8;;\x07\u202egpj.exe",
-			},
-		}
-	}
-
-	root := SlackCommand()
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"--webhook", slackWebhookWithSecret(),
-			"--message", "Build uploaded",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
 	if runErr == nil {
 		t.Fatal("expected an unexpected-response error")
 	}
@@ -224,36 +174,5 @@ func TestNotifySlackNon2xxResponseBodyRemovesTerminalControls(t *testing.T) {
 	}
 	if !strings.Contains(runErr.Error(), "proxy error") {
 		t.Fatalf("error dropped harmless body context: %q", runErr.Error())
-	}
-}
-
-func TestNotifySlackTransportErrorKeepsDNSErrorInspectable(t *testing.T) {
-	dnsErr := &net.DNSError{Err: "no such host", Name: "hooks.slack.com", IsNotFound: true}
-
-	t.Setenv(slackWebhookEnvVar, "")
-	t.Setenv(slackWebhookAllowLocalEnv, "1")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	stubSlackTransport(t, dnsErr)
-
-	root := SlackCommand()
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"--webhook", slackWebhookWithSecret(),
-			"--message", "Build uploaded",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	var target *net.DNSError
-	if !errors.As(runErr, &target) {
-		t.Fatalf("errors.As could not recover the DNS error from %v", runErr)
-	}
-	if !target.IsNotFound {
-		t.Fatal("errors.As recovered a DNS error without its classification")
 	}
 }

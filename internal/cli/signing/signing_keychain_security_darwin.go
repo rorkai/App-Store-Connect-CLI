@@ -21,16 +21,13 @@ func defaultRunKeychainSecurity(ctx context.Context, stdin []byte, args ...strin
 }
 
 func runKeychainUtility(ctx context.Context, utility string, stdin []byte, limit int, args ...string) ([]byte, []byte, error) {
-	if ctx == nil {
-		return nil, nil, fmt.Errorf("run keychain utility: context is required")
-	}
 	cmd := exec.CommandContext(ctx, utility, args...)
 	cmd.Env = SanitizedChildEnvironment(os.Environ())
 	cmd.Stdin = bytes.NewReader(stdin)
 	// security prompts on a controlling terminal and ignores stdin if it has one.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	stdout := &keychainOutputBuffer{limit: limit}
-	stderr := &keychainOutputBuffer{limit: signingRunDiagnosticLimit}
+	stdout := &boundedOutputBuffer{limit: limit}
+	stderr := &boundedOutputBuffer{limit: signingRunDiagnosticLimit}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	err := cmd.Run()
@@ -38,21 +35,4 @@ func runKeychainUtility(ctx context.Context, utility string, stdin []byte, limit
 		err = fmt.Errorf("output exceeded the %d-byte limit", limit)
 	}
 	return stdout.data, stderr.data, err
-}
-
-type keychainOutputBuffer struct {
-	data     []byte
-	limit    int
-	overflow bool
-}
-
-func (b *keychainOutputBuffer) Write(data []byte) (int, error) {
-	written := len(data)
-	remaining := b.limit - len(b.data)
-	if written > remaining {
-		b.overflow = true
-		data = data[:max(remaining, 0)]
-	}
-	b.data = append(b.data, data...)
-	return written, nil
 }

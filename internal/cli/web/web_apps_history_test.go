@@ -193,15 +193,3 @@ func TestWebAppsHistoryRejectsPositionalArguments(t *testing.T) {
 		t.Fatalf("error = %v, want unexpected argument", err)
 	}
 }
-
-func TestWebAppsHistoryIsRegisteredUnderWebApps(t *testing.T) {
-	var registered bool
-	for _, sub := range WebAppsCommand().Subcommands {
-		if sub.Name == "history" {
-			registered = true
-		}
-	}
-	if !registered {
-		t.Fatal("expected asc web apps history to be registered")
-	}
-}

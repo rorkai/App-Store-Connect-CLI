@@ -101,16 +101,75 @@ func TestResolveCapabilityBundleIDDoesNotMaskLookupError(t *testing.T) {
 	}
 }
 
-func TestReconcileUbiquityContainerIdentifiersMapsToICloud(t *testing.T) {
-	path := writeEntitlements(t, map[string]any{
-		"com.apple.developer.ubiquity-container-identifiers": []string{"TEAMID.iCloud.example"},
-	})
-	desired, err := readDesiredEntitlements(path, false)
-	if err != nil {
-		t.Fatalf("read entitlements: %v", err)
+func TestReadDesiredEntitlementsMapsCapabilities(t *testing.T) {
+	tests := []struct {
+		name         string
+		entitlements map[string]any
+		want         []string
+		wantErr      []string
+	}{
+		{
+			name:         "ubiquity containers map to iCloud",
+			entitlements: map[string]any{"com.apple.developer.ubiquity-container-identifiers": []string{"TEAMID.iCloud.example"}},
+			want:         []string{"ICLOUD"},
+		},
+		{
+			name:         "inter-app audio uses its actual key",
+			entitlements: map[string]any{"inter-app-audio": true},
+			want:         []string{"INTER_APP_AUDIO"},
+		},
+		{
+			name: "false booleans do not enable capabilities",
+			entitlements: map[string]any{
+				"com.apple.developer.siri":        false,
+				"com.apple.developer.homekit":     false,
+				"com.apple.developer.healthkit":   true,
+				"com.apple.developer.game-center": false,
+			},
+			want: []string{"HEALTHKIT"},
+		},
+		{
+			name:         "false private cloud compute",
+			entitlements: map[string]any{"com.apple.developer.private-cloud-compute": false},
+		},
+		{
+			name:         "hallucinated in-app purchase key",
+			entitlements: map[string]any{"com.apple.InAppPurchase": true},
+			wantErr:      []string{"unknown entitlement key"},
+		},
+		{
+			name:         "unsupported increased memory limit",
+			entitlements: map[string]any{"com.apple.developer.kernel.increased-memory-limit": true},
+			wantErr:      []string{"unsupported", "INCREASED_MEMORY_LIMIT"},
+		},
+		{
+			name:         "unknown data protection value",
+			entitlements: map[string]any{"com.apple.developer.default-data-protection": "not-a-protection-level"},
+			wantErr:      []string{"not-a-protection-level"},
+		},
 	}
-	if len(desired) != 1 || desired[0].spec.Capability != "ICLOUD" {
-		t.Fatalf("desired = %#v, want ICLOUD", desired)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			desired, err := readDesiredEntitlements(writeEntitlements(t, test.entitlements), false)
+			if len(test.wantErr) > 0 {
+				for _, want := range test.wantErr {
+					if err == nil || !strings.Contains(err.Error(), want) {
+						t.Fatalf("error = %v, want %q", err, want)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("read entitlements: %v", err)
+			}
+			got := make([]string, 0, len(desired))
+			for _, entry := range desired {
+				got = append(got, entry.spec.Capability)
+			}
+			if strings.Join(got, ",") != strings.Join(test.want, ",") {
+				t.Fatalf("capabilities = %v, want %v", got, test.want)
+			}
+		})
 	}
 }
 
@@ -141,16 +200,6 @@ func TestReconcileCloudKitSettingsSurviveMultipleICloudEntitlements(t *testing.T
 	}
 }
 
-func TestReconcileRejectsUnsupportedIncreasedMemoryLimit(t *testing.T) {
-	path := writeEntitlements(t, map[string]any{
-		"com.apple.developer.kernel.increased-memory-limit": true,
-	})
-	_, err := readDesiredEntitlements(path, false)
-	if err == nil || !strings.Contains(err.Error(), "unsupported") || !strings.Contains(err.Error(), "INCREASED_MEMORY_LIMIT") {
-		t.Fatalf("error = %v, want explicit unsupported capability", err)
-	}
-}
-
 func TestReconcilePrivateCloudComputePlansUsableWebCommand(t *testing.T) {
 	path := writeEntitlements(t, map[string]any{
 		"com.apple.developer.private-cloud-compute": true,
@@ -171,35 +220,6 @@ func TestReconcilePrivateCloudComputePlansUsableWebCommand(t *testing.T) {
 	}
 }
 
-func TestReconcilePrivateCloudComputeFalseDoesNotPlanEnable(t *testing.T) {
-	path := writeEntitlements(t, map[string]any{
-		"com.apple.developer.private-cloud-compute": false,
-	})
-	desired, err := readDesiredEntitlements(path, false)
-	if err != nil {
-		t.Fatalf("read entitlements: %v", err)
-	}
-	if len(desired) != 0 {
-		t.Fatalf("desired = %#v, want no capability request", desired)
-	}
-}
-
-func TestReconcileFalseBooleanEntitlementsDoNotEnableCapabilities(t *testing.T) {
-	path := writeEntitlements(t, map[string]any{
-		"com.apple.developer.siri":        false,
-		"com.apple.developer.homekit":     false,
-		"com.apple.developer.healthkit":   true,
-		"com.apple.developer.game-center": false,
-	})
-	desired, err := readDesiredEntitlements(path, false)
-	if err != nil {
-		t.Fatalf("read entitlements: %v", err)
-	}
-	if len(desired) != 1 || desired[0].spec.Capability != "HEALTHKIT" {
-		t.Fatalf("desired = %#v, want only HEALTHKIT", desired)
-	}
-}
-
 func TestReconcileRejectsWrongEntitlementValueKinds(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -216,22 +236,6 @@ func TestReconcileRejectsWrongEntitlementValueKinds(t *testing.T) {
 				t.Fatalf("expected %q to reject value %#v", tc.key, tc.value)
 			}
 		})
-	}
-}
-
-func TestReconcileRejectsHallucinatedInAppPurchaseEntitlement(t *testing.T) {
-	path := writeEntitlements(t, map[string]any{"com.apple.InAppPurchase": true})
-	_, err := readDesiredEntitlements(path, false)
-	if err == nil || !strings.Contains(err.Error(), "unknown entitlement key") {
-		t.Fatalf("error = %v, want unknown entitlement key", err)
-	}
-}
-
-func TestReconcileUsesActualInterAppAudioEntitlementKey(t *testing.T) {
-	path := writeEntitlements(t, map[string]any{"inter-app-audio": true})
-	desired, err := readDesiredEntitlements(path, false)
-	if err != nil || len(desired) != 1 || desired[0].spec.Capability != "INTER_APP_AUDIO" {
-		t.Fatalf("desired = %#v, error = %v; want INTER_APP_AUDIO", desired, err)
 	}
 }
 
@@ -484,14 +488,6 @@ func TestReconcileDataProtectionNoneDoesNotAddCapability(t *testing.T) {
 	plan = buildCapabilityReconcilePlan("bundle-1", desired, existing, true)
 	if len(plan.Actions) != 1 || plan.Actions[0].Action != "remove" {
 		t.Fatalf("plan with --allow-remove = %#v", plan)
-	}
-}
-
-func TestReconcileRejectsUnknownDataProtectionValue(t *testing.T) {
-	path := writeEntitlements(t, map[string]any{"com.apple.developer.default-data-protection": "not-a-protection-level"})
-	_, err := readDesiredEntitlements(path, false)
-	if err == nil || !strings.Contains(err.Error(), "not-a-protection-level") {
-		t.Fatalf("error = %v", err)
 	}
 }
 

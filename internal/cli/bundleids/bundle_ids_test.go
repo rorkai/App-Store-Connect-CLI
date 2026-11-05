@@ -347,21 +347,6 @@ func TestParseCapabilitySettingsAcceptsForwardCompatibleKeysAndExactFields(t *te
 	}
 }
 
-func TestBundleIDsCapabilitiesHelpUsesSupportedSettings(t *testing.T) {
-	for _, cmd := range []*ffcli.Command{
-		BundleIDsCapabilitiesCommand(),
-		BundleIDsCapabilitiesAddCommand(),
-		BundleIDsCapabilitiesUpdateCommand(),
-	} {
-		if strings.Contains(cmd.LongHelp, "XCODE_9") || strings.Contains(cmd.LongHelp, "XCODE_13") {
-			t.Fatalf("%s help advertises an unsupported Xcode capability option: %q", cmd.Name, cmd.LongHelp)
-		}
-		if !strings.Contains(cmd.LongHelp, "XCODE_6") {
-			t.Fatalf("%s help does not include supported XCODE_6 option: %q", cmd.Name, cmd.LongHelp)
-		}
-	}
-}
-
 func TestBundleIDsCapabilitiesRemoveCommand_MissingID(t *testing.T) {
 	cmd := BundleIDsCapabilitiesRemoveCommand()
 

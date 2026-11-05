@@ -6,12 +6,11 @@ Welcome to the **App Store Connect CLI** (`asc`) - an unofficial, community-driv
 
 ## What is asc?
 
-`asc` is a Go-based CLI that provides direct access to the App Store Connect API from your terminal, IDE, or CI/CD pipeline. It's designed to be:
+`asc` is a Go CLI for the App Store Connect API that runs in your terminal, IDE, or CI/CD pipeline:
 
-* **Fast**: Built in Go with minimal dependencies
-* **Lightweight**: Single binary with no runtime requirements
+* **Single binary** with no runtime requirements
 * **Scriptable**: JSON output, exit codes, and TTY-aware defaults
-* **Agent-friendly**: Built by AI agents, for AI agents
+* **Agent-friendly**: self-documenting `--help` and explicit flags
 
 <Note>
   This project is an independent, unofficial tool and is not affiliated with, endorsed by, or sponsored by Apple Inc.
@@ -51,7 +50,6 @@ Welcome to the **App Store Connect CLI** (`asc`) - an unofficial, community-driv
 * Integrate App Store Connect into your existing CI/CD workflows
 * Version-control your release processes
 * Standardize deployment procedures across projects
-* Audit and track all API operations
 
 ### For AI agents
 
@@ -61,8 +59,6 @@ Welcome to the **App Store Connect CLI** (`asc`) - an unofficial, community-driv
 * No interactive prompts (use `--confirm` flags)
 
 ## Common workflows
-
-Here are some everyday tasks you can automate with `asc`:
 
 <AccordionGroup>
   <Accordion title="Distribute builds to TestFlight">
@@ -97,7 +93,7 @@ Here are some everyday tasks you can automate with `asc`:
 
 ## TTY-aware output
 
-`asc` automatically chooses sensible defaults based on where stdout is connected:
+`asc` picks a default format based on where stdout is connected:
 
 * **Interactive terminal (TTY)**: `table` format for human readability
 * **Pipes, files, CI**: `json` format for machine parsing
@@ -115,16 +111,9 @@ asc builds list --output table
 
 ## Wall of Apps
 
-**60+ apps ship with asc**, including:
+Hundreds of apps ship with `asc`. [View the Wall of Apps →](https://asccli.sh/#wall-of-apps)
 
-* Developer tools and utilities
-* Productivity apps
-* Entertainment and games
-* Health and fitness trackers
-
-[View the complete Wall of Apps →](https://asccli.sh/#wall-of-apps)
-
-Want to add your app? See our [contributing guide](/resources/contributing).
+To add yours, run `asc apps wall submit`; see the [contributing guide](/resources/contributing#wall-of-apps).
 
 ## Next steps
 

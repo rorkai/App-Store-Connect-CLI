@@ -90,86 +90,62 @@ func assertMerchantIDRelationship(t *testing.T, payload asc.CertificateCreateReq
 }
 
 func TestCertificatesCreate_SendsMerchantIDRelationship(t *testing.T) {
-	setupAuth(t)
-
-	var payload asc.CertificateCreateRequest
-	captureCertificateCreateRequest(t, &payload)
-
-	csrPath := writeApplePayCSR(t)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"certificates", "create",
-			"--certificate-type", "APPLE_PAY_MERCHANT_IDENTITY",
-			"--merchant-id", "merchant-1",
-			"--csr", csrPath,
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	if runErr != nil {
-		t.Fatalf("run: %v; stderr=%q", runErr, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	tests := []struct {
+		name       string
+		args       []string
+		wantType   string
+		merchantID string
+	}{
+		{
+			name:       "certificates create",
+			args:       []string{"certificates", "create", "--certificate-type", "APPLE_PAY_MERCHANT_IDENTITY", "--merchant-id", "merchant-1"},
+			wantType:   "APPLE_PAY_MERCHANT_IDENTITY",
+			merchantID: "merchant-1",
+		},
+		{
+			name:       "merchant-ids certificates create",
+			args:       []string{"merchant-ids", "certificates", "create", "--merchant-id", "merchant-2", "--certificate-type", "apple-pay"},
+			wantType:   "APPLE_PAY",
+			merchantID: "merchant-2",
+		},
 	}
 
-	assertMerchantIDRelationship(t, payload, "APPLE_PAY_MERCHANT_IDENTITY", "merchant-1")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
 
-	var response asc.CertificateResponse
-	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
-		t.Fatalf("parse stdout: %v; stdout=%q", err, stdout)
-	}
-	if response.Data.ID != "cert-1" {
-		t.Fatalf("expected the created certificate on stdout, got %q", stdout)
-	}
-}
+			var payload asc.CertificateCreateRequest
+			captureCertificateCreateRequest(t, &payload)
 
-func TestMerchantIDsCertificatesCreate_SendsMerchantIDRelationship(t *testing.T) {
-	setupAuth(t)
+			csrPath := writeApplePayCSR(t)
 
-	var payload asc.CertificateCreateRequest
-	captureCertificateCreateRequest(t, &payload)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	csrPath := writeApplePayCSR(t)
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(append(test.args, "--csr", csrPath, "--output", "json")); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+			if runErr != nil {
+				t.Fatalf("run: %v; stderr=%q", runErr, stderr)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			assertMerchantIDRelationship(t, payload, test.wantType, test.merchantID)
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"merchant-ids", "certificates", "create",
-			"--merchant-id", "merchant-2",
-			"--certificate-type", "apple-pay",
-			"--csr", csrPath,
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	if runErr != nil {
-		t.Fatalf("run: %v; stderr=%q", runErr, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	assertMerchantIDRelationship(t, payload, "APPLE_PAY", "merchant-2")
-
-	var response asc.CertificateResponse
-	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
-		t.Fatalf("parse stdout: %v; stdout=%q", err, stdout)
-	}
-	if response.Data.ID != "cert-1" {
-		t.Fatalf("expected the created certificate on stdout, got %q", stdout)
+			var response asc.CertificateResponse
+			if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+				t.Fatalf("parse stdout: %v; stdout=%q", err, stdout)
+			}
+			if response.Data.ID != "cert-1" {
+				t.Fatalf("expected the created certificate on stdout, got %q", stdout)
+			}
+		})
 	}
 }
 

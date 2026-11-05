@@ -2,6 +2,7 @@ package subscriptions
 
 import (
 	"flag"
+	"slices"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -34,7 +35,7 @@ func includeRelationshipForFields(fields []string, relationship string) []string
 }
 
 func appendIncludeForFields(include []string, fields []string, relationship string) []string {
-	if len(fields) == 0 || containsString(include, relationship) {
+	if len(fields) == 0 || slices.Contains(include, relationship) {
 		return include
 	}
 	return append(include, relationship)

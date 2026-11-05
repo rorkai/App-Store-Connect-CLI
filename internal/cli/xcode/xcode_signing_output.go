@@ -14,9 +14,6 @@ import (
 // newXcodeSigningPlanOutput converts the domain artifact into the registered
 // outward output type without sharing mutable slices or pointer fields.
 func newXcodeSigningPlanOutput(plan *localxcode.SigningPlan) *asc.XcodeSigningPlanOutput {
-	if plan == nil {
-		return nil
-	}
 	return &asc.XcodeSigningPlanOutput{
 		SchemaVersion:           plan.SchemaVersion,
 		Command:                 plan.Command,
@@ -46,9 +43,6 @@ func newXcodeSigningPlanOutput(plan *localxcode.SigningPlan) *asc.XcodeSigningPl
 // newXcodeSigningApplyOutput converts the domain receipt into the registered
 // outward output type without sharing mutable slices or pointer fields.
 func newXcodeSigningApplyOutput(result *localxcode.SigningApplyResult) *asc.XcodeSigningApplyOutput {
-	if result == nil {
-		return nil
-	}
 	return &asc.XcodeSigningApplyOutput{
 		SchemaVersion: result.SchemaVersion,
 		AppliedAt:     result.AppliedAt,

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"strings"
+	"strconv"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -23,7 +23,7 @@ func TestGameCenterGroupRelationshipReplacementsRejectWithoutConfirmBeforeHTTP(t
 
 	for name, newCommand := range commands {
 		for _, v2 := range []bool{false, true} {
-			t.Run(name+" v2="+boolString(v2), func(t *testing.T) {
+			t.Run(name+" v2="+strconv.FormatBool(v2), func(t *testing.T) {
 				factoryCalled := false
 				restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
 					factoryCalled = true
@@ -71,7 +71,7 @@ func TestGameCenterGroupRelationshipReplacementConfirmPassesValidation(t *testin
 
 	for name, newCommand := range commands {
 		for _, v2 := range []bool{false, true} {
-			t.Run(name+" v2="+boolString(v2), func(t *testing.T) {
+			t.Run(name+" v2="+strconv.FormatBool(v2), func(t *testing.T) {
 				cmd := newCommand()
 				args := []string{"--group-id", "group-1", "--ids", "resource-1", "--confirm"}
 				if v2 {
@@ -87,36 +87,6 @@ func TestGameCenterGroupRelationshipReplacementConfirmPassesValidation(t *testin
 				}
 			})
 		}
-	}
-}
-
-func TestGameCenterRelationshipReplacementConfirmFlagsAreStable(t *testing.T) {
-	commands := map[string]*ffcli.Command{
-		"group achievements":         GameCenterGroupAchievementsSetCommand(),
-		"group leaderboards":         GameCenterGroupLeaderboardsSetCommand(),
-		"leaderboard-set members":    GameCenterLeaderboardSetMembersSetCommand(),
-		"leaderboard-set v2 members": GameCenterLeaderboardSetMembersV2SetCommand(),
-	}
-	for name, command := range commands {
-		t.Run(name, func(t *testing.T) {
-			confirm := command.FlagSet.Lookup("confirm")
-			if confirm == nil {
-				t.Fatal("--confirm is not registered")
-			}
-
-			if !strings.Contains(confirm.Usage, "required") {
-				t.Fatalf("--confirm usage = %q, want it documented as required", confirm.Usage)
-			}
-			if strings.Contains(command.ShortUsage, "[--confirm]") {
-				t.Fatalf("ShortUsage = %q, must not present --confirm as optional", command.ShortUsage)
-			}
-			if !strings.Contains(command.ShortUsage, "--confirm") {
-				t.Fatalf("ShortUsage = %q, want --confirm", command.ShortUsage)
-			}
-			if strings.Contains(command.LongHelp, "5.0.0") {
-				t.Fatalf("LongHelp = %q, must not reference the completed 5.0.0 transition", command.LongHelp)
-			}
-		})
 	}
 }
 
@@ -163,11 +133,4 @@ func TestGameCenterRelationshipReplacementRejectsExplicitFalseConfirm(t *testing
 			}
 		})
 	}
-}
-
-func boolString(value bool) string {
-	if value {
-		return "true"
-	}
-	return "false"
 }

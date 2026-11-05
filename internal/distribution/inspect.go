@@ -164,12 +164,9 @@ var appleProfileRootFingerprints = map[string]struct{}{
 	"63343abfb89a6a03ebb57e9b3f5fa7be7c4f5c756f3017b3a8c488c3653e9179": {},
 }
 
-// InspectIPA validates and reads deterministic metadata from an already-open
-// regular IPA file. The file must remain open for the duration of the call.
-func InspectIPA(file *os.File, size int64, options InspectOptions) (Inspection, error) {
-	return InspectIPAContext(context.Background(), file, size, options)
-}
-
+// InspectIPAContext validates and reads deterministic metadata from an
+// already-open regular IPA file. The file must remain open for the duration of
+// the call.
 func InspectIPAContext(ctx context.Context, file *os.File, size int64, options InspectOptions) (Inspection, error) {
 	if err := contextError(ctx); err != nil {
 		return Inspection{}, err

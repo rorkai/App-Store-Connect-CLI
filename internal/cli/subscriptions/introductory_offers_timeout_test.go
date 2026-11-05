@@ -38,38 +38,34 @@ func TestContextWithSubscriptionIntroductoryOfferCreateTimeoutUsesOperationDefau
 }
 
 func TestContextWithSubscriptionIntroductoryOfferCreateTimeoutRespectsASCTimeout(t *testing.T) {
-	t.Setenv("ASC_TIMEOUT", "45s")
-	t.Setenv("ASC_TIMEOUT_SECONDS", "")
-
-	ctx, cancel := contextWithSubscriptionIntroductoryOfferCreateTimeout(context.Background())
-	defer cancel()
-
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		t.Fatal("expected create operation deadline")
+	tests := []struct {
+		name string
+		env  string
+		unit string
+	}{
+		{name: "ASC_TIMEOUT", env: "ASC_TIMEOUT", unit: "45s"},
+		{name: "ASC_TIMEOUT_SECONDS", env: "ASC_TIMEOUT_SECONDS", unit: "45"},
 	}
-	remaining := time.Until(deadline)
-	if remaining < 44*time.Second || remaining > 46*time.Second {
-		t.Fatalf("expected create operation timeout near 45s from ASC_TIMEOUT, got %v", remaining)
-	}
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_TIMEOUT", "")
+			t.Setenv("ASC_TIMEOUT_SECONDS", "")
+			if err := os.Unsetenv("ASC_TIMEOUT"); err != nil {
+				t.Fatalf("unset ASC_TIMEOUT: %v", err)
+			}
+			t.Setenv(test.env, test.unit)
 
-func TestContextWithSubscriptionIntroductoryOfferCreateTimeoutRespectsASCTimeoutSeconds(t *testing.T) {
-	t.Setenv("ASC_TIMEOUT", "")
-	if err := os.Unsetenv("ASC_TIMEOUT"); err != nil {
-		t.Fatalf("unset ASC_TIMEOUT: %v", err)
-	}
-	t.Setenv("ASC_TIMEOUT_SECONDS", "45")
+			ctx, cancel := contextWithSubscriptionIntroductoryOfferCreateTimeout(context.Background())
+			defer cancel()
 
-	ctx, cancel := contextWithSubscriptionIntroductoryOfferCreateTimeout(context.Background())
-	defer cancel()
-
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		t.Fatal("expected create operation deadline")
-	}
-	remaining := time.Until(deadline)
-	if remaining < 44*time.Second || remaining > 46*time.Second {
-		t.Fatalf("expected create operation timeout near 45s from ASC_TIMEOUT_SECONDS, got %v", remaining)
+			deadline, ok := ctx.Deadline()
+			if !ok {
+				t.Fatal("expected create operation deadline")
+			}
+			remaining := time.Until(deadline)
+			if remaining < 44*time.Second || remaining > 46*time.Second {
+				t.Fatalf("expected create operation timeout near 45s from %s, got %v", test.env, remaining)
+			}
+		})
 	}
 }

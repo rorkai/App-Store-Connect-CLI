@@ -45,14 +45,6 @@ type reviewSubscriptionGroupMutationOutput struct {
 	Skipped            []reviewSubscriptionMutationSkip `json:"skippedSubscriptions,omitempty"`
 }
 
-func reviewSubscriptionValue(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "n/a"
-	}
-	return trimmed
-}
-
 func reviewSubscriptionName(subscription webcore.ReviewSubscription) string {
 	switch {
 	case strings.TrimSpace(subscription.Name) != "":
@@ -114,13 +106,13 @@ func reviewSubscriptionAttachPreflight(appID string, subscription webcore.Review
 		os.Stderr,
 		"Attach preflight: subscription %q (%s) is %s, so Apple will not attach it to the next app version review yet.\n",
 		reviewSubscriptionName(subscription),
-		reviewSubscriptionValue(subscriptionID),
+		valueOrNA(subscriptionID),
 		state,
 	)
 	fmt.Fprintf(
 		os.Stderr,
 		"Hint: run `asc validate subscriptions --app \"%s\"` to inspect readiness.\n",
-		reviewSubscriptionValue(strings.TrimSpace(appID)),
+		valueOrNA(appID),
 	)
 	fmt.Fprintln(os.Stderr, "Hint: Apple only allows this attach flow after the subscription reaches READY_TO_SUBMIT.")
 	switch state {
@@ -129,7 +121,7 @@ func reviewSubscriptionAttachPreflight(appID string, subscription webcore.Review
 		fmt.Fprintf(
 			os.Stderr,
 			"Hint: In live testing, a subscription promotional image also mattered even though App Store Connect surfaces it as a recommendation. Resolve the version with `asc subscriptions versions list --subscription-id \"%[1]s\"` (or create one with `asc subscriptions versions create --subscription-id \"%[1]s\"` if none exists), then upload one with `asc subscriptions versions images upload --version-id \"VERSION_ID\" --file \"./image.png\"` if it is missing.\n",
-			reviewSubscriptionValue(subscriptionID),
+			valueOrNA(subscriptionID),
 		)
 	case "":
 		fmt.Fprintln(os.Stderr, "Hint: Refresh App Store Connect or rerun `asc web review subscriptions list` to confirm the current readiness state before retrying.")
@@ -158,10 +150,10 @@ func countAttachedReviewSubscriptions(subscriptions []webcore.ReviewSubscription
 
 func buildReviewSubscriptionGroupMutationRows(payload reviewSubscriptionGroupMutationOutput) [][]string {
 	rows := [][]string{
-		{"Summary", "App ID", reviewSubscriptionValue(payload.AppID)},
-		{"Summary", "Group ID", reviewSubscriptionValue(payload.GroupID)},
-		{"Summary", "Group", reviewSubscriptionValue(payload.GroupReferenceName)},
-		{"Summary", "Operation", reviewSubscriptionValue(payload.Operation)},
+		{"Summary", "App ID", valueOrNA(payload.AppID)},
+		{"Summary", "Group ID", valueOrNA(payload.GroupID)},
+		{"Summary", "Group", valueOrNA(payload.GroupReferenceName)},
+		{"Summary", "Operation", valueOrNA(payload.Operation)},
 		{"Summary", "Changed Count", strconv.Itoa(payload.ChangedCount)},
 		{"Summary", "Skipped Count", strconv.Itoa(payload.SkippedCount)},
 	}
@@ -171,9 +163,9 @@ func buildReviewSubscriptionGroupMutationRows(payload reviewSubscriptionGroupMut
 			fmt.Sprintf("Subscription %d", i+1),
 			fmt.Sprintf(
 				"id=%s name=%s state=%s attached=%s",
-				reviewSubscriptionValue(subscription.ID),
-				reviewSubscriptionValue(reviewSubscriptionName(subscription)),
-				reviewSubscriptionValue(subscription.State),
+				valueOrNA(subscription.ID),
+				valueOrNA(reviewSubscriptionName(subscription)),
+				valueOrNA(subscription.State),
 				reviewSubscriptionBool(subscription.SubmitWithNextAppStoreVersion),
 			),
 		})
@@ -184,9 +176,9 @@ func buildReviewSubscriptionGroupMutationRows(payload reviewSubscriptionGroupMut
 			fmt.Sprintf("Subscription %d", i+1),
 			fmt.Sprintf(
 				"id=%s name=%s reason=%s",
-				reviewSubscriptionValue(skipped.Subscription.ID),
-				reviewSubscriptionValue(reviewSubscriptionName(skipped.Subscription)),
-				reviewSubscriptionValue(skipped.Reason),
+				valueOrNA(skipped.Subscription.ID),
+				valueOrNA(reviewSubscriptionName(skipped.Subscription)),
+				valueOrNA(skipped.Reason),
 			),
 		})
 	}
@@ -209,12 +201,12 @@ func buildReviewSubscriptionsListTableRows(subscriptions []webcore.ReviewSubscri
 	rows := make([][]string, 0, len(subscriptions))
 	for _, subscription := range subscriptions {
 		rows = append(rows, []string{
-			reviewSubscriptionValue(subscription.GroupID),
-			reviewSubscriptionValue(subscription.GroupReferenceName),
-			reviewSubscriptionValue(subscription.ID),
-			reviewSubscriptionValue(subscription.ProductID),
-			reviewSubscriptionValue(reviewSubscriptionName(subscription)),
-			reviewSubscriptionValue(subscription.State),
+			valueOrNA(subscription.GroupID),
+			valueOrNA(subscription.GroupReferenceName),
+			valueOrNA(subscription.ID),
+			valueOrNA(subscription.ProductID),
+			valueOrNA(reviewSubscriptionName(subscription)),
+			valueOrNA(subscription.State),
 			reviewSubscriptionAttachmentValue(subscription),
 			reviewSubscriptionBool(subscription.IsAppStoreReviewInProgress),
 		})
@@ -236,15 +228,15 @@ func renderReviewSubscriptionsListMarkdown(payload reviewSubscriptionsListOutput
 
 func buildReviewSubscriptionMutationRows(payload reviewSubscriptionMutationOutput) [][]string {
 	return [][]string{
-		{"Mutation", "App ID", reviewSubscriptionValue(payload.AppID)},
-		{"Mutation", "Operation", reviewSubscriptionValue(payload.Operation)},
+		{"Mutation", "App ID", valueOrNA(payload.AppID)},
+		{"Mutation", "Operation", valueOrNA(payload.Operation)},
 		{"Mutation", "Changed", reviewSubscriptionBool(payload.Changed)},
-		{"Mutation", "Submission ID", reviewSubscriptionValue(payload.SubmissionID)},
-		{"Subscription", "Subscription ID", reviewSubscriptionValue(payload.Subscription.ID)},
-		{"Subscription", "Product ID", reviewSubscriptionValue(payload.Subscription.ProductID)},
-		{"Subscription", "Name", reviewSubscriptionValue(reviewSubscriptionName(payload.Subscription))},
-		{"Subscription", "Group", reviewSubscriptionValue(payload.Subscription.GroupReferenceName)},
-		{"Subscription", "State", reviewSubscriptionValue(payload.Subscription.State)},
+		{"Mutation", "Submission ID", valueOrNA(payload.SubmissionID)},
+		{"Subscription", "Subscription ID", valueOrNA(payload.Subscription.ID)},
+		{"Subscription", "Product ID", valueOrNA(payload.Subscription.ProductID)},
+		{"Subscription", "Name", valueOrNA(reviewSubscriptionName(payload.Subscription))},
+		{"Subscription", "Group", valueOrNA(payload.Subscription.GroupReferenceName)},
+		{"Subscription", "State", valueOrNA(payload.Subscription.State)},
 		{"Subscription", "Next Version", reviewSubscriptionAttachmentValue(payload.Subscription)},
 		{"Subscription", "Review In Progress", reviewSubscriptionBool(payload.Subscription.IsAppStoreReviewInProgress)},
 	}
@@ -505,12 +497,12 @@ func reviewSubscriptionGroupAttachPreflight(appID, groupID string, subscriptions
 		os.Stderr,
 		"Attach preflight: subscription group %q (%s) has no READY_TO_SUBMIT subscriptions for first-submission attachment yet.\n",
 		reviewSubscriptionGroupLabel(subscriptions, groupID),
-		reviewSubscriptionValue(groupID),
+		valueOrNA(groupID),
 	)
 	fmt.Fprintf(
 		os.Stderr,
 		"Hint: run `asc validate subscriptions --app \"%s\"` to inspect readiness.\n",
-		reviewSubscriptionValue(strings.TrimSpace(appID)),
+		valueOrNA(appID),
 	)
 	fmt.Fprintln(os.Stderr, "Hint: Apple only allows attach after the relevant subscriptions reach READY_TO_SUBMIT.")
 	fmt.Fprintln(os.Stderr, "Hint: In live testing, a subscription promotional image also mattered in addition to localization, pricing coverage, and the App Store review screenshot.")

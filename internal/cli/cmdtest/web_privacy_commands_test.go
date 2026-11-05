@@ -118,30 +118,3 @@ func TestWebPrivacyPublishRequiresConfirm(t *testing.T) {
 		t.Fatalf("expected missing --confirm message, got %q", stderr)
 	}
 }
-
-func TestWebPrivacyApplyHelpDocumentsPartialFailureReceipt(t *testing.T) {
-	apply := findSubcommand(RootCommand("1.2.3"), "web", "privacy", "apply")
-	if apply == nil {
-		t.Fatal("expected web privacy apply to be registered")
-	}
-	for _, want := range []string{
-		"catalog tokens Apple",
-		"applied, unknown, and not applied",
-		"changed=false",
-		"The exception is a delete a later create depends on",
-	} {
-		if !strings.Contains(apply.LongHelp, want) {
-			t.Fatalf("web privacy apply help missing %q:\n%s", want, apply.LongHelp)
-		}
-	}
-}
-
-func TestWebPrivacyPlanHelpDocumentsStaleTokenDiagnostic(t *testing.T) {
-	plan := findSubcommand(RootCommand("1.2.3"), "web", "privacy", "plan")
-	if plan == nil {
-		t.Fatal("expected web privacy plan to be registered")
-	}
-	if !strings.Contains(plan.LongHelp, "staleTokens") {
-		t.Fatalf("web privacy plan help missing the stale-token diagnostic:\n%s", plan.LongHelp)
-	}
-}

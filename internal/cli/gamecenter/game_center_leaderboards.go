@@ -1175,12 +1175,8 @@ func parseLeaderboardRecurrence(fs *flag.FlagSet) (leaderboardRecurrence, error)
 }
 
 func leaderboardRecurrenceFlagValue(fs *flag.FlagSet, name string) (string, error) {
-	provided := false
-	fs.Visit(func(f *flag.Flag) {
-		provided = provided || f.Name == name
-	})
 	value := strings.TrimSpace(fs.Lookup(name).Value.String())
-	if provided && value == "" {
+	if flagPassed(fs, name) && value == "" {
 		return "", shared.UsageErrorf("--%s must not be blank", name)
 	}
 	return value, nil

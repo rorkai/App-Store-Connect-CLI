@@ -13,9 +13,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
-var newMetadataURLChecker = func() metadataurl.Checker {
-	return newHTTPMetadataURLChecker()
-}
+var newMetadataURLChecker = metadataurl.NewChecker
 
 type metadataURLTarget struct {
 	rawURL  string
@@ -122,16 +120,4 @@ func metadataURLCheckMessages(target metadataURLTarget, outcome metadataURLCheck
 func isTimeoutError(err error) bool {
 	var netErr net.Error
 	return errors.As(err, &netErr) && netErr.Timeout()
-}
-
-type httpMetadataURLChecker struct {
-	client *http.Client
-}
-
-func newHTTPMetadataURLChecker() *httpMetadataURLChecker {
-	return &httpMetadataURLChecker{client: metadataurl.NewHTTPClient()}
-}
-
-func (c *httpMetadataURLChecker) Check(ctx context.Context, rawURL string) (metadataurl.Result, error) {
-	return metadataurl.CheckWithClient(ctx, c.client, rawURL)
 }

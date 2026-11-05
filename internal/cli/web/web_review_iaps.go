@@ -27,23 +27,15 @@ type reviewIAPMutationOutput struct {
 	Submission webcore.ReviewIAPSubmission `json:"submission"`
 }
 
-func reviewIAPValue(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "n/a"
-	}
-	return trimmed
-}
-
 func buildReviewIAPMutationRows(payload reviewIAPMutationOutput) [][]string {
 	return [][]string{
-		{"Mutation", "App ID", reviewIAPValue(payload.AppID)},
-		{"Mutation", "IAP ID", reviewIAPValue(payload.IAPID)},
-		{"Mutation", "Operation", reviewIAPValue(payload.Operation)},
+		{"Mutation", "App ID", valueOrNA(payload.AppID)},
+		{"Mutation", "IAP ID", valueOrNA(payload.IAPID)},
+		{"Mutation", "Operation", valueOrNA(payload.Operation)},
 		{"Mutation", "Changed", strconv.FormatBool(payload.Changed)},
-		{"Submission", "Item ID", reviewIAPValue(payload.Submission.ReviewSubmissionItemID)},
-		{"Submission", "Review Draft ID", reviewIAPValue(payload.Submission.ReviewSubmissionID)},
-		{"Submission", "IAP Version ID", reviewIAPValue(payload.Submission.InAppPurchaseVersionID)},
+		{"Submission", "Item ID", valueOrNA(payload.Submission.ReviewSubmissionItemID)},
+		{"Submission", "Review Draft ID", valueOrNA(payload.Submission.ReviewSubmissionID)},
+		{"Submission", "IAP Version ID", valueOrNA(payload.Submission.InAppPurchaseVersionID)},
 		{"Submission", "Next Version", strconv.FormatBool(payload.Submission.SubmitWithNextAppStoreVersion)},
 	}
 }

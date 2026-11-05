@@ -166,9 +166,6 @@ func executeSigningKeychainInstallWith(ctx context.Context, options signingKeych
 	if !deps.SecurityAvailable {
 		return nil, shared.NewValidationError(fmt.Errorf("signing keychain install requires a cgo-enabled macOS build"))
 	}
-	if ctx == nil {
-		return nil, shared.NewValidationError(fmt.Errorf("signing keychain install: context is required"))
-	}
 	resolvedKeychainPath, err := preflightSigningKeychainPath(options.KeychainPath)
 	if err != nil {
 		return nil, fmt.Errorf("signing keychain install: preflight destination: %w", err)

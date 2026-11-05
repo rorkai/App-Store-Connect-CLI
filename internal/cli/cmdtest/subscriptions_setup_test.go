@@ -56,53 +56,6 @@ type subscriptionsSetupOutput struct {
 
 const subscriptionsSetupLegacyLocalizationWarning = "Warning: localization flags on `asc subscriptions setup` use deprecated v1 localization resources. After setup, create or resolve a subscription version, then use `asc subscriptions versions localizations create --version-id \"SUBSCRIPTION_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"`.\n"
 
-func TestSubscriptionsHelpShowsSetupCommand(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	subscriptionsCmd := findSubcommand(root, "subscriptions")
-	if subscriptionsCmd == nil {
-		t.Fatal("expected subscriptions command")
-		return
-	}
-	subscriptionsUsage := subscriptionsCmd.UsageFunc(subscriptionsCmd)
-	if !usageListsSubcommand(subscriptionsUsage, "setup") {
-		t.Fatalf("expected subscriptions help to list setup, got %q", subscriptionsUsage)
-	}
-
-	setupCmd := findSubcommand(root, "subscriptions", "setup")
-	if setupCmd == nil {
-		t.Fatal("expected subscriptions setup command")
-		return
-	}
-	setupUsage := setupCmd.UsageFunc(setupCmd)
-	if !strings.Contains(setupUsage, "--group-reference-name") {
-		t.Fatalf("expected subscriptions setup help to show --group-reference-name, got %q", setupUsage)
-	}
-	if !strings.Contains(setupUsage, "--display-name") {
-		t.Fatalf("expected subscriptions setup help to show --display-name, got %q", setupUsage)
-	}
-	if !strings.Contains(setupUsage, "--price-territory") {
-		t.Fatalf("expected subscriptions setup help to show --price-territory, got %q", setupUsage)
-	}
-	if !strings.Contains(setupUsage, "--no-verify") {
-		t.Fatalf("expected subscriptions setup help to show --no-verify, got %q", setupUsage)
-	}
-	if !strings.Contains(setupUsage, "--enable-monthly-commitment") {
-		t.Fatalf("expected subscriptions setup help to show --enable-monthly-commitment, got %q", setupUsage)
-	}
-	for _, flagName := range []string{
-		"--group-locale",
-		"--group-display-name",
-		"--group-custom-app-name",
-		"--review-screenshot",
-		"--repair",
-	} {
-		if !strings.Contains(setupUsage, flagName) {
-			t.Fatalf("expected subscriptions setup help to show %s, got %q", flagName, setupUsage)
-		}
-	}
-}
-
 func TestSubscriptionsSetupValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
@@ -866,151 +819,90 @@ func TestSubscriptionsSetupRejectsAmbiguousExistingGroupReference(t *testing.T) 
 }
 
 func TestSubscriptionsSetupRejectsMismatchedExistingLocalization(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	tests := []struct {
+		mismatch             string
+		existingLocalization string
+	}{
+		{mismatch: "display name", existingLocalization: `{"data":[{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"name":"Old Name","locale":"en-US","description":"All premium features."}}],"links":{"next":""}}`},
+		{mismatch: "description", existingLocalization: `{"data":[{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"name":"Pro Monthly","locale":"en-US","description":"Old description."}}],"links":{"next":""}}`},
+	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	for _, tt := range tests {
+		t.Run(tt.mismatch, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/subscriptionGroups" {
-				t.Fatalf("unexpected group lookup request: %s %s", req.Method, req.URL.String())
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+			requestCount := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requestCount++
+				switch requestCount {
+				case 1:
+					if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/subscriptionGroups" {
+						t.Fatalf("unexpected group lookup request: %s %s", req.Method, req.URL.String())
+					}
+					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Pro"}}],"links":{"next":""}}`), nil
+				case 2:
+					if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionGroups/group-1/subscriptions" {
+						t.Fatalf("unexpected subscription lookup request: %s %s", req.Method, req.URL.String())
+					}
+					if got := req.URL.Query().Get("filter[productId]"); got != "com.example.pro.monthly" {
+						t.Fatalf("expected product ID lookup, got %q", got)
+					}
+					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"com.example.pro.monthly","subscriptionPeriod":"ONE_MONTH"}}],"links":{"next":""}}`), nil
+				case 3:
+					if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/sub-1/subscriptionLocalizations" {
+						t.Fatalf("unexpected localization lookup request: %s %s", req.Method, req.URL.String())
+					}
+					return jsonHTTPResponse(http.StatusOK, tt.existingLocalization), nil
+				default:
+					t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			})
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"subscriptions", "setup",
+					"--app", "app-1",
+					"--group-reference-name", "Pro",
+					"--reference-name", "Pro Monthly",
+					"--product-id", "com.example.pro.monthly",
+					"--subscription-period", "ONE_MONTH",
+					"--locale", "en-US",
+					"--display-name", "Pro Monthly",
+					"--description", "All premium features.",
+					"--no-verify",
+					"--output", "json",
+				}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+			if runErr == nil || !strings.Contains(runErr.Error(), "different "+tt.mismatch) {
+				t.Fatalf("expected different %s error, got %v", tt.mismatch, runErr)
 			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Pro"}}],"links":{"next":""}}`), nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionGroups/group-1/subscriptions" {
-				t.Fatalf("unexpected subscription lookup request: %s %s", req.Method, req.URL.String())
+
+			var result subscriptionsSetupOutput
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("parse setup result: %v\nstdout=%q", err, stdout)
 			}
-			if got := req.URL.Query().Get("filter[productId]"); got != "com.example.pro.monthly" {
-				t.Fatalf("expected product ID lookup, got %q", got)
+			if result.Status != "error" || result.FailedStep != "create_localization" {
+				t.Fatalf("unexpected setup result: %+v", result)
 			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"com.example.pro.monthly","subscriptionPeriod":"ONE_MONTH"}}],"links":{"next":""}}`), nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/sub-1/subscriptionLocalizations" {
-				t.Fatalf("unexpected localization lookup request: %s %s", req.Method, req.URL.String())
+			if want := subscriptionsSetupLegacyLocalizationWarning + "Error: subscriptions setup: create_localization: existing subscription localization \"loc-1\" has a different " + tt.mismatch + "; update it or choose a different locale\n"; stderr != want {
+				t.Fatalf("stderr = %q, want %q", stderr, want)
 			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"name":"Old Name","locale":"en-US","description":"All premium features."}}],"links":{"next":""}}`), nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "setup",
-			"--app", "app-1",
-			"--group-reference-name", "Pro",
-			"--reference-name", "Pro Monthly",
-			"--product-id", "com.example.pro.monthly",
-			"--subscription-period", "ONE_MONTH",
-			"--locale", "en-US",
-			"--display-name", "Pro Monthly",
-			"--description", "All premium features.",
-			"--no-verify",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	if runErr == nil || !strings.Contains(runErr.Error(), "different display name") {
-		t.Fatalf("expected different display name error, got %v", runErr)
-	}
-
-	var result subscriptionsSetupOutput
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("parse setup result: %v\nstdout=%q", err, stdout)
-	}
-	if result.Status != "error" || result.FailedStep != "create_localization" {
-		t.Fatalf("unexpected setup result: %+v", result)
-	}
-	if want := subscriptionsSetupLegacyLocalizationWarning + "Error: subscriptions setup: create_localization: existing subscription localization \"loc-1\" has a different display name; update it or choose a different locale\n"; stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
-	}
-	if requestCount != 3 {
-		t.Fatalf("expected lookup requests only, got %d", requestCount)
-	}
-}
-
-func TestSubscriptionsSetupRejectsMismatchedExistingLocalizationDescription(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/subscriptionGroups" {
-				t.Fatalf("unexpected group lookup request: %s %s", req.Method, req.URL.String())
+			if requestCount != 3 {
+				t.Fatalf("expected lookup requests only, got %d", requestCount)
 			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Pro"}}],"links":{"next":""}}`), nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionGroups/group-1/subscriptions" {
-				t.Fatalf("unexpected subscription lookup request: %s %s", req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"com.example.pro.monthly","subscriptionPeriod":"ONE_MONTH"}}],"links":{"next":""}}`), nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/sub-1/subscriptionLocalizations" {
-				t.Fatalf("unexpected localization lookup request: %s %s", req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"name":"Pro Monthly","locale":"en-US","description":"Old description."}}],"links":{"next":""}}`), nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "setup",
-			"--app", "app-1",
-			"--group-reference-name", "Pro",
-			"--reference-name", "Pro Monthly",
-			"--product-id", "com.example.pro.monthly",
-			"--subscription-period", "ONE_MONTH",
-			"--locale", "en-US",
-			"--display-name", "Pro Monthly",
-			"--description", "All premium features.",
-			"--no-verify",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	if runErr == nil || !strings.Contains(runErr.Error(), "different description") {
-		t.Fatalf("expected different description error, got %v", runErr)
-	}
-
-	var result subscriptionsSetupOutput
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("parse setup result: %v\nstdout=%q", err, stdout)
-	}
-	if result.Status != "error" || result.FailedStep != "create_localization" {
-		t.Fatalf("unexpected setup result: %+v", result)
-	}
-	if want := subscriptionsSetupLegacyLocalizationWarning + "Error: subscriptions setup: create_localization: existing subscription localization \"loc-1\" has a different description; update it or choose a different locale\n"; stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
-	}
-	if requestCount != 3 {
-		t.Fatalf("expected lookup requests only, got %d", requestCount)
+		})
 	}
 }
 
@@ -1894,32 +1786,20 @@ func TestSubscriptionsSetupNormalizesTerritories(t *testing.T) {
 	}
 }
 
-func TestSubscriptionsSetupReconcilesAppliedEOFWithoutReplay(t *testing.T) {
-	runSubscriptionsSetupPriceFailureCase(t, subscriptionsSetupPriceFailureAppliedEOF)
-}
-
-func TestSubscriptionsSetupReconcilesAppliedEOFAfterDelayedVisibility(t *testing.T) {
-	runSubscriptionsSetupPriceFailureCase(t, subscriptionsSetupPriceFailureAppliedDelayedEOF)
-}
-
-func TestSubscriptionsSetupReconcilesApplied5xxWithoutReplay(t *testing.T) {
-	runSubscriptionsSetupPriceFailureCase(t, subscriptionsSetupPriceFailureApplied5xx)
-}
-
-func TestSubscriptionsSetupDoesNotReplayUnappliedAmbiguousPricePatch(t *testing.T) {
-	runSubscriptionsSetupPriceFailureCase(t, subscriptionsSetupPriceFailureUnappliedEOF)
-}
-
-func TestSubscriptionsSetupPreservesDeterministicPricePatchFailure(t *testing.T) {
-	runSubscriptionsSetupPriceFailureCase(t, subscriptionsSetupPriceFailureDeterministic)
-}
-
-func TestSubscriptionsSetupReportsVerificationFailureAfterReconciledPricePatch(t *testing.T) {
-	runSubscriptionsSetupPriceFailureCase(t, subscriptionsSetupPriceFailureVerification)
-}
-
-func TestSubscriptionsSetupDoesNotInferForcedRepairFromUnchangedMatrix(t *testing.T) {
-	runSubscriptionsSetupPriceFailureCase(t, subscriptionsSetupPriceFailureForcedRepairUnchanged)
+func TestSubscriptionsSetupRecoversFromAmbiguousPricePatchFailures(t *testing.T) {
+	for _, mode := range []subscriptionsSetupPriceFailureMode{
+		subscriptionsSetupPriceFailureAppliedEOF,
+		subscriptionsSetupPriceFailureAppliedDelayedEOF,
+		subscriptionsSetupPriceFailureApplied5xx,
+		subscriptionsSetupPriceFailureUnappliedEOF,
+		subscriptionsSetupPriceFailureDeterministic,
+		subscriptionsSetupPriceFailureVerification,
+		subscriptionsSetupPriceFailureForcedRepairUnchanged,
+	} {
+		t.Run(string(mode), func(t *testing.T) {
+			runSubscriptionsSetupPriceFailureCase(t, mode)
+		})
+	}
 }
 
 type subscriptionsSetupPriceFailureMode string

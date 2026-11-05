@@ -249,3 +249,7 @@ func fileSize(t *testing.T, path string) int64 {
 	}
 	return info.Size()
 }
+
+func uploadScreenshotsToSetFromRoot(ctx context.Context, client *asc.Client, setID string, files []string, sourceRootPath string, preserveExistingOrder bool) ([]asc.AssetUploadResultItem, error) {
+	return uploadScreenshotsToSetFromRootWithOpenedFiles(ctx, client, setID, files, sourceRootPath, preserveExistingOrder, nil)
+}

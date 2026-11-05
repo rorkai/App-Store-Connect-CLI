@@ -202,17 +202,11 @@ func (e *StaplerPartialMutationError) Unwrap() error {
 	return e.Err
 }
 
-// Staple retrieves and attaches a ticket, then validates the same artifact.
-// The artifact path must have been validated by the command layer before this
-// local runner is called.
-func Staple(ctx context.Context, path string, logWriter io.Writer) (*StaplerResult, error) {
-	return StapleWithVerifier(ctx, path, logWriter, nil)
-}
-
 // StapleWithVerifier retrieves and attaches a ticket, then validates the same
-// artifact. When verifier is non-nil, it runs immediately before and after
-// both child operations so callers can reject a replaced target between the
-// staple and validation stages.
+// artifact. The artifact path must have been validated by the command layer
+// before this local runner is called. When verifier is non-nil, it runs
+// immediately before and after both child operations so callers can reject a
+// replaced target between the staple and validation stages.
 func StapleWithVerifier(ctx context.Context, path string, logWriter io.Writer, verifier StaplerStageVerifier) (*StaplerResult, error) {
 	if err := ensureStaplerAvailable(ctx); err != nil {
 		return nil, err
@@ -316,16 +310,11 @@ func verifyStaplerStage(verifier StaplerStageVerifier, operation StaplerOperatio
 	return nil
 }
 
-// ValidateStaple validates an already stapled artifact without modifying it.
-// The artifact path must have been validated by the command layer before this
-// local runner is called.
-func ValidateStaple(ctx context.Context, path string, logWriter io.Writer) (*StaplerResult, error) {
-	return ValidateWithVerifier(ctx, path, logWriter, nil)
-}
-
 // ValidateWithVerifier validates an already stapled artifact without
-// modifying it. When verifier is non-nil, it runs immediately before and after
-// the validation child process, after stapler resolution has completed.
+// modifying it. The artifact path must have been validated by the command
+// layer before this local runner is called. When verifier is non-nil, it runs
+// immediately before and after the validation child process, after stapler
+// resolution has completed.
 func ValidateWithVerifier(ctx context.Context, path string, logWriter io.Writer, verifier StaplerStageVerifier) (*StaplerResult, error) {
 	if err := ensureStaplerAvailable(ctx); err != nil {
 		return nil, err

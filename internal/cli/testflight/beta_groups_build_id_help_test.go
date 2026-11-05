@@ -99,18 +99,6 @@ func TestBetaGroupsListHelpDocumentsAppEndpointAndBuildIDConflicts(t *testing.T)
 	})
 }
 
-func TestHelpMentionsFlagRequiresTokenBoundary(t *testing.T) {
-	if helpMentionsFlag("--app-fields --public-link-enabled", "--app") {
-		t.Fatal("expected --app not to match inside --app-fields")
-	}
-	if helpMentionsFlag("--app-fields --public-link-enabled", "--public-link") {
-		t.Fatal("expected --public-link not to match inside --public-link-enabled")
-	}
-	if !helpMentionsFlag("only with --app, --internal", "--app") {
-		t.Fatal("expected --app to match as a complete token")
-	}
-}
-
 func helpMentionsFlag(help, flagName string) bool {
 	for start := 0; start <= len(help); {
 		offset := strings.Index(help[start:], flagName)

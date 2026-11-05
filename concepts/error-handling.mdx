@@ -2,8 +2,6 @@
 
 > Understand CLI exit codes, API errors, and how to handle failures in scripts and CI/CD pipelines.
 
-The CLI provides structured error handling with predictable exit codes following CI/CD best practices.
-
 ## Exit Codes
 
 Every command returns a numeric exit code that indicates the result:
@@ -54,7 +52,7 @@ The CLI maps HTTP status codes to exit codes:
 | 503 Service Unavailable   | `63`      | Service temporarily unavailable |
 
 <Note>
-  Exit codes follow a deterministic formula defined in `cmd/exit_codes.go`. This ensures consistent, scriptable error handling.
+  Exit codes follow the deterministic formula defined in `cmd/exit_codes.go`.
 </Note>
 
 ## API Errors

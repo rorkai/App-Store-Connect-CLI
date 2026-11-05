@@ -266,9 +266,9 @@ func TestImportSessionBundleIsLocalOnly(t *testing.T) {
 	}
 	t.Cleanup(func() { sessionInfoFetcher = previousFetcher })
 
-	summary, err := ImportSessionBundleWithContext(context.Background(), validTestBundle(time.Now().Add(time.Hour)), false)
+	summary, err := ImportSessionBundleWithOptions(validTestBundle(time.Now().Add(time.Hour)), false)
 	if err != nil {
-		t.Fatalf("ImportSessionBundleWithContext() error = %v", err)
+		t.Fatalf("ImportSessionBundleWithOptions() error = %v", err)
 	}
 	if summary.AppleID != "user@example.com" || summary.CookieCount != 1 {
 		t.Fatalf("unexpected import summary: %+v", summary)
@@ -582,44 +582,24 @@ func TestImportSessionBundleRejectsInvalidCookieSyntax(t *testing.T) {
 }
 
 func TestImportSessionBundleRejectsCookieDomainTheJarCannotStore(t *testing.T) {
-	withFileSessionCache(t)
-	bundle := validTestBundle(time.Now().Add(time.Hour))
-	bundle.Cookies[0].Domain = "evil.example"
+	// A foreign host, a public suffix, and a parent domain broader than the
+	// cookie's origin are all unstorable.
+	for _, domain := range []string{"evil.example", "com", "apple.com"} {
+		t.Run(domain, func(t *testing.T) {
+			withFileSessionCache(t)
+			bundle := validTestBundle(time.Now().Add(time.Hour))
+			bundle.Cookies[0].Domain = domain
 
-	if err := bundle.Validate(); !errors.Is(err, ErrSessionCookieNotStorable) {
-		t.Fatalf("Validate() error = %v, want ErrSessionCookieNotStorable", err)
-	}
-	if _, err := ImportSessionBundle(bundle); !errors.Is(err, ErrSessionCookieNotStorable) {
-		t.Fatalf("ImportSessionBundle() error = %v, want ErrSessionCookieNotStorable", err)
-	}
-	if _, ok, err := LoadCachedSession("user@example.com"); err != nil || ok {
-		t.Fatalf("LoadCachedSession() = (%v, %v), want no cached session after a refused import", ok, err)
-	}
-}
-
-func TestImportSessionBundleRejectsPublicSuffixCookieDomain(t *testing.T) {
-	withFileSessionCache(t)
-	bundle := validTestBundle(time.Now().Add(time.Hour))
-	bundle.Cookies[0].Domain = "com"
-
-	if err := bundle.Validate(); !errors.Is(err, ErrSessionCookieNotStorable) {
-		t.Fatalf("Validate() error = %v, want ErrSessionCookieNotStorable", err)
-	}
-	if _, err := ImportSessionBundle(bundle); !errors.Is(err, ErrSessionCookieNotStorable) {
-		t.Fatalf("ImportSessionBundle() error = %v, want ErrSessionCookieNotStorable", err)
-	}
-	if _, ok, err := LoadCachedSession("user@example.com"); err != nil || ok {
-		t.Fatalf("LoadCachedSession() = (%v, %v), want no cached session after a refused import", ok, err)
-	}
-}
-
-func TestImportSessionBundleRejectsCookieDomainBroaderThanOrigin(t *testing.T) {
-	withFileSessionCache(t)
-	bundle := validTestBundle(time.Now().Add(time.Hour))
-	bundle.Cookies[0].Domain = "apple.com"
-
-	if err := bundle.Validate(); !errors.Is(err, ErrSessionCookieNotStorable) {
-		t.Fatalf("Validate() error = %v, want ErrSessionCookieNotStorable", err)
+			if err := bundle.Validate(); !errors.Is(err, ErrSessionCookieNotStorable) {
+				t.Fatalf("Validate() error = %v, want ErrSessionCookieNotStorable", err)
+			}
+			if _, err := ImportSessionBundle(bundle); !errors.Is(err, ErrSessionCookieNotStorable) {
+				t.Fatalf("ImportSessionBundle() error = %v, want ErrSessionCookieNotStorable", err)
+			}
+			if _, ok, err := LoadCachedSession("user@example.com"); err != nil || ok {
+				t.Fatalf("LoadCachedSession() = (%v, %v), want no cached session after a refused import", ok, err)
+			}
+		})
 	}
 }
 

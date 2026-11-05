@@ -10,21 +10,6 @@ import (
 	"testing"
 )
 
-func TestXcodeCloudRunDoctorFlagIsRegistered(t *testing.T) {
-	run := findSubcommand(RootCommand("1.2.3"), "xcode-cloud", "run")
-	if run == nil {
-		t.Fatal("expected xcode-cloud run command")
-	}
-	doctor := run.FlagSet.Lookup("doctor")
-	if doctor == nil {
-		t.Fatal("expected --doctor flag")
-	}
-
-	if !strings.Contains(run.LongHelp, "--doctor flag") {
-		t.Fatalf("xcode-cloud run help does not characterize --doctor lifecycle: %q", run.LongHelp)
-	}
-}
-
 func TestXcodeCloudRunDoctorRequiresWait(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

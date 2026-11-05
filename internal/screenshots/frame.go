@@ -770,23 +770,6 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root, pin
 // boolPtr returns a pointer to b. Used for YAML fields that require *bool for omitempty.
 func boolPtr(b bool) *bool { return &b }
 
-func createDefaultKoubouConfig(
-	absInputPath string,
-	spec frameDeviceKoubouSpec,
-	canvas *CanvasOptions,
-) (string, frameExecutionMetadata, string, error) {
-	workDir, err := createMatrixPrivateScratchDir("asc-shots-kou-")
-	if err != nil {
-		return "", frameExecutionMetadata{}, "", fmt.Errorf("create temp config directory: %w", err)
-	}
-	configPath, metadata, err := createDefaultKoubouConfigAt(absInputPath, spec, canvas, workDir)
-	if err != nil {
-		_ = os.RemoveAll(workDir)
-		return "", frameExecutionMetadata{}, "", err
-	}
-	return configPath, metadata, workDir, nil
-}
-
 // createDefaultKoubouConfigAt writes the generated config beneath a caller-
 // owned work directory. Matrix callers supply a private attempt root whose
 // parent remains locked for the entire external Koubou invocation, so the

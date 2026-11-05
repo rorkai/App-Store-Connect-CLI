@@ -13,69 +13,41 @@ import (
 	"testing"
 )
 
-func TestScreenshotsUploadReplaceRequiresConfirm(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
+func TestUploadReplaceRequiresConfirm(t *testing.T) {
+	for _, test := range []struct {
+		command string
+		wantErr string
+	}{
+		{command: "screenshots", wantErr: "--confirm is required to delete existing screenshots with --replace"},
+		{command: "video-previews", wantErr: "--confirm is required to delete existing previews with --replace"},
+	} {
+		t.Run(test.command, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("expected no requests before --confirm is validated, got %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("expected no requests before --confirm is validated, got %s %s", req.Method, req.URL.String())
+				return nil, nil
+			}))
 
-	stdout, stderr, runErr := runRootCommand(t, []string{
-		"screenshots", "upload",
-		"--version-localization", "LOC_123",
-		"--path", filepath.Join(t.TempDir(), "screenshots"),
-		"--device-type", "IPHONE_65",
-		"--replace",
-	})
+			stdout, stderr, runErr := runRootCommand(t, []string{
+				test.command, "upload",
+				"--version-localization", "LOC_123",
+				"--path", filepath.Join(t.TempDir(), "media"),
+				"--device-type", "IPHONE_65",
+				"--replace",
+			})
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--confirm is required to delete existing screenshots with --replace") {
-		t.Fatalf("expected replace confirmation error, got %q", stderr)
-	}
-}
-
-func TestVideoPreviewsUploadReplaceRequiresConfirm(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("expected no requests before --confirm is validated, got %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	stdout, stderr, runErr := runRootCommand(t, []string{
-		"video-previews", "upload",
-		"--version-localization", "LOC_123",
-		"--path", filepath.Join(t.TempDir(), "previews"),
-		"--device-type", "IPHONE_65",
-		"--replace",
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--confirm is required to delete existing previews with --replace") {
-		t.Fatalf("expected replace confirmation error, got %q", stderr)
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected replace confirmation error, got %q", stderr)
+			}
+		})
 	}
 }
 

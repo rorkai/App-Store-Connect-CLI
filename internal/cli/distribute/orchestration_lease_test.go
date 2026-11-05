@@ -14,12 +14,12 @@ func TestDistributionRunPathLeaseRejectsRunDirectoryReplacement(t *testing.T) {
 	if err := createDistributionRunScaffold(stateDir, runID); err != nil {
 		t.Fatal(err)
 	}
-	verify, closeLease, err := acquireDistributionRunPathLease(stateDir, runID)
+	lease, err := openDistributionRunPathLease(stateDir, runID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if err := closeLease(); err != nil {
+		if err := lease.close(); err != nil {
 			t.Errorf("close lease: %v", err)
 		}
 	})
@@ -31,7 +31,7 @@ func TestDistributionRunPathLeaseRejectsRunDirectoryReplacement(t *testing.T) {
 	if err := os.Mkdir(original, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := verify(); err == nil {
+	if err := lease.verify(); err == nil {
 		t.Fatal("run-directory replacement was accepted")
 	}
 }
@@ -43,12 +43,12 @@ func TestDistributionRunPathLeaseRejectsStateDirectoryReplacement(t *testing.T) 
 	if err := createDistributionRunScaffold(stateDir, runID); err != nil {
 		t.Fatal(err)
 	}
-	verify, closeLease, err := acquireDistributionRunPathLease(stateDir, runID)
+	lease, err := openDistributionRunPathLease(stateDir, runID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if err := closeLease(); err != nil {
+		if err := lease.close(); err != nil {
 			t.Errorf("close lease: %v", err)
 		}
 	})
@@ -59,7 +59,7 @@ func TestDistributionRunPathLeaseRejectsStateDirectoryReplacement(t *testing.T) 
 	if err := os.Mkdir(stateDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := verify(); err == nil {
+	if err := lease.verify(); err == nil {
 		t.Fatal("state-directory replacement was accepted")
 	}
 }
@@ -257,3 +257,9 @@ func testDistributionResumePathReplacement(t *testing.T, target string) {
 		t.Fatalf("recovered intent changed: %q, %v", intent, err)
 	}
 }
+
+type noopDistributionVerifyLease struct{}
+
+func (noopDistributionVerifyLease) PinSubtrees(...string) error { return nil }
+func (noopDistributionVerifyLease) Verify() error               { return nil }
+func (noopDistributionVerifyLease) Close() error                { return nil }

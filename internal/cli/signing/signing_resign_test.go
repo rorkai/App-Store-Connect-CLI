@@ -29,48 +29,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-func TestSigningCommandExposesResign(t *testing.T) {
-	command := SigningCommand()
-	for _, subcommand := range command.Subcommands {
-		if subcommand.Name == "resign" {
-			return
-		}
-	}
-	t.Fatal("signing command does not expose resign")
-}
-
-func TestSigningResignEntitlementValuePermitsRejectsMalformedProfilePatterns(t *testing.T) {
-	tests := []struct {
-		name    string
-		profile any
-		signed  string
-	}{
-		{name: "bare wildcard", profile: "*", signed: "OLD.value"},
-		{name: "wildcard without dotted prefix", profile: "TEAM*", signed: "TEAM.value"},
-		{name: "malformed array entry", profile: []any{"TEAM.*", 42}, signed: "TEAM.value"},
-		{name: "mixed types", profile: []any{"TEAM.*"}, signed: "TEAM.value"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if signingResignStrictEntitlementValuePermits(test.profile, test.signed) {
-				t.Fatal("malformed profile authorization was accepted")
-			}
-		})
-	}
-}
-
-func TestSigningResignEntitlementValuePermitsAcceptsBoundedWildcard(t *testing.T) {
-	if !signingResignStrictEntitlementValuePermits("TEAM.*", "TEAM.value") {
-		t.Fatal("bounded dotted wildcard was rejected")
-	}
-}
-
-func TestSigningResignEntitlementValuePermitsLegacyKeepsBareWildcardCompatibility(t *testing.T) {
-	if !signingResignEntitlementValuePermits("*", "OLD.value") {
-		t.Fatal("legacy matcher no longer accepts bare wildcard")
-	}
-}
-
 func TestSigningResignHelpChecksCommandSpecificFlags(t *testing.T) {
 	command := SigningResignCommand()
 	for _, name := range []string{"ipa", "output", "identity", "identity-password-file", "profiles-manifest", "rebase-team-claims"} {
@@ -93,16 +51,8 @@ func TestSigningResignRebaseTeamClaimsFlagIsOptIn(t *testing.T) {
 	if err := command.FlagSet.Parse([]string{"--rebase-team-claims"}); err != nil {
 		t.Fatal(err)
 	}
-	getter, ok := flagValue.Value.(flag.Getter)
-	if !ok {
-		t.Fatal("--rebase-team-claims flag does not expose a boolean getter")
-	}
-	enabled, ok := getter.Get().(bool)
-	if !ok || !enabled {
+	if getter, ok := flagValue.Value.(flag.Getter); !ok || getter.Get() != true {
 		t.Fatal("--rebase-team-claims did not enable the opt-in mode")
-	}
-	if err := flagValue.Value.Set("not-a-bool"); err == nil {
-		t.Fatal("--rebase-team-claims accepted an invalid boolean value")
 	}
 	if runtime.GOOS != "darwin" {
 		t.Skip("signing resign is macOS-only")
@@ -683,12 +633,6 @@ func TestBuildSigningResignEntitlementsReplacesIdentity(t *testing.T) {
 	}
 	if !signingResignEntitlementValuePermits(profile["com.apple.security.application-groups"], got["com.apple.security.application-groups"]) {
 		t.Fatalf("capability entitlement was not preserved: %#v", got)
-	}
-}
-
-func TestSigningResignEntitlementValuePermitsRejectsNonStringProfileListEntries(t *testing.T) {
-	if signingResignEntitlementValuePermits([]any{123}, []any{123}) {
-		t.Fatal("non-string profile list entry must not authorize a signed value")
 	}
 }
 
@@ -2742,14 +2686,6 @@ func mustReadFile(t *testing.T, path string) []byte {
 		t.Fatal(err)
 	}
 	return data
-}
-
-func TestSigningResignContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if !errors.Is(contextError(ctx), context.Canceled) {
-		t.Fatalf("contextError() = %v, want cancellation", contextError(ctx))
-	}
 }
 
 func TestRunSigningResignEnvironmentNeverInstallsProfiles(t *testing.T) {

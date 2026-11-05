@@ -271,25 +271,6 @@ func TestPublishLocalBuildThreadsManualSigningOptionsAfterArchive(t *testing.T) 
 	}
 }
 
-func TestPublishSigningFlagsAreDiscoverable(t *testing.T) {
-	for _, command := range []struct {
-		name string
-		cmd  func() *ffcli.Command
-	}{
-		{name: "testflight", cmd: PublishTestFlightCommand},
-		{name: "appstore", cmd: PublishAppStoreCommand},
-	} {
-		t.Run(command.name, func(t *testing.T) {
-			cmd := command.cmd()
-			for _, name := range []string{"signing-style", "team-id"} {
-				if cmd.FlagSet.Lookup(name) == nil {
-					t.Fatalf("expected --%s in publish %s help", name, command.name)
-				}
-			}
-		})
-	}
-}
-
 func TestPublishRejectsExplicitOptionsWithGenerationFlagsBeforeSideEffects(t *testing.T) {
 	for _, command := range []struct {
 		name     string

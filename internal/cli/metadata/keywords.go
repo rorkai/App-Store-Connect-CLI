@@ -326,17 +326,6 @@ func normalizeMetadataKeywordListDetailed(keywords []string) ([]string, []string
 	return normalized, duplicates, nil
 }
 
-func buildMetadataKeywordField(keywords []string) (string, int, error) {
-	details, err := buildMetadataKeywordFieldDetails(keywords)
-	if err != nil {
-		return "", 0, err
-	}
-	if err := validation.ValidateKeywordField(details.field); err != nil {
-		return "", 0, err
-	}
-	return details.field, details.count, nil
-}
-
 func buildMetadataKeywordFieldDetails(keywords []string) (metadataKeywordFieldDetails, error) {
 	normalized, duplicates, err := normalizeMetadataKeywordListDetailed(keywords)
 	if err != nil {

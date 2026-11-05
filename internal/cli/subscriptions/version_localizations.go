@@ -61,7 +61,7 @@ func SubscriptionsVersionLocalizationsListCommand() *ffcli.Command {
 		Name: "list", ShortUsage: "asc subscriptions versions localizations list [flags]", ShortHelp: "List localizations for a subscription version.",
 		LongHelp: "List version-scoped subscription localizations.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			if err := validateNextFlagConflicts(
@@ -144,7 +144,7 @@ func SubscriptionsVersionLocalizationsLinksCommand() *ffcli.Command {
 		Name: "links", ShortUsage: "asc subscriptions versions localizations links [flags]", ShortHelp: "List raw localization linkages.",
 		LongHelp: "List raw localization relationship linkages for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			if err := validateNextFlagConflicts(
@@ -205,7 +205,7 @@ func SubscriptionsVersionLocalizationsViewCommand() *ffcli.Command {
 		Name: "view", ShortUsage: "asc subscriptions versions localizations view --id \"LOCALIZATION_ID\"", ShortHelp: "View a version-scoped localization.",
 		LongHelp: "View a version-scoped subscription localization by ID.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			localizationID := strings.TrimSpace(*id)
@@ -258,7 +258,7 @@ func SubscriptionsVersionLocalizationsCreateCommand() *ffcli.Command {
 		Name: "create", ShortUsage: "asc subscriptions versions localizations create [flags]", ShortHelp: "Create a version-scoped localization.",
 		LongHelp: "Create a localization associated with a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			id, localeValue, nameValue := strings.TrimSpace(*versionID), strings.TrimSpace(*locale), strings.TrimSpace(*name)
@@ -311,7 +311,7 @@ Examples:
   asc subscriptions versions localizations update --id "LOCALIZATION_ID" --name "Pro Plus"
   asc subscriptions versions localizations update --id "LOCALIZATION_ID" --clear-description`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			localizationID := strings.TrimSpace(*id)
@@ -364,7 +364,7 @@ func SubscriptionsVersionLocalizationsDeleteCommand() *ffcli.Command {
 		Name: "delete", ShortUsage: "asc subscriptions versions localizations delete --id \"LOCALIZATION_ID\" --confirm", ShortHelp: "Delete a version-scoped localization.",
 		LongHelp: "Delete a version-scoped subscription localization.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			localizationID := strings.TrimSpace(*id)

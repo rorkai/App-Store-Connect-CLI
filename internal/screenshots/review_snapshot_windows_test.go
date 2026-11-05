@@ -91,7 +91,7 @@ func TestCreateMatrixPrivateScratchWindowsOwnerOnlyAtCreation(t *testing.T) {
 		t.Fatalf("lockMatrixPrivateAttemptParent() error: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := unlockMatrixPrivateAttemptParentRetained(parentDACL, parent); err != nil {
+		if err := restoreMatrixPrivateAttemptDirectory(parentDACL, parent); err != nil {
 			t.Errorf("restore scratch parent DACL: %v", err)
 		}
 	})
@@ -101,7 +101,7 @@ func TestCreateMatrixPrivateScratchWindowsOwnerOnlyAtCreation(t *testing.T) {
 		t.Fatalf("close locked scratch parent: %v", err)
 	}
 	assertWindowsRenameDenied(t, childPath, childPath+"-replacement")
-	if err := unlockMatrixPrivateAttemptParentRetained(parentDACL, parent); err != nil {
+	if err := restoreMatrixPrivateAttemptDirectory(parentDACL, parent); err != nil {
 		t.Fatalf("unlockMatrixPrivateAttemptParent() error: %v", err)
 	}
 

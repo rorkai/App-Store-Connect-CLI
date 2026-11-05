@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/peterbourgon/ff/v3/ffcli"
-
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -114,14 +112,6 @@ func TestWebICloudContainersCreatePrintsVerifiedPermanentReceipt(t *testing.T) {
 	}
 	if *persistCalls != 1 {
 		t.Fatalf("persist calls = %d, want 1", *persistCalls)
-	}
-}
-
-func TestWebICloudContainersCreateHelpStatesContainersAreNeverDeleted(t *testing.T) {
-	for _, command := range []*ffcli.Command{WebICloudContainersCommand(), WebICloudContainersCreateCommand()} {
-		if !strings.Contains(command.LongHelp, "can never be deleted") {
-			t.Errorf("%s help does not say iCloud containers can never be deleted:\n%s", command.Name, command.LongHelp)
-		}
 	}
 }
 

@@ -15,19 +15,25 @@ type apiAttributes struct {
 	decoded  map[string]json.RawMessage
 }
 
-// unmarshalAPIAttributes decodes data into T, a method-free alias of an
-// attributes type, and snapshots Apple's original object.
-func unmarshalAPIAttributes[T any](data []byte) (T, apiAttributes, error) {
+// unmarshalAPIAttributes decodes data into dst, a method-free alias of an
+// attributes type, and snapshots Apple's original object into api. Neither is
+// changed when decoding fails.
+func unmarshalAPIAttributes[T any](data []byte, dst *T, api *apiAttributes) error {
 	var decoded T
 	if err := json.Unmarshal(data, &decoded); err != nil {
-		return decoded, apiAttributes{}, err
+		return err
 	}
 	baseline, err := json.Marshal(decoded)
 	if err != nil {
-		return decoded, apiAttributes{}, err
+		return err
 	}
-	api, err := captureAPIAttributes(data, baseline, reflect.TypeOf(decoded))
-	return decoded, api, err
+	captured, err := captureAPIAttributes(data, baseline, reflect.TypeOf(decoded))
+	if err != nil {
+		return err
+	}
+	*dst = decoded
+	*api = captured
+	return nil
 }
 
 // captureAPIAttributes snapshots Apple's object next to baseline, the
@@ -124,13 +130,7 @@ func (a apiAttributes) apply(encoded []byte) ([]byte, error) {
 
 func (a *AppStoreReviewDetailAttributes) UnmarshalJSON(data []byte) error {
 	type alias AppStoreReviewDetailAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = AppStoreReviewDetailAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a AppStoreReviewDetailAttributes) MarshalJSON() ([]byte, error) {
@@ -140,13 +140,7 @@ func (a AppStoreReviewDetailAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *AppStoreVersionLocalizationAttributes) UnmarshalJSON(data []byte) error {
 	type alias AppStoreVersionLocalizationAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = AppStoreVersionLocalizationAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a AppStoreVersionLocalizationAttributes) MarshalJSON() ([]byte, error) {
@@ -156,13 +150,7 @@ func (a AppStoreVersionLocalizationAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *AppInfoLocalizationAttributes) UnmarshalJSON(data []byte) error {
 	type alias AppInfoLocalizationAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = AppInfoLocalizationAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a AppInfoLocalizationAttributes) MarshalJSON() ([]byte, error) {
@@ -172,13 +160,7 @@ func (a AppInfoLocalizationAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *BetaBuildLocalizationAttributes) UnmarshalJSON(data []byte) error {
 	type alias BetaBuildLocalizationAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = BetaBuildLocalizationAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a BetaBuildLocalizationAttributes) MarshalJSON() ([]byte, error) {
@@ -188,13 +170,7 @@ func (a BetaBuildLocalizationAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *AgeRatingDeclarationAttributes) UnmarshalJSON(data []byte) error {
 	type alias AgeRatingDeclarationAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = AgeRatingDeclarationAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a AgeRatingDeclarationAttributes) MarshalJSON() ([]byte, error) {
@@ -204,13 +180,7 @@ func (a AgeRatingDeclarationAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *InAppPurchaseAppStoreReviewScreenshotAttributes) UnmarshalJSON(data []byte) error {
 	type alias InAppPurchaseAppStoreReviewScreenshotAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = InAppPurchaseAppStoreReviewScreenshotAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a InAppPurchaseAppStoreReviewScreenshotAttributes) MarshalJSON() ([]byte, error) {
@@ -220,13 +190,7 @@ func (a InAppPurchaseAppStoreReviewScreenshotAttributes) MarshalJSON() ([]byte, 
 
 func (a *ReviewSubmissionAttributes) UnmarshalJSON(data []byte) error {
 	type alias ReviewSubmissionAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = ReviewSubmissionAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a ReviewSubmissionAttributes) MarshalJSON() ([]byte, error) {
@@ -236,13 +200,7 @@ func (a ReviewSubmissionAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *ReviewSubmissionItemAttributes) UnmarshalJSON(data []byte) error {
 	type alias ReviewSubmissionItemAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = ReviewSubmissionItemAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a ReviewSubmissionItemAttributes) MarshalJSON() ([]byte, error) {
@@ -252,13 +210,7 @@ func (a ReviewSubmissionItemAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *BuildBetaDetailAttributes) UnmarshalJSON(data []byte) error {
 	type alias BuildBetaDetailAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = BuildBetaDetailAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a BuildBetaDetailAttributes) MarshalJSON() ([]byte, error) {
@@ -268,13 +220,7 @@ func (a BuildBetaDetailAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *SubscriptionAttributes) UnmarshalJSON(data []byte) error {
 	type alias SubscriptionAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = SubscriptionAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a SubscriptionAttributes) MarshalJSON() ([]byte, error) {
@@ -284,13 +230,7 @@ func (a SubscriptionAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *InAppPurchaseV2Attributes) UnmarshalJSON(data []byte) error {
 	type alias InAppPurchaseV2Attributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = InAppPurchaseV2Attributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a InAppPurchaseV2Attributes) MarshalJSON() ([]byte, error) {
@@ -300,13 +240,7 @@ func (a InAppPurchaseV2Attributes) MarshalJSON() ([]byte, error) {
 
 func (a *BetaAppReviewDetailAttributes) UnmarshalJSON(data []byte) error {
 	type alias BetaAppReviewDetailAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = BetaAppReviewDetailAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a BetaAppReviewDetailAttributes) MarshalJSON() ([]byte, error) {
@@ -316,13 +250,7 @@ func (a BetaAppReviewDetailAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *BetaAppLocalizationAttributes) UnmarshalJSON(data []byte) error {
 	type alias BetaAppLocalizationAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = BetaAppLocalizationAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a BetaAppLocalizationAttributes) MarshalJSON() ([]byte, error) {
@@ -332,13 +260,7 @@ func (a BetaAppLocalizationAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *AppStoreVersionPhasedReleaseAttributes) UnmarshalJSON(data []byte) error {
 	type alias AppStoreVersionPhasedReleaseAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = AppStoreVersionPhasedReleaseAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a AppStoreVersionPhasedReleaseAttributes) MarshalJSON() ([]byte, error) {
@@ -348,13 +270,7 @@ func (a AppStoreVersionPhasedReleaseAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *AppStoreVersionAttributes) UnmarshalJSON(data []byte) error {
 	type alias AppStoreVersionAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = AppStoreVersionAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a AppStoreVersionAttributes) MarshalJSON() ([]byte, error) {
@@ -364,13 +280,7 @@ func (a AppStoreVersionAttributes) MarshalJSON() ([]byte, error) {
 
 func (a *ReviewAttributes) UnmarshalJSON(data []byte) error {
 	type alias ReviewAttributes
-	decoded, api, err := unmarshalAPIAttributes[alias](data)
-	if err != nil {
-		return err
-	}
-	*a = ReviewAttributes(decoded)
-	a.api = api
-	return nil
+	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
 func (a ReviewAttributes) MarshalJSON() ([]byte, error) {

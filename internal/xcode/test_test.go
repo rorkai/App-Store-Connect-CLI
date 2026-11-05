@@ -227,21 +227,6 @@ func TestNormalizeTestOptionsPreservesTestSelectorValues(t *testing.T) {
 	}
 }
 
-func TestBuildTestCommandOmitsDerivedDataForTestWithoutBuilding(t *testing.T) {
-	args := buildTestCommand(TestOptions{
-		Action:          string(TestActionTestWithoutBuilding),
-		XctestrunPath:   "Demo.xctestrun",
-		Destinations:    []string{"generic/platform=iOS"},
-		Configuration:   "Debug",
-		DerivedDataPath: "/tmp/DerivedData",
-	})
-	for index, arg := range args {
-		if arg == "-derivedDataPath" || arg == "-configuration" || (index > 0 && (args[index-1] == "-derivedDataPath" || args[index-1] == "-configuration")) {
-			t.Fatalf("argv = %#v, must not include build-only paths for test-without-building", args)
-		}
-	}
-}
-
 func TestValidateTestOptionsAuthenticationPassthroughValues(t *testing.T) {
 	base := TestOptions{
 		ProjectPath:   "Demo.xcodeproj",
@@ -385,6 +370,38 @@ func TestParseTestResultCasesPreservesDurationMilliseconds(t *testing.T) {
 	}
 }
 
+func TestParseTestResultCasesPreferNumericSeconds(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		fields string
+		wantMS int64
+	}{
+		{"localized", `"duration":"1秒","durationInSeconds":1.0637269020080566`, 1063},
+		{"zero seconds", `"duration":"1秒","durationInSeconds":0`, 0},
+		{"milliseconds first", `"durationMs":0,"durationInSeconds":1.5,"duration":"1秒"`, 0},
+		{"legacy duration", `"duration":"0.25s"`, 250},
+		{"null seconds", `"durationInSeconds":null,"duration":"0.25s"`, 250},
+	} {
+		for _, shape := range []struct {
+			name   string
+			format string
+		}{
+			{"flat", `[{"identifier":"Demo/test","status":"passed",%s}]`},
+			{"tree", `{"testNodes":[{"nodeType":"Test Case","nodeIdentifier":"Demo/test","result":"Passed",%s}]}`},
+		} {
+			t.Run(shape.name+"/"+tt.name, func(t *testing.T) {
+				cases, err := ParseTestResultCases([]byte(fmt.Sprintf(shape.format, tt.fields)))
+				if err != nil {
+					t.Fatalf("ParseTestResultCases() error = %v", err)
+				}
+				if len(cases) != 1 || cases[0].DurationMS != tt.wantMS {
+					t.Fatalf("cases = %+v, want one case with duration %dms", cases, tt.wantMS)
+				}
+			})
+		}
+	}
+}
+
 func TestParseTestResultSummaryPreservesDurationMilliseconds(t *testing.T) {
 	data := []byte(`{"totalTestCount":1,"passedTests":1,"failedTests":0,"skippedTests":0,"durationMs":17}`)
 	summary, err := ParseTestResultSummary(data)
@@ -467,6 +484,9 @@ func TestBuildTestCommandSupportsWithoutBuilding(t *testing.T) {
 		Destinations:     []string{"platform=iOS Simulator,name=iPhone 17 Pro"},
 		ResultBundlePath: "/tmp/App-tests.xcresult",
 		OnlyTesting:      []string{"AppTests/Smoke"},
+		// Build-only settings must not reach test-without-building.
+		Configuration:   "Debug",
+		DerivedDataPath: "/tmp/DerivedData",
 	}
 	want := []string{
 		"-destination", "platform=iOS Simulator,name=iPhone 17 Pro",

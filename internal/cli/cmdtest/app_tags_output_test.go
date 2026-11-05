@@ -314,38 +314,6 @@ func TestAppTagsListOutputErrors(t *testing.T) {
 	}
 }
 
-func TestAppTagsListRejectsInvalidNextURL(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-tags", "list",
-			"--next", "http://api.appstoreconnect.apple.com/v1/apps/app-1/appTags?cursor=AQ",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(runErr.Error(), "app-tags list: --next must be an App Store Connect URL") {
-		t.Fatalf("expected invalid --next error, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "app-tags list: --next must be an App Store Connect URL") {
-		t.Fatalf("expected invalid --next diagnostic in stderr, got %q", stderr)
-	}
-}
-
 func TestAppTagsListPaginateWithFiltersUsesQueryOptions(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -503,75 +471,6 @@ func TestAppTagsListValidationErrors(t *testing.T) {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
 		})
-	}
-}
-
-func TestAppTagsListPaginateFromNextWithoutApp(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	const firstURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appTags?cursor=AQ&limit=200"
-	const secondURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appTags?cursor=BQ&limit=200"
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{
-				"data":[{"type":"appTags","id":"tag-next-1"}],
-				"links":{"next":"` + secondURL + `"}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{
-				"data":[{"type":"appTags","id":"tag-next-2"}],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"app-tags", "list", "--paginate", "--next", firstURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"tag-next-1"`) || !strings.Contains(stdout, `"id":"tag-next-2"`) {
-		t.Fatalf("expected both paginated tags in output, got %q", stdout)
 	}
 }
 

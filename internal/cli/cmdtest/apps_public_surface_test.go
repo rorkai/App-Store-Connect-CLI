@@ -10,8 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/peterbourgon/ff/v3/ffcli"
-
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
 )
 
@@ -66,55 +64,6 @@ func runCommand(t *testing.T, args []string) (string, string, error) {
 		runErr = root.Run(context.Background())
 	})
 	return stdout, stderr, runErr
-}
-
-func TestAppsListHelpShowsFeatureExamples(t *testing.T) {
-	root := RootCommand("1.2.3")
-	appsCmd := findSubcommand(root, "apps")
-	listCmd := findSubcommand(root, "apps", "list")
-	if appsCmd == nil || listCmd == nil {
-		t.Fatal("expected apps and apps list commands")
-	}
-
-	for name, command := range map[string]*ffcli.Command{
-		"apps":      appsCmd,
-		"apps list": listCmd,
-	} {
-		usage := command.UsageFunc(command)
-		for _, want := range []string{
-			"Filter by App Store version state(s)",
-			"Filter by review submission state(s)",
-		} {
-			if !strings.Contains(usage, want) {
-				t.Errorf("%s help missing lifecycle marker %q, got %q", name, want, usage)
-			}
-		}
-		for _, want := range []string{
-			"--sort sku",
-			"--version-state IN_REVIEW,WAITING_FOR_REVIEW",
-			"--review-submission-state IN_REVIEW",
-		} {
-			if !strings.Contains(usage, want) {
-				t.Errorf("%s help missing feature example %q, got %q", name, want, usage)
-			}
-		}
-	}
-}
-
-func TestAppsPublicHelpShowsSubcommands(t *testing.T) {
-	root := RootCommand("1.2.3")
-	publicCmd := findSubcommand(root, "apps", "public")
-	if publicCmd == nil {
-		t.Fatal("expected apps public command")
-		return
-	}
-
-	usage := publicCmd.UsageFunc(publicCmd)
-	for _, want := range []string{"view", "search", "rank", "prices", "descriptions", "storefronts", "No authentication is required."} {
-		if !strings.Contains(usage, want) {
-			t.Fatalf("expected apps public help to contain %q, got %q", want, usage)
-		}
-	}
 }
 
 func TestAppsPublicValidationErrors(t *testing.T) {

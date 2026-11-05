@@ -3,6 +3,7 @@ package screenshots
 import (
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -385,18 +386,12 @@ screenshots:
 	}
 }
 
-func TestFramePreservesWhitespaceInInputPath(t *testing.T) {
+func TestFramePreservesWhitespaceInInputAndOutputPaths(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows trims trailing spaces from path components")
 	}
-	runFrameWhitespacePathTest(t, true, false)
-}
-
-func TestFramePreservesWhitespaceInOutputPath(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows trims trailing spaces from path components")
-	}
-	runFrameWhitespacePathTest(t, false, true)
+	t.Run("input", func(t *testing.T) { runFrameWhitespacePathTest(t, true, false) })
+	t.Run("output", func(t *testing.T) { runFrameWhitespacePathTest(t, false, true) })
 }
 
 func runFrameWhitespacePathTest(t *testing.T, whitespaceInput, whitespaceOutput bool) {
@@ -1199,4 +1194,21 @@ exit 1
 	if got := strings.TrimSpace(string(logBytes)); got != "version\nsetup-frames" {
 		t.Fatalf("concurrent renders must check the version and set up frames once, got %q", got)
 	}
+}
+
+func createDefaultKoubouConfig(
+	absInputPath string,
+	spec frameDeviceKoubouSpec,
+	canvas *CanvasOptions,
+) (string, frameExecutionMetadata, string, error) {
+	workDir, err := createMatrixPrivateScratchDir("asc-shots-kou-")
+	if err != nil {
+		return "", frameExecutionMetadata{}, "", fmt.Errorf("create temp config directory: %w", err)
+	}
+	configPath, metadata, err := createDefaultKoubouConfigAt(absInputPath, spec, canvas, workDir)
+	if err != nil {
+		_ = os.RemoveAll(workDir)
+		return "", frameExecutionMetadata{}, "", err
+	}
+	return configPath, metadata, workDir, nil
 }

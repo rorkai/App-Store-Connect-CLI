@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	authsvc "github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	authcmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
 )
@@ -98,14 +97,18 @@ func TestAuthLogoutConfirmRemovesAllCredentialsWithoutWarning(t *testing.T) {
 	}
 }
 
-func TestAuthLogoutWithoutConfirmIsUsageErrorAndRemovesNothing(t *testing.T) {
+func TestAuthLogoutUsageErrorsRemoveNothing(t *testing.T) {
+	const missingConfirm = "--confirm is required to remove stored credentials"
 	for _, tt := range []struct {
-		name string
-		args []string
+		name    string
+		args    []string
+		wantErr string
 	}{
-		{name: "implicit all", args: []string{"auth", "logout"}},
-		{name: "explicit all", args: []string{"auth", "logout", "--all"}},
-		{name: "named", args: []string{"auth", "logout", "--name", "demo"}},
+		{name: "implicit all without confirm", args: []string{"auth", "logout"}, wantErr: missingConfirm},
+		{name: "explicit all without confirm", args: []string{"auth", "logout", "--all"}, wantErr: missingConfirm},
+		{name: "named without confirm", args: []string{"auth", "logout", "--name", "demo"}, wantErr: missingConfirm},
+		{name: "explicit false confirm", args: []string{"auth", "logout", "--all", "--confirm=false"}, wantErr: "--confirm must be true when specified"},
+		{name: "positional args", args: []string{"auth", "logout", "--all", "--confirm", "unexpected"}, wantErr: "unexpected argument(s): unexpected"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			calls := stubAuthLogoutRemovers(t)
@@ -125,88 +128,15 @@ func TestAuthLogoutWithoutConfirmIsUsageErrorAndRemovesNothing(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if !strings.Contains(stderr, "--confirm is required to remove stored credentials") {
-				t.Fatalf("expected --confirm usage error, got %q", stderr)
+			if !strings.Contains(stderr, tt.wantErr) {
+				t.Fatalf("expected %q in stderr, got %q", tt.wantErr, stderr)
 			}
 			if strings.Contains(stderr, "Warning") || strings.Contains(stderr, "5.0.0") {
 				t.Fatalf("stderr still carries deprecation wording: %q", stderr)
 			}
 			if len(calls.names) != 0 || calls.all != 0 {
-				t.Fatalf("expected no removal without --confirm, got %+v", calls)
+				t.Fatalf("expected no removal, got %+v", calls)
 			}
 		})
-	}
-}
-
-func TestAuthLogoutWithoutConfirmExitsWithUsageCode(t *testing.T) {
-	calls := stubAuthLogoutRemovers(t)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"auth", "logout"}, "1.2.3")
-	})
-	if code != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitUsage, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--confirm is required to remove stored credentials") {
-		t.Fatalf("expected --confirm usage error, got %q", stderr)
-	}
-	if len(calls.names) != 0 || calls.all != 0 {
-		t.Fatalf("expected no removal without --confirm, got %+v", calls)
-	}
-}
-
-func TestAuthLogoutRejectsExplicitFalseConfirmBeforeRemoval(t *testing.T) {
-	calls := stubAuthLogoutRemovers(t)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "logout", "--all", "--confirm=false"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("run error = %v, want flag.ErrHelp", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--confirm must be true when specified") {
-		t.Fatalf("expected explicit-false error, got %q", stderr)
-	}
-	if len(calls.names) != 0 || calls.all != 0 {
-		t.Fatalf("expected no removal, got %+v", calls)
-	}
-}
-
-func TestAuthLogoutRejectsPositionalArgsBeforeRemoval(t *testing.T) {
-	calls := stubAuthLogoutRemovers(t)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "logout", "--all", "--confirm", "unexpected"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("run error = %v, want flag.ErrHelp", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "unexpected argument(s): unexpected") {
-		t.Fatalf("expected positional-argument error, got %q", stderr)
-	}
-	if len(calls.names) != 0 || calls.all != 0 {
-		t.Fatalf("expected no removal, got %+v", calls)
 	}
 }

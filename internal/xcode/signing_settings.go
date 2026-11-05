@@ -2631,15 +2631,12 @@ func validateSigningArtifactPaths(planPath, receiptPath, projectPath, settingsPa
 	return nil
 }
 
-// validateSigningArtifactAliases rejects an existing plan or receipt that
-// resolves to any source consumed while building the plan. Lexical path
-// comparisons do not catch hard-link aliases, while rooted no-follow identity
-// checks plus os.SameFile identify existing aliases without mutating the
-// filesystem; symlink aliases are rejected by the rooted opener.
-func validateSigningArtifactAliases(planPath, receiptPath string, inputPaths, protectedPaths []string) error {
-	return validateSigningArtifactAliasesWithAuthorizedProtectedPaths(planPath, receiptPath, inputPaths, protectedPaths, protectedPaths)
-}
-
+// validateSigningArtifactAliasesWithAuthorizedProtectedPaths rejects an
+// existing plan or receipt that resolves to any source consumed while building
+// the plan. Lexical path comparisons do not catch hard-link aliases, while
+// rooted no-follow identity checks plus os.SameFile identify existing aliases
+// without mutating the filesystem; symlink aliases are rejected by the rooted
+// opener.
 func validateSigningArtifactAliasesWithAuthorizedProtectedPaths(planPath, receiptPath string, inputPaths, protectedPaths, authorizedProtectedPaths []string) error {
 	normalize := func(path string) string {
 		return normalizeSigningLexicalPath(path)

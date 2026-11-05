@@ -264,9 +264,6 @@ func RunEphemeral(ctx context.Context, options EphemeralRunOptions, callback fun
 // only validated crash-journal recovery. It reads no identity or profile and
 // creates no keychain or provisioning profile when no journal exists.
 func RecoverEphemeral(ctx context.Context) error {
-	if ctx == nil {
-		return shared.NewValidationError(fmt.Errorf("recover signing environment: context is required"))
-	}
 	deps := platformSigningRunDeps()
 	if deps.GOOS != "darwin" {
 		return shared.NewValidationError(fmt.Errorf("recover signing environment is supported only on macOS"))
@@ -317,9 +314,6 @@ func normalizeSigningRunExpectedSHA256(value, label string) (string, error) {
 func InspectPKCS12Identity(ctx context.Context, options PKCS12IdentityOptions) (PKCS12IdentityInfo, error) {
 	if strings.TrimSpace(options.IdentityPath) == "" {
 		return PKCS12IdentityInfo{}, shared.NewValidationError(fmt.Errorf("inspect PKCS#12 identity: identity path is required"))
-	}
-	if ctx == nil {
-		return PKCS12IdentityInfo{}, shared.NewValidationError(fmt.Errorf("inspect PKCS#12 identity: context is required"))
 	}
 	if err := ctx.Err(); err != nil {
 		return PKCS12IdentityInfo{}, err
@@ -423,12 +417,6 @@ func executeSigningRun(ctx context.Context, options signingRunOptions) error {
 }
 
 func executeSigningOperation(ctx context.Context, options signingRunOptions, operation func(context.Context) error) error {
-	if ctx == nil {
-		return shared.NewValidationError(fmt.Errorf("signing run: context is required"))
-	}
-	if operation == nil {
-		return shared.NewValidationError(fmt.Errorf("signing run: callback is required"))
-	}
 	deps := platformSigningRunDeps()
 	if deps.GOOS != "darwin" {
 		return shared.NewValidationError(fmt.Errorf("signing run is supported only on macOS"))
@@ -613,9 +601,6 @@ func runSigningEnvironment(
 	inspection *signingRunInspection,
 	operation func(context.Context) error,
 ) (receipt signingRunReceipt, resultErr error) {
-	if ctx == nil {
-		return signingRunReceipt{}, fmt.Errorf("signing run context is required")
-	}
 	if operation == nil && deps.RunChild != nil {
 		operation = func(runCtx context.Context) error {
 			return deps.RunChild(runCtx, options.Child)

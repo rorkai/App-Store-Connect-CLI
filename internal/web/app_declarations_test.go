@@ -155,45 +155,29 @@ func TestGetMedicalDeviceDeclarationReadsArrayFormPayload(t *testing.T) {
 	}
 }
 
-func TestGetMedicalDeviceDeclarationReadsObjectFormPayload(t *testing.T) {
-	server := medicalDeclarationServer(t, `{
-		"data":{"medicalDeviceData":{"declaration":"yes"}},
-		"constraints":{}
-	}`)
-	defer server.Close()
-
-	got, err := testWebClient(server).GetMedicalDeviceDeclaration(context.Background(), "account-123", "app-123")
-	if err != nil {
-		t.Fatalf("GetMedicalDeviceDeclaration() error = %v", err)
+func TestGetMedicalDeviceDeclarationReadsFormPayloadShapes(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{name: "object form payload", body: `{"data":{"medicalDeviceData":{"declaration":"yes"}},"constraints":{}}`, want: "yes"},
+		{name: "top-level form payload", body: `{"medicalDeviceData":{"declaration":"no"}}`, want: "no"},
+		{name: "unanswered form", body: `{"data":[],"constraints":{}}`, want: ""},
 	}
-	if got.Declaration != "yes" {
-		t.Fatalf("expected declaration yes, got %q", got.Declaration)
-	}
-}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := medicalDeclarationServer(t, tc.body)
+			defer server.Close()
 
-func TestGetMedicalDeviceDeclarationReadsTopLevelFormPayload(t *testing.T) {
-	server := medicalDeclarationServer(t, `{"medicalDeviceData":{"declaration":"no"}}`)
-	defer server.Close()
-
-	got, err := testWebClient(server).GetMedicalDeviceDeclaration(context.Background(), "account-123", "app-123")
-	if err != nil {
-		t.Fatalf("GetMedicalDeviceDeclaration() error = %v", err)
-	}
-	if got.Declaration != "no" {
-		t.Fatalf("expected declaration no, got %q", got.Declaration)
-	}
-}
-
-func TestGetMedicalDeviceDeclarationReportsUnansweredForm(t *testing.T) {
-	server := medicalDeclarationServer(t, `{"data":[],"constraints":{}}`)
-	defer server.Close()
-
-	got, err := testWebClient(server).GetMedicalDeviceDeclaration(context.Background(), "account-123", "app-123")
-	if err != nil {
-		t.Fatalf("GetMedicalDeviceDeclaration() error = %v", err)
-	}
-	if got.Declaration != "" {
-		t.Fatalf("expected empty declaration, got %q", got.Declaration)
+			got, err := testWebClient(server).GetMedicalDeviceDeclaration(context.Background(), "account-123", "app-123")
+			if err != nil {
+				t.Fatalf("GetMedicalDeviceDeclaration() error = %v", err)
+			}
+			if got.Declaration != tc.want {
+				t.Fatalf("declaration = %q, want %q", got.Declaration, tc.want)
+			}
+		})
 	}
 }
 
