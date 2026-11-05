@@ -356,6 +356,7 @@ func reviewSubmissionItemHistoryFields() []string {
 		"inAppPurchaseVersion",
 		"subscriptionVersion",
 		"subscriptionGroupVersion",
+		"retentionMessageVersion",
 	}
 }
 
@@ -376,6 +377,7 @@ func reviewSubmissionItemHistoryIncludes() []string {
 		"inAppPurchaseVersion",
 		"subscriptionVersion",
 		"subscriptionGroupVersion",
+		"retentionMessageVersion",
 	}
 }
 
@@ -399,6 +401,9 @@ func populateSubmissionHistoryItem(histItem *SubmissionHistoryItem, item asc.Rev
 	case item.Relationships.SubscriptionGroupVersion != nil && item.Relationships.SubscriptionGroupVersion.Data.ID != "":
 		histItem.Type = "subscriptionGroupVersion"
 		histItem.ResourceID = item.Relationships.SubscriptionGroupVersion.Data.ID
+	case item.Relationships.RetentionMessageVersion != nil && item.Relationships.RetentionMessageVersion.Data.ID != "":
+		histItem.Type = "retentionMessageVersion"
+		histItem.ResourceID = item.Relationships.RetentionMessageVersion.Data.ID
 	case item.Relationships.AppStoreVersion != nil && item.Relationships.AppStoreVersion.Data.ID != "":
 		histItem.Type = "appStoreVersion"
 		histItem.ResourceID = item.Relationships.AppStoreVersion.Data.ID

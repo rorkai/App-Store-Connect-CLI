@@ -47,6 +47,7 @@ var reviewSubmissionItemCollectionResourceSpec = reviewCollectionResourceSpec{
 		"inAppPurchaseVersion":            {resourceType: ResourceTypeInAppPurchaseVersions},
 		"subscriptionVersion":             {resourceType: ResourceTypeSubscriptionVersions},
 		"subscriptionGroupVersion":        {resourceType: ResourceTypeSubscriptionGroupVersions},
+		"retentionMessageVersion":         {resourceType: ResourceTypeRetentionMessageVersions},
 	},
 }
 

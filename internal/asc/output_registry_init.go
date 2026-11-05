@@ -302,6 +302,17 @@ func registerAllOutputRenderers() {
 		return nil
 	})
 	registerRows(winBackOfferDeleteResultRows)
+	registerRowsWithSingleResourceAdapter(retentionMessagesRows)
+	registerRowsWithSingleResourceAdapter(retentionMessageVersionsRows)
+	registerRowsWithSingleResourceAdapter(retentionMessageLocalizationsRows)
+	registerSingleLinkageRows(func(v *RetentionMessageLinkageResponse) ResourceData {
+		if v.Data == nil {
+			return ResourceData{}
+		}
+		return *v.Data
+	})
+	registerRows(retentionMessageAssignResultRows)
+	registerRows(retentionMessagePlacementCreateResultRows)
 	registerRows(subscriptionPriceDeleteResultRows)
 	registerDirect(func(v *SubscriptionIntroductoryOfferCreateSummary, render func([]string, [][]string)) error {
 		h, r := subscriptionIntroductoryOfferCreateSummaryRows(v)

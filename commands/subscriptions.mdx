@@ -1244,6 +1244,33 @@ asc subscriptions grace-periods view \
   --id "GRACE_PERIOD_ID"
 ```
 
+## Retention Messages
+
+Show a message when people start to cancel a subscription (App Store Connect API 4.6). A message holds its content in versions; a version can't be modified or deleted after creation. An app can have at most 10 messages, and a subscription has at most one.
+
+```bash  theme={null}
+# Create a message and a version
+asc subscriptions retention-messages create --app "APP_ID" --reference-name "winter-stay"
+asc subscriptions retention-messages versions create --message-id "MESSAGE_ID"
+
+# Add localized text (header up to 66 characters, body up to 144)
+asc subscriptions retention-messages localizations create \
+  --version-id "VERSION_ID" --locale en-US \
+  --header "Your cortado is waiting" --body "Stay subscribed and keep your daily cortado coming."
+
+# Optionally place an asset library image
+asc subscriptions retention-messages versions placement create --version-id "VERSION_ID" --image-id "IMAGE_ID"
+
+# Assign the message to a subscription and submit the version for review
+asc subscriptions retention-messages assign --subscription-id "SUB_ID" --message-id "MESSAGE_ID"
+asc review items add --submission "SUBMISSION_ID" --item-type retentionMessageVersions --item-id "VERSION_ID"
+
+# Follow the review state
+asc subscriptions retention-messages versions view --id "VERSION_ID"
+```
+
+To choose messages in real time from your server, use `asc storekit retention-messaging`.
+
 ## Promoted Subscriptions
 
 Promote subscriptions on your App Store product page.
