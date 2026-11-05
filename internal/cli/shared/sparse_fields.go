@@ -39,3 +39,6 @@ var AppInAppPurchaseSparseFields = []string{
 var SubscriptionGroupSparseFields = []string{
 	"referenceName", "subscriptions", "subscriptionGroupLocalizations", "versions",
 }
+
+// RetentionMessageSparseFields is the fields[retentionMessages] enum.
+var RetentionMessageSparseFields = IncludedResourceFields("retentionMessages")

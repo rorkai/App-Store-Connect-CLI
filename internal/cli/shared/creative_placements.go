@@ -34,9 +34,9 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 	listTypes := creativePlacementFilterTypes(resource)
 	kind := fs.String("placement-type", "", "Filter by placement types, comma-separated: "+strings.Join(listTypes, ", "))
 	group := fs.String("placement-group", "", "Filter by placement group IDs, comma-separated")
-	includeValues := []string{"image", "video", "appEventLocalization", "appStoreVersionLocalization", "appCustomProductPageLocalization", "appStoreVersionExperimentTreatmentLocalization"}
+	includeValues := []string{"image", "video", "appEventLocalization", "appStoreVersionLocalization", "appCustomProductPageLocalization", "appStoreVersionExperimentTreatmentLocalization", "retentionMessageVersion"}
 	include := fs.String("include", "", "Include related resources, comma-separated: "+strings.Join(includeValues, ", "))
-	includedFields := BindIncludedFieldFlags(fs, map[string]string{"image": "appAssetLibraryImages", "video": "appAssetLibraryVideos"})
+	includedFields := BindIncludedFieldFlags(fs, map[string]string{"image": "appAssetLibraryImages", "video": "appAssetLibraryVideos", "retentionMessageVersion": "retentionMessageVersions"})
 	filters := BindPlacementFilters(fs, resource)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200; 0 uses server default)")
 	next := fs.String("next", "", "Fetch a links.next URL instead of selecting a localization")
@@ -153,8 +153,8 @@ func creativePlacementFilterTypes(resource string) []string {
 
 // Enums for GET /v1/appAssetLibraryPlacements/{id}.
 var (
-	creativePlacementViewIncludes = []string{"image", "video", "appEventLocalization", "appStoreVersionLocalization", "appCustomProductPageLocalization", "appStoreVersionExperimentTreatmentLocalization"}
-	creativePlacementViewFields   = []string{"mediaType", "placementType", "placementGroup", "createdDate", "lastModifiedDate", "state", "stateDetails", "image", "video", "appEventLocalization", "appStoreVersionLocalization", "appCustomProductPageLocalization", "appStoreVersionExperimentTreatmentLocalization"}
+	creativePlacementViewIncludes = []string{"image", "video", "appEventLocalization", "appStoreVersionLocalization", "appCustomProductPageLocalization", "appStoreVersionExperimentTreatmentLocalization", "retentionMessageVersion"}
+	creativePlacementViewFields   = []string{"mediaType", "placementType", "placementGroup", "createdDate", "lastModifiedDate", "state", "stateDetails", "image", "video", "appEventLocalization", "appStoreVersionLocalization", "appCustomProductPageLocalization", "appStoreVersionExperimentTreatmentLocalization", "retentionMessageVersion"}
 )
 
 func creativePlacementViewCommand(prefix string) *ffcli.Command {

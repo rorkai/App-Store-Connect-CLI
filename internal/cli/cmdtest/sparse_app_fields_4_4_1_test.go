@@ -23,6 +23,7 @@ func TestSparseAppFieldFlagsValidateBeforeAuth(t *testing.T) {
 		{"apps list iap", []string{"apps", "list", "--iap-fields", "bogus"}, "--iap-fields must be one of: referenceName"},
 		{"apps list app info", []string{"apps", "list", "--app-info-fields", "bogus"}, "--app-info-fields must be one of: appStoreState"},
 		{"apps view group", []string{"apps", "view", "--id", "app-1", "--subscription-group-fields", "bogus"}, "--subscription-group-fields must be one of: referenceName"},
+		{"apps list retention message", []string{"apps", "list", "--retention-message-fields", "bogus"}, "--retention-message-fields must be one of: referenceName"},
 		{"app infos list fields", []string{"apps", "info", "list", "--app", "app-1", "--fields", "bogus"}, "--fields must be one of: appStoreState"},
 		{"app info view age rating", []string{"apps", "info", "view", "--info-id", "info-1", "--age-rating-fields", "bogus"}, "--age-rating-fields must be one of: advertising"},
 		{"app info view unsupported include", []string{"apps", "info", "view", "--info-id", "info-1", "--include", "territoryAgeRatings"}, "--include must be one of: app, ageRatingDeclaration, appInfoLocalizations, primaryCategory"},
@@ -52,6 +53,7 @@ func TestSparseAppFieldFlagsValidateBeforeAuth(t *testing.T) {
 		{"apps list next app info", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--app-info-fields", ""}, "--next cannot be combined with --app-info-fields"},
 		{"apps list next iap", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--iap-fields", ""}, "--next cannot be combined with --iap-fields"},
 		{"apps list next group", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--subscription-group-fields", ""}, "--next cannot be combined with --subscription-group-fields"},
+		{"apps list next retention message", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--retention-message-fields", ""}, "--next cannot be combined with --retention-message-fields"},
 		{"app info view next fields", []string{"apps", "info", "view", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--fields", ""}, "--next cannot be combined with --fields"},
 		{"app info view next age rating", []string{"apps", "info", "view", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--age-rating-fields", ""}, "--next cannot be combined with --age-rating-fields"},
 	}
@@ -105,14 +107,14 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "cursor": "next"},
 		},
 		{
-			name: "apps list", args: []string{"apps", "list", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--output", "json"},
+			name: "apps list", args: []string{"apps", "list", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--retention-message-fields", "referenceName", "--output", "json"},
 			wantPath: "/v1/apps", response: `{"data":[]}`,
-			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "include": "appInfos,inAppPurchases,subscriptionGroups"},
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "fields[retentionMessages]": "referenceName", "include": "appInfos,inAppPurchases,subscriptionGroups,retentionMessages"},
 		},
 		{
-			name: "apps view", args: []string{"apps", "view", "--id", "app-1", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--output", "json"},
+			name: "apps view", args: []string{"apps", "view", "--id", "app-1", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--retention-message-fields", "referenceName", "--output", "json"},
 			wantPath: "/v1/apps/app-1", response: `{"data":{"type":"apps","id":"app-1"}}`,
-			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "include": "appInfos,inAppPurchases,subscriptionGroups"},
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "fields[retentionMessages]": "referenceName", "include": "appInfos,inAppPurchases,subscriptionGroups,retentionMessages"},
 		},
 		{
 			name: "app infos list", args: []string{"apps", "info", "list", "--app", "app-1", "--fields", "kidsAgeBand", "--age-rating-fields", "socialMedia,socialMediaAgeRestricted", "--output", "json"},
@@ -140,9 +142,9 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "include": "appInfo"},
 		},
 		{
-			name: "xcode cloud product app", args: []string{"xcode-cloud", "products", "app", "--id", "product-1", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--output", "json"},
+			name: "xcode cloud product app", args: []string{"xcode-cloud", "products", "app", "--id", "product-1", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--retention-message-fields", "referenceName", "--output", "json"},
 			wantPath: "/v1/ciProducts/product-1/app", response: `{"data":{"type":"apps","id":"app-1"}}`,
-			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "include": "appInfos,inAppPurchases,subscriptionGroups"},
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "fields[retentionMessages]": "referenceName", "include": "appInfos,inAppPurchases,subscriptionGroups,retentionMessages"},
 		},
 	}
 
@@ -232,6 +234,7 @@ func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
 		ageRatings = "fields[ageRatingDeclarations]"
 		iaps       = "fields[inAppPurchases]"
 		groups     = "fields[subscriptionGroups]"
+		retention  = "fields[retentionMessages]"
 		list       = `{"data":[]}`
 		app        = `{"data":{"type":"apps","id":"app-1"}}`
 		appInfo    = `{"data":{"type":"appInfos","id":"info-1"}}`
@@ -253,9 +256,11 @@ func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
 		{appsList, "--app-info-fields", appInfos, "/v1/apps", "/v1/apps", list},
 		{appsList, "--iap-fields", iaps, "/v1/apps", "/v1/apps", list},
 		{appsList, "--subscription-group-fields", groups, "/v1/apps", "/v1/apps", list},
+		{appsList, "--retention-message-fields", retention, "/v1/apps", "/v1/apps", list},
 		{appsView, "--app-info-fields", appInfos, "/v1/apps/{id}", "/v1/apps/app-1", app},
 		{appsView, "--iap-fields", iaps, "/v1/apps/{id}", "/v1/apps/app-1", app},
 		{appsView, "--subscription-group-fields", groups, "/v1/apps/{id}", "/v1/apps/app-1", app},
+		{appsView, "--retention-message-fields", retention, "/v1/apps/{id}", "/v1/apps/app-1", app},
 		{infosList, "--fields", appInfos, "/v1/apps/{id}/appInfos", "/v1/apps/app-1/appInfos", list},
 		{infosList, "--age-rating-fields", ageRatings, "/v1/apps/{id}/appInfos", "/v1/apps/app-1/appInfos", list},
 		{infoView, "--fields", appInfos, "/v1/appInfos/{id}", "/v1/appInfos/info-1", appInfo},
@@ -265,6 +270,7 @@ func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
 		{productApp, "--app-info-fields", appInfos, "/v1/ciProducts/{id}/app", "/v1/ciProducts/product-1/app", app},
 		{productApp, "--iap-fields", iaps, "/v1/ciProducts/{id}/app", "/v1/ciProducts/product-1/app", app},
 		{productApp, "--subscription-group-fields", groups, "/v1/ciProducts/{id}/app", "/v1/ciProducts/product-1/app", app},
+		{productApp, "--retention-message-fields", retention, "/v1/ciProducts/{id}/app", "/v1/ciProducts/product-1/app", app},
 	}
 
 	for _, test := range tests {
