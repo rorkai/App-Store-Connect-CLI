@@ -429,7 +429,7 @@ func findCPIOFile(reader io.Reader, wanted map[string]bool) ([]byte, error) {
 			if err := infoPlistSize(fileSize); err != nil {
 				return nil, err
 			}
-			data := make([]byte, int(fileSize))
+			data := make([]byte, fileSize)
 			if _, err := io.ReadFull(reader, data); err != nil {
 				return nil, cpioReadError(err)
 			}
