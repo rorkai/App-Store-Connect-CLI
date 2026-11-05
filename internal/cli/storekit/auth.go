@@ -68,7 +68,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			cleanName := strings.TrimSpace(*name)
@@ -183,7 +183,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			if flagWasSet(fs, "environment") && !*validate {
@@ -260,7 +260,7 @@ func authSwitchCommand() *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			cleanName := strings.TrimSpace(*name)
@@ -292,7 +292,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			client, environment, err := resolveClient(ctx, common)
@@ -327,7 +327,7 @@ func authLogoutCommand() *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			if !*confirm {

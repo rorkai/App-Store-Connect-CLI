@@ -234,33 +234,9 @@ func acquireMatrixOutputLocksForRoots(ctx context.Context, targets []matrixOutpu
 	}, nil
 }
 
-func matrixOutputLockIdentity(path string) string {
-	if physical, ok := resolveMatrixPhysicalPath(path); ok {
-		return normalizeMatrixLockPath(physical)
-	}
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return normalizeMatrixLockPath(path)
-	}
-	return normalizeMatrixLockPath(absPath)
-}
-
-func normalizeMatrixLockPath(path string) string {
-	path = filepath.Clean(path)
-	return normalizeMatrixLockPathWithCase(path, matrixFilesystemCaseInsensitive(path))
-}
-
-func normalizeMatrixLockPathWithCase(path string, caseInsensitive bool) string {
-	if caseInsensitive {
-		return strings.ToLower(path)
-	}
-	return path
-}
-
-// matrixFilesystemCaseInsensitive probes an existing path component without
-// creating anything. Case-folding lock identities is safe only when the
-// selected filesystem itself aliases a case variant; preserving spelling on a
-// case-sensitive filesystem keeps distinct destinations independently locked.
+// matrixFilesystemCaseInsensitive reports whether the filesystem holding path
+// aliases case variants, probing an existing path component without creating
+// anything.
 func matrixFilesystemCaseInsensitive(path string) bool {
 	if runtime.GOOS == "windows" {
 		return true

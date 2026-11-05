@@ -68,7 +68,7 @@ func imagesListCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("list", "asc storekit retention-messaging images list --environment ENV [flags]", "List retention images.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		client, _, err := resolveClient(ctx, common)
@@ -97,7 +97,7 @@ func imagesUploadCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("upload", "asc storekit retention-messaging images upload --image-id UUID --file IMAGE.png --environment ENV [flags]", "Upload a PNG retention image.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		if err := requireFlag("--image-id", *imageID); err != nil {
@@ -138,7 +138,7 @@ func imagesDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging images delete --image-id UUID --environment ENV --confirm [flags]", "Delete a retention image.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		if !*confirm {
@@ -183,7 +183,7 @@ func messagesListCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("list", "asc storekit retention-messaging messages list --environment ENV [flags]", "List retention messages.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		client, _, err := resolveClient(ctx, common)
@@ -211,7 +211,7 @@ func messagesUploadCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("upload", "asc storekit retention-messaging messages upload --message-id UUID --file MESSAGE.json --environment ENV [flags]", "Upload a retention message.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		if err := requireFlag("--message-id", *messageID); err != nil {
@@ -247,7 +247,7 @@ func messagesDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging messages delete --message-id UUID --environment ENV --confirm [flags]", "Delete a retention message.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		if !*confirm {
@@ -351,7 +351,7 @@ func defaultDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging defaults delete --product-id ID --locale LOCALE --environment ENV --confirm [flags]", "Delete the default retention message.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		if !*confirm {
@@ -394,7 +394,7 @@ func endpointViewCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("view", "asc storekit retention-messaging endpoint view --environment ENV [flags]", "View the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		client, _, err := resolveClient(ctx, common)
@@ -417,7 +417,7 @@ func endpointSetCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("set", "asc storekit retention-messaging endpoint set --url HTTPS_URL --environment ENV [flags]", "Set the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		if err := requireFlag("--url", *realtimeURL); err != nil {
@@ -446,7 +446,7 @@ func endpointDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging endpoint delete --environment ENV --confirm [flags]", "Delete the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		if !*confirm {
@@ -492,7 +492,7 @@ func performanceStartCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("start", "asc storekit retention-messaging performance start --original-transaction-id ID --environment sandbox [flags]", "Start a sandbox endpoint performance test.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		if err := requireFlag("--original-transaction-id", *originalTransactionID); err != nil {
@@ -533,7 +533,7 @@ func performanceViewCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("view", "asc storekit retention-messaging performance view --request-id ID --environment sandbox [flags]", "View a sandbox performance test result.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		if err := requireFlag("--request-id", *requestID); err != nil {
@@ -564,7 +564,7 @@ func performanceWaitCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("wait", "asc storekit retention-messaging performance wait --request-id ID --environment sandbox [flags]", "Wait for a sandbox performance test to finish.", fs, func(ctx context.Context, args []string) error {
-		if err := rejectUnexpectedArgs(args); err != nil {
+		if err := shared.RejectPositionalArgs(args); err != nil {
 			return err
 		}
 		if err := requireFlag("--request-id", *requestID); err != nil {
@@ -711,7 +711,7 @@ func readMessage(path string) (storekitapi.Message, error) {
 }
 
 func validateDefaultInvocation(args []string, productID, locale string) error {
-	if err := rejectUnexpectedArgs(args); err != nil {
+	if err := shared.RejectPositionalArgs(args); err != nil {
 		return err
 	}
 	if err := requireFlag("--product-id", productID); err != nil {

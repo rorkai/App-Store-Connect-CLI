@@ -641,14 +641,6 @@ func closeMatrixReviewAssetRoots(roots map[string]*rootfs.Root) error {
 	return closeErr
 }
 
-func matrixReviewBrowserAssets(htmlPath string, htmlData []byte, manifest *MatrixReviewManifest) ([]matrixReviewBrowserAsset, error) {
-	return matrixReviewBrowserAssetsWithContext(context.Background(), htmlPath, htmlData, manifest)
-}
-
-func matrixReviewBrowserAssetsWithContext(ctx context.Context, htmlPath string, htmlData []byte, manifest *MatrixReviewManifest) ([]matrixReviewBrowserAsset, error) {
-	return matrixReviewBrowserAssetsWithExpectedRoots(ctx, htmlPath, htmlData, manifest, nil)
-}
-
 func matrixReviewBrowserAssetsWithExpectedRoots(ctx context.Context, htmlPath string, htmlData []byte, manifest *MatrixReviewManifest, expectedRoots map[string]*rootfs.Root) ([]matrixReviewBrowserAsset, error) {
 	if manifest == nil {
 		return nil, nil

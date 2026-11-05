@@ -139,26 +139,24 @@ func TestGenerateReviewPreservesExplicitWhitespaceApprovalPath(t *testing.T) {
 	}
 }
 
-func TestMatchingAppDisplayTypesCanonicalizesAPIAliases(t *testing.T) {
-	got := strings.Join(matchingAppDisplayTypes(1260, 2736), ",")
-	if want := "APP_IPHONE_67"; got != want {
-		t.Fatalf("matchingAppDisplayTypes() = %q, want %q", got, want)
+func TestMatchingAppDisplayTypes(t *testing.T) {
+	tests := []struct {
+		name          string
+		width, height int
+		want          string
+	}{
+		{name: "API alias canonicalized", width: 1260, height: 2736, want: "APP_IPHONE_67"},
+		{name: "distinct canonical slots preserved", width: 3840, height: 2160, want: "APP_APPLE_TV,APP_APPLE_VISION_PRO"},
+		{name: "current iPad slot portrait", width: 2048, height: 2732, want: "APP_IPAD_PRO_3GEN_129"},
+		{name: "current iPad slot landscape", width: 2732, height: 2048, want: "APP_IPAD_PRO_3GEN_129"},
+		{name: "current iPad slot M4", width: 2064, height: 2752, want: "APP_IPAD_PRO_3GEN_129"},
 	}
-}
-
-func TestMatchingAppDisplayTypesPreservesDistinctCanonicalSlots(t *testing.T) {
-	got := strings.Join(matchingAppDisplayTypes(3840, 2160), ",")
-	if want := "APP_APPLE_TV,APP_APPLE_VISION_PRO"; got != want {
-		t.Fatalf("matchingAppDisplayTypes() = %q, want %q", got, want)
-	}
-}
-
-func TestMatchingAppDisplayTypesPrefersCurrentIPadSlot(t *testing.T) {
-	for _, size := range [][2]int{{2048, 2732}, {2732, 2048}, {2064, 2752}} {
-		got := strings.Join(matchingAppDisplayTypes(size[0], size[1]), ",")
-		if want := "APP_IPAD_PRO_3GEN_129"; got != want {
-			t.Fatalf("matchingAppDisplayTypes(%d, %d) = %q, want %q", size[0], size[1], got, want)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := strings.Join(matchingAppDisplayTypes(tt.width, tt.height), ","); got != tt.want {
+				t.Fatalf("matchingAppDisplayTypes(%d, %d) = %q, want %q", tt.width, tt.height, got, tt.want)
+			}
+		})
 	}
 }
 

@@ -1547,16 +1547,6 @@ func buildSubscriptionSetupPriceMatrix(basePricePointID, baseTerritory string, a
 	return matrix, nil
 }
 
-func subscriptionSetupHasPricedTerritory(states []subscriptionPriceImportState, territory string) bool {
-	territory = strings.ToUpper(strings.TrimSpace(territory))
-	for _, state := range states {
-		if strings.ToUpper(strings.TrimSpace(state.territoryID)) == territory {
-			return true
-		}
-	}
-	return false
-}
-
 func findExistingSubscriptionSetupGroup(ctx context.Context, client *asc.Client, appID, referenceName string) (string, bool, error) {
 	referenceName = strings.TrimSpace(referenceName)
 	if referenceName == "" {

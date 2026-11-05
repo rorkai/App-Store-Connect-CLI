@@ -115,10 +115,6 @@ Examples:
 	}
 }
 
-func validateDir(dir string) (ValidateResult, error) {
-	return validateDirWithOptions(context.Background(), dir, validateDirOptions{})
-}
-
 type validateDirOptions struct {
 	checkURLs       bool
 	subscriptionApp bool

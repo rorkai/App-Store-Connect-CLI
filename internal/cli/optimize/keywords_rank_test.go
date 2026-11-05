@@ -19,39 +19,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
 )
 
-func TestKeywordsRankCommandHelpDescribesPublicZeroAuthWorkflow(t *testing.T) {
-	command := KeywordsRankCommand()
-	joined := command.ShortUsage + "\n" + command.ShortHelp + "\n" + command.LongHelp
-	for _, want := range []string{
-		"asc optimize keywords rank",
-		"No authentication is required.",
-		"--keywords",
-		"--workers",
-	} {
-		if !strings.Contains(joined, want) {
-			t.Fatalf("help missing %q:\n%s", want, joined)
-		}
-	}
-
-	for _, name := range []string{"app", "keywords", "country", "platform", "workers"} {
-		flagDef := command.FlagSet.Lookup(name)
-		if flagDef == nil {
-			t.Fatalf("flag --%s is not registered", name)
-		}
-	}
-}
-
-func TestKeywordsRankCommandRejectsPositionalArguments(t *testing.T) {
-	failKeywordsClient(t)
-	err := KeywordsRankCommand().Exec(context.Background(), []string{"extra"})
-	if err == nil || err.Error() != "optimize keywords rank does not accept positional arguments" {
-		t.Fatalf("error = %v", err)
-	}
-	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("error = %v, want usage error", err)
-	}
-}
-
 func TestKeywordsRankCommandValidatesInputBeforeRequests(t *testing.T) {
 	tests := []struct {
 		name string

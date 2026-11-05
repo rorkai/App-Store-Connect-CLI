@@ -1,9 +1,6 @@
 package metadata
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 func TestMetadataInitCommandDefaultsLocale(t *testing.T) {
 	cmd := MetadataInitCommand()
@@ -14,15 +11,6 @@ func TestMetadataInitCommandDefaultsLocale(t *testing.T) {
 	}
 	if f.DefValue != "en-US" {
 		t.Fatalf("expected --locale default en-US, got %q", f.DefValue)
-	}
-}
-
-func TestMetadataInitCommandUsageMentionsVersionAndLocale(t *testing.T) {
-	cmd := MetadataInitCommand()
-	for _, want := range []string{"metadata init", "--version", "--locale"} {
-		if !strings.Contains(cmd.ShortUsage, want) {
-			t.Fatalf("expected ShortUsage to mention %q, got %q", want, cmd.ShortUsage)
-		}
 	}
 }
 

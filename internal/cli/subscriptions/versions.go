@@ -73,7 +73,7 @@ Examples:
   asc subscriptions versions create --subscription-id "SUBSCRIPTION_ID"`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*subscriptionID)
@@ -127,7 +127,7 @@ Examples:
   asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID" --include images --images-limit 10`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			if err := validateNextFlagConflicts(
@@ -247,7 +247,7 @@ Examples:
   asc subscriptions versions view --id "VERSION_ID"
   asc subscriptions versions view --id "VERSION_ID" --include images,localizations --images-limit 10 --localizations-limit 10`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			versionID := strings.TrimSpace(*id)
@@ -318,7 +318,7 @@ func SubscriptionsVersionsLinksCommand() *ffcli.Command {
 		Name: "links", ShortUsage: "asc subscriptions versions links [flags]", ShortHelp: "List raw subscription version linkages.",
 		LongHelp: "List raw version relationship linkages for a subscription.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
+			if err := shared.RejectPositionalArgs(args); err != nil {
 				return err
 			}
 			if err := validateNextFlagConflicts(
@@ -435,13 +435,6 @@ func validateNextFlagConflicts(next string, flags ...flagConflict) error {
 		if candidate.set {
 			return shared.UsageErrorf("--next cannot be combined with %s", candidate.name)
 		}
-	}
-	return nil
-}
-
-func rejectUnexpectedArgs(args []string) error {
-	if len(args) > 0 {
-		return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
 	}
 	return nil
 }

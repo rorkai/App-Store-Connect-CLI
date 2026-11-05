@@ -116,12 +116,11 @@ func CheckAll(ctx context.Context, checker Checker, rawURLs []string) (map[strin
 
 // NewChecker returns the production bounded HTTP checker.
 func NewChecker() Checker {
-	return &httpChecker{client: NewHTTPClient()}
+	return &httpChecker{client: newHTTPClient()}
 }
 
-// NewHTTPClient returns the configured bounded HTTP client. It is exported for
-// compatibility adapters and tests that need to inject a custom transport.
-func NewHTTPClient() *http.Client {
+// newHTTPClient returns the configured bounded HTTP client.
+func newHTTPClient() *http.Client {
 	timeout := asc.ResolveTimeoutWithDefault(CheckTimeout)
 	dialer := &net.Dialer{
 		Timeout:        timeout,
