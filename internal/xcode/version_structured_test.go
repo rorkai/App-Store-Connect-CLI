@@ -650,51 +650,36 @@ func TestStructuredVersion_UnscopedBumpSupportsMultipleApplicationTargets(t *tes
 	}
 }
 
-func TestStructuredVersion_BumpRejectsMissingSettingWithoutMutation(t *testing.T) {
-	project := writeStructuredVersionProject(t, false)
-	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	contents := mustReadVersionTestFile(t, pbxprojPath)
-	contents = strings.Replace(contents,
-		"999999999999999999999996 /* Widget Release */ = {isa = XCBuildConfiguration; buildSettings = { MARKETING_VERSION = 1.2.3; CURRENT_PROJECT_VERSION = 42; }; name = Release; };",
-		"999999999999999999999996 /* Widget Release */ = {isa = XCBuildConfiguration; buildSettings = { CURRENT_PROJECT_VERSION = 42; }; name = Release; };", 1)
-	if err := os.WriteFile(pbxprojPath, []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile(project) error = %v", err)
-	}
-	before := mustReadVersionTestFile(t, pbxprojPath)
+func TestStructuredVersion_RejectsMissingSettingWithoutMutation(t *testing.T) {
+	for name, run := range map[string]func(project string) error{
+		"bump": func(project string) error {
+			_, err := BumpVersion(context.Background(), BumpVersionOptions{ProjectDir: project, BumpType: BumpPatch})
+			return err
+		},
+		"edit": func(project string) error {
+			_, err := SetVersion(context.Background(), SetVersionOptions{ProjectDir: project, Version: "2.0.0"})
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			project := writeStructuredVersionProject(t, false)
+			pbxprojPath := filepath.Join(project, "project.pbxproj")
+			contents := mustReadVersionTestFile(t, pbxprojPath)
+			contents = strings.Replace(contents,
+				"999999999999999999999996 /* Widget Release */ = {isa = XCBuildConfiguration; buildSettings = { MARKETING_VERSION = 1.2.3; CURRENT_PROJECT_VERSION = 42; }; name = Release; };",
+				"999999999999999999999996 /* Widget Release */ = {isa = XCBuildConfiguration; buildSettings = { CURRENT_PROJECT_VERSION = 42; }; name = Release; };", 1)
+			if err := os.WriteFile(pbxprojPath, []byte(contents), 0o644); err != nil {
+				t.Fatalf("WriteFile(project) error = %v", err)
+			}
+			before := mustReadVersionTestFile(t, pbxprojPath)
 
-	_, err := BumpVersion(context.Background(), BumpVersionOptions{
-		ProjectDir: project,
-		BumpType:   BumpPatch,
-	})
-	if err == nil || !strings.Contains(err.Error(), "MARKETING_VERSION") {
-		t.Fatalf("expected missing MARKETING_VERSION error, got %v", err)
-	}
-	if got := mustReadVersionTestFile(t, pbxprojPath); got != before {
-		t.Fatal("project changed after missing-setting validation failure")
-	}
-}
-
-func TestStructuredVersion_EditRejectsMissingSettingWithoutMutation(t *testing.T) {
-	project := writeStructuredVersionProject(t, false)
-	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	contents := mustReadVersionTestFile(t, pbxprojPath)
-	contents = strings.Replace(contents,
-		"999999999999999999999996 /* Widget Release */ = {isa = XCBuildConfiguration; buildSettings = { MARKETING_VERSION = 1.2.3; CURRENT_PROJECT_VERSION = 42; }; name = Release; };",
-		"999999999999999999999996 /* Widget Release */ = {isa = XCBuildConfiguration; buildSettings = { CURRENT_PROJECT_VERSION = 42; }; name = Release; };", 1)
-	if err := os.WriteFile(pbxprojPath, []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile(project) error = %v", err)
-	}
-	before := mustReadVersionTestFile(t, pbxprojPath)
-
-	_, err := SetVersion(context.Background(), SetVersionOptions{
-		ProjectDir: project,
-		Version:    "2.0.0",
-	})
-	if err == nil || !strings.Contains(err.Error(), "MARKETING_VERSION") {
-		t.Fatalf("expected missing MARKETING_VERSION error, got %v", err)
-	}
-	if got := mustReadVersionTestFile(t, pbxprojPath); got != before {
-		t.Fatal("project changed after missing-setting edit validation failure")
+			if err := run(project); err == nil || !strings.Contains(err.Error(), "MARKETING_VERSION") {
+				t.Fatalf("expected missing MARKETING_VERSION error, got %v", err)
+			}
+			if got := mustReadVersionTestFile(t, pbxprojPath); got != before {
+				t.Fatal("project changed after missing-setting validation failure")
+			}
+		})
 	}
 }
 
@@ -794,7 +779,7 @@ func TestStructuredVersion_PartialBuildSettingsAreReported(t *testing.T) {
 	if err != nil {
 		t.Fatalf("openStructuredVersionProject() error = %v", err)
 	}
-	structured, err := parsed.hasStructuredVersionSettingsForMutation("", "")
+	structured, err := parsed.hasStructuredSettingsForMutation("", "", marketingVersionSetting, currentProjectSetting)
 	if err == nil || !strings.Contains(err.Error(), "partially") {
 		t.Fatalf("expected partial structured coverage error, got structured=%v err=%v", structured, err)
 	}

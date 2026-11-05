@@ -227,21 +227,6 @@ func TestNormalizeTestOptionsPreservesTestSelectorValues(t *testing.T) {
 	}
 }
 
-func TestBuildTestCommandOmitsDerivedDataForTestWithoutBuilding(t *testing.T) {
-	args := buildTestCommand(TestOptions{
-		Action:          string(TestActionTestWithoutBuilding),
-		XctestrunPath:   "Demo.xctestrun",
-		Destinations:    []string{"generic/platform=iOS"},
-		Configuration:   "Debug",
-		DerivedDataPath: "/tmp/DerivedData",
-	})
-	for index, arg := range args {
-		if arg == "-derivedDataPath" || arg == "-configuration" || (index > 0 && (args[index-1] == "-derivedDataPath" || args[index-1] == "-configuration")) {
-			t.Fatalf("argv = %#v, must not include build-only paths for test-without-building", args)
-		}
-	}
-}
-
 func TestValidateTestOptionsAuthenticationPassthroughValues(t *testing.T) {
 	base := TestOptions{
 		ProjectPath:   "Demo.xcodeproj",
@@ -467,6 +452,9 @@ func TestBuildTestCommandSupportsWithoutBuilding(t *testing.T) {
 		Destinations:     []string{"platform=iOS Simulator,name=iPhone 17 Pro"},
 		ResultBundlePath: "/tmp/App-tests.xcresult",
 		OnlyTesting:      []string{"AppTests/Smoke"},
+		// Build-only settings must not reach test-without-building.
+		Configuration:   "Debug",
+		DerivedDataPath: "/tmp/DerivedData",
 	}
 	want := []string{
 		"-destination", "platform=iOS Simulator,name=iPhone 17 Pro",

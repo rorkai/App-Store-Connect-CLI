@@ -3,6 +3,7 @@ package xcodecloud
 import (
 	"flag"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -96,11 +97,11 @@ func bindCiProductsListFlags(fs *flag.FlagSet) ciProductsListFlags {
 
 func normalizeCiProductsProductTypes(fs *flag.FlagSet, value string) ([]string, error) {
 	values := shared.SplitCSVUpper(value)
-	if ciProductsFlagProvided(fs, "product-type") && len(values) == 0 {
+	if flagProvided(fs, "product-type") && len(values) == 0 {
 		return nil, fmt.Errorf("--product-type must not be empty")
 	}
 	for _, item := range values {
-		if !containsCiProductsValue(ciProductsProductTypeValues, item) {
+		if !slices.Contains(ciProductsProductTypeValues, item) {
 			return nil, fmt.Errorf("--product-type must be one of: %s", strings.Join(ciProductsProductTypeValues, ", "))
 		}
 	}
@@ -112,32 +113,15 @@ func normalizeCiProductsSelection(fs *flag.FlagSet, value string, allowed []stri
 	if err != nil {
 		return nil, err
 	}
-	if ciProductsFlagProvided(fs, strings.TrimPrefix(flagName, "--")) && len(values) == 0 {
+	if flagProvided(fs, strings.TrimPrefix(flagName, "--")) && len(values) == 0 {
 		return nil, fmt.Errorf("%s must not be empty", flagName)
 	}
 	return values, nil
 }
 
-func ciProductsFlagProvided(fs *flag.FlagSet, name string) bool {
-	provided := false
-	fs.Visit(func(f *flag.Flag) {
-		provided = provided || f.Name == name
-	})
-	return provided
-}
-
 func addCiProductsValue(values []string, value string) []string {
-	if containsCiProductsValue(values, value) {
+	if slices.Contains(values, value) {
 		return values
 	}
 	return append(values, value)
-}
-
-func containsCiProductsValue(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }

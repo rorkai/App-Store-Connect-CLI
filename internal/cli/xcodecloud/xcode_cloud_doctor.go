@@ -68,13 +68,13 @@ Examples:
 			if *wait && *pollInterval <= 0 {
 				return shared.UsageError("--poll-interval must be greater than 0")
 			}
-			if !*wait && flagWasSet(fs, "poll-interval") {
+			if !*wait && flagProvided(fs, "poll-interval") {
 				return shared.UsageError("--poll-interval requires --wait")
 			}
 			if *skipLogs && strings.TrimSpace(*saveLogs) != "" {
 				return shared.UsageError("--save-logs and --skip-logs are mutually exclusive")
 			}
-			if flagWasSet(fs, "save-logs") && strings.TrimSpace(*saveLogs) == "" {
+			if flagProvided(fs, "save-logs") && strings.TrimSpace(*saveLogs) == "" {
 				return shared.UsageError("--save-logs must not be empty")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
@@ -99,19 +99,9 @@ Examples:
 				return fmt.Errorf("xcode-cloud doctor: %w", err)
 			}
 
-			return printXcodeCloudDoctorResult(result, *output.Output, *output.Pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
-}
-
-func flagWasSet(fs *flag.FlagSet, name string) bool {
-	set := false
-	fs.Visit(func(current *flag.Flag) {
-		if current.Name == name {
-			set = true
-		}
-	})
-	return set
 }
 
 func diagnoseXcodeCloudRun(ctx context.Context, client *asc.Client, runID string, options xcodeCloudDoctorOptions) (*asc.XcodeCloudDoctorResult, error) {
@@ -302,7 +292,7 @@ func summarizeXcodeCloudDoctorResult(result *asc.XcodeCloudDoctorResult) {
 }
 
 func shouldInspectDoctorLogs(result *asc.XcodeCloudDoctorResult, options xcodeCloudDoctorOptions) bool {
-	if options.SkipLogs || result == nil {
+	if options.SkipLogs {
 		return false
 	}
 	if strings.TrimSpace(options.SaveLogs) != "" {
@@ -415,9 +405,6 @@ func finishXcodeCloudDoctorResult(result *asc.XcodeCloudDoctorResult) {
 }
 
 func doctorFailedActionLogBundleCount(result *asc.XcodeCloudDoctorResult) int {
-	if result == nil {
-		return 0
-	}
 	count := 0
 	for _, action := range result.Actions {
 		if !isFailedDoctorAction(action.CompletionStatus) {
@@ -434,9 +421,6 @@ func doctorFailedActionLogBundleCount(result *asc.XcodeCloudDoctorResult) int {
 
 func doctorFailedActionIDs(result *asc.XcodeCloudDoctorResult) map[string]struct{} {
 	failed := make(map[string]struct{})
-	if result == nil {
-		return failed
-	}
 	for _, action := range result.Actions {
 		if isFailedDoctorAction(action.CompletionStatus) {
 			failed[action.ID] = struct{}{}
@@ -468,9 +452,6 @@ func doctorFailedActionLogBundlesSaved(result *asc.XcodeCloudDoctorResult) int {
 }
 
 func doctorHasCoverageWarning(result *asc.XcodeCloudDoctorResult, id string) bool {
-	if result == nil {
-		return false
-	}
 	for _, warning := range result.CoverageWarnings {
 		if warning.ID == id {
 			return true

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -622,6 +623,32 @@ func xcodeCommandError(command string, err error) error {
 		return shared.WithDiagnostic(shared.NewValidationError(wrapped), shared.DiagnosticFileNotFound, notFound.Flag)
 	}
 	return classifyXcodeLocalFailure(wrapped)
+}
+
+// reportXcodeFailure prints the stderr summary for a failed xcodebuild run:
+// its exit status, or the interruption cause when it has none.
+func reportXcodeFailure(command string, exitStatus *int, err error) {
+	message := command + " failed"
+	if exitStatus != nil {
+		message = fmt.Sprintf("%s with exit status %d", message, *exitStatus)
+	} else {
+		message = fmt.Sprintf("%s: %v", message, xcodeInterruptionReason(err))
+	}
+	fmt.Fprintf(os.Stderr, "Error: %s\n", message)
+}
+
+func xcodeInterruptionReason(err error) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return context.DeadlineExceeded
+	}
+	if errors.Is(err, context.Canceled) {
+		return context.Canceled
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && exitErr.ExitCode() < 0 {
+		return exitErr
+	}
+	return err
 }
 
 // classifyXcodeLocalFailure reports failures of the local Xcode toolchain or
