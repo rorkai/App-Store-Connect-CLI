@@ -17,7 +17,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestCategoriesSubcategoriesRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
+func TestCategoriesRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
+	const listNextURL = "https://api.appstoreconnect.apple.com/v1/appCategories?cursor=next"
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/appCategories/GAMES/subcategories?cursor=next"
 	tests := []struct {
 		name    string
@@ -49,6 +50,21 @@ func TestCategoriesSubcategoriesRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 			args:    []string{"categories", "subcategories", "--next", nextURL, "--limit", "201"},
 			wantErr: "categories subcategories: --next cannot be combined with --limit",
 		},
+		{
+			name:    "list limit before next",
+			args:    []string{"categories", "list", "--limit", "25", "--next", listNextURL},
+			wantErr: "categories list: --next cannot be combined with --limit",
+		},
+		{
+			name:    "list explicit default limit after next",
+			args:    []string{"categories", "list", "--next", listNextURL, "--limit", "200"},
+			wantErr: "categories list: --next cannot be combined with --limit",
+		},
+		{
+			name:    "list out of range limit after next",
+			args:    []string{"categories", "list", "--next", listNextURL, "--limit", "201"},
+			wantErr: "categories list: --next cannot be combined with --limit",
+		},
 	}
 
 	for _, test := range tests {
@@ -68,65 +84,78 @@ func TestCategoriesSubcategoriesRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 	}
 }
 
-func TestCategoriesSubcategoriesInvalidNextPrecedesLimitConflict(t *testing.T) {
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{
-			"categories", "subcategories",
-			"--next", "http://api.appstoreconnect.apple.com/v1/appCategories/GAMES/subcategories?cursor=next",
-			"--limit", "201",
-		}, "1.2.3")
-		if code != rootcmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	// The usage page ffcli renders after a usage error lists every flag, so the
-	// precedence assertion is scoped to the diagnostic line itself.
-	diagnostic, _, _ := strings.Cut(stderr, "\n")
-	if diagnostic != "Error: categories subcategories: --next must be an App Store Connect URL" {
-		t.Fatalf("stderr diagnostic = %q, want invalid --next error", diagnostic)
-	}
-	if strings.Contains(diagnostic, "--limit") {
-		t.Fatalf("stderr diagnostic = %q, want --next validation to take precedence", diagnostic)
+func TestCategoriesInvalidNextPrecedesLimitConflict(t *testing.T) {
+	for _, test := range []struct {
+		command string
+		next    string
+	}{
+		{command: "list", next: "http://api.appstoreconnect.apple.com/v1/appCategories?cursor=next"},
+		{command: "subcategories", next: "http://api.appstoreconnect.apple.com/v1/appCategories/GAMES/subcategories?cursor=next"},
+	} {
+		t.Run(test.command, func(t *testing.T) {
+			stdout, stderr := captureOutput(t, func() {
+				code := rootcmd.Run([]string{"categories", test.command, "--next", test.next, "--limit", "201"}, "1.2.3")
+				if code != rootcmd.ExitUsage {
+					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+				}
+			})
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			// The usage page ffcli renders after a usage error lists every flag, so the
+			// precedence assertion is scoped to the diagnostic line itself.
+			diagnostic, _, _ := strings.Cut(stderr, "\n")
+			if want := "Error: categories " + test.command + ": --next must be an App Store Connect URL"; diagnostic != want {
+				t.Fatalf("stderr diagnostic = %q, want %q", diagnostic, want)
+			}
+		})
 	}
 }
 
-func TestCategoriesSubcategoriesNextOnlyUsesCursorURL(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+func TestCategoriesNextOnlyUsesCursorURL(t *testing.T) {
+	for _, test := range []struct {
+		command string
+		path    string
+	}{
+		{command: "list", path: "/v1/appCategories"},
+		{command: "subcategories", path: "/v1/appCategories/GAMES/subcategories"},
+	} {
+		t.Run(test.command, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	const nextURL = "https://api.appstoreconnect.apple.com/v1/appCategories/GAMES/subcategories?cursor=page-2&limit=5"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/appCategories/GAMES/subcategories" {
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-			http.Error(w, "unexpected request", http.StatusBadRequest)
-			return
-		}
-		want := url.Values{"cursor": {"page-2"}, "limit": {"5"}}
-		if got := req.URL.Query(); got.Encode() != want.Encode() {
-			t.Errorf("query = %q, want %q", got.Encode(), want.Encode())
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"data":[{"type":"appCategories","id":"subcategory-next"}],"links":{"next":""}}`)
-	}))
-	t.Cleanup(server.Close)
-	installDefaultTransportForServer(t, server)
+			nextURL := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=page-2&limit=5"
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.Method != http.MethodGet || req.URL.Path != test.path {
+					t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+					return
+				}
+				want := url.Values{"cursor": {"page-2"}, "limit": {"5"}}
+				if got := req.URL.Query(); got.Encode() != want.Encode() {
+					t.Errorf("query = %q, want %q", got.Encode(), want.Encode())
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"data":[{"type":"appCategories","id":"category-next"}],"links":{"next":""}}`)
+			}))
+			t.Cleanup(server.Close)
+			installDefaultTransportForServer(t, server)
 
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"categories", "subcategories", "--next", nextURL, "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
+			root := RootCommand("1.2.3")
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{"categories", test.command, "--next", nextURL, "--output", "json"}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("stderr = %q, want empty", stderr)
+			}
+			assertCategoryResponseID(t, stdout, "category-next")
+		})
 	}
-	assertCategoryResponseID(t, stdout, "subcategory-next")
 }
 
 func TestCategoriesSubcategoriesCategoryOnlyBuildsLimitQuery(t *testing.T) {

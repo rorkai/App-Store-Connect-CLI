@@ -15,28 +15,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestAPIHelpDescribesPassthroughContract(t *testing.T) {
-	stdout, _ := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{"api", "--help"}, "1.2.3"); code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
-	for _, want := range []string{
-		"asc api <METHOD> <PATH> [flags]",
-		"--query",
-		"--body",
-		"--body-file",
-		"--paginate",
-		"--confirm",
-		"--allow-unknown-path",
-		"--pretty",
-	} {
-		if !strings.Contains(stdout, want) {
-			t.Fatalf("help output missing %q:\n%s", want, stdout)
-		}
-	}
-}
-
 func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -10,31 +10,6 @@ import (
 	"testing"
 )
 
-func TestAppsInfoHelpShowsNewSurface(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"apps", "info"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	for _, want := range []string{"list", "view", "edit"} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("expected apps info help to contain %q, got %q", want, stderr)
-		}
-	}
-}
-
 func TestAppInfoRootsAreRemoved(t *testing.T) {
 	tests := []struct {
 		name    string

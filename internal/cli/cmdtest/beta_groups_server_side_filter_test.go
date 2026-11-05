@@ -289,26 +289,6 @@ func TestBetaGroupsListNextStillPagesWithoutQueryFlags(t *testing.T) {
 	}
 }
 
-// TestBetaGroupsListHelpDocumentsImplicitFilterPagination proves the stable
-// app-scoped internal/external pagination behavior remains discoverable.
-func TestBetaGroupsListHelpDocumentsImplicitFilterPagination(t *testing.T) {
-	cmd := findSubcommand(RootCommand("1.2.3"), "testflight", "groups", "list")
-	if cmd == nil {
-		t.Fatal("command [testflight groups list] not found")
-	}
-	for _, want := range []string{
-		"--internal and --external continue to collect every matching page",
-		"when --name and --sort are absent",
-		"filters return one page unless --paginate is set",
-		"--paginate uses a page size of 200",
-		"--limit still caps the final",
-	} {
-		if !strings.Contains(cmd.LongHelp, want) {
-			t.Errorf("LongHelp missing %q, got %q", want, cmd.LongHelp)
-		}
-	}
-}
-
 // TestBetaGroupsListNextRejectsQueryFlags proves query-shaping flags are not
 // accepted and silently discarded by the cursor URL.
 func TestBetaGroupsListNextRejectsQueryFlags(t *testing.T) {

@@ -222,83 +222,64 @@ func TestAgeRatingAuditChecksEveryCurrentAppInfo(t *testing.T) {
 	}
 }
 
-func TestAgeRatingAuditRequiresAgeAssuranceForRestrictedSocialMedia(t *testing.T) {
-	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"apps","id":"app-1"}],"links":{}}`), nil
-		case "/v1/apps/app-1/appInfos":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`), nil
-		case "/v1/appInfos/info-1/ageRatingDeclaration":
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-1","attributes":{"socialMedia":true,"socialMediaAgeRestricted":true,"messagingAndChat":true,"ageAssurance":false,"userGeneratedContent":true}}}`), nil
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"age-rating", "audit", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	var result struct {
-		Apps []struct {
-			MissingResponses []string `json:"missingResponses"`
-			Ready            bool     `json:"ready"`
-		} `json:"apps"`
+func TestAgeRatingAuditRestrictedSocialMediaReadiness(t *testing.T) {
+	tests := []struct {
+		name        string
+		attributes  string
+		wantMissing string
+	}{
+		{
+			name:        "requires age assurance",
+			attributes:  `{"socialMedia":true,"socialMediaAgeRestricted":true,"messagingAndChat":true,"ageAssurance":false,"userGeneratedContent":true}`,
+			wantMissing: "ageAssurance",
+		},
+		{
+			name:        "rejects restriction without social media",
+			attributes:  `{"socialMedia":false,"socialMediaAgeRestricted":true,"messagingAndChat":true,"ageAssurance":true,"userGeneratedContent":true}`,
+			wantMissing: "socialMedia",
+		},
 	}
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("unmarshal output: %v (%q)", err, stdout)
-	}
-	if len(result.Apps) != 1 || result.Apps[0].Ready || strings.Join(result.Apps[0].MissingResponses, ",") != "ageAssurance" {
-		t.Fatalf("unexpected readiness result: %+v", result.Apps)
-	}
-}
 
-func TestAgeRatingAuditRejectsContradictoryRestrictedSocialMedia(t *testing.T) {
-	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"apps","id":"app-1"}],"links":{}}`), nil
-		case "/v1/apps/app-1/appInfos":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`), nil
-		case "/v1/appInfos/info-1/ageRatingDeclaration":
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-1","attributes":{"socialMedia":false,"socialMediaAgeRestricted":true,"messagingAndChat":true,"ageAssurance":true,"userGeneratedContent":true}}}`), nil
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	}))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch req.URL.Path {
+				case "/v1/apps":
+					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"apps","id":"app-1"}],"links":{}}`), nil
+				case "/v1/apps/app-1/appInfos":
+					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`), nil
+				case "/v1/appInfos/info-1/ageRatingDeclaration":
+					return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-1","attributes":`+test.attributes+`}}`), nil
+				default:
+					return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+				}
+			}))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"age-rating", "audit", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			stdout, _ := captureOutput(t, func() {
+				if err := root.Parse([]string{"age-rating", "audit", "--output", "json"}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
 
-	var result struct {
-		Apps []struct {
-			MissingResponses []string `json:"missingResponses"`
-			Ready            bool     `json:"ready"`
-		} `json:"apps"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("unmarshal output: %v (%q)", err, stdout)
-	}
-	if len(result.Apps) != 1 || result.Apps[0].Ready || strings.Join(result.Apps[0].MissingResponses, ",") != "socialMedia" {
-		t.Fatalf("unexpected readiness result: %+v", result.Apps)
+			var result struct {
+				Apps []struct {
+					MissingResponses []string `json:"missingResponses"`
+					Ready            bool     `json:"ready"`
+				} `json:"apps"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("unmarshal output: %v (%q)", err, stdout)
+			}
+			if len(result.Apps) != 1 || result.Apps[0].Ready || strings.Join(result.Apps[0].MissingResponses, ",") != test.wantMissing {
+				t.Fatalf("unexpected readiness result: %+v", result.Apps)
+			}
+		})
 	}
 }
 

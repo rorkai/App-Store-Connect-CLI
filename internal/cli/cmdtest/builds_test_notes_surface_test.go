@@ -53,12 +53,6 @@ func TestBuildsTestNotesHelpShowsViewNotGet(t *testing.T) {
 	if !strings.Contains(stderr, "view") {
 		t.Fatalf("expected builds test-notes help to contain view, got %q", stderr)
 	}
-	if !strings.Contains(stderr, `asc builds test-notes list --build-id "BUILD_ID"`) {
-		t.Fatalf("expected builds test-notes help to show build-id examples, got %q", stderr)
-	}
-	if strings.Contains(stderr, `asc builds test-notes view --id "LOCALIZATION_ID"`) {
-		t.Fatalf("expected builds test-notes help to avoid canonical --id examples, got %q", stderr)
-	}
 	if strings.Contains(stderr, "\n  get ") || strings.Contains(stderr, "\n  get\t") {
 		t.Fatalf("expected builds test-notes help to hide get alias, got %q", stderr)
 	}

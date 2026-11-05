@@ -9,188 +9,112 @@ import (
 	"testing"
 )
 
-func TestLocalizationsScreenshotSetsDeleteOutput(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+var deleteOutputCommands = []struct {
+	name       string
+	args       []string
+	path       string
+	wantOutput string
+	errPrefix  string
+}{
+	{
+		name:       "localizations screenshot-sets delete",
+		args:       []string{"localizations", "screenshot-sets", "delete", "--id", "set-1", "--confirm"},
+		path:       "/v1/appScreenshotSets/set-1",
+		wantOutput: `"id":"set-1"`,
+		errPrefix:  "localizations screenshot-sets delete:",
+	},
+	{
+		name:       "versions delete",
+		args:       []string{"versions", "delete", "--version-id", "ver-1", "--confirm"},
+		path:       "/v1/appStoreVersions/ver-1",
+		wantOutput: `"versionId":"ver-1"`,
+		errPrefix:  "versions delete:",
+	},
+}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+func TestDeleteCommandsOutput(t *testing.T) {
+	for _, test := range deleteOutputCommands {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appScreenshotSets/set-1" {
-			t.Fatalf("expected path /v1/appScreenshotSets/set-1, got %s", req.URL.Path)
-		}
-		return &http.Response{
-			StatusCode: http.StatusNoContent,
-			Body:       io.NopCloser(strings.NewReader("")),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodDelete || req.URL.Path != test.path {
+					t.Fatalf("request = %s %s, want DELETE %s", req.Method, req.URL.Path, test.path)
+				}
+				return &http.Response{
+					StatusCode: http.StatusNoContent,
+					Body:       io.NopCloser(strings.NewReader("")),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"localizations", "screenshot-sets", "delete", "--id", "set-1", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"set-1"`) {
-		t.Fatalf("expected set id in output, got %q", stdout)
-	}
-	if !strings.Contains(stdout, `"deleted":true`) {
-		t.Fatalf("expected deleted true in output, got %q", stdout)
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			for _, want := range []string{test.wantOutput, `"deleted":true`} {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("expected %s in output, got %q", want, stdout)
+				}
+			}
+		})
 	}
 }
 
-func TestLocalizationsScreenshotSetsDeleteAPIError(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+func TestDeleteCommandsAPIError(t *testing.T) {
+	for _, test := range deleteOutputCommands {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusNotFound,
+					Body: io.NopCloser(strings.NewReader(
+						`{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found","detail":"Resource does not exist"}]}`,
+					)),
+					Header: http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusNotFound,
-			Body: io.NopCloser(strings.NewReader(
-				`{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found","detail":"Resource does not exist"}]}`,
-			)),
-			Header: http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"localizations", "screenshot-sets", "delete", "--id", "missing-set", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(runErr.Error(), "localizations screenshot-sets delete:") {
-		t.Fatalf("expected wrapped localizations delete error, got %v", runErr)
-	}
-	if !strings.Contains(strings.ToLower(runErr.Error()), "not found") {
-		t.Fatalf("expected not-found details, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-}
-
-func TestVersionsDeleteOutput(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersions/ver-1" {
-			t.Fatalf("expected path /v1/appStoreVersions/ver-1, got %s", req.URL.Path)
-		}
-		return &http.Response{
-			StatusCode: http.StatusNoContent,
-			Body:       io.NopCloser(strings.NewReader("")),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "delete", "--version-id", "ver-1", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"versionId":"ver-1"`) {
-		t.Fatalf("expected version id in output, got %q", stdout)
-	}
-	if !strings.Contains(stdout, `"deleted":true`) {
-		t.Fatalf("expected deleted true in output, got %q", stdout)
-	}
-}
-
-func TestVersionsDeleteAPIError(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusNotFound,
-			Body: io.NopCloser(strings.NewReader(
-				`{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found","detail":"Resource does not exist"}]}`,
-			)),
-			Header: http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "delete", "--version-id", "missing-ver", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(runErr.Error(), "versions delete:") {
-		t.Fatalf("expected wrapped versions delete error, got %v", runErr)
-	}
-	if !strings.Contains(strings.ToLower(runErr.Error()), "not found") {
-		t.Fatalf("expected not-found details, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+			if runErr == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(runErr.Error(), test.errPrefix) {
+				t.Fatalf("expected error prefixed %q, got %v", test.errPrefix, runErr)
+			}
+			if !strings.Contains(strings.ToLower(runErr.Error()), "not found") {
+				t.Fatalf("expected not-found details, got %v", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
 	}
 }

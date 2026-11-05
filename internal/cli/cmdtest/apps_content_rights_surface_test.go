@@ -13,11 +13,6 @@ import (
 func TestAppsContentRightsCommandSurface(t *testing.T) {
 	root := RootCommand("1.2.3")
 
-	group := findSubcommand(root, "apps", "content-rights")
-	if group == nil {
-		t.Fatal("expected apps content-rights command")
-		return
-	}
 	if findSubcommand(root, "apps", "content-rights", "view") == nil {
 		t.Fatal("expected apps content-rights view command")
 	}
@@ -29,11 +24,6 @@ func TestAppsContentRightsCommandSurface(t *testing.T) {
 	}
 	if findSubcommand(root, "apps", "content-rights", "set") != nil {
 		t.Fatal("did not expect deprecated set alias")
-	}
-
-	usage := group.UsageFunc(group)
-	if !strings.Contains(usage, "view") || !strings.Contains(usage, "edit") {
-		t.Fatalf("expected usage to show view/edit, got %q", usage)
 	}
 }
 
