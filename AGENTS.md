@@ -118,7 +118,9 @@ Also:
 
 Every manual test command must use `ASC_BYPASS_KEYCHAIN=1` to prevent host keychain prompts and profile bleed-through. The `make test` target enforces the same environment internally.
 
-Before opening or merging a substantive behavior PR, run `make build`, `make format`, `make check-docs`, `make lint`, and `ASC_BYPASS_KEYCHAIN=1 make test`. If command help changed, run `make generate-command-docs` and commit `docs/COMMANDS.md` before those checks. For a narrowly scoped documentation or skill change, run `make check-docs`, which includes the repository and skill validators, instead of the full Go suite unless the changed surface or repository policy requires more. For a Wall-only PR, run `make check-wall-of-apps` on the exact head.
+Before opening or merging a substantive behavior PR, require recorded passing results for `make build`, `make format`, `make check-docs`, `make lint`, and `ASC_BYPASS_KEYCHAIN=1 make test`. Format before committing; let successful commit-hook checks satisfy matching validation and run only missing or invalidated checks afterwards. Reuse results only while their relevant inputs and environment remain unchanged. The hook's affected short tests do not replace the required full test suite. If command help changed, run `make generate-command-docs` and commit `docs/COMMANDS.md` before completing validation.
+
+For changes limited to `AGENTS.md` and skill Markdown or `agents/openai.yaml` under `.agents/skills`, require `make check-repo-docs` and `make check-agent-skills`; matching commit-hook results satisfy both. For other narrowly scoped documentation changes, run `make check-docs` instead of the full Go suite unless the changed surface requires more. For a Wall-only PR, require a passing `make check-wall-of-apps` on the exact head; reuse the hook's result when applicable.
 
 Require GitHub-required checks before merge. Report relevant advisory failures, but do not wait for non-required jobs.
 

@@ -11,7 +11,7 @@ Drift questions produce a read-only report; update requests authorize proven cor
 
 1. Resolve the current App-Store-Connect-CLI source commit and latest released version relevant to the request.
 2. Resolve a clean checkout of `rorkai/app-store-connect-cli-skills` and read its repository guidance.
-3. Inventory every skill and identify which commands, flags, environment variables, outputs, or workflows it claims to use.
+3. For a narrow request, inventory the requested command or skill surface and its workflow dependencies. For broad or post-release audits, inventory every skill. Identify the commands, flags, environment variables, outputs, and workflows in scope.
 4. Run the current CLI's `--help` at each relevant command path. Use `asc search`, `asc schema`, or `asc capabilities` only when their own current help confirms they are appropriate.
 
 Follow `AGENTS.md` for parallel reads and serialized writes. Validate mutation-capable examples with help and schemas first; execution and cleanup require authority, and dry runs must be side-effect-free.
