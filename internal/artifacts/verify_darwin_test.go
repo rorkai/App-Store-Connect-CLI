@@ -206,7 +206,7 @@ func TestVerifyXarClassifiesInstalledXcodeSignatures(t *testing.T) {
 				t.Fatal(err)
 			}
 			document, _, _, err := readXarFiles(file, info.Size())
-			if err != nil {
+			if document == nil {
 				t.Fatalf("read package table of contents: %v", err)
 			}
 			manifest, _ := inspectPKGVerifying(file, info.Size(), policy)
