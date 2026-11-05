@@ -72,6 +72,8 @@ func SubscriptionsRetentionMessageOffersCommand() *ffcli.Command {
 
 Creating a retention offer does not present it. Add an offer here to present
 it with the subscription's retention message; remove it to stop presenting it.
+Apple rejects "presented add" until a retention message is assigned to the
+subscription (asc subscriptions retention-messages assign).
 
 Examples:
   asc subscriptions offers retention presented list --subscription-id "SUB_ID"
@@ -327,6 +329,10 @@ territory, so add one per territory. Find them with
 "asc subscriptions pricing price-points list". Creating an offer does not
 present it; use "asc subscriptions offers retention presented add".
 
+Apple defaults the target plan type to UPFRONT. --target-subscription-plan-type
+MONTHLY only works when the subscription offers the Monthly with 12-Month
+Commitment plan in each price point's territory.
+
 Examples:
   asc subscriptions offers retention create --subscription-id "SUB_ID" --reference-name "winter" --offer-id "winter_one_month" --duration ONE_MONTH --offer-mode PAY_UP_FRONT --period-count 1 --eligibility-paid-months 3 --eligibility-wait-months 6 --target-subscription-plan-type UPFRONT --price "SUBSCRIPTION_PRICE_POINT_ID"`,
 		FlagSet:   fs,
@@ -442,6 +448,7 @@ func SubscriptionsRetentionOffersUpdateCommand() *ffcli.Command {
 		LongHelp: `Update a retention offer's eligibility.
 
 The eligibility attributes are the only attributes Apple lets you change.
+Apple rejects clearing the wait between offers (null), so set a new value instead.
 
 Examples:
   asc subscriptions offers retention update --id "OFFER_ID" --eligibility-paid-months 6
