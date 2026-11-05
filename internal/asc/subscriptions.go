@@ -349,6 +349,8 @@ type SubscriptionRelatedFields struct {
 	WinBackOffers      []string
 	Images             []string
 	PlanAvailabilities []string
+	RetentionOffers    []string
+	RetentionMessages  []string
 }
 
 type subscriptionsQuery struct {
@@ -564,6 +566,8 @@ func (f SubscriptionRelatedFields) sparseFields() []relatedSparseField {
 		{"fields[winBackOffers]", "winBackOffers", f.WinBackOffers},
 		{"fields[subscriptionImages]", "images", f.Images},
 		{"fields[subscriptionPlanAvailabilities]", "planAvailabilities", f.PlanAvailabilities},
+		{"fields[retentionOffers]", "retentionOffers", f.RetentionOffers},
+		{"fields[retentionMessages]", "retentionMessage", f.RetentionMessages},
 	}
 }
 

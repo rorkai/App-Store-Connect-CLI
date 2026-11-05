@@ -313,3 +313,53 @@ func TestAnalyticsSalesRejectsMalformedPeriodDateBeforeHTTP(t *testing.T) {
 		})
 	}
 }
+
+func TestAnalyticsSalesWarnsThatInstallsIsDeprecated(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		requestCount++
+		if got := req.URL.Query().Get("filter[reportType]"); got != "INSTALLS" {
+			t.Fatalf("filter[reportType] = %q, want INSTALLS", got)
+		}
+		w.Header().Set("Content-Type", "application/a-gzip")
+		writer := gzip.NewWriter(w)
+		_, _ = writer.Write([]byte("report-data"))
+		_ = writer.Close()
+	}))
+	t.Cleanup(server.Close)
+	client := newReviewTestServerClient(t, server)
+	restoreClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil })
+	t.Cleanup(restoreClient)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"analytics", "sales",
+			"--vendor", "12345678",
+			"--type", "INSTALLS",
+			"--subtype", "SUMMARY",
+			"--frequency", "MONTHLY",
+			"--date", "2026-09",
+			"--output", filepath.Join(t.TempDir(), "installs.tsv.gz"),
+			"--output-format", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
+	if requestCount != 1 {
+		t.Fatalf("request count = %d, want 1", requestCount)
+	}
+	want := "Warning: the INSTALLS report type is deprecated. Apple stopped generating new INSTALLS reports on November 4, 2026; reports generated before then can still be downloaded.\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+}

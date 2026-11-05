@@ -84,6 +84,8 @@ func TestSubscriptionReadsSendAppleSparseFieldEnums(t *testing.T) {
 		"fields[winBackOffers]":                         "win-back-offer-fields",
 		"fields[subscriptionImages]":                    "image-fields",
 		"fields[subscriptionPlanAvailabilities]":        "plan-availability-fields",
+		"fields[retentionOffers]":                       "retention-offer-fields",
+		"fields[retentionMessages]":                     "retention-message-fields",
 	}
 	tests := []struct {
 		name  string
@@ -124,7 +126,12 @@ func TestSubscriptionReadsSendAppleSparseFieldEnums(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			got := stubSubscriptionRead(t, test.path, test.body)
 			// --version-fields never added its own include, so versions stays explicit.
-			args := append(slices.Clone(test.args), "--include", "versions", "--output", "json")
+			// retentionMessageOffers shares fields[retentionOffers] with retentionOffers.
+			include := "versions"
+			if test.flags["fields[retentionOffers]"] != "" {
+				include += ",retentionMessageOffers"
+			}
+			args := append(slices.Clone(test.args), "--include", include, "--output", "json")
 			want := url.Values{}
 			var wantInclude []string
 			for _, parameter := range parameters[test.spec] {
@@ -146,10 +153,10 @@ func TestSubscriptionReadsSendAppleSparseFieldEnums(t *testing.T) {
 			if err != nil || stderr != "" {
 				t.Fatalf("error=%v stderr=%q stdout=%q", err, stderr, stdout)
 			}
-			include := strings.Split(got.Get("include"), ",")
-			slices.Sort(include)
-			if !slices.Equal(include, wantInclude) {
-				t.Fatalf("include = %v, want %v", include, wantInclude)
+			gotInclude := strings.Split(got.Get("include"), ",")
+			slices.Sort(gotInclude)
+			if !slices.Equal(gotInclude, wantInclude) {
+				t.Fatalf("include = %v, want %v", gotInclude, wantInclude)
 			}
 			got.Del("include")
 			if got.Encode() != want.Encode() {
