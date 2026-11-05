@@ -172,12 +172,9 @@ JWTs issued for App Store Connect are valid for **10 minutes**. The CLI handles 
 
 ### Automatic Retries
 
-Automatic retries apply **only** to:
-
-* **Methods**: GET/HEAD requests
-* **Status codes**: 429 (rate limit) and 503 (service unavailable)
-
-**POST/PATCH/DELETE are NOT retried** to prevent duplicate operations.
+* **GET/HEAD** requests retry on 408, 429, 5xx, and transient transport errors.
+* **POST/PATCH/PUT/DELETE** requests retry only on 429, which Apple returns before processing the request. A timeout, 5xx, or transport error leaves the write's outcome unknown, so it is not replayed.
+* Set `ASC_MAX_RETRIES=0` to disable retries.
 
 Configure retry behavior:
 

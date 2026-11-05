@@ -412,6 +412,8 @@ release:run:
 
 ### Retry Logic
 
+`asc` already retries rate-limited requests and transient read failures (tune with `ASC_MAX_RETRIES`). It does not replay a write after a timeout or server error, because the write may have succeeded. Use GitLab's `retry` keyword for runner-level failures:
+
 ```yaml  theme={null}
 include:
   - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
@@ -419,16 +421,7 @@ include:
       stage: deploy
       job_prefix: upload
       asc_version: latest
-      command: |
-        # Retry up to 3 times on failure
-        for i in 1 2 3; do
-          echo "Upload attempt $i/3"
-          asc builds upload --app "$APP_ID" --ipa build/MyApp.ipa && break
-          if [ $i -lt 3 ]; then
-            echo "Retrying in 30 seconds..."
-            sleep 30
-          fi
-        done
+      command: asc builds upload --app "$APP_ID" --ipa build/MyApp.ipa
 
 upload:run:
   retry:

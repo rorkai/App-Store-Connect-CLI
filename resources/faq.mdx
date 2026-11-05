@@ -5,7 +5,7 @@
 <Accordion title="What is the App Store Connect CLI?">
   The App Store Connect CLI (`asc`) is an unofficial, fast, lightweight, and scriptable command-line tool for the App Store Connect API. It allows you to automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, IDE, or CI/CD pipeline.
 
-  Built in Go using [ffcli](https://github.com/peterbourgon/ff), it provides a comprehensive interface to manage apps, builds, TestFlight, reviews, analytics, signing, and more.
+  It is written in Go with [ffcli](https://github.com/peterbourgon/ff) and covers apps, builds, TestFlight, reviews, analytics, signing, and more.
 </Accordion>
 
 <Accordion title="Is this an official Apple tool?">
@@ -131,22 +131,18 @@
   asc analytics view --request-id "REQUEST_ID" --processing-date "2024-01-01" --paginate
   ```
 
-  Without `--paginate`, only the first page (default limit) is returned. This is especially important for:
-
-  * Analytics reports with large datasets
-  * Complete feedback/crash lists
-  * Comprehensive build history
+  Without `--paginate`, only the first page (default limit) is returned.
 </Accordion>
 
 <Accordion title="Can I use this in CI/CD pipelines?">
-  Yes! The CLI is designed for automation and supports:
+  Yes. Each major CI platform has an installer:
 
   * **GitHub Actions**: Use the official [setup-asc](https://github.com/rudrankriyam/setup-asc) action
   * **GitLab CI/CD**: Use [asc-ci-components](https://github.com/rudrankriyam/asc-ci-components)
   * **Bitrise**: Use the [setup-asc step](https://github.com/rudrankriyam/steps-setup-asc)
   * **CircleCI**: Use the [asc orb](https://github.com/rudrankriyam/asc-orb)
 
-  See the [CI/CD guide](https://github.com/rorkai/App-Store-Connect-CLI/blob/main/docs/CI_CD.md) for detailed examples.
+  See the [CI/CD overview](/cicd/overview) for examples.
 </Accordion>
 
 <Accordion title="How do I upload builds to TestFlight?">
@@ -233,15 +229,15 @@
 </Accordion>
 
 <Accordion title="What are workflows and how do I use them?">
-  Workflows allow you to automate complex multi-step processes. Define workflows in JSON:
+  Workflows run named sequences of shell and `asc` commands from `.asc/workflow.json`:
 
   ```json  theme={null}
   {
     "workflows": {
       "release": {
         "steps": [
-          {"command": "validate", "args": ["--app", "123456789"]},
-          {"command": "submit", "args": ["--app", "123456789"]}
+          {"name": "validate", "run": "asc validate --app 123456789 --version 1.2.3"},
+          {"name": "publish", "run": "asc publish appstore --app 123456789 --ipa ./MyApp.ipa --version 1.2.3 --submit --confirm"}
         ]
       }
     }
@@ -253,6 +249,8 @@
   ```bash  theme={null}
   asc workflow run --file .asc/workflow.json release
   ```
+
+  See [Workflows](/configuration/workflows) for hooks, outputs, retries, and resume.
 </Accordion>
 
 <Accordion title="How do I enable debug logging?">
@@ -273,7 +271,7 @@
 </Accordion>
 
 <Accordion title="How do I handle API rate limits?">
-  The CLI automatically retries GET/HEAD requests on 429/503 responses. Configure retry behavior:
+  The CLI retries rate-limited (429) requests for every method. GET/HEAD requests are also retried on timeouts, 5xx responses, and transport errors. Configure retry behavior:
 
   ```bash  theme={null}
   export ASC_MAX_RETRIES=5
@@ -282,7 +280,7 @@
   export ASC_RETRY_LOG=true
   ```
 
-  **Note**: POST/PATCH/DELETE requests are NOT automatically retried to prevent duplicate operations.
+  **Note**: POST/PATCH/PUT/DELETE requests are not replayed after a timeout, 5xx, or transport error, because the write may already have been applied.
 
   For long-running operations, increase timeouts:
 
@@ -415,14 +413,14 @@
 </Accordion>
 
 <Accordion title="Can I use this on Linux?">
-  Yes! The CLI supports both macOS and Linux.
+  Yes. Release binaries are published for macOS, Linux, and Windows.
 
   On Linux:
 
   * Keychain features fall back to config file storage
   * Released binaries do not require Go
   * Source builds use the Go version declared by `go.mod`
-  * All core functionality works identically
+  * Commands that drive Xcode, the macOS keychain, or simulators need a Mac
 
   Install using the install script:
 
@@ -453,23 +451,7 @@
   View releases: [https://github.com/rorkai/App-Store-Connect-CLI/releases](https://github.com/rorkai/App-Store-Connect-CLI/releases)
 </Accordion>
 
-<Accordion title="Why does output format change between terminal and scripts?">
-  The CLI is TTY-aware and adapts output based on context:
-
-  * **Interactive terminal (TTY)**: Defaults to `table` for readability
-  * **Pipes/files/CI (non-TTY)**: Defaults to `json` for machine parsing
-
-  This ensures:
-
-  * Human-friendly output when exploring interactively
-  * Machine-parseable output in automation
-
-  Override with `--output` flag or `ASC_DEFAULT_OUTPUT` environment variable.
-</Accordion>
-
 <Accordion title="Where can I get help?">
-  Multiple resources are available:
-
   1. **Built-in help**: `asc --help` and `asc <command> --help`
   2. **Documentation**: Full command reference and guides
   3. **GitHub Issues**: Report bugs or request features

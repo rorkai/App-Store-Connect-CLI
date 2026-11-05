@@ -76,12 +76,7 @@
         asc install-skills
         ```
 
-        This checks out reviewed commit `f52c4f04323bb2dfb21ca8be82e6494e9cd0b4d8` and installs its 25 skills directly. The command verifies the complete pack and every installed file, preserves unrelated skills and lock entries, and pins the 25 ASC lock entries to that commit so external checks cannot update them from a mutable branch. It rolls back on a partial failure. It requires `git` but does not execute Node.js, `npx`, npm packages, or repository scripts.
-
-        ```bash  theme={null}
-        git --version
-        asc install-skills
-        ```
+        This installs the 25 skills from a pinned, reviewed commit and requires only `git`. See [Agent skills](/installation#agent-skills) for what it verifies and changes.
       </Step>
 
       <Step title="Authenticate with your API key">
