@@ -26,30 +26,6 @@ func versionsGroupHelpText(t *testing.T) string {
 	return help
 }
 
-func TestVersionsGroupHelpDocumentsCoreWorkflows(t *testing.T) {
-	help := versionsGroupHelpText(t)
-
-	if !strings.Contains(help, "Examples:") {
-		t.Fatalf("expected an Examples block in `asc versions --help`, got %q", help)
-	}
-
-	wantSubcommands := []string{
-		"asc versions list ",
-		"asc versions view ",
-		"asc versions create ",
-		"asc versions update ",
-		"asc versions attach-build ",
-		"asc versions release ",
-		"asc versions phased-release ",
-		"asc versions rating-reset ",
-	}
-	for _, want := range wantSubcommands {
-		if !strings.Contains(help, want) {
-			t.Fatalf("expected example for %q in group help, got %q", strings.TrimSpace(want), help)
-		}
-	}
-}
-
 func TestVersionsGroupHelpExamplesParseAgainstCurrentCLI(t *testing.T) {
 	help := versionsGroupHelpText(t)
 

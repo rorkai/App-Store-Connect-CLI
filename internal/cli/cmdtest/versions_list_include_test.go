@@ -208,41 +208,7 @@ func TestVersionsListPaginateKeepsInclude(t *testing.T) {
 	}
 }
 
-func TestVersionsListRejectsIncludeWithNext(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request to %s", req.URL.String())
-		return nil, nil
-	})
-
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"versions", "list",
-			"--next", "https://api.appstoreconnect.apple.com/v1/apps/123456789/appStoreVersions?cursor=AQ",
-			"--include", "build",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-		}
-	})
-
-	if strings.TrimSpace(stdout) != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "--next cannot be combined with --include") {
-		t.Fatalf("expected next/include conflict error, got %q", stderr)
-	}
-}
-
-func TestVersionsListRejectsRepeatedIncludeFlags(t *testing.T) {
+func TestVersionsListRejectsInvalidIncludeUsage(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -256,22 +222,27 @@ func TestVersionsListRejectsRepeatedIncludeFlags(t *testing.T) {
 		return nil, nil
 	})
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"versions", "list", "--app", "123456789",
-			"--include", "build", "--include", "appStoreReviewDetail",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-		}
-	})
-
-	if strings.TrimSpace(stdout) != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "include with next",
+			args:    []string{"versions", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps/123456789/appStoreVersions?cursor=AQ", "--include", "build"},
+			wantErr: "--next cannot be combined with --include",
+		},
+		{
+			name:    "repeated include flags",
+			args:    []string{"versions", "list", "--app", "123456789", "--include", "build", "--include", "appStoreReviewDetail"},
+			wantErr: `--include specified multiple times; pass one comma-separated list, for example --include "build,appStoreReviewDetail"`,
+		},
 	}
-	want := `--include specified multiple times; pass one comma-separated list, for example --include "build,appStoreReviewDetail"`
-	if !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want it to contain %q", stderr, want)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExit(t, test.args, test.wantErr)
+		})
 	}
 }
 

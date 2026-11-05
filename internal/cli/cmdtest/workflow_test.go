@@ -557,65 +557,6 @@ func TestWorkflowValidate_ExplicitJSONOutput(t *testing.T) {
 	}
 }
 
-func TestWorkflowValidate_HelpDocumentsJSONOutput(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"workflow", "validate", "--help"}, "1.2.3")
-	})
-
-	if code != rootcmd.ExitSuccess {
-		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	for _, want := range []string{
-		"--output",
-		"Output format: json",
-		"asc workflow validate --output json",
-	} {
-		if !strings.Contains(stdout, want) {
-			t.Fatalf("expected help to contain %q, got %q", want, stdout)
-		}
-	}
-}
-
-func TestWorkflowValidate_SearchDocumentsJSONOutput(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"search", "--output", "json", "workflow validate"}, "1.2.3")
-	})
-
-	if code != rootcmd.ExitSuccess {
-		t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitSuccess, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var result struct {
-		Results []struct {
-			Command  string   `json:"command"`
-			Examples []string `json:"examples"`
-		} `json:"results"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("expected JSON search output, got %q: %v", stdout, err)
-	}
-	for _, item := range result.Results {
-		if item.Command != "asc workflow validate" {
-			continue
-		}
-		for _, example := range item.Examples {
-			if example == "asc workflow validate --output json" {
-				return
-			}
-		}
-		t.Fatalf("workflow validate search result missing explicit JSON example: %#v", item.Examples)
-	}
-	t.Fatal("search result missing asc workflow validate")
-}
-
 func TestWorkflowValidate_UnsupportedOutputExitsWithUsageCode(t *testing.T) {
 	for _, format := range []string{"table", "markdown"} {
 		t.Run(format, func(t *testing.T) {

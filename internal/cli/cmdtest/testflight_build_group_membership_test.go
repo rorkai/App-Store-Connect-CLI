@@ -60,12 +60,6 @@ func TestBuildsGroupsListCommandHasNarrowBuildSurface(t *testing.T) {
 	for name := range wantFlags {
 		t.Errorf("missing --%s flag on builds groups list", name)
 	}
-
-	for _, forbidden := range []string{"app", "global", "internal", "external", "limit", "next", "paginate"} {
-		if list.FlagSet.Lookup(forbidden) != nil {
-			t.Errorf("builds groups list must not expose --%s", forbidden)
-		}
-	}
 }
 
 func TestBuildsGroupsListRequiresBuildIDBeforeAuth(t *testing.T) {

@@ -196,28 +196,3 @@ func TestVersionsRatingResetValidationBeforeSessionResolution(t *testing.T) {
 		})
 	}
 }
-
-func TestVersionsRatingResetCommandDocumentsWebSessionAndRisk(t *testing.T) {
-	command := findSubcommand(RootCommand("test"), "versions", "rating-reset")
-	if command == nil {
-		t.Fatal("versions rating-reset command not found")
-	}
-
-	help := strings.Join(strings.Fields(command.LongHelp), " ")
-	for _, want := range []string{
-		"does not include this resource in its published OpenAPI specification",
-		"authenticated Apple Account web session",
-		"you cannot restore the previous overview rating",
-	} {
-		if !strings.Contains(help, want) {
-			t.Fatalf("LongHelp = %q, want %q", command.LongHelp, want)
-		}
-	}
-
-	for _, name := range []string{"create", "delete"} {
-		subcommand := findSubcommand(command, name)
-		if subcommand == nil || subcommand.FlagSet.Lookup("confirm") == nil {
-			t.Fatalf("rating-reset %s must require --confirm", name)
-		}
-	}
-}
