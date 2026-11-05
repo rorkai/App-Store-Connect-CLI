@@ -123,7 +123,7 @@ func TestMetadataAgeRatingApplyFailsWhenReadBackDiffers(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "age-rating.json"), []byte(`{"lootBox":true}`), 0o644); err != nil {
 		t.Fatalf("write age rating: %v", err)
 	}
-	stdout, _, runErr := runMetadataReviewCommandRaw(t, []string{
+	stdout, _, runErr := runRootCommand(t, []string{
 		"metadata", "apply", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "age-rating", "--output", "json",
 	})
 	if runErr == nil || len(patches) == 0 {
@@ -176,7 +176,7 @@ func TestMetadataAgeRatingRejectsInvalidValuesBeforeRequests(t *testing.T) {
 				if command == "apply" {
 					args = append(args, "--confirm")
 				}
-				stdout, stderr, runErr := runMetadataReviewCommandRaw(t, args)
+				stdout, stderr, runErr := runRootCommand(t, args)
 				if !errors.Is(runErr, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, test.wantErr) {
 					t.Fatalf("err=%v stdout=%q stderr=%q", runErr, stdout, stderr)
 				}
@@ -230,7 +230,7 @@ func TestMetadataAgeRatingValidatesResultingStateBeforeMutation(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(dir, "age-rating.json"), []byte(test.local), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			stdout, stderr, runErr := runMetadataReviewCommandRaw(t, []string{
+			stdout, stderr, runErr := runRootCommand(t, []string{
 				"metadata", "apply", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "localizations,age-rating", "--output", "json",
 			})
 			if test.wantErr != "" {

@@ -86,6 +86,278 @@ func runIfExistsCommand(t *testing.T, args []string, handler func(req ifExistsRe
 	return stdout, stderr, seen, runErr
 }
 
+type ifExistsReply struct {
+	status int
+	body   string
+}
+
+// TestIfExistsConflictsWithoutAMatchKeepFailing covers the create commands
+// that take --if-exists: the default fail mode, a 409 that is not an existence
+// conflict, and an existence 409 whose read-back proves nothing all surface the
+// original conflict, print nothing, and send no request beyond the listed ones.
+func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
+	const (
+		capabilitiesPost = "POST /v1/bundleIdCapabilities"
+		capabilitiesGet  = "GET /v1/bundleIds/bundle-1/bundleIdCapabilities"
+		reviewItemsPost  = "POST /v1/reviewSubmissionItems"
+		reviewItemsGet   = "GET /v1/reviewSubmissions/submission-1/items"
+		reviewDetailPost = "POST /v1/appStoreReviewDetails"
+		reviewDetailGet  = "GET /v1/appStoreVersions/version-1/appStoreReviewDetail"
+		localizationPost = "POST /v1/appStoreVersionLocalizations"
+		localizationGet  = "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations"
+		territoriesGet   = "GET /v1/territories"
+		availabilityPost = "POST /v2/appAvailabilities"
+		availabilityGet  = "GET /v1/apps/app-1/appAvailabilityV2"
+	)
+	capabilityArgs := []string{"bundle-ids", "capabilities", "add", "--bundle", "bundle-1", "--capability", "ICLOUD", "--output", "json"}
+	reviewItemArgs := []string{"review", "items-add", "--submission", "submission-1", "--item-type", "appStoreVersions", "--item-id", "version-1", "--output", "json"}
+	reviewDetailArgs := []string{"review", "details-create", "--version-id", "version-1", "--notes", "new notes", "--output", "json"}
+	localizationArgs := []string{"localizations", "create", "--version", "version-1", "--locale", "ja", "--description", "new description", "--whats-new", "new notes", "--output", "json"}
+	with := func(base []string, extra ...string) []string {
+		return append(append([]string{}, base...), extra...)
+	}
+	// A matching item next to an errors member is not trustworthy evidence.
+	malformedReviewItems := `{"errors":[],"data":[{"type":"reviewSubmissionItems","id":"item-1","attributes":{"state":"READY_FOR_REVIEW"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-1/items"}}`
+	notFound := `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`
+
+	tests := []struct {
+		name         string
+		args         []string
+		replies      map[string]ifExistsReply
+		wantErr      string
+		wantRequests []string
+	}{
+		{
+			name:         "capabilities add default fail keeps Apple's detail",
+			args:         capabilityArgs,
+			replies:      map[string]ifExistsReply{capabilitiesPost: {http.StatusConflict, capabilityExists409}},
+			wantErr:      "The capability is already enabled for this bundle ID.",
+			wantRequests: []string{capabilitiesPost},
+		},
+		{
+			name:         "capabilities add skip does not read back a rejected type",
+			args:         with(capabilityArgs, "--if-exists", "skip"),
+			replies:      map[string]ifExistsReply{capabilitiesPost: {http.StatusConflict, capabilityTypeRejected409}},
+			wantRequests: []string{capabilitiesPost},
+		},
+		{
+			name: "capabilities add skip read-back finds nothing",
+			args: with(capabilityArgs, "--if-exists", "skip"),
+			replies: map[string]ifExistsReply{
+				capabilitiesPost: {http.StatusConflict, capabilityExists409},
+				capabilitiesGet:  {http.StatusOK, noCapabilities},
+			},
+			wantRequests: []string{capabilitiesPost, capabilitiesGet},
+		},
+		{
+			name:         "review items-add default fail",
+			args:         reviewItemArgs,
+			replies:      map[string]ifExistsReply{reviewItemsPost: {http.StatusConflict, reviewItemExists409}},
+			wantRequests: []string{reviewItemsPost},
+		},
+		{
+			name:         "review items-add skip does not read back a state conflict",
+			args:         with(reviewItemArgs, "--if-exists", "skip"),
+			replies:      map[string]ifExistsReply{reviewItemsPost: {http.StatusConflict, reviewItemState409}},
+			wantRequests: []string{reviewItemsPost},
+		},
+		{
+			name: "review items-add skip ignores a REMOVED item",
+			args: with(reviewItemArgs, "--if-exists", "skip"),
+			replies: map[string]ifExistsReply{
+				reviewItemsPost: {http.StatusConflict, reviewItemExists409},
+				reviewItemsGet:  {http.StatusOK, reviewItemsRemovedVersion},
+			},
+			wantRequests: []string{reviewItemsPost, reviewItemsGet},
+		},
+		{
+			name: "review items-add skip read-back finds another item",
+			args: with(reviewItemArgs, "--if-exists", "skip"),
+			replies: map[string]ifExistsReply{
+				reviewItemsPost: {http.StatusConflict, reviewItemExists409},
+				reviewItemsGet:  {http.StatusOK, reviewItemsOtherVersion},
+			},
+			wantRequests: []string{reviewItemsPost, reviewItemsGet},
+		},
+		{
+			name: "review items-add skip rejects a malformed read-back",
+			args: with(reviewItemArgs, "--if-exists", "skip"),
+			replies: map[string]ifExistsReply{
+				reviewItemsPost: {http.StatusConflict, reviewItemExists409},
+				reviewItemsGet:  {http.StatusOK, malformedReviewItems},
+			},
+			wantRequests: []string{reviewItemsPost, reviewItemsGet},
+		},
+		{
+			name: "review details-create default fail",
+			args: []string{
+				"review", "details-create", "--version-id", "version-1",
+				"--contact-first-name", "Dev", "--contact-last-name", "Support",
+				"--contact-email", "dev@example.com", "--contact-phone", "+1 408 555 0100",
+				"--notes", "new notes", "--output", "json",
+			},
+			replies:      map[string]ifExistsReply{reviewDetailPost: {http.StatusConflict, reviewDetailExists409}},
+			wantRequests: []string{reviewDetailPost},
+		},
+		{
+			name:         "review details-create skip does not read back a state conflict",
+			args:         with(reviewDetailArgs, "--if-exists", "skip"),
+			replies:      map[string]ifExistsReply{reviewDetailPost: {http.StatusConflict, versionsState409}},
+			wantRequests: []string{reviewDetailPost},
+		},
+		{
+			name: "review details-create skip read-back finds nothing",
+			args: with(reviewDetailArgs, "--if-exists", "skip"),
+			replies: map[string]ifExistsReply{
+				reviewDetailPost: {http.StatusConflict, reviewDetailExists409},
+				reviewDetailGet:  {http.StatusNotFound, notFound},
+			},
+			wantRequests: []string{reviewDetailPost, reviewDetailGet},
+		},
+		{
+			name:         "localizations create default fail keeps Apple's detail",
+			args:         localizationArgs,
+			replies:      map[string]ifExistsReply{localizationPost: {http.StatusConflict, localizationDuplicate409}},
+			wantErr:      "already exists. Try updating.",
+			wantRequests: []string{localizationPost},
+		},
+		{
+			name:         "localizations create update does not read back a state conflict",
+			args:         with(localizationArgs, "--if-exists", "update"),
+			replies:      map[string]ifExistsReply{localizationPost: {http.StatusConflict, localizationState409}},
+			wantRequests: []string{localizationPost},
+		},
+		{
+			name: "localizations create skip read-back finds nothing",
+			args: with(localizationArgs, "--if-exists", "skip"),
+			replies: map[string]ifExistsReply{
+				localizationPost: {http.StatusConflict, localizationDuplicate409},
+				localizationGet:  {http.StatusOK, noLocalizationsList},
+			},
+			wantRequests: []string{localizationPost, localizationGet},
+		},
+		{
+			name: "pricing availability create default fail keeps Apple's detail",
+			args: availabilityCreateArgs(),
+			replies: map[string]ifExistsReply{
+				territoriesGet:   {http.StatusOK, territoryCatalog},
+				availabilityPost: {http.StatusConflict, availabilityExists409},
+			},
+			wantErr:      "An 'appAvailabilities' with a relationship to 'apps' with id 'app-1' already exists.",
+			wantRequests: []string{territoriesGet, availabilityPost},
+		},
+		{
+			// The bootstrap rejection shares the existence conflict's 409 code.
+			name: "pricing availability create skip keeps the bootstrap remediation",
+			args: availabilityCreateArgs("--if-exists", "skip"),
+			replies: map[string]ifExistsReply{
+				territoriesGet:   {http.StatusOK, territoryCatalog},
+				availabilityPost: {http.StatusConflict, availabilityBootstrap409},
+			},
+			wantErr:      "asc web apps availability create",
+			wantRequests: []string{territoriesGet, availabilityPost},
+		},
+		{
+			name: "pricing availability create update does not read back a state conflict",
+			args: availabilityCreateArgs("--if-exists", "update"),
+			replies: map[string]ifExistsReply{
+				territoriesGet:   {http.StatusOK, territoryCatalog},
+				availabilityPost: {http.StatusConflict, availabilityState409},
+			},
+			wantRequests: []string{territoriesGet, availabilityPost},
+		},
+		{
+			name: "pricing availability create skip read-back finds nothing",
+			args: availabilityCreateArgs("--if-exists", "skip"),
+			replies: map[string]ifExistsReply{
+				territoriesGet:   {http.StatusOK, territoryCatalog},
+				availabilityPost: {http.StatusConflict, availabilityExists409},
+				availabilityGet:  {http.StatusNotFound, availabilityNotFound404},
+			},
+			wantRequests: []string{territoriesGet, availabilityPost, availabilityGet},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, _, seen, runErr := runIfExistsCommand(t, test.args, func(req ifExistsRequest) (*http.Response, error) {
+				reply, ok := test.replies[req.Method+" "+req.Path]
+				if !ok {
+					t.Fatalf("unexpected request %s %s", req.Method, req.Path)
+				}
+				return jsonResponse(reply.status, reply.body)
+			})
+			if runErr == nil || !errors.Is(runErr, asc.ErrConflict) {
+				t.Fatalf("run error = %v, want the original 409 conflict", runErr)
+			}
+			if !strings.Contains(runErr.Error(), test.wantErr) {
+				t.Fatalf("run error = %v, want %q", runErr, test.wantErr)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			got := make([]string, 0, len(seen))
+			for _, req := range seen {
+				got = append(got, req.Method+" "+req.Path)
+			}
+			if strings.Join(got, "\n") != strings.Join(test.wantRequests, "\n") {
+				t.Fatalf("requests = %q, want %q", got, test.wantRequests)
+			}
+		})
+	}
+}
+
+func TestIfExistsRejectsUnsupportedModeBeforeHTTP(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "versions create",
+			args: []string{"versions", "create", "--app", "app-1", "--version", "2.0.0", "--if-exists", "merge"},
+			want: "Error: --if-exists must be one of fail, skip, update",
+		},
+		{
+			name: "localizations create",
+			args: []string{"localizations", "create", "--version", "version-1", "--locale", "ja", "--description", "new description", "--if-exists", "replace", "--output", "json"},
+			want: "Error: --if-exists must be one of fail, skip, update",
+		},
+		{
+			name: "pricing availability create",
+			args: availabilityCreateArgs("--if-exists", "replace"),
+			want: "Error: --if-exists must be one of fail, skip, update",
+		},
+		{
+			// update has no meaning for a submission item.
+			name: "review items-add lists only fail and skip",
+			args: []string{"review", "items-add", "--submission", "submission-1", "--item-type", "appStoreVersions", "--item-id", "version-1", "--if-exists", "update", "--output", "json"},
+			want: `Error: --if-exists must be one of fail, skip (got "update")`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr, seen, runErr := runIfExistsCommand(t, test.args, func(req ifExistsRequest) (*http.Response, error) {
+				t.Fatalf("unexpected request %s %s; the usage error must precede any HTTP request", req.Method, req.Path)
+				return nil, nil
+			})
+			if !isUsageClassError(runErr) {
+				t.Fatalf("run error = %v, want usage-class error", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if !strings.Contains(stderr, test.want) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.want)
+			}
+			if len(seen) != 0 {
+				t.Fatalf("requests = %+v, want none", seen)
+			}
+		})
+	}
+}
+
 func TestVersionsCreateIfExistsSkipReturnsExistingVersion(t *testing.T) {
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
 		"versions", "create", "--app", "app-1", "--version", "2.0.0", "--platform", "IOS",
@@ -676,27 +948,6 @@ func TestVersionsCreateRejectsUnusableBuildIDBeforeHTTP(t *testing.T) {
 	}
 }
 
-func TestVersionsCreateRejectsInvalidIfExistsBeforeHTTP(t *testing.T) {
-	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"versions", "create", "--app", "app-1", "--version", "2.0.0", "--if-exists", "merge",
-	}, func(req ifExistsRequest) (*http.Response, error) {
-		t.Fatalf("unexpected request %s %s", req.Method, req.Path)
-		return nil, nil
-	})
-	if !isUsageClassError(runErr) {
-		t.Fatalf("run error = %v, want usage-class error", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "--if-exists") || !strings.Contains(stderr, "fail, skip, update") {
-		t.Fatalf("stderr = %q, want --if-exists allowed values", stderr)
-	}
-	if len(seen) != 0 {
-		t.Fatalf("requests = %+v, want none", seen)
-	}
-}
-
 func TestReviewDetailsCreateIfExistsSkipReturnsExistingDetail(t *testing.T) {
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
 		"review", "details-create", "--version-id", "version-1", "--notes", "new notes",
@@ -788,72 +1039,6 @@ func TestReviewDetailsCreateIfExistsUpdateReusesExistingDemoCredentials(t *testi
 	}
 	if !strings.Contains(stdout, `"id":"detail-existing"`) {
 		t.Fatalf("stdout = %q, want updated detail", stdout)
-	}
-}
-
-func TestReviewDetailsCreateDefaultIfExistsFailPreservesConflict(t *testing.T) {
-	stdout, _, seen, runErr := runIfExistsCommand(t, []string{
-		"review", "details-create", "--version-id", "version-1",
-		"--contact-first-name", "Dev", "--contact-last-name", "Support",
-		"--contact-email", "dev@example.com", "--contact-phone", "+1 408 555 0100",
-		"--notes", "new notes", "--output", "json",
-	}, func(req ifExistsRequest) (*http.Response, error) {
-		if req.Method == http.MethodPost && req.Path == "/v1/appStoreReviewDetails" {
-			return jsonResponse(http.StatusConflict, reviewDetailExists409)
-		}
-		t.Fatalf("unexpected request %s %s", req.Method, req.Path)
-		return nil, nil
-	})
-	if runErr == nil || !errors.Is(runErr, asc.ErrConflict) {
-		t.Fatalf("run error = %v, want the 409 conflict", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if len(seen) != 1 {
-		t.Fatalf("requests = %+v, want only the POST", seen)
-	}
-}
-
-func TestReviewDetailsCreateIfExistsStillFailsForStateConflict(t *testing.T) {
-	_, _, seen, runErr := runIfExistsCommand(t, []string{
-		"review", "details-create", "--version-id", "version-1", "--notes", "new notes",
-		"--if-exists", "skip", "--output", "json",
-	}, func(req ifExistsRequest) (*http.Response, error) {
-		if req.Method == http.MethodPost && req.Path == "/v1/appStoreReviewDetails" {
-			return jsonResponse(http.StatusConflict, versionsState409)
-		}
-		t.Fatalf("unexpected request %s %s", req.Method, req.Path)
-		return nil, nil
-	})
-	if runErr == nil || !errors.Is(runErr, asc.ErrConflict) {
-		t.Fatalf("run error = %v, want the original 409", runErr)
-	}
-	if len(seen) != 1 {
-		t.Fatalf("requests = %+v, want only the POST", seen)
-	}
-}
-
-func TestReviewDetailsCreateIfExistsSkipStillFailsWhenReadBackFindsNothing(t *testing.T) {
-	_, _, seen, runErr := runIfExistsCommand(t, []string{
-		"review", "details-create", "--version-id", "version-1", "--notes", "new notes",
-		"--if-exists", "skip", "--output", "json",
-	}, func(req ifExistsRequest) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodPost && req.Path == "/v1/appStoreReviewDetails":
-			return jsonResponse(http.StatusConflict, reviewDetailExists409)
-		case req.Method == http.MethodGet && req.Path == "/v1/appStoreVersions/version-1/appStoreReviewDetail":
-			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		default:
-			t.Fatalf("unexpected request %s %s", req.Method, req.Path)
-			return nil, nil
-		}
-	})
-	if runErr == nil || !errors.Is(runErr, asc.ErrConflict) {
-		t.Fatalf("run error = %v, want the original 409", runErr)
-	}
-	if len(seen) != 2 {
-		t.Fatalf("requests = %+v, want POST then read-back", seen)
 	}
 }
 

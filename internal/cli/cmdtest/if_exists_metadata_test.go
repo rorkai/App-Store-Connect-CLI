@@ -343,52 +343,29 @@ func TestMetadataPushIfExistsSkipFailsWhenReadBackFindsNothing(t *testing.T) {
 	}
 }
 
-func TestMetadataPushRejectsUnknownIfExistsValue(t *testing.T) {
-	dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description","whatsNew":"Planned JA release notes"}`)
-	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
-		"--if-exists", "merge", "--output", "json",
-	}, func(req ifExistsRequest) (*http.Response, error) {
-		t.Fatalf("unexpected request %s %s before flag validation", req.Method, req.Path)
-		return nil, nil
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("runErr = %v, want a usage error (exit 2)", runErr)
-	}
-	if len(seen) != 0 {
-		t.Fatalf("expected no HTTP request, got %v", seen)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "--if-exists must be one of fail, skip, update") {
-		t.Fatalf("stderr = %q, want the supported --if-exists values", stderr)
-	}
-}
-
-func TestMetadataPushRejectsExplicitlyEmptyIfExistsValue(t *testing.T) {
-	// The flag defaults to fail, so --if-exists "" is an explicitly supplied
-	// unsupported value and must not be read as fail. Internal callers that
-	// leave PushExecutionOptions.IfExists unset still mean fail; that path goes
-	// through shared.ParseOptionalIfExistsMode instead.
-	//
-	// Each value runs as a subtest: runIfExistsCommand installs a package-wide
-	// default transport that is only released by the test's own cleanup, so two
-	// calls in one test scope would deadlock.
+// The flag defaults to fail, so --if-exists "" is an explicitly supplied
+// unsupported value and must not be read as fail. Internal callers that leave
+// PushExecutionOptions.IfExists unset still mean fail; that path goes through
+// shared.ParseOptionalIfExistsMode instead.
+func TestMetadataRejectsUnsupportedIfExistsValue(t *testing.T) {
 	tests := []struct {
-		name string
-		raw  string
+		name    string
+		command string
+		raw     string
 	}{
-		{name: "empty", raw: ""},
-		{name: "whitespace", raw: "   "},
+		{name: "push unknown", command: "push", raw: "merge"},
+		{name: "push empty", command: "push", raw: ""},
+		{name: "push whitespace", command: "push", raw: "   "},
+		{name: "plan empty", command: "plan", raw: ""},
 	}
 
+	// Each value runs as a subtest: runIfExistsCommand holds the package-wide
+	// default transport until the test's own cleanup.
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description","whatsNew":"Planned JA release notes"}`)
 			stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-				"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+				"metadata", test.command, "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 				"--if-exists", test.raw, "--output", "json",
 			}, func(req ifExistsRequest) (*http.Response, error) {
 				t.Fatalf("unexpected request %s %s before flag validation", req.Method, req.Path)
@@ -408,27 +385,6 @@ func TestMetadataPushRejectsExplicitlyEmptyIfExistsValue(t *testing.T) {
 				t.Fatalf("stderr = %q, want the supported --if-exists values", stderr)
 			}
 		})
-	}
-}
-
-func TestMetadataPlanRejectsExplicitlyEmptyIfExistsValue(t *testing.T) {
-	dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description","whatsNew":"Planned JA release notes"}`)
-	_, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "plan", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
-		"--if-exists", "", "--output", "json",
-	}, func(req ifExistsRequest) (*http.Response, error) {
-		t.Fatalf("unexpected request %s %s before flag validation", req.Method, req.Path)
-		return nil, nil
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("runErr = %v, want a usage error (exit 2)", runErr)
-	}
-	if len(seen) != 0 {
-		t.Fatalf("expected no HTTP request, got %v", seen)
-	}
-	if !strings.Contains(stderr, "--if-exists must be one of fail, skip, update") {
-		t.Fatalf("stderr = %q, want the supported --if-exists values", stderr)
 	}
 }
 

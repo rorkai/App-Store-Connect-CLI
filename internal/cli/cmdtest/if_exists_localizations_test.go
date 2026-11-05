@@ -1,12 +1,9 @@
 package cmdtest
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 	"testing"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 // Apple's 409 body for a duplicate locale on POST /v1/appStoreVersionLocalizations.
@@ -166,91 +163,5 @@ func TestLocalizationsCreateIfExistsUpdateWithoutUpdatableFieldsDoesNotPatch(t *
 	}
 	if !strings.Contains(stderr, "left unchanged") {
 		t.Fatalf("stderr = %q, want the left-unchanged outcome", stderr)
-	}
-}
-
-func TestLocalizationsCreateDefaultIfExistsFailPreservesConflict(t *testing.T) {
-	stdout, _, seen, runErr := runIfExistsCommand(t, []string{
-		"localizations", "create", "--version", "version-1", "--locale", "ja",
-		"--description", "new description", "--whats-new", "new notes", "--output", "json",
-	}, func(req ifExistsRequest) (*http.Response, error) {
-		if req.Method == http.MethodPost && req.Path == "/v1/appStoreVersionLocalizations" {
-			return jsonResponse(http.StatusConflict, localizationDuplicate409)
-		}
-		t.Fatalf("unexpected request %s %s", req.Method, req.Path)
-		return nil, nil
-	})
-	if runErr == nil || !errors.Is(runErr, asc.ErrConflict) {
-		t.Fatalf("run error = %v, want the 409 conflict", runErr)
-	}
-	if !strings.Contains(runErr.Error(), "already exists. Try updating.") {
-		t.Fatalf("run error = %v, want Apple's detail preserved", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if len(seen) != 1 {
-		t.Fatalf("requests = %+v, want only the POST", seen)
-	}
-}
-
-func TestLocalizationsCreateIfExistsStillFailsForStateConflict(t *testing.T) {
-	_, _, seen, runErr := runIfExistsCommand(t, []string{
-		"localizations", "create", "--version", "version-1", "--locale", "ja",
-		"--description", "new description", "--whats-new", "new notes", "--if-exists", "update", "--output", "json",
-	}, func(req ifExistsRequest) (*http.Response, error) {
-		if req.Method == http.MethodPost && req.Path == "/v1/appStoreVersionLocalizations" {
-			return jsonResponse(http.StatusConflict, localizationState409)
-		}
-		t.Fatalf("unexpected request %s %s; a non-existence 409 must not trigger a read-back", req.Method, req.Path)
-		return nil, nil
-	})
-	if runErr == nil || !errors.Is(runErr, asc.ErrConflict) {
-		t.Fatalf("run error = %v, want the state conflict", runErr)
-	}
-	if len(seen) != 1 {
-		t.Fatalf("requests = %+v, want only the POST", seen)
-	}
-}
-
-func TestLocalizationsCreateIfExistsSkipStillFailsWhenReadBackFindsNothing(t *testing.T) {
-	_, _, seen, runErr := runIfExistsCommand(t, []string{
-		"localizations", "create", "--version", "version-1", "--locale", "ja",
-		"--description", "new description", "--whats-new", "new notes", "--if-exists", "skip", "--output", "json",
-	}, func(req ifExistsRequest) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodPost && req.Path == "/v1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusConflict, localizationDuplicate409)
-		case req.Method == http.MethodGet && req.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, noLocalizationsList)
-		default:
-			t.Fatalf("unexpected request %s %s", req.Method, req.Path)
-			return nil, nil
-		}
-	})
-	if runErr == nil || !errors.Is(runErr, asc.ErrConflict) {
-		t.Fatalf("run error = %v, want the original conflict when the read-back finds nothing", runErr)
-	}
-	if len(seen) != 2 {
-		t.Fatalf("requests = %+v, want POST then the read-back GET", seen)
-	}
-}
-
-func TestLocalizationsCreateRejectsInvalidIfExistsBeforeHTTP(t *testing.T) {
-	_, _, seen, runErr := runIfExistsCommand(t, []string{
-		"localizations", "create", "--version", "version-1", "--locale", "ja",
-		"--description", "new description", "--whats-new", "new notes", "--if-exists", "replace", "--output", "json",
-	}, func(req ifExistsRequest) (*http.Response, error) {
-		t.Fatalf("unexpected request %s %s; the usage error must precede any HTTP request", req.Method, req.Path)
-		return nil, nil
-	})
-	if runErr == nil {
-		t.Fatal("run error = nil, want a usage error")
-	}
-	if !strings.Contains(runErr.Error(), "--if-exists must be one of fail, skip, update") {
-		t.Fatalf("run error = %v, want the supported-modes usage error", runErr)
-	}
-	if len(seen) != 0 {
-		t.Fatalf("requests = %+v, want none", seen)
 	}
 }

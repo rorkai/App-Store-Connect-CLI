@@ -146,7 +146,7 @@ func TestIAPImportKeepsScreenshotChecksumBoundToUploadedBytes(t *testing.T) {
 		case req.Method == http.MethodPost && req.URL.Path == "/v2/inAppPurchases":
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/inAppPurchaseAppStoreReviewScreenshots":
-			if err := rewriteIAPImportFileInPlace(screenshotPath, bytes.Repeat([]byte{'B'}, len(original))); err != nil {
+			if err := rewriteFileInPlace(screenshotPath, bytes.Repeat([]byte{'B'}, len(original))); err != nil {
 				t.Fatalf("rewrite screenshot fixture: %v", err)
 			}
 			mutated = true
@@ -316,16 +316,4 @@ func TestIAPImportGivesScreenshotDeliveryVerificationItsOwnTimeout(t *testing.T)
 	if runErr != nil {
 		t.Fatalf("expected import to verify delivery with a fresh timeout, got %v (stderr=%q)", runErr, stderr)
 	}
-}
-
-func rewriteIAPImportFileInPlace(path string, contents []byte) error {
-	file, err := os.OpenFile(path, os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	if _, err := file.WriteAt(contents, 0); err != nil {
-		return err
-	}
-	return file.Sync()
 }

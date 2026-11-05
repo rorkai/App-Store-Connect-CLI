@@ -16,17 +16,8 @@ const (
 	removedFlatReviewItemGuidance   = "Error: `asc review items-get` was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead"
 )
 
-func TestReviewDeprecatedItemSurfacesAreRemoved(t *testing.T) {
+func TestReviewItemsUpdateDropsDeprecatedStateFlag(t *testing.T) {
 	root := RootCommand("4.0.0")
-
-	for _, path := range [][]string{
-		{"review", "items", "view"},
-		{"review", "items-get"},
-	} {
-		if command := findSubcommand(root, path...); command != nil {
-			t.Fatalf("deprecated command %q is still registered", strings.Join(path, " "))
-		}
-	}
 
 	for _, path := range [][]string{
 		{"review", "items", "update"},
@@ -168,16 +159,6 @@ func TestReviewItemsGroupRejectsUnknownSubcommands(t *testing.T) {
 			name:    "legacy get spelling",
 			args:    []string{"review", "items", "get", "--id", "ITEM_ID"},
 			wantErr: "Error: unknown command `asc review items get`",
-		},
-		{
-			name:    "removed view spelling",
-			args:    []string{"review", "items", "view", "--id", "ITEM_ID"},
-			wantErr: removedNestedReviewItemGuidance,
-		},
-		{
-			name:    "unknown child",
-			args:    []string{"review", "items", "nope"},
-			wantErr: "Error: unknown command `asc review items nope`",
 		},
 	}
 

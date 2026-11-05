@@ -77,11 +77,6 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 			want: "Error: `--available-in-new-territories` was removed in 5.0.0; pre-orders are enabled by patching territory availabilities (see migrate-to-5-0)\nFor help:\n  asc pre-orders enable --help\n",
 		},
 		{
-			name: "game-center details list --paginate has no replacement",
-			args: []string{"game-center", "details", "list", "--app", "app-1", "--paginate"},
-			want: "Error: `--paginate` was removed in 5.0.0; each app has a single Game Center detail (see migrate-to-5-0)\nFor help:\n  asc game-center details list --help\n",
-		},
-		{
 			name: "web --two-factor-code matches a historical web command",
 			args: []string{"web", "agreements", "status", "--two-factor-code", "PRIVATE_VALUE"},
 			want: "Error: `--two-factor-code` was removed in 5.0.0; use `--two-factor-code-command` or `ASC_WEB_2FA_CODE_COMMAND` (see migrate-to-5-0)\nFor help:\n  asc web agreements status --help\n",

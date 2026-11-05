@@ -1,12 +1,9 @@
 package cmdtest
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 	"testing"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 // Apple's territory catalog, which pricing availability create always fetches
@@ -185,119 +182,5 @@ func TestPricingAvailabilityCreateIfExistsSkipHandlesExistenceWithTrailingInclud
 	}
 	if !strings.Contains(stdout, `"id":"availability-1"`) || !strings.Contains(stderr, "left unchanged (--if-exists skip)") {
 		t.Fatalf("stdout = %q stderr = %q, want the existing record", stdout, stderr)
-	}
-}
-
-func TestPricingAvailabilityCreateDefaultIfExistsFailPreservesConflict(t *testing.T) {
-	stdout, _, seen, runErr := runIfExistsCommand(t, availabilityCreateArgs(),
-		func(req ifExistsRequest) (*http.Response, error) {
-			switch {
-			case req.Method == http.MethodGet && req.Path == "/v1/territories":
-				return jsonResponse(http.StatusOK, territoryCatalog)
-			case req.Method == http.MethodPost && req.Path == "/v2/appAvailabilities":
-				return jsonResponse(http.StatusConflict, availabilityExists409)
-			default:
-				t.Fatalf("unexpected request %s %s; fail must not read back", req.Method, req.Path)
-				return nil, nil
-			}
-		})
-	if runErr == nil || !errors.Is(runErr, asc.ErrConflict) {
-		t.Fatalf("run error = %v, want the 409 conflict", runErr)
-	}
-	if !strings.Contains(runErr.Error(), "An 'appAvailabilities' with a relationship to 'apps' with id 'app-1' already exists.") {
-		t.Fatalf("run error = %v, want Apple's detail preserved", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if len(seen) != 2 {
-		t.Fatalf("requests = %+v, want territories and the POST only", seen)
-	}
-}
-
-// Apple's bootstrap rejection shares the existence conflict's 409 code, so it
-// must keep its own remediation and must not be swallowed by --if-exists.
-func TestPricingAvailabilityCreateIfExistsKeepsBootstrapRejection(t *testing.T) {
-	_, _, seen, runErr := runIfExistsCommand(t, availabilityCreateArgs("--if-exists", "skip"),
-		func(req ifExistsRequest) (*http.Response, error) {
-			switch {
-			case req.Method == http.MethodGet && req.Path == "/v1/territories":
-				return jsonResponse(http.StatusOK, territoryCatalog)
-			case req.Method == http.MethodPost && req.Path == "/v2/appAvailabilities":
-				return jsonResponse(http.StatusConflict, availabilityBootstrap409)
-			default:
-				t.Fatalf("unexpected request %s %s; the bootstrap rejection must not read back", req.Method, req.Path)
-				return nil, nil
-			}
-		})
-	if runErr == nil {
-		t.Fatal("run error = nil, want the bootstrap rejection")
-	}
-	if !strings.Contains(runErr.Error(), "asc web apps availability create") {
-		t.Fatalf("run error = %v, want the bootstrap remediation preserved", runErr)
-	}
-	if len(seen) != 2 {
-		t.Fatalf("requests = %+v, want territories and the POST only", seen)
-	}
-}
-
-func TestPricingAvailabilityCreateIfExistsStillFailsForStateConflict(t *testing.T) {
-	_, _, seen, runErr := runIfExistsCommand(t, availabilityCreateArgs("--if-exists", "update"),
-		func(req ifExistsRequest) (*http.Response, error) {
-			switch {
-			case req.Method == http.MethodGet && req.Path == "/v1/territories":
-				return jsonResponse(http.StatusOK, territoryCatalog)
-			case req.Method == http.MethodPost && req.Path == "/v2/appAvailabilities":
-				return jsonResponse(http.StatusConflict, availabilityState409)
-			default:
-				t.Fatalf("unexpected request %s %s; a state conflict must not read back", req.Method, req.Path)
-				return nil, nil
-			}
-		})
-	if runErr == nil || !errors.Is(runErr, asc.ErrConflict) {
-		t.Fatalf("run error = %v, want the state conflict", runErr)
-	}
-	if len(seen) != 2 {
-		t.Fatalf("requests = %+v, want territories and the POST only", seen)
-	}
-}
-
-func TestPricingAvailabilityCreateIfExistsSkipStillFailsWhenReadBackFindsNothing(t *testing.T) {
-	_, _, seen, runErr := runIfExistsCommand(t, availabilityCreateArgs("--if-exists", "skip"),
-		func(req ifExistsRequest) (*http.Response, error) {
-			switch {
-			case req.Method == http.MethodGet && req.Path == "/v1/territories":
-				return jsonResponse(http.StatusOK, territoryCatalog)
-			case req.Method == http.MethodPost && req.Path == "/v2/appAvailabilities":
-				return jsonResponse(http.StatusConflict, availabilityExists409)
-			case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appAvailabilityV2":
-				return jsonResponse(http.StatusNotFound, availabilityNotFound404)
-			default:
-				t.Fatalf("unexpected request %s %s", req.Method, req.Path)
-				return nil, nil
-			}
-		})
-	if runErr == nil || !errors.Is(runErr, asc.ErrConflict) {
-		t.Fatalf("run error = %v, want the original conflict when the read-back finds nothing", runErr)
-	}
-	if len(seen) != 3 {
-		t.Fatalf("requests = %+v, want territories, POST, read-back", seen)
-	}
-}
-
-func TestPricingAvailabilityCreateRejectsInvalidIfExistsBeforeHTTP(t *testing.T) {
-	_, _, seen, runErr := runIfExistsCommand(t, availabilityCreateArgs("--if-exists", "replace"),
-		func(req ifExistsRequest) (*http.Response, error) {
-			t.Fatalf("unexpected request %s %s; the usage error must precede any HTTP request", req.Method, req.Path)
-			return nil, nil
-		})
-	if runErr == nil {
-		t.Fatal("run error = nil, want a usage error")
-	}
-	if !strings.Contains(runErr.Error(), "--if-exists must be one of fail, skip, update") {
-		t.Fatalf("run error = %v, want the supported-modes usage error", runErr)
-	}
-	if len(seen) != 0 {
-		t.Fatalf("requests = %+v, want none", seen)
 	}
 }

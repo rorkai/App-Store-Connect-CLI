@@ -158,7 +158,7 @@ func TestMetadataCategoriesPullPreservesFileWhenAppInfoIsMissing(t *testing.T) {
 		}
 	})
 
-	stdout, stderr, runErr := runMetadataReviewCommandRaw(t, []string{
+	stdout, stderr, runErr := runRootCommand(t, []string{
 		"metadata", "pull", "--app", "app-1", "--app-info", "missing-app-info", "--version", "1.2.3",
 		"--dir", dir, "--include", "categories", "--force", "--output", "json",
 	})
@@ -187,7 +187,7 @@ func TestMetadataCategoriesApplyFailsWhenReadBackDiffers(t *testing.T) {
 		t.Fatalf("write categories: %v", err)
 	}
 
-	stdout, stderr, runErr := runMetadataReviewCommandRaw(t, []string{
+	stdout, stderr, runErr := runRootCommand(t, []string{
 		"metadata", "apply", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "categories", "--output", "json",
 	})
 	if runErr == nil {
@@ -236,7 +236,7 @@ func TestMetadataCategoriesRejectsInvalidCanonicalFile(t *testing.T) {
 				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
 				return nil, nil
 			})
-			stdout, stderr, runErr := runMetadataReviewCommandRaw(t, []string{
+			stdout, stderr, runErr := runRootCommand(t, []string{
 				"metadata", "plan", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "categories",
 				"--review-dir", filepath.Join(t.TempDir(), "review"),
 			})

@@ -332,117 +332,83 @@ func TestMetadataApplyOmitsNoopClearFromMixedPatchWithoutConfirm(t *testing.T) {
 	}
 }
 
-func TestMetadataClearOnlyPatchRejectsMissingVersionLocaleBeforeMutation(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
+func TestMetadataClearOnlyFileRejectsMissingLocaleBeforeMutation(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    []string
+		body    string
+		wantErr string
+	}{
+		{
+			name:    "version",
+			path:    []string{"version", "1.2.3", "en-US.json"},
+			body:    `{"promotionalText":null}`,
+			wantErr: `version localization "en-US" cannot be cleared because no existing localization was found`,
+		},
+		{
+			name:    "app-info",
+			path:    []string{"app-info", "en-US.json"},
+			body:    `{"subtitle":null}`,
+			wantErr: `app-info localization "en-US" requires name when creating a new locale`,
+		},
+	}
 
-	dir := t.TempDir()
-	writeMetadataFile(t, dir, []string{"version", "1.2.3", "en-US.json"}, `{"promotionalText":null}`)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			t.Setenv("ASC_APP_ID", "")
 
-	mutations := 0
-	withMetadataReviewHTTP(t, func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			mutations++
-			t.Fatalf("clear-only patch must not mutate a missing locale: %s %s", req.Method, req.URL.Path)
-		}
-		switch req.URL.Path {
-		case "/v1/apps/app-1/appInfos":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-		case "/v1/apps/app-1/appStoreVersions":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
-		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
-		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+			dir := t.TempDir()
+			writeMetadataFile(t, dir, test.path, test.body)
 
-	for _, command := range []string{"plan", "apply"} {
-		t.Run(command, func(t *testing.T) {
-			args := []string{
-				"metadata", command,
-				"--app", "app-1",
-				"--version", "1.2.3",
-				"--platform", "IOS",
-				"--dir", dir,
-				"--output", "json",
-			}
-			if command == "plan" {
-				args = append(args, "--review-dir", t.TempDir())
-			}
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(args, "1.2.3"); code != cmd.ExitUsage {
-					t.Fatalf("exit code = %d, want usage exit code %d", code, cmd.ExitUsage)
+			mutations := 0
+			withMetadataReviewHTTP(t, func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					mutations++
+					t.Fatalf("clear-only patch must not mutate a missing locale: %s %s", req.Method, req.URL.Path)
+				}
+				switch req.URL.Path {
+				case "/v1/apps/app-1/appInfos":
+					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
+				case "/v1/apps/app-1/appStoreVersions":
+					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
+				case "/v1/appInfos/appinfo-1/appInfoLocalizations",
+					"/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+					return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
+				default:
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+					return nil, nil
 				}
 			})
-			if stdout != "" || !strings.Contains(stderr, `version localization "en-US" cannot be cleared because no existing localization was found`) {
-				t.Fatalf("expected only the usage error on stderr, got stdout=%q stderr=%q", stdout, stderr)
+
+			for _, command := range []string{"plan", "apply"} {
+				t.Run(command, func(t *testing.T) {
+					args := []string{
+						"metadata", command,
+						"--app", "app-1",
+						"--version", "1.2.3",
+						"--platform", "IOS",
+						"--dir", dir,
+						"--output", "json",
+					}
+					if command == "plan" {
+						args = append(args, "--review-dir", t.TempDir())
+					}
+					stdout, stderr := captureOutput(t, func() {
+						if code := cmd.Run(args, "1.2.3"); code != cmd.ExitUsage {
+							t.Fatalf("exit code = %d, want usage exit code %d", code, cmd.ExitUsage)
+						}
+					})
+					if stdout != "" || !strings.Contains(stderr, test.wantErr) {
+						t.Fatalf("expected only the usage error on stderr, got stdout=%q stderr=%q", stdout, stderr)
+					}
+				})
+			}
+			if mutations != 0 {
+				t.Fatalf("mutation count = %d, want 0", mutations)
 			}
 		})
-	}
-	if mutations != 0 {
-		t.Fatalf("mutation count = %d, want 0", mutations)
-	}
-}
-
-func TestMetadataClearOnlyAppInfoRejectsMissingLocaleBeforeMutation(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	dir := t.TempDir()
-	writeMetadataFile(t, dir, []string{"app-info", "en-US.json"}, `{"subtitle":null}`)
-
-	mutations := 0
-	withMetadataReviewHTTP(t, func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			mutations++
-			t.Fatalf("clear-only patch must not mutate a missing locale: %s %s", req.Method, req.URL.Path)
-		}
-		switch req.URL.Path {
-		case "/v1/apps/app-1/appInfos":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-		case "/v1/apps/app-1/appStoreVersions":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
-		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
-		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
-
-	for _, command := range []string{"plan", "apply"} {
-		t.Run(command, func(t *testing.T) {
-			args := []string{
-				"metadata", command,
-				"--app", "app-1",
-				"--version", "1.2.3",
-				"--platform", "IOS",
-				"--dir", dir,
-				"--output", "json",
-			}
-			if command == "plan" {
-				args = append(args, "--review-dir", t.TempDir())
-			}
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(args, "1.2.3"); code != cmd.ExitUsage {
-					t.Fatalf("exit code = %d, want usage exit code %d", code, cmd.ExitUsage)
-				}
-			})
-			if stdout != "" || !strings.Contains(stderr, `app-info localization "en-US" requires name when creating a new locale`) {
-				t.Fatalf("expected clear-only missing-locale usage error, got stdout=%q stderr=%q", stdout, stderr)
-			}
-		})
-	}
-	if mutations != 0 {
-		t.Fatalf("mutation count = %d, want 0", mutations)
 	}
 }
 

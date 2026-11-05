@@ -317,130 +317,80 @@ func TestMetadataValidatePassesForValidFiles(t *testing.T) {
 	}
 }
 
-func TestMetadataValidateWarnsForInvalidURLSyntax(t *testing.T) {
-	dir := t.TempDir()
-	appInfoDir := filepath.Join(dir, "app-info")
-	versionDir := filepath.Join(dir, "version", "1.2.3")
-	if err := os.MkdirAll(appInfoDir, 0o755); err != nil {
-		t.Fatalf("mkdir app-info: %v", err)
-	}
-	if err := os.MkdirAll(versionDir, 0o755); err != nil {
-		t.Fatalf("mkdir version dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(appInfoDir, "en-US.json"), []byte(`{"name":"App Name","privacyPolicyUrl":"example.com/privacy"}`), 0o644); err != nil {
-		t.Fatalf("write app-info file: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(versionDir, "en-US.json"), []byte(`{"description":"English description","supportUrl":"example.com"}`), 0o644); err != nil {
-		t.Fatalf("write version file: %v", err)
-	}
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"metadata", "validate", "--dir", dir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected warning-only validation, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+func TestMetadataValidateWarningsKeepReportValid(t *testing.T) {
+	tests := []struct {
+		name         string
+		appInfo      string
+		version      string
+		wantWarnings map[string]string
+	}{
+		{
+			name:         "invalid URL syntax",
+			appInfo:      `{"name":"App Name","privacyPolicyUrl":"example.com/privacy"}`,
+			version:      `{"description":"English description","supportUrl":"example.com"}`,
+			wantWarnings: map[string]string{"supportUrl": "not a valid HTTP/HTTPS URL", "privacyPolicyUrl": "not a valid HTTP/HTTPS URL"},
+		},
+		{
+			name:         "implausibly short metadata",
+			appInfo:      `{"name":"X"}`,
+			version:      `{"description":"TBD"}`,
+			wantWarnings: map[string]string{"name": "shorter than", "description": "shorter than"},
+		},
 	}
 
-	var payload struct {
-		Valid        bool `json:"valid"`
-		ErrorCount   int  `json:"errorCount"`
-		WarningCount int  `json:"warningCount"`
-		Issues       []struct {
-			Field    string `json:"field"`
-			Severity string `json:"severity"`
-			Message  string `json:"message"`
-		} `json:"issues"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if !payload.Valid || payload.ErrorCount != 0 {
-		t.Fatalf("expected valid warning-only report, got %+v", payload)
-	}
-	if payload.WarningCount != 2 {
-		t.Fatalf("expected two URL syntax warnings, got %+v", payload)
-	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			appInfoDir := filepath.Join(dir, "app-info")
+			versionDir := filepath.Join(dir, "version", "1.2.3")
+			for path, body := range map[string]string{
+				filepath.Join(appInfoDir, "en-US.json"): test.appInfo,
+				filepath.Join(versionDir, "en-US.json"): test.version,
+			} {
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					t.Fatalf("mkdir: %v", err)
+				}
+				if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+					t.Fatalf("write fixture: %v", err)
+				}
+			}
 
-	wantFields := map[string]bool{"supportUrl": false, "privacyPolicyUrl": false}
-	for _, issue := range payload.Issues {
-		if _, ok := wantFields[issue.Field]; !ok {
-			continue
-		}
-		if issue.Severity != "warning" || !strings.Contains(issue.Message, "not a valid HTTP/HTTPS URL") {
-			t.Fatalf("expected URL syntax warning for %s, got %+v", issue.Field, issue)
-		}
-		wantFields[issue.Field] = true
-	}
-	for field, found := range wantFields {
-		if !found {
-			t.Fatalf("expected URL syntax warning for %s, got %+v", field, payload.Issues)
-		}
-	}
-}
+			stdout, stderr, runErr := runRootCommand(t, []string{"metadata", "validate", "--dir", dir})
+			if runErr != nil {
+				t.Fatalf("expected warning-only validation, got %v", runErr)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
 
-func TestMetadataValidateWarnsForImplausiblyShortMetadata(t *testing.T) {
-	dir := t.TempDir()
-	appInfoDir := filepath.Join(dir, "app-info")
-	versionDir := filepath.Join(dir, "version", "1.2.3")
-	if err := os.MkdirAll(appInfoDir, 0o755); err != nil {
-		t.Fatalf("mkdir app-info: %v", err)
-	}
-	if err := os.MkdirAll(versionDir, 0o755); err != nil {
-		t.Fatalf("mkdir version dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(appInfoDir, "en-US.json"), []byte(`{"name":"X"}`), 0o644); err != nil {
-		t.Fatalf("write app-info file: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(versionDir, "en-US.json"), []byte(`{"description":"TBD"}`), 0o644); err != nil {
-		t.Fatalf("write version file: %v", err)
-	}
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"metadata", "validate", "--dir", dir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected warning-only validation, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload struct {
-		Valid        bool `json:"valid"`
-		ErrorCount   int  `json:"errorCount"`
-		WarningCount int  `json:"warningCount"`
-		Issues       []struct {
-			Field    string `json:"field"`
-			Severity string `json:"severity"`
-			Message  string `json:"message"`
-		} `json:"issues"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if !payload.Valid || payload.ErrorCount != 0 {
-		t.Fatalf("expected valid warning-only report, got %+v", payload)
-	}
-	if payload.WarningCount != 2 {
-		t.Fatalf("expected two minimum-length warnings, got %+v", payload)
-	}
-	for _, issue := range payload.Issues {
-		if issue.Severity != "warning" || !strings.Contains(issue.Message, "shorter than") {
-			t.Fatalf("expected minimum-length warning, got %+v", issue)
-		}
+			var payload struct {
+				Valid        bool `json:"valid"`
+				ErrorCount   int  `json:"errorCount"`
+				WarningCount int  `json:"warningCount"`
+				Issues       []struct {
+					Field    string `json:"field"`
+					Severity string `json:"severity"`
+					Message  string `json:"message"`
+				} `json:"issues"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+			}
+			if !payload.Valid || payload.ErrorCount != 0 || payload.WarningCount != len(test.wantWarnings) {
+				t.Fatalf("expected a valid report with %d warnings, got %+v", len(test.wantWarnings), payload)
+			}
+			found := map[string]bool{}
+			for _, issue := range payload.Issues {
+				want, ok := test.wantWarnings[issue.Field]
+				if !ok || issue.Severity != "warning" || !strings.Contains(issue.Message, want) {
+					t.Fatalf("unexpected issue %+v, want warnings %v", issue, test.wantWarnings)
+				}
+				found[issue.Field] = true
+			}
+			if len(found) != len(test.wantWarnings) {
+				t.Fatalf("warnings = %+v, want one per field in %v", payload.Issues, test.wantWarnings)
+			}
+		})
 	}
 }
 

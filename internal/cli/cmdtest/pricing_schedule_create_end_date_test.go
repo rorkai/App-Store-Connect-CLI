@@ -20,8 +20,6 @@ type scheduleManualPrice struct {
 	EndDate    *string
 }
 
-func dateOf(value string) *string { return &value }
-
 // stubTemporaryPriceCreate records every manual price of each schedule create.
 func stubTemporaryPriceCreate(t *testing.T) *[][]scheduleManualPrice {
 	t.Helper()
@@ -116,16 +114,16 @@ func TestPricingScheduleCreateTemporaryPriceSendsContinuousTimeline(t *testing.T
 			name: "starting today",
 			args: []string{"--start-date", "2026-10-31", "--end-date", "2026-11-08"},
 			want: []scheduleManualPrice{
-				{PricePoint: "pp-sale", StartDate: dateOf("2026-10-31"), EndDate: dateOf("2026-11-08")},
-				{PricePoint: "pp-regular", StartDate: dateOf("2026-11-08")},
+				{PricePoint: "pp-sale", StartDate: new("2026-10-31"), EndDate: new("2026-11-08")},
+				{PricePoint: "pp-regular", StartDate: new("2026-11-08")},
 			},
 		},
 		{
 			name: "defaulted start date",
 			args: []string{"--end-date", "2026-11-08"},
 			want: []scheduleManualPrice{
-				{PricePoint: "pp-sale", StartDate: dateOf("2026-10-31"), EndDate: dateOf("2026-11-08")},
-				{PricePoint: "pp-regular", StartDate: dateOf("2026-11-08")},
+				{PricePoint: "pp-sale", StartDate: new("2026-10-31"), EndDate: new("2026-11-08")},
+				{PricePoint: "pp-regular", StartDate: new("2026-11-08")},
 			},
 			wantStderr: "Note: --start-date not set; using 2026-10-31 (today in US Pacific time, which App Store Connect uses). Apple requires today or later.\n",
 		},
@@ -133,9 +131,9 @@ func TestPricingScheduleCreateTemporaryPriceSendsContinuousTimeline(t *testing.T
 			name: "starting in the future covers today with the return price",
 			args: []string{"--start-date", "2026-11-20", "--end-date", "2026-11-30"},
 			want: []scheduleManualPrice{
-				{PricePoint: "pp-regular", EndDate: dateOf("2026-11-20")},
-				{PricePoint: "pp-sale", StartDate: dateOf("2026-11-20"), EndDate: dateOf("2026-11-30")},
-				{PricePoint: "pp-regular", StartDate: dateOf("2026-11-30")},
+				{PricePoint: "pp-regular", EndDate: new("2026-11-20")},
+				{PricePoint: "pp-sale", StartDate: new("2026-11-20"), EndDate: new("2026-11-30")},
+				{PricePoint: "pp-regular", StartDate: new("2026-11-30")},
 			},
 			wantStderr: "Note: --return-price-point also applies from today until 2026-11-20, because --start-date is in the future.\n",
 		},

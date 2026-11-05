@@ -177,7 +177,7 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				callCount.Inc()
 				if req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_ID/gameCenterDetail" {
-					return gameCenterCreateResponse(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"detail-1","attributes":{}}}`), nil
+					return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"detail-1","attributes":{}}}`), nil
 				}
 				if req.Method != http.MethodPost || req.URL.Path != test.postPath {
 					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
@@ -190,7 +190,7 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 				assertJSONDocumentEqual(t, body, []byte(test.wantBody))
 
 				response := fmt.Sprintf(`{"data":{"type":%q,"id":"created","attributes":{}}}`, test.resourceType)
-				return gameCenterCreateResponse(http.StatusCreated, response), nil
+				return jsonHTTPResponse(http.StatusCreated, response), nil
 			}))
 
 			root := RootCommand("1.2.3")
@@ -361,7 +361,7 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 				assertJSONDocumentEqual(t, body, []byte(wantBody))
 
 				response := fmt.Sprintf(`{"data":{"type":%q,"id":"res-1","attributes":{}}}`, test.resourceType)
-				return gameCenterCreateResponse(http.StatusOK, response), nil
+				return jsonHTTPResponse(http.StatusOK, response), nil
 			}))
 
 			_, stderr := captureOutput(t, func() {
@@ -389,13 +389,5 @@ func assertJSONDocumentEqual(t *testing.T, got, want []byte) {
 	}
 	if !reflect.DeepEqual(gotDocument, wantDocument) {
 		t.Fatalf("request body mismatch\ngot:  %s\nwant: %s", strings.TrimSpace(string(got)), strings.TrimSpace(string(want)))
-	}
-}
-
-func gameCenterCreateResponse(status int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: status,
-		Body:       io.NopCloser(strings.NewReader(body)),
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
 	}
 }

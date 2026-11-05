@@ -30,6 +30,11 @@ func TestPassTypeIDCertificatesListRejectsInvalidNextURL(t *testing.T) {
 			next:    "https://api.appstoreconnect.apple.com/%zz",
 			wantErr: "pass-type-ids certificates list: --next must be a valid URL:",
 		},
+		{
+			name:    "wrong endpoint",
+			next:    "https://api.appstoreconnect.apple.com/v1/users?cursor=AQ",
+			wantErr: "--next must target the pass type ID certificates endpoint",
+		},
 	}
 
 	for _, test := range tests {
@@ -46,22 +51,6 @@ func TestPassTypeIDCertificatesListRejectsInvalidNextURL(t *testing.T) {
 				t.Fatalf("expected stderr %q, got %q", test.wantErr, stderr)
 			}
 		})
-	}
-}
-
-func TestPassTypeIDCertificatesListRejectsWrongNextEndpoint(t *testing.T) {
-	stdout, stderr := captureOutput(t, func() {
-		args := []string{"pass-type-ids", "certificates", "list", "--next", "https://api.appstoreconnect.apple.com/v1/users?cursor=AQ"}
-		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-		}
-	})
-
-	if !strings.Contains(stderr, "--next must target the pass type ID certificates endpoint") {
-		t.Fatalf("unexpected stderr: %q", stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
 }
 
@@ -168,6 +157,11 @@ func TestPassTypeIDCertificatesGetRejectsInvalidNextURL(t *testing.T) {
 			next:    "https://api.appstoreconnect.apple.com/%zz",
 			wantErr: "pass-type-ids certificates view: --next must be a valid URL:",
 		},
+		{
+			name:    "wrong endpoint",
+			next:    "https://api.appstoreconnect.apple.com/v1/users?cursor=AQ",
+			wantErr: "--next must target the pass type ID certificates endpoint",
+		},
 	}
 
 	for _, test := range tests {
@@ -184,22 +178,6 @@ func TestPassTypeIDCertificatesGetRejectsInvalidNextURL(t *testing.T) {
 				t.Fatalf("expected stderr %q, got %q", test.wantErr, stderr)
 			}
 		})
-	}
-}
-
-func TestPassTypeIDCertificatesGetRejectsWrongNextEndpoint(t *testing.T) {
-	stdout, stderr := captureOutput(t, func() {
-		args := []string{"pass-type-ids", "certificates", "view", "--next", "https://api.appstoreconnect.apple.com/v1/users?cursor=AQ"}
-		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-		}
-	})
-
-	if !strings.Contains(stderr, "--next must target the pass type ID certificates endpoint") {
-		t.Fatalf("unexpected stderr: %q", stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
 }
 

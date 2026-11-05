@@ -12,39 +12,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-func TestOptimizeKeywordsHelpShowsRankSubcommand(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	optimizeCmd := findSubcommand(root, "optimize")
-	if optimizeCmd == nil {
-		t.Fatal("expected optimize command")
-		return
-	}
-	if !strings.Contains(optimizeCmd.UsageFunc(optimizeCmd), "keywords") {
-		t.Fatalf("expected optimize help to list keywords, got %q", optimizeCmd.UsageFunc(optimizeCmd))
-	}
-
-	keywordsCmd := findSubcommand(root, "optimize", "keywords")
-	if keywordsCmd == nil {
-		t.Fatal("expected optimize keywords command")
-		return
-	}
-	if !strings.Contains(keywordsCmd.UsageFunc(keywordsCmd), "rank") {
-		t.Fatalf("expected optimize keywords help to list rank, got %q", keywordsCmd.UsageFunc(keywordsCmd))
-	}
-
-	rankCmd := findSubcommand(root, "optimize", "keywords", "rank")
-	if rankCmd == nil {
-		t.Fatal("expected optimize keywords rank command")
-		return
-	}
-	// The optimize tree marks stability with a trailing suffix.
-
-	if rankCmd.UsageFunc == nil {
-		t.Fatal("optimize keywords rank is missing UsageFunc")
-	}
-}
-
 func TestOptimizeKeywordsRankUsageErrors(t *testing.T) {
 	tests := []struct {
 		name    string

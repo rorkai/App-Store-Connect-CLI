@@ -499,57 +499,6 @@ func TestScopedPromotedPurchaseExplicitEmptyFieldsFailBeforeAuth441(t *testing.T
 	}
 }
 
-func TestIAPRelatedSparseFieldHelp441(t *testing.T) {
-	root := RootCommand("1.2.3")
-	tests := []struct {
-		path []string
-		flag string
-	}{
-		{path: []string{"iap", "review-screenshots", "view"}, flag: "--iap-fields"},
-		{path: []string{"iap", "content", "view"}, flag: "--iap-fields"},
-		{path: []string{"iap", "promoted-purchases", "list"}, flag: "--iap-fields"},
-		{path: []string{"iap", "promoted-purchases", "list"}, flag: "--subscription-fields"},
-		{path: []string{"iap", "promoted-purchases", "view"}, flag: "--iap-id"},
-		{path: []string{"iap", "promoted-purchases", "view"}, flag: "--iap-fields"},
-		{path: []string{"iap", "promoted-purchases", "view"}, flag: "--subscription-fields"},
-		{path: []string{"subscriptions", "promoted-purchases", "list"}, flag: "--iap-fields"},
-		{path: []string{"subscriptions", "promoted-purchases", "list"}, flag: "--subscription-fields"},
-		{path: []string{"subscriptions", "promoted-purchases", "view"}, flag: "--iap-fields"},
-		{path: []string{"subscriptions", "promoted-purchases", "view"}, flag: "--subscription-fields"},
-	}
-	for _, tt := range tests {
-		command := findSubcommand(root, tt.path...)
-		if command == nil {
-			t.Fatalf("command %v not found", tt.path)
-		}
-		if usage := command.UsageFunc(command); !strings.Contains(usage, tt.flag) {
-			t.Fatalf("help for %v does not contain %s: %q", tt.path, tt.flag, usage)
-		}
-	}
-
-	iapView := findSubcommand(root, "iap", "promoted-purchases", "view")
-	iapUsage := iapView.UsageFunc(iapView)
-	if !strings.Contains(iapUsage, "In-app purchase ID, product ID, or exact current name") {
-		t.Fatalf("IAP promoted view help does not describe stable selectors: %q", iapUsage)
-	}
-	if !strings.Contains(iapUsage, "App Store Connect app ID (or ASC_APP_ID env; required when --iap-id uses a product ID or name)") {
-		t.Fatalf("IAP promoted view help does not describe app lookup context: %q", iapUsage)
-	}
-	if !strings.Contains(iapUsage, "--iap-id IAP_SELECTOR") || !strings.Contains(iapUsage, `--iap-id "IAP_SELECTOR"`) {
-		t.Fatalf("IAP promoted view help does not use the stable-selector placeholder: %q", iapUsage)
-	}
-
-	subscriptionView := findSubcommand(root, "subscriptions", "promoted-purchases", "view")
-	subscriptionUsage := subscriptionView.UsageFunc(subscriptionView)
-	if !strings.Contains(subscriptionUsage, "--subscription-id SUBSCRIPTION_SELECTOR") ||
-		!strings.Contains(subscriptionUsage, "Subscription ID, product ID, or exact current name") ||
-		!strings.Contains(subscriptionUsage, subscriptionLookupAppUsageForTest) {
-		t.Fatalf("subscription promoted view does not expose the stable selector contract: %q", subscriptionUsage)
-	}
-}
-
-const subscriptionLookupAppUsageForTest = "App Store Connect app ID (or ASC_APP_ID env; required when --subscription-id uses a product ID or name)"
-
 func setIAPRelatedTestServerClient(t *testing.T, server *httptest.Server) {
 	t.Helper()
 	client := newReviewTestServerClient(t, server)

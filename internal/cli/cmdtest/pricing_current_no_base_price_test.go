@@ -86,7 +86,7 @@ func TestPricingCurrentNoBaseTerritoryPriceIsExpectedNegative(t *testing.T) {
 			fixPricingClock(t, mustParseRFC3339(t, "2026-03-01T20:00:00Z"))
 			useServerTransport(t, newPricingCurrentScheduleServer(t, appPricesBody(test.prices...)))
 
-			stdout, stderr, runErr := runPricingCurrent(t, "pricing", "current", "--app", "app-1", "--output", "json")
+			stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "json"})
 
 			assertNotConfiguredExpectedNegative(t, runErr)
 			if want := test.wantStdout + "\n"; stdout != want {
@@ -108,7 +108,7 @@ func TestPricingCurrentNoBaseTerritoryPriceTableOutput(t *testing.T) {
 	fixPricingClock(t, mustParseRFC3339(t, "2026-03-01T20:00:00Z"))
 	useServerTransport(t, newPricingCurrentScheduleServer(t, appPricesBody(appPriceResource("price-1", "pp-paid", "2026-03-05", ""))))
 
-	stdout, _, runErr := runPricingCurrent(t, "pricing", "current", "--app", "app-1", "--output", "table")
+	stdout, _, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "table"})
 
 	assertNotConfiguredExpectedNegative(t, runErr)
 	for _, want := range []string{"Base Territory", "Reason", "Next Start Date", "USA", "no_current_base_price", "2026-03-05", "false"} {
@@ -140,7 +140,7 @@ func TestPricingCurrentUsesUSPacificDayAtUTCMidnight(t *testing.T) {
 		t.Run(test.now, func(t *testing.T) {
 			fixPricingClock(t, mustParseRFC3339(t, test.now))
 
-			stdout, stderr, runErr := runPricingCurrent(t, "pricing", "current", "--app", "app-1", "--output", "json")
+			stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "json"})
 			if runErr != nil {
 				t.Fatalf("run error: %v (stderr %q)", runErr, stderr)
 			}

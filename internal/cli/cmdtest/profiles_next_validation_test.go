@@ -12,125 +12,80 @@ import (
 	"testing"
 )
 
-func TestProfilesListDefaultsToActiveAndInvalidStates(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/profiles" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		if got := req.URL.Query().Get("filter[profileState]"); got != "ACTIVE,INVALID" {
-			t.Fatalf("expected default profileState filter ACTIVE,INVALID, got %q", got)
-		}
-		body := `{"data":[` +
-			`{"type":"profiles","id":"profile-active","attributes":{"name":"Active","profileType":"IOS_APP_STORE","profileState":"ACTIVE"}},` +
-			`{"type":"profiles","id":"profile-invalid","attributes":{"name":"Expired","profileType":"IOS_APP_ADHOC","profileState":"INVALID"}}` +
-			`]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"profiles", "list", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr != nil {
-		t.Fatalf("run error: %v", runErr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload struct {
-		Data []struct {
-			ID         string `json:"id"`
-			Attributes struct {
-				ProfileState string `json:"profileState"`
-			} `json:"attributes"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal profiles output: %v\n%s", err, stdout)
-	}
-	if len(payload.Data) != 2 {
-		t.Fatalf("expected active and invalid profiles, got %d", len(payload.Data))
-	}
-	if payload.Data[0].Attributes.ProfileState != "ACTIVE" || payload.Data[1].Attributes.ProfileState != "INVALID" {
-		t.Fatalf("unexpected profile states: %+v", payload.Data)
-	}
-}
-
 func TestProfilesListProfileStateFilter(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/profiles" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		if got := req.URL.Query().Get("filter[profileState]"); got != "INVALID" {
-			t.Fatalf("expected profileState filter INVALID, got %q", got)
-		}
-		body := `{"data":[{"type":"profiles","id":"profile-invalid","attributes":{"name":"Expired","profileType":"IOS_APP_ADHOC","profileState":"INVALID"}}]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"profiles", "list", "--profile-state", "invalid", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr != nil {
-		t.Fatalf("run error: %v", runErr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	tests := []struct {
+		name       string
+		args       []string
+		wantFilter string
+		response   string
+		wantIDs    []string
+		wantStates []string
+	}{
+		{
+			name:       "defaults to active and invalid",
+			wantFilter: "ACTIVE,INVALID",
+			response:   `{"data":[{"type":"profiles","id":"profile-active","attributes":{"name":"Active","profileType":"IOS_APP_STORE","profileState":"ACTIVE"}},{"type":"profiles","id":"profile-invalid","attributes":{"name":"Expired","profileType":"IOS_APP_ADHOC","profileState":"INVALID"}}]}`,
+			wantIDs:    []string{"profile-active", "profile-invalid"},
+			wantStates: []string{"ACTIVE", "INVALID"},
+		},
+		{
+			name:       "normalizes an explicit state",
+			args:       []string{"--profile-state", "invalid"},
+			wantFilter: "INVALID",
+			response:   `{"data":[{"type":"profiles","id":"profile-invalid","attributes":{"name":"Expired","profileType":"IOS_APP_ADHOC","profileState":"INVALID"}}]}`,
+			wantIDs:    []string{"profile-invalid"},
+			wantStates: []string{"INVALID"},
+		},
 	}
 
-	var payload struct {
-		Data []struct {
-			ID         string `json:"id"`
-			Attributes struct {
-				ProfileState string `json:"profileState"`
-			} `json:"attributes"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal profiles output: %v\n%s", err, stdout)
-	}
-	if len(payload.Data) != 1 || payload.Data[0].ID != "profile-invalid" || payload.Data[0].Attributes.ProfileState != "INVALID" {
-		t.Fatalf("unexpected profiles output: %+v", payload.Data)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() {
+				http.DefaultTransport = originalTransport
+			})
+
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet || req.URL.Path != "/v1/profiles" {
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+				}
+				if got := req.URL.Query().Get("filter[profileState]"); got != test.wantFilter {
+					t.Fatalf("filter[profileState] = %q, want %q", got, test.wantFilter)
+				}
+				return jsonHTTPResponse(http.StatusOK, test.response), nil
+			})
+
+			args := append([]string{"profiles", "list"}, test.args...)
+			stdout, stderr, runErr := runRootCommand(t, append(args, "--output", "json"))
+			if runErr != nil {
+				t.Fatalf("run error: %v", runErr)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			var payload struct {
+				Data []struct {
+					ID         string `json:"id"`
+					Attributes struct {
+						ProfileState string `json:"profileState"`
+					} `json:"attributes"`
+				} `json:"data"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("unmarshal profiles output: %v\n%s", err, stdout)
+			}
+			if len(payload.Data) != len(test.wantIDs) {
+				t.Fatalf("profile count = %d, want %d", len(payload.Data), len(test.wantIDs))
+			}
+			for i, profile := range payload.Data {
+				if profile.ID != test.wantIDs[i] || profile.Attributes.ProfileState != test.wantStates[i] {
+					t.Fatalf("profile[%d] = %+v, want id %q and state %q", i, profile, test.wantIDs[i], test.wantStates[i])
+				}
+			}
+		})
 	}
 }
 

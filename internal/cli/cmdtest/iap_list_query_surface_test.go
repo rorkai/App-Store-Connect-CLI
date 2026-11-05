@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -76,28 +75,10 @@ func (r *iapListQuerySurfaceRequest) assertNoRequest(t *testing.T) {
 	}
 }
 
-func runIAPListQuerySurface(t *testing.T, args ...string) (string, string, error) {
-	t.Helper()
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	return stdout, stderr, runErr
-}
-
 func TestIAPListQuerySurfaceEmitsDocumentedSelectors(t *testing.T) {
 	captured := iapListQuerySurfaceStub(t)
 
-	stdout, stderr, err := runIAPListQuerySurface(
-		t,
+	stdout, stderr, err := runRootCommand(t, []string{
 		"iap", "list",
 		"--app", "app-1",
 		"--product-id", "com.example.pro,com.example.pro2",
@@ -106,7 +87,7 @@ func TestIAPListQuerySurfaceEmitsDocumentedSelectors(t *testing.T) {
 		"--type", "consumable,non_consumable",
 		"--sort", "name,-inAppPurchaseType",
 		"--output", "json",
-	)
+	})
 	if err != nil {
 		t.Fatalf("run error: %v (stderr=%q)", err, stderr)
 	}
@@ -132,14 +113,13 @@ func TestIAPListQuerySurfaceEmitsDocumentedSelectors(t *testing.T) {
 func TestIAPListQuerySurfaceDeduplicatesNormalizedEnumValues(t *testing.T) {
 	captured := iapListQuerySurfaceStub(t)
 
-	_, stderr, err := runIAPListQuerySurface(
-		t,
+	_, stderr, err := runRootCommand(t, []string{
 		"iap", "list",
 		"--app", "app-1",
 		"--state", "ready_to_submit,READY_TO_SUBMIT",
 		"--type", "consumable,CONSUMABLE",
 		"--output", "json",
-	)
+	})
 	if err != nil {
 		t.Fatalf("run error: %v (stderr=%q)", err, stderr)
 	}
@@ -153,11 +133,12 @@ func TestIAPListQuerySurfaceDeduplicatesNormalizedEnumValues(t *testing.T) {
 }
 
 func TestIAPListQuerySurfaceRejectsInvalidSelectorsBeforeRequest(t *testing.T) {
-	tests := []struct {
+	type invalidCase struct {
 		name string
 		args []string
 		want string
-	}{
+	}
+	tests := []invalidCase{
 		{
 			name: "state",
 			args: []string{"iap", "list", "--app", "app-1", "--state", "NOT_A_STATE"},
@@ -174,11 +155,31 @@ func TestIAPListQuerySurfaceRejectsInvalidSelectorsBeforeRequest(t *testing.T) {
 			want: "--sort must be one of:",
 		},
 	}
+	next := "https://api.appstoreconnect.apple.com/v1/apps/app-1/inAppPurchasesV2?cursor=next"
+	for _, name := range []string{"product-id", "name", "state", "type", "sort"} {
+		tests = append(tests,
+			invalidCase{
+				name: name + " explicitly empty",
+				args: []string{"iap", "list", "--app", "app-1", "--" + name, ""},
+				want: "--" + name + " must not be empty",
+			},
+			invalidCase{
+				name: name + " with next",
+				args: []string{"iap", "list", "--next", next, "--" + name, "value"},
+				want: "--next cannot be combined with --" + name,
+			},
+			invalidCase{
+				name: name + " on legacy",
+				args: []string{"iap", "list", "--app", "app-1", "--legacy", "--" + name, "value"},
+				want: "--" + name + " requires the v2 endpoint",
+			},
+		)
+	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			captured := iapListQuerySurfaceStub(t)
-			_, stderr, err := runIAPListQuerySurface(t, test.args...)
+			_, stderr, err := runRootCommand(t, test.args)
 			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
 			}
@@ -190,64 +191,10 @@ func TestIAPListQuerySurfaceRejectsInvalidSelectorsBeforeRequest(t *testing.T) {
 	}
 }
 
-func TestIAPListQuerySurfaceRejectsExplicitlyEmptySelectors(t *testing.T) {
-	for _, name := range []string{"product-id", "name", "state", "type", "sort"} {
-		t.Run(name, func(t *testing.T) {
-			captured := iapListQuerySurfaceStub(t)
-			_, stderr, err := runIAPListQuerySurface(t, "iap", "list", "--app", "app-1", "--"+name, "")
-			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
-			}
-			want := "--" + name + " must not be empty"
-			if !strings.Contains(stderr, want) {
-				t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
-			}
-			captured.assertNoRequest(t)
-		})
-	}
-}
-
-func TestIAPListQuerySurfaceRejectsNextWithSelectors(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/apps/app-1/inAppPurchasesV2?cursor=next"
-	flags := []string{"product-id", "name", "state", "type", "sort"}
-	for _, name := range flags {
-		t.Run(name, func(t *testing.T) {
-			captured := iapListQuerySurfaceStub(t)
-			_, stderr, err := runIAPListQuerySurface(t, "iap", "list", "--next", next, "--"+name, "value")
-			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
-			}
-			want := "--next cannot be combined with --" + name
-			if !strings.Contains(stderr, want) {
-				t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
-			}
-			captured.assertNoRequest(t)
-		})
-	}
-}
-
-func TestIAPListQuerySurfaceRejectsV2SelectorsOnLegacy(t *testing.T) {
-	flags := []string{"product-id", "name", "state", "type", "sort"}
-	for _, name := range flags {
-		t.Run(name, func(t *testing.T) {
-			captured := iapListQuerySurfaceStub(t)
-			_, stderr, err := runIAPListQuerySurface(t, "iap", "list", "--app", "app-1", "--legacy", "--"+name, "value")
-			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
-			}
-			want := "--" + name + " requires the v2 endpoint"
-			if !strings.Contains(stderr, want) {
-				t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
-			}
-			captured.assertNoRequest(t)
-		})
-	}
-}
-
 func TestIAPListQuerySurfaceKeepsLegacyModeWithoutSelectors(t *testing.T) {
 	captured := iapListQuerySurfaceStub(t)
 
-	_, stderr, err := runIAPListQuerySurface(t, "iap", "list", "--app", "app-1", "--legacy", "--output", "json")
+	_, stderr, err := runRootCommand(t, []string{"iap", "list", "--app", "app-1", "--legacy", "--output", "json"})
 	if err != nil {
 		t.Fatalf("run error: %v (stderr=%q)", err, stderr)
 	}

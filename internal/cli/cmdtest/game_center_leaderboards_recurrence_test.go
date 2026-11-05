@@ -66,7 +66,7 @@ func TestGameCenterLeaderboardsUpdateSendsOnlyRecurrenceFlagsSet(t *testing.T) {
 				want := `{"data":{"type":"gameCenterLeaderboards","id":"LB_ID","attributes":` + test.wantAttrs + `}}`
 				assertJSONDocumentEqual(t, body, []byte(want))
 
-				return gameCenterCreateResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"LB_ID","attributes":{}}}`), nil
+				return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"LB_ID","attributes":{}}}`), nil
 			}))
 
 			root := RootCommand("1.2.3")
