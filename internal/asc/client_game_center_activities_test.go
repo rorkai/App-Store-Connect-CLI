@@ -159,13 +159,13 @@ func TestCreateGameCenterActivity_WithInitialVersion(t *testing.T) {
 		if len(payload.Data.Relationships.Versions.Data) != 1 {
 			t.Fatalf("expected one version relationship, got %+v", payload.Data.Relationships.Versions.Data)
 		}
-		if payload.Data.Relationships.Versions.Data[0].Type != ResourceTypeGameCenterActivityVersions || payload.Data.Relationships.Versions.Data[0].ID != "initial-version" {
+		if payload.Data.Relationships.Versions.Data[0].Type != ResourceTypeGameCenterActivityVersions || payload.Data.Relationships.Versions.Data[0].ID != "${activityVer1}" {
 			t.Fatalf("unexpected versions relationship: %+v", payload.Data.Relationships.Versions.Data[0])
 		}
 		if len(payload.Included) != 1 {
 			t.Fatalf("expected one included resource, got %d", len(payload.Included))
 		}
-		if payload.Included[0].Type != ResourceTypeGameCenterActivityVersions || payload.Included[0].ID != "initial-version" {
+		if payload.Included[0].Type != ResourceTypeGameCenterActivityVersions || payload.Included[0].ID != "${activityVer1}" {
 			t.Fatalf("unexpected included version: %+v", payload.Included[0])
 		}
 		if payload.Included[0].Attributes == nil || payload.Included[0].Attributes.FallbackURL == nil || *payload.Included[0].Attributes.FallbackURL != "https://example.com/fallback" {

@@ -57,7 +57,7 @@ func (c *Client) GetGameCenterActivity(ctx context.Context, activityID string) (
 
 // CreateGameCenterActivity creates a new Game Center activity.
 func (c *Client) CreateGameCenterActivity(ctx context.Context, gcDetailID string, attrs GameCenterActivityCreateAttributes, groupID string, initialVersion *GameCenterActivityVersionCreateAttributes) (*GameCenterActivityResponse, error) {
-	const initialVersionID = "initial-version"
+	const initialVersionID = "${activityVer1}"
 
 	relationships := &GameCenterActivityRelationships{}
 	hasRelationship := false
