@@ -11,16 +11,7 @@ from collections.abc import Iterable
 WALL_SOURCE = "docs/wall-of-apps.json"
 OPENAPI_SNAPSHOT = "docs/openapi/latest.json"
 EMBEDDED_GUIDES = {"docs/API_NOTES.md", "docs/WORKFLOWS.md", "docs/THIRD_PARTY_NOTICES.md"}
-WEBSITE_FILES = {".mintignore", "docs.json"}
-WEBSITE_PREFIXES = (
-    ".mintlify/",
-    "commands/",
-    "concepts/",
-    "configuration/",
-    "guides/",
-    "resources/",
-    "website/",
-)
+WEBSITE_PREFIX = "website/"
 TELEMETRY_PREFIX = "internal/telemetry/"
 TELEMETRY_CLI_PREFIX = "internal/cli/telemetry/"
 def path_kind(path: str) -> str:
@@ -34,9 +25,7 @@ def path_kind(path: str) -> str:
         return "telemetry"
     if path.endswith(".go"):
         return "full"
-    if path in WEBSITE_FILES or path.startswith(WEBSITE_PREFIXES):
-        return "website"
-    if "/" not in path and path.endswith(".mdx"):
+    if path.startswith(WEBSITE_PREFIX):
         return "website"
     if path.startswith("docs/"):
         return "docs"
