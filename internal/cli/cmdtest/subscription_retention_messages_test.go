@@ -58,6 +58,11 @@ func TestRetentionMessagesRequestWiring(t *testing.T) {
 			query: url.Values{"include": {"subscriptions"}, "fields[subscriptions]": {"name"}, "limit[subscriptions]": {"2"}},
 		},
 		{
+			name: "assigned unset", args: []string{"assigned", "--subscription-id", "sub-1"},
+			method: "GET", path: "/v1/subscriptions/sub-1/retentionMessage",
+			response: `{"data":null,"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/retentionMessage"}}`,
+		},
+		{
 			name: "assign", args: []string{"assign", "--subscription-id", "sub-1", "--message-id", "msg-1"},
 			method: "PATCH", path: "/v1/subscriptions/sub-1/relationships/retentionMessage",
 			body:       `{"data":{"type":"retentionMessages","id":"msg-1"}}`,

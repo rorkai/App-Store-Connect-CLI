@@ -248,9 +248,10 @@ func (c *Client) GetRetentionMessageLocalization(ctx context.Context, localizati
 	return getRetentionMessageRead[RetentionMessageLocalizationResponse](c, ctx, "/v1/retentionMessageLocalizations/%s", localizationID, opts)
 }
 
-// GetSubscriptionRetentionMessage retrieves the retention message assigned to a subscription.
-func (c *Client) GetSubscriptionRetentionMessage(ctx context.Context, subscriptionID string, opts ...RetentionMessagesOption) (*RetentionMessageResponse, error) {
-	return getRetentionMessageRead[RetentionMessageResponse](c, ctx, "/v1/subscriptions/%s/retentionMessage", subscriptionID, opts)
+// GetSubscriptionRetentionMessage retrieves the raw retention message assigned to a
+// subscription; data is null when none is assigned.
+func (c *Client) GetSubscriptionRetentionMessage(ctx context.Context, subscriptionID string, opts ...RetentionMessagesOption) (*json.RawMessage, error) {
+	return getRetentionMessageRead[json.RawMessage](c, ctx, "/v1/subscriptions/%s/retentionMessage", subscriptionID, opts)
 }
 
 // GetSubscriptionRetentionMessageRelationship retrieves the retention message linkage of a subscription.
