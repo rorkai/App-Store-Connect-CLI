@@ -41,8 +41,8 @@ Install them globally so they are available across projects:
 asc install-skills
 ```
 
-The command installs the 25 skills from a pinned, reviewed commit and requires
-only `git`; it runs no Node.js, `npx`, npm package, or repository script. See
+The command installs the 25 skills from pinned, reviewed commit
+`f52c4f04323bb2dfb21ca8be82e6494e9cd0b4d8` and requires only `git`; it runs no Node.js, `npx`, npm package, or repository script. See
 [Agent skills](installation.mdx#agent-skills) for what it verifies and changes.
 
 ## Quick Start
