@@ -4,13 +4,12 @@
 
 ## Introduction
 
-The App Store Connect CLI (`asc`) is designed for seamless integration into CI/CD pipelines. Whether you're using GitHub Actions, GitLab CI, Bitrise, or CircleCI, `asc` provides:
+`asc` runs the same way on GitHub Actions, GitLab CI, Bitrise, and CircleCI:
 
-* **Fast, scriptable automation** for App Store Connect workflows
-* **No interactive prompts** - all operations use explicit flags
-* **TTY-aware output** - automatic JSON output in CI environments
-* **Built-in timeout controls** for reliable pipeline execution
-* **Secure credential management** via environment variables
+* **No interactive prompts**: every operation takes explicit flags
+* **TTY-aware output**: JSON by default when stdout is not a terminal
+* **Timeouts and retries** configurable through environment variables
+* **Credentials** from environment variables or your CI secret store
 
 ## Quick Start
 
@@ -257,12 +256,12 @@ asc testflight feedback list \
 
 ## Exit Codes
 
-`asc` uses standard exit codes for reliable CI integration:
-
 * `0` - Success
 * `1` - Runtime error (API failures, network issues, etc.)
 * `2` - Usage error (invalid flags, missing arguments, etc.)
 * `3` - Authentication failure (missing App Store Connect API credentials, unauthorized, forbidden)
+
+Other codes report specific HTTP statuses and states; see [Error Handling](/concepts/error-handling#exit-codes) for the full table.
 
 Example error handling:
 
@@ -300,11 +299,11 @@ asc apps list --output markdown
 ### Parsing JSON Output
 
 ```bash  theme={null}
-# Using jq to extract app IDs
-APP_ID=$(asc apps list --output json | jq -r '.[0].id')
+# JSON output is Apple's response envelope
+APP_ID=$(asc apps list --output json | jq -r '.data[0].id')
 
-# Get build status
-STATUS=$(asc builds list --app "$APP_ID" --output json | jq -r '.[0].processingState')
+# Processing state of the most recently uploaded build
+STATUS=$(asc builds list --app "$APP_ID" --sort -uploadedDate --limit 1 --output json | jq -r '.data[0].attributes.processingState')
 ```
 
 ## Platform-Specific Guides
@@ -333,13 +332,9 @@ Detailed integration guides for each platform:
 
 <AccordionGroup>
   <Accordion title="Use explicit flags">
-    Always use long-form flags (`--app`, `--version`) instead of short forms for clarity in CI logs:
+    Pass every value as a long-form flag (`--app`, `--version`) so CI logs show exactly what ran:
 
     ```bash  theme={null}
-    # Good
-    asc builds upload --app "123456789" --ipa "MyApp.ipa"
-
-    # Avoid in CI
     asc builds upload --app "123456789" --ipa "MyApp.ipa"
     ```
   </Accordion>
@@ -385,13 +380,14 @@ Detailed integration guides for each platform:
 ### Authentication Failures
 
 ```bash  theme={null}
-# Verify credentials are set
-echo "Key ID: ${ASC_KEY_ID:0:8}..."
-echo "Issuer ID: ${ASC_ISSUER_ID:0:8}..."
-echo "Private Key: ${ASC_PRIVATE_KEY_B64:0:20}..."
+# Show the detected credential sources without printing secrets
+asc auth status
 
-# Test authentication
-asc apps list --output json
+# Diagnose keychain, config, private-key, and environment problems
+asc auth doctor
+
+# Confirm the credentials work with a read-only request
+asc apps list --limit 1 --output json
 ```
 
 ### Timeout Issues
@@ -404,14 +400,12 @@ export ASC_UPLOAD_TIMEOUT=15m
 
 ### Rate Limiting
 
-App Store Connect API has rate limits. Implement retry logic:
+`asc` retries rate-limited (`429`) requests with exponential backoff that honors `Retry-After`. `GET` and `HEAD` requests also retry on `408`, `500`, `502`, `503`, `504`, and transient transport errors. Ordinary writes retry only on `429`; explicitly idempotent mutations, such as setting territory availability, use the read retry policy. A shell loop around an upload or submission can repeat a write that already succeeded, so tune the built-in retries instead:
 
 ```bash  theme={null}
-for i in {1..3}; do
-  asc builds upload --app "$APP_ID" --ipa "$IPA_PATH" && break
-  echo "Retry $i/3..."
-  sleep 10
-done
+export ASC_MAX_RETRIES=5
+export ASC_MAX_DELAY=1m
+export ASC_RETRY_LOG=1  # log each retry to stderr
 ```
 
 ## Next Steps

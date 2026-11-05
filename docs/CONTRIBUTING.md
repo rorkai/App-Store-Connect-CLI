@@ -52,9 +52,9 @@ make check-agent-skills
 
 - Command implementations live in `internal/cli/<domain>` packages
 - Each domain exposes a top-level `XCommand() *ffcli.Command`
-- `cmd/` only contains the root entry point; do not add wrapper files
+- `cmd/` holds the root command and root-level dispatch (exit codes, root flag handling); do not add per-command wrapper files there
 - Register top-level commands in `internal/cli/registry/registry.go` (order matters)
-- Shared CLI helpers go in `internal/cli/shared` (use `shared_wrappers.go` as needed)
+- Shared CLI helpers go in `internal/cli/shared`
 
 ## Adding a New Command
 
@@ -66,9 +66,9 @@ make check-agent-skills
 
 ## Adding a New API Endpoint
 
-1. Add method to `internal/asc/client.go`
+1. Add the method to the resource's `internal/asc/client_*.go` file
 2. Add types for request/response structs
-3. Add helper functions for table/markdown output
+3. Register table/markdown rows in the matching `internal/asc/output_*.go` file
 4. Create command in `internal/cli/<domain>` to expose the endpoint
 5. Write HTTP client tests with mocked responses
 6. If endpoint tests are repetitive, group the request-wiring cases, but keep at least one representative non-empty decode assertion and one representative output-structure assertion where formatting is user-facing
@@ -94,8 +94,7 @@ ASC_BYPASS_KEYCHAIN=1 make test
 
 # 4. Audit help output for all parent commands
 for cmd in auth analytics finance apps app-tags testflight builds versions \
-           feedback crashes localizations \
-           build-localizations sandbox submit xcode-cloud reviews; do
+           localizations build-localizations sandbox submit xcode-cloud reviews; do
   echo "=== $cmd ===" && ./asc $cmd --help 2>&1
 done
 
