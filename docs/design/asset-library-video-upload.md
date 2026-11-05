@@ -1,6 +1,6 @@
 # Asset Library video and standalone media uploads
 
-Historical implementation scope and probe evidence are preserved below. For the current integrated workflow and OpenAPI 4.5.1 contract, see the [Asset Library guide](../../guides/asset-library.mdx).
+Historical implementation scope and probe evidence are preserved below. For the current integrated workflow and OpenAPI 4.5.1 contract, see the [Asset Library guide](../../website/src/content/docs/guides/asset-library.mdx).
 
 Add `asc asset-library videos upload --library-id ID --file video.mp4`
 and `--category CREATIVE_ASSETS|APP_SCREENSHOTS_AND_PREVIEWS` to image and video

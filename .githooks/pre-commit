@@ -40,7 +40,7 @@ while IFS= read -r path; do
   esac
 
   case "$path" in
-    docs.json|.mintignore|.mintlify/*|*.mdx|cicd/*|commands/*|concepts/*|configuration/*|guides/*|resources/*)
+    docs.json|.mintignore|.mintlify/*|*.mdx|cicd/*|commands/*|concepts/*|configuration/*|guides/*|resources/*|website/*)
       needs_website_docs=1
       ;;
   esac
@@ -64,7 +64,7 @@ while IFS= read -r path; do
       needs_code=1
       go_files="$go_files $path"
       ;;
-    docs.json|.mintignore|.mintlify/*|*.mdx|cicd/*|commands/*|concepts/*|configuration/*|guides/*|resources/*|README.md|CONTRIBUTING.md|SUPPORT.md|docs/*)
+    docs.json|.mintignore|.mintlify/*|*.mdx|cicd/*|commands/*|concepts/*|configuration/*|guides/*|resources/*|website/*|README.md|CONTRIBUTING.md|SUPPORT.md|docs/*)
       ;;
     *)
       needs_code=1

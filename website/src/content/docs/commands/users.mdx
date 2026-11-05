@@ -1,0 +1,382 @@
+---
+title: users
+description: Manage users and invitations in App Store Connect
+---
+Manage users, roles, permissions, and invitations in App Store Connect.
+
+## Quick Start
+
+```bash
+asc users list
+asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "ADMIN" --all-apps
+asc users update --id "USER_ID" --roles "DEVELOPER"
+```
+
+## Subcommands
+
+* `list` - List users in App Store Connect
+* `get` - Get a user by ID
+* `update` - Update a user
+* `delete` - Delete a user
+* `invite` - Invite a user
+* `invites` - Manage user invitations
+* `visible-apps` - Manage visible apps for users
+
+## Commands
+
+### users list
+
+List users in App Store Connect:
+
+```bash
+asc users list
+asc users list --email "user@example.com"
+asc users list --role "ADMIN"
+asc users list --role "DEVELOPER,APP_MANAGER"
+asc users list --visible-app "APP_ID"
+asc users list --sort "username,-lastName"
+asc users list --fields "username,lastName" --include visibleApps --app-fields "name,bundleId"
+asc users list --limit 50
+asc users list --paginate
+```
+
+**Flags:**
+
+* `--email` - Filter by email/username
+* `--role` - Filter by role (comma-separated): `ADMIN`, `DEVELOPER`, `APP_MANAGER`, etc.
+* `--visible-app` - Filter by visible app ID(s), comma-separated
+* `--sort` - Sort by one or more comma-separated expressions: `username`, `-username`, `lastName`, or `-lastName`
+* `--fields` - User fields to include: `username`, `firstName`, `lastName`, `roles`, `allAppsVisible`, `provisioningAllowed`, `visibleApps`
+* `--app-fields` - Fields to include for related apps (requires `--include visibleApps`)
+* `--include` - Include related resources: `visibleApps`
+* `--visible-apps-limit` - Maximum included visible apps (1-50; requires `--include visibleApps`)
+* `--limit` - Maximum results per page (1-200)
+* `--next` - Fetch next page using a links.next URL
+* `--paginate` - Automatically fetch all pages
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+### users get
+
+Get a user by ID:
+
+```bash
+asc users view --id "USER_ID"
+asc users view --id "USER_ID" --include visibleApps
+```
+
+**Flags:**
+
+* `--id` - User ID (required)
+* `--include` - Include related resources: `visibleApps`
+* `--app-fields` - Fields to include for related apps (requires `--include visibleApps`)
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+### users update
+
+Update a user:
+
+```bash
+asc users update --id "USER_ID" --roles "ADMIN"
+asc users update --id "USER_ID" --roles "DEVELOPER" --visible-app "APP_ID" --confirm
+asc users update --id "USER_ID" --roles "DEVELOPER" --provisioning-allowed false
+```
+
+**Flags:**
+
+* `--id` - User ID (required)
+* `--roles` - Comma-separated role IDs (required)
+* `--visible-app` - Comma-separated app IDs for visible apps
+* `--confirm` - Confirm replacing the user's existing visible-app relationship (required with `--visible-app`)
+* `--provisioning-allowed` - Grant or remove provisioning access: `true` or `false` (omit to keep current access while the new roles allow it)
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+### users delete
+
+Delete a user:
+
+```bash
+asc users delete --id "USER_ID" --confirm
+```
+
+**Flags:**
+
+* `--id` - User ID (required)
+* `--confirm` - Confirm deletion (required)
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+### users invite
+
+Invite a new user to App Store Connect:
+
+```bash
+asc users invite \
+  --email "user@example.com" \
+  --first-name "Jane" \
+  --last-name "Doe" \
+  --roles "ADMIN" \
+  --all-apps
+
+asc users invite \
+  --email "user@example.com" \
+  --first-name "John" \
+  --last-name "Smith" \
+  --roles "DEVELOPER" \
+  --visible-app "APP_ID"
+
+asc users invite \
+  --email "user@example.com" \
+  --first-name "Jane" \
+  --last-name "Doe" \
+  --roles "DEVELOPER" \
+  --all-apps \
+  --provisioning-allowed true
+```
+
+**Flags:**
+
+* `--email` - Email address to invite (required)
+* `--first-name` - First name of the invitee (required)
+* `--last-name` - Last name of the invitee (required)
+* `--roles` - Comma-separated role IDs (required)
+* `--all-apps` - Grant access to all apps
+* `--visible-app` - Comma-separated app IDs for visible apps
+* `--provisioning-allowed` - Grant provisioning access: `true` or `false` (omit for Apple's default)
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+**Note:** Either `--all-apps` or `--visible-app` is required (mutually exclusive).
+
+## User Invitations
+
+### users invites list
+
+List user invitations:
+
+```bash
+asc users invites list
+asc users invites list --limit 50
+asc users invites list --paginate
+```
+
+**Flags:**
+
+* `--limit` - Maximum results per page (1-200)
+* `--next` - Fetch next page using a links.next URL
+* `--paginate` - Automatically fetch all pages
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+### users invites view
+
+Get a user invitation by ID:
+
+```bash
+asc users invites view --id "INVITE_ID"
+```
+
+**Flags:**
+
+* `--id` - Invitation ID (required)
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+### users invites revoke
+
+Revoke a user invitation:
+
+```bash
+asc users invites revoke --id "INVITE_ID" --confirm
+```
+
+**Flags:**
+
+* `--id` - Invitation ID (required)
+* `--confirm` - Confirm revocation (required)
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+### users invites visible-apps list
+
+List visible apps for an invitation:
+
+```bash
+asc users invites visible-apps list --id "INVITE_ID"
+```
+
+**Flags:**
+
+* `--id` - Invitation ID (required)
+* `--limit` - Maximum results per page (1-200)
+* `--next` - Fetch next page using a links.next URL
+* `--paginate` - Automatically fetch all pages
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+## Visible Apps
+
+### users visible-apps list
+
+List visible apps for a user:
+
+```bash
+asc users visible-apps list --id "USER_ID"
+asc users visible-apps list --id "USER_ID" --limit 50
+asc users visible-apps list --id "USER_ID" --paginate
+```
+
+**Flags:**
+
+* `--id` - User ID (required)
+* `--limit` - Maximum results per page (1-200)
+* `--next` - Fetch next page using a links.next URL
+* `--paginate` - Automatically fetch all pages
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+### users visible-apps list
+
+Get visible apps for a user:
+
+```bash
+asc users visible-apps list --id "USER_ID"
+```
+
+**Flags:**
+
+* `--id` - User ID (required)
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+## User Roles
+
+Common user roles in App Store Connect:
+
+* `ADMIN` - Full access to all features
+* `APP_MANAGER` - Manage apps and submissions
+* `DEVELOPER` - Access to development features
+* `MARKETING` - Access to marketing features
+* `SALES` - Access to sales and trends
+* `FINANCE` - Access to financial reports
+* `CUSTOMER_SUPPORT` - Access to customer support features
+* `ACCESS_TO_REPORTS` - Read-only access to reports (deprecated in App Store Connect API 4.4; see [UserRole](https://developer.apple.com/documentation/appstoreconnectapi/userrole) for alternatives)
+
+See the [App Store Connect documentation](https://developer.apple.com/support/roles/) for role descriptions and permissions.
+
+## Examples
+
+### Invite Admin User
+
+```bash
+asc users invite \
+  --email "admin@example.com" \
+  --first-name "Admin" \
+  --last-name "User" \
+  --roles "ADMIN" \
+  --all-apps
+```
+
+### Invite Developer for Specific App
+
+```bash
+asc users invite \
+  --email "dev@example.com" \
+  --first-name "Dev" \
+  --last-name "User" \
+  --roles "DEVELOPER" \
+  --visible-app "123456789"
+```
+
+### Update User Role
+
+```bash
+# Change user role from DEVELOPER to APP_MANAGER
+asc users update --id "USER_ID" --roles "APP_MANAGER"
+```
+
+### Grant App Access
+
+```bash
+# Grant access to specific apps
+asc users update \
+  --id "USER_ID" \
+  --roles "DEVELOPER" \
+  --visible-app "123456789,987654321" \
+  --confirm
+```
+
+### List All Admins
+
+```bash
+asc users list --role "ADMIN" --output table
+```
+
+### Revoke Invitation
+
+```bash
+# List pending invitations
+asc users invites list --output table
+
+# Revoke a specific invitation
+asc users invites revoke --id "INVITE_ID" --confirm
+```
+
+### Remove User
+
+```bash
+asc users delete --id "USER_ID" --confirm
+```
+
+## Automation
+
+### Bulk User Invitation
+
+```bash
+#!/bin/bash
+set -e
+
+# Read users from CSV file
+while IFS=, read -r email first_name last_name role apps; do
+  echo "Inviting $email as $role"
+  
+  if [ "$apps" = "ALL" ]; then
+    asc users invite \
+      --email "$email" \
+      --first-name "$first_name" \
+      --last-name "$last_name" \
+      --roles "$role" \
+      --all-apps
+  else
+    asc users invite \
+      --email "$email" \
+      --first-name "$first_name" \
+      --last-name "$last_name" \
+      --roles "$role" \
+      --visible-app "$apps"
+  fi
+done < users.csv
+```
+
+**users.csv:**
+
+```csv
+dev1@example.com,Dev,One,DEVELOPER,123456789
+dev2@example.com,Dev,Two,DEVELOPER,123456789,987654321
+admin@example.com,Admin,User,ADMIN,ALL
+```
+
+### User Audit Report
+
+```bash
+#!/bin/bash
+set -e
+
+# Generate user audit report
+OUTPUT=$(asc users list --paginate --output json)
+
+# Extract user details
+echo "$OUTPUT" | jq -r '.data[] | "\(.attributes.username),\(.attributes.roles[0]),\(.attributes.allAppsVisible)"'
+```

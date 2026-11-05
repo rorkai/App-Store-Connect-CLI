@@ -43,7 +43,7 @@ asc install-skills
 
 The command installs the 25 skills from pinned, reviewed commit
 `f52c4f04323bb2dfb21ca8be82e6494e9cd0b4d8` and requires only `git`; it runs no Node.js, `npx`, npm package, or repository script. See
-[Agent skills](installation.mdx#agent-skills) for what it verifies and changes.
+[Agent skills](website/src/content/docs/installation.mdx#agent-skills) for what it verifies and changes.
 
 ## Quick Start
 
@@ -217,7 +217,7 @@ asc telemetry reset-id
 ```
 
 `ASC_TELEMETRY_DISABLED=1` and `DO_NOT_TRACK=1` also disable telemetry. See the
-[telemetry reference](commands/telemetry.mdx) for the exact event payload,
+[telemetry reference](website/src/content/docs/commands/telemetry.mdx) for the exact event payload,
 runtime handling, collector endpoint, and all controls.
 
 ## Support
@@ -312,8 +312,8 @@ asc validate --app "123456789" --version "1.2.3" --deep
 ```
 
 macOS release builds support USB security keys for web login with
-`--two-factor-method security-key`; see [Security key login](commands/web.mdx#security-key-login).
-See [commands/validate.mdx](commands/validate.mdx) for every check and finding ID.
+`--two-factor-method security-key`; see [Security key login](website/src/content/docs/commands/web.mdx#security-key-login).
+See [commands/validate.mdx](website/src/content/docs/commands/validate.mdx) for every check and finding ID.
 
 ### Review status and blockers
 
@@ -392,7 +392,7 @@ device/profile changes. `signing run` provides a temporary macOS keychain only
 for single-target archives. Multi-target exports must import the identity into
 a job-scoped keychain and install every reconciled profile for the job-exclusive
 macOS user. See the
-[signing guide](guides/code-signing.mdx) for setup, CI, rotation, security
+[signing guide](website/src/content/docs/guides/code-signing.mdx) for setup, CI, rotation, security
 boundaries, and troubleshooting.
 
 ### Workflow automation
@@ -453,7 +453,7 @@ asc ads campaigns find --ad-account "987654" --file query.json --output json
 asc ads reports apps campaigns --ad-account "987654" --file report.json --output json
 ```
 
-See [guides/apple-ads-playbooks.mdx](guides/apple-ads-playbooks.mdx) for
+See [guides/apple-ads-playbooks.mdx](website/src/content/docs/guides/apple-ads-playbooks.mdx) for
 operator playbooks covering credential safety, org inspection, read-only smoke
 tests, reporting, raw API usage, and guarded mutations.
 
@@ -499,12 +499,12 @@ Reference hierarchy:
 ## Documentation
 
 - [docs/CI_CD.md](docs/CI_CD.md) - CI/CD integration guides (GitHub Actions, GitLab, Bitrise, CircleCI)
-- [commands/signing.mdx](commands/signing.mdx) - signing identities, encrypted sync, CI, and release-testing profiles
+- [commands/signing.mdx](website/src/content/docs/commands/signing.mdx) - signing identities, encrypted sync, CI, and release-testing profiles
 - [docs/COMMANDS.md](docs/COMMANDS.md) - Command families and reference navigation
 - [docs/PARITY.md](docs/PARITY.md) - Remaining parity areas and intentional non-goals
 - [docs/WORKFLOWS.md](docs/WORKFLOWS.md) - Reusable workflow patterns, including local Xcode to TestFlight
 - [docs/linux-ios.md](docs/linux-ios.md) - Portable Linux iOS builds and IPA packaging with xtool and rcodesign
-- [guides/apple-ads-playbooks.mdx](guides/apple-ads-playbooks.mdx) - Apple Ads operator playbooks
+- [guides/apple-ads-playbooks.mdx](website/src/content/docs/guides/apple-ads-playbooks.mdx) - Apple Ads operator playbooks
 - [docs/architecture/storekit-retention-messaging.md](docs/architecture/storekit-retention-messaging.md) - Retention Messaging setup and sandbox verification
 - [docs/API_NOTES.md](docs/API_NOTES.md) - API quirks and behaviors
 - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - CLI development and testing notes

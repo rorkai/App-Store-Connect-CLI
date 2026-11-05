@@ -1,0 +1,478 @@
+---
+title: Bundle IDs
+description: Manage bundle IDs and app capabilities
+---
+Create, update, and manage bundle identifiers and their associated capabilities.
+
+## Overview
+
+Bundle IDs uniquely identify your apps on Apple platforms. The `bundle-ids` command manages bundle identifiers and their capabilities in App Store Connect.
+
+## List Bundle IDs
+
+List all bundle IDs in your account:
+
+```bash
+# List all bundle IDs
+asc bundle-ids list
+
+# Limit results per page
+asc bundle-ids list --limit 50
+
+# Fetch all pages automatically
+asc bundle-ids list --paginate
+
+# Output as table
+asc bundle-ids list --output table
+```
+
+### Pagination Options
+
+* `--limit` - Results per page (1-200)
+* `--next` - Fetch next page using a `links.next` URL
+* `--paginate` - Automatically fetch all pages
+
+## Get Bundle ID Details
+
+Retrieve a specific bundle ID by resource ID:
+
+```bash
+asc bundle-ids view --id "BUNDLE_ID"
+```
+
+**Note:** The `--id` parameter expects the App Store Connect resource ID, not the bundle identifier string (e.g., "com.example.app"). Use `list` to find the resource ID.
+
+## Create Bundle ID
+
+Register a new bundle identifier:
+
+```bash
+asc bundle-ids create --identifier "com.example.app" \
+  --name "Example App" \
+  --platform IOS
+```
+
+### Required Parameters
+
+* `--identifier` - Bundle ID string (e.g., com.example.app)
+* `--name` - Display name for the bundle ID
+
+### Optional Parameters
+
+* `--platform` - Platform: IOS (default), MAC\_OS, UNIVERSAL
+* `--seed-id` - App ID prefix (`seedId`). Omit it for Apple's default. Blank values are rejected.
+
+### Bundle ID Format
+
+Bundle IDs must follow these rules:
+
+* Use reverse DNS notation: `com.company.app`
+* Contain only alphanumeric characters (A-Z, a-z, 0-9), hyphens (-), periods (.), and an optional terminal asterisk (*) for wildcard identifiers
+* Cannot start or end with a period
+* Cannot contain consecutive periods
+
+**Valid examples:**
+
+* `com.example.myapp`
+* `com.example.my-app`
+* `com.example.myapp.watchkit`
+
+**Invalid examples:**
+
+* `.com.example.app` (starts with period)
+* `com..example.app` (consecutive periods)
+* `com.example.app!` (special characters)
+
+### Wildcard Bundle IDs
+
+Create wildcard bundle IDs for app groups:
+
+```bash
+asc bundle-ids create --identifier "com.example.*" \
+  --name "Example App Family" \
+  --platform IOS
+```
+
+**Wildcard limitations:**
+
+* Can only use `*` as the last component
+* Cannot use certain capabilities (Push Notifications, In-App Purchase, etc.)
+* Useful for app extensions and development
+
+Apple may normalize a wildcard created with `--platform IOS` to `UNIVERSAL` in the response; use the returned platform as authoritative.
+
+## Update Bundle ID
+
+Update a bundle ID's display name:
+
+```bash
+asc bundle-ids update --id "BUNDLE_ID" --name "New Name"
+```
+
+**Note:** You cannot change the bundle identifier string itself. Only the display name can be updated.
+
+## Delete Bundle ID
+
+Delete a bundle identifier:
+
+```bash
+asc bundle-ids delete --id "BUNDLE_ID" --confirm
+```
+
+**Warning:** Deleting a bundle ID:
+
+* Cannot be undone
+* Invalidates all associated provisioning profiles
+* Removes all capability configurations
+* Should only be done if the bundle ID is no longer in use
+
+## Bundle ID Relationships
+
+### Get Associated App
+
+Find the app using this bundle ID:
+
+```bash
+asc bundle-ids app view --id "BUNDLE_ID"
+```
+
+### List Associated Profiles
+
+List all provisioning profiles for a bundle ID:
+
+```bash
+asc bundle-ids profiles list --id "BUNDLE_ID"
+```
+
+## Capabilities Management
+
+Manage app capabilities for a bundle ID.
+
+### Reconcile from entitlements
+
+Plan or apply the public-API capabilities implied by an entitlements file. Sub-feature settings already enabled, such as broadcast push, are kept. Unknown keys are a usage error unless `--ignore-unknown` is set.
+
+If an API write fails during `apply`, the command prints a partial receipt with `applied` and `failed` action statuses before exiting with an error. Inspect that receipt before retrying.
+If the plan requires a web-session capability, `apply` makes no API writes and exits with a receipt showing the manual command to run.
+
+```bash
+asc bundle-ids capabilities reconcile plan --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements
+asc bundle-ids capabilities reconcile apply --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements --confirm
+```
+
+### List Capabilities
+
+List all capabilities for a bundle ID:
+
+```bash
+asc bundle-ids capabilities list --bundle "BUNDLE_ID"
+
+# Fetch all pages
+asc bundle-ids capabilities list --bundle "BUNDLE_ID" --paginate
+```
+
+### Add Capability
+
+Enable a capability for a bundle ID:
+
+```bash
+# Simple capability (no settings)
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability PUSH_NOTIFICATIONS
+
+# Capability with settings (iCloud)
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability ICLOUD \
+  --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_6","enabled":true}]}]'
+```
+
+`--if-exists fail|skip|update` (default `fail`) controls a 409 that reports the
+capability as already enabled: `skip` prints the existing capability unchanged
+and exits 0, and `update` applies `--settings` to it (without `--settings` it
+behaves like `skip`). Apple usually accepts a repeated add of an API-creatable
+capability as success, so the flag only engages when Apple reports the
+duplicate as a 409. Other 409s keep failing, including
+`ENTITY_ERROR.ATTRIBUTE.TYPE` for a capability type the API cannot create.
+
+```bash
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability ICLOUD --if-exists skip
+```
+
+### Common Capability Types
+
+**No settings required:**
+
+* `PUSH_NOTIFICATIONS` - Push notifications
+* `IN_APP_PURCHASE` - In-App Purchase
+* `GAME_CENTER` - Game Center
+* `WALLET` - Wallet (Apple Pay)
+* `SIRIKIT` - SiriKit
+* `PERSONAL_VPN` - Personal VPN
+* `NETWORK_EXTENSIONS` - Network Extensions
+* `HOT_SPOT` - Hotspot Configuration
+* `MULTIPATH` - Multipath networking
+* `NFC_TAG_READING` - NFC tag reading
+
+**Capabilities with settings documented in Apple's current schema:**
+
+* `ICLOUD` - iCloud (CloudKit/Documents)
+* `DATA_PROTECTION` - Data Protection
+* `APPLE_ID_AUTH` - Sign in with Apple consent
+
+The published schema lists `ICLOUD_VERSION`,
+`DATA_PROTECTION_PERMISSION_LEVEL`, and `APPLE_ID_AUTH_APP_CONSENT`, but Apple
+can return newer setting and option keys before they appear in that schema.
+`--settings` requires exact JSON field names and value types, then sends key
+strings and nonempty `allowedInstances` values unchanged. Current documented
+examples include `XCODE_5`, `XCODE_6`, `COMPLETE_PROTECTION`,
+`PROTECTED_UNLESS_OPEN`, `PROTECTED_UNTIL_FIRST_USER_AUTH`, and
+`PRIMARY_APP_CONSENT`.
+
+### iCloud Capability
+
+```bash
+# Enable iCloud with CloudKit
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability ICLOUD \
+  --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_6","enabled":true}]}]'
+
+# Enable legacy iCloud (documents)
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability ICLOUD \
+  --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_5","enabled":true}]}]'
+```
+
+### App Groups Capability
+
+```bash
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability APP_GROUPS
+```
+
+App group membership is not configured through capability settings. Configure
+the group association separately in Certificates, Identifiers & Profiles.
+
+### Update Capability
+
+Modify capability settings:
+
+```bash
+asc bundle-ids capabilities update --id "CAPABILITY_ID" \
+  --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_6","enabled":true}]}]'
+
+# Change capability type
+asc bundle-ids capabilities update --id "CAPABILITY_ID" \
+  --capability PUSH_NOTIFICATIONS
+```
+
+### Remove Capability
+
+Disable a capability:
+
+```bash
+asc bundle-ids capabilities remove --id "CAPABILITY_ID" --confirm
+```
+
+**Note:** Removing capabilities may cause provisioning profiles to become invalid. Regenerate profiles after capability changes.
+
+## Complete Example Workflows
+
+### Create App with Capabilities
+
+```bash
+# 1. Create bundle ID
+asc bundle-ids create --identifier "com.example.myapp" \
+  --name "My App" \
+  --platform IOS
+
+# Note BUNDLE_ID from response
+
+# 2. Add Push Notifications
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability PUSH_NOTIFICATIONS
+
+# 3. Add In-App Purchase
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability IN_APP_PURCHASE
+
+# 4. Add iCloud
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability ICLOUD \
+  --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_6","enabled":true}]}]'
+
+# 5. Verify capabilities
+asc bundle-ids capabilities list --bundle "BUNDLE_ID" --output table
+```
+
+### App Extensions
+
+Create bundle IDs for app extensions:
+
+```bash
+# Main app
+asc bundle-ids create --identifier "com.example.app" \
+  --name "Example App" \
+  --platform IOS
+
+# Widget extension
+asc bundle-ids create --identifier "com.example.app.widget" \
+  --name "Example Widget" \
+  --platform IOS
+
+# Share extension
+asc bundle-ids create --identifier "com.example.app.share" \
+  --name "Example Share Extension" \
+  --platform IOS
+
+# Watch app
+asc bundle-ids create --identifier "com.example.app.watchkitapp" \
+  --name "Example Watch App" \
+  --platform IOS
+```
+
+### App Groups Setup
+
+Enable app group sharing between main app and extensions:
+
+```bash
+# 1. Get bundle IDs
+asc bundle-ids list --output json | grep "com.example.app"
+# Note resource IDs for main app and extensions
+
+# 2. Add App Groups to main app
+asc bundle-ids capabilities add --bundle "MAIN_BUNDLE_ID" \
+  --capability APP_GROUPS
+
+# 3. Add App Groups to widget
+asc bundle-ids capabilities add --bundle "WIDGET_BUNDLE_ID" \
+  --capability APP_GROUPS
+
+# 4. Add App Groups to share extension
+asc bundle-ids capabilities add --bundle "SHARE_BUNDLE_ID" \
+  --capability APP_GROUPS
+```
+
+### Associated Domains (Universal Links)
+
+```bash
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability ASSOCIATED_DOMAINS
+```
+
+Associated domain values are app entitlements and are not configured through
+the bundle ID capability settings payload.
+
+### HealthKit and HomeKit
+
+```bash
+# HealthKit
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability HEALTHKIT
+
+# HomeKit
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability HOMEKIT
+```
+
+## Platform-Specific Considerations
+
+### iOS / tvOS
+
+Most capabilities available. Use `--platform IOS` (default).
+
+### macOS
+
+Some capabilities differ for macOS:
+
+```bash
+asc bundle-ids create --identifier "com.example.macapp" \
+  --name "Example Mac App" \
+  --platform MAC_OS
+```
+
+**macOS-specific capabilities:**
+
+* `SANDBOX` - App Sandbox
+* `SYSTEM_EXTENSION_INSTALL` - System Extensions
+* `USER_MANAGEMENT` - User Management
+
+### Universal (Mac Catalyst)
+
+For Mac Catalyst apps that run on both iOS and macOS:
+
+```bash
+asc bundle-ids create --identifier "com.example.universal" \
+  --name "Example Universal App" \
+  --platform UNIVERSAL
+```
+
+## Troubleshooting
+
+### Bundle ID Already Exists
+
+```
+Error: A bundle ID with identifier 'com.example.app' already exists
+```
+
+**Solution:**
+
+```bash
+# List to find existing bundle ID
+asc bundle-ids list --output json | grep "com.example.app"
+
+# Use the existing bundle ID or choose a different identifier
+```
+
+### Invalid Bundle Identifier Format
+
+```
+Error: Bundle identifier is invalid
+```
+
+Ensure identifier:
+
+* Uses reverse DNS notation
+* Contains only alphanumeric, hyphens, periods, and an optional terminal `*` for wildcard identifiers
+* Doesn't start/end with periods
+* No consecutive periods
+
+### Capability Settings Invalid
+
+JSON settings must be properly formatted:
+
+```bash
+# Correct format
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" \
+  --capability ICLOUD \
+  --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_6","enabled":true}]}]'
+```
+
+Validate JSON:
+
+```bash
+echo '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_6","enabled":true}]}]' | jq .
+```
+
+### Provisioning Profiles Invalid After Capability Change
+
+After adding or removing capabilities, regenerate profiles:
+
+```bash
+# List affected profiles
+asc bundle-ids profiles list --id "BUNDLE_ID"
+
+# Delete old profiles
+asc profiles delete --id "PROFILE_ID" --confirm
+
+# Create new profiles with updated capabilities
+asc profiles create --name "Updated Profile" \
+  --profile-type IOS_APP_STORE \
+  --bundle "BUNDLE_ID" \
+  --certificate "CERT_ID"
+```
+
+## Related Commands
+
+* [Signing](/commands/signing) - Fetch signing assets
+* [Profiles](/commands/profiles) - Manage provisioning profiles
+* [Certificates](/commands/certificates) - Manage certificates

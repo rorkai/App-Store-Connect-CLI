@@ -113,7 +113,7 @@ func githubActionsDocFiles(t *testing.T) []string {
 			return err
 		}
 		if entry.IsDir() {
-			if path != "." && (entry.Name() == ".git" || entry.Name() == "node_modules") {
+			if path != "." && (entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "dist") {
 				return filepath.SkipDir
 			}
 			return nil

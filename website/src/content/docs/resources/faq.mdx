@@ -1,0 +1,464 @@
+---
+title: Frequently Asked Questions
+description: Common questions about the App Store Connect CLI
+---
+
+import { Accordion } from '@components/mdx';
+
+<Accordion title="What is the App Store Connect CLI?">
+  The App Store Connect CLI (`asc`) is an unofficial, fast, lightweight, and scriptable command-line tool for the App Store Connect API. It allows you to automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, IDE, or CI/CD pipeline.
+
+  It is written in Go with [ffcli](https://github.com/peterbourgon/ff) and covers apps, builds, TestFlight, reviews, analytics, signing, and more.
+</Accordion>
+
+<Accordion title="Is this an official Apple tool?">
+  No. This is an independent, unofficial tool and is not affiliated with, endorsed by, or sponsored by Apple Inc. It uses the public App Store Connect API that Apple provides for developers.
+
+  App Store Connect, TestFlight, Xcode Cloud, and Apple are trademarks of Apple Inc., registered in the U.S. and other countries.
+</Accordion>
+
+<Accordion title="How do I install the CLI?">
+  The recommended installation method is via Homebrew:
+
+  ```bash
+  brew install asc
+  ```
+
+  Alternatively, use the install script:
+
+  ```bash
+  curl -fsSL https://asccli.sh/install | bash
+  ```
+
+  For source builds and contributor setup, see the [Contributing Guide](/resources/contributing).
+</Accordion>
+
+<Accordion title="How do I authenticate with App Store Connect?">
+  You need an App Store Connect API key. Generate one at:
+  [https://appstoreconnect.apple.com/access/integrations/api](https://appstoreconnect.apple.com/access/integrations/api)
+
+  Then authenticate using:
+
+  ```bash
+  asc auth login \
+    --name "MyApp" \
+    --key-id "ABC123" \
+    --issuer-id "DEF456" \
+    --private-key /path/to/AuthKey.p8
+  ```
+
+  Credentials are stored securely in the system keychain (macOS) or config file (`~/.asc/config.json`) with restricted permissions.
+</Accordion>
+
+<Accordion title="Can I use environment variables for authentication?">
+  Yes. The CLI supports multiple authentication methods:
+
+  ```bash
+  unset ASC_PROFILE ASC_BYPASS_KEYCHAIN ASC_CONFIG_PATH
+  unset ASC_PRIVATE_KEY ASC_PRIVATE_KEY_B64
+  export ASC_KEY_TYPE="team"
+  export ASC_KEY_ID="YOUR_KEY_ID"
+  export ASC_ISSUER_ID="YOUR_ISSUER_ID"
+  export ASC_PRIVATE_KEY_PATH="/path/to/AuthKey.p8"
+
+  # Or use base64-encoded key for CI/CD
+  unset ASC_PROFILE ASC_BYPASS_KEYCHAIN ASC_CONFIG_PATH
+  unset ASC_PRIVATE_KEY_PATH ASC_PRIVATE_KEY
+  export ASC_PRIVATE_KEY_B64="BASE64_ENCODED_KEY"
+  ```
+
+  To bypass keychain entirely:
+
+  ```bash
+  export ASC_BYPASS_KEYCHAIN=1
+  ```
+
+  Authentication precedence is conditional. A selected profile wins, a complete environment set can skip stored lookup when no profile is selected and keychain bypass is disabled, and keychain bypass makes config the first stored source. See the [credential resolution matrix](/authentication#credential-resolution) for the complete behavior.
+</Accordion>
+
+<Accordion title="What permissions does my API key need?">
+  Permissions depend on what operations you want to perform:
+
+  * **App Manager**: Most operations (builds, TestFlight, metadata, screenshots)
+  * **Admin**: Full access including user management
+  * **Developer**: Read-only access to most resources
+  * **Sales**: Access to sales and analytics reports
+  * **Finance**: Access to financial reports
+  * **Customer Support**: Access to customer reviews and feedback
+
+  Generate keys with the minimum required permissions for your use case.
+</Accordion>
+
+<Accordion title="How do I list all available commands?">
+  Use the built-in help system:
+
+  ```bash
+  asc --help                    # List all commands
+  asc builds --help             # List builds subcommands
+  asc builds list --help        # Show all flags for a specific command
+  ```
+
+  The CLI is self-documenting. Always check `--help` for the current interface before running commands.
+</Accordion>
+
+<Accordion title="What output formats are supported?">
+  The CLI supports multiple output formats:
+
+  * `json` - Machine-readable JSON
+  * `table` - Human-readable table (default in terminals)
+  * `markdown` or `md` - Markdown tables
+
+  Output defaults are TTY-aware:
+
+  * Interactive terminal: `table`
+  * Pipes/files/CI: `json`
+
+  Set a global default:
+
+  ```bash
+  export ASC_DEFAULT_OUTPUT=json
+  ```
+
+  Or use explicit flags (always takes precedence):
+
+  ```bash
+  asc apps list --output json
+  ```
+</Accordion>
+
+<Accordion title="How do I handle pagination?">
+  Use the `--paginate` flag to automatically fetch all pages:
+
+  ```bash
+  asc testflight feedback list --app "123456789" --paginate
+  asc analytics view --request-id "REQUEST_ID" --processing-date "2024-01-01" --paginate
+  ```
+
+  Without `--paginate`, only the first page (default limit) is returned.
+</Accordion>
+
+<Accordion title="Can I use this in CI/CD pipelines?">
+  Yes. Each major CI platform has an installer:
+
+  * **GitHub Actions**: Use the official [setup-asc](https://github.com/rudrankriyam/setup-asc) action
+  * **GitLab CI/CD**: Use [asc-ci-components](https://github.com/rudrankriyam/asc-ci-components)
+  * **Bitrise**: Use the [setup-asc step](https://github.com/rudrankriyam/steps-setup-asc)
+  * **CircleCI**: Use the [asc orb](https://github.com/rudrankriyam/asc-orb)
+
+  See the [CI/CD overview](/cicd/overview) for examples.
+</Accordion>
+
+<Accordion title="How do I upload builds to TestFlight?">
+  Upload IPA or PKG files using:
+
+  ```bash
+  asc builds upload --app "123456789" --ipa "/path/to/MyApp.ipa"
+  ```
+
+  For large files, increase timeout:
+
+  ```bash
+  export ASC_UPLOAD_TIMEOUT=10m
+  asc builds upload --app "123456789" --ipa "/path/to/large.ipa"
+  ```
+
+  Then check processing status:
+
+  ```bash
+  asc builds list --app "123456789" --limit 5
+  ```
+</Accordion>
+
+<Accordion title="How do I get TestFlight feedback and crash reports?">
+  Fetch feedback:
+
+  ```bash
+  asc testflight feedback list --app "123456789" --paginate --output json
+  ```
+
+  Fetch recent crashes:
+
+  ```bash
+  asc testflight crashes list --app "123456789" --sort -createdDate --limit 10
+  ```
+
+  For detailed crash information, filter by build:
+
+  ```bash
+  asc testflight crashes list --app "123456789" --build-id "BUILD_ID"
+  ```
+</Accordion>
+
+<Accordion title="Can I manage app metadata and localizations?">
+  Yes. View app information:
+
+  ```bash
+  asc apps info view --app "123456789" --output json --pretty
+  ```
+
+  List localizations:
+
+  ```bash
+  asc localizations list --app "123456789"
+  ```
+
+  Update metadata using PATCH operations:
+
+  ```bash
+  asc app-setup info set --app "123456789" --locale en-US --name "New App Name"
+  ```
+</Accordion>
+
+<Accordion title="How do I work with signing certificates and profiles?">
+  List certificates:
+
+  ```bash
+  asc certificates list
+  ```
+
+  List provisioning profiles:
+
+  ```bash
+  asc profiles list
+  ```
+
+  List bundle IDs:
+
+  ```bash
+  asc bundle-ids list
+  ```
+
+  Create new resources or revoke existing ones using the respective `create` and `delete` subcommands.
+</Accordion>
+
+<Accordion title="What are workflows and how do I use them?">
+  Workflows run named sequences of shell and `asc` commands from `.asc/workflow.json`:
+
+  ```json
+  {
+    "workflows": {
+      "release": {
+        "steps": [
+          {"name": "publish", "run": "asc publish appstore --app 123456789 --ipa ./MyApp.ipa --version 1.2.3 --wait --submit --confirm"}
+        ]
+      }
+    }
+  }
+  ```
+
+  Run the workflow:
+
+  ```bash
+  asc workflow run --file .asc/workflow.json release
+  ```
+
+  See [Workflows](/configuration/workflows) for hooks, outputs, retries, and resume.
+</Accordion>
+
+<Accordion title="How do I enable debug logging?">
+  Enable debug mode to see detailed HTTP request/response logs:
+
+  ```bash
+  export ASC_DEBUG=api
+  asc apps list
+  ```
+
+  This shows:
+
+  * Request URLs and headers
+  * Response status codes and bodies
+  * Retry attempts and timing
+
+  Useful for troubleshooting API issues or reporting bugs.
+</Accordion>
+
+<Accordion title="How do I handle API rate limits?">
+  The CLI retries rate-limited (429) requests for every method. GET/HEAD requests also retry on 408, 500, 502, 503, 504, and transient transport errors. Configure retry behavior:
+
+  ```bash
+  export ASC_MAX_RETRIES=5
+  export ASC_BASE_DELAY=1s
+  export ASC_MAX_DELAY=30s
+  export ASC_RETRY_LOG=true
+  ```
+
+  **Note**: Ordinary POST/PATCH/PUT/DELETE requests are not replayed after a timeout, server error, or transport error, because the write may already have been applied. Explicitly idempotent mutations, such as setting territory availability, use the read retry policy.
+
+  For long-running operations, increase timeouts:
+
+  ```bash
+  export ASC_TIMEOUT=2m
+  ```
+</Accordion>
+
+<Accordion title="What's the difference between sales and finance reports?">
+  * **Sales reports**: Daily/weekly/monthly sales data, units sold, proceeds
+  * **Finance reports**: Apple fiscal month reports, payments, regions
+
+  Sales reports use calendar dates:
+
+  ```bash
+  asc analytics sales --vendor "12345678" --type SALES --subtype SUMMARY --frequency DAILY --date "2024-01-15"
+  ```
+
+  Finance reports use Apple fiscal months (`YYYY-MM`):
+
+  ```bash
+  asc finance reports --vendor "12345678" --report-type FINANCIAL --region ZZ --date "2024-01"
+  ```
+
+  See [API Notes](/resources/api-notes) for detailed quirks.
+</Accordion>
+
+<Accordion title="Can I manage sandbox testers?">
+  Yes. List sandbox testers:
+
+  ```bash
+  asc sandbox list
+  ```
+
+  View a specific tester:
+
+  ```bash
+  asc sandbox view --email "test@example.com"
+  ```
+
+  Update an existing tester:
+
+  ```bash
+  asc sandbox update --id "SANDBOX_TESTER_ID" --territory USA
+  ```
+
+  The current CLI supports `list`, `view`, `update`, and `clear-history` for sandbox testers.
+  Territory uses 3-letter codes such as `USA` and `JPN`.
+</Accordion>
+
+<Accordion title="How do I work with Game Center?">
+  Game Center operations require a Game Center detail ID. First, check if Game Center is enabled:
+
+  ```bash
+  asc game-center details list --app "123456789"
+  ```
+
+  Then manage achievements, leaderboards, and releases. Note:
+
+  * Releases are required to make resources live
+  * Image uploads follow a three-step flow (reserve → upload → commit)
+  * Some relationships are replace-only (PATCH)
+
+  See [API Notes](/resources/api-notes) for Game Center quirks.
+</Accordion>
+
+<Accordion title="Where can I find API documentation?">
+  Prefer the `sosumi.ai` mirror over `developer.apple.com`:
+
+  Replace:
+
+  ```
+  https://developer.apple.com/documentation/appstoreconnectapi/...
+  ```
+
+  With:
+
+  ```
+  https://sosumi.ai/documentation/appstoreconnectapi/...
+  ```
+
+  For offline reference, check the OpenAPI snapshot:
+
+  ```
+  docs/openapi/latest.json
+  docs/openapi/paths.txt
+  ```
+</Accordion>
+
+<Accordion title="How do I contribute to the project?">
+  Contributions are welcome! See the [Contributing Guide](/resources/contributing) for:
+
+  * Development setup
+  * Testing requirements
+  * PR guidelines
+  * Local validation checklist
+
+  All PRs must pass formatting, linting, and tests:
+
+  ```bash
+  make format
+  make lint
+  ASC_BYPASS_KEYCHAIN=1 make test
+  ```
+</Accordion>
+
+<Accordion title="How do I report security issues?">
+  Do NOT open public GitHub issues for security vulnerabilities.
+
+  Report privately using GitHub Security Advisories:
+  [https://github.com/rorkai/App-Store-Connect-CLI/security/advisories/new](https://github.com/rorkai/App-Store-Connect-CLI/security/advisories/new)
+
+  Include:
+
+  * Clear vulnerability description and impact
+  * Steps to reproduce
+  * Affected versions and platforms
+</Accordion>
+
+<Accordion title="What is asc skills?">
+  asc skills are agent-based automation workflows for common CLI operations including:
+
+  * Build uploads and distribution
+  * TestFlight management
+  * Metadata synchronization
+  * App submissions
+  * Signing and provisioning
+
+  Learn more: [https://github.com/rorkai/app-store-connect-cli-skills](https://github.com/rorkai/app-store-connect-cli-skills)
+</Accordion>
+
+<Accordion title="Can I use this on Linux?">
+  Yes. Release binaries are published for macOS, Linux, and Windows.
+
+  On Linux:
+
+  * Keychain features fall back to config file storage
+  * Released binaries do not require Go
+  * Source builds use the Go version declared by `go.mod`
+  * Commands that drive Xcode, the macOS keychain, or simulators need a Mac
+
+  Install using the install script:
+
+  ```bash
+  curl -fsSL https://asccli.sh/install | bash
+  ```
+</Accordion>
+
+<Accordion title="How do I update to the latest version?">
+  If installed via Homebrew:
+
+  ```bash
+  brew upgrade asc
+  ```
+
+  If installed via install script, re-run:
+
+  ```bash
+  curl -fsSL https://asccli.sh/install | bash
+  ```
+
+  Check current version:
+
+  ```bash
+  asc version
+  ```
+
+  View releases: [https://github.com/rorkai/App-Store-Connect-CLI/releases](https://github.com/rorkai/App-Store-Connect-CLI/releases)
+</Accordion>
+
+<Accordion title="Where can I get help?">
+  1. **Built-in help**: `asc --help` and `asc <command> --help`
+  2. **Documentation**: Full command reference and guides
+  3. **GitHub Issues**: Report bugs or request features
+  4. **Troubleshooting**: See [Troubleshooting Guide](/resources/troubleshooting)
+  5. **API Notes**: Check [API Notes](/resources/api-notes) for quirks
+
+  For issues: [https://github.com/rorkai/App-Store-Connect-CLI/issues](https://github.com/rorkai/App-Store-Connect-CLI/issues)
+</Accordion>

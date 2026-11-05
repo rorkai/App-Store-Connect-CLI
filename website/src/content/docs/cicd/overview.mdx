@@ -1,0 +1,419 @@
+---
+title: CI/CD Integration Overview
+description: Integrate App Store Connect CLI into your CI/CD pipelines for automated iOS, macOS, tvOS, and visionOS workflows
+---
+
+import { Accordion, AccordionGroup, Card, CardGroup, CodeGroup, Tab, Tabs, Warning } from '@components/mdx';
+
+## Introduction
+
+`asc` runs the same way on GitHub Actions, GitLab CI, Bitrise, and CircleCI:
+
+* **No interactive prompts**: every operation takes explicit flags
+* **TTY-aware output**: JSON by default when stdout is not a terminal
+* **Timeouts and retries** configurable through environment variables
+* **Credentials** from environment variables or your CI secret store
+
+## Quick Start
+
+All CI platforms follow the same basic pattern:
+
+1. **Install** `asc` using platform-specific actions/components
+2. **Authenticate** using environment variables
+3. **Run** commands with explicit flags
+
+<CodeGroup>
+  ```yaml title="GitHub Actions"
+  - uses: rudrankriyam/setup-asc@v1
+    with:
+      version: latest
+
+  - run: asc apps list
+    env:
+      ASC_PROFILE: ""
+      ASC_BYPASS_KEYCHAIN: ""
+      ASC_CONFIG_PATH: ""
+      ASC_KEY_TYPE: team
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY_PATH: ""
+      ASC_PRIVATE_KEY: ""
+      ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
+  ```
+
+  ```yaml title="GitLab CI"
+  include:
+    - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+      inputs:
+        stage: deploy
+        job_prefix: release
+        asc_version: latest
+        command: asc apps list
+  ```
+
+  ```yaml title="Bitrise"
+  workflows:
+    primary:
+      steps:
+      - git::https://github.com/rudrankriyam/steps-setup-asc.git@main:
+          inputs:
+          - mode: run
+          - version: latest
+          - command: asc apps list
+  ```
+
+  ```yaml title="CircleCI"
+  orbs:
+    asc: rudrankriyam/asc@1.0
+
+  jobs:
+    deploy:
+      steps:
+        - asc/install
+        - run: asc apps list
+  ```
+</CodeGroup>
+
+## Authentication in CI
+
+### Environment Variables
+
+All CI platforms use the same authentication environment variables:
+
+| Variable               | Description                             | Required       |
+| ---------------------- | --------------------------------------- | -------------- |
+| `ASC_KEY_TYPE`         | `team` (default) or `individual`        | For individual |
+| `ASC_KEY_ID`           | App Store Connect API Key ID            | Yes            |
+| `ASC_ISSUER_ID`        | App Store Connect Issuer ID             | Team keys only |
+| `ASC_PRIVATE_KEY_B64`  | Base64-encoded private key (`.p8` file) | Yes\*          |
+| `ASC_PRIVATE_KEY_PATH` | Path to `.p8` file (alternative)        | Yes\*          |
+| `ASC_PRIVATE_KEY`      | Raw private key content (alternative)   | Yes\*          |
+
+\*One of these three private key options is required.
+
+The examples below use team keys and pin `ASC_KEY_TYPE=team`. For an individual key, set `ASC_KEY_TYPE=individual` and omit `ASC_ISSUER_ID`; issuer values are ignored for individual keys.
+
+### Generating API Keys
+
+1. Visit [App Store Connect API Keys](https://appstoreconnect.apple.com/access/integrations/api)
+2. Create a new API key with appropriate permissions
+3. Download the `.p8` private key file (only available once!)
+4. Note the Key ID. Team keys also use the Issuer ID; individual keys use `ASC_KEY_TYPE=individual` without an issuer.
+
+### Storing Credentials
+
+<Warning>
+  Never commit API keys or private keys to version control. Always use your CI platform's secret management.
+</Warning>
+
+<Tabs>
+  <Tab title="GitHub Actions">
+    Store credentials in **Settings > Secrets and variables > Actions**:
+
+    * `ASC_KEY_ID`
+    * `ASC_KEY_TYPE` (`team` for this example)
+    * `ASC_ISSUER_ID`
+    * `ASC_PRIVATE_KEY_B64`
+
+    Base64-encode your private key:
+
+    ```bash
+    base64 -i AuthKey_ABC123.p8 | pbcopy
+    ```
+  </Tab>
+
+  <Tab title="GitLab CI">
+    Store credentials in **Settings > CI/CD > Variables**:
+
+    * `ASC_KEY_ID`
+    * `ASC_KEY_TYPE` (`team` for this example)
+    * `ASC_ISSUER_ID`
+    * `ASC_PRIVATE_KEY_B64`
+
+    Mark as **Protected** and **Masked** for security.
+  </Tab>
+
+  <Tab title="Bitrise">
+    Store credentials in **Workflow > Secrets**:
+
+    * `ASC_KEY_ID`
+    * `ASC_KEY_TYPE` (`team` for this example)
+    * `ASC_ISSUER_ID`
+    * `ASC_PRIVATE_KEY_B64`
+
+    Enable "Expose for Pull Requests" only if needed.
+  </Tab>
+
+  <Tab title="CircleCI">
+    Store credentials in **Project Settings > Environment Variables**:
+
+    * `ASC_KEY_ID`
+    * `ASC_KEY_TYPE` (`team` for this example)
+    * `ASC_ISSUER_ID`
+    * `ASC_PRIVATE_KEY_B64`
+  </Tab>
+</Tabs>
+
+## Optional Environment Variables
+
+Customize `asc` behavior in CI:
+
+| Variable             | Purpose                                     | Default      |
+| -------------------- | ------------------------------------------- | ------------ |
+| `ASC_DEFAULT_OUTPUT` | Output format (`json`, `table`, `markdown`) | `json` in CI |
+| `ASC_TIMEOUT`        | Per-request timeout (e.g., `90s`, `2m`)     | `30s`        |
+| `ASC_UPLOAD_TIMEOUT` | Upload timeout (e.g., `5m`, `10m`)          | `5m`         |
+| `ASC_DEBUG`          | Enable debug logging (`true`, `api`)        | -            |
+| `ASC_STRICT_AUTH`    | Fail when resolved credential fields mix sources | `false` |
+| `ASC_APP_ID`         | Default app ID for commands                 | -            |
+
+## Common CI/CD Workflows
+
+### TestFlight Distribution
+
+```bash
+# Upload build to TestFlight
+asc builds upload \
+  --app "123456789" \
+  --ipa "/path/to/MyApp.ipa"
+
+# Add to beta group
+asc builds add-groups \
+  --build-id "BUILD_ID" \
+  --group "External Testers"
+```
+
+### App Store Submission
+
+```bash
+# Validate version
+asc validate \
+  --app "123456789" \
+  --version "1.2.3"
+
+# Run the canonical App Store publish command
+asc publish appstore \
+  --app "123456789" \
+  --ipa "./MyApp.ipa" \
+  --version "1.2.3" \
+  --submit \
+  --confirm
+```
+
+### Metadata Updates
+
+```bash
+# Update app description
+asc apps info edit \
+  --app "123456789" \
+  --description "New description" \
+  --locale en-US
+
+# Upload screenshots
+asc screenshots upload \
+  --version-localization "VERSION_LOCALIZATION_ID" \
+  --device-type "IPHONE_65" \
+  --path "screenshot.png"
+```
+
+### Code Signing on a Fresh Runner
+
+A macOS runner can create or pull its signing identity, install it in a
+dedicated keychain, point the Xcode project at the downloaded profiles, and
+produce a signed archive with `asc` alone:
+
+```bash
+asc signing sync pull \
+  --repo git@github.com:team/signing.git \
+  --password-file "$password_file" \
+  --output-dir .asc/signing/pulled \
+  --output json > .asc/signing/pull-result.json
+
+asc xcode signing plan \
+  --project Example.xcodeproj \
+  --profile ".asc/signing/pulled/$profile_path" \
+  --configuration Release \
+  --export-options-out .asc/artifacts/ExportOptions.plist
+```
+
+Read each `profile_path` from the `files` list in the pull receipt rather than
+guessing the store layout. See [Bootstrap a fresh CI runner](/guides/code-signing#bootstrap-a-fresh-ci-runner)
+for the first run, keychain installation, profile installation, archive,
+export, and cleanup.
+
+### Crash and Feedback Monitoring
+
+```bash
+# Get latest crashes
+asc testflight crashes list \
+  --app "123456789" \
+  --sort -createdDate \
+  --limit 10 \
+  --output json
+
+# Get feedback
+asc testflight feedback list \
+  --app "123456789" \
+  --paginate
+```
+
+## Exit Codes
+
+* `0` - Success
+* `1` - Runtime error (API failures, network issues, etc.)
+* `2` - Usage error (invalid flags, missing arguments, etc.)
+* `3` - Authentication failure (missing App Store Connect API credentials, unauthorized, forbidden)
+
+Other codes report specific HTTP statuses and states; see [Error Handling](/concepts/error-handling#exit-codes) for the full table.
+
+Example error handling:
+
+```bash
+if ! asc builds upload --app "$APP_ID" --ipa "$IPA_PATH"; then
+  echo "Build upload failed"
+  exit 1
+fi
+```
+
+## Output Formats
+
+### Automatic JSON in CI
+
+When running in non-interactive environments (CI pipelines), `asc` automatically outputs JSON:
+
+```bash
+# Outputs JSON in CI, table in terminal
+asc apps list
+```
+
+### Explicit Output Control
+
+```bash
+# Force JSON output
+asc apps list --output json
+
+# Pretty-printed JSON
+asc apps list --output json --pretty
+
+# Markdown tables
+asc apps list --output markdown
+```
+
+### Parsing JSON Output
+
+```bash
+# JSON output is Apple's response envelope
+APP_ID=$(asc apps list --output json | jq -r '.data[0].id')
+
+# Processing state of the most recently uploaded build
+STATUS=$(asc builds list --app "$APP_ID" --sort -uploadedDate --limit 1 --output json | jq -r '.data[0].attributes.processingState')
+```
+
+## Platform-Specific Guides
+
+Detailed integration guides for each platform:
+
+<CardGroup cols={2}>
+  <Card title="GitHub Actions" icon="github" href="/cicd/github-actions">
+    Official action with version caching and matrix builds
+  </Card>
+
+  <Card title="GitLab CI" icon="gitlab" href="/cicd/gitlab-ci">
+    Reusable components for install and run workflows
+  </Card>
+
+  <Card title="Bitrise" icon="bitrise" href="/cicd/bitrise">
+    Step-based integration with environment variable support
+  </Card>
+
+  <Card title="CircleCI" icon="circle" href="/cicd/circleci">
+    Official orb for CircleCI pipelines
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use explicit flags">
+    Pass every value as a long-form flag (`--app`, `--version`) so CI logs show exactly what ran:
+
+    ```bash
+    asc builds upload --app "123456789" --ipa "MyApp.ipa"
+    ```
+  </Accordion>
+
+  <Accordion title="Set timeouts">
+    Configure timeouts for long-running operations:
+
+    ```yaml
+    env:
+      ASC_TIMEOUT: 2m
+      ASC_UPLOAD_TIMEOUT: 10m
+    ```
+  </Accordion>
+
+  <Accordion title="Enable debug logging for troubleshooting">
+    Use `ASC_DEBUG=api` to log HTTP requests/responses:
+
+    ```bash
+    ASC_DEBUG=api asc builds upload --app "$APP_ID" --ipa "$IPA_PATH"
+    ```
+  </Accordion>
+
+  <Accordion title="Handle pagination">
+    Use `--paginate` to fetch all results automatically:
+
+    ```bash
+    asc testflight feedback list --app "123456789" --paginate --output json > feedback.json
+    ```
+  </Accordion>
+
+  <Accordion title="Validate before destructive operations">
+    Use validation commands before submissions:
+
+    ```bash
+    asc validate --app "$APP_ID" --version "$VERSION" || exit 1
+    asc publish appstore --app "$APP_ID" --ipa "./MyApp.ipa" --version "$VERSION" --submit --confirm
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+### Authentication Failures
+
+```bash
+# Show the detected credential sources without printing secrets
+asc auth status
+
+# Diagnose keychain, config, private-key, and environment problems
+asc auth doctor
+
+# Confirm the credentials work with a read-only request
+asc apps list --limit 1 --output json
+```
+
+### Timeout Issues
+
+```bash
+# Increase timeouts
+export ASC_TIMEOUT=5m
+export ASC_UPLOAD_TIMEOUT=15m
+```
+
+### Rate Limiting
+
+`asc` retries rate-limited (`429`) requests with exponential backoff that honors `Retry-After`. `GET` and `HEAD` requests also retry on `408`, `500`, `502`, `503`, `504`, and transient transport errors. Ordinary writes retry only on `429`; explicitly idempotent mutations, such as setting territory availability, use the read retry policy. A shell loop around an upload or submission can repeat a write that already succeeded, so tune the built-in retries instead:
+
+```bash
+export ASC_MAX_RETRIES=5
+export ASC_MAX_DELAY=1m
+export ASC_RETRY_LOG=1  # log each retry to stderr
+```
+
+## Next Steps
+
+* Choose your CI platform and follow the specific guide
+* Review the [Commands Reference](/commands/overview) for available operations
+* Check out [Authentication](/authentication) for detailed credential management
+* Explore [Workflows](/concepts/workflows) for advanced automation patterns

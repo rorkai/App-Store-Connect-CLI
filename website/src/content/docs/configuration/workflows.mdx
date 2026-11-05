@@ -1,0 +1,556 @@
+---
+title: Workflow configuration
+description: Define multi-step automation workflows in .asc/workflow.json
+---
+
+import { Card, CardGroup, Note, ParamField, Warning } from '@components/mdx';
+
+Workflows allow you to define multi-step automation sequences in a `.asc/workflow.json` file. This is useful for complex release processes that involve multiple commands.
+
+## Workflow file structure
+
+Create a `.asc/workflow.json` file in your project root:
+
+```json
+{
+  "env": {
+    "APP_ID": "123456789",
+    "VERSION": "1.2.0"
+  },
+  "before_all": "echo 'Starting workflow'",
+  "after_all": "echo 'Workflow complete'",
+  "error": "echo 'Workflow failed' && exit 1",
+  "workflows": {
+    "testflight": {
+      "description": "Upload build to TestFlight",
+      "steps": [
+        "asc builds upload --app $APP_ID --ipa MyApp.ipa",
+        "asc builds list --app $APP_ID --limit 1",
+        "asc builds info --app $APP_ID --latest --output json"
+      ]
+    },
+    "release": {
+      "description": "Publish build to the App Store",
+      "steps": [
+        "asc publish appstore --app $APP_ID --ipa ./build/MyApp.ipa --version $VERSION --submit --confirm"
+      ]
+    }
+  }
+}
+```
+
+## Running workflows
+
+Execute a workflow by name:
+
+```bash
+asc workflow run --file .asc/workflow.json testflight
+```
+
+Or use the short form:
+
+```bash
+asc workflow run testflight
+```
+
+<Note>
+  When `--file` is omitted, the CLI looks for `.asc/workflow.json` in the current directory.
+</Note>
+
+## Workflow schema
+
+### Top-level fields
+
+<ParamField path="env" type="object">
+  Global environment variables available to all workflows
+
+  ```json
+  "env": {
+    "APP_ID": "123456789",
+    "API_KEY": "secret-value"
+  }
+  ```
+</ParamField>
+
+<ParamField path="before_all" type="string">
+  Command to run before any workflow executes
+
+  Useful for validation or setup tasks.
+</ParamField>
+
+<ParamField path="after_all" type="string">
+  Command to run after a workflow completes successfully
+
+  Useful for cleanup or notifications.
+</ParamField>
+
+<ParamField path="error" type="string">
+  Command to run if a workflow fails
+
+  Useful for error notifications or rollback.
+</ParamField>
+
+<ParamField path="workflows" type="object" required>
+  Map of workflow names to workflow definitions
+</ParamField>
+
+### Workflow fields
+
+<ParamField path="description" type="string">
+  Human-readable description of the workflow
+</ParamField>
+
+<ParamField path="private" type="boolean">
+  Hide this workflow from `asc workflow list`
+
+  Default: `false`
+</ParamField>
+
+<ParamField path="env" type="object">
+  Workflow-specific environment variables
+
+  These override global `env` variables.
+</ParamField>
+
+<ParamField path="steps" type="array" required>
+  List of steps to execute (see step format below)
+</ParamField>
+
+### Step formats
+
+Steps can be defined in two formats:
+
+**Short form** (string):
+
+```json
+"steps": [
+  "asc apps list",
+  "asc builds list --app 123456789"
+]
+```
+
+**Long form** (object):
+
+```json
+"steps": [
+  {
+    "name": "Upload build",
+    "run": "asc builds upload --app $APP_ID --ipa MyApp.ipa"
+  },
+  {
+    "name": "Verify upload",
+    "run": "asc builds list --app $APP_ID --limit 1",
+    "if": "VERIFY",
+    "retry": {
+      "max_attempts": 4,
+      "delay": "5s"
+    },
+    "timeout": "1m"
+  },
+  {
+    "name": "Run sub-workflow",
+    "workflow": "notify",
+    "with": {
+      "MESSAGE": "Build uploaded"
+    }
+  }
+]
+```
+
+#### Step fields
+
+<ParamField path="name" type="string">
+  Step name (displayed during execution)
+</ParamField>
+
+<ParamField path="run" type="string">
+  Shell command to execute
+</ParamField>
+
+<ParamField path="workflow" type="string">
+  Name of another workflow to run (sub-workflow)
+
+  Mutually exclusive with `run`.
+</ParamField>
+
+<ParamField path="if" type="string">
+  Name of an environment variable that controls whether the step runs
+
+  The step runs only when the variable has a truthy value such as `1`, `true`,
+  `yes`, `y`, or `on` (case-insensitive).
+</ParamField>
+
+<ParamField path="with" type="object">
+  Environment variables passed to the step
+
+  Only applies to `workflow` steps.
+</ParamField>
+
+<ParamField path="retry" type="object">
+  Explicit fixed-delay retry policy for a `run` step
+
+  Requires `max_attempts` from 2 through 100 and a positive `delay` duration no
+  greater than `24h`. `max_attempts` includes the initial execution.
+</ParamField>
+
+<ParamField path="timeout" type="string">
+  Positive per-attempt timeout for a `run` step, up to `24h`
+
+  Uses Go duration syntax such as `250ms`, `10s`, or `2m`.
+</ParamField>
+
+## Bounded retry and timeout
+
+Use retry only for a command you have explicitly determined is safe to repeat.
+The workflow runner does not inspect the command or silently retry mutations.
+
+```jsonc
+{
+  "name": "add_build_to_group",
+  "run": "asc builds add-groups --build-id $BUILD_ID --group $GROUP_ID",
+  "retry": {
+    "max_attempts": 6,
+    "delay": "10s"
+  },
+  "timeout": "2m"
+}
+```
+
+The retry delay is fixed and deterministic. `timeout` applies to each attempt.
+Attempt counts and delays stream to stderr; stdout remains structured JSON.
+Only successful-attempt output can satisfy declared `outputs`. Retry and timeout
+are rejected on sub-workflow calls and are not configurable on lifecycle hooks.
+If a command exits successfully but output extraction fails, the run is terminal;
+`--resume` reports the reason without re-executing the command.
+A timeout without `retry` is also terminal because the command may have completed
+remotely. A step that configures both fields remains resumable because `retry`
+explicitly opts into repeat execution.
+Persisted failed-attempt diagnostics alone do not make a run resumable. Recovery
+requires a successful checkpoint or a retry-enabled failed step. Omit `retry`
+or `timeout` to disable it; explicit `null` is rejected.
+
+## Environment variable precedence
+
+For steps in the workflow you invoked, variables resolve in this order (highest
+to lowest):
+
+1. **Runtime parameters** (`KEY:VALUE` arguments to `asc workflow run`)
+2. **Workflow `env` field**
+3. **Global `env` field**
+4. **System environment variables**
+
+Steps inside a called sub-workflow resolve in this order:
+
+1. **Step `with` field** on the calling `workflow` step
+2. **Runtime parameters**
+3. **Calling workflow's `env` field**
+4. **Global `env` field**
+5. **Called workflow's own `env` field**
+6. **System environment variables**
+
+Example:
+
+```bash
+asc workflow run testflight APP_ID:987654321
+```
+
+This overrides the `APP_ID` defined in the workflow file.
+
+<Warning>
+  Step `with` outranks runtime parameters. A key hardcoded in a sub-workflow
+  call's `with` cannot be overridden with `KEY:VALUE` at run time. Leave the key
+  out of `with` when the caller should control it.
+</Warning>
+
+A called workflow's own `env` sits at the bottom of its own scope, so it acts as
+a set of defaults the caller overrides. `with` values are literal: only
+`${steps.NAME.OUTPUT}` references are interpolated, so `"MESSAGE": "v$VERSION"`
+arrives as the literal text `v$VERSION`.
+
+## Conditional steps
+
+The `if` field holds the **name of a variable**, not a shell expression. The step
+runs only when that variable holds a truthy value: `1`, `true`, `yes`, `y`, or
+`on` (case-insensitive, surrounding whitespace ignored). Everything else is
+falsy, including an unset variable, an empty string, and any other non-empty
+value such as an ID, a version string, or a file path.
+
+```json
+{
+  "steps": [
+    {
+      "name": "Upload build",
+      "run": "asc builds upload --app $APP_ID --ipa MyApp.ipa"
+    },
+    {
+      "name": "Publish to the App Store",
+      "run": "asc publish appstore --app $APP_ID --ipa ./build/MyApp.ipa --version $VERSION --submit --confirm",
+      "if": "AUTO_SUBMIT"
+    }
+  ]
+}
+```
+
+Run the workflow with the flag turned on:
+
+```bash
+asc workflow run release AUTO_SUBMIT:true
+```
+
+The variable is resolved from the workflow environment first (runtime
+parameters, `with`, workflow `env`, global `env`) and then from the process
+environment, so `AUTO_SUBMIT=true asc workflow run release` works too.
+
+<Warning>
+  A skipped step is not a failure. The run still reports `"status": "ok"` and
+  exits `0`, and the step appears in `steps[]` with `"status": "skipped"`.
+  Shell-expression forms such as `"if": "test \"$AUTO_SUBMIT\" = \"true\""` are
+  treated as a variable name, never resolve, and silently skip the step, so a
+  `--submit --confirm` step gated that way never runs while CI stays green.
+</Warning>
+
+## Sub-workflows
+
+Call other workflows from within a workflow:
+
+```json
+{
+  "workflows": {
+    "notify": {
+      "description": "Send notification",
+      "steps": [
+        "asc notify slack --message \"$MESSAGE\""
+      ]
+    },
+    "release": {
+      "description": "Full release process",
+      "steps": [
+        "asc builds upload --app $APP_ID --ipa MyApp.ipa",
+        {
+          "workflow": "notify",
+          "with": {
+            "MESSAGE": "Build uploaded to TestFlight"
+          }
+        },
+        "asc publish appstore --app $APP_ID --ipa MyApp.ipa --version $VERSION --submit --confirm",
+        {
+          "workflow": "notify",
+          "with": {
+            "MESSAGE": "Published App Store submission started"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+## Lifecycle hooks
+
+Workflow hooks run at specific points during execution:
+
+* **`before_all`**: Runs before any workflow starts
+* **`after_all`**: Runs after a workflow completes successfully
+* **`error`**: Runs if any step fails
+
+Example with Slack notifications:
+
+```json
+{
+  "before_all": "asc notify slack --message 'Starting release workflow'",
+  "after_all": "asc notify slack --message 'Release complete'",
+  "error": "asc notify slack --message 'Release failed' && exit 1",
+  "workflows": {
+    "release": {
+      "steps": [
+        "asc builds upload --app $APP_ID --ipa MyApp.ipa",
+        "asc publish appstore --app $APP_ID --ipa MyApp.ipa --version $VERSION --submit --confirm"
+      ]
+    }
+  }
+}
+```
+
+## Complete example
+
+A full release workflow:
+
+```json
+{
+  "env": {
+    "APP_ID": "123456789",
+    "VERSION": "1.2.0",
+    "BUILD_DIR": "build",
+    "SLACK_WEBHOOK": "https://hooks.slack.com/services/..."
+  },
+  "before_all": "echo 'Starting release for v$VERSION'",
+  "after_all": "echo 'Release complete for v$VERSION'",
+  "error": "curl -X POST $SLACK_WEBHOOK -d '{\"text\":\"Release failed for v$VERSION\"}'  && exit 1",
+  "workflows": {
+    "beta": {
+      "description": "Upload build to TestFlight",
+      "steps": [
+        {
+          "name": "Validate build",
+          "run": "test -f $BUILD_DIR/MyApp.ipa"
+        },
+        {
+          "name": "Upload to TestFlight",
+          "run": "asc builds upload --app $APP_ID --ipa $BUILD_DIR/MyApp.ipa --wait"
+        },
+        {
+          "name": "Verify build available",
+          "run": "asc builds list --app $APP_ID --limit 1 --output json | jq -e '.data[0]'"
+        },
+        {
+          "name": "Notify team",
+          "workflow": "notify",
+          "with": {
+            "MESSAGE": "New TestFlight build available"
+          }
+        }
+      ]
+    },
+    "release": {
+      "description": "Publish to the App Store",
+      "steps": [
+        {
+          "name": "Validate version",
+          "run": "asc validate --app $APP_ID --version $VERSION"
+        },
+        {
+          "name": "Run App Store publish command",
+          "run": "asc publish appstore --app $APP_ID --ipa $BUILD_DIR/MyApp.ipa --version $VERSION --submit --confirm"
+        },
+        {
+          "name": "Notify team",
+          "workflow": "notify",
+          "with": {
+            "MESSAGE": "Submitted to App Store review"
+          }
+        }
+      ]
+    },
+    "notify": {
+      "description": "Send Slack notification",
+      "private": true,
+      "steps": [
+        "curl -X POST \"$SLACK_WEBHOOK\" -d \"{\\\"text\\\":\\\"$MESSAGE (v$VERSION)\\\"}\""
+      ]
+    }
+  }
+}
+```
+
+## CI/CD integration
+
+### GitHub Actions
+
+```yaml
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: rudrankriyam/setup-asc@v1
+        with:
+          key-id: ${{ secrets.ASC_KEY_ID }}
+          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+          private-key: ${{ secrets.ASC_PRIVATE_KEY }}
+      
+      - name: Build app
+        run: xcodebuild -scheme MyApp -archivePath build/MyApp.xcarchive archive
+      
+      - name: Run release workflow
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: asc workflow run release "VERSION:$TAG_NAME"
+```
+
+### GitLab CI
+
+```yaml
+release:
+  stage: deploy
+  script:
+    - asc workflow run release VERSION:$CI_COMMIT_TAG
+  only:
+    - tags
+  variables:
+    ASC_KEY_ID: $ASC_KEY_ID
+    ASC_ISSUER_ID: $ASC_ISSUER_ID
+    ASC_PRIVATE_KEY_B64: $ASC_PRIVATE_KEY_B64
+```
+
+## Security considerations
+
+<Warning>
+  Workflow files execute arbitrary shell commands. Ensure:
+
+  * `.asc/workflow.json` is added to `.gitignore` if it contains secrets
+  * `.asc/runs/` is added to `.gitignore`
+  * Use environment variables for sensitive values
+  * Review workflow files before execution
+  * Run workflows in trusted environments only
+</Warning>
+
+### Run-state files
+
+Every `asc workflow run` writes a run-state file next to the workflow file, in a
+`runs/` directory beside it (`.asc/runs/<run-id>.json` by default). The file is
+what `--resume` reads, and it stores the run parameters and every declared step
+output.
+
+Nothing prunes those files, so add `.asc/runs/` to `.gitignore` and delete old
+runs when you no longer need to resume them:
+
+```bash
+echo '.asc/runs/' >> .gitignore
+rm -rf .asc/runs
+```
+
+Never map a secret into a step's `outputs`: it lands in the run-state file in
+plain text.
+
+## Troubleshooting
+
+### Workflow not found
+
+```bash
+asc workflow list  # List all available workflows
+asc workflow run --file .asc/workflow.json testflight  # Specify file explicitly
+```
+
+### Environment variable not expanded
+
+Ensure variables are defined in the workflow file or passed as `KEY:VALUE` arguments:
+
+```bash
+asc workflow run testflight APP_ID:123456789
+```
+
+### Step fails silently
+
+Check exit codes and stderr:
+
+```bash
+asc --debug workflow run testflight
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Workflow command" icon="play" href="/commands/workflow">
+    Workflow command reference
+  </Card>
+
+  <Card title="Automation guide" icon="robot" href="/guides/automation">
+    Workflow automation patterns
+  </Card>
+</CardGroup>

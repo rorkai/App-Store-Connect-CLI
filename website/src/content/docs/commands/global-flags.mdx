@@ -1,0 +1,282 @@
+---
+title: Global Flags
+description: Flags available on all asc commands for authentication, debugging, and reporting
+---
+Global flags are available on all `asc` commands and control cross-cutting concerns like authentication, logging, and CI reporting.
+
+## Authentication Flags
+
+### `--profile`
+
+Use a named authentication profile stored in your keychain or config file.
+
+```bash
+asc --profile production apps list
+asc apps list --profile production
+asc --profile staging builds upload --app "123456789" --ipa "MyApp.ipa"
+```
+
+`--profile` is the one global flag accepted on either side of the command name:
+both forms above select the same credential. It still requires a value wherever
+it appears, and a value-less `--profile` exits with code `2`. Use the
+`--profile=NAME` spelling when the profile name is also a subcommand name, and
+note that the selector must come before any positional argument.
+
+**Environment variable**: `ASC_PROFILE`
+
+**See also**: [Authentication Guide](/authentication)
+
+### `--strict-auth`
+
+Fail when the resolved credential takes required fields from multiple sources.
+
+```bash
+asc --strict-auth apps list
+```
+
+**Default**: `false`
+
+**Environment variable**: `ASC_STRICT_AUTH` (accepts `true/false`, `1/0`, `yes/no`, `y/n`, `on/off`)
+
+Unused values in another source do not trigger strict mode. See the [credential resolution matrix](/authentication#credential-resolution) for field-level behavior.
+
+## Debug and Logging Flags
+
+### `--debug`
+
+Enable debug logging to stderr for troubleshooting CLI behavior.
+
+```bash
+asc --debug apps list
+```
+
+**Environment variable**: `ASC_DEBUG=true`
+
+Outputs detailed information about:
+
+* Command parsing and execution
+* Authentication resolution
+* API request preparation
+* Response processing
+
+### `--api-debug`
+
+Enable HTTP debug logging to stderr, showing full request and response details.
+
+```bash
+asc --api-debug apps list
+```
+
+**Environment variable**: `ASC_DEBUG=api`
+
+Outputs:
+
+* HTTP request method, URL, headers, and body
+* HTTP response status, headers, and body
+* **Sensitive values are automatically redacted** (API keys, tokens, etc.)
+
+Useful for:
+
+* Debugging API integration issues
+* Understanding rate limiting
+* Inspecting response payloads
+* Troubleshooting authentication failures
+
+### `--retry-log`
+
+Enable retry logging to stderr to see when the CLI automatically retries failed requests.
+
+```bash
+asc --retry-log apps list
+```
+
+**Environment variable**: `ASC_RETRY_LOG=true`
+
+Outputs information about:
+
+* Retry attempts and backoff delays
+* Transient error conditions
+* Rate limit handling
+
+**Note**: This flag overrides `ASC_RETRY_LOG` and config file settings when explicitly set.
+
+## CI and Reporting Flags
+
+### `--report`
+
+Report format for CI output. Currently supports `junit` for JUnit XML test reports.
+
+```bash
+asc --report junit --report-file results.xml validate --app "123456789" --version "1.2.3"
+```
+
+**Valid values**: `junit`
+
+**Required**: `--report-file` must be specified when using `--report`
+
+Use this in CI pipelines to generate test reports that integrate with CI platforms like Jenkins, GitHub Actions, or GitLab CI.
+
+### `--report-file`
+
+Path to write CI report file (used with `--report`).
+
+```bash
+asc --report junit --report-file /tmp/validation-results.xml validate --app "123456789" --version "1.2.3"
+```
+
+**Required**: `--report` must be specified when using `--report-file`
+
+## Version Flag
+
+### `--version`
+
+Print version information and exit.
+
+```bash
+asc --version
+```
+
+**Default**: `false`
+
+Outputs the current CLI version. Useful for:
+
+* Verifying installation
+* Troubleshooting compatibility issues
+* Including version info in bug reports
+
+## Flag Behavior
+
+### Flag Placement
+
+Global flags must appear before the top-level command, except `--profile`, which
+is accepted anywhere the command's own flags are:
+
+```bash
+# Correct
+asc --strict-auth apps list
+asc --profile production apps list
+asc apps list --profile production
+```
+
+Any other global flag written after the command name is an unknown flag for
+that command: the CLI exits with code `2` and names the placement rule.
+
+### Flag Priority
+
+For non-authentication settings, the CLI generally uses this priority order (highest to lowest):
+
+1. Explicit command-line flags
+2. Environment variables
+3. Profile-specific config file settings
+4. Global config file settings
+5. Built-in defaults
+
+Authentication credentials use conditional precedence instead. See the [credential resolution matrix](/authentication#credential-resolution).
+
+### Boolean Flags
+
+Boolean global flags (`--debug`, `--api-debug`, `--retry-log`, `--strict-auth`, `--version`) can be used without values:
+
+```bash
+# All of these work
+asc --debug apps list
+asc --debug=true apps list
+asc --debug=false apps list
+```
+
+## Safety Flags
+
+### `--read-only`
+
+Refuse every mutating request (`POST`, `PATCH`, `PUT`, `DELETE`) before it is sent, for this invocation only.
+
+```bash
+asc --read-only apps list
+asc --read-only builds update --build-id "123" --uses-non-exempt-encryption=false
+# Error: --read-only is set; refusing PATCH /v1/builds/123
+# exit code 6
+```
+
+**Default**: `false`
+
+**Environment variable**: `ASC_READ_ONLY` (accepts `true/false`, `1/0`, `yes/no`, `y/n`, `on/off`)
+
+Read-only mode is enforced at the transport layer of every Apple-facing client, so it covers commands that never had a `--confirm` flag. Reads, local-only commands, and credential minting keep working. Either source enables the mode; neither can disable the other. See [Read-only mode](/concepts/read-only-mode) for the full contract.
+
+## Environment Variables
+
+All global flags have corresponding environment variables for easier configuration in CI or development environments:
+
+| Flag            | Environment Variable | Values                                         |
+| --------------- | -------------------- | ---------------------------------------------- |
+| `--profile`     | `ASC_PROFILE`        | Profile name                                   |
+| `--strict-auth` | `ASC_STRICT_AUTH`    | `true/false`, `1/0`, `yes/no`, `y/n`, `on/off` |
+| `--debug`       | `ASC_DEBUG`          | `true/false`                                   |
+| `--api-debug`   | `ASC_DEBUG`          | `api`                                          |
+| `--retry-log`   | `ASC_RETRY_LOG`      | `true/false`                                   |
+| `--read-only`   | `ASC_READ_ONLY`      | `true/false`, `1/0`, `yes/no`, `y/n`, `on/off` |
+
+### Additional Environment Variables
+
+These environment variables don't have corresponding flags but control global behavior:
+
+| Variable                     | Purpose                         | Example                           |
+| ---------------------------- | ------------------------------- | --------------------------------- |
+| `ASC_DEFAULT_OUTPUT`         | Default output format           | `json`, `table`, `markdown`, `md` |
+| `ASC_TIMEOUT`                | Request timeout                 | `90s`, `2m`                       |
+| `ASC_TIMEOUT_SECONDS`        | Timeout in seconds              | `120`                             |
+| `ASC_UPLOAD_TIMEOUT`         | Upload and download timeout     | `60s`, `5m`                       |
+| `ASC_UPLOAD_TIMEOUT_SECONDS` | Upload/download timeout seconds | `300`                             |
+| `ASC_APP_ID`                 | Default app ID                  | App Store Connect app ID          |
+| `ASC_VENDOR_NUMBER`          | Vendor number for reports       | Sales/finance vendor number       |
+| `ASC_BYPASS_KEYCHAIN`        | Ignore keychain, use config/env | `true/false`, `1/0`, `yes/no`, `on/off` |
+| `ASC_CONFIG_PATH`            | Select an absolute config path  | `/path/to/config.json`             |
+| `ASC_KEY_TYPE`               | API key type                    | `team`, `individual`, `enterprise` |
+
+## Examples
+
+### Development Workflow
+
+```bash
+# Use a staging profile with debug logging
+asc --profile staging --debug apps list
+
+# Test with strict auth to catch credential conflicts
+asc --profile production --strict-auth validate --app "123456789" --version "1.2.3"
+```
+
+### CI Pipeline
+
+```bash
+# Set environment before every authenticated command. The "ci" profile must
+# already exist in the selected keychain or default config store.
+export ASC_PROFILE=ci
+unset ASC_BYPASS_KEYCHAIN ASC_CONFIG_PATH
+export ASC_STRICT_AUTH=true
+export ASC_DEFAULT_OUTPUT=json
+
+# Run validation with JUnit report
+asc --report junit --report-file validation-results.xml \
+  validate \
+  --app "$APP_ID" \
+  --version "$VERSION"
+
+asc apps list
+asc builds list --app "$APP_ID"
+```
+
+### Debugging
+
+```bash
+# Enable full HTTP debugging
+asc --api-debug apps view --id "123456789"
+
+# Combine debug flags to see everything
+asc --debug --api-debug --retry-log builds upload --app "123456789" --ipa "MyApp.ipa"
+```
+
+## See Also
+
+* [Command Reference Overview](/commands/overview)
+* [Authentication Guide](/authentication)
+* [CI/CD Integration](/cicd/overview)

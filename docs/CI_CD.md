@@ -78,8 +78,8 @@ these commands in one shell step:
 
 The first-run commands look like this. The full script, including the
 password files, cleanup trap, and later-run variant, is in the
-[code signing guide](../guides/code-signing.mdx) and the
-[signing command reference](../commands/signing.mdx).
+[code signing guide](../website/src/content/docs/guides/code-signing.mdx) and the
+[signing command reference](../website/src/content/docs/commands/signing.mdx).
 
 ```bash
 asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --create-missing --create-missing-certificate --identity-password-file "$p12_password_file" --output .asc/signing/bootstrap --format json > .asc/signing/fetch-result.json

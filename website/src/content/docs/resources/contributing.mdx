@@ -1,0 +1,360 @@
+---
+title: Contributing Guide
+description: How to contribute to the App Store Connect CLI project
+---
+## Development Setup
+
+### Requirements
+
+* Git
+* The Go version declared by `go.mod`; the Go toolchain can download it automatically when needed
+* (Optional) macOS for keychain integration testing
+
+Released `asc` binaries are self-contained and do not require Go. Go is only required when building or testing from source.
+
+### Clone and Build
+
+Clone the repository and build the CLI:
+
+```bash
+git clone https://github.com/rorkai/App-Store-Connect-CLI.git
+cd App-Store-Connect-CLI
+make build
+```
+
+This creates the `asc` binary in the current directory.
+
+### Run Tests
+
+Run the test suite with keychain bypass so tests never trigger macOS keychain prompts or read your stored profiles:
+
+```bash
+ASC_BYPASS_KEYCHAIN=1 make test
+```
+
+### Optional Tooling
+
+Install development tools:
+
+```bash
+make tools   # Installs gofumpt + golangci-lint
+make lint    # Uses golangci-lint if installed, else go vet
+make format  # gofmt + gofumpt (requires gofumpt)
+```
+
+## Integration Tests (Opt-in)
+
+Integration tests hit the real App Store Connect API and are **skipped by default**.
+
+To run integration tests, set credentials in your environment:
+
+```bash
+unset ASC_PROFILE ASC_BYPASS_KEYCHAIN ASC_CONFIG_PATH
+unset ASC_PRIVATE_KEY ASC_PRIVATE_KEY_B64
+export ASC_KEY_TYPE="team"
+export ASC_KEY_ID="YOUR_KEY_ID"
+export ASC_ISSUER_ID="YOUR_ISSUER_ID"
+export ASC_PRIVATE_KEY_PATH="/path/to/AuthKey.p8"
+export ASC_APP_ID="YOUR_APP_ID"
+
+(
+  ASC_TEST_CONFIG_DIR="$(mktemp -d)"
+  trap 'rm -rf "$ASC_TEST_CONFIG_DIR"' EXIT
+  ASC_BYPASS_KEYCHAIN=1 ASC_CONFIG_PATH="$ASC_TEST_CONFIG_DIR/config.json" make test-integration
+)
+```
+
+### Headless Alternative
+
+The integration harness requires `ASC_PRIVATE_KEY_PATH`. In headless CI, decode the private-key secret to a restricted temporary `.p8` file and export its path before running the target. CLI commands support `ASC_PRIVATE_KEY_B64`, but these integration tests do not consume it directly.
+
+## Local API Testing (Optional)
+
+If you have App Store Connect API credentials, you can run real API calls locally:
+
+```bash
+unset ASC_PROFILE ASC_BYPASS_KEYCHAIN ASC_CONFIG_PATH
+unset ASC_PRIVATE_KEY ASC_PRIVATE_KEY_B64
+export ASC_KEY_TYPE="team"
+export ASC_KEY_ID="YOUR_KEY_ID"
+export ASC_ISSUER_ID="YOUR_ISSUER_ID"
+export ASC_PRIVATE_KEY_PATH="/path/to/AuthKey.p8"
+export ASC_APP_ID="YOUR_APP_ID"
+
+(
+  ASC_TEST_CONFIG_DIR="$(mktemp -d)"
+  trap 'rm -rf "$ASC_TEST_CONFIG_DIR"' EXIT
+  ASC_TEST_CONFIG_PATH="$ASC_TEST_CONFIG_DIR/config.json"
+  ASC_BYPASS_KEYCHAIN=1 ASC_CONFIG_PATH="$ASC_TEST_CONFIG_PATH" asc testflight feedback list --app "$ASC_APP_ID"
+  ASC_BYPASS_KEYCHAIN=1 ASC_CONFIG_PATH="$ASC_TEST_CONFIG_PATH" asc testflight crashes list --app "$ASC_APP_ID"
+  ASC_BYPASS_KEYCHAIN=1 ASC_CONFIG_PATH="$ASC_TEST_CONFIG_PATH" asc reviews --app "$ASC_APP_ID"
+)
+```
+
+### Credential storage
+
+Credential storage locations include:
+
+1. **macOS**: System keychain (when available)
+2. **Fallback**: Config file at `~/.asc/config.json` (restricted permissions)
+3. **Repo-local**: `./.asc/config.json` (also supported)
+
+**Important**: Do not commit secrets or `.p8` files to the repository.
+
+Storage location is not the same as credential precedence. See the [credential resolution matrix](/authentication#credential-resolution) before live testing with multiple sources.
+
+## Local Validation
+
+Run this checklist before opening a PR that changes CLI behavior, shared code, or release surfaces:
+
+```bash
+make tools               # Install gofumpt + golangci-lint
+make format              # Format code
+make lint                # Lint code
+make check-docs          # Verify repository, website, skill, OpenAPI, and command docs
+ASC_BYPASS_KEYCHAIN=1 make test  # Run tests (bypasses keychain)
+make build               # Build binary
+./asc --help             # Smoke-test the binary
+```
+
+For a narrowly scoped documentation or skill change, run `make check-docs`; it includes the repository and skill validators. For a Wall-only PR, run `make check-wall-of-apps` on the exact head. Use broader checks when the changed surface or repository policy requires them.
+
+### Command Documentation
+
+If you changed command/help text, regenerate documentation:
+
+```bash
+make generate-command-docs  # Updates docs/COMMANDS.md
+make check-command-docs     # Verifies docs are current
+```
+
+Commit `docs/COMMANDS.md` if it changed.
+
+## Pull Request Guidelines
+
+### Before Opening a PR
+
+1. **Keep PRs small and focused**: One logical change per PR
+2. **Preserve additive history**: Maintainers use regular merge commits by default and squash only when explicitly requested
+3. **Add or update tests**: Cover new behavior and edge cases
+4. **Update README**: If behavior or scope changes
+5. **Avoid committing credentials**: No API keys or `.p8` files
+6. **Run validation**: Use the scope-appropriate validation above
+
+### PR Checklist
+
+* [ ] Scope-appropriate validation passes: full checklist for behavior/shared/release changes, `make check-docs` for docs or skills, or `make check-wall-of-apps` for Wall-only changes
+* [ ] Command docs regenerated when help changed (`make generate-command-docs`)
+* [ ] README updated (if needed)
+* [ ] No secrets committed
+
+### Pre-commit Hook
+
+Install local pre-commit hook to enforce checks automatically:
+
+```bash
+make install-hooks
+```
+
+This runs formatting, linting, and doc checks before each commit.
+
+### PR Description
+
+Include in your PR description:
+
+* **What**: What does this PR do?
+* **Why**: Why is this change needed?
+* **How**: How does it work?
+* **Testing**: Commands run and key scenarios validated
+* **Breaking changes**: Note any backward-incompatible changes
+
+## Development Workflow
+
+### Git Workflow
+
+1. **Fork** the repository
+2. **Create a branch** from `main`:
+   ```bash
+   git checkout -b feature/my-feature
+   ```
+3. **Make changes** and commit:
+   ```bash
+   git add .
+   git commit -m "feat: add new feature"
+   ```
+4. **Push** to your fork:
+   ```bash
+   git push origin feature/my-feature
+   ```
+5. **Open a PR** against `main`
+
+### Commit Message Style
+
+Follow conventional commit format:
+
+* `feat:` - New feature
+* `fix:` - Bug fix
+* `refactor:` - Code refactoring
+* `test:` - Test additions/changes
+* `docs:` - Documentation changes
+* `chore:` - Maintenance tasks
+
+**Example**:
+
+```
+feat(builds): add PKG upload support
+
+- Use com.apple.pkg UTI for PKG files
+- Add validation for PKG file format
+- Update upload timeout defaults
+```
+
+## Testing Discipline
+
+### Test-Driven Development (TDD)
+
+For bugs, refactors, and new features:
+
+1. **Start with a failing test** that captures expected behavior
+2. **Implement** the fix or feature
+3. **Verify** the test passes
+4. **Refactor** if needed
+
+### Test Coverage
+
+For new features:
+
+* **CLI-level tests**: Flags, output, errors, exit codes
+* **Unit tests**: Core logic and edge cases
+* **Integration tests** (optional): Real API calls
+
+### Test Patterns
+
+Test realistic CLI invocation patterns:
+
+```bash
+# Flags before subcommands
+asc --profile prod builds list --output json
+
+# Flag values that look like subcommands
+asc --profile list apps list
+
+# Multiple flags with values
+asc --profile prod builds list --limit 5 --output json
+```
+
+For more details, see `docs/TESTING.md`.
+
+## CLI Implementation Checklist
+
+When adding new commands:
+
+* [ ] Register in `internal/cli/registry/registry.go`
+* [ ] Set `UsageFunc: shared.DefaultUsageFunc`
+* [ ] Use `shared.ContextWithTimeout` for HTTP requests
+* [ ] Validate required flags and test error messages
+* [ ] Add `internal/cli/cmdtest` coverage
+* [ ] Use `httptest` for network payload tests
+* [ ] Update help text and examples
+
+## Architecture Guidelines
+
+### Architecture-First Development
+
+Before implementing new commands/flags, produce a design note:
+
+1. **Command placement** in existing taxonomy
+2. **OpenAPI endpoint/schema** validation
+3. **UX shape**: Flags, output formats, exit codes
+4. **Backward compatibility** and deprecation impact
+5. **Test plan**: RED → GREEN approach
+
+If command shape is ambiguous, align before coding.
+
+### Command Lifecycle
+
+User-facing commands and flags are stable until deprecated or removed.
+
+* `deprecated` - Scheduled for removal, migration path provided
+* `removed` - No longer available
+
+Do not delete stable commands directly. Deprecate first with:
+
+* Warning text in help/output
+* Tests covering old and new behavior
+* Release notes entry with upgrade path
+
+## Security
+
+### Reporting Security Issues
+
+**Do NOT open public GitHub issues** for security vulnerabilities.
+
+Report privately using GitHub Security Advisories:
+[https://github.com/rorkai/App-Store-Connect-CLI/security/advisories/new](https://github.com/rorkai/App-Store-Connect-CLI/security/advisories/new)
+
+If you can't use GitHub Security Advisories, contact the maintainer:
+[https://github.com/rudrankriyam](https://github.com/rudrankriyam)
+
+### What to Include
+
+* Clear description of vulnerability and potential impact
+* Steps to reproduce (proof-of-concept if possible)
+* Affected versions and platforms (macOS/Linux, Go version, etc.)
+
+### Supported Versions
+
+Security updates are provided for:
+
+* Latest stable release
+* `main` branch
+
+## Wall of Apps
+
+Wall content lives in `docs/wall-of-apps.json`. To add your app, authenticate the GitHub CLI once with `gh auth login`, then run:
+
+```bash
+asc apps wall submit --app "1234567890" --dry-run
+asc apps wall submit --app "1234567890" --confirm
+```
+
+The command forks the repository with your `gh` session, updates `docs/wall-of-apps.json` on a new branch, and opens the pull request. It resolves the public App Store name, URL, and icon from the app ID. For an app that is not on the public App Store yet, use `--link` with `--name`.
+
+When `docs/wall-of-apps.json` is the only changed file, the local hook and CI run only `make check-wall-of-apps`.
+
+## Additional Resources
+
+### Documentation
+
+* `docs/GO_STANDARDS.md` - Go coding standards
+* `docs/TESTING.md` - Testing patterns and conventions
+* `docs/CONTRIBUTING.md` - Detailed CLI development notes
+* `docs/API_NOTES.md` - API quirks and behaviors
+* `CONTRIBUTING.md` - This guide (root)
+
+### API Reference
+
+* OpenAPI snapshot: `docs/openapi/latest.json`
+* Endpoint index: `docs/openapi/paths.txt`
+* API docs: [https://sosumi.ai/documentation/appstoreconnectapi/](https://sosumi.ai/documentation/appstoreconnectapi/)
+
+## Getting Help
+
+If you need help:
+
+1. **Check existing issues**: [https://github.com/rorkai/App-Store-Connect-CLI/issues](https://github.com/rorkai/App-Store-Connect-CLI/issues)
+2. **Read documentation**: Command reference, API notes, testing guide
+3. **Ask in discussions**: Open a GitHub discussion
+4. **Open an issue**: If you've found a bug or have a feature request
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the MIT License.
+
+## Code of Conduct
+
+Please review and follow the [Code of Conduct](https://github.com/rorkai/App-Store-Connect-CLI/blob/main/CODE_OF_CONDUCT.md).
+
+## Thank You!
+
+Contributions of all sizes are appreciated. Whether it's fixing typos, reporting bugs, or implementing features, every contribution helps make the CLI better for everyone.

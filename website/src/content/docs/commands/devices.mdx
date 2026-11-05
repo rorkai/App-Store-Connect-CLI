@@ -1,0 +1,295 @@
+---
+title: devices
+description: Manage devices for app development and testing
+---
+Manage devices in App Store Connect for development builds, ad-hoc distribution, and TestFlight internal testing.
+
+## Quick Start
+
+```bash
+asc devices list
+asc devices local-udid
+asc devices register --name "iPhone 15" --udid "UDID" --platform IOS
+```
+
+## Subcommands
+
+* `list` - List devices in App Store Connect
+* `get` - Get a device by ID
+* `local-udid` - Get the local macOS hardware UDID
+* `register` - Register a new device
+* `update` - Update a device
+
+## Commands
+
+### devices list
+
+List devices in App Store Connect:
+
+```bash
+asc devices list
+asc devices list --platform IOS
+asc devices list --status ENABLED
+asc devices list --udid "UDID1,UDID2"
+asc devices list --fields "name,udid,platform,status"
+asc devices list --limit 50
+asc devices list --paginate
+```
+
+**Flags:**
+
+* `--name` - Filter by device name(s), comma-separated
+* `--platform` - Filter by platform(s), comma-separated: `IOS`, `MAC_OS`, `TV_OS`, `VISION_OS`
+* `--status` - Filter by status: `ENABLED`, `DISABLED`
+* `--udid` - Filter by UDID(s), comma-separated
+* `--id` - Filter by device ID(s), comma-separated
+* `--sort` - Sort by: `id`, `-id`, `name`, `-name`, `platform`, `-platform`, `status`, `-status`, `udid`, `-udid`
+* `--fields` - Fields to include: `addedDate`, `deviceClass`, `model`, `name`, `platform`, `status`, `udid`
+* `--limit` - Maximum results per page (1-200)
+* `--next` - Fetch next page using a links.next URL
+* `--paginate` - Automatically fetch all pages
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+### devices view
+
+Get a device by ID:
+
+```bash
+asc devices view --id "DEVICE_ID"
+asc devices view --id "DEVICE_ID" --fields "name,udid,platform,status"
+```
+
+**Flags:**
+
+* `--id` - Device ID (required)
+* `--fields` - Fields to include: `addedDate`, `deviceClass`, `model`, `name`, `platform`, `status`, `udid`
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+### devices local-udid
+
+Get the local macOS hardware UDID:
+
+```bash
+asc devices local-udid
+asc devices local-udid --output table
+```
+
+**Flags:**
+
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+**Note:** This command only works on macOS and reads the hardware UUID from the system.
+
+### devices register
+
+Register a new device:
+
+```bash
+asc devices register --name "iPhone 15" --udid "UDID" --platform IOS
+asc devices register --name "My Mac" --udid-from-system --platform MAC_OS
+```
+
+**Flags:**
+
+* `--name` - Device name (required for direct registration; defaults to the product and short UDID with `--via-url`)
+* `--udid` - Device UDID (required unless `--udid-from-system` or `--via-url`)
+* `--udid-from-system` - Use local macOS hardware UUID as UDID (macOS only)
+* `--platform` - Device platform: `IOS`, `MAC_OS`, `UNIVERSAL` (defaults to `IOS` with `--via-url`)
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+**Note:** `--udid` and `--udid-from-system` are mutually exclusive.
+
+Use `--via-url` when a remote tester cannot copy a UDID. The command prints a loopback URL and a registration hint on stderr. The profile is unsigned, so iOS shows it as Not Verified. Use a trusted HTTPS tunnel for remote iOS devices and pass its origin URL (without a path prefix) as `--public-url`. If using a LAN address, the listener must also bind an interface the device can reach with an explicit `--listen`. Without `--confirm`, devices are written to a tab-separated `--output-file` that `devices register-batch` can read. `--listen` stays on a loopback address unless you explicitly bind another host.
+
+The registration URL is a bearer credential: share it only with intended testers. It stays usable until the server stops so several testers can open the same URL or QR code, but it cannot register a device by itself. Each profile download embeds its own unguessable, single-use callback token. That token is bound to the first device that reports with it and is spent once that device is recorded, so a replayed callback URL is refused and cannot add another device. Callbacks that use the registration URL token, an unknown token, or a spent token are refused. Signed CMS callbacks are checked for signature integrity, but this command does not validate an Apple device certificate chain or attest device identity. API failures can be retried from the same device without restarting the session; successful registrations are deduplicated.
+
+`--ttl` must be positive. The command collects until that duration expires or it is interrupted, then writes one summary to stdout. The callback API requests use `ASC_TIMEOUT` and are canceled when the session ends. Keep `--output-file` for collect-only mode; it cannot be combined with `--confirm`.
+
+Add `--stream` with `--output json` to also write one JSON receipt line to stdout as each device arrives. Each line has the same fields as an entry in the summary's `devices` or `failures` arrays (`name`, `udid`, `platform`, `status`, and `deviceId` or `error` when set). `status` is `registered`, `collected`, `skipped`, or `failed`; a failed device that later retries successfully gets another line. The final summary follows as the last line. `--stream` cannot be combined with table or Markdown output or `--pretty`.
+
+Add `--max-devices N` (N must be at least 1) to bound how many devices one shared URL or QR code can add. After N new devices are registered, or collected without `--confirm`, the session ends as if `--ttl` expired: it stops accepting devices, shuts down the registration server, writes the summary, and exits 0. Enrollment pages, profile downloads, and callbacks that arrive while the server is shutting down get HTTP 410 Gone; after the command exits they cannot connect, so profiles downloaded earlier can no longer add a device. Duplicate UDIDs and devices already registered in App Store Connect (`skipped`) do not count toward N, and neither do failed registrations. The default is unbounded; set `--max-devices` whenever the URL is shared broadly, because each registered device counts against the team's yearly device limit.
+
+```bash
+asc devices register --via-url --output-file ./devices.tsv --ttl 30m
+asc devices register --via-url --confirm --platform IOS --public-url "https://tunnel.example"
+asc devices register --via-url --confirm --stream --output json --public-url "https://tunnel.example"
+asc devices register --via-url --confirm --max-devices 5 --public-url "https://tunnel.example"
+```
+
+### devices update
+
+Update a device:
+
+```bash
+asc devices update --id "DEVICE_ID" --name "My iPhone"
+asc devices update --id "DEVICE_ID" --status DISABLED
+```
+
+**Flags:**
+
+* `--id` - Device ID (required)
+* `--name` - Device name
+* `--status` - Device status: `ENABLED`, `DISABLED`
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+**Note:** At least one update flag (`--name` or `--status`) is required.
+
+## Device Platforms
+
+* `IOS` - iPhone and iPad devices
+* `MAC_OS` - Mac computers
+* `TV_OS` - Apple TV devices
+* `VISION_OS` - Apple Vision Pro devices
+
+## Device Status
+
+* `ENABLED` - Device is active and can be used for development
+* `DISABLED` - Device is disabled and cannot be used
+
+## Examples
+
+### Register iOS Device
+
+```bash
+asc devices register \
+  --name "iPhone 15 Pro" \
+  --udid "00008030-000123456789ABCD" \
+  --platform IOS
+```
+
+### Register Current Mac
+
+```bash
+# Get local UDID
+UDID=$(asc devices local-udid --output json | jq -r '.udid')
+
+# Register device
+asc devices register \
+  --name "MacBook Pro" \
+  --udid "$UDID" \
+  --platform MAC_OS
+```
+
+Or use the shortcut:
+
+```bash
+asc devices register \
+  --name "MacBook Pro" \
+  --udid-from-system \
+  --platform MAC_OS
+```
+
+### List Enabled iOS Devices
+
+```bash
+asc devices list \
+  --platform IOS \
+  --status ENABLED \
+  --output table
+```
+
+### Disable Device
+
+```bash
+asc devices update --id "DEVICE_ID" --status DISABLED
+```
+
+### Find Device by UDID
+
+```bash
+asc devices list --udid "00008030-000123456789ABCD" --output json
+```
+
+### Bulk Register Devices
+
+```bash
+#!/bin/bash
+set -e
+
+# Read devices from CSV file
+while IFS=, read -r name udid platform; do
+  echo "Registering $name ($platform)"
+  
+  asc devices register \
+    --name "$name" \
+    --udid "$udid" \
+    --platform "$platform"
+done < devices.csv
+```
+
+**devices.csv:**
+
+```csv
+iPhone 15 Pro,00008030-000123456789ABCD,IOS
+iPad Pro,00008101-000987654321FEDC,IOS
+MacBook Pro,12345678-90AB-CDEF-1234-567890ABCDEF,MAC_OS
+```
+
+### Export Device List
+
+```bash
+# Export all devices to CSV
+asc devices list --paginate --output json | \
+  jq -r '.data[] | [.attributes.name, .attributes.udid, .attributes.platform, .attributes.status] | @csv' > devices.csv
+```
+
+## Finding Device UDIDs
+
+### iOS Devices
+
+1. Connect device to Mac
+2. Open Finder
+3. Select device in sidebar
+4. Click on device name to reveal UDID
+5. Right-click and copy UDID
+
+Or use `ideviceinfo`:
+
+```bash
+brew install libimobiledevice
+ideviceinfo -k UniqueDeviceID
+```
+
+### macOS Devices
+
+Use the `local-udid` command:
+
+```bash
+asc devices local-udid
+```
+
+Or find it in System Information:
+
+1. Click Apple menu > About This Mac
+2. Click System Report
+3. Select Hardware
+4. Look for "Hardware UUID"
+
+### Apple TV
+
+1. Go to Settings > General > About
+2. Scroll to "Identifier"
+
+### Apple Vision Pro
+
+1. Go to Settings > General > About
+2. Look for "Serial Number" or connect to Mac and use Finder
+
+## Provisioning Profiles
+
+After registering devices, regenerate provisioning profiles:
+
+```bash
+# List profiles
+asc profiles list --profile-type IOS_APP_DEVELOPMENT
+
+# Download and install updated profile
+asc profiles download --id "PROFILE_ID" --output ./profile.mobileprovision
+```
+
+Or use Xcode to automatically refresh provisioning profiles.

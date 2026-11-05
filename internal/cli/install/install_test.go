@@ -728,8 +728,8 @@ func TestValidatePinnedSkillsRejectsSymlinks(t *testing.T) {
 func TestPinnedSkillsDocumentationMatchesDirectInstaller(t *testing.T) {
 	for _, path := range []string{
 		filepath.Join("..", "..", "..", "README.md"),
-		filepath.Join("..", "..", "..", "installation.mdx"),
-		filepath.Join("..", "..", "..", "index.mdx"),
+		filepath.Join("..", "..", "..", "website", "src", "content", "docs", "installation.mdx"),
+		filepath.Join("..", "..", "..", "website", "src", "content", "docs", "index.mdx"),
 	} {
 		data, err := os.ReadFile(path)
 		if err != nil {

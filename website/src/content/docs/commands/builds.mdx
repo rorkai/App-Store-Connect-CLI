@@ -1,0 +1,179 @@
+---
+title: builds
+description: Manage builds, uploads, processing, and TestFlight distribution
+---
+
+import { Card, CardGroup, ParamField } from '@components/mdx';
+
+The `builds` command manages uploads, processing state, TestFlight distribution, and build metadata in App Store Connect.
+
+## Usage
+
+```bash
+asc builds <subcommand> [flags]
+```
+
+## Common subcommands
+
+### Upload builds
+
+Upload an IPA or PKG to App Store Connect:
+
+```bash
+asc builds upload --app APP_ID --ipa /path/to/MyApp.ipa
+asc builds upload --app APP_ID --pkg /path/to/MyMacApp.pkg --version 1.0.0 --build-number 1
+```
+
+### List builds
+
+List builds for an app and filter by version, build number, or processing state:
+
+```bash
+asc builds list --app APP_ID
+asc builds list --app APP_ID --sort -uploadedDate
+asc builds list --app APP_ID --version 1.2.3 --platform IOS
+asc builds list --app APP_ID --processing-state PROCESSING
+```
+
+### Inspect build details
+
+Resolve a build directly by ID or by app context:
+
+```bash
+asc builds info --build-id BUILD_ID
+asc builds info --app APP_ID --latest
+asc builds info --app APP_ID --build-number 42 --version 1.2.3 --platform IOS
+```
+
+### Inspect build relationship links
+
+Use `links view` when you need the IDs connected to a build rather than the
+full related resources. Valid `--type` values are `app`, `appStoreVersion`,
+`betaBuildLocalizations`, `buildBetaDetail`, `diagnosticSignatures`, `icons`,
+`individualTesters`, and `preReleaseVersion`.
+
+```bash
+asc builds links view --build-id BUILD_ID --type app
+asc builds links view --build-id BUILD_ID --type individualTesters --paginate
+```
+
+### Wait for processing
+
+```bash
+asc builds wait --build-id BUILD_ID
+asc builds wait --app APP_ID --latest
+asc builds wait --app APP_ID --build-number 78 --platform IOS --timeout 50s --report-pending
+```
+
+When `--timeout` expires first, the command exits `1` and the error names the
+last known state (for example, a build upload App Store Connect accepted but
+has not exposed as a build yet) and the command that resumes the wait. Add
+`--report-pending` when the caller runs under a short time limit: the timeout
+then prints a pending result to stdout and exits `7` instead. The JSON result
+has `status: "pending"`, `phase` (`discovery` before the build exists,
+`processing` after), the matching `buildId` and `processingState` or `upload`,
+`elapsed`, and `resumeCommand`, which switches to `--build-id` once the build is
+known. A build upload that `FAILED` is still reported as an error with exit
+code `1`.
+
+### Distribute to TestFlight groups
+
+```bash
+asc builds add-groups --app APP_ID --latest --group "External Testers"
+asc builds add-groups --app APP_ID --latest --group "External Testers" --dry-run
+asc builds add-groups --app APP_ID --latest --group "GROUP_ID" --submit --confirm
+asc builds remove-groups --app APP_ID --latest --group "GROUP_ID" --confirm
+```
+
+Use `--dry-run` to resolve the build and groups and preview the assignment
+without adding groups or submitting a review. It may show current build and
+external beta state from best-effort reads, but those observations are
+advisory and do not predict whether a later assignment will be accepted.
+JSON output marks the receipt with `dryRun: true` and uses `action: "would-add"`
+or `action: "no-op"` when filtering leaves no groups. `--submit` cannot be
+combined with `--dry-run`.
+
+### Expire builds
+
+```bash
+asc builds expire --build-id BUILD_ID --confirm
+asc builds expire-all --app APP_ID --older-than 90d --dry-run
+asc builds expire-all --app APP_ID --keep-latest 5 --confirm
+asc builds expire-all --app APP_ID --version 1.2.3 --keep-latest 1 --confirm
+```
+
+`asc builds expire-all` always requires `--older-than` or `--keep-latest`. Add
+`--version` to narrow the candidates to one marketing version
+(CFBundleShortVersionString) before those selectors apply, so the example above
+expires the earlier builds of `1.2.3` and keeps its most recently uploaded
+build. Builds of other versions are left untouched, and candidates are ordered
+newest first by uploaded date.
+
+## Common workflows
+
+### Upload and distribute the latest build
+
+```bash
+# Upload the build
+asc builds upload --app 123456789 --ipa MyApp.ipa
+
+# Wait until processing completes
+asc builds wait --app 123456789 --latest
+
+# Add the processed build to a TestFlight group
+asc builds add-groups --app 123456789 --latest --group "External Testers"
+```
+
+### Inspect the latest iOS build for a version
+
+```bash
+asc builds info --app 123456789 --latest --version 1.2.0 --platform IOS
+```
+
+## Useful flags
+
+<ParamField path="--app" type="string" required>
+  App Store Connect app ID, bundle ID, or exact app name
+</ParamField>
+
+<ParamField path="--ipa" type="string">
+  Path to an `.ipa` file for iOS, tvOS, or visionOS uploads
+</ParamField>
+
+<ParamField path="--pkg" type="string">
+  Path to a `.pkg` file for macOS uploads
+</ParamField>
+
+<ParamField path="--version" type="string">
+  Filter or target a marketing version string (`CFBundleShortVersionString`)
+</ParamField>
+
+<ParamField path="--build-number" type="string">
+  Filter or target a specific build number (`CFBundleVersion`). App-scoped
+  selectors that use `--build-number` must also pass `--platform`.
+</ParamField>
+
+<ParamField path="--platform" type="string">
+  Platform for app-scoped selectors: `IOS`, `MAC_OS`, `TV_OS`, `VISION_OS`.
+  Required with `--build-number`; there is no implicit default.
+</ParamField>
+
+<ParamField path="--processing-state" type="string">
+  Filter by processing state: `VALID`, `PROCESSING`, `FAILED`, `INVALID`, or `all`
+</ParamField>
+
+<ParamField path="--latest" type="boolean">
+  Resolve the latest matching build in an app-scoped selector
+</ParamField>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TestFlight command" icon="plane" href="/commands/testflight">
+    Manage TestFlight groups, testers, feedback, and review flows
+  </Card>
+
+  <Card title="TestFlight guide" icon="book-open" href="/guides/testflight">
+    Complete TestFlight distribution guide
+  </Card>
+</CardGroup>

@@ -46,7 +46,9 @@ class ChangeScopeTest(unittest.TestCase):
 
     def test_mintlify_content_uses_website_scope(self) -> None:
         self.assertEqual(
-            ci_change_scope.classify(["docs.json", "guides/getting-started.mdx"]),
+            ci_change_scope.classify(
+                ["docs.json", "guides/getting-started.mdx", "website/astro.config.mjs"]
+            ),
             "website",
         )
 

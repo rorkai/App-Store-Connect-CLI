@@ -1,0 +1,105 @@
+---
+title: release
+description: High-level App Store release staging workflows
+---
+
+import { Card, CardGroup } from '@components/mdx';
+
+The `release` command handles pre-submit App Store release staging.
+
+Use these paths deliberately:
+
+* `asc release stage` - deterministic pre-submit staging without submission
+* `asc publish appstore --submit` - canonical App Store upload + submit flow
+
+## Usage
+
+```bash
+asc release <subcommand> [flags]
+```
+
+## Subcommands
+
+### `asc release stage`
+
+Run a deterministic pre-submit staging pipeline:
+
+1. Verify `--build-id` exists, belongs to `--app`, and matches `--platform`
+2. Ensure or create the version
+3. Apply metadata/localizations or copy from another version
+4. Reconcile routing app coverage when `--routing-coverage-file` is set
+5. Attach a selected build
+6. Run readiness checks
+
+Stops before creating a review submission.
+
+```bash
+asc release stage \
+  --app "APP_ID" \
+  --version "2.4.0" \
+  --build-id "BUILD_ID" \
+  --copy-metadata-from "2.3.2" \
+  --dry-run
+
+asc release stage \
+  --app "APP_ID" \
+  --version "2.4.0" \
+  --build-id "BUILD_ID" \
+  --metadata-dir "./metadata" \
+  --routing-coverage-file "./coverage.geojson" \
+  --confirm
+```
+
+**Flags:**
+
+* `--app` - App Store Connect app ID (or `ASC_APP_ID`)
+* `--version` - App Store version string
+* `--build-id` - Build ID to attach
+* `--metadata-dir` - Metadata directory to apply
+* `--allow-deletes` - Allow destructive delete operations when applying `--metadata-dir` (disables the default locale fallback for missing locales)
+* `--routing-coverage-file` - Routing app coverage GeoJSON file to reconcile before build attachment and readiness
+* `--copy-metadata-from` - Source version string to copy localization metadata from
+* `--copy-fields` - Comma-separated metadata fields to copy
+* `--exclude-fields` - Comma-separated metadata fields to exclude from copy
+* `--checkpoint-file` - Checkpoint path for resumable runs
+* `--dry-run` - Preview the deterministic plan without mutations
+* `--confirm` - Confirm staging mutations
+* `--strict-validate` - Treat readiness warnings as blocking
+* `--platform` - Platform: `IOS`, `MAC_OS`, `TV_OS`, `VISION_OS`
+* `--timeout` - Maximum time to run the staging pipeline
+
+### 1.0 migration note
+
+The old `release run` compatibility pipeline was removed in 1.0.
+
+Prefer:
+
+* `asc release stage` when you want deterministic pre-submit preparation
+* `asc publish appstore --submit` for the canonical App Store upload + submit path
+
+## Related Flows
+
+After staging or submission:
+
+```bash
+asc status --app "APP_ID"
+asc validate --app "APP_ID" --version "2.4.0"
+asc submit status --version-id "VERSION_ID"
+asc submit cancel --version-id "VERSION_ID" --confirm
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Publish command" icon="paper-plane" href="/commands/publish">
+    Use `publish appstore --submit` for the canonical App Store shipping path
+  </Card>
+
+  <Card title="Status command" icon="activity" href="/commands/status">
+    Monitor the resulting release pipeline state for an app
+  </Card>
+
+  <Card title="Submit command" icon="clipboard-check" href="/commands/submit">
+    Inspect or cancel lower-level review submission lifecycle state
+  </Card>
+</CardGroup>

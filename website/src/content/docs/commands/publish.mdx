@@ -1,0 +1,266 @@
+---
+title: publish
+description: High-level publish workflows for TestFlight and App Store
+---
+
+import { Card, CardGroup, ParamField } from '@components/mdx';
+
+The `publish` command is the high-level publishing surface for TestFlight and
+the canonical App Store upload + submit flow.
+
+## Usage
+
+```bash
+asc publish <workflow> [flags]
+```
+
+## Canonical paths
+
+Use these top-level workflows deliberately:
+
+* `asc publish testflight` - canonical high-level TestFlight publish path
+* `asc publish appstore` - canonical high-level App Store publish path
+* `asc release stage` - prepare an App Store version without submitting it
+
+In 1.0, the deprecated `asc release run` path was removed.
+
+`--ipa --platform MAC_OS` remains available for compatibility but is
+deprecated. Migrate macOS publishing to `--pkg` with explicit `--version` and
+`--build-number` values before the next major release.
+
+## Workflows
+
+### TestFlight workflow
+
+Upload and distribute to TestFlight:
+
+```bash
+asc publish testflight \
+  --app APP_ID \
+  --ipa /path/to/MyApp.ipa \
+  --group "External Testers"
+```
+
+This workflow:
+
+1. Uploads the build and resolves its App Store Connect build record
+2. Distributes to specified beta groups
+
+Add `--wait` to wait for build processing before distribution.
+
+For a macOS PKG, provide the version and build number explicitly. The platform
+defaults to `MAC_OS` when `--pkg` is used:
+
+```bash
+asc publish testflight \
+  --app APP_ID \
+  --pkg /path/to/MacApp.pkg \
+  --version 1.2.0 \
+  --build-number 42 \
+  --group "External Testers"
+```
+
+For archive/export/upload/wait without distribution, use the upload-only mode.
+It returns the uploaded build ID without requiring or
+modifying a beta group:
+
+```bash
+asc publish testflight \
+  --app APP_ID \
+  --ipa /path/to/MyApp.ipa \
+  --upload-only \
+  --wait \
+  --output json
+```
+
+`--upload-only` cannot be combined with `--group`, `--notify`, `--submit`,
+`--confirm`, `--test-notes`, `--locale`, or `--build-id`. Use the returned
+`buildId` with `asc builds wait`, then `asc builds add-groups`, in later
+resumable steps.
+
+### App Store workflow
+
+Ship to the App Store with the canonical publish command:
+
+```bash
+asc publish appstore \
+  --app APP_ID \
+  --ipa /path/to/MyApp.ipa \
+  --version 1.2.0 \
+  --submit \
+  --confirm
+```
+
+This workflow:
+
+1. Uploads the IPA or PKG
+2. Finds or creates the matching App Store version
+3. Attaches the processed build
+4. Optionally submits for review with `--submit`
+5. Prints the resulting build/version/submission identifiers
+
+Use `--pkg` for a prebuilt macOS installer. PKG uploads require explicit
+`--version` and `--build-number` values and use `MAC_OS` automatically:
+
+```bash
+asc publish appstore \
+  --app APP_ID \
+  --pkg /path/to/MacApp.pkg \
+  --version 1.2.0 \
+  --build-number 42 \
+  --submit \
+  --confirm
+```
+
+## TestFlight flags
+
+<ParamField path="--app" type="string" required>
+  App ID for the build
+</ParamField>
+
+<ParamField path="--ipa" type="string">
+  Path to an iOS, tvOS, or visionOS IPA file
+</ParamField>
+
+<ParamField path="--pkg" type="string">
+  Path to a macOS PKG file
+</ParamField>
+
+<ParamField path="--group" type="string">
+  Comma-separated beta group names or IDs
+
+  Example: `"External Testers,Internal Team"`
+</ParamField>
+
+<ParamField path="--wait" type="boolean">
+  Wait for build processing to complete
+
+  Default: `false`
+</ParamField>
+
+<ParamField path="--upload-only" type="boolean">
+  Upload and optionally wait for the build without group distribution or beta review
+</ParamField>
+
+## 1.0 migration note
+
+If older automation still invokes the deprecated `asc release run`, replace it with
+`asc publish appstore --submit --confirm` for end-to-end shipping or
+`asc release stage` for pre-submit preparation work.
+
+## Example workflows
+
+### Publish to TestFlight
+
+```bash
+asc publish testflight \
+  --app 123456789 \
+  --ipa build/MyApp.ipa \
+  --group "External Testers,Beta Team"
+```
+
+### Publish to App Store
+
+```bash
+asc publish appstore \
+  --app 123456789 \
+  --ipa build/MyApp.ipa \
+  --version 1.2.0 \
+  --submit \
+  --confirm
+```
+
+### Publish a macOS PKG
+
+```bash
+asc publish appstore \
+  --app 123456789 \
+  --pkg build/MacApp.pkg \
+  --version 1.2.0 \
+  --build-number 42
+```
+
+### CI/CD integration
+
+```yaml
+# GitHub Actions
+- name: Publish to TestFlight
+  env:
+    ASC_APP_ID: ${{ secrets.APP_ID }}
+  run: |
+    asc publish testflight \
+      --app "$ASC_APP_ID" \
+      --ipa MyApp.ipa \
+      --group "External Testers"
+```
+
+## Output
+
+Upload-only JSON can be extracted by workflows:
+
+```json
+{
+  "mode": "ipa_upload",
+  "buildId": "BUILD_ID",
+  "buildVersion": "1.2.3",
+  "buildNumber": "42",
+  "uploaded": true,
+  "uploadOnly": true,
+  "processingState": "VALID"
+}
+```
+
+PKG uploads report `"mode": "pkg_upload"`.
+
+If `--wait` fails after the build record is known, the command still prints
+canonical partial structured output and exits nonzero:
+
+```json
+{
+  "status": "partial",
+  "failureStage": "build_processing",
+  "failure": "publish testflight: processing failed",
+  "completedStages": ["upload"],
+  "mode": "ipa_upload",
+  "buildId": "BUILD_ID",
+  "buildVersion": "1.2.3",
+  "buildNumber": "42",
+  "uploaded": true,
+  "uploadOnly": true,
+  "processingState": "FAILED"
+}
+```
+
+Resume distribution with the returned `buildId` instead of uploading the
+binary again.
+
+## Error handling
+
+If any step fails, the workflow stops and reports the error:
+
+```
+Upload failed: Invalid IPA file
+```
+
+You can retry individual steps using the lower-level commands:
+
+```bash
+asc builds upload --app 123456789 --ipa MyApp.ipa
+asc builds add-groups --build-id BUILD_ID --group "External Testers"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Builds command" icon="box" href="/commands/builds">
+    Manage builds and uploads
+  </Card>
+
+  <Card title="Release command" icon="rocket" href="/commands/release">
+    Pre-submit release staging
+  </Card>
+
+  <Card title="Automation guide" icon="robot" href="/guides/automation">
+    Workflow automation patterns
+  </Card>
+</CardGroup>

@@ -1,0 +1,299 @@
+---
+title: Category Commands
+description: Manage App Store categories
+---
+
+import { Note, ParamField, Warning } from '@components/mdx';
+
+## Overview
+
+Category commands manage App Store categories for your app, including primary and secondary categories.
+
+## Commands
+
+### `asc categories list`
+
+List available App Store categories.
+
+<ParamField path="--limit" type="integer" default="200">
+  Maximum results per page (1-200)
+</ParamField>
+
+<ParamField path="--next" type="string">
+  Fetch the next page using a `links.next` URL
+</ParamField>
+
+<ParamField path="--paginate" type="boolean" default="false">
+  Automatically fetch all pages (aggregate results)
+</ParamField>
+
+<ParamField path="--output" type="string" default="json">
+  Output format: `json`, `table`
+</ParamField>
+
+**Examples:**
+
+```bash
+asc categories list
+asc categories list --output table
+asc categories list --paginate
+asc categories list --next "<links.next>"
+asc categories list --paginate --next "<links.next>"
+```
+
+Use `--next` with the `links.next` URL from a previous response to resume from
+that page. Do not combine `--next` with `--limit`; the cursor already carries
+the page size.
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "GAMES",
+      "type": "appCategories",
+      "attributes": {
+        "platforms": ["IOS", "MAC_OS"]
+      }
+    },
+    {
+      "id": "PRODUCTIVITY",
+      "type": "appCategories",
+      "attributes": {
+        "platforms": ["IOS", "MAC_OS", "TV_OS"]
+      }
+    },
+    {
+      "id": "PHOTO_AND_VIDEO",
+      "type": "appCategories",
+      "attributes": {
+        "platforms": ["IOS", "MAC_OS"]
+      }
+    }
+  ],
+  "links": {
+    "self": "https://api.appstoreconnect.apple.com/v1/appCategories?limit=200",
+    "next": "https://api.appstoreconnect.apple.com/v1/appCategories?cursor=NEXT_CURSOR&limit=200"
+  }
+}
+```
+
+***
+
+### `asc categories view`
+
+View a specific category.
+
+<ParamField path="--category-id" type="string" required>
+  Category ID (e.g., GAMES)
+</ParamField>
+
+**Examples:**
+
+```bash
+asc categories view --category-id "GAMES"
+```
+
+***
+
+### `asc categories parent`
+
+Get the parent category.
+
+<ParamField path="--category-id" type="string" required>
+  Category ID
+</ParamField>
+
+**Examples:**
+
+```bash
+asc categories parent --category-id "GAMES_ACTION"
+```
+
+***
+
+### `asc categories subcategories`
+
+List subcategories for a category.
+
+<ParamField path="--category-id" type="string" required>
+  Category ID
+</ParamField>
+
+**Examples:**
+
+```bash
+asc categories subcategories --category-id "GAMES"
+```
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "GAMES_ACTION",
+      "type": "appCategories"
+    },
+    {
+      "id": "GAMES_ADVENTURE",
+      "type": "appCategories"
+    },
+    {
+      "id": "GAMES_SIMULATION",
+      "type": "appCategories"
+    }
+  ]
+}
+```
+
+***
+
+### `asc categories set`
+
+Set primary and secondary categories for an app.
+
+<Note>
+  The app must have an editable version in PREPARE\_FOR\_SUBMISSION state.
+</Note>
+
+<ParamField path="--app" type="string" required>
+  App Store Connect app ID
+</ParamField>
+
+<ParamField path="--primary" type="string" required>
+  Primary category ID
+</ParamField>
+
+<ParamField path="--secondary" type="string">
+  Secondary category ID
+</ParamField>
+
+<ParamField path="--primary-subcategory-one" type="string">
+  Primary category first subcategory ID
+</ParamField>
+
+<ParamField path="--primary-subcategory-two" type="string">
+  Primary category second subcategory ID
+</ParamField>
+
+<ParamField path="--secondary-subcategory-one" type="string">
+  Secondary category first subcategory ID
+</ParamField>
+
+<ParamField path="--secondary-subcategory-two" type="string">
+  Secondary category second subcategory ID
+</ParamField>
+
+**Examples:**
+
+```bash
+asc categories set --app 123456789 --primary GAMES
+asc categories set --app 123456789 --primary GAMES --secondary ENTERTAINMENT
+asc categories set --app 123456789 --primary GAMES --primary-subcategory-one GAMES_ACTION --primary-subcategory-two GAMES_SIMULATION
+asc categories set --app 123456789 --primary GAMES --primary-subcategory-one GAMES_ACTION --secondary ENTERTAINMENT
+asc categories set --app 123456789 --primary PHOTO_AND_VIDEO
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "app": "123456789",
+  "primaryCategory": "GAMES",
+  "secondaryCategory": "ENTERTAINMENT",
+  "primarySubcategoryOne": "GAMES_ACTION"
+}
+```
+
+***
+
+## Common Usage Patterns
+
+### List all categories
+
+```bash
+asc categories list --output table
+```
+
+### Find subcategories for Games
+
+```bash
+asc categories subcategories --category-id "GAMES" --output json
+```
+
+### Set app categories
+
+```bash
+asc categories set --app "123456789" --primary GAMES --primary-subcategory-one GAMES_ACTION
+```
+
+### Update categories for an existing app
+
+```bash
+asc categories set --app "123456789" --primary PRODUCTIVITY --secondary BUSINESS
+```
+
+## Common Categories
+
+### iOS Categories
+
+* `BOOKS`
+* `BUSINESS`
+* `DEVELOPER_TOOLS`
+* `EDUCATION`
+* `ENTERTAINMENT`
+* `FINANCE`
+* `FOOD_AND_DRINK`
+* `GAMES`
+* `GRAPHICS_AND_DESIGN`
+* `HEALTH_AND_FITNESS`
+* `LIFESTYLE`
+* `MAGAZINES_AND_NEWSPAPERS`
+* `MEDICAL`
+* `MUSIC`
+* `NAVIGATION`
+* `NEWS`
+* `PHOTO_AND_VIDEO`
+* `PRODUCTIVITY`
+* `REFERENCE`
+* `SHOPPING`
+* `SOCIAL_NETWORKING`
+* `SPORTS`
+* `STICKERS`
+* `TRAVEL`
+* `UTILITIES`
+* `WEATHER`
+
+### Games Subcategories
+
+* `GAMES_ACTION`
+* `GAMES_ADVENTURE`
+* `GAMES_ARCADE`
+* `GAMES_BOARD`
+* `GAMES_CARD`
+* `GAMES_CASINO`
+* `GAMES_FAMILY`
+* `GAMES_MUSIC`
+* `GAMES_PUZZLE`
+* `GAMES_RACING`
+* `GAMES_ROLE_PLAYING`
+* `GAMES_SIMULATION`
+* `GAMES_SPORTS`
+* `GAMES_STRATEGY`
+* `GAMES_TRIVIA`
+* `GAMES_WORD`
+
+## Category Requirements
+
+* Every app must have a primary category
+* Apps can optionally have a secondary category
+* Some categories (like GAMES) support up to two subcategories
+* Categories must be appropriate for the app's platform (iOS, macOS, tvOS, visionOS)
+* The app must have an editable version to change categories
+
+<Warning>
+  Choosing the right category is important for App Store discoverability. Select the category that best describes your app's primary functionality.
+</Warning>

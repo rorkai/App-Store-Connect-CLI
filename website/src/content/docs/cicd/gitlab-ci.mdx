@@ -1,0 +1,621 @@
+---
+title: GitLab CI Integration
+description: Use official GitLab CI components to integrate App Store Connect CLI into your pipelines
+---
+
+import { Accordion, AccordionGroup, Card, CardGroup, Warning } from '@components/mdx';
+
+## Official Components
+
+GitLab CI integration is provided through reusable components in the `asc-ci-components` repository:
+
+* **Install component** - Set up `asc` in your pipeline
+* **Run component** - Install and execute commands in one step
+* **Self-managed support** - Works with GitLab.com and self-hosted instances
+
+**Repository**: [github.com/rudrankriyam/asc-ci-components](https://github.com/rudrankriyam/asc-ci-components)
+
+## Quick Start
+
+### Using the Run Component
+
+The simplest way to use `asc` in GitLab CI:
+
+```yaml title=".gitlab-ci.yml"
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: deploy
+      job_prefix: release
+      asc_version: latest
+      command: asc apps list
+```
+
+This creates a job named `release:run` that:
+
+1. Installs the latest version of `asc`
+2. Executes `asc apps list`
+3. Uses CI/CD variables for authentication
+
+## Component Reference
+
+### Run Component
+
+Installs `asc` and runs a command in a single job.
+
+```yaml
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: deploy           # Pipeline stage
+      job_prefix: myapp       # Job name prefix
+      asc_version: latest     # Version to install
+      command: asc --version  # Command to run
+```
+
+**Inputs:**
+
+| Input         | Description         | Required | Default  |
+| ------------- | ------------------- | -------- | -------- |
+| `stage`       | Pipeline stage name | Yes      | -        |
+| `job_prefix`  | Prefix for job name | Yes      | -        |
+| `asc_version` | Version to install  | No       | `latest` |
+| `command`     | Command to execute  | Yes      | -        |
+
+### Install Component
+
+Only installs `asc`, allowing you to run multiple commands:
+
+```yaml
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/install@main
+    inputs:
+      stage: prepare
+      job_prefix: setup
+      asc_version: latest
+```
+
+## Complete Pipelines
+
+### TestFlight Deployment
+
+```yaml title=".gitlab-ci.yml"
+stages:
+  - build
+  - deploy
+
+variables:
+  ASC_DEFAULT_OUTPUT: json
+  ASC_TIMEOUT: 2m
+  ASC_UPLOAD_TIMEOUT: 10m
+
+build:ios:
+  stage: build
+  tags:
+    - macos
+  script:
+    - xcodebuild -workspace MyApp.xcworkspace \
+        -scheme MyApp \
+        -configuration Release \
+        -archivePath $CI_PROJECT_DIR/build/MyApp.xcarchive \
+        archive
+    - xcodebuild -exportArchive \
+        -archivePath $CI_PROJECT_DIR/build/MyApp.xcarchive \
+        -exportPath $CI_PROJECT_DIR/build \
+        -exportOptionsPlist ExportOptions.plist
+  artifacts:
+    paths:
+      - build/MyApp.ipa
+    expire_in: 1 week
+
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: deploy
+      job_prefix: testflight
+      asc_version: latest
+      command: |
+        asc builds upload \
+          --app "$APP_ID" \
+          --ipa build/MyApp.ipa
+
+testflight:run:
+  needs:
+    - build:ios
+  only:
+    - main
+    - tags
+```
+
+### Multi-Stage Release
+
+```yaml title=".gitlab-ci.yml"
+stages:
+  - validate
+  - submit
+  - notify
+
+# Validate app version
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: validate
+      job_prefix: check
+      asc_version: latest
+      command: |
+        asc validate \
+          --app "$APP_ID" \
+          --version "$CI_COMMIT_TAG"
+
+check:run:
+  only:
+    - tags
+
+# Publish to the App Store
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: submit
+      job_prefix: release
+      asc_version: latest
+      command: |
+        asc publish appstore \
+          --app "$APP_ID" \
+          --ipa "./build/MyApp.ipa" \
+          --version "$CI_COMMIT_TAG" \
+          --submit \
+          --confirm
+
+release:run:
+  needs:
+    - check:run
+  only:
+    - tags
+  when: manual  # Require manual approval
+
+# Get submission status
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: notify
+      job_prefix: status
+      asc_version: latest
+      command: |
+        asc status \
+          --app "$APP_ID" \
+          --output json > review-status.json
+
+status:run:
+  needs:
+    - release:run
+  artifacts:
+    reports:
+      dotenv: review-status.json
+```
+
+### Metadata Sync Pipeline
+
+```yaml title=".gitlab-ci.yml"
+stages:
+  - sync
+
+variables:
+  METADATA_PATH: metadata/
+
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: sync
+      job_prefix: description
+      asc_version: latest
+      command: |
+        asc apps info edit \
+          --app "$APP_ID" \
+          --locale en-US \
+          --description "$(cat $METADATA_PATH/en-US/description.txt)"
+
+description:run:
+  only:
+    changes:
+      - metadata/en-US/description.txt
+
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: sync
+      job_prefix: screenshots
+      asc_version: latest
+      command: |
+        for screenshot in $METADATA_PATH/en-US/screenshots/iphone67/*.png; do
+          asc screenshots upload \
+            --version-localization "$VERSION_LOCALIZATION_ID" \
+            --device-type "IPHONE_65" \
+            --path "$screenshot"
+        done
+
+screenshots:run:
+  only:
+    changes:
+      - metadata/en-US/screenshots/**/*
+```
+
+### Scheduled Monitoring
+
+```yaml title=".gitlab-ci.yml"
+stages:
+  - monitor
+
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: monitor
+      job_prefix: crashes
+      asc_version: latest
+      command: |
+        asc testflight crashes list \
+          --app "$APP_ID" \
+          --sort -createdDate \
+          --limit 20 \
+          --output json > crashes.json
+
+crashes:run:
+  only:
+    - schedules
+  artifacts:
+    paths:
+      - crashes.json
+    expire_in: 30 days
+
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: monitor
+      job_prefix: feedback
+      asc_version: latest
+      command: |
+        asc testflight feedback list \
+          --app "$APP_ID" \
+          --paginate \
+          --output json > feedback.json
+
+feedback:run:
+  only:
+    - schedules
+  artifacts:
+    paths:
+      - feedback.json
+    expire_in: 30 days
+```
+
+## Authentication Setup
+
+### CI/CD Variables
+
+1. Navigate to **Settings > CI/CD > Variables**
+2. Click **Add variable**
+3. Add the required variables:
+
+| Variable              | Value                      | Protected | Masked |
+| --------------------- | -------------------------- | --------- | ------ |
+| `ASC_KEY_ID`          | Your Key ID                | Yes       | Yes    |
+| `ASC_ISSUER_ID`       | Your Issuer ID             | Yes       | Yes    |
+| `ASC_PRIVATE_KEY_B64` | Base64-encoded private key | Yes       | Yes    |
+| `APP_ID`              | Your app ID (optional)     | No        | No     |
+
+<Warning>
+  Enable **Protected** to restrict access to protected branches/tags. Enable **Masked** to prevent values from appearing in job logs.
+</Warning>
+
+### Base64 Encoding
+
+```bash
+# Encode private key
+base64 -i AuthKey_ABC123.p8 | tr -d '\n'
+
+# Verify encoding
+echo "$ENCODED_KEY" | base64 -d | head -1
+# Should output: -----BEGIN PRIVATE KEY-----
+```
+
+### Using Private Key File
+
+Alternatively, store the raw private key and write it to a file:
+
+```yaml
+before_script:
+  - echo "$ASC_PRIVATE_KEY" > /tmp/AuthKey.p8
+  - chmod 600 /tmp/AuthKey.p8
+  - export ASC_PRIVATE_KEY_PATH=/tmp/AuthKey.p8
+
+after_script:
+  - rm -f /tmp/AuthKey.p8
+```
+
+## Self-Managed GitLab
+
+For self-hosted GitLab instances, components work identically:
+
+```yaml
+include:
+  - component: gitlab.example.com/your-group/asc-ci-components/run@main
+    inputs:
+      stage: deploy
+      job_prefix: release
+      asc_version: latest
+      command: asc apps list
+```
+
+Clone the components repository to your GitLab instance and reference it with your instance URL.
+
+## Advanced Patterns
+
+### Parallel Jobs
+
+```yaml
+stages:
+  - deploy
+
+.testflight_template:
+  stage: deploy
+  script:
+    - asc builds upload --app "$APP_ID" --ipa "build/$APP_NAME.ipa"
+  only:
+    - main
+
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/install@main
+    inputs:
+      stage: deploy
+      job_prefix: setup
+      asc_version: latest
+
+deploy:app1:
+  extends: .testflight_template
+  needs:
+    - setup:install
+  variables:
+    APP_ID: "123456789"
+    APP_NAME: "MyApp"
+
+deploy:app2:
+  extends: .testflight_template
+  needs:
+    - setup:install
+  variables:
+    APP_ID: "987654321"
+    APP_NAME: "MyAppPro"
+```
+
+### Dynamic Versioning
+
+```yaml
+stages:
+  - prepare
+  - deploy
+
+version:extract:
+  stage: prepare
+  script:
+    - VERSION=$(grep 'MARKETING_VERSION' MyApp.xcodeproj/project.pbxproj | head -1 | sed 's/.*= \(.*\);/\1/')
+    - echo "VERSION=$VERSION" > version.env
+  artifacts:
+    reports:
+      dotenv: version.env
+
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: deploy
+      job_prefix: release
+      asc_version: latest
+      command: |
+        echo "Publishing version $VERSION"
+        asc publish appstore --app "$APP_ID" --ipa "./build/MyApp.ipa" --version "$VERSION" --submit --confirm
+
+release:run:
+  needs:
+    - version:extract
+```
+
+### Retry Logic
+
+`asc` already retries rate-limited requests and transient read failures (tune with `ASC_MAX_RETRIES`). Ordinary writes retry only on `429`; explicitly idempotent mutations, such as setting territory availability, use the read retry policy. Use GitLab's `retry` keyword for runner-level failures:
+
+```yaml
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: deploy
+      job_prefix: upload
+      asc_version: latest
+      command: asc builds upload --app "$APP_ID" --ipa build/MyApp.ipa
+
+upload:run:
+  retry:
+    max: 2
+    when:
+      - api_failure
+      - stuck_or_timeout_failure
+```
+
+## Environment-Specific Deployments
+
+```yaml
+stages:
+  - deploy:staging
+  - deploy:production
+
+# Staging deployment
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: deploy:staging
+      job_prefix: staging
+      asc_version: latest
+      command: |
+        asc builds upload \
+          --app "$STAGING_APP_ID" \
+          --ipa build/MyApp-Staging.ipa
+
+staging:run:
+  environment:
+    name: staging
+  only:
+    - develop
+
+# Production deployment
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: deploy:production
+      job_prefix: production
+      asc_version: latest
+      command: |
+        asc publish appstore \
+          --app "$PRODUCTION_APP_ID" \
+          --ipa "./build/MyApp.ipa" \
+          --version "$CI_COMMIT_TAG" \
+          --submit \
+          --confirm
+
+production:run:
+  environment:
+    name: production
+  only:
+    - tags
+  when: manual
+```
+
+## Debugging
+
+### Enable Debug Output
+
+```yaml
+variables:
+  ASC_DEBUG: api
+
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: deploy
+      job_prefix: debug
+      asc_version: latest
+      command: asc apps list
+```
+
+### Test Authentication
+
+```yaml
+test:auth:
+  stage: test
+  script:
+    - |
+      echo "Testing App Store Connect authentication..."
+      echo "Key ID: ${ASC_KEY_ID:0:8}..."
+      echo "Issuer ID: ${ASC_ISSUER_ID:0:8}..."
+      
+      # Install asc
+      curl -fsSL https://asccli.sh/install | bash
+      
+      # Test command
+      asc apps list --limit 1
+  only:
+    - branches
+```
+
+### Verify Variables
+
+```yaml
+verify:env:
+  stage: test
+  script:
+    - |
+      echo "Checking required variables..."
+      
+      if [ -z "$ASC_KEY_ID" ]; then
+        echo "ERROR: ASC_KEY_ID not set"
+        exit 1
+      fi
+      
+      if [ -z "$ASC_ISSUER_ID" ]; then
+        echo "ERROR: ASC_ISSUER_ID not set"
+        exit 1
+      fi
+      
+      if [ -z "$ASC_PRIVATE_KEY_B64" ]; then
+        echo "ERROR: ASC_PRIVATE_KEY_B64 not set"
+        exit 1
+      fi
+      
+      echo "All required variables are set"
+  only:
+    - branches
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Component not found">
+    * Verify component URL matches your GitLab instance
+    * Check repository exists and is accessible
+    * Ensure you're using the correct branch/tag (`@main`, `@v1`, etc.)
+    * For self-hosted: confirm components are published to the instance
+  </Accordion>
+
+  <Accordion title="Authentication failed">
+    * Verify all three variables are set in CI/CD settings
+    * Check that variables are not expired or masked incorrectly
+    * Ensure private key is properly base64-encoded
+    * Test credentials locally with the same key
+  </Accordion>
+
+  <Accordion title="Job timeout">
+    * Increase job timeout in `.gitlab-ci.yml`:
+      ```yaml
+      upload:run:
+        timeout: 30m
+      ```
+    * Set `ASC_UPLOAD_TIMEOUT` for long uploads
+  </Accordion>
+
+  <Accordion title="Artifacts not found">
+    * Check artifact paths in previous jobs
+    * Verify `needs` dependencies are correct
+    * Ensure artifacts haven't expired
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use protected variables" icon="lock">
+    Mark sensitive variables as **Protected** and **Masked** to prevent exposure in logs.
+  </Card>
+
+  <Card title="Pin component versions" icon="tag">
+    Use specific tags instead of `@main` for stability:
+
+    ```yaml
+    component: .../run@v1.0.0
+    ```
+  </Card>
+
+  <Card title="Set timeouts" icon="clock">
+    Configure appropriate timeouts for upload operations:
+
+    ```yaml
+    variables:
+      ASC_UPLOAD_TIMEOUT: 15m
+    ```
+  </Card>
+
+  <Card title="Use manual triggers" icon="hand">
+    Require manual approval for production:
+
+    ```yaml
+    when: manual
+    ```
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+* [CI/CD Overview](/cicd/overview)
+* [Authentication Guide](/authentication)
+* [Commands Reference](/commands/overview)
+* [asc-ci-components Repository](https://github.com/rudrankriyam/asc-ci-components)

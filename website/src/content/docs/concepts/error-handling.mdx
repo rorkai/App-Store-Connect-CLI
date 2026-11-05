@@ -1,0 +1,393 @@
+---
+title: Error Handling
+description: Understand CLI exit codes, API errors, and how to handle failures in scripts and CI/CD pipelines.
+---
+
+import { Card, CardGroup, Note } from '@components/mdx';
+
+## Exit Codes
+
+Every command returns a numeric exit code that indicates the result:
+
+```bash
+asc apps list
+echo $?  # 0 = success
+```
+
+### Exit Code Reference
+
+| Code | Meaning                | Example                                                         |
+| ---- | ---------------------- | --------------------------------------------------------------- |
+| `0`  | Success                | Command completed successfully                                  |
+| `1`  | Generic error          | Unexpected failure, network error, or unknown issue             |
+| `2`  | Usage error            | Invalid flags, missing required arguments, or malformed command |
+| `3`  | Authentication failure | Missing credentials, invalid API key, or permission denied      |
+| `4`  | Resource not found     | App, build, or resource does not exist                          |
+| `5`  | Conflict               | Resource already exists or version conflict                     |
+| `6`  | Read-only refusal      | `ASC_READ_ONLY` or `--read-only` blocked a mutating request     |
+| `7`  | Still pending          | `asc builds wait --report-pending` timed out before processing  |
+
+### HTTP Status Mapping
+
+The CLI maps HTTP status codes to exit codes:
+
+#### 4xx Client Errors
+
+**Formula:** `10 + (status - 400)`
+
+| HTTP Status       | Exit Code | Description                            |
+| ----------------- | --------- | -------------------------------------- |
+| 400 Bad Request   | `10`      | Invalid request parameters             |
+| 401 Unauthorized  | `3`       | Authentication failure (special case)  |
+| 403 Forbidden     | `3`       | Authentication failure (special case)  |
+| 404 Not Found     | `4`       | Resource not found (special case)      |
+| 409 Conflict      | `5`       | Resource conflict (special case)       |
+| 422 Unprocessable | `32`      | Validation error                       |
+
+#### 5xx Server Errors
+
+**Formula:** `60 + (status - 500)`
+
+| HTTP Status               | Exit Code | Description                     |
+| ------------------------- | --------- | ------------------------------- |
+| 500 Internal Server Error | `60`      | API server error                |
+| 502 Bad Gateway           | `62`      | Gateway error                   |
+| 503 Service Unavailable   | `63`      | Service temporarily unavailable |
+
+<Note>
+  Exit codes follow the deterministic formula defined in `cmd/exit_codes.go`.
+</Note>
+
+## API Errors
+
+The App Store Connect API returns structured error responses:
+
+```json
+{
+  "errors": [
+    {
+      "status": "404",
+      "code": "NOT_FOUND",
+      "title": "The requested resource does not exist",
+      "detail": "There is no app with ID '123456789'"
+    }
+  ]
+}
+```
+
+The CLI parses these errors and displays them in a human-readable format:
+
+```bash
+asc apps view --id 123456789
+# Error: The requested resource does not exist: There is no app with ID '123456789'
+# Exit code: 4
+```
+
+### Well-Known Error Codes
+
+The CLI recognizes standard App Store Connect error codes:
+
+* `NOT_FOUND` → Exit code `4`
+* `CONFLICT` → Exit code `5`
+* `UNAUTHORIZED` → Exit code `3`
+* `FORBIDDEN` → Exit code `3`
+* `BAD_REQUEST` → Exit code `10`
+
+These map to Go error sentinels:
+
+```go
+// From internal/asc/errors.go
+var (
+    ErrNotFound     = errors.New("resource not found")
+    ErrUnauthorized = errors.New("unauthorized")
+    ErrForbidden    = errors.New("forbidden")
+    ErrBadRequest   = errors.New("bad request")
+    ErrConflict     = errors.New("resource conflict")
+)
+```
+
+### Associated Errors
+
+Some API errors include additional details under `meta.associatedErrors`:
+
+```bash
+asc versions create --app APP_ID --version 1.0.0 --platform IOS
+# Error: Version creation failed: The version string is invalid
+# 
+# Associated errors for appStoreVersion:
+#   - Version string must follow semantic versioning (e.g., 1.0.0)
+#   - Version 1.0.0 already exists for this app
+```
+
+The CLI formats these errors with clear indentation and grouping.
+
+## Error Messages
+
+All error messages go to **stderr**, not stdout:
+
+```bash
+# Success: data goes to stdout
+asc apps list --output json > apps.json
+
+# Failure: error goes to stderr, stdout is empty
+asc apps view --id INVALID 2> error.log
+# error.log contains: "Error: The requested resource does not exist: ..."
+```
+
+This allows safe piping and redirection:
+
+```bash
+# Pipe only successful output
+asc apps list --output json | jq '.data[0].id'
+
+# Capture errors separately
+asc apps view --id APP_ID > output.json 2> errors.log
+```
+
+### Unknown Flags
+
+An unknown flag is a usage error: exit code `2`, nothing on stdout, and a
+diagnostic on stderr that names up to three flags the command actually defines
+under `Try:`. Suggestions come from the command's own flag set, so a suggested
+flag is always accepted by the command that printed it:
+
+```
+$ asc submit status --app <APP_ID>
+Error: unknown flag `--app` for `asc submit status`
+Try:
+  --id
+For help:
+  asc submit status --help
+```
+
+The flag value is never echoed, and a flag removed in 5.0 names its
+replacement instead (see [Migrate to 5.0](/migrate-to-5-0)).
+
+### Credentials in Error Messages
+
+Errors never repeat the credential-bearing parts of a URL. Asset upload
+failures — Game Center images, App Clip assets, screenshots, previews — report
+the scheme, host, and path of the presigned URL but drop its userinfo, query
+values, and fragment, so an expired or refused upload cannot print the signature
+or token:
+
+```
+Error: upload operation 0: upload request failed for https://upload.example.com/v1/assets/chunk-1 (timeout)
+```
+
+`asc notify slack` reports only the scheme and host, because the webhook path is
+itself the secret:
+
+```
+Error: notify slack: failed to send: webhook POST failed for https://hooks.slack.com
+```
+
+The failure class (`timeout`, `canceled`) and the HTTP status of non-transport
+failures are preserved, and the underlying error stays wrapped so programmatic
+inspection keeps working.
+
+## Handling Errors in Scripts
+
+### Exit Code Checks
+
+```bash
+#!/bin/bash
+set -e  # Exit on any error
+
+asc apps list --output json > apps.json
+if [ $? -eq 0 ]; then
+  echo "Success: $(jq '.data | length' apps.json) apps found"
+fi
+```
+
+### Specific Error Handling
+
+```bash
+#!/bin/bash
+asc apps view --id "$APP_ID" --output json > app.json
+EXIT_CODE=$?
+
+case $EXIT_CODE in
+  0)
+    echo "App found"
+    ;;
+  4)
+    echo "App not found, creating..."
+    asc web apps create --name "My App" --bundle-id "com.example.app" --sku "MYAPP123" --apple-id "$APPLE_ID"
+    ;;
+  3)
+    echo "Authentication failed. Check ASC_KEY_ID and ASC_ISSUER_ID."
+    exit 1
+    ;;
+  *)
+    echo "Unexpected error (exit code: $EXIT_CODE)"
+    exit 1
+    ;;
+esac
+```
+
+### Retry on Transient Errors
+
+```bash
+#!/bin/bash
+retry_count=0
+max_retries=3
+
+while [ $retry_count -lt $max_retries ]; do
+  asc apps list --output json > apps.json
+  exit_code=$?
+  
+  # Success
+  if [ $exit_code -eq 0 ]; then
+    break
+  fi
+  
+  # Retry on 5xx errors (exit codes 60-99)
+  if [ $exit_code -ge 60 ] && [ $exit_code -le 99 ]; then
+    retry_count=$((retry_count + 1))
+    echo "Server error, retrying ($retry_count/$max_retries)..." >&2
+    sleep 5
+  else
+    # Non-retryable error
+    echo "Fatal error (exit code: $exit_code)" >&2
+    exit $exit_code
+  fi
+done
+```
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+- name: Fetch apps
+  id: fetch_apps
+  run: |
+    asc apps list --output json > apps.json
+  continue-on-error: true
+
+- name: Handle errors
+  if: failure()
+  run: |
+    echo "Failed to fetch apps (exit code: $?)"
+    exit 1
+```
+
+### GitLab CI
+
+```yaml
+fetch_apps:
+  script:
+    - asc apps list --output json > apps.json
+  allow_failure:
+    exit_codes:
+      - 4  # Allow not found
+```
+
+### Makefile
+
+```makefile
+.PHONY: check-auth
+check-auth:
+	@asc auth status --output json > /dev/null 2>&1 || \
+	  (echo "Error: Authentication failed. Run 'asc auth login'"; exit 1)
+
+.PHONY: list-apps
+list-apps: check-auth
+	asc apps list --output json > apps.json
+```
+
+## Authentication Errors
+
+Common authentication failures and solutions:
+
+### Missing Credentials
+
+```bash
+asc apps list
+# Error: missing authentication. Run 'asc auth login' or 'asc auth init'
+# Exit code: 3 (authentication failure)
+```
+
+<Note>
+  Missing, invalid, unauthorized, and forbidden credentials all return exit code `3`, so scripts can handle authentication failures consistently.
+</Note>
+
+### Invalid API Key
+
+```bash
+asc apps list
+# Error: unauthorized
+# Exit code: 3
+```
+
+Solution: Verify your credentials:
+
+```bash
+asc auth status
+```
+
+### Permission Denied
+
+```bash
+asc apps update --id APP_ID --primary-locale "en-US"
+# Error: forbidden: You don't have permission to update this app
+# Exit code: 3
+```
+
+Solution: Check your App Store Connect role and permissions.
+
+## Debugging Errors
+
+Enable debug logging with `--debug` or `--api-debug`:
+
+```bash
+# General debug output
+asc --debug apps list
+
+# HTTP request/response debug (redacts sensitive values)
+asc --api-debug apps list
+```
+
+Debug output goes to stderr:
+
+```bash
+asc --api-debug apps list 2> debug.log
+```
+
+### Environment Variables
+
+```bash
+# Enable API debug for all commands
+export ASC_DEBUG=api
+asc apps list
+
+# Disable debug
+unset ASC_DEBUG
+```
+
+## Error Handling Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always Check Exit Codes" icon="check">
+    Use `set -e` in shell scripts or check `$?` after each command.
+  </Card>
+
+  <Card title="Separate stdout and stderr" icon="split">
+    Redirect errors to a log file: `asc apps list 2> errors.log`.
+  </Card>
+
+  <Card title="Handle Expected Errors" icon="shield">
+    Exit code `4` (not found) is often expected. Handle it explicitly.
+  </Card>
+
+  <Card title="Retry Transient Errors" icon="rotate">
+    Retry on exit codes `60-99` (5xx server errors) with exponential backoff.
+  </Card>
+</CardGroup>
+
+## Related
+
+* [Authentication](/authentication) - Set up API credentials
+* [Workflows](/concepts/workflows) - Error handling in multi-step workflows
+* [Exit Codes Reference](https://github.com/rorkai/App-Store-Connect-CLI/blob/main/cmd/exit_codes.go) - Source code

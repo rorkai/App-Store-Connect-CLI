@@ -1,0 +1,93 @@
+---
+title: crashes
+description: "Inspect TestFlight crash submissions with `asc testflight crashes`"
+---
+
+import { Card, CardGroup, ParamField } from '@components/mdx';
+
+Crash-report workflows now live under `asc testflight crashes ...`. This page keeps the older `crashes` URL, but the current CLI surface is the `testflight crashes` command family.
+
+## Usage
+
+```bash
+asc testflight crashes <subcommand> [flags]
+```
+
+## List crashes
+
+Retrieve crash submissions for an app:
+
+```bash
+asc testflight crashes list --app APP_ID
+asc testflight crashes list --app APP_ID --sort -createdDate
+asc testflight crashes list --app APP_ID --device-model "iPhone15,3" --os-version "17.2"
+asc testflight crashes list --app APP_ID --paginate
+```
+
+## View and download crash details
+
+```bash
+asc testflight crashes view --submission-id SUBMISSION_ID
+asc testflight crashes log --submission-id SUBMISSION_ID
+asc testflight crashes log --crash-log-id CRASH_LOG_ID
+```
+
+## Cleanup
+
+```bash
+asc testflight crashes delete --submission-id SUBMISSION_ID --confirm
+```
+
+## Useful flags
+
+<ParamField path="--app" type="string" required>
+  App Store Connect app ID, bundle ID, or exact app name
+</ParamField>
+
+<ParamField path="--sort" type="string">
+  Sort order: `createdDate` or `-createdDate`
+</ParamField>
+
+<ParamField path="--device-model" type="string">
+  Filter by device model
+</ParamField>
+
+<ParamField path="--os-version" type="string">
+  Filter by OS version
+</ParamField>
+
+<ParamField path="--paginate" type="boolean">
+  Fetch all pages automatically
+</ParamField>
+
+## Example workflows
+
+### View recent crashes
+
+```bash
+asc testflight crashes list --app 123456789 --sort -createdDate --limit 10 --output table
+```
+
+### Export all crash submissions
+
+```bash
+asc testflight crashes list --app 123456789 --paginate > crashes.json
+```
+
+### Fetch a crash log for a submission
+
+```bash
+asc testflight crashes log --submission-id SUBMISSION_ID
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Feedback command" icon="comment" href="/commands/feedback">
+    View beta tester feedback
+  </Card>
+
+  <Card title="TestFlight command" icon="plane" href="/commands/testflight">
+    Manage TestFlight groups, testers, feedback, and crashes
+  </Card>
+</CardGroup>

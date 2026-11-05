@@ -1,0 +1,18 @@
+---
+interface Props {
+	path: string;
+	type?: string;
+	default?: string;
+}
+
+const { path, type, default: defaultValue } = Astro.props;
+---
+
+<div class="param-field">
+	<div class="param-field-head">
+		<code class="param-field-name">{path}</code>
+		{type && <span class="param-field-pill">{type}</span>}
+		{defaultValue !== undefined && <span class="param-field-pill">default: {defaultValue}</span>}
+	</div>
+	<div class="param-field-body"><slot /></div>
+</div>

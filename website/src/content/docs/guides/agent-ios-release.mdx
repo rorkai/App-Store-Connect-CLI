@@ -1,0 +1,280 @@
+---
+title: Agent iOS Release Checklist
+description: Use this checklist as an agent release gate. See
+---
+> [App Store Submission](/guides/app-store-submission) for the full workflow and
+> troubleshooting guide.
+
+This page adds the agent-specific contract: resolve exact resources, use scoped
+validation, preview each mutation, and prove the final App Store Connect
+state before reporting success.
+
+## Operating rules
+
+* Run `--help` for every command before using it.
+* Resolve the app ID and version target before changing anything. Resolve the
+  build ID before staging or submitting.
+* Use the most specific `asc` command for the workflow, including `asc web` when the operation lives there.
+* Preview supported workflows with `--dry-run`. Use `--confirm` only after
+  checking every identifier available at that stage.
+* Never print credentials or personal identity values in logs or handoffs.
+* A successful mutation response is not proof that the version entered review.
+
+## 1. Validate authentication and resolve the target
+
+Select the intended credential source before making a network request. When
+using a named profile:
+
+```bash
+export ASC_PROFILE="release"
+asc auth status --output table
+```
+
+If `ASC_PROFILE` is unset, confirm that the status shows the intended default
+profile or environment credential. Do not use `asc auth status --validate` as
+the release gate because it validates every stored credential. The filtered
+`asc apps list` call below is the scoped network validation for the selected
+credential and must succeed.
+
+Resolve the app and release version:
+
+```bash
+asc apps list --bundle-id "com.example.app" --output table
+
+export ASC_APP_ID="1234567890"
+export VERSION="1.2.3"
+
+asc versions list \
+  --app "$ASC_APP_ID" \
+  --version "$VERSION" \
+  --platform IOS \
+  --output json
+```
+
+For a build that is already in App Store Connect, resolve a valid processed
+build and record its ID:
+
+```bash
+export BUILD_NUMBER="42"
+
+asc builds info \
+  --app "$ASC_APP_ID" \
+  --build-number "$BUILD_NUMBER" \
+  --version "$VERSION" \
+  --platform IOS \
+  --output json
+
+export ASC_BUILD_ID="BUILD_ID"
+```
+
+Continue only when the response is for the expected build number and its
+processing state is `VALID`.
+
+Skip the build lookup when uploading a local IPA; resolve the build ID after
+upload and processing. Do not create a duplicate version. The staging and
+publishing commands below can create a missing version for their workflows.
+
+## 2. Prepare the version
+
+Choose the path that matches the current release state.
+
+### Stage an existing processed build
+
+Preview the staging plan:
+
+```bash
+asc release stage \
+  --app "$ASC_APP_ID" \
+  --version "$VERSION" \
+  --build-id "$ASC_BUILD_ID" \
+  --platform IOS \
+  --copy-metadata-from "1.2.2" \
+  --dry-run \
+  --output table
+```
+
+A dry-run cannot attach the build. If its only readiness blocker is the missing
+relationship for the exact resolved build, the confirmed pipeline fixes that
+condition before its readiness step. Resolve every other blocker first.
+
+After checking the resolved resources and plan, run the confirmed preparation
+pipeline. It applies metadata and attaches the build. The final release gate runs
+after any digital goods are submitted:
+
+```bash
+asc release stage \
+  --app "$ASC_APP_ID" \
+  --version "$VERSION" \
+  --build-id "$ASC_BUILD_ID" \
+  --platform IOS \
+  --copy-metadata-from "1.2.2" \
+  --confirm \
+  --output table
+```
+
+### Upload and attach a local IPA
+
+Preview the upload and preparation plan:
+
+```bash
+asc publish appstore \
+  --app "$ASC_APP_ID" \
+  --ipa "./build/ios/ipa/MyApp.ipa" \
+  --version "$VERSION" \
+  --platform IOS \
+  --wait \
+  --dry-run \
+  --output table
+```
+
+After checking the plan, run the preparation command and request structured
+output:
+
+```bash
+asc publish appstore \
+  --app "$ASC_APP_ID" \
+  --ipa "./build/ios/ipa/MyApp.ipa" \
+  --version "$VERSION" \
+  --platform IOS \
+  --wait \
+  --output json
+```
+
+Do not add `--submit`; release validation must run against the build after it is
+attached. Set `ASC_BUILD_ID` to the exact `buildId` returned by this command and
+retain its `buildNumber`:
+
+```bash
+export ASC_BUILD_ID="BUILD_ID_FROM_PUBLISH_RESULT"
+export BUILD_NUMBER="BUILD_NUMBER_FROM_PUBLISH_RESULT"
+```
+
+Never re-resolve an uploaded build with `--latest`. If the result must be
+re-read, query the known build number and verify that the response has the same
+build ID and a `VALID` processing state.
+
+If the version is already prepared and has the intended build attached, skip
+preparation and continue to the readiness gate.
+
+## 3. Gate readiness and submit
+
+After the build is attached, apps with digital goods must inspect and submit
+their products before using the final readiness gate:
+
+```bash
+asc validate iap --app "$ASC_APP_ID" --output json
+asc validate subscriptions --app "$ASC_APP_ID" --output json
+```
+
+Resolve the exact product `resourceId` and its current version ID for every
+product included in this release. Use `asc iap versions list` and
+`asc subscriptions versions list` to find versions in
+`PREPARE_FOR_SUBMISSION`. `READY_TO_SUBMIT` is an action item, not a passing
+state.
+
+Create one review submission, retain its returned ID, and add every affected
+product version. A submission supports up to 200 items:
+
+```bash
+asc review submissions-create \
+  --app "$ASC_APP_ID" \
+  --platform IOS \
+  --output json
+
+asc review items add \
+  --submission "SUBMISSION_ID" \
+  --item-type inAppPurchaseVersions \
+  --item-id "IAP_VERSION_ID" \
+  --output json
+
+asc review items add \
+  --submission "SUBMISSION_ID" \
+  --item-type subscriptionVersions \
+  --item-id "SUBSCRIPTION_VERSION_ID" \
+  --output json
+
+asc review submissions-submit \
+  --id "SUBMISSION_ID" \
+  --confirm \
+  --output json
+```
+
+These review-submission commands do not support `--dry-run`; use the validation
+report and exact product and version IDs as the pre-mutation check. Do not
+submit the review submission until every intended item has been added.
+
+After product submission, rerun the applicable validators:
+
+```bash
+asc validate iap --app "$ASC_APP_ID" --output json
+asc validate subscriptions --app "$ASC_APP_ID" --output json
+```
+
+For every selected product ID, require the review-readiness warning to disappear
+and verify a state such as `WAITING_FOR_REVIEW`, `IN_REVIEW`,
+`PENDING_BINARY_APPROVAL`, or `APPROVED`. These validators cover the full product
+catalog and do not accept a product filter. Do not add `--strict` as an app
+release gate when unrelated draft or legacy products exist.
+
+Then run the unified app-version validation:
+
+```bash
+asc validate \
+  --app "$ASC_APP_ID" \
+  --version "$VERSION" \
+  --platform IOS \
+  --output json
+```
+
+Require `summary.blocking` to be `0`, and resolve every warning that applies to
+the target version, build, or selected products. Non-strict output keeps
+unrelated product warnings advisory; it does not make them safe to ignore when
+their resource IDs are part of this release.
+
+Do not submit while a required metadata, build, product, privacy, or review
+check is failing. When all applicable gates pass, preview the submission:
+
+```bash
+asc review submit \
+  --app "$ASC_APP_ID" \
+  --version "$VERSION" \
+  --build-id "$ASC_BUILD_ID" \
+  --platform IOS \
+  --dry-run \
+  --output table
+```
+
+After checking the preview, repeat that command with `--confirm` instead of
+`--dry-run`.
+
+## 4. Prove the final state
+
+Re-read App Store Connect and include the attached build and submission:
+
+```bash
+asc status \
+  --app "$ASC_APP_ID" \
+  --platform IOS \
+  --include builds,appstore,submission,review \
+  --output json
+
+asc versions view \
+  --version-id "VERSION_ID" \
+  --include "build,appStoreVersionSubmission" \
+  --output json
+
+asc submit status --version-id "VERSION_ID" --output json
+```
+
+The handoff must name the app ID or bundle ID, version string, version ID, build
+number or build ID, submission ID when available, and the observed state. Report
+a draft as a draft. Only claim submission after the exact version and build show
+a review state such as `WAITING_FOR_REVIEW`, `IN_REVIEW`, or
+`PENDING_DEVELOPER_RELEASE`.
+
+## Web fallback
+
+Use an explicit `asc web` command when the operation lives in the web-session
+command family. `asc web auth login` supports interactive two-factor authentication,
+but account-holder agreements,
+payment issues, CAPTCHA, and unsupported surfaces may still require the browser.

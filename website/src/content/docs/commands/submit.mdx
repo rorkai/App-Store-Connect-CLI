@@ -1,0 +1,127 @@
+---
+title: submit
+description: "Submission lifecycle tools; use `publish appstore --submit` to ship"
+---
+
+import { Card, CardGroup } from '@components/mdx';
+
+The `submit` command is for lower-level App Store submission lifecycle work.
+For the canonical high-level App Store publish flow, use `asc publish appstore --submit`.
+
+## Usage
+
+```bash
+asc submit <subcommand> [flags]
+```
+
+## Canonical paths
+
+Use these commands deliberately:
+
+* `asc publish appstore --submit` - canonical App Store publish path
+* `asc validate` - canonical readiness check before submission
+* `asc submit status` - inspect submission or version review state
+* `asc submit cancel` - cancel an active submission
+
+In 1.0, the old `submit preflight` and `submit create` compatibility commands
+were removed.
+
+## Submission lifecycle
+
+### Validate readiness
+
+Check readiness before you ship:
+
+```bash
+asc validate --app APP_ID --version VERSION_STRING
+```
+
+### Check status
+
+Inspect a submission by submission ID or version ID:
+
+```bash
+asc submit status --id SUBMISSION_ID
+asc submit status --version-id VERSION_ID
+```
+
+### Cancel a submission
+
+Cancel an active review submission:
+
+```bash
+asc submit cancel --id SUBMISSION_ID --confirm
+```
+
+If App Store Connect refuses with `Resource is not in cancellable state`, the
+command reads the submission once and explains its state and the next step,
+for example that a `READY_FOR_REVIEW` draft was never submitted, or that an
+`UNRESOLVED_ISSUES` submission needs a fix or a Resolution Center reply. If
+that read fails, the command reports the refusal as it did before, with Apple's
+original error text.
+
+## Canonical publish workflow
+
+Ship to the App Store with the canonical high-level publish command:
+
+```bash
+asc publish appstore \
+  --app APP_ID \
+  --ipa /path/to/MyApp.ipa \
+  --version VERSION_STRING \
+  --submit \
+  --confirm
+```
+
+That flow uploads the IPA, finds or creates the matching version, attaches the
+build, and submits for review when `--submit` is present.
+
+## 1.0 migration note
+
+If older automation still invokes the deprecated `asc submit preflight`,
+migrate it to `asc validate`. If it still invokes the deprecated `asc submit create`,
+migrate it to `asc publish appstore --submit --confirm`.
+
+## Common errors
+
+### No build attached
+
+```
+Error: Version 1.2.0 has no build attached
+```
+
+**Solution:** Use `asc release stage` or `asc publish appstore` to attach the build as
+part of the release pipeline.
+
+### Missing metadata
+
+```
+Error: Missing required metadata for version 1.2.0
+```
+
+**Solution:** Complete the metadata, then retry `asc publish appstore --submit` or re-check
+with `asc validate`.
+
+### Already in review
+
+```
+Error: Version 1.2.0 is already in review
+```
+
+Use `asc submit status` to inspect the current submission before retrying.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Validate command" icon="check" href="/commands/validate">
+    Validate before submission
+  </Card>
+
+  <Card title="Publish command" icon="rocket" href="/commands/publish">
+    Canonical TestFlight publish path
+  </Card>
+
+  <Card title="Submission guide" icon="book-open" href="/guides/app-store-submission">
+    Complete App Store submission workflow
+  </Card>
+</CardGroup>

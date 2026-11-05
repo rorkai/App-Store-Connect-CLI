@@ -1,0 +1,20 @@
+---
+import Default from '@astrojs/starlight/components/Header.astro';
+
+const topics = Astro.locals.starlightSidebarTopics?.topics ?? [];
+---
+
+<div class="asc-header">
+	<div class="asc-header-main"><Default /></div>
+	{
+		topics.length > 0 && (
+			<nav class="asc-topic-tabs" aria-label="Sections">
+				{topics.map((topic) => (
+					<a href={topic.link} aria-current={topic.isCurrent ? 'page' : undefined}>
+						{topic.label}
+					</a>
+				))}
+			</nav>
+		)
+	}
+</div>

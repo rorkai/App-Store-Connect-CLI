@@ -1,0 +1,379 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for the App Store Connect CLI
+---
+## Authentication Issues
+
+### Keychain Access Denied
+
+**Problem**: macOS keychain prompts appear repeatedly or access is denied.
+
+**Solution**:
+
+```bash
+# A complete environment set skips keychain when no profile is selected
+unset ASC_PROFILE ASC_BYPASS_KEYCHAIN ASC_CONFIG_PATH
+unset ASC_PRIVATE_KEY ASC_PRIVATE_KEY_B64
+export ASC_KEY_TYPE="team"
+export ASC_KEY_ID="YOUR_KEY_ID"
+export ASC_ISSUER_ID="YOUR_ISSUER_ID"
+export ASC_PRIVATE_KEY_PATH="/path/to/AuthKey.p8"
+```
+
+Alternatively, use base64-encoded keys for headless environments:
+
+```bash
+unset ASC_PROFILE ASC_BYPASS_KEYCHAIN ASC_CONFIG_PATH
+unset ASC_PRIVATE_KEY_PATH ASC_PRIVATE_KEY
+export ASC_PRIVATE_KEY_B64="BASE64_ENCODED_KEY"
+```
+
+If you intentionally use config storage, set `ASC_BYPASS_KEYCHAIN=1`. In bypass mode, the active config is tried before environment fallback.
+
+### Keychain Prompts Again After Upgrading
+
+**Problem**: After upgrading `asc`, macOS asks again for access to the stored `ASC API Key` item, and "Always Allow" from the previous version does not carry over.
+
+**Cause**: macOS keychain access lists trust an application by its code-signing designated requirement. Releases before 5.3.1 were signed with a version-specific identifier (for example `asc_5.3.0_macOS_arm64`), so every upgrade looked like a new application to the keychain. Each stored profile also required its own prompt, because resolving one profile used to read every stored secret.
+
+**Solution**: Upgrade to 5.3.1 or later. Releases now share the identifier `com.rorkai.asc`, so "Always Allow" granted to one release covers later releases, and resolving a profile reads only that profile's secret. The first run of 5.3.1 still prompts once because the identifier changed; choose "Always Allow" for each stored profile you use.
+
+Builds that are not signed with the release Developer ID (for example a local `go build`) are identified by the hash of the binary, so each rebuild prompts again. Use `ASC_BYPASS_KEYCHAIN=1` with config-file credentials for those builds.
+
+### Multiple Credential Sources Conflict
+
+**Problem**: Error message about credentials resolving from multiple sources.
+
+**Solution**: Enable strict auth mode on an authenticated command to identify the conflict:
+
+```bash
+ASC_STRICT_AUTH=true asc apps list
+```
+
+`asc auth doctor` can also report mixed-source conflicts, but an authenticated command exercises the exact runtime credential path. Make sure every required field comes from one source, or remove partial values that are being used as fallback. Values that are present but unused do not trigger strict mode. See the [credential resolution matrix](/authentication#credential-resolution).
+
+### JWT Token Expiration
+
+**Problem**: Authentication fails with token expiration errors.
+
+**Solution**: JWTs are automatically refreshed (valid for 10 minutes). If you see this error, check:
+
+* System clock is synchronized
+* API key hasn't been revoked in App Store Connect
+* Key ID and Issuer ID are correct
+
+Verify your credentials:
+
+```bash
+asc auth status
+```
+
+## API Rate Limiting
+
+### 429 Too Many Requests
+
+**Problem**: API returns HTTP 429 errors.
+
+**Solution**: The CLI automatically retries GET/HEAD requests. Configure retry behavior:
+
+```bash
+export ASC_MAX_RETRIES=5
+export ASC_BASE_DELAY=1s
+export ASC_MAX_DELAY=30s
+export ASC_RETRY_LOG=true
+```
+
+**Note**: POST/PATCH/DELETE requests are NOT automatically retried to prevent duplicate operations.
+
+### Request Timeouts
+
+**Problem**: Long-running operations time out.
+
+**Solution**: Increase timeout values:
+
+```bash
+# General timeout (default: 30s)
+export ASC_TIMEOUT=2m
+
+# Upload timeout for large files
+export ASC_UPLOAD_TIMEOUT=5m
+```
+
+For analytics operations with large datasets:
+
+```bash
+export ASC_TIMEOUT=5m
+asc analytics view --request-id "REQUEST_ID" --processing-date "2024-01-01" --paginate
+```
+
+## Permission Errors
+
+### 403 Forbidden
+
+**Problem**: API returns 403 when accessing certain endpoints.
+
+**Solution**: Check your API key role at [https://appstoreconnect.apple.com/access/integrations/api](https://appstoreconnect.apple.com/access/integrations/api)
+
+Common permission requirements:
+
+* **Finance reports**: Admin or Finance role
+* **Customer reviews**: App Manager or higher
+* **Sales reports**: Sales or Admin role
+
+Generate a new key with appropriate permissions if needed.
+
+## Build and Upload Issues
+
+### PKG Upload Failures
+
+**Problem**: PKG files fail to upload with UTI errors.
+
+**Solution**: Ensure you're using the latest version of the CLI (0.36.3+). The UTI for PKG uploads was fixed to use `com.apple.pkg`.
+
+```bash
+asc builds upload --app "123456789" --ipa "/path/to/App.pkg"
+```
+
+### Build Processing Stuck
+
+**Problem**: Build upload succeeds but processing never completes.
+
+**Solution**: Check build status:
+
+```bash
+asc builds list --app "123456789" --limit 5
+```
+
+If the build shows `PROCESSING` for more than 30 minutes, check App Store Connect web UI for detailed processing errors.
+
+## Data Retrieval Issues
+
+### Missing Data on Paginated Results
+
+**Problem**: Not all results are returned when listing resources.
+
+**Solution**: Always use `--paginate` for complete results:
+
+```bash
+asc analytics view --request-id "REQUEST_ID" --processing-date "2024-01-01" --paginate
+asc testflight feedback list --app "123456789" --paginate
+```
+
+### Incorrect Date Formats
+
+**Problem**: Analytics or finance reports fail with date format errors.
+
+**Solution**: Use the correct format for each report frequency:
+
+* **Daily/Weekly**: `YYYY-MM-DD` (e.g., `2024-01-15`)
+* **Monthly**: `YYYY-MM` (e.g., `2024-01`)
+* **Yearly**: `YYYY` (e.g., `2024`)
+
+Finance reports use Apple fiscal months, not calendar months.
+
+## Environment and Configuration
+
+### Config File Not Found
+
+**Problem**: CLI can't find configuration file.
+
+**Solution**: Check config selection in this order:
+
+1. `ASC_CONFIG_PATH` (absolute path, when set)
+2. Nearest `.asc/config.json` from the current directory upward
+3. `~/.asc/config.json` (user home)
+
+When `ASC_CONFIG_PATH` is unset, an empty local config can fall back to global credentials. A local config containing credential fields shadows the global store, and incomplete credential data can error instead of falling back. Setting `ASC_CONFIG_PATH` disables global fallback.
+
+Overriding `HOME` does not hide your account's `~/.asc/config.json` when you run `asc` from a directory inside your account home: the upward search in step 2 still finds it, and `asc` prints a warning. Set `ASC_CONFIG_PATH` to an absolute path to choose the config explicitly.
+
+Ensure file permissions are restrictive:
+
+```bash
+chmod 600 ~/.asc/config.json
+```
+
+### Environment Variable Priority
+
+**Problem**: Settings not taking effect.
+
+**Solution**: For non-authentication settings, priority is generally:
+
+1. Command-line flags (e.g., `--output json`)
+2. Environment variables (e.g., `ASC_DEFAULT_OUTPUT`)
+3. Config file settings
+4. Default values (TTY-aware for output)
+
+Authentication credentials use conditional precedence. See the [credential resolution matrix](/authentication#credential-resolution).
+
+## Debug Mode
+
+### Enable Debug Logging
+
+For detailed HTTP request/response logging:
+
+```bash
+export ASC_DEBUG=api
+asc apps list
+```
+
+This shows:
+
+* Request URLs and headers
+* Response status codes
+* Response bodies
+* Retry attempts
+
+## Testing Issues
+
+### Keychain Prompts During Tests
+
+**Problem**: Tests trigger macOS keychain prompts.
+
+**Solution**: Always run tests with keychain bypass:
+
+```bash
+ASC_BYPASS_KEYCHAIN=1 make test
+```
+
+### Integration Tests Skipped
+
+**Problem**: Integration tests don't run.
+
+**Solution**: Integration tests are opt-in. Set credentials and use:
+
+```bash
+unset ASC_PROFILE ASC_BYPASS_KEYCHAIN ASC_CONFIG_PATH
+unset ASC_PRIVATE_KEY ASC_PRIVATE_KEY_B64
+export ASC_KEY_TYPE="team"
+export ASC_KEY_ID="YOUR_KEY_ID"
+export ASC_ISSUER_ID="YOUR_ISSUER_ID"
+export ASC_PRIVATE_KEY_PATH="/path/to/AuthKey.p8"
+export ASC_APP_ID="YOUR_APP_ID"
+
+(
+  ASC_TEST_CONFIG_DIR="$(mktemp -d)"
+  trap 'rm -rf "$ASC_TEST_CONFIG_DIR"' EXIT
+  ASC_BYPASS_KEYCHAIN=1 ASC_CONFIG_PATH="$ASC_TEST_CONFIG_DIR/config.json" make test-integration
+)
+```
+
+## Platform-Specific Issues
+
+### macOS Keychain Integration
+
+**Problem**: Keychain storage fails on macOS.
+
+**Solution**: Grant terminal app access to keychain:
+
+1. Open Keychain Access.app
+2. Find "asc" entries
+3. Right-click → Get Info → Access Control
+4. Add your terminal app (Terminal.app, iTerm2, etc.)
+
+### Linux Source Build Dependencies
+
+**Problem**: Building from source fails because the required Go toolchain is unavailable.
+
+**Solution**: Use the Go version declared by `go.mod`. The Go toolchain can download that version automatically when needed:
+
+```bash
+go version
+```
+
+Released `asc` binaries do not require Go. For keychain features, the CLI falls back to config files on Linux.
+
+## Common Error Messages
+
+### "oldString not found in content"
+
+**Problem**: Update or patch operation fails.
+
+**Solution**: This usually means:
+
+* Resource has been modified externally
+* Version conflict (resource changed since last fetch)
+
+Refetch the resource and retry:
+
+```bash
+asc apps info view --app "123456789" > current.json
+# Review current state, then update
+```
+
+### "Relationship invalid" Errors
+
+**Problem**: Setting relationships fails with validation errors.
+
+**Solution**: Common causes:
+
+* Related resource must be in specific state (e.g., live version for Game Center)
+* Relationship is replace-only (PATCH), not append
+* Related resource doesn't exist or is deleted
+
+Check API notes for endpoint-specific requirements:
+
+```bash
+cat docs/API_NOTES.md | grep -A5 "relationship"
+```
+
+## Getting Help
+
+### Use Built-in Help
+
+Always check command help first:
+
+```bash
+asc --help
+asc <command> --help
+asc <command> <subcommand> --help
+```
+
+### Report Issues
+
+If you've found a bug:
+
+1. Check existing issues: [https://github.com/rorkai/App-Store-Connect-CLI/issues](https://github.com/rorkai/App-Store-Connect-CLI/issues)
+2. Include:
+   * CLI version (`asc version`)
+   * Platform (macOS/Linux, architecture)
+   * Command run (sanitize sensitive data)
+   * Full error output with `ASC_DEBUG=api`
+3. For security issues, use private reporting: [https://github.com/rorkai/App-Store-Connect-CLI/security/advisories/new](https://github.com/rorkai/App-Store-Connect-CLI/security/advisories/new)
+
+## Performance Optimization
+
+### Slow List Operations
+
+**Problem**: Listing resources is slow.
+
+**Solution**:
+
+* Limit results when you don't need all data:
+  ```bash
+  asc builds list --app "123456789" --limit 10
+  ```
+
+* Use filters to reduce result set:
+  ```bash
+  asc builds list --app "123456789" --version "1.0.0"
+  ```
+
+* Sort by recent items first:
+  ```bash
+  asc testflight crashes list --app "123456789" --sort -createdDate --limit 20
+  ```
+
+### Large File Uploads
+
+**Problem**: Uploads timeout or fail.
+
+**Solution**:
+
+```bash
+# Set longer upload timeout
+export ASC_UPLOAD_TIMEOUT=10m
+
+# Monitor upload progress
+asc --debug builds upload --app "123456789" --ipa "/path/to/large.ipa"
+```

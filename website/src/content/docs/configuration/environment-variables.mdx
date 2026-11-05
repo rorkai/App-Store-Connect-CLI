@@ -1,0 +1,575 @@
+---
+title: Environment variables
+description: Configure the App Store Connect CLI using environment variables
+---
+
+import { Card, CardGroup, ParamField } from '@components/mdx';
+
+The App Store Connect CLI can be configured using environment variables. These variables provide defaults and override certain behaviors.
+
+## Authentication variables
+
+These variables configure API authentication credentials.
+
+<ParamField path="ASC_KEY_ID" type="string">
+  Your App Store Connect API key ID
+</ParamField>
+
+<ParamField path="ASC_ISSUER_ID" type="string">
+  Your App Store Connect API issuer ID
+</ParamField>
+
+<ParamField path="ASC_KEY_TYPE" type="string">
+  App Store Connect API key type: `team` (default) or `individual`
+
+  Individual keys do not require an issuer ID, and `ASC_ISSUER_ID` is ignored.
+</ParamField>
+
+<ParamField path="ASC_PRIVATE_KEY_PATH" type="string">
+  Path to your private key (.p8) file
+</ParamField>
+
+<ParamField path="ASC_PRIVATE_KEY" type="string">
+  Raw private key content (PEM format)
+</ParamField>
+
+<ParamField path="ASC_PRIVATE_KEY_B64" type="string">
+  Base64-encoded private key content (useful for CI/CD)
+</ParamField>
+
+<ParamField path="ASC_BYPASS_KEYCHAIN" type="boolean">
+  Ignore keychain and use config/env auth only
+
+  Set to `true`, `1`, `yes`, or `on` to bypass keychain lookup. The active config is tried before environment fallback.
+</ParamField>
+
+<ParamField path="ASC_STRICT_AUTH" type="boolean">
+  Fail when required fields in the resolved credential come from multiple sources
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to enable strict mode.
+</ParamField>
+
+<ParamField path="ASC_PROFILE" type="string">
+  Use a named authentication profile from config or keychain
+</ParamField>
+
+<ParamField path="ASC_WEB_APPLE_ID" type="string">
+  Apple Account email used by the `asc web` commands that resolve or create a
+  session, when `--apple-id` is omitted
+
+  Read only when the flag is empty. The value is trimmed and an empty value is
+  ignored, so an unset CI secret behaves like no variable at all. It wins over
+  the cached-session default and applies to `asc web auth login`. It is ignored
+  by `--session-from-env` and by the cache-management commands
+  (`asc web auth status`, `export`, `import`, `logout`). See
+  [Choosing the Apple Account](/commands/web#choosing-the-apple-account).
+</ParamField>
+
+## Apple Ads authentication variables
+
+These variables apply only to `asc ads`. They do not replace `ASC_KEY_ID`,
+`ASC_ISSUER_ID`, or other App Store Connect API credentials.
+
+<ParamField path="ASC_ADS_ACCESS_TOKEN" type="string">
+  Short-lived Apple Ads OAuth access token
+
+  When set, `asc ads` skips token exchange and uses this bearer token. Scoped
+  commands still need `--ad-account`, `ASC_ADS_AD_ACCOUNT_ID`, or a stored
+  profile ad account.
+</ParamField>
+
+<ParamField path="ASC_ADS_CLIENT_ID" type="string">
+  Apple Ads OAuth client ID
+</ParamField>
+
+<ParamField path="ASC_ADS_TEAM_ID" type="string">
+  Apple Ads team ID used as the OAuth client-secret JWT issuer
+</ParamField>
+
+<ParamField path="ASC_ADS_KEY_ID" type="string">
+  Apple Ads API key ID used in the OAuth client-secret JWT header
+</ParamField>
+
+<ParamField path="ASC_ADS_PRIVATE_KEY_PATH" type="string">
+  Path to your Apple Ads EC P-256 private key PEM file
+</ParamField>
+
+<ParamField path="ASC_ADS_PRIVATE_KEY" type="string">
+  Raw Apple Ads private key content in PEM format
+</ParamField>
+
+<ParamField path="ASC_ADS_PRIVATE_KEY_B64" type="string">
+  Base64-encoded Apple Ads private key content
+</ParamField>
+
+<ParamField path="ASC_ADS_ORG_ID" type="string">
+  Apple Ads organization ID that `asc ads auth status` and `asc ads auth discover`
+  report as the selected organization. Resource commands use
+  `ASC_ADS_AD_ACCOUNT_ID` instead.
+</ParamField>
+
+<ParamField path="ASC_ADS_AD_ACCOUNT_ID" type="string">
+  Default Apple Ads ad account ID for scoped Platform API v1 commands
+
+  An ad account ID is distinct from the organization ID. The CLI does not use
+  `ASC_ADS_ORG_ID` as a fallback for this value.
+</ParamField>
+
+<ParamField path="ASC_ADS_PROFILE" type="string">
+  Use a named Apple Ads authentication profile from config or keychain
+</ParamField>
+
+<ParamField path="ASC_ADS_BYPASS_KEYCHAIN" type="boolean">
+  Ignore keychain and use Apple Ads config/env auth only
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to bypass keychain lookup.
+</ParamField>
+
+<ParamField path="ASC_ADS_STRICT_AUTH" type="boolean">
+  Fail when Apple Ads credentials resolve from multiple sources
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to enable strict mode.
+</ParamField>
+
+## Web session variables
+
+These variables apply only to the `asc web` command family, which authenticates
+with a cached Apple Account web session instead of an App Store Connect API key.
+They do not replace `ASC_KEY_ID`, `ASC_ISSUER_ID`, or the other API credentials.
+
+<ParamField path="ASC_WEB_PASSWORD" type="string">
+  Apple Account password used for a non-interactive `asc web` login
+
+  Read only when a fresh login is required, so a resumable cached session is
+  used first. The temporary compatibility `--password` flag on `asc web apps
+  create` wins when it is set; otherwise this variable is used before the
+  saved-password store and before the interactive prompt, which lets a login
+  succeed without a terminal. Only an interactively prompted password is
+  written to the saved-password store, so a password supplied here is used for
+  that login and never persisted. Mask it in CI and disable shell tracing.
+</ParamField>
+
+<ParamField path="ASC_WEB_DONT_STORE_PASSWORD" type="boolean">
+  Disable saved Apple Account password reads and writes
+
+  Set to `true`, `1`, `yes`, or `on` to disable the password store, so no login
+  reads a saved password and no prompted password is saved. `0`, `false`, `no`,
+  `off`, and an empty value keep it enabled; any other value also disables the
+  store and prints a warning to stderr. `ASC_BYPASS_KEYCHAIN` disables it too.
+</ParamField>
+
+<ParamField path="ASC_WEB_NO_AUTO_LOGIN" type="boolean">
+  Never sign in automatically from `asc web` commands other than
+  `asc web auth login`
+
+  Set to `true`, `1`, `yes`, or `on` for scripts and agents that cannot finish
+  two-factor verification. Every web command except `asc web auth login` then
+  uses only the cached session; when it is missing or expired, the command
+  exits with code `2` and a hint to run `asc web auth login`, without contacting
+  Apple. `asc web auth login` still signs in and still uses the saved password.
+  `0`, `false`, `no`, `off`, and an empty value keep automatic sign-in on (the
+  default); any other value fails with a usage error.
+</ParamField>
+
+<ParamField path="ASC_WEB_2FA_CODE_COMMAND" type="string">
+  Shell command whose stdout supplies the two-factor code when a fresh `asc web`
+  login needs verification
+
+  The value is trimmed, and `--two-factor-code-command` wins when it is set. The
+  command runs through `/bin/sh -c` (`cmd /d /s /c` on Windows), and empty
+  output fails the login. It is bounded by its own timeout rather than the
+  caller's deadline: 60 seconds by default, or the value of `ASC_TIMEOUT` or
+  `ASC_TIMEOUT_SECONDS` when either is set. When neither the flag nor
+  `ASC_WEB_2FA_CODE_COMMAND` supplies a command, code-based verification
+  requires an interactive terminal. Security-key verification instead requires
+  the optional native build, a connected key, and physical touch.
+</ParamField>
+
+<ParamField path="ASC_WEB_2FA_METHOD" type="string">
+  Two-factor method for a fresh `asc web` login: `auto`, `sms`, or `security-key`
+
+  `auto` (the default) follows Apple's routing: SMS first when
+  `noTrustedDevices` is true, including when an FSA challenge is present;
+  otherwise an FSA challenge stops with guidance to choose `security-key` on a
+  supported build. `auto` does not perform a key assertion. Code-only
+  accounts use trusted devices with phone fallback after a rejected code.
+  FSA detection through `auto` requires a terminal or configured code source;
+  a fresh noninteractive login without either stops before sending the password.
+  Choose `security-key` explicitly for non-terminal key sign-in.
+  `sms` asks Apple to text a trusted phone number before prompting or running
+  the 2FA code command. `--two-factor-method` wins when set; other values fail
+  with a usage error before sign-in.
+
+  `security-key` requires a macOS release binary or a source build with
+  `CGO_ENABLED=1` and `-tags fido2`, exactly one connected registered USB FIDO2
+  key, and physical touch. Release binaries bundle native libraries; source
+  builds need installed libfido2 1.14 or newer and pkg-config. Device readiness is
+  checked before sending a password. Valid cached sessions do not require the
+  backend or an attached key, even with this variable exported. See
+  [Security-key login](/commands/web#security-key-login).
+</ParamField>
+
+<ParamField path="ASC_WEB_SECURITY_KEY_PIN" type="string">
+  Optional authenticator PIN, read only by explicit `asc web auth login`
+
+  Supply this only if the key requires a PIN. It is not saved, printed, or sent
+  to Apple, and a wrong PIN is not retried within that login. Automatic
+  reauthentication refuses an environment PIN when key authentication is
+  needed and directs you to run `asc web auth login` explicitly, preventing a
+  stale PIN from being tried by successive commands. Check the PIN before
+  retrying an explicit login; wrong attempts can lock the key.
+</ParamField>
+
+<ParamField path="ASC_WEB_2FA_PHONE_ID" type="integer">
+  Trusted phone number ID used with `ASC_WEB_2FA_METHOD=sms` or
+  `--two-factor-method sms`
+
+  Needed only when the account has several trusted phone numbers; without it
+  such a login fails and lists the available IDs with their masked numbers.
+  `--two-factor-phone-id` wins when it is set. The value must be a positive
+  integer, and it is rejected unless SMS delivery is selected.
+</ParamField>
+
+<ParamField path="ASC_WEB_2FA_CODE_REQUESTED_AT" type="string">
+  Set by `asc` for the 2FA code command: when it asked Apple for the current
+  code, as an RFC 3339 timestamp in UTC
+
+  You do not set this yourself. A code command can use it to ignore codes from
+  earlier sign-in attempts; `asc web auth messages-code` accepts only messages
+  received after it unless `--since` is passed.
+</ParamField>
+
+<ParamField path="ASC_WEB_SESSION" type="string">
+  Canonical `asc-web-session` JSON bundle supplied through the environment
+
+  Read only with an explicit flag: `asc web auth import --from-env` persists it
+  through the configured cache, and `--session-from-env` uses it in memory
+  without any cache or keychain access. Without one of those flags the variable
+  is ignored. The value must use the versioned bundle schema, stays under a
+  1 MiB parser ceiling, is never echoed, and is removed from the environment of
+  the CLI's internal telemetry worker. Treat it as a live credential. See
+  [the `asc web` session model](/commands/web).
+</ParamField>
+
+<ParamField path="ASC_WEB_SESSION_CACHE" type="boolean">
+  Enable or disable the `asc web` session cache
+
+  Set to `0`, `false`, `no`, or `off` to disable it, so no session is read from
+  or written to the keychain or the file cache. Unset, an unrecognized value,
+  and `1`, `true`, `yes`, or `on` all leave it enabled.
+</ParamField>
+
+<ParamField path="ASC_WEB_SESSION_CACHE_BACKEND" type="string">
+  Session cache backend: `file`, `keychain`, `auto`, or `off`
+
+  Unset, `auto`, and unrecognized values select the file cache with a keychain
+  fallback when the file cache has no usable account identity. `file` restricts
+  caching to the cache directory, `keychain` uses the keychain but still reads
+  the file cache as a fallback, and `off`, `none`, or `disabled` disables
+  caching. A cache disabled through `ASC_WEB_SESSION_CACHE` wins over this
+  value.
+</ParamField>
+
+<ParamField path="ASC_WEB_SESSION_CACHE_DIR" type="string">
+  Directory for the file-backed `asc web` session cache
+
+  Default: `~/.asc/web`. Set it with `ASC_WEB_SESSION_CACHE_BACKEND=file` to
+  keep tests and automation away from the operator's real session cache. The
+  per-account sign-in cooldown that follows an Apple sign-in server error is
+  stored in this directory too.
+</ParamField>
+
+<ParamField path="ASC_WEB_SESSION_PROVIDER" type="string">
+  Not an input. Any nonempty value is rejected, without echoing its contents,
+  when `--session-from-env` is used; the variable is otherwise ignored. For a
+  cached or newly created session, select a provider with `--provider-id` or
+  `--public-provider-id`. Those flags are intentionally unavailable with
+  `--session-from-env` because its bundle already identifies the session.
+</ParamField>
+
+<ParamField path="ASC_WEB_SESSION_CSRF" type="string">
+  Not an input. Any nonempty value is rejected, without echoing its contents,
+  when `--session-from-env` is used; the variable is otherwise ignored. Apple's
+  required web headers stay owned by the CLI's endpoint clients.
+</ParamField>
+
+<ParamField path="ASC_WEB_MIN_REQUEST_INTERVAL" type="string">
+  Minimum spacing between consecutive requests from one `asc web` API client
+
+  Default: `1s`. A plain integer is read as milliseconds (`750`), and any other
+  value is read as a duration (`750ms`, `2s`). Values below `200ms` are raised
+  to `200ms`, and an unparsable value falls back to the default. The interval is
+  read when a web client is created and throttles only that client's requests,
+  so each client a command creates keeps its own schedule and the login,
+  two-factor, and session-validation requests are not throttled.
+</ParamField>
+
+<ParamField path="ASC_WEB_ALLOWED_ATTACHMENT_HOSTS" type="string">
+  Comma-separated extra hosts allowed for review-attachment downloads
+
+  Each entry is an exact hostname or a suffix pattern (`.example.com`, or
+  `*.example.com`), added to the built-in `.apple.com`, `.mzstatic.com`,
+  `.amazonaws.com`, and `.cloudfront.net` suffixes. The signed URL Apple returns
+  must use HTTPS and match one of those patterns, or the download is refused.
+  The check covers that URL as given; a redirect it serves is followed without
+  being re-checked.
+</ParamField>
+
+## Operational variables
+
+These variables configure default values for apps, vendors, and other resources.
+
+<ParamField path="ASC_SIGNING_SYNC_PASSWORD" type="string">
+  Encryption password for `asc signing sync push` and `asc signing sync pull`.
+
+  Prefer `--password-file` on developer machines.
+</ParamField>
+
+<ParamField path="ASC_APP_ID" type="string">
+  Default app ID for commands that accept `--app`
+</ParamField>
+
+<ParamField path="ASC_VENDOR_NUMBER" type="string">
+  Vendor number for sales and financial reports
+</ParamField>
+
+## Timeout variables
+
+Configure request and upload timeouts. These values normally apply to each HTTP request, not to the full runtime of a multi-request command.
+
+For `subscriptions offers introductory create`, an explicit request timeout also bounds the complete create operation, including subscription lookup and all-territory workflows. Without an override, the create operation uses a 5-minute deadline while each request keeps the standard request timeout.
+
+<ParamField path="ASC_TIMEOUT" type="string">
+  Request timeout (e.g., `90s`, `2m`, `120s`)
+
+  Default: `30s`
+</ParamField>
+
+<ParamField path="ASC_TIMEOUT_SECONDS" type="number">
+  Request timeout in seconds (alternative to `ASC_TIMEOUT`)
+
+  Example: `120` for 2 minutes
+</ParamField>
+
+<ParamField path="ASC_UPLOAD_TIMEOUT" type="string">
+  Upload and streamed download timeout for large files (e.g., `60s`, `5m`).
+  Applies to the sales, finance, analytics report, performance diagnostic, screenshot,
+  preview, and dSYM download commands. Each file gets its own budget; parent cancellation and earlier
+  deadlines still apply. Listing and metadata requests use `ASC_TIMEOUT`.
+
+  Default: `5m` (`30m` for `asc asset-library videos upload`, which also waits for Apple's video processing)
+</ParamField>
+
+<ParamField path="ASC_UPLOAD_TIMEOUT_SECONDS" type="number">
+  Upload and streamed download timeout in seconds (alternative to `ASC_UPLOAD_TIMEOUT`)
+</ParamField>
+
+## Retry and debugging variables
+
+Configure retry behavior and debug logging.
+
+<ParamField path="ASC_MAX_RETRIES" type="number">
+  Maximum number of retry attempts for transient errors
+
+  Default: `3`
+</ParamField>
+
+<ParamField path="ASC_BASE_DELAY" type="string">
+  Base delay for exponential backoff (e.g., `1s`, `500ms`)
+
+  Default: `1s`
+</ParamField>
+
+<ParamField path="ASC_MAX_DELAY" type="string">
+  Maximum delay between retries (e.g., `30s`, `1m`)
+
+  Default: `30s`
+</ParamField>
+
+<ParamField path="ASC_RETRY_LOG" type="boolean">
+  Enable retry logging to stderr
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to enable.
+</ParamField>
+
+<ParamField path="ASC_DEBUG" type="string">
+  Enable debug logging
+
+  * Set to `true` for general debug logging
+  * Set to `api` for HTTP request/response logging (redacts sensitive values)
+</ParamField>
+
+## Safety variables
+
+<ParamField path="ASC_READ_ONLY" type="boolean">
+  Refuse every mutating request (`POST`, `PATCH`, `PUT`, `DELETE`) before it is sent
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to enable. Equivalent to the global `--read-only` flag; refusals exit with code `6`. See [Read-only mode](/concepts/read-only-mode).
+</ParamField>
+
+## Output variables
+
+Configure default output formats.
+
+<ParamField path="ASC_DEFAULT_OUTPUT" type="string">
+  Default output format: `json`, `table`, `markdown`, or `md`
+
+  When unset, output is TTY-aware:
+
+  * Interactive terminals: `table`
+  * Pipes/files/CI: `json` (minified)
+
+  Explicit `--output` flags always override this variable.
+</ParamField>
+
+## Telemetry variables
+
+Pseudonymous command-level CLI telemetry is enabled by default in local, agent,
+CI, and other ephemeral runtimes. Local events include a random installation ID;
+disposable runtimes omit that ID without disabling event delivery. Use these
+variables to opt out or adjust runtime handling.
+
+<ParamField path="ASC_TELEMETRY_DISABLED" type="boolean">
+  Disable telemetry for the current process
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to disable telemetry.
+</ParamField>
+
+<ParamField path="DO_NOT_TRACK" type="boolean">
+  Disable telemetry for the current process
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to disable telemetry.
+</ParamField>
+
+<ParamField path="ASC_TELEMETRY_ENDPOINT" type="string">
+  Override the HTTPS telemetry collector endpoint. Telemetry requests do not
+  follow redirects, do not attach ambient cookies, and reject endpoint URLs
+  containing embedded credentials.
+</ParamField>
+
+<ParamField path="ASC_TELEMETRY_EPHEMERAL" type="boolean">
+  Mark the current runtime as ephemeral without disabling telemetry.
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to omit the local install ID from
+  emitted events. Use this for disposable cloud agents or virtual machines that
+  are not already identified as CI or a Rork sandbox.
+</ParamField>
+
+## Configuration path
+
+<ParamField path="ASC_CONFIG_PATH" type="string">
+  Path to the configuration file
+
+  Must be an absolute path. When set, overrides the default config resolution order.
+</ParamField>
+
+## Variable precedence
+
+### App Store Connect precedence
+
+Non-authentication settings use explicit command flags before environment variables, config values, and built-in defaults.
+
+Credentials are conditional rather than a single linear order. A selected profile wins over complete environment credentials; without a profile and with keychain bypass disabled, a complete environment set can skip stored lookup; keychain bypass makes the active config the first stored source. See the [credential resolution matrix](/authentication#credential-resolution) for the authoritative branches and config-path order.
+
+`ASC_STRICT_AUTH=true` fails only when the resolved credential combines required fields from multiple sources. Merely defining an environment variable that is not used does not trigger strict mode.
+
+### Apple Ads precedence
+
+Apple Ads credentials and defaults are resolved in this order:
+
+1. **Command-line flags** (`--ads-profile`, `--ad-account`)
+2. **Environment variables** (`ASC_ADS_*`)
+3. **Apple Ads config profile** (`~/.asc/config.json` or `.asc/config.json`)
+4. **Keychain** (for Apple Ads credentials only)
+
+`ASC_ADS_ACCESS_TOKEN` counts as an Apple Ads auth source. When
+`ASC_ADS_STRICT_AUTH=true`, the CLI will fail if it sees both a profile and
+`ASC_ADS_ACCESS_TOKEN`.
+
+## Examples
+
+### Basic authentication
+
+```bash
+unset ASC_PROFILE ASC_BYPASS_KEYCHAIN ASC_CONFIG_PATH
+unset ASC_PRIVATE_KEY_PATH ASC_PRIVATE_KEY ASC_PRIVATE_KEY_B64
+export ASC_KEY_TYPE="team"
+export ASC_KEY_ID="ABC123"
+export ASC_ISSUER_ID="DEF456"
+export ASC_PRIVATE_KEY_PATH="$HOME/.asc/AuthKey_ABC123.p8"
+
+asc apps list
+```
+
+### CI/CD authentication with base64-encoded key
+
+```bash
+unset ASC_PROFILE ASC_BYPASS_KEYCHAIN ASC_CONFIG_PATH
+unset ASC_PRIVATE_KEY_PATH ASC_PRIVATE_KEY
+export ASC_KEY_TYPE="team"
+export ASC_KEY_ID="ABC123"
+export ASC_ISSUER_ID="DEF456"
+export ASC_PRIVATE_KEY_B64="LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0t..."
+
+asc builds upload --app 123456789 --ipa MyApp.ipa
+```
+
+### Apple Ads authentication
+
+```bash
+export ASC_ADS_CLIENT_ID="SEARCHADS_CLIENT_ID"
+export ASC_ADS_TEAM_ID="SEARCHADS_TEAM_ID"
+export ASC_ADS_KEY_ID="KEY_ID"
+export ASC_ADS_PRIVATE_KEY_PATH="$HOME/.asc/apple-ads-private-key.pem"
+export ASC_ADS_AD_ACCOUNT_ID="987654"
+
+asc ads ad-accounts view --output json
+```
+
+### Non-interactive Apple Account web session login
+
+```bash
+export ASC_WEB_PASSWORD="$APPLE_ACCOUNT_PASSWORD"
+# The command must print the code Apple just delivered to a trusted device
+export ASC_WEB_2FA_CODE_COMMAND='osascript /path/to/get-apple-2fa-code.scpt'
+export ASC_WEB_DONT_STORE_PASSWORD=1
+
+asc web auth login --apple-id "user@example.com"
+```
+
+### Debug HTTP requests
+
+```bash
+export ASC_DEBUG="api"
+
+asc apps list
+```
+
+### Custom timeout for slow networks
+
+```bash
+export ASC_TIMEOUT="3m"
+export ASC_UPLOAD_TIMEOUT="10m"
+
+asc builds upload --app 123456789 --ipa LargeApp.ipa
+```
+
+### Force JSON output in all environments
+
+```bash
+export ASC_DEFAULT_OUTPUT="json"
+
+asc apps list  # Always outputs JSON, even in interactive terminals
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Learn about authentication methods
+  </Card>
+
+  <Card title="Profiles" icon="user" href="/configuration/profiles">
+    Use named authentication profiles
+  </Card>
+</CardGroup>

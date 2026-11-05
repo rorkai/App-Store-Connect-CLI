@@ -19,6 +19,7 @@ WEBSITE_PREFIXES = (
     "configuration/",
     "guides/",
     "resources/",
+    "website/",
 )
 TELEMETRY_PREFIX = "internal/telemetry/"
 TELEMETRY_CLI_PREFIX = "internal/cli/telemetry/"

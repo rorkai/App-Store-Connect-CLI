@@ -1,0 +1,313 @@
+---
+title: Video Previews
+description: Manage App Store app preview videos
+---
+Manage app preview videos for your App Store listings.
+
+## Overview
+
+The `video-previews` command allows you to upload, list, download, and delete app preview videos that showcase your app's features in the App Store.
+
+## List Video Previews
+
+List all app preview videos for a version localization:
+
+```bash
+asc video-previews list --version-localization "LOC_ID"
+```
+
+The response includes preview sets organized by device type, with details about each video preview including upload state and preview frame time.
+
+## Upload Video Previews
+
+Upload app preview videos to App Store Connect:
+
+```bash
+# Upload single video file
+asc video-previews upload --version-localization "LOC_ID" \
+  --path "./preview.mov" \
+  --device-type "IPHONE_69"
+
+# Upload all videos from directory
+asc video-previews upload --version-localization "LOC_ID" \
+  --path "./previews" \
+  --device-type "IPHONE_69"
+
+# Set the poster frame on upload
+asc video-previews upload --version-localization "LOC_ID" \
+  --path "./preview.mov" \
+  --device-type "IPHONE_69" \
+  --time-code "00:00:05:00"
+```
+
+Pass `--time-code` to set the poster frame as part of the upload instead of running `asc video-previews set-poster-frame` afterwards. It accepts `HH:MM:SS:FF` or `HH:MM:SS.mmm`, applies to every uploaded file, and leaves files skipped by `--skip-existing` unchanged. Apple ignores the time code on the create request, so the command sets it after Apple finishes processing each video, which can take minutes and counts against `ASC_UPLOAD_TIMEOUT`, and checks that Apple reports the requested value. If processing fails or does not finish in time, or Apple rejects or does not keep the value, the command exits non-zero with an entry in `failures`, but nothing is rolled back: every delivered preview stays in the set and in `results`. Retry the frame with `asc video-previews set-poster-frame --id "PREVIEW_ID" --time-code "00:00:05:00"`. `--asset-library` does not support `--time-code`.
+
+### Video File Requirements
+
+**Format:**
+
+* Container: MOV or M4V
+* Codec: H.264 or HEVC (H.265)
+* Audio: AAC or PCM
+* Resolution: Must match device-specific requirements
+
+**Duration:**
+
+* 15-30 seconds recommended
+* Maximum 30 seconds
+
+**File Size:**
+
+* Maximum 500 MB per video
+
+**Device-Specific Resolutions:**
+
+| Device Type          | Resolution  | Aspect Ratio |
+| -------------------- | ----------- | ------------ |
+| IPHONE\_69           | 1290 × 2796 | 9:19.5       |
+| IPHONE\_67           | 1284 × 2778 | 9:19.5       |
+| IPHONE\_65           | 1242 × 2688 | 9:19.5       |
+| IPHONE\_61           | 1179 × 2556 | 9:19.5       |
+| IPHONE\_58           | 1170 × 2532 | 9:19.5       |
+| IPAD\_PRO\_3GEN\_129 | 2048 × 2732 | 3:4          |
+| IPAD\_PRO\_129       | 2048 × 2732 | 3:4          |
+
+### Upload Process
+
+The CLI handles the multi-step upload process automatically:
+
+1. Creates or finds the appropriate preview set for the device type
+2. Reserves the app preview resource
+3. Uploads the video file to Apple's CDN
+4. Commits the upload
+5. Polls for processing completion
+
+**Example Output:**
+
+```json
+{
+  "version_localization_id": "LOC_ID",
+  "set_id": "SET_ID",
+  "preview_type": "IPHONE_69",
+  "results": [
+    {
+      "preview_id": "PREVIEW_ID",
+      "file_path": "./preview.mov",
+      "state": "COMPLETE",
+      "uploaded_bytes": 15728640
+    }
+  ]
+}
+```
+
+### Partial Upload Results
+
+If a later file fails, the command still prints the receipt for the work that
+completed and exits non-zero. The `results` array contains successful files and
+the failed file when Apple created a reservation; `failures` adds the failed
+file path and error without removing the existing receipt fields:
+
+```json
+{
+  "versionLocalizationId": "LOC_ID",
+  "setId": "SET_ID",
+  "previewType": "IPHONE_69",
+  "results": [
+    {
+      "fileName": "01-first.mov",
+      "filePath": "./01-first.mov",
+      "assetId": "PREVIEW_1",
+      "state": "rolled-back"
+    },
+    {
+      "fileName": "02-second.mov",
+      "filePath": "./02-second.mov",
+      "assetId": "PREVIEW_2",
+      "state": "rolled-back"
+    }
+  ],
+  "failures": [
+    {
+      "fileName": "02-second.mov",
+      "filePath": "./02-second.mov",
+      "error": "preview reservation failed"
+    }
+  ]
+}
+```
+
+The `failures` field is additive and omitted when every upload succeeds. After a
+later upload fails, asc attempts to delete every preview reserved during that
+run before returning the receipt. When all cleanup deletes succeed, the receipt
+keeps the asset IDs for diagnosis but marks those items `rolled-back`; the IDs
+no longer refer to live previews. If a cleanup delete fails, the affected item
+is marked `rollback-failed` and its asset ID remains a cleanup candidate. A
+failed run does not reorder the preview set around a partially completed upload;
+use the receipt's IDs for diagnosis and clean up only items that remain or are
+marked `rollback-failed`.
+
+### Upload Through the Asset Library
+
+Apple has deprecated preview sets in favor of the Asset Library, without
+announcing a removal date. Preview sets stay the default. `--asset-library`
+uploads to the library and places the previews on the localization, in sorted
+file order. It requires `ffprobe`, and `--dry-run` shows the library, placement
+group and capacity without changing anything:
+
+```bash
+asc video-previews upload --version-localization "LOC_ID" \
+  --path "./previews/duo.mp4" \
+  --device-type "IPHONE_DUO" \
+  --asset-library
+```
+
+Failure handling matches
+[`asc screenshots upload --asset-library`](/commands/screenshots#upload-through-the-asset-library):
+the receipt keeps every asset and placement ID, and nothing is deleted.
+
+## Download Video Previews
+
+Download existing app preview videos from App Store Connect:
+
+```bash
+asc video-previews download --version-localization "LOC_ID" \
+  --output-dir "./previews/downloaded"
+```
+
+This command:
+
+* Downloads every preview for the specified localization
+* Organizes files by device type
+
+App Store Connect serves processed previews as HLS streaming playlists, not as
+the original uploaded video. Those previews are saved as `.m3u8` playlist files,
+and each item's `outputPath` reports the path written.
+
+## Delete Video Previews
+
+Remove an app preview video:
+
+```bash
+asc video-previews delete --id "PREVIEW_ID" --confirm
+```
+
+**Note:** The `--confirm` flag is required to prevent accidental deletions.
+
+## Device Type Reference
+
+**iPhone Device Types:**
+
+* `IPHONE_69` - iPhone 6.9" (iPhone 15 Pro Max, iPhone 16 Pro Max)
+* `IPHONE_67` - iPhone 6.7" (iPhone 15 Plus, iPhone 16 Plus)
+* `IPHONE_65` - iPhone 6.5" (iPhone XS Max, iPhone 11 Pro Max)
+* `IPHONE_61` - iPhone 6.1" (iPhone 14, iPhone 15)
+* `IPHONE_58` - iPhone 5.8" (iPhone X, iPhone XS)
+* `IPHONE_55` - iPhone 5.5" (iPhone 8 Plus)
+
+**iPad Device Types:**
+
+* `IPAD_PRO_3GEN_129` - iPad Pro 12.9" (3rd gen and later)
+* `IPAD_PRO_129` - iPad Pro 12.9" (1st and 2nd gen)
+* `IPAD_PRO_11` - iPad Pro 11"
+* `IPAD_105` - iPad 10.5"
+* `IPAD_97` - iPad 9.7"
+
+## Complete Example Workflow
+
+```bash
+# 1. Check existing previews
+asc video-previews list --version-localization "LOC_ID" --output table
+
+# 2. Upload iPhone preview
+asc video-previews upload --version-localization "LOC_ID" \
+  --path "./marketing/iphone-preview.mov" \
+  --device-type "IPHONE_69"
+
+# 3. Upload iPad preview
+asc video-previews upload --version-localization "LOC_ID" \
+  --path "./marketing/ipad-preview.mov" \
+  --device-type "IPAD_PRO_3GEN_129"
+
+# 4. Verify uploads
+asc video-previews list --version-localization "LOC_ID"
+```
+
+## Video Creation Best Practices
+
+### Content Guidelines
+
+1. **Show actual app functionality** - Use real app screens and interactions
+2. **Start with impact** - Capture attention in the first 2-3 seconds
+3. **Highlight key features** - Focus on your app's unique value proposition
+4. **Use smooth transitions** - Avoid jarring cuts or effects
+5. **No audio required** - Many users watch with sound off
+
+### Technical Tips
+
+**Recording:**
+
+```bash
+# Record iPhone simulator at correct resolution
+xcrun simctl io booted recordVideo --codec=h264 preview.mov
+```
+
+**Converting Formats:**
+
+```bash
+# Convert to required specs using ffmpeg
+ffmpeg -i input.mp4 -vf scale=1290:2796 \
+  -c:v libx264 -pix_fmt yuv420p \
+  -c:a aac -b:a 128k \
+  output.mov
+```
+
+**Verify Resolution:**
+
+```bash
+# Check video dimensions
+ffprobe -v error -select_streams v:0 \
+  -show_entries stream=width,height \
+  -of csv=s=x:p=0 preview.mov
+```
+
+## Troubleshooting
+
+### Upload Fails with Resolution Error
+
+Ensure video resolution exactly matches device type requirements:
+
+```bash
+# Check current resolution
+ffprobe -v error -select_streams v:0 \
+  -show_entries stream=width,height \
+  -of default=noprint_wrappers=1 preview.mov
+
+# Resolution must match device type exactly
+# IPHONE_69 requires: 1290 × 2796
+```
+
+### Upload Timeout
+
+For large files or slow connections, increase upload timeout:
+
+```bash
+export ASC_UPLOAD_TIMEOUT=300s  # 5 minutes
+asc video-previews upload --version-localization "LOC_ID" \
+  --path "./large-preview.mov" \
+  --device-type "IPHONE_69"
+```
+
+### Processing Takes Too Long
+
+Video processing on Apple's servers can take several minutes. The CLI polls automatically, but you can check status manually:
+
+```bash
+asc video-previews list --version-localization "LOC_ID" --output json
+```
+
+Look for `upload_operations` with `state: "COMPLETE"`.
+
+## Related Commands
+
+* [Screenshots](/commands/screenshots) - Manage app screenshots
+* [Apps](/commands/apps) - Manage app metadata and versions

@@ -1,0 +1,29 @@
+---
+import CopyPage from '../CopyPage.astro';
+
+const { entry, sidebar } = Astro.locals.starlightRoute;
+
+type Entry = (typeof sidebar)[number];
+function currentGroup(entries: Entry[], parent?: string): string | undefined {
+	for (const item of entries) {
+		if (item.type === 'link' && item.isCurrent) return parent;
+		if (item.type === 'group') {
+			const found = currentGroup(item.entries, item.label);
+			if (found) return found;
+		}
+	}
+}
+
+const group = currentGroup(sidebar);
+---
+
+<div class="asc-page-title">
+	<div class="asc-page-title-row">
+		<div>
+			{group && <p class="asc-eyebrow">{group}</p>}
+			<h1 id="_top">{entry.data.title}</h1>
+		</div>
+		<CopyPage />
+	</div>
+	{entry.data.description && <p class="asc-page-description">{entry.data.description}</p>}
+</div>

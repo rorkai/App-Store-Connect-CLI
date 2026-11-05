@@ -1,0 +1,491 @@
+---
+title: Certificates
+description: Manage signing certificates
+---
+
+import { Note } from '@components/mdx';
+
+Create, list, and manage code signing certificates for app development and distribution.
+
+## Overview
+
+Certificates are used to sign your apps and establish your identity as a developer. The `certificates` command provides full lifecycle management of signing certificates in App Store Connect.
+
+## List Certificates
+
+List all certificates or filter by type:
+
+```bash
+# List all certificates
+asc certificates list
+
+# Filter by certificate type
+asc certificates list --certificate-type IOS_DISTRIBUTION
+
+# List multiple types
+asc certificates list --certificate-type IOS_DEVELOPMENT,IOS_DISTRIBUTION
+
+# Fetch all pages automatically
+asc certificates list --paginate
+```
+
+### Pagination Options
+
+* `--limit` - Results per page (1-200)
+* `--next` - Fetch next page using a `links.next` URL
+* `--paginate` - Automatically fetch all pages
+
+## Get Certificate Details
+
+Retrieve a specific certificate by ID:
+
+```bash
+asc certificates view --id "CERT_ID"
+
+# Include related resources
+asc certificates view --id "CERT_ID" --include passTypeId
+
+# Limit the included resource to specific fields
+asc certificates view --id "CERT_ID" --include passTypeId --pass-type-id-fields "name,identifier"
+```
+
+## Check Developer ID Certificates
+
+The original Developer ID Certification Authority expires on February 1, 2027. Certificates it issued stop working on that date, and `.pkg` installers signed with them no longer install. Mac software that is already signed and notarized with a secure timestamp keeps working.
+
+```bash
+# Report every Developer ID Application and KEXT certificate
+asc certificates developer-id-check --output table
+
+# Exit 1 when a certificate needs replacement or review
+asc certificates developer-id-check --strict --output json
+```
+
+Each certificate gets a `status`, and `evidence` names what it rests on:
+
+* `affected` - The issuer in the certificate is the original authority
+* `not-affected` - The issuer is the G2 authority, the type is a `_G2` type, or it expires after February 1, 2027
+* `likely-affected` - The issuer could not be read and it expires on or before February 1, 2027
+* `unknown` - Neither the issuer nor the expiration date could be read
+
+The check exits 0 and prints a warning to stderr when it finds something. With `--strict`, it exits 1 when an unexpired certificate is anything but `not-affected`.
+
+The App Store Connect API does not list Developer ID Installer certificates, so this check cannot see them, and `notChecked` says so. Review them in Certificates, Identifiers & Profiles. To check a package you already signed, read `signer.developerIdAuthorityStatus` from `pkg-info`, which also warns on stderr when the package is affected:
+
+```bash
+asc pkg-info --path ./App.pkg --output json
+```
+
+Create replacements from Developer ID Certification Authority (G2). When asked for a Developer ID Certificate Intermediary, choose the G2 Sub-CA.
+
+## Certificate Types
+
+### iOS Certificate Types
+
+**Development:**
+
+```bash
+asc certificates list --certificate-type IOS_DEVELOPMENT
+```
+
+* Used for: Running apps on devices during development
+* Profile types: IOS\_APP\_DEVELOPMENT
+* Limit: Multiple per account
+
+**Distribution:**
+
+```bash
+asc certificates list --certificate-type IOS_DISTRIBUTION
+```
+
+* Used for: App Store, Ad Hoc, and Enterprise distribution
+* Profile types: IOS\_APP\_STORE, IOS\_APP\_ADHOC, IOS\_APP\_INHOUSE
+* Limit: 3 active per account
+
+### Cross-Platform Certificate Types
+
+Apple Development and Apple Distribution certificates cover iOS, tvOS, watchOS,
+visionOS, and macOS from a single certificate:
+
+* `DEVELOPMENT` - Apple Development (all platforms)
+* `DISTRIBUTION` - Apple Distribution (all platforms)
+
+### macOS Certificate Types
+
+**Mac App Development:**
+
+```bash
+asc certificates list --certificate-type MAC_APP_DEVELOPMENT
+```
+
+* Used for: macOS development
+
+**Mac App Distribution:**
+
+```bash
+asc certificates list --certificate-type MAC_APP_DISTRIBUTION
+```
+
+* Used for: Mac App Store distribution
+
+**Developer ID Application:**
+
+```bash
+asc certificates list --certificate-type DEVELOPER_ID_APPLICATION
+```
+
+* Used for: Apps distributed outside the Mac App Store
+* Enables notarization
+
+**Mac Installer Distribution:**
+
+```bash
+asc certificates list --certificate-type MAC_INSTALLER_DISTRIBUTION
+```
+
+* Used for: Signing installer packages (.pkg) submitted to the Mac App Store
+
+<Note>
+  App Store Connect does not expose a Developer ID Installer certificate type. Create
+  Developer ID Installer certificates in the Apple Developer portal; `asc` can only
+  manage the certificate types listed here.
+</Note>
+
+### Specialized Certificate Types
+
+* `DEVELOPER_ID_APPLICATION_G2` - Developer ID Application (G2 signing identity)
+* `DEVELOPER_ID_KEXT` - Kernel extensions (deprecated on modern macOS)
+* `DEVELOPER_ID_KEXT_G2` - Kernel extensions (G2 signing identity)
+* `PASS_TYPE_ID` - Wallet passes and Apple Pay
+* `PASS_TYPE_ID_WITH_NFC` - Wallet passes with NFC
+* `IDENTITY_ACCESS` - Identity access
+
+### Apple Pay Certificate Types
+
+* `APPLE_PAY` - Apple Pay payment processing
+* `APPLE_PAY_MERCHANT_IDENTITY` - Apple Pay merchant identity
+* `APPLE_PAY_PSP_IDENTITY` - Apple Pay payment service provider identity
+* `APPLE_PAY_RSA` - Apple Pay payment processing (RSA)
+
+<Note>
+  Apple Pay certificates are created against a merchant ID. Pass `--merchant-id` with
+  these four types, either through `asc certificates create` or
+  `asc merchant-ids certificates create`. Without `--merchant-id` the command exits with
+  code 2 before generating a CSR, and `--merchant-id` is rejected for every other
+  certificate type.
+</Note>
+
+```bash
+asc certificates create --certificate-type APPLE_PAY_MERCHANT_IDENTITY \
+  --merchant-id "MERCHANT_ID" \
+  --csr ./merchant.csr
+
+asc merchant-ids certificates create --merchant-id "MERCHANT_ID" \
+  --certificate-type APPLE_PAY_RSA \
+  --generate-csr \
+  --key-out ./signing/merchant.key \
+  --csr-out ./signing/merchant.csr
+```
+
+## Create Certificate
+
+Create a new signing certificate:
+
+```bash
+asc certificates create --certificate-type IOS_DISTRIBUTION \
+  --csr ./cert.csr
+```
+
+Or generate the private key and CSR as part of the create command:
+
+```bash
+asc certificates create --certificate-type IOS_DISTRIBUTION \
+  --generate-csr \
+  --key-out ./signing/dist.key \
+  --csr-out ./signing/dist.csr
+```
+
+### Generate CSR (Certificate Signing Request)
+
+Before creating a certificate, generate a CSR:
+
+```bash
+# Using asc CLI
+asc certificates csr generate --key-out ./cert.key --csr-out ./cert.csr
+
+# Or using openssl
+openssl req -new -newkey rsa:2048 -nodes \
+  -keyout private.key \
+  -out cert.csr \
+  -subj "/CN=My Certificate/O=My Organization/C=US"
+```
+
+The CSR contains your public key. Keep the private key secure - you'll need it to sign apps.
+
+### CSR Requirements
+
+* **Key size:** 2048-bit RSA minimum
+* **Format:** PEM-encoded PKCS#10
+* **Common Name:** Any descriptive name
+* The CLI accepts CSR files in PEM format or base64-encoded
+
+## Export an Apple Push Identity
+
+Package an Apple-issued APNs or Website Push certificate with the matching
+private key as a password-protected PKCS#12 identity:
+
+```bash
+# 1. Generate a private key and CSR
+asc certificates csr generate \
+  --key-out "./push/push.key" \
+  --csr-out "./push/push.csr"
+
+# 2. Upload ./push/push.csr through Apple's Developer website and download
+#    the resulting certificate as ./push/push.cer.
+
+# 3. Package the certificate and matching key
+asc certificates export \
+  --certificate "./push/push.cer" \
+  --private-key "./push/push.key" \
+  --csr "./push/push.csr" \
+  --password-file "./secrets/push.p12.password" \
+  --p12-out "./push/push.p12"
+```
+
+The export command is local-only. It validates the X.509 certificate, private
+key, and optional CSR before writing exactly one key and leaf certificate to
+the PKCS#12 file. The certificate must currently be valid, and the output is
+written with restrictive permissions. Passwords and key material are never
+printed. Replacing an existing output requires both `--force` and `--confirm`.
+
+The public App Store Connect API does not issue Apple Push Services or Website
+Push ID certificates. Renewal therefore remains explicit: obtain a new
+certificate through Apple's Developer website and run this command again.
+
+## Update Certificate
+
+Enable or disable a certificate:
+
+```bash
+# Enable certificate
+asc certificates update --id "CERT_ID" --activated true
+
+# Disable certificate
+asc certificates update --id "CERT_ID" --activated false
+```
+
+Disabled certificates remain in your account but cannot be used for new profile creation.
+
+## Revoke Certificate
+
+Permanently revoke a certificate:
+
+```bash
+asc certificates revoke --id "CERT_ID" --confirm
+```
+
+**Warning:** This action cannot be undone. Revoking a certificate:
+
+* Invalidates all provisioning profiles using this certificate
+* Cannot be re-enabled
+* Counts against your certificate limit until it expires
+
+**When to revoke:**
+
+* Private key is compromised
+* Certificate is no longer needed
+* Replacing with a new certificate
+
+## Certificate Relationships
+
+View related resources for pass type certificates:
+
+```bash
+asc certificates links pass-type-id --id "CERT_ID"
+```
+
+This shows the pass type ID associated with Wallet pass certificates.
+
+## Complete Example Workflows
+
+### Create iOS Distribution Certificate
+
+```bash
+# 1. Generate CSR and private key
+asc certificates csr generate --key-out ./dist.key --csr-out ./dist.csr
+
+# 2. Create certificate
+asc certificates create --certificate-type IOS_DISTRIBUTION \
+  --csr ./dist.csr
+
+# 3. Download the certificate (from the response)
+# The certificate content is base64-encoded in the API response
+# Save it to a .cer file and import to keychain
+
+# 4. Import to keychain
+security import ~/Downloads/certificate.cer \
+  -k ~/Library/Keychains/login.keychain-db
+```
+
+### Rotate Distribution Certificate
+
+```bash
+# 1. Check current certificates
+asc certificates list --certificate-type IOS_DISTRIBUTION \
+  --output table
+
+# 2. Create new certificate
+asc certificates csr generate --key-out ./new-dist.key --csr-out ./new-dist.csr
+asc certificates create --certificate-type IOS_DISTRIBUTION \
+  --csr ./new-dist.csr
+
+# 3. Update provisioning profiles to use new certificate
+asc profiles list --profile-type IOS_APP_STORE --output json
+# Note the profile IDs that need updating
+
+# 4. Revoke old certificate
+asc certificates revoke --id "OLD_CERT_ID" --confirm
+```
+
+### Development Certificate Setup
+
+```bash
+# 1. Generate CSR
+openssl req -new -newkey rsa:2048 -nodes \
+  -keyout dev-private.key \
+  -out dev.csr \
+  -subj "/CN=iOS Development/O=My Team/C=US"
+
+# 2. Create development certificate
+asc certificates create --certificate-type IOS_DEVELOPMENT \
+  --csr ./dev.csr
+
+# 3. Combine private key with certificate for keychain import
+# Download certificate from response, then:
+security import dev-private.key -k ~/Library/Keychains/login.keychain-db
+security import certificate.cer -k ~/Library/Keychains/login.keychain-db
+```
+
+### macOS Signing Certificates
+
+```bash
+# For apps distributed outside Mac App Store
+asc certificates create --certificate-type DEVELOPER_ID_APPLICATION \
+  --csr ./developer-id.csr
+
+# For Mac App Store installer packages (.pkg)
+asc certificates create --certificate-type MAC_INSTALLER_DISTRIBUTION \
+  --csr ./installer.csr
+```
+
+## Certificate Export and Backup
+
+### Export from Keychain
+
+```bash
+# Export certificate and private key as .p12
+security export -k ~/Library/Keychains/login.keychain-db \
+  -t identities \
+  -f pkcs12 \
+  -o certificate.p12 \
+  -P "password"
+```
+
+### Import on Another Machine
+
+```bash
+# Import .p12 bundle
+security import certificate.p12 \
+  -k ~/Library/Keychains/login.keychain-db \
+  -P "password" \
+  -T /usr/bin/codesign
+
+# Allow codesign to use the certificate
+security set-key-partition-list -S apple-tool:,apple: \
+  -s -k "keychain-password" \
+  ~/Library/Keychains/login.keychain-db
+```
+
+## Certificate Limits
+
+Apple imposes limits on active certificates:
+
+| Certificate Type         | Limit         |
+| ------------------------ | ------------- |
+| iOS Development          | Unlimited     |
+| iOS Distribution         | 3 per account |
+| Mac App Development      | Unlimited     |
+| Mac App Distribution     | 3 per account |
+| Developer ID Application | 5 per account |
+
+Revoked and expired certificates count against limits until they expire (1 year from creation).
+
+## Troubleshooting
+
+### Certificate Limit Reached
+
+```
+Error: You have reached the maximum number of certificates for this type
+```
+
+**Solution:** Revoke unused certificates:
+
+```bash
+# List current certificates
+asc certificates list --certificate-type IOS_DISTRIBUTION --output table
+
+# Revoke old or unused certificates
+asc certificates revoke --id "OLD_CERT_ID" --confirm
+```
+
+### Invalid CSR Format
+
+```
+Error: CSR file is empty or invalid
+```
+
+**Solution:** Ensure CSR is properly formatted:
+
+```bash
+# Verify CSR format
+openssl req -in cert.csr -noout -text
+
+# Regenerate if needed
+asc certificates csr generate --key-out ./cert.key --csr-out ./cert.csr
+```
+
+### Private Key Not Found
+
+```
+Error: The identity cannot be found
+```
+
+This means the certificate was created with a CSR from another machine.
+
+**Solution:**
+
+1. Export the certificate and private key from the original machine as .p12
+2. Import the .p12 on your current machine
+3. Or create a new certificate with a CSR generated on your current machine
+
+### Certificate Shows as Invalid
+
+Check certificate status:
+
+```bash
+asc certificates view --id "CERT_ID" --output json
+```
+
+Look for `certificateType`, `expirationDate`, and related attributes.
+
+**Common issues:**
+
+* Certificate expired (valid for 1 year)
+* Certificate was revoked
+* Private key missing from keychain
+
+## Related Commands
+
+* [Signing](/commands/signing) - High-level signing workflow
+* [Profiles](/commands/profiles) - Provisioning profiles
+* [Devices](/commands/devices) - Register development devices

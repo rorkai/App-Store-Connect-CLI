@@ -1,0 +1,85 @@
+---
+title: system-status
+description: Apple Developer service health without authentication
+---
+
+import { Card, CardGroup, ParamField } from '@components/mdx';
+
+The `system-status` command queries Apple's public Developer System Status feed.
+Use it when an App Store Connect request, build upload, TestFlight operation, or
+Xcode Cloud workflow behaves unexpectedly and you want to distinguish a local
+problem from an active Apple incident.
+
+## Usage
+
+```bash
+asc system-status [flags]
+```
+
+## Examples
+
+```bash
+asc system-status
+asc system-status --service "App Store Connect API"
+asc system-status --service "App Store Connect,TestFlight" --issues-only
+asc system-status --watch --poll-interval 30s
+asc system-status --output json
+```
+
+Service matching is case-insensitive and applies each substring to individual
+service names. Use separate comma-delimited filters when you need multiple
+names, for example `--service "App Store Connect,TestFlight"`.
+
+## Flags
+
+<ParamField path="--service" type="string">
+  Filter by service name substring(s), comma-separated
+</ParamField>
+
+<ParamField path="--issues-only" type="boolean" default="false">
+  Show only services with active incidents; summary counts still cover every matched service
+</ParamField>
+
+<ParamField path="--watch" type="boolean" default="false">
+  Poll and emit the initial snapshot, then emit only when the selected report changes
+</ParamField>
+
+<ParamField path="--poll-interval" type="string" default="30s">
+  Polling interval for `--watch`
+</ParamField>
+
+<ParamField path="--max-polls" type="integer" default="0">
+  Maximum polls for `--watch` (`0` = unlimited)
+</ParamField>
+
+<ParamField path="--output" type="string">
+  Output format: `json`, `table`, or `markdown`; defaults to `table` in terminals
+  and minified `json` for pipes or CI, while an explicit value takes precedence
+</ParamField>
+
+## Behavior
+
+A successfully fetched report exits zero even when Apple reports an incident;
+the incident is returned as data in `summary.status`, service status, and event
+details. Network, HTTP, or response-format failures exit non-zero. The command
+does not require App Store Connect credentials.
+
+Watch mode retries a failed poll twice and exits after three consecutive
+failures. A successful poll resets the failure count. JSON snapshots are
+newline-delimited, so `--pretty` is not supported with `--watch --output json`.
+
+Apple exposes this information through a public web feed rather than the App
+Store Connect OpenAPI. If Apple changes the feed shape, `asc` fails explicitly
+instead of silently reporting that services are healthy.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Release status" icon="activity" href="/commands/status">
+    Inspect the authenticated release pipeline for one app
+  </Card>
+
+  <Card title="Authentication" icon="key" href="/commands/auth">
+    Diagnose local credentials with `asc auth doctor`
+  </Card>
+</CardGroup>
