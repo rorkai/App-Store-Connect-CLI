@@ -432,7 +432,6 @@ func SubscriptionsRetentionOffersUpdateCommand() *ffcli.Command {
 	var paidMonths, waitMonths optionalInt
 	fs.Var(&paidMonths, "eligibility-paid-months", "Minimum months of paid subscription for eligibility: 1-24, 36, 48, or 60")
 	fs.Var(&waitMonths, "eligibility-wait-months", "Months to wait before redeeming another retention offer: 2-24")
-	clearWaitMonths := fs.Bool("clear-eligibility-wait-months", false, "Set the wait between offers to null")
 	output := shared.BindOutputFlags(fs)
 
 	const command = "subscriptions offers retention update"
@@ -446,7 +445,7 @@ The eligibility attributes are the only attributes Apple lets you change.
 
 Examples:
   asc subscriptions offers retention update --id "OFFER_ID" --eligibility-paid-months 6
-  asc subscriptions offers retention update --id "OFFER_ID" --clear-eligibility-wait-months`,
+  asc subscriptions offers retention update --id "OFFER_ID" --eligibility-wait-months 4`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -454,11 +453,8 @@ Examples:
 			if offerID == "" {
 				return shared.UsageError("--id is required")
 			}
-			if waitMonths.set && *clearWaitMonths {
-				return shared.UsageErrorf("%s: --eligibility-wait-months and --clear-eligibility-wait-months are mutually exclusive", command)
-			}
-			if !paidMonths.set && !waitMonths.set && !*clearWaitMonths {
-				return shared.UsageError("at least one of --eligibility-paid-months, --eligibility-wait-months, or --clear-eligibility-wait-months is required")
+			if !paidMonths.set && !waitMonths.set {
+				return shared.UsageError("at least one of --eligibility-paid-months or --eligibility-wait-months is required")
 			}
 			if err := validateRetentionOfferEligibility(command, paidMonths, waitMonths); err != nil {
 				return err
@@ -469,9 +465,7 @@ Examples:
 				attrs.CustomerEligibilityPaidSubscriptionDurationInMonths = &paidMonths.value
 			}
 			if waitMonths.set {
-				attrs.CustomerEligibilityWaitBetweenOffersInMonths = &asc.NullableInt{Value: &waitMonths.value}
-			} else if *clearWaitMonths {
-				attrs.CustomerEligibilityWaitBetweenOffersInMonths = &asc.NullableInt{}
+				attrs.CustomerEligibilityWaitBetweenOffersInMonths = &waitMonths.value
 			}
 
 			client, err := shared.GetASCClient()

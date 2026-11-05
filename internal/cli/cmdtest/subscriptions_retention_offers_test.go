@@ -17,7 +17,7 @@ import (
 
 const retentionOfferResponse = `{"data":{"type":"retentionOffers","id":"ro-1","attributes":{"referenceName":"winter","offerId":"winter_one_month"}},"links":{"self":"https://api.appstoreconnect.apple.com/v1/retentionOffers/ro-1"}}`
 
-const clearedWaitResponse = `{"data":{"type":"retentionOffers","id":"ro-1","attributes":{"customerEligibilityPaidSubscriptionDurationInMonths":36,"customerEligibilityWaitBetweenOffersInMonths":null}},"links":{"self":"https://api.appstoreconnect.apple.com/v1/retentionOffers/ro-1"}}`
+const nullWaitResponse = `{"data":{"type":"retentionOffers","id":"ro-1","attributes":{"customerEligibilityPaidSubscriptionDurationInMonths":36,"customerEligibilityWaitBetweenOffersInMonths":null}},"links":{"self":"https://api.appstoreconnect.apple.com/v1/retentionOffers/ro-1"}}`
 
 const retentionOffersResponse = `{"data":[{"type":"retentionOffers","id":"ro-1","attributes":{"referenceName":"winter"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptions/6446671421/retentionOffers"}}`
 
@@ -99,12 +99,12 @@ func TestSubscriptionsRetentionOffersRequestWiring(t *testing.T) {
 			status: http.StatusCreated, response: retentionOfferResponse, wantOutput: retentionOfferResponse,
 		},
 		{
-			name:   "update sets paid months and clears the wait with null",
-			args:   []string{"update", "--id", "ro-1", "--eligibility-paid-months", "36", "--clear-eligibility-wait-months"},
+			name:   "update sets paid and wait months",
+			args:   []string{"update", "--id", "ro-1", "--eligibility-paid-months", "36", "--eligibility-wait-months", "4"},
 			method: http.MethodPatch,
 			path:   "/v1/retentionOffers/ro-1",
-			body:   `{"data":{"type":"retentionOffers","id":"ro-1","attributes":{"customerEligibilityPaidSubscriptionDurationInMonths":36,"customerEligibilityWaitBetweenOffersInMonths":null}}}`,
-			status: http.StatusOK, response: clearedWaitResponse, wantOutput: clearedWaitResponse,
+			body:   `{"data":{"type":"retentionOffers","id":"ro-1","attributes":{"customerEligibilityPaidSubscriptionDurationInMonths":36,"customerEligibilityWaitBetweenOffersInMonths":4}}}`,
+			status: http.StatusOK, response: nullWaitResponse, wantOutput: nullWaitResponse,
 		},
 		{
 			name:   "delete prints a receipt",
@@ -208,7 +208,6 @@ func TestSubscriptionsRetentionOffersUsageErrors(t *testing.T) {
 		{"create rejects wait months below two", with(create, "--price", "PP", "--eligibility-wait-months", "1"), "--eligibility-wait-months must be between 2 and 24"},
 		{"create rejects unknown duration", with(create, "--price", "PP", "--duration", "TEN_DAYS"), "--duration must be one of"},
 		{"update requires a change", []string{"update", "--id", "ro-1"}, "at least one of --eligibility-paid-months"},
-		{"update rejects setting and clearing the wait", []string{"update", "--id", "ro-1", "--eligibility-wait-months", "3", "--clear-eligibility-wait-months"}, "mutually exclusive"},
 		{"delete requires confirm", []string{"delete", "--id", "ro-1"}, "--confirm is required"},
 		{"presented remove requires confirm", []string{"presented", "remove", "--subscription-id", "6446671421", "--retention-offer-id", "ro-1"}, "--confirm is required"},
 		{"list prices limit requires prices include", []string{"list", "--subscription-id", "6446671421", "--prices-limit", "5"}, "--prices-limit requires --include prices"},

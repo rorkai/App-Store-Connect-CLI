@@ -37,10 +37,11 @@ type RetentionOfferCreateAttributes struct {
 }
 
 // RetentionOfferUpdateAttributes describes the eligibility attributes a
-// retention offer update can change. A NullableInt with a nil Value sends null.
+// retention offer update can change. The spec marks both nullable, but Apple
+// returns HTTP 500 for null, so clearing is not offered.
 type RetentionOfferUpdateAttributes struct {
-	CustomerEligibilityPaidSubscriptionDurationInMonths *int         `json:"customerEligibilityPaidSubscriptionDurationInMonths,omitempty"`
-	CustomerEligibilityWaitBetweenOffersInMonths        *NullableInt `json:"customerEligibilityWaitBetweenOffersInMonths,omitempty"`
+	CustomerEligibilityPaidSubscriptionDurationInMonths *int `json:"customerEligibilityPaidSubscriptionDurationInMonths,omitempty"`
+	CustomerEligibilityWaitBetweenOffersInMonths        *int `json:"customerEligibilityWaitBetweenOffersInMonths,omitempty"`
 }
 
 // RetentionOfferCreateRelationships describes relationships for creating a retention offer.
