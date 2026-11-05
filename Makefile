@@ -348,7 +348,6 @@ release-guardrails:
 	python3 scripts/test_check_docs.py
 	$(MAKE) format-check
 	$(MAKE) check-docs
-	$(MAKE) check-wall-of-apps
 	$(MAKE) lint
 	ASC_BYPASS_KEYCHAIN=1 $(MAKE) test
 

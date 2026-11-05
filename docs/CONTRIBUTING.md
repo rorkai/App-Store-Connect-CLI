@@ -15,9 +15,9 @@ This file covers patterns for AI agents working on the codebase.
 - Use concise, present-tense commit messages that match repo style
 - Never commit secrets or local config files (keys, `.env`, `.asc/config.json`)
 
-## Before Committing
+## Validation
 
-For substantive behavior changes, run:
+For substantive behavior changes, satisfy the following local checks under `AGENTS.md`. Format before committing, count successful hook results toward matching checks, and run only missing or invalidated checks afterwards. The hook's affected short suite does not replace the full test suite.
 
 ```bash
 make build      # Build the CLI
@@ -28,7 +28,7 @@ ASC_BYPASS_KEYCHAIN=1 make test  # Run all tests without keychain prompts
 git diff        # Review changes before staging
 ```
 
-For a narrowly scoped documentation or skill change, run `make check-docs`; it includes the repository and skill validators. Use broader checks when the changed surface or repository policy requires them.
+For changes limited to `AGENTS.md` and skill Markdown or `agents/openai.yaml` under `.agents/skills`, use `make check-repo-docs` and `make check-agent-skills`; successful hook results satisfy both. For other narrowly scoped documentation changes, run `make check-docs`. Use broader checks when the changed surface requires them.
 
 If `docs/wall-of-apps.json` is the only staged change, the local hook skips the full Go pipeline and only runs:
 

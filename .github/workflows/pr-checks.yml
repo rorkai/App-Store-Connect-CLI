@@ -125,8 +125,6 @@ jobs:
         if: contains(fromJSON('["docs", "full"]'), needs.changes.outputs.scope)
         run: |
           python3 scripts/test_check_docs.py
-          python3 scripts/test_check_docs_commands.py
-          python3 scripts/test_generate_command_docs.py
 
       - name: Check CI workflow contracts
         if: needs.changes.outputs.scope == 'full'

@@ -34,7 +34,7 @@ Apply fixes and external writes only when authorized. Otherwise report the verif
 - `clean`: the final full-branch local review in `AGENTS.md` is clear for the current head and recorded review base, required checks pass, required reviews are satisfied, the latest head is mergeable, and no actionable unresolved thread remains. A later base advance alone does not invalidate that review. Report advisory jobs without treating them as blockers.
 - `blocked`: user input, permissions, an external outage, or an unsafe product decision prevents progress.
 
-For an authorized merge, reapply `$audit-asc-pr`'s complete gate immediately before merging and follow the history rules in `AGENTS.md`.
+For an authorized merge, confirm `$audit-asc-pr`'s complete gate immediately before merging: refresh remote head, required checks and reviews, threads, and mergeability, and reuse valid local review and validation evidence under `AGENTS.md`. Follow its history rules.
 
 ## Automation contract
 

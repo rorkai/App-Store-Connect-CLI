@@ -41,10 +41,10 @@ Apply `AGENTS.md`'s implementation invariants. Return usage errors with exit cod
 ## Reach GREEN and verify
 
 1. Rerun the focused failing test after each small fix.
-2. Run adjacent package and command tests.
-3. Build a binary at a worktree-specific path and verify realistic invocations, output streams, and exit codes. Do not share a fixed `/tmp/asc` path with concurrent tasks.
-4. Run a minimal live smoke test when behavior depends on App Store Connect quirks. Prefer read-only calls; live mutations and cleanup require authority under `AGENTS.md`.
-5. Apply `AGENTS.md`'s validation gate, including command-doc generation when help changes. Public CLI behavior, shared code, release surfaces, and meaningful defect or security fixes require the full gate.
+2. Run adjacent package and command tests when useful for diagnosis; omit a separate run when the immediately following full validation gate covers them.
+3. Apply `AGENTS.md`'s validation gate, including command-doc generation when help changes. Public CLI behavior, shared code, release surfaces, and meaningful defect or security fixes require the full gate.
+4. Verify realistic invocations, output streams, and exit codes using a binary at a worktree-specific path. Reuse the required validation gate's build when source and build inputs match; otherwise build it once. Do not share a fixed `/tmp/asc` path with concurrent tasks.
+5. Run a minimal live smoke test when behavior depends on App Store Connect quirks. Prefer read-only calls; live mutations and cleanup require authority under `AGENTS.md`.
 
 Before handoff, compare the exact branch head with current `main` read-only. Follow the branch-update rules in `AGENTS.md`; a newer base alone does not justify changing the branch.
 

@@ -39,6 +39,10 @@ def path_kind(path: str) -> str:
         return "website"
     if path.startswith("docs/"):
         return "docs"
+    if path.startswith(".agents/skills/") and (
+        path.endswith(".md") or path.endswith("/agents/openai.yaml")
+    ):
+        return "docs"
     if "/" not in path and path.endswith(".md"):
         return "docs"
     return "full"
