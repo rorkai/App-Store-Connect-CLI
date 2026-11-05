@@ -723,17 +723,6 @@ func (paths artifactPaths) loadState() (publishState, bool, error) {
 	return state, true, nil
 }
 
-func readBoundedPublishState(reader io.Reader) ([]byte, error) {
-	data, err := io.ReadAll(io.LimitReader(reader, maxPublishStateBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > maxPublishStateBytes {
-		return nil, fmt.Errorf("sensitive link artifact exceeds 2 MiB")
-	}
-	return data, nil
-}
-
 func readStableProtectedPublishArtifact(root *os.Root, name string, file *os.File, info os.FileInfo, label string) ([]byte, error) {
 	data, err := io.ReadAll(io.LimitReader(file, maxPublishStateBytes+1))
 	if err != nil {

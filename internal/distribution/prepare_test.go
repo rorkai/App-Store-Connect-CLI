@@ -91,7 +91,7 @@ func TestPrepareIPARefusesConflictingExistingBundle(t *testing.T) {
 	file, _ := os.Open(ipaPath)
 	defer file.Close()
 	info, _ := file.Stat()
-	_, err := PrepareIPA(file, info.Size(), PrepareOptions{Root: root})
+	_, err := PrepareIPAContext(context.Background(), file, info.Size(), PrepareOptions{Root: root})
 	if !errors.Is(err, ErrBundleConflict) {
 		t.Fatalf("error = %v, want ErrBundleConflict", err)
 	}
@@ -120,9 +120,9 @@ func TestPrepareIPAPublishesFromStableSnapshot(t *testing.T) {
 	}
 	t.Cleanup(func() { afterIPASnapshotForTest = nil })
 
-	result, err := PrepareIPA(file, int64(len(original)), PrepareOptions{Root: t.TempDir()})
+	result, err := PrepareIPAContext(context.Background(), file, int64(len(original)), PrepareOptions{Root: t.TempDir()})
 	if err != nil {
-		t.Fatalf("PrepareIPA() error = %v", err)
+		t.Fatalf("PrepareIPAContext() error = %v", err)
 	}
 	copied, err := os.ReadFile(filepath.Join(result.BundlePath, "payload", "app.ipa"))
 	if err != nil {
@@ -163,15 +163,15 @@ func TestPrepareIPAPinsOutputRootBeforeInspection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PrepareIPA(file, info.Size(), PrepareOptions{Root: root}); !errors.Is(err, rootfs.ErrSymlink) {
-		t.Fatalf("PrepareIPA() error = %v, want ErrSymlink", err)
+	if _, err := PrepareIPAContext(context.Background(), file, info.Size(), PrepareOptions{Root: root}); !errors.Is(err, rootfs.ErrSymlink) {
+		t.Fatalf("PrepareIPAContext() error = %v, want ErrSymlink", err)
 	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(entries) != 0 {
-		t.Fatalf("PrepareIPA() wrote to replacement root: %#v", entries)
+		t.Fatalf("PrepareIPAContext() wrote to replacement root: %#v", entries)
 	}
 }
 
@@ -201,7 +201,7 @@ func TestPrepareIPARejectsOutputParentSwappedToSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PrepareIPA(file, info.Size(), PrepareOptions{Root: root, OutputDir: "output/bundle"}); err == nil {
+	if _, err := PrepareIPAContext(context.Background(), file, info.Size(), PrepareOptions{Root: root, OutputDir: "output/bundle"}); err == nil {
 		t.Fatal("expected swapped output parent rejection")
 	}
 	entries, err := os.ReadDir(outside)
@@ -238,18 +238,18 @@ func TestPrepareIPACreatesEmptyOutputRootBeforeInspection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PrepareIPA(file, info.Size(), PrepareOptions{Root: rootPath}); err == nil {
-		t.Fatal("PrepareIPA() accepted unsupported archive platform")
+	if _, err := PrepareIPAContext(context.Background(), file, info.Size(), PrepareOptions{Root: rootPath}); err == nil {
+		t.Fatal("PrepareIPAContext() accepted unsupported archive platform")
 	}
 	if !inspected {
-		t.Fatal("PrepareIPA() did not create and pin the output root before inspection")
+		t.Fatal("PrepareIPAContext() did not create and pin the output root before inspection")
 	}
 	entries, err := os.ReadDir(rootPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(entries) != 0 {
-		t.Fatalf("PrepareIPA() published output after inspection failure: %#v", entries)
+		t.Fatalf("PrepareIPAContext() published output after inspection failure: %#v", entries)
 	}
 }
 
@@ -281,7 +281,7 @@ func TestPrepareIPARejectsIneligibleAndCredentialURLBeforeWriting(t *testing.T) 
 			file, _ := os.Open(test.path)
 			defer file.Close()
 			info, _ := file.Stat()
-			if _, err := PrepareIPA(file, info.Size(), test.opts); err == nil {
+			if _, err := PrepareIPAContext(context.Background(), file, info.Size(), test.opts); err == nil {
 				t.Fatal("expected error")
 			}
 			entries, _ := os.ReadDir(root)
@@ -304,8 +304,8 @@ func TestPrepareIPARejectsUnverifiedProfileTrustAndCodeBeforeWriting(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PrepareIPA(file, info.Size(), PrepareOptions{Root: root}); !errors.Is(err, ErrNotEligible) {
-		t.Fatalf("PrepareIPA() error = %v, want ErrNotEligible", err)
+	if _, err := PrepareIPAContext(context.Background(), file, info.Size(), PrepareOptions{Root: root}); !errors.Is(err, ErrNotEligible) {
+		t.Fatalf("PrepareIPAContext() error = %v, want ErrNotEligible", err)
 	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -326,7 +326,7 @@ func TestPrepareIPARejectsSymlinkedDefaultOutputParent(t *testing.T) {
 	file, _ := os.Open(ipaPath)
 	defer file.Close()
 	info, _ := file.Stat()
-	if _, err := PrepareIPA(file, info.Size(), PrepareOptions{Root: root}); err == nil {
+	if _, err := PrepareIPAContext(context.Background(), file, info.Size(), PrepareOptions{Root: root}); err == nil {
 		t.Fatal("expected symlinked .asc rejection")
 	}
 	entries, err := os.ReadDir(outside)
@@ -428,9 +428,9 @@ func preparePath(t *testing.T, path string, options PrepareOptions) PrepareResul
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := PrepareIPA(file, info.Size(), options)
+	result, err := PrepareIPAContext(context.Background(), file, info.Size(), options)
 	if err != nil {
-		t.Fatalf("PrepareIPA() error = %v", err)
+		t.Fatalf("PrepareIPAContext() error = %v", err)
 	}
 	return result
 }

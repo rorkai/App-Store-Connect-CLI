@@ -54,20 +54,6 @@ type distributionVerifyLease interface {
 	Close() error
 }
 
-type noopDistributionVerifyLease struct{}
-
-func (noopDistributionVerifyLease) PinSubtrees(...string) error { return nil }
-func (noopDistributionVerifyLease) Verify() error               { return nil }
-func (noopDistributionVerifyLease) Close() error                { return nil }
-
-func acquireDistributionRunPathLease(stateDir, runID string) (func() error, func() error, error) {
-	lease, err := openDistributionRunPathLease(stateDir, runID)
-	if err != nil {
-		return nil, nil, err
-	}
-	return lease.verify, lease.close, nil
-}
-
 func openDistributionRunPathLease(stateDir, runID string) (*distributionRunPathLease, error) {
 	if !distributionRunIDPattern.MatchString(runID) {
 		return nil, fmt.Errorf("invalid distribution run identifier")

@@ -429,7 +429,6 @@ func validateDistributionText(name, value string, limit int) error {
 }
 
 func newDistributionPlanID() (string, error) { return newDistributionID("dplan_") }
-func newDistributionRunID() (string, error)  { return newDistributionID("drun_") }
 
 func newDistributionID(prefix string) (string, error) {
 	var random [16]byte
@@ -671,14 +670,6 @@ func validateDistributionEffectInventory(plan persistedDistributionPlan) error {
 		return fmt.Errorf("distribution plan mutation effects do not match reconcile mutationCount")
 	}
 	return nil
-}
-
-func ensureDistributionStateRoot(path string) error {
-	rooted, err := openOrCreateDistributionDirectory(path)
-	if rooted != nil {
-		_ = rooted.Close()
-	}
-	return err
 }
 
 func createDistributionRunDirectory(stateDir, runID string) error {
