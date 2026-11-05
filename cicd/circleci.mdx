@@ -213,23 +213,15 @@ jobs:
           command: |
             asc builds upload \
               --app "$ASC_APP_ID" \
-              --ipa build/MyApp.ipa
+              --ipa build/MyApp.ipa \
+              --wait
       
       - run:
           name: Add to Beta Group
           command: |
-            # Wait for processing
-            sleep 120
-            
-            # Get latest build ID
-            BUILD_ID=$(asc builds list \
-              --app "$ASC_APP_ID" \
-              --output json \
-              --limit 1 | jq -r '.[0].id')
-            
-            # Add to external testers
             asc builds add-groups \
-              --build-id "$BUILD_ID" \
+              --app "$ASC_APP_ID" \
+              --latest \
               --group "External Testers"
 
 workflows:

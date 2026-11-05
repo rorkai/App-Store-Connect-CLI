@@ -179,10 +179,9 @@ func TestVerifyXarAgreesWithPkgutil(t *testing.T) {
 	}
 }
 
-// Every package Xcode bundles is Apple-signed; each must verify, payload
-// checksums included, wherever pkgutil accepts it. Packages are read through
-// the file so their payloads stream rather than load into memory.
-func TestVerifyXarAcceptsEveryXcodePackage(t *testing.T) {
+// Installed Xcode packages exercise supported RSA signatures and unsupported
+// CMS-only signatures. Supported packages must include verified payload checksums.
+func TestVerifyXarClassifiesInstalledXcodeSignatures(t *testing.T) {
 	pkgutil, err := exec.LookPath("pkgutil")
 	if err != nil {
 		t.Skip("pkgutil is not installed")
@@ -206,7 +205,17 @@ func TestVerifyXarAcceptsEveryXcodePackage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			document, _, _, err := readXarFiles(file, info.Size())
+			if err != nil {
+				t.Fatalf("read package table of contents: %v", err)
+			}
 			manifest, _ := inspectPKGVerifying(file, info.Size(), policy)
+			if document.Signature == nil && document.XSignature != nil {
+				if result := manifest.SignatureVerification; result == nil || result.Status != VerificationUnsupported || result.Detail != "package has only a CMS x-signature, which is not verified" {
+					t.Fatalf("CMS-only package %s verification=%+v, want unsupported CMS-only signature", path, result)
+				}
+				return
+			}
 			if result := manifest.SignatureVerification; result == nil || result.Status != VerificationValid || !strings.Contains(result.Detail, "file payload checksums recomputed") {
 				t.Fatalf("pkgutil accepts %s but verification=%+v", path, result)
 			}

@@ -370,7 +370,7 @@ Example with Slack notifications:
 
 ## Complete example
 
-Here's a comprehensive workflow for a full release process:
+A full release workflow:
 
 ```json  theme={null}
 {
@@ -393,11 +393,7 @@ Here's a comprehensive workflow for a full release process:
         },
         {
           "name": "Upload to TestFlight",
-          "run": "asc builds upload --app $APP_ID --ipa $BUILD_DIR/MyApp.ipa"
-        },
-        {
-          "name": "Wait for processing",
-          "run": "sleep 60"
+          "run": "asc builds upload --app $APP_ID --ipa $BUILD_DIR/MyApp.ipa --wait"
         },
         {
           "name": "Verify build available",
