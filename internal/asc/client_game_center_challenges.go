@@ -326,14 +326,14 @@ func (c *Client) GetGameCenterChallengeLocalizationImage(ctx context.Context, lo
 }
 
 // GetGameCenterChallengeVersionDefaultImage retrieves the default image for a challenge version.
-func (c *Client) GetGameCenterChallengeVersionDefaultImage(ctx context.Context, versionID string) (*GameCenterChallengeImageResponse, error) {
+func (c *Client) GetGameCenterChallengeVersionDefaultImage(ctx context.Context, versionID string) (*GameCenterChallengeVersionDefaultImageResponse, error) {
 	path := fmt.Sprintf("/v1/gameCenterChallengeVersions/%s/defaultImage", strings.TrimSpace(versionID))
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var response GameCenterChallengeImageResponse
+	var response GameCenterChallengeVersionDefaultImageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

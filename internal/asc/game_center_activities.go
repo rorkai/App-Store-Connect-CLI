@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"encoding/json"
 	"net/url"
 	"strings"
 )
@@ -352,6 +353,14 @@ type GameCenterActivityImagesResponse = Response[GameCenterActivityImageAttribut
 
 // GameCenterActivityImageResponse is the response from activity image detail endpoints.
 type GameCenterActivityImageResponse = SingleResponse[GameCenterActivityImageAttributes]
+
+// GameCenterActivityVersionDefaultImageResponse preserves a missing default image as null.
+type GameCenterActivityVersionDefaultImageResponse struct {
+	Data     *Resource[GameCenterActivityImageAttributes] `json:"data"`
+	Links    Links                                        `json:"links"`
+	Included json.RawMessage                              `json:"included,omitempty"`
+	Meta     json.RawMessage                              `json:"meta,omitempty"`
+}
 
 // GameCenterActivityImageDeleteResult represents CLI output for image deletions.
 type GameCenterActivityImageDeleteResult struct {
