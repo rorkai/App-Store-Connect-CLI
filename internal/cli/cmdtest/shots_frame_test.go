@@ -240,88 +240,60 @@ func TestShotsFramePassesLiteralWhitespaceInputPath(t *testing.T) {
 	}
 }
 
-func TestShotsFramePassesLiteralWhitespaceOutputPath(t *testing.T) {
+func TestShotsFramePassesLiteralWhitespaceOutputLocation(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows trims trailing spaces from path components")
 	}
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	inputPath := filepath.Join(t.TempDir(), "raw.png")
 	outputPath := filepath.Join(t.TempDir(), "framed.png ")
-	writeFramePNG(t, inputPath, makeRawImage(100, 220))
-	var got screenshots.FrameRequest
-	installMockFrame(t, func(_ context.Context, req screenshots.FrameRequest) (*screenshots.FrameResult, error) {
-		got = req
-		return &screenshots.FrameResult{Path: req.OutputPath, Device: req.Device}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
-		"screenshots", "frame", "--input", inputPath, "--output-path", outputPath, "--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	wantOutput, err := filepath.Abs(outputPath)
-	if err != nil {
-		t.Fatalf("Abs(outputPath) error: %v", err)
-	}
-	if got.OutputPath != wantOutput {
-		t.Fatalf("request output path = %q, want literal %q", got.OutputPath, wantOutput)
-	}
-	if stdout == "" {
-		t.Fatal("expected structured frame output")
-	}
-}
-
-func TestShotsFramePassesLiteralWhitespaceOutputDirectory(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows trims trailing spaces from path components")
-	}
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	inputPath := filepath.Join(t.TempDir(), "raw.png")
 	outputDir := filepath.Join(t.TempDir(), "framed ")
-	writeFramePNG(t, inputPath, makeRawImage(100, 220))
-	var got screenshots.FrameRequest
-	installMockFrame(t, func(_ context.Context, req screenshots.FrameRequest) (*screenshots.FrameResult, error) {
-		got = req
-		return &screenshots.FrameResult{Path: req.OutputPath, Device: req.Device}, nil
-	})
+	tests := []struct {
+		name       string
+		flag       string
+		value      string
+		wantOutput string
+	}{
+		{name: "output path", flag: "--output-path", value: outputPath, wantOutput: outputPath},
+		{name: "output directory", flag: "--output-dir", value: outputDir, wantOutput: filepath.Join(outputDir, "raw-iphone-air.png")},
+	}
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
-		"screenshots", "frame", "--input", inputPath, "--output-dir", outputDir, "--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	wantOutput := filepath.Join(outputDir, "raw-iphone-air.png")
-	wantOutput, err := filepath.Abs(wantOutput)
-	if err != nil {
-		t.Fatalf("Abs(outputPath) error: %v", err)
-	}
-	if got.OutputPath != wantOutput {
-		t.Fatalf("request output path = %q, want literal output directory path %q", got.OutputPath, wantOutput)
-	}
-	if stdout == "" {
-		t.Fatal("expected structured frame output")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+			inputPath := filepath.Join(t.TempDir(), "raw.png")
+			writeFramePNG(t, inputPath, makeRawImage(100, 220))
+			var got screenshots.FrameRequest
+			installMockFrame(t, func(_ context.Context, req screenshots.FrameRequest) (*screenshots.FrameResult, error) {
+				got = req
+				return &screenshots.FrameResult{Path: req.OutputPath, Device: req.Device}, nil
+			})
+
+			root := RootCommand("1.2.3")
+			if err := root.Parse([]string{
+				"screenshots", "frame", "--input", inputPath, tt.flag, tt.value, "--output", "json",
+			}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			wantOutput, err := filepath.Abs(tt.wantOutput)
+			if err != nil {
+				t.Fatalf("Abs(%q) error: %v", tt.wantOutput, err)
+			}
+			if got.OutputPath != wantOutput {
+				t.Fatalf("request output path = %q, want literal %q", got.OutputPath, wantOutput)
+			}
+			if stdout == "" {
+				t.Fatal("expected structured frame output")
+			}
+		})
 	}
 }
 

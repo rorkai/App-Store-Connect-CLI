@@ -3,8 +3,6 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"os"
@@ -43,53 +41,6 @@ func TestStoreKitRetentionMessagingCommandTree(t *testing.T) {
 		if findSubcommand(root, path...) == nil {
 			t.Errorf("missing command path %s", strings.Join(path, " "))
 		}
-	}
-}
-
-func TestStoreKitRetentionRequiresExplicitEnvironment(t *testing.T) {
-	t.Setenv("ASC_STOREKIT_ENVIRONMENT", "")
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"storekit", "retention-messaging", "messages", "list"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("run error = %v, want flag.ErrHelp", err)
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "--environment is required (or set ASC_STOREKIT_ENVIRONMENT)") {
-		t.Fatalf("stderr = %q", stderr)
-	}
-}
-
-func TestStoreKitDeleteRequiresConfirm(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"storekit", "retention-messaging", "messages", "delete",
-			"--message-id", "33333333-3333-4333-8333-333333333333",
-			"--environment", "sandbox",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("run error = %v, want flag.ErrHelp", err)
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "--confirm is required") {
-		t.Fatalf("stderr = %q", stderr)
 	}
 }
 
@@ -294,11 +245,25 @@ func TestStoreKitPerformanceWaitReturnsErrorForFailedTest(t *testing.T) {
 }
 
 func TestStoreKitInvalidValuesAreUsageErrors(t *testing.T) {
+	t.Setenv("ASC_STOREKIT_ENVIRONMENT", "")
+	t.Setenv("ASC_STOREKIT_KEY_ID", "")
+	t.Setenv("ASC_STOREKIT_ISSUER_ID", "")
+
 	tests := []struct {
 		name    string
 		args    []string
 		wantErr string
 	}{
+		{
+			name:    "missing environment",
+			args:    []string{"storekit", "retention-messaging", "messages", "list"},
+			wantErr: "--environment is required (or set ASC_STOREKIT_ENVIRONMENT)",
+		},
+		{
+			name:    "delete without confirm",
+			args:    []string{"storekit", "retention-messaging", "messages", "delete", "--message-id", "33333333-3333-4333-8333-333333333333", "--environment", "sandbox"},
+			wantErr: "--confirm is required",
+		},
 		{
 			name:    "environment",
 			args:    []string{"storekit", "retention-messaging", "messages", "list", "--environment", "staging"},
@@ -341,33 +306,9 @@ func TestStoreKitInvalidValuesAreUsageErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(tt.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("run error = %v, want flag.ErrHelp", err)
-				}
-			})
-			if stdout != "" || !strings.Contains(stderr, tt.wantErr) {
-				t.Fatalf("stdout=%q stderr=%q, want %q", stdout, stderr, tt.wantErr)
-			}
+			assertUsageExit(t, tt.args, tt.wantErr)
 		})
 	}
-}
-
-func TestStoreKitBuiltBinaryUsageExitCode(t *testing.T) {
-	t.Setenv("ASC_STOREKIT_ENVIRONMENT", "")
-	t.Setenv("ASC_STOREKIT_KEY_ID", "")
-	t.Setenv("ASC_STOREKIT_ISSUER_ID", "")
-
-	assertUsageExit(
-		t,
-		[]string{"storekit", "retention-messaging", "messages", "list"},
-		"--environment is required",
-	)
 }
 
 func setupStoreKitAuth(t *testing.T) {

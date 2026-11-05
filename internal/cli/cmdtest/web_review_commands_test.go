@@ -1,10 +1,6 @@
 package cmdtest
 
 import (
-	"context"
-	"errors"
-	"flag"
-	"io"
 	"strings"
 	"testing"
 )
@@ -39,150 +35,24 @@ func TestWebReviewCommandsAreRegisteredAndLegacyRemoved(t *testing.T) {
 	}
 }
 
-func TestWebReviewListRequiresApp(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "review", "list"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
+func TestWebReviewCommandsRejectInvalidFlagsWithUsageExit(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{name: "list requires app", args: []string{"web", "review", "list"}, wantErr: "--app is required"},
+		{name: "list rejects unknown state", args: []string{"web", "review", "list", "--app", "123456789", "--state", "UNRESOLVED_ISSUES,NOT_A_REAL_STATE"}, wantErr: "unsupported value"},
+		{name: "show requires app", args: []string{"web", "review", "show"}, wantErr: "--app is required"},
+		{name: "show rejects invalid pattern", args: []string{"web", "review", "show", "--app", "123456789", "--pattern", "["}, wantErr: "--pattern is invalid"},
+		{name: "threads requires app", args: []string{"web", "review", "threads"}, wantErr: "--app is required"},
+		{name: "threads plain text requires drafts", args: []string{"web", "review", "threads", "--plain-text", "--app", "123456789"}, wantErr: "--plain-text requires --drafts"},
+		{name: "threads rejects positional arguments", args: []string{"web", "review", "threads", "--app", "123456789", "stray"}, wantErr: "unexpected argument"},
 	}
-	if !strings.Contains(stderr, "--app is required") {
-		t.Fatalf("expected missing --app message, got %q", stderr)
-	}
-}
 
-func TestWebReviewListRejectsUnknownState(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"web", "review", "list",
-			"--app", "123456789",
-			"--state", "UNRESOLVED_ISSUES,NOT_A_REAL_STATE",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "unsupported value") {
-		t.Fatalf("expected unsupported state message, got %q", stderr)
-	}
-}
-
-func TestWebReviewShowRequiresApp(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "review", "show"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--app is required") {
-		t.Fatalf("expected missing --app message, got %q", stderr)
-	}
-}
-
-func TestWebReviewShowRejectsInvalidPattern(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"web", "review", "show",
-			"--app", "123456789",
-			"--pattern", "[",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--pattern is invalid") {
-		t.Fatalf("expected invalid pattern message, got %q", stderr)
-	}
-}
-
-func TestWebReviewThreadsRequiresApp(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "review", "threads"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--app is required") {
-		t.Fatalf("expected missing --app message, got %q", stderr)
-	}
-}
-
-func TestWebReviewThreadsRejectsPlainTextWithoutDrafts(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "review", "threads", "--plain-text", "--app", "123456789"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--plain-text requires --drafts") {
-		t.Fatalf("expected --plain-text guidance, got %q", stderr)
-	}
-}
-
-func TestWebReviewThreadsRejectsPositionalArguments(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "review", "threads", "--app", "123456789", "stray"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "unexpected argument") {
-		t.Fatalf("expected unexpected-argument guidance, got %q", stderr)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertUsageExit(t, tt.args, tt.wantErr)
+		})
 	}
 }

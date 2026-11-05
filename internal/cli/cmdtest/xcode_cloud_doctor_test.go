@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"os"
@@ -127,24 +125,22 @@ func TestXcodeCloudDoctorReportsFailedRunAndInspectsLogBundle(t *testing.T) {
 	}
 }
 
-func TestXcodeCloudDoctorRequiresRunID(t *testing.T) {
+func TestXcodeCloudDoctorRejectsInvalidFlagsBeforeRequests(t *testing.T) {
 	setupAuth(t)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode-cloud", "doctor"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--run-id is required") {
-		t.Fatalf("expected required flag error, got %q", stderr)
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{name: "missing run id", args: []string{"xcode-cloud", "doctor"}, wantErr: "--run-id is required"},
+		{name: "poll interval without wait", args: []string{"xcode-cloud", "doctor", "--run-id", "run-1", "--poll-interval", "1s"}, wantErr: "--poll-interval requires --wait"},
+		{name: "save logs with skip logs", args: []string{"xcode-cloud", "doctor", "--run-id", "run-1", "--save-logs", t.TempDir(), "--skip-logs"}, wantErr: "--save-logs and --skip-logs are mutually exclusive"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertUsageExit(t, tt.args, tt.wantErr)
+		})
 	}
 }
 
@@ -367,25 +363,6 @@ func TestXcodeCloudDoctorWaitsForTerminalRunAndRendersTable(t *testing.T) {
 	}
 }
 
-func TestXcodeCloudDoctorRejectsPollIntervalWithoutWait(t *testing.T) {
-	setupAuth(t)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode-cloud", "doctor", "--run-id", "run-1", "--poll-interval", "1s"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-	if !strings.Contains(stderr, "--poll-interval requires --wait") {
-		t.Fatalf("expected poll interval validation, got %q", stderr)
-	}
-}
-
 func TestXcodeCloudDoctorReportsRunAPIError(t *testing.T) {
 	setupAuth(t)
 
@@ -412,27 +389,6 @@ func TestXcodeCloudDoctorReportsRunAPIError(t *testing.T) {
 	err := root.Run(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "xcode-cloud doctor") {
 		t.Fatalf("run error = %v, want doctor API error", err)
-	}
-}
-
-func TestXcodeCloudDoctorRejectsSaveLogsWithSkipLogs(t *testing.T) {
-	setupAuth(t)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode-cloud", "doctor", "--run-id", "run-1", "--save-logs", t.TempDir(), "--skip-logs"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--save-logs and --skip-logs are mutually exclusive") {
-		t.Fatalf("expected conflicting flag error, got %q", stderr)
 	}
 }
 

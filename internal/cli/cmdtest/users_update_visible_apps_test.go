@@ -176,126 +176,53 @@ func TestUsersUpdateRolesOnlyDoesNotRequireConfirm(t *testing.T) {
 	}
 }
 
-func TestUsersUpdateVisibleAppsRequiresConfirmBeforeHTTP(t *testing.T) {
-	var mu sync.Mutex
-	requestCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		mu.Lock()
-		requestCount++
-		mu.Unlock()
-		http.Error(w, "unexpected request", http.StatusInternalServerError)
-	}))
-	defer server.Close()
-	setUsersUpdateTestClient(t, server)
-
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run([]string{
-			"users", "update",
-			"--id", "user-1",
-			"--roles", "developer",
-			"--visible-app", "app-1",
-			"--output", "json",
-		}, "1.2.3")
-	})
-
-	mu.Lock()
-	gotRequestCount := requestCount
-	mu.Unlock()
-
-	if exitCode != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", exitCode, rootcmd.ExitUsage, stdout, stderr)
+func TestUsersUpdateVisibleAppsConfirmPairingFailsBeforeHTTP(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		wantStderr string
+	}{
+		{name: "visible apps without confirm", args: []string{"--roles", "developer", "--visible-app", "app-1"}, wantStderr: "Error: --confirm is required when --visible-app is set\n"},
+		{name: "confirm without visible apps", args: []string{"--roles", "access_to_reports", "--confirm"}, wantStderr: "Error: --confirm requires --visible-app\n"},
+		{name: "explicit false confirm without visible apps", args: []string{"--roles", "access_to_reports", "--confirm=false"}, wantStderr: "Error: --confirm requires --visible-app\n"},
 	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if stderr != "Error: --confirm is required when --visible-app is set\n" {
-		t.Fatalf("stderr = %q, want missing-confirm diagnostic", stderr)
-	}
-	if gotRequestCount != 0 {
-		t.Fatalf("request count = %d, want zero before confirmation", gotRequestCount)
-	}
-}
 
-func TestUsersUpdateConfirmRequiresVisibleAppsBeforeHTTP(t *testing.T) {
-	var mu sync.Mutex
-	requestCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		mu.Lock()
-		requestCount++
-		mu.Unlock()
-		http.Error(w, "unexpected request", http.StatusInternalServerError)
-	}))
-	defer server.Close()
-	setUsersUpdateTestClient(t, server)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var mu sync.Mutex
+			requestCount := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				mu.Lock()
+				requestCount++
+				mu.Unlock()
+				http.Error(w, "unexpected request", http.StatusInternalServerError)
+			}))
+			defer server.Close()
+			setUsersUpdateTestClient(t, server)
 
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run([]string{
-			"users", "update",
-			"--id", "user-1",
-			"--roles", "access_to_reports",
-			"--confirm",
-			"--output", "json",
-		}, "1.2.3")
-	})
+			var exitCode int
+			stdout, stderr := captureOutput(t, func() {
+				args := append([]string{"users", "update", "--id", "user-1"}, tt.args...)
+				exitCode = rootcmd.Run(append(args, "--output", "json"), "1.2.3")
+			})
 
-	mu.Lock()
-	gotRequestCount := requestCount
-	mu.Unlock()
+			mu.Lock()
+			gotRequestCount := requestCount
+			mu.Unlock()
 
-	if exitCode != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", exitCode, rootcmd.ExitUsage, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if stderr != "Error: --confirm requires --visible-app\n" {
-		t.Fatalf("stderr = %q, want stray-confirm diagnostic", stderr)
-	}
-	if gotRequestCount != 0 {
-		t.Fatalf("request count = %d, want zero without visible apps", gotRequestCount)
-	}
-}
-
-func TestUsersUpdateExplicitFalseConfirmRequiresVisibleAppsBeforeHTTP(t *testing.T) {
-	var mu sync.Mutex
-	requestCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		mu.Lock()
-		requestCount++
-		mu.Unlock()
-		http.Error(w, "unexpected request", http.StatusInternalServerError)
-	}))
-	defer server.Close()
-	setUsersUpdateTestClient(t, server)
-
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run([]string{
-			"users", "update",
-			"--id", "user-1",
-			"--roles", "access_to_reports",
-			"--confirm=false",
-			"--output", "json",
-		}, "1.2.3")
-	})
-
-	mu.Lock()
-	gotRequestCount := requestCount
-	mu.Unlock()
-
-	if exitCode != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", exitCode, rootcmd.ExitUsage, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if stderr != "Error: --confirm requires --visible-app\n" {
-		t.Fatalf("stderr = %q, want stray-confirm diagnostic", stderr)
-	}
-	if gotRequestCount != 0 {
-		t.Fatalf("request count = %d, want zero without visible apps", gotRequestCount)
+			if exitCode != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", exitCode, rootcmd.ExitUsage, stdout, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != tt.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, tt.wantStderr)
+			}
+			if gotRequestCount != 0 {
+				t.Fatalf("request count = %d, want zero", gotRequestCount)
+			}
+		})
 	}
 }
 

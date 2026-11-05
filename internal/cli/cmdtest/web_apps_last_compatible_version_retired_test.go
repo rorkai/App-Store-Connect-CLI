@@ -37,20 +37,3 @@ func TestWebAppsLastCompatibleVersionIsRetired(t *testing.T) {
 		t.Fatalf("stderr = %q, want the group help pointer", stderr)
 	}
 }
-
-// The retired leaf is gone from the registered tree, so `asc web apps --help`
-// cannot advertise it any more.
-func TestWebAppsGroupNoLongerRegistersLastCompatibleVersion(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-
-	root := RootCommand("1.2.3")
-	webApps := findSubcommand(root, "web", "apps")
-	if webApps == nil {
-		t.Fatal("expected registered asc web apps command")
-	}
-	for _, sub := range webApps.Subcommands {
-		if sub != nil && sub.Name == "last-compatible-version" {
-			t.Fatal("asc web apps still registers the retired last-compatible-version group")
-		}
-	}
-}

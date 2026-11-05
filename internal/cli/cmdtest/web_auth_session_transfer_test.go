@@ -16,32 +16,6 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-func TestWebAuthExportSubcommandIsRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
-	sub := findSubcommand(root, "web", "auth", "export")
-	if sub == nil {
-		t.Fatalf("expected web auth export to be registered")
-	}
-	for _, flagName := range []string{"output-path", "apple-id", "overwrite", "output"} {
-		if sub.FlagSet.Lookup(flagName) == nil {
-			t.Fatalf("expected --%s flag", flagName)
-		}
-	}
-}
-
-func TestWebAuthImportSubcommandIsRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
-	sub := findSubcommand(root, "web", "auth", "import")
-	if sub == nil {
-		t.Fatalf("expected web auth import to be registered")
-	}
-	for _, flagName := range []string{"file", "from-env", "apple-id", "overwrite", "validate", "output"} {
-		if sub.FlagSet.Lookup(flagName) == nil {
-			t.Fatalf("expected --%s flag", flagName)
-		}
-	}
-}
-
 // isolateWebSessionCache points the web-session cache at an empty temporary
 // directory and pins the file backend so no test can read, write, or prompt
 // for the developer's real Apple session.
@@ -364,61 +338,6 @@ func TestWebAuthImportFromEnvRejectsOversizedOrMalformedSecretWithoutCacheWrite(
 	}
 }
 
-func TestWebAuthImportFromEnvValidateRejectsAccountMismatchWithoutChangingCache(t *testing.T) {
-	cacheDir := isolateWebSessionCache(t)
-	bundlePath := writeWebSessionBundleFixture(t, t.TempDir(), "session.json", webSessionBundleFixture)
-
-	var code int
-	_, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{"web", "auth", "import", "--file", bundlePath, "--output", "json"}, "1.0.0")
-	})
-	if code != cmd.ExitSuccess {
-		t.Fatalf("seed import exit code = %d, want %d; stderr=%q", code, cmd.ExitSuccess, stderr)
-	}
-	before := snapshotWebSessionCache(t, cacheDir)
-	t.Setenv("ASC_WEB_SESSION", webSessionBundleFixture)
-
-	calls := 0
-	previousTransport := http.DefaultTransport
-	http.DefaultTransport = webSessionInfoTransport{
-		base:  previousTransport,
-		calls: &calls,
-		email: "other@example.com",
-	}
-	t.Cleanup(func() { http.DefaultTransport = previousTransport })
-
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "auth", "import",
-			"--from-env",
-			"--validate",
-			"--overwrite",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("mismatched validated environment import exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if calls != 1 {
-		t.Fatalf("session validation requests = %d, want one request", calls)
-	}
-	if !strings.Contains(stderr, "live session validation") || !strings.Contains(stderr, "does not match") {
-		t.Fatalf("expected a safe account mismatch diagnostic, got stderr=%q", stderr)
-	}
-	if strings.Contains(stdout, "super-secret-token") || strings.Contains(stderr, "super-secret-token") {
-		t.Fatalf("mismatched environment validation leaked a cookie value: stdout=%q stderr=%q", stdout, stderr)
-	}
-	after := snapshotWebSessionCache(t, cacheDir)
-	if len(after) != len(before) {
-		t.Fatalf("validation failure changed cache entry count: before=%v after=%v", before, after)
-	}
-	for name, contents := range before {
-		if got, ok := after[name]; !ok || got != contents {
-			t.Fatalf("validation failure changed cache entry %q: before=%q after=%q", name, contents, got)
-		}
-	}
-}
-
 func TestWebAuthImportValidatePersistsAfterAppleCheck(t *testing.T) {
 	cacheDir := isolateWebSessionCache(t)
 	calls := 0
@@ -494,57 +413,60 @@ func snapshotWebSessionCache(t *testing.T, cacheDir string) map[string]string {
 }
 
 func TestWebAuthImportValidateRejectsAccountMismatchWithoutChangingCache(t *testing.T) {
-	cacheDir := isolateWebSessionCache(t)
-	workDir := t.TempDir()
-	bundlePath := writeWebSessionBundleFixture(t, workDir, "session.json", webSessionBundleFixture)
+	for _, source := range []string{"--file", "--from-env"} {
+		t.Run(source, func(t *testing.T) {
+			cacheDir := isolateWebSessionCache(t)
+			bundlePath := writeWebSessionBundleFixture(t, t.TempDir(), "session.json", webSessionBundleFixture)
 
-	var code int
-	_, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{"web", "auth", "import", "--file", bundlePath, "--output", "json"}, "1.0.0")
-	})
-	if code != cmd.ExitSuccess {
-		t.Fatalf("seed import exit code = %d, want %d; stderr=%q", code, cmd.ExitSuccess, stderr)
-	}
-	before := snapshotWebSessionCache(t, cacheDir)
+			var code int
+			_, stderr := captureOutput(t, func() {
+				code = cmd.Run([]string{"web", "auth", "import", "--file", bundlePath, "--output", "json"}, "1.0.0")
+			})
+			if code != cmd.ExitSuccess {
+				t.Fatalf("seed import exit code = %d, want %d; stderr=%q", code, cmd.ExitSuccess, stderr)
+			}
+			before := snapshotWebSessionCache(t, cacheDir)
+			sourceArgs := []string{"--file", bundlePath}
+			if source == "--from-env" {
+				t.Setenv("ASC_WEB_SESSION", webSessionBundleFixture)
+				sourceArgs = []string{"--from-env"}
+			}
 
-	calls := 0
-	previousTransport := http.DefaultTransport
-	http.DefaultTransport = webSessionInfoTransport{
-		base:  previousTransport,
-		calls: &calls,
-		email: "other@example.com",
-	}
-	t.Cleanup(func() { http.DefaultTransport = previousTransport })
+			calls := 0
+			previousTransport := http.DefaultTransport
+			http.DefaultTransport = webSessionInfoTransport{
+				base:  previousTransport,
+				calls: &calls,
+				email: "other@example.com",
+			}
+			t.Cleanup(func() { http.DefaultTransport = previousTransport })
 
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "auth", "import",
-			"--file", bundlePath,
-			"--validate",
-			"--overwrite",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("mismatched validated import exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if calls != 1 {
-		t.Fatalf("session validation requests = %d, want one request", calls)
-	}
-	if !strings.Contains(stderr, "live session validation") || !strings.Contains(stderr, "does not match") {
-		t.Fatalf("expected a safe account mismatch diagnostic, got stderr=%q", stderr)
-	}
-	if strings.Contains(stdout, "super-secret-token") || strings.Contains(stderr, "super-secret-token") {
-		t.Fatalf("mismatched validation leaked a cookie value: stdout=%q stderr=%q", stdout, stderr)
-	}
-	after := snapshotWebSessionCache(t, cacheDir)
-	if len(after) != len(before) {
-		t.Fatalf("validation failure changed cache entry count: before=%v after=%v", before, after)
-	}
-	for name, contents := range before {
-		if got, ok := after[name]; !ok || got != contents {
-			t.Fatalf("validation failure changed cache entry %q: before=%q after=%q", name, contents, got)
-		}
+			stdout, stderr := captureOutput(t, func() {
+				args := append([]string{"web", "auth", "import"}, sourceArgs...)
+				code = cmd.Run(append(args, "--validate", "--overwrite", "--output", "json"), "1.0.0")
+			})
+			if code != cmd.ExitError {
+				t.Fatalf("mismatched validated import exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
+			}
+			if calls != 1 {
+				t.Fatalf("session validation requests = %d, want one request", calls)
+			}
+			if !strings.Contains(stderr, "live session validation") || !strings.Contains(stderr, "does not match") {
+				t.Fatalf("expected a safe account mismatch diagnostic, got stderr=%q", stderr)
+			}
+			if strings.Contains(stdout, "super-secret-token") || strings.Contains(stderr, "super-secret-token") {
+				t.Fatalf("mismatched validation leaked a cookie value: stdout=%q stderr=%q", stdout, stderr)
+			}
+			after := snapshotWebSessionCache(t, cacheDir)
+			if len(after) != len(before) {
+				t.Fatalf("validation failure changed cache entry count: before=%v after=%v", before, after)
+			}
+			for name, contents := range before {
+				if got, ok := after[name]; !ok || got != contents {
+					t.Fatalf("validation failure changed cache entry %q: before=%q after=%q", name, contents, got)
+				}
+			}
+		})
 	}
 }
 

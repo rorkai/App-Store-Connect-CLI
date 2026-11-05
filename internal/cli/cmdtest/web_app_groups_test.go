@@ -68,29 +68,6 @@ func TestWebAppGroupsPortalRefusalSanitizesStderr(t *testing.T) {
 	}
 }
 
-func TestWebAppGroupsMutationSubcommandsAreRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
-	tests := []struct {
-		path  []string
-		flags []string
-	}{
-		{path: []string{"web", "app-groups", "delete"}, flags: []string{"group-id", "confirm", "apple-id", "output"}},
-		{path: []string{"web", "app-groups", "unassign"}, flags: []string{"bundle-id", "group-id", "confirm", "apple-id", "output"}},
-		{path: []string{"web", "app-groups", "set"}, flags: []string{"bundle-id", "group", "confirm", "apple-id", "output"}},
-	}
-	for _, test := range tests {
-		sub := findSubcommand(root, test.path...)
-		if sub == nil {
-			t.Fatalf("expected %s to be registered", strings.Join(test.path, " "))
-		}
-		for _, flagName := range test.flags {
-			if sub.FlagSet.Lookup(flagName) == nil {
-				t.Fatalf("expected --%s flag on %s", flagName, strings.Join(test.path, " "))
-			}
-		}
-	}
-}
-
 func stubWebAppGroupsSession(t *testing.T) {
 	t.Helper()
 	setCmdtestHome(t)

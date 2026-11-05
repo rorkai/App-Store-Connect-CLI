@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -13,240 +14,134 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-func TestWebAppsDeleteRunRejectsAppStillOnSaleWithoutPatch(t *testing.T) {
-	var patchCalls int
-	restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		return &webcore.AuthSession{
-			Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"type": "apps",
-							"id": "1234567890",
-							"attributes": {
-								"name": "Throwaway",
-								"bundleId": "com.example.throwaway",
-								"removed": false,
-								"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-								"marketplace": "APP_STORE"
-							},
-							"relationships": {
-								"displayableVersions": {"data": []}
-							}
+func TestWebAppsDeleteRunRejectsIneligibleAppWithoutPatch(t *testing.T) {
+	const (
+		eligibleApp = `{"data": {"type": "apps", "id": "1234567890",
+			"attributes": {"name": "Throwaway", "bundleId": "com.example.throwaway", "removed": false, "appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION", "marketplace": "APP_STORE"},
+			"relationships": {"displayableVersions": {"data": []}}}}`
+		offSaleAvailability = `{"data": {"id": "avail-1", "type": "appAvailabilities",
+			"attributes": {"availableInNewTerritories": false},
+			"relationships": {"availableTerritories": {"data": []}}}}`
+	)
+	tests := []struct {
+		name         string
+		app          string
+		availability string // empty: the availability read must not happen
+		extra        map[string]string
+		wantStderr   []string
+	}{
+		{
+			name: "still on sale",
+			app:  eligibleApp,
+			availability: `{"data": {"id": "avail-1", "type": "appAvailabilities",
+				"attributes": {"availableInNewTerritories": false},
+				"relationships": {"availableTerritories": {"data": [{"type": "territories", "id": "USA"}]}}}}`,
+			wantStderr: []string{"still available", "USA"},
+		},
+		{
+			name: "blocking app version state",
+			app: `{"data": {"type": "apps", "id": "1234567890",
+				"attributes": {"name": "Throwaway", "bundleId": "com.example.throwaway", "removed": false, "appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION", "marketplace": "APP_STORE"},
+				"relationships": {"displayableVersions": {"data": [{"type": "appStoreVersions", "id": "version-1"}]}}},
+				"included": [{"type": "appStoreVersions", "id": "version-1",
+					"attributes": {"platform": "IOS", "versionString": "1.0", "appStoreState": "READY_FOR_SALE", "appVersionState": "WAITING_FOR_REVIEW"}}]}`,
+			availability: offSaleAvailability,
+			wantStderr:   []string{"WAITING_FOR_REVIEW"},
+		},
+		{
+			name: "omitted territory linkage",
+			app:  eligibleApp,
+			availability: `{"data": {"id": "avail-1", "type": "appAvailabilities",
+				"attributes": {"availableInNewTerritories": false},
+				"relationships": {"territoryAvailabilities": {"links": {"related": "https://appstoreconnect.apple.com/iris/v2/appAvailabilities/avail-1/territoryAvailabilities"}}}}}`,
+			extra: map[string]string{
+				"/iris/v2/appAvailabilities/avail-1/territoryAvailabilities": `{"data": [{"type": "territoryAvailabilities", "id": "ta-usa", "attributes": {},
+					"relationships": {"territory": {"data": {"type": "territories", "id": "USA"}}}}]}`,
+			},
+			wantStderr: []string{"could not read availability", "territoryAvailabilities"},
+		},
+		{
+			name: "omitted displayable versions",
+			app: `{"data": {"type": "apps", "id": "1234567890",
+				"attributes": {"name": "Throwaway", "bundleId": "com.example.throwaway", "removed": false, "appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION", "marketplace": "APP_STORE"}}}`,
+			wantStderr: []string{"could not confirm", "displayableVersions"},
+		},
+		{
+			name: "unknown new territories",
+			app:  eligibleApp,
+			availability: `{"data": {"id": "avail-1", "type": "appAvailabilities", "attributes": {},
+				"relationships": {"availableTerritories": {"data": []}}}}`,
+			wantStderr: []string{"could not confirm", "availableInNewTerritories"},
+		},
+		{
+			name: "version without decoded state",
+			app: `{"data": {"type": "apps", "id": "1234567890",
+				"attributes": {"name": "Throwaway", "bundleId": "com.example.throwaway", "removed": false, "appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION", "marketplace": "APP_STORE"},
+				"relationships": {"displayableVersions": {"data": [{"type": "appStoreVersions", "id": "version-1"}]}}},
+				"included": [{"type": "appStoreVersions", "id": "version-1", "attributes": {"platform": "IOS", "versionString": "1.0"}}]}`,
+			wantStderr: []string{"could not confirm", "displayableVersions"},
+		},
+		{
+			name: "mismatched app id",
+			app: `{"data": {"type": "apps", "id": "9999999999",
+				"attributes": {"name": "Other", "bundleId": "com.example.other", "removed": false, "appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION", "marketplace": "APP_STORE"},
+				"relationships": {"displayableVersions": {"data": []}}}}`,
+			wantStderr: []string{"1234567890", "9999999999"},
+		},
+		{
+			name: "unknown review status",
+			app: `{"data": {"type": "apps", "id": "1234567890",
+				"attributes": {"name": "Throwaway", "bundleId": "com.example.throwaway", "removed": false, "marketplace": "APP_STORE"},
+				"relationships": {"displayableVersions": {"data": []}}}}`,
+			wantStderr: []string{"could not confirm", "appStoreLegacyStatus"},
+		},
+		{
+			name: "unknown removed",
+			app: `{"data": {"type": "apps", "id": "1234567890",
+				"attributes": {"name": "Throwaway", "bundleId": "com.example.throwaway", "appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION", "marketplace": "APP_STORE"},
+				"relationships": {"displayableVersions": {"data": []}}}}`,
+			wantStderr: []string{"could not confirm", "removed"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+				return &webcore.AuthSession{
+					Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+						switch {
+						case req.Method == http.MethodPatch:
+							t.Fatalf("did not expect PATCH: %s", req.URL.String())
+						case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890":
+							return webAppsDeleteJSONResponse(tt.app), nil
+						case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890/appAvailabilityV2" && tt.availability != "":
+							return webAppsDeleteJSONResponse(tt.availability), nil
+						case req.Method == http.MethodGet && tt.extra[req.URL.Path] != "":
+							return webAppsDeleteJSONResponse(tt.extra[req.URL.Path]), nil
 						}
-					}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890/appAvailabilityV2":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"id": "avail-1",
-							"type": "appAvailabilities",
-							"attributes": {"availableInNewTerritories": false},
-							"relationships": {
-								"availableTerritories": {
-									"data": [{"type": "territories", "id": "USA"}]
-								}
-							}
-						}
-					}`), nil
-				case req.Method == http.MethodPatch && req.URL.Path == "/iris/v1/apps/1234567890":
-					patchCalls++
-					t.Fatal("did not expect PATCH when the app is still available for sale")
-					return nil, nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
+						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+						return nil, nil
+					})},
+				}, "cache", nil
+			})
+			t.Cleanup(restoreSession)
+
+			var code int
+			stdout, stderr := captureOutput(t, func() {
+				code = cmd.Run([]string{"web", "apps", "delete", "--app", "1234567890", "--confirm", "--output", "json"}, "1.0.0")
+			})
+			if code != cmd.ExitError {
+				t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			for _, want := range tt.wantStderr {
+				if !strings.Contains(stderr, want) {
+					t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
 				}
-			})},
-		}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "still available") || !strings.Contains(stderr, "USA") {
-		t.Fatalf("expected stderr to name the on-sale territory blocker, got %q", stderr)
-	}
-	if patchCalls != 0 {
-		t.Fatalf("expected no PATCH, got %d", patchCalls)
-	}
-}
-
-func TestWebAppsDeleteRunRejectsBlockingAppVersionStateWithoutPatch(t *testing.T) {
-	var patchCalls int
-	restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		return &webcore.AuthSession{
-			Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"type": "apps",
-							"id": "1234567890",
-							"attributes": {
-								"name": "Throwaway",
-								"bundleId": "com.example.throwaway",
-								"removed": false,
-								"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-								"marketplace": "APP_STORE"
-							},
-							"relationships": {
-								"displayableVersions": {
-									"data": [{"type": "appStoreVersions", "id": "version-1"}]
-								}
-							}
-						},
-						"included": [{
-							"type": "appStoreVersions",
-							"id": "version-1",
-							"attributes": {
-								"platform": "IOS",
-								"versionString": "1.0",
-								"appStoreState": "READY_FOR_SALE",
-								"appVersionState": "WAITING_FOR_REVIEW"
-							}
-						}]
-					}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890/appAvailabilityV2":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"id": "avail-1",
-							"type": "appAvailabilities",
-							"attributes": {"availableInNewTerritories": false},
-							"relationships": {
-								"availableTerritories": {"data": []}
-							}
-						}
-					}`), nil
-				case req.Method == http.MethodPatch && req.URL.Path == "/iris/v1/apps/1234567890":
-					patchCalls++
-					t.Fatal("did not expect PATCH when a displayable version is WAITING_FOR_REVIEW")
-					return nil, nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})},
-		}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "WAITING_FOR_REVIEW") {
-		t.Fatalf("expected stderr to name the blocking appVersionState, got %q", stderr)
-	}
-	if patchCalls != 0 {
-		t.Fatalf("expected no PATCH, got %d", patchCalls)
-	}
-}
-
-func TestWebAppsDeleteRunRejectsOmittedTerritoryLinkageWithoutPatch(t *testing.T) {
-	var patchCalls int
-	restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		return &webcore.AuthSession{
-			Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"type": "apps",
-							"id": "1234567890",
-							"attributes": {
-								"name": "Throwaway",
-								"bundleId": "com.example.throwaway",
-								"removed": false,
-								"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-								"marketplace": "APP_STORE"
-							},
-							"relationships": {
-								"displayableVersions": {"data": []}
-							}
-						}
-					}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890/appAvailabilityV2":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"id": "avail-1",
-							"type": "appAvailabilities",
-							"attributes": {"availableInNewTerritories": false},
-							"relationships": {
-								"territoryAvailabilities": {
-									"links": {
-										"related": "https://appstoreconnect.apple.com/iris/v2/appAvailabilities/avail-1/territoryAvailabilities"
-									}
-								}
-							}
-						}
-					}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v2/appAvailabilities/avail-1/territoryAvailabilities":
-					return webAppsDeleteJSONResponse(`{
-						"data": [{
-							"type": "territoryAvailabilities",
-							"id": "ta-usa",
-							"attributes": {},
-							"relationships": {"territory": {"data": {"type": "territories", "id": "USA"}}}
-						}]
-					}`), nil
-				case req.Method == http.MethodPatch && req.URL.Path == "/iris/v1/apps/1234567890":
-					patchCalls++
-					t.Fatal("did not expect PATCH when territoryAvailabilities could not be read")
-					return nil, nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})},
-		}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "could not read availability") || !strings.Contains(stderr, "territoryAvailabilities") {
-		t.Fatalf("expected stderr to name unreadable territoryAvailabilities, got %q", stderr)
-	}
-	if patchCalls != 0 {
-		t.Fatalf("expected no PATCH, got %d", patchCalls)
+			}
+		})
 	}
 }
 
@@ -429,7 +324,7 @@ func TestWebAppsDeleteRunSuccessReceiptUsesRereadState(t *testing.T) {
 							"attributes": {
 								"name": "Throwaway",
 								"bundleId": "com.example.throwaway",
-								"removed": ` + boolJSON(removed) + `,
+								"removed": ` + strconv.FormatBool(removed) + `,
 								"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
 								"marketplace": "APP_STORE"
 							},
@@ -522,135 +417,6 @@ func TestWebAppsDeleteRunRequiresConfirmUnlessDryRun(t *testing.T) {
 	}
 }
 
-func TestWebAppsDeleteRunRejectsOmittedDisplayableVersionsWithoutPatch(t *testing.T) {
-	var patchCalls int
-	restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		return &webcore.AuthSession{
-			Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"type": "apps",
-							"id": "1234567890",
-							"attributes": {
-								"name": "Throwaway",
-								"bundleId": "com.example.throwaway",
-								"removed": false,
-								"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-								"marketplace": "APP_STORE"
-							}
-						}
-					}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890/appAvailabilityV2":
-					t.Fatal("did not expect availability read when displayableVersions were omitted")
-					return nil, nil
-				case req.Method == http.MethodPatch && req.URL.Path == "/iris/v1/apps/1234567890":
-					patchCalls++
-					t.Fatal("did not expect PATCH when displayableVersions were omitted")
-					return nil, nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})},
-		}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "could not confirm") || !strings.Contains(stderr, "displayableVersions") {
-		t.Fatalf("expected stderr to name missing version linkage, got %q", stderr)
-	}
-	if patchCalls != 0 {
-		t.Fatalf("expected no PATCH, got %d", patchCalls)
-	}
-}
-
-func TestWebAppsDeleteRunRejectsUnknownNewTerritoriesWithoutPatch(t *testing.T) {
-	var patchCalls int
-	restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		return &webcore.AuthSession{
-			Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"type": "apps",
-							"id": "1234567890",
-							"attributes": {
-								"name": "Throwaway",
-								"bundleId": "com.example.throwaway",
-								"removed": false,
-								"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-								"marketplace": "APP_STORE"
-							},
-							"relationships": {
-								"displayableVersions": {"data": []}
-							}
-						}
-					}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890/appAvailabilityV2":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"id": "avail-1",
-							"type": "appAvailabilities",
-							"attributes": {},
-							"relationships": {
-								"availableTerritories": {"data": []}
-							}
-						}
-					}`), nil
-				case req.Method == http.MethodPatch && req.URL.Path == "/iris/v1/apps/1234567890":
-					patchCalls++
-					t.Fatal("did not expect PATCH when availableInNewTerritories was unknown")
-					return nil, nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})},
-		}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "could not confirm") || !strings.Contains(stderr, "availableInNewTerritories") {
-		t.Fatalf("expected stderr to name missing new-territory setting, got %q", stderr)
-	}
-	if patchCalls != 0 {
-		t.Fatalf("expected no PATCH, got %d", patchCalls)
-	}
-}
-
 func TestWebAppsDeleteRunAlreadyRemovedSkipsEligibilityWithoutPatch(t *testing.T) {
 	var patchCalls int
 	restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
@@ -710,267 +476,10 @@ func TestWebAppsDeleteRunAlreadyRemovedSkipsEligibilityWithoutPatch(t *testing.T
 	}
 }
 
-func TestWebAppsDeleteRunRejectsVersionsWithoutDecodedStateWithoutPatch(t *testing.T) {
-	var patchCalls int
-	restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		return &webcore.AuthSession{
-			Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"type": "apps",
-							"id": "1234567890",
-							"attributes": {
-								"name": "Throwaway",
-								"bundleId": "com.example.throwaway",
-								"removed": false,
-								"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-								"marketplace": "APP_STORE"
-							},
-							"relationships": {
-								"displayableVersions": {
-									"data": [{"type": "appStoreVersions", "id": "version-1"}]
-								}
-							}
-						},
-						"included": [{
-							"type": "appStoreVersions",
-							"id": "version-1",
-							"attributes": {
-								"platform": "IOS",
-								"versionString": "1.0"
-							}
-						}]
-					}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890/appAvailabilityV2":
-					t.Fatal("did not expect availability read when version state was undecoded")
-					return nil, nil
-				case req.Method == http.MethodPatch && req.URL.Path == "/iris/v1/apps/1234567890":
-					patchCalls++
-					t.Fatal("did not expect PATCH when version state was undecoded")
-					return nil, nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})},
-		}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "could not confirm") || !strings.Contains(stderr, "displayableVersions") {
-		t.Fatalf("expected stderr to name missing version linkage, got %q", stderr)
-	}
-	if patchCalls != 0 {
-		t.Fatalf("expected no PATCH, got %d", patchCalls)
-	}
-}
-
-func TestWebAppsDeleteRunRejectsMismatchedAppIDWithoutPatch(t *testing.T) {
-	var patchCalls int
-	restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		return &webcore.AuthSession{
-			Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"type": "apps",
-							"id": "9999999999",
-							"attributes": {
-								"name": "Other",
-								"bundleId": "com.example.other",
-								"removed": false,
-								"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-								"marketplace": "APP_STORE"
-							},
-							"relationships": {
-								"displayableVersions": {"data": []}
-							}
-						}
-					}`), nil
-				case req.Method == http.MethodPatch:
-					patchCalls++
-					t.Fatal("did not expect PATCH when GET returned a different app id")
-					return nil, nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})},
-		}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "1234567890") || !strings.Contains(stderr, "9999999999") {
-		t.Fatalf("expected stderr to name both app ids, got %q", stderr)
-	}
-	if patchCalls != 0 {
-		t.Fatalf("expected no PATCH, got %d", patchCalls)
-	}
-}
-
-func TestWebAppsDeleteRunRejectsUnknownReviewStatusWithoutPatch(t *testing.T) {
-	var patchCalls int
-	restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		return &webcore.AuthSession{
-			Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"type": "apps",
-							"id": "1234567890",
-							"attributes": {
-								"name": "Throwaway",
-								"bundleId": "com.example.throwaway",
-								"removed": false,
-								"marketplace": "APP_STORE"
-							},
-							"relationships": {
-								"displayableVersions": {"data": []}
-							}
-						}
-					}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890/appAvailabilityV2":
-					t.Fatal("did not expect availability read when review status was unknown")
-					return nil, nil
-				case req.Method == http.MethodPatch && req.URL.Path == "/iris/v1/apps/1234567890":
-					patchCalls++
-					t.Fatal("did not expect PATCH when review status was unknown")
-					return nil, nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})},
-		}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "could not confirm") || !strings.Contains(stderr, "appStoreLegacyStatus") {
-		t.Fatalf("expected stderr to name missing app-level review status, got %q", stderr)
-	}
-	if patchCalls != 0 {
-		t.Fatalf("expected no PATCH, got %d", patchCalls)
-	}
-}
-
-func TestWebAppsDeleteRunRejectsUnknownRemovedWithoutPatch(t *testing.T) {
-	var patchCalls int
-	restoreSession := webcmd.SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		return &webcore.AuthSession{
-			Client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/1234567890":
-					return webAppsDeleteJSONResponse(`{
-						"data": {
-							"type": "apps",
-							"id": "1234567890",
-							"attributes": {
-								"name": "Throwaway",
-								"bundleId": "com.example.throwaway",
-								"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-								"marketplace": "APP_STORE"
-							},
-							"relationships": {
-								"displayableVersions": {"data": []}
-							}
-						}
-					}`), nil
-				case req.Method == http.MethodPatch:
-					patchCalls++
-					t.Fatal("did not expect PATCH when removed was unknown")
-					return nil, nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})},
-		}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
-	if code != cmd.ExitError {
-		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "could not confirm") || !strings.Contains(stderr, "removed") {
-		t.Fatalf("expected stderr to name missing removed attribute, got %q", stderr)
-	}
-	if patchCalls != 0 {
-		t.Fatalf("expected no PATCH, got %d", patchCalls)
-	}
-}
-
 func webAppsDeleteJSONResponse(body string) *http.Response {
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}
-}
-
-func boolJSON(value bool) string {
-	if value {
-		return "true"
-	}
-	return "false"
 }

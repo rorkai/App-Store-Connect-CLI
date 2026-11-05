@@ -65,37 +65,24 @@ func runAppTesters(t *testing.T, args ...string) (stdout, stderr string, err err
 	return stdout, stderr, err
 }
 
-func TestTestFlightMetricsAppTestersObjectFormTableRendersRows(t *testing.T) {
-	stubAppTesterUsages(t, appTesterMetricsObjectFormBody)
+func TestTestFlightMetricsAppTestersTableRendersRowsForBothDimensionShapes(t *testing.T) {
+	for name, body := range map[string]string{"object form": appTesterMetricsObjectFormBody, "string form": appTesterMetricsStringFormBody} {
+		t.Run(name, func(t *testing.T) {
+			stubAppTesterUsages(t, body)
 
-	stdout, stderr, err := runAppTesters(t, "testflight", "metrics", "app-testers", "--app", "app-123", "--output", "table")
-	if err != nil {
-		t.Fatalf("run error: %v", err)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	for _, want := range []string{"Tester ID", "Start", "End", "Sessions", "Crashes", "Feedback", "tester-1", "2026-08-01T00:00:00Z", "12", "1", "2"} {
-		if !strings.Contains(stdout, want) {
-			t.Fatalf("expected table output to contain %q, got %q", want, stdout)
-		}
-	}
-}
-
-func TestTestFlightMetricsAppTestersStringFormTableRendersRows(t *testing.T) {
-	stubAppTesterUsages(t, appTesterMetricsStringFormBody)
-
-	stdout, stderr, err := runAppTesters(t, "testflight", "metrics", "app-testers", "--app", "app-123", "--output", "table")
-	if err != nil {
-		t.Fatalf("run error: %v", err)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	for _, want := range []string{"Tester ID", "Start", "End", "Sessions", "Crashes", "Feedback", "tester-1", "2026-08-01T00:00:00Z", "12", "1", "2"} {
-		if !strings.Contains(stdout, want) {
-			t.Fatalf("expected table output to contain %q, got %q", want, stdout)
-		}
+			stdout, stderr, err := runAppTesters(t, "testflight", "metrics", "app-testers", "--app", "app-123", "--output", "table")
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			for _, want := range []string{"Tester ID", "Start", "End", "Sessions", "Crashes", "Feedback", "tester-1", "2026-08-01T00:00:00Z", "12", "1", "2"} {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("expected table output to contain %q, got %q", want, stdout)
+				}
+			}
+		})
 	}
 }
 

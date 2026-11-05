@@ -93,70 +93,61 @@ func TestSandboxListAllowsEmptyTerritoryFilter(t *testing.T) {
 	}
 }
 
-func TestSandboxListKeepsTerritoryFilterAcrossPagination(t *testing.T) {
-	stdout, stderr, requests := runSandboxListFilterPagination(
-		t,
-		[]string{"--territory", "United States"},
-		"",
-		`{"type":"sandboxTesters","id":"tester-usa","attributes":{"territory":"USA"}}`,
-		`{"type":"sandboxTesters","id":"tester-fra","attributes":{"territory":"FRA"}}`,
-	)
+func TestSandboxListKeepsFiltersAcrossPagination(t *testing.T) {
+	tests := []struct {
+		name        string
+		filterArgs  []string
+		initialNext string
+		firstData   string
+		secondData  string
+		wantID      string
+		droppedID   string
+	}{
+		{
+			name:       "territory",
+			filterArgs: []string{"--territory", "United States"},
+			firstData:  `{"type":"sandboxTesters","id":"tester-usa","attributes":{"territory":"USA"}}`,
+			secondData: `{"type":"sandboxTesters","id":"tester-fra","attributes":{"territory":"FRA"}}`,
+			wantID:     "tester-usa",
+			droppedID:  "tester-fra",
+		},
+		{
+			name:       "email",
+			filterArgs: []string{"--email", "usa@example.com"},
+			firstData:  `{"type":"sandboxTesters","id":"tester-usa","attributes":{"email":"usa@example.com"}}`,
+			secondData: `{"type":"sandboxTesters","id":"tester-other","attributes":{"email":"other@example.com"}}`,
+			wantID:     "tester-usa",
+			droppedID:  "tester-other",
+		},
+		{
+			name:        "territory from next URL",
+			filterArgs:  []string{"--territory", "USA"},
+			initialNext: "https://api.appstoreconnect.apple.com/v2/sandboxTesters?cursor=page-1",
+			firstData:   `{"type":"sandboxTesters","id":"tester-usa","attributes":{"territory":"USA"}}`,
+			secondData:  `{"type":"sandboxTesters","id":"tester-fra","attributes":{"territory":"FRA"}}`,
+			wantID:      "tester-usa",
+			droppedID:   "tester-fra",
+		},
+	}
 
-	assertEmptyStderr(t, stderr)
-	if len(requests) != 2 {
-		t.Fatalf("expected two paginated requests, got %d (%v)", len(requests), requests)
-	}
-	if !strings.Contains(stdout, `"id":"tester-usa"`) {
-		t.Fatalf("expected USA tester in output, got %q", stdout)
-	}
-	if strings.Contains(stdout, `"id":"tester-fra"`) {
-		t.Fatalf("did not expect FRA tester in output, got %q", stdout)
-	}
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stdout, stderr, requests := runSandboxListFilterPagination(t, tt.filterArgs, tt.initialNext, tt.firstData, tt.secondData)
 
-func TestSandboxListKeepsEmailFilterAcrossPagination(t *testing.T) {
-	stdout, stderr, requests := runSandboxListFilterPagination(
-		t,
-		[]string{"--email", "usa@example.com"},
-		"",
-		`{"type":"sandboxTesters","id":"tester-usa","attributes":{"email":"usa@example.com"}}`,
-		`{"type":"sandboxTesters","id":"tester-other","attributes":{"email":"other@example.com"}}`,
-	)
-
-	assertEmptyStderr(t, stderr)
-	if len(requests) != 2 {
-		t.Fatalf("expected two paginated requests, got %d (%v)", len(requests), requests)
-	}
-	if !strings.Contains(stdout, `"id":"tester-usa"`) {
-		t.Fatalf("expected matching tester in output, got %q", stdout)
-	}
-	if strings.Contains(stdout, `"id":"tester-other"`) {
-		t.Fatalf("did not expect nonmatching tester in output, got %q", stdout)
-	}
-}
-
-func TestSandboxListKeepsFilterAcrossNextPagination(t *testing.T) {
-	firstURL := "https://api.appstoreconnect.apple.com/v2/sandboxTesters?cursor=page-1"
-	stdout, stderr, requests := runSandboxListFilterPagination(
-		t,
-		[]string{"--territory", "USA"},
-		firstURL,
-		`{"type":"sandboxTesters","id":"tester-usa","attributes":{"territory":"USA"}}`,
-		`{"type":"sandboxTesters","id":"tester-fra","attributes":{"territory":"FRA"}}`,
-	)
-
-	assertEmptyStderr(t, stderr)
-	if len(requests) != 2 {
-		t.Fatalf("expected two paginated requests, got %d (%v)", len(requests), requests)
-	}
-	if requests[0] != firstURL {
-		t.Fatalf("expected initial request to use --next URL %q, got %q", firstURL, requests[0])
-	}
-	if !strings.Contains(stdout, `"id":"tester-usa"`) {
-		t.Fatalf("expected USA tester in output, got %q", stdout)
-	}
-	if strings.Contains(stdout, `"id":"tester-fra"`) {
-		t.Fatalf("did not expect FRA tester in output, got %q", stdout)
+			assertEmptyStderr(t, stderr)
+			if len(requests) != 2 {
+				t.Fatalf("expected two paginated requests, got %d (%v)", len(requests), requests)
+			}
+			if tt.initialNext != "" && requests[0] != tt.initialNext {
+				t.Fatalf("expected initial request to use --next URL %q, got %q", tt.initialNext, requests[0])
+			}
+			if !strings.Contains(stdout, `"id":"`+tt.wantID+`"`) {
+				t.Fatalf("expected %s in output, got %q", tt.wantID, stdout)
+			}
+			if strings.Contains(stdout, `"id":"`+tt.droppedID+`"`) {
+				t.Fatalf("did not expect %s in output, got %q", tt.droppedID, stdout)
+			}
+		})
 	}
 }
 

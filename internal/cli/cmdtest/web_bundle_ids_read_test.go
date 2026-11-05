@@ -13,22 +13,6 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-func TestWebBundleIDReadLeavesAreRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
-	for _, leaf := range []string{"list", "view"} {
-		sub := findSubcommand(root, "web", "bundle-ids", leaf)
-		if sub == nil {
-			t.Fatalf("expected web bundle-ids %s to be registered", leaf)
-		}
-		if sub.FlagSet.Lookup("apple-id") == nil || sub.FlagSet.Lookup("developer-team") == nil || sub.FlagSet.Lookup("output") == nil {
-			t.Fatalf("web bundle-ids %s is missing session/output flags", leaf)
-		}
-		if leaf == "view" && sub.FlagSet.Lookup("bundle-id") == nil {
-			t.Fatalf("web bundle-ids view is missing --bundle-id")
-		}
-	}
-}
-
 func TestWebBundleIDsViewMissingIDFailsBeforeSession(t *testing.T) {
 	restoreSession := webcmd.SetResolveWebSession(func(context.Context, string, string, string) (*webcore.AuthSession, string, error) {
 		t.Fatal("web session must not resolve when --bundle-id is missing")

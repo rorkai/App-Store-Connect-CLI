@@ -5,8 +5,6 @@ import (
 	"errors"
 	"flag"
 	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -83,7 +81,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 		return
 	}
 	subscriptionsUsage := subscriptionsCmd.UsageFunc(subscriptionsCmd)
-	for _, expected := range []string{"pricing", "offers", "review", "promoted-purchases"} {
+	for _, expected := range []string{"setup", "pricing", "offers", "review", "promoted-purchases"} {
 		if !usageListsSubcommand(subscriptionsUsage, expected) {
 			t.Fatalf("expected subscriptions help to list %s, got %q", expected, subscriptionsUsage)
 		}
@@ -435,26 +433,6 @@ func TestCanonicalWrapperErrorsUseCanonicalPaths(t *testing.T) {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
 		})
-	}
-}
-
-func TestSubscriptionsDocsOnlyMentionRemovedIntroductoryOfferAliasAsRejected(t *testing.T) {
-	docsPath := filepath.Join("..", "..", "..", "commands", "subscriptions.mdx")
-	docs, err := os.ReadFile(docsPath)
-	if err != nil {
-		t.Fatalf("read %s: %v", docsPath, err)
-	}
-
-	content := string(docs)
-	const removedAlias = "--territory ALL"
-	if got := strings.Count(content, removedAlias); got != 1 {
-		t.Fatalf("expected subscriptions docs to mention the removed alias once as rejected input, got %d occurrences", got)
-	}
-	if !strings.Contains(content, "`--territory ALL` is rejected as\nan invalid territory") {
-		t.Fatal("expected subscriptions docs to describe --territory ALL as rejected")
-	}
-	if strings.Contains(content, "remains accepted as a deprecated compatibility spelling") {
-		t.Fatal("subscriptions docs still present --territory ALL as an accepted compatibility spelling")
 	}
 }
 

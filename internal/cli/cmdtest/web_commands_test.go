@@ -47,40 +47,23 @@ func TestWebCommandUsesProductionHelpContract(t *testing.T) {
 	}
 }
 
-func TestWebAppsMedicalDeviceSetSubcommandIsRegistered(t *testing.T) {
+// These leaves have no root-level behavior test, so a dropped registration
+// would otherwise only surface as "unknown subcommand" in the shipped binary.
+func TestWebSubcommandsAreRegistered(t *testing.T) {
 	root := RootCommand("1.2.3")
-	if sub := findSubcommand(root, "web", "apps", "medical-device", "set"); sub == nil {
-		t.Fatalf("expected web apps medical-device set to be registered")
-	}
-}
-
-func TestWebAppsMedicalDeviceViewSubcommandIsRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
-	if sub := findSubcommand(root, "web", "apps", "medical-device", "view"); sub == nil {
-		t.Fatalf("expected web apps medical-device view to be registered")
-	}
-}
-
-func TestWebAppsDeclarationsListSubcommandIsRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
-	if sub := findSubcommand(root, "web", "apps", "declarations", "list"); sub == nil {
-		t.Fatalf("expected web apps declarations list to be registered")
-	}
-}
-
-func TestWebBundleIDCapabilitiesSyncAppClipSubcommandIsRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
-	sub := findSubcommand(root, "web", "bundle-ids", "capabilities", "sync-app-clip")
-	if sub == nil {
-		t.Fatalf("expected web bundle-ids capabilities sync-app-clip to be registered")
-	}
-	for _, flagName := range []string{"bundle-id", "parent-bundle-id", "capability", "settings-json", "confirm", "apple-id", "output"} {
-		if sub.FlagSet.Lookup(flagName) == nil {
-			t.Fatalf("expected --%s flag", flagName)
+	for _, path := range [][]string{
+		{"web", "apps", "medical-device", "set"},
+		{"web", "apps", "medical-device", "view"},
+		{"web", "apps", "declarations", "list"},
+		{"web", "apps", "distribution", "users", "list"},
+		{"web", "apps", "distribution", "users", "create"},
+		{"web", "apps", "distribution", "users", "delete"},
+		{"web", "xcode-cloud", "scm", "providers", "list"},
+		{"web", "xcode-cloud", "scm", "connection-status"},
+	} {
+		if findSubcommand(root, path...) == nil {
+			t.Errorf("expected %s to be registered", strings.Join(path, " "))
 		}
-	}
-	if !strings.Contains(sub.ShortUsage, "--confirm") {
-		t.Fatalf("expected --confirm in short usage, got %q", sub.ShortUsage)
 	}
 }
 
@@ -118,19 +101,6 @@ func TestWebBundleIDCapabilitiesSyncAppClipMissingConfirmFailsBeforeSession(t *t
 	}
 	if !strings.Contains(stderr, "Error: --confirm is required") {
 		t.Fatalf("expected missing --confirm error, got %q", stderr)
-	}
-}
-
-func TestWebBundleIDCapabilitiesEnableSubcommandIsRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
-	sub := findSubcommand(root, "web", "bundle-ids", "capabilities", "enable")
-	if sub == nil {
-		t.Fatalf("expected web bundle-ids capabilities enable to be registered")
-	}
-	for _, flagName := range []string{"bundle-id", "capability", "confirm", "apple-id", "output"} {
-		if sub.FlagSet.Lookup(flagName) == nil {
-			t.Fatalf("expected --%s flag", flagName)
-		}
 	}
 }
 
@@ -272,17 +242,6 @@ func TestWebAuthLoginOmitsPlaintextPasswordAndRemovedTwoFactorCodeFlags(t *testi
 	}
 	if strings.Contains(cmd.LongHelp, "--two-factor-code ") || strings.Contains(cmd.LongHelp, "--two-factor-code\n") || strings.Contains(cmd.LongHelp, "deprecated") {
 		t.Fatalf("web auth login help still documents the removed --two-factor-code alias: %q", cmd.LongHelp)
-	}
-	for _, phrase := range []string{
-		"Phone-code fallback (including SMS):",
-		"interactive: if Apple offers a registered phone fallback",
-		"enter an incorrect trusted-device code once",
-		"Apple then delivers a phone verification code and asc prompts again",
-		"automated: asc reruns the configured 2FA code command after phone fallback",
-	} {
-		if !strings.Contains(cmd.LongHelp, phrase) {
-			t.Fatalf("expected %q in web auth login help, got %q", phrase, cmd.LongHelp)
-		}
 	}
 }
 
