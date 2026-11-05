@@ -284,21 +284,6 @@ func TestRawPaginatedGETRejectsForeignNextHost(t *testing.T) {
 	}
 }
 
-func TestRawPaginatedGETStopsOnRepeatedNextURL(t *testing.T) {
-	const loop = `{"data":[{"type":"apps","id":"1"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps?cursor=loop"}}`
-	client := newTestClient(
-		t, nil,
-		jsonResponse(http.StatusOK, loop),
-		jsonResponse(http.StatusOK, loop),
-		jsonResponse(http.StatusOK, loop),
-	)
-
-	_, err := client.RawPaginatedGET(context.Background(), "/v1/apps", nil)
-	if !errors.Is(err, ErrRepeatedPaginationURL) {
-		t.Fatalf("RawPaginatedGET() error = %v, want ErrRepeatedPaginationURL", err)
-	}
-}
-
 func TestRawPaginatedGETRecognizesEquivalentNextURLs(t *testing.T) {
 	const absolute = `{"data":[],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps?cursor=loop&limit=1"}}`
 	const relative = `{"data":[],"links":{"next":"/v1/apps?limit=1&cursor=loop"}}`

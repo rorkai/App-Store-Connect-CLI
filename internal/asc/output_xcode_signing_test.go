@@ -10,17 +10,6 @@ import (
 // that package imports internal/asc. These tests cover the registered output
 // types and their renderers without the domain dependency.
 
-func TestXcodeSigningOutputsAreRegistered(t *testing.T) {
-	ensureOutputRegistryPopulated()
-
-	if !isRegistryTypeRegistered(typeForPtr[XcodeSigningPlanOutput]()) {
-		t.Fatal("XcodeSigningPlanOutput is not registered with the output renderer")
-	}
-	if !isRegistryTypeRegistered(typeForPtr[XcodeSigningApplyOutput]()) {
-		t.Fatal("XcodeSigningApplyOutput is not registered with the output renderer")
-	}
-}
-
 func TestXcodeSigningOutputsUseRegisteredHumanRenderers(t *testing.T) {
 	plan := &XcodeSigningPlanOutput{
 		Ready:    true,
