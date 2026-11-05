@@ -57,7 +57,7 @@ func (c *Client) GetGameCenterChallenge(ctx context.Context, challengeID string)
 
 // CreateGameCenterChallenge creates a new Game Center challenge.
 func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID string, attrs GameCenterChallengeCreateAttributes, leaderboardID string, groupID string, createInitialVersion bool) (*GameCenterChallengeResponse, error) {
-	const initialVersionID = "initial-version"
+	const initialVersionID = "${challengeVer1}"
 
 	relationships := &GameCenterChallengeRelationships{}
 	hasRelationship := false

@@ -171,13 +171,13 @@ func TestCreateGameCenterChallenge_WithInitialVersion(t *testing.T) {
 		if len(payload.Data.Relationships.Versions.Data) != 1 {
 			t.Fatalf("expected one version relationship, got %+v", payload.Data.Relationships.Versions.Data)
 		}
-		if payload.Data.Relationships.Versions.Data[0].Type != ResourceTypeGameCenterChallengeVersions || payload.Data.Relationships.Versions.Data[0].ID != "initial-version" {
+		if payload.Data.Relationships.Versions.Data[0].Type != ResourceTypeGameCenterChallengeVersions || payload.Data.Relationships.Versions.Data[0].ID != "${challengeVer1}" {
 			t.Fatalf("unexpected versions relationship: %+v", payload.Data.Relationships.Versions.Data[0])
 		}
 		if len(payload.Included) != 1 {
 			t.Fatalf("expected one included resource, got %d", len(payload.Included))
 		}
-		if payload.Included[0].Type != ResourceTypeGameCenterChallengeVersions || payload.Included[0].ID != "initial-version" {
+		if payload.Included[0].Type != ResourceTypeGameCenterChallengeVersions || payload.Included[0].ID != "${challengeVer1}" {
 			t.Fatalf("unexpected included version: %+v", payload.Included[0])
 		}
 		assertAuthorized(t, req)
