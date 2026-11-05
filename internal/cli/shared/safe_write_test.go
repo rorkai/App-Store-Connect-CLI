@@ -62,7 +62,7 @@ func TestSafeWriteFileNoSymlinkWithPreparationRunsBeforeWrite(t *testing.T) {
 			}
 
 			prepared := false
-			_, err := SafeWriteFileNoSymlinkWithPreparation(
+			_, err := SafeWriteFileNoSymlinkWithPreparationAndCreator(
 				destination,
 				0o600,
 				overwrite,
@@ -72,6 +72,7 @@ func TestSafeWriteFileNoSymlinkWithPreparationRunsBeforeWrite(t *testing.T) {
 					prepared = true
 					return nil
 				},
+				nil,
 				func(file *os.File) (int64, error) {
 					if !prepared {
 						return 0, errors.New("write callback ran before preparation")
@@ -81,7 +82,7 @@ func TestSafeWriteFileNoSymlinkWithPreparationRunsBeforeWrite(t *testing.T) {
 				},
 			)
 			if err != nil {
-				t.Fatalf("SafeWriteFileNoSymlinkWithPreparation() error = %v", err)
+				t.Fatalf("SafeWriteFileNoSymlinkWithPreparationAndCreator() error = %v", err)
 			}
 			got, err := os.ReadFile(destination)
 			if err != nil {
@@ -150,20 +151,21 @@ func TestSafeWriteFileNoSymlinkWithPreparationFailureDoesNotPublish(t *testing.T
 	prepareErr := errors.New("simulated preparation failure")
 	writeCalled := false
 
-	_, err := SafeWriteFileNoSymlinkWithPreparation(
+	_, err := SafeWriteFileNoSymlinkWithPreparationAndCreator(
 		destination,
 		0o600,
 		false,
 		".safe-write-*",
 		".safe-write-backup-*",
 		func(*os.File) error { return prepareErr },
+		nil,
 		func(file *os.File) (int64, error) {
 			writeCalled = true
 			return 0, nil
 		},
 	)
 	if !errors.Is(err, prepareErr) {
-		t.Fatalf("SafeWriteFileNoSymlinkWithPreparation() error = %v, want %v", err, prepareErr)
+		t.Fatalf("SafeWriteFileNoSymlinkWithPreparationAndCreator() error = %v, want %v", err, prepareErr)
 	}
 	if writeCalled {
 		t.Fatal("write callback ran after preparation failed")
@@ -760,13 +762,14 @@ func TestSafeWriteFileNoSymlinkWithPreparationNoOverwriteRejectsWithoutAtomicPub
 	destination := filepath.Join(directory, "artifact.bin")
 	content := []byte("complete")
 
-	written, err := SafeWriteFileNoSymlinkWithPreparation(
+	written, err := SafeWriteFileNoSymlinkWithPreparationAndCreator(
 		destination,
 		0o600,
 		false,
 		".safe-write-*",
 		".safe-write-backup-*",
 		func(*os.File) error { return nil },
+		nil,
 		func(file *os.File) (int64, error) {
 			written, err := file.Write(content)
 			return int64(written), err

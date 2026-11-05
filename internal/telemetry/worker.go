@@ -61,10 +61,6 @@ func runMaintenanceWorker(workerPath string, store spoolStore, deliver eventSend
 	})
 }
 
-func flushSpool(store spoolStore, deliver eventSender) error {
-	return flushSpoolWhileEnabled(store, deliver, func() (bool, error) { return true, nil })
-}
-
 func flushSpoolWhileEnabled(
 	store spoolStore,
 	deliver eventSender,

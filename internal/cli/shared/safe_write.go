@@ -37,17 +37,6 @@ func SafeWriteFileNoSymlink(path string, perm os.FileMode, overwrite bool, tempP
 	return safeWriteFileNoSymlink(path, perm, overwrite, tempPattern, backupPattern, nil, nil, true, write)
 }
 
-// SafeWriteFileNoSymlinkWithPreparation is SafeWriteFileNoSymlink with a
-// callback that runs on each newly created staging or publication file before
-// any caller bytes are written. The callback can enforce platform-specific
-// file protection (for example, a Windows DACL) while preserving the atomic
-// write and no-follow guarantees of SafeWriteFileNoSymlink. Protected
-// no-overwrite writes fail closed when the filesystem has no atomic publication
-// primitive rather than exposing a partially copied destination.
-func SafeWriteFileNoSymlinkWithPreparation(path string, perm os.FileMode, overwrite bool, tempPattern string, backupPattern string, prepare func(*os.File) error, write func(*os.File) (int64, error)) (int64, error) {
-	return safeWriteFileNoSymlink(path, perm, overwrite, tempPattern, backupPattern, prepare, nil, false, write)
-}
-
 // SafeWriteFileNoSymlinkWithPreparationAndCreator is the protected writer
 // variant with an optional rooted temporary-file creator. The creator is used
 // only to add platform-specific creation security; generated names, rooted

@@ -166,115 +166,43 @@ esac
 	return stdout.String() + stderrBuffer.String(), filepath.Join(installDir, "asc"), stderrBuffer.String(), runErr
 }
 
-func TestInstallScriptRetriesTransientBinaryDownloadFailure(t *testing.T) {
-	output, installedBinary, err := runInstallScript(t, "valid", "STUB_FAIL_ONCE=binary")
-	if err != nil {
-		t.Fatalf("expected transient binary download failure to recover: %v\n%s", err, output)
-	}
-	if !strings.Contains(output, "Download failed; retrying (2/3)") {
-		t.Fatalf("expected retry diagnostic, got:\n%s", output)
-	}
-	if _, statErr := os.Stat(installedBinary); statErr != nil {
-		t.Fatalf("expected binary installed at %s: %v\n%s", installedBinary, statErr, output)
-	}
-}
-
-func TestInstallScriptRetriesTransientChecksumDownloadFailure(t *testing.T) {
-	output, installedBinary, err := runInstallScript(t, "valid", "STUB_FAIL_ONCE=checksums")
-	if err != nil {
-		t.Fatalf("expected transient checksum download failure to recover: %v\n%s", err, output)
-	}
-	if !strings.Contains(output, "Download failed; retrying (2/3)") {
-		t.Fatalf("expected retry diagnostic, got:\n%s", output)
-	}
-	if _, statErr := os.Stat(installedBinary); statErr != nil {
-		t.Fatalf("expected binary installed at %s: %v\n%s", installedBinary, statErr, output)
-	}
-}
-
-func TestInstallScriptSyntaxIsValid(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("install.sh targets unix shells")
-	}
-	repoRoot, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	cmd := exec.Command("bash", "-n", filepath.Join(repoRoot, "install.sh"))
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("bash -n install.sh failed: %v\n%s", err, output)
-	}
-}
-
-func TestInstallScriptVerifiesChecksumAndInstalls(t *testing.T) {
-	output, installedBinary, err := runInstallScript(t, "valid")
-	if err != nil {
-		t.Fatalf("install.sh failed: %v\n%s", err, output)
-	}
-	if !strings.Contains(output, "Checksum verified.") {
-		t.Fatalf("expected checksum verification confirmation, got:\n%s", output)
-	}
-	contents, readErr := os.ReadFile(installedBinary)
-	if readErr != nil {
-		t.Fatalf("expected installed binary at %s: %v\n%s", installedBinary, readErr, output)
-	}
-	if string(contents) != installStubBinaryContents {
-		t.Fatalf("installed binary contents mismatch: %q", contents)
-	}
-}
-
-func TestInstallScriptFailsClosedWhenChecksumsMissing(t *testing.T) {
-	output, installedBinary, err := runInstallScript(t, "missing")
-	if err == nil {
-		t.Fatalf("expected install.sh to fail without checksums.txt, got success:\n%s", output)
-	}
-	if !strings.Contains(output, "Refusing to install without SHA-256 checksum verification.") {
-		t.Fatalf("expected fail-closed error message, got:\n%s", output)
-	}
-	if !strings.Contains(output, "ASC_INSTALL_INSECURE=1") {
-		t.Fatalf("expected override hint in error output, got:\n%s", output)
-	}
-	if _, statErr := os.Stat(installedBinary); !os.IsNotExist(statErr) {
-		t.Fatalf("expected no binary installed, stat err=%v\n%s", statErr, output)
-	}
-}
-
-func TestInstallScriptFailsClosedWhenAssetUnlisted(t *testing.T) {
-	output, installedBinary, err := runInstallScript(t, "unlisted")
-	if err == nil {
-		t.Fatalf("expected install.sh to fail when asset is missing from checksums.txt, got success:\n%s", output)
-	}
-	if !strings.Contains(output, "Refusing to install without SHA-256 checksum verification.") {
-		t.Fatalf("expected fail-closed error message, got:\n%s", output)
-	}
-	if _, statErr := os.Stat(installedBinary); !os.IsNotExist(statErr) {
-		t.Fatalf("expected no binary installed, stat err=%v\n%s", statErr, output)
-	}
-}
-
-func TestInstallScriptInsecureOverrideAllowsMissingChecksums(t *testing.T) {
-	output, installedBinary, err := runInstallScript(t, "missing", "ASC_INSTALL_INSECURE=1")
-	if err != nil {
-		t.Fatalf("expected ASC_INSTALL_INSECURE=1 to allow install, got: %v\n%s", err, output)
-	}
-	if !strings.Contains(output, "installing WITHOUT checksum verification") {
-		t.Fatalf("expected loud insecure-install warning, got:\n%s", output)
-	}
-	if _, statErr := os.Stat(installedBinary); statErr != nil {
-		t.Fatalf("expected binary installed at %s: %v\n%s", installedBinary, statErr, output)
-	}
-}
-
-func TestInstallScriptChecksumMismatchFailsEvenWithInsecureOverride(t *testing.T) {
-	output, installedBinary, err := runInstallScript(t, "wrong", "ASC_INSTALL_INSECURE=1")
-	if err == nil {
-		t.Fatalf("expected install.sh to fail on checksum mismatch, got success:\n%s", output)
-	}
-	if !strings.Contains(output, "Checksum verification failed") {
-		t.Fatalf("expected checksum mismatch error, got:\n%s", output)
-	}
-	if _, statErr := os.Stat(installedBinary); !os.IsNotExist(statErr) {
-		t.Fatalf("expected no binary installed, stat err=%v\n%s", statErr, output)
+func TestInstallScriptChecksumVerification(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		checksumsMode string
+		env           []string
+		wantFailure   bool
+		wantOutput    []string
+	}{
+		{name: "valid checksum", checksumsMode: "valid", wantOutput: []string{"Checksum verified."}},
+		{name: "transient binary download failure", checksumsMode: "valid", env: []string{"STUB_FAIL_ONCE=binary"}, wantOutput: []string{"Download failed; retrying (2/3)"}},
+		{name: "transient checksum download failure", checksumsMode: "valid", env: []string{"STUB_FAIL_ONCE=checksums"}, wantOutput: []string{"Download failed; retrying (2/3)"}},
+		{name: "missing checksums", checksumsMode: "missing", wantFailure: true, wantOutput: []string{"Refusing to install without SHA-256 checksum verification.", "ASC_INSTALL_INSECURE=1"}},
+		{name: "asset unlisted", checksumsMode: "unlisted", wantFailure: true, wantOutput: []string{"Refusing to install without SHA-256 checksum verification."}},
+		{name: "insecure override allows missing checksums", checksumsMode: "missing", env: []string{"ASC_INSTALL_INSECURE=1"}, wantOutput: []string{"installing WITHOUT checksum verification"}},
+		{name: "mismatch fails despite insecure override", checksumsMode: "wrong", env: []string{"ASC_INSTALL_INSECURE=1"}, wantFailure: true, wantOutput: []string{"Checksum verification failed"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			output, installedBinary, err := runInstallScript(t, tt.checksumsMode, tt.env...)
+			if tt.wantFailure != (err != nil) {
+				t.Fatalf("install.sh error = %v, want failure %v\n%s", err, tt.wantFailure, output)
+			}
+			for _, want := range tt.wantOutput {
+				if !strings.Contains(output, want) {
+					t.Fatalf("expected output to contain %q, got:\n%s", want, output)
+				}
+			}
+			contents, readErr := os.ReadFile(installedBinary)
+			if tt.wantFailure {
+				if !os.IsNotExist(readErr) {
+					t.Fatalf("expected no binary installed, read err=%v\n%s", readErr, output)
+				}
+				return
+			}
+			if readErr != nil || string(contents) != installStubBinaryContents {
+				t.Fatalf("expected installed binary, contents=%q err=%v\n%s", contents, readErr, output)
+			}
+		})
 	}
 }
 

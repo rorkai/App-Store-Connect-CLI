@@ -74,17 +74,14 @@ var forbiddenRehearsalActions = []string{
 }
 
 func TestReleaseRehearsalWorkflowContract(t *testing.T) {
-	data, err := os.ReadFile(releaseRehearsalWorkflowPath)
-	if err != nil {
-		t.Fatalf("read release rehearsal workflow: %v", err)
-	}
-	if err := validateReleaseRehearsalWorkflow(data); err != nil {
+	workflow := readReleaseRehearsalWorkflow(t)
+	if err := validateReleaseRehearsalWorkflow([]byte(workflow)); err != nil {
 		t.Fatal(err)
 	}
-}
 
-func TestReleaseRehearsalWorkflowContractRejectsBrokenDataFlow(t *testing.T) {
-	workflow := readReleaseRehearsalWorkflow(t)
+	misorderedCheckout := replaceRehearsalFixture(t, workflow,
+		"      - name: Checkout requested source\n        uses: actions/checkout@v7",
+		"      - run: echo harmless\n\n      - name: Cache source\n        uses: actions/cache@v5")
 	cases := map[string]string{
 		"version not required": replaceRehearsalFixture(t, workflow,
 			"version:\n        description: Candidate release version in x.y.z form\n        required: true",
@@ -102,72 +99,17 @@ func TestReleaseRehearsalWorkflowContractRejectsBrokenDataFlow(t *testing.T) {
 			`printf 'TESTED_SHA=%s\n' "${TESTED_SHA}"`),
 		"different expected sha": replaceRehearsalFixture(t, workflow,
 			`--expected-sha "${TESTED_SHA}"`, `--expected-sha "${OTHER_SHA}"`),
-	}
-
-	for name, fixture := range cases {
-		t.Run(name, func(t *testing.T) {
-			if err := validateReleaseRehearsalWorkflow([]byte(fixture)); err == nil {
-				t.Fatal("invalid data-flow fixture passed the workflow contract")
-			}
-		})
-	}
-}
-
-func TestReleaseRehearsalWorkflowContractRejectsMisorderedAnonymousCheckout(t *testing.T) {
-	workflow := readReleaseRehearsalWorkflow(t)
-	workflow = replaceRehearsalFixture(
-		t,
-		workflow,
-		"      - name: Checkout requested source\n        uses: actions/checkout@v7",
-		"      - run: echo harmless\n\n      - name: Cache source\n        uses: actions/cache@v5",
-	)
-	fixture := replaceRehearsalFixture(
-		t,
-		workflow,
-		"      - name: Set up Go",
-		"      - uses: actions/checkout@v7\n        with:\n          ref: ${{ inputs.ref }}\n          fetch-depth: 0\n          persist-credentials: false\n\n      - name: Set up Go",
-	)
-	if err := validateReleaseRehearsalWorkflow([]byte(fixture)); err == nil {
-		t.Fatal("misordered anonymous checkout fixture passed the workflow contract")
-	}
-}
-
-func TestReleaseRehearsalWorkflowContractRejectsWritablePermissions(t *testing.T) {
-	workflow := readReleaseRehearsalWorkflow(t)
-	cases := map[string]string{
+		"misordered anonymous checkout": replaceRehearsalFixture(t, misorderedCheckout,
+			"      - name: Set up Go",
+			"      - uses: actions/checkout@v7\n        with:\n          ref: ${{ inputs.ref }}\n          fetch-depth: 0\n          persist-credentials: false\n\n      - name: Set up Go"),
 		"write all": replaceRehearsalFixture(t, workflow,
 			"permissions:\n  contents: read", "permissions: write-all"),
 		"package write": replaceRehearsalFixture(t, workflow,
 			"permissions:\n  contents: read", "permissions:\n  contents: read\n  packages: write"),
 		"job identity token": replaceRehearsalFixture(t, workflow,
 			"  rehearse:\n    runs-on:", "  rehearse:\n    permissions:\n      id-token: write\n    runs-on:"),
-	}
-
-	for name, fixture := range cases {
-		t.Run(name, func(t *testing.T) {
-			if err := validateReleaseRehearsalWorkflow([]byte(fixture)); err == nil {
-				t.Fatal("writable-permissions fixture passed the workflow contract")
-			}
-		})
-	}
-}
-
-func TestReleaseRehearsalWorkflowContractRejectsNonReleasePlatform(t *testing.T) {
-	workflow := readReleaseRehearsalWorkflow(t)
-	fixture := replaceRehearsalFixture(
-		t,
-		workflow,
-		"runs-on: macos-latest",
-		"runs-on: ubuntu-latest",
-	)
-	if err := validateReleaseRehearsalWorkflow([]byte(fixture)); err == nil {
-		t.Fatal("non-release-platform fixture passed the workflow contract")
-	}
-}
-
-func TestReleaseRehearsalWorkflowContractRejectsPublishingSteps(t *testing.T) {
-	workflow := readReleaseRehearsalWorkflow(t)
-	cases := map[string]string{
+		"non-release platform": replaceRehearsalFixture(t, workflow,
+			"runs-on: macos-latest", "runs-on: ubuntu-latest"),
 		"release action": replaceRehearsalFixture(t, workflow,
 			"uses: actions/setup-go@v7", "uses: actions/upload-artifact@v7"),
 		"github release": replaceRehearsalFixture(t, workflow,
@@ -179,20 +121,6 @@ func TestReleaseRehearsalWorkflowContractRejectsPublishingSteps(t *testing.T) {
 		"publishing sibling job": replaceRehearsalFixture(t, workflow,
 			"jobs:\n  rehearse:",
 			"jobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n      - run: gh release create 9.9.9\n  rehearse:"),
-	}
-
-	for name, fixture := range cases {
-		t.Run(name, func(t *testing.T) {
-			if err := validateReleaseRehearsalWorkflow([]byte(fixture)); err == nil {
-				t.Fatal("publishing fixture passed the workflow contract")
-			}
-		})
-	}
-}
-
-func TestReleaseRehearsalWorkflowContractRequiresEntrypointAndSummaryOutputs(t *testing.T) {
-	workflow := readReleaseRehearsalWorkflow(t)
-	cases := map[string]string{
 		"missing rehearsal entrypoint": replaceRehearsalFixture(t, workflow,
 			"python3 scripts/release_rehearsal.py", "python3 scripts/other.py"),
 		"missing release notes": replaceRehearsalFixture(t, workflow,
@@ -209,7 +137,7 @@ func TestReleaseRehearsalWorkflowContractRequiresEntrypointAndSummaryOutputs(t *
 	for name, fixture := range cases {
 		t.Run(name, func(t *testing.T) {
 			if err := validateReleaseRehearsalWorkflow([]byte(fixture)); err == nil {
-				t.Fatal("incomplete execution fixture passed the workflow contract")
+				t.Fatal("unsafe fixture passed the workflow contract")
 			}
 		})
 	}
