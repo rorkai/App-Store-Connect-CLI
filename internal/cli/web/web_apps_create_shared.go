@@ -49,20 +49,12 @@ const (
 var (
 	appCreateAskOneFn                     = survey.AskOne
 	resolveAppCreateSessionFn         any = resolveAppCreateSession
-	appCreateCanPromptInteractivelyFn     = appCreateCanPromptInteractively
+	appCreateCanPromptInteractivelyFn     = terminalPromptAvailable
 	appCreateCanPromptForFieldsFn         = appCreateCanPromptForFields
 )
 
 func callResolveAppCreateSessionFn(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
 	return callSessionResolverHook(ctx, resolveAppCreateSessionFn, "app create session resolver", appleID, password, twoFactorCode, twoFactorCodeCommand)
-}
-
-func appCreateCanPromptInteractively() bool {
-	if tty, err := openTTYFn(); err == nil {
-		_ = tty.Close()
-		return true
-	}
-	return termIsTerminalFn(int(os.Stdin.Fd()))
 }
 
 // The field wizard reads stdin and renders to stdout, so a reachable

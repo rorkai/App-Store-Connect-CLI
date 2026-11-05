@@ -112,6 +112,26 @@ func withSessionInfoStub(t *testing.T) {
 	})
 }
 
+func serializeCookieJar(jar http.CookieJar, userEmail string) persistedSession {
+	sess, _ := serializeCookieJarWithError(jar, userEmail)
+	return sess
+}
+
+func writeSessionToKeychain(key string, sess persistedSession) error {
+	return writeMergedSessionToKeychain(key, sess, nil)
+}
+
+func persistSessionBySelection(selection backendSelection, key string, sess persistedSession) error {
+	return withSessionEntryLock(key, func() error {
+		return persistSessionBySelectionLocked(selection, key, sess, nil)
+	})
+}
+
+func readLastSessionFromKeychain() (persistedSession, bool, error) {
+	sess, _, ok, err := readLastSessionFromKeychainWithKey()
+	return sess, ok, err
+}
+
 func TestResolveBackendSelectionDefaultsToFileWithKeychainFallback(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
 	t.Setenv(webSessionCacheEnabledEnv, "1")
@@ -2337,7 +2357,7 @@ func TestPersistedCookieScopeNormalizesLeadingDotDomain(t *testing.T) {
 	root := pCookie{Name: "token", Value: "same", Path: "/olympus", Domain: "appstoreconnect.apple.com"}
 	leadingDot := root
 	leadingDot.Domain = ".appstoreconnect.apple.com"
-	if !persistedCookieListHasScope([]pCookie{root}, leadingDot) {
+	if !samePersistedCookieScope(root, leadingDot) {
 		t.Fatal("equivalent leading-dot domain was treated as a distinct cookie scope")
 	}
 }

@@ -883,15 +883,6 @@ func samePersistedCookieStorageScope(origin *url.URL, a, b pCookie) bool {
 	return samePersistedCookieScope(a, b)
 }
 
-func persistedCookieListHasScope(cookies []pCookie, cookie pCookie) bool {
-	for _, existing := range cookies {
-		if samePersistedCookieScope(existing, cookie) {
-			return true
-		}
-	}
-	return false
-}
-
 func persistedCookieListHasUnknownIdentity(cookies []pCookie, cookie pCookie) bool {
 	for _, existing := range cookies {
 		if existing.Name == cookie.Name && existing.Value == cookie.Value &&
@@ -1150,11 +1141,6 @@ func narrowPersistedCookieDomains(current *persistedSession) {
 			delete(current.Cookies, origin)
 		}
 	}
-}
-
-func serializeCookieJar(jar http.CookieJar, userEmail string) persistedSession {
-	sess, _ := serializeCookieJarWithError(jar, userEmail)
-	return sess
 }
 
 func serializeCookieJarWithError(jar http.CookieJar, userEmail string) (persistedSession, error) {
@@ -1438,10 +1424,6 @@ func removeLegacyLastKeyFromKeyring(kr keyring.Keyring) error {
 		return err
 	}
 	return nil
-}
-
-func writeSessionToKeychain(key string, sess persistedSession) error {
-	return writeMergedSessionToKeychain(key, sess, nil)
 }
 
 func writeMergedSessionToKeychain(key string, sess persistedSession, merge func(stored persistedSession) persistedSession) error {
@@ -2044,17 +2026,6 @@ func readSessionCacheFile(path string) ([]byte, error) {
 	return readBoundedSessionCacheFile(file, path)
 }
 
-func persistSessionBySelection(selection backendSelection, key string, sess persistedSession) error {
-	if selection.backend == sessionBackendOff {
-		return nil
-	}
-	// Hold the entry lock so a concurrent conditional delete cannot compare a
-	// stamp before this write and delete the entry it produces.
-	return withSessionEntryLock(key, func() error {
-		return persistSessionBySelectionLocked(selection, key, sess, nil)
-	})
-}
-
 func persistSessionBySelectionLocked(selection backendSelection, key string, sess persistedSession, mergeKeychain func(stored persistedSession) persistedSession) error {
 	switch selection.backend {
 	case sessionBackendOff:
@@ -2356,11 +2327,6 @@ func readSessionBySelectionWithOrigin(selection backendSelection, key string) (p
 func readSessionFromFileIgnoringErrorsWithOrigin(key string) (persistedSession, sessionEntryOrigin, bool, error) {
 	sess, ok := readSessionFromFileIgnoringErrors(key)
 	return sess, sessionEntryOriginWhenFound(sessionEntryOriginFile, ok), ok, nil
-}
-
-func readLastSessionFromKeychain() (persistedSession, bool, error) {
-	sess, _, ok, err := readLastSessionFromKeychainWithKey()
-	return sess, ok, err
 }
 
 func readLastSessionFromKeychainWithKey() (persistedSession, string, bool, error) {

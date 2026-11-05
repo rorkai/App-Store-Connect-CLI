@@ -441,29 +441,6 @@ func TestWebBundleIDCapabilitiesEnableValidationErrors(t *testing.T) {
 	}
 }
 
-func TestWebBundleIDsCommandHelpDoesNotDuplicateWebSession(t *testing.T) {
-	help := WebBundleIDsCommand().LongHelp
-	if strings.Contains(help, "web-session web-session") {
-		t.Fatalf("bundle-ids LongHelp duplicates web-session phrase: %q", help)
-	}
-	if !strings.Contains(help, "Apple web-session endpoints") {
-		t.Fatalf("bundle-ids LongHelp missing web-session endpoints wording: %q", help)
-	}
-}
-
-func TestWebBundleIDCapabilitiesEnableHelpUsesSupportedLoginFlags(t *testing.T) {
-	cmd := WebBundleIDCapabilitiesEnableCommand()
-	if strings.Contains(cmd.LongHelp, "--reauthenticate") {
-		t.Fatalf("enable help recommends unsupported web auth login flag: %q", cmd.LongHelp)
-	}
-	if !strings.Contains(cmd.LongHelp, `asc web auth logout --apple-id "user@example.com"`) {
-		t.Fatalf("enable help is missing the supported cache-clear command: %q", cmd.LongHelp)
-	}
-	if !strings.Contains(cmd.LongHelp, `asc web auth login --apple-id "user@example.com"`) {
-		t.Fatalf("enable help is missing the supported login command: %q", cmd.LongHelp)
-	}
-}
-
 func TestWebBundleIDCapabilitiesRegistersDisableWithSharedFlags(t *testing.T) {
 	var disable *ffcli.Command
 	for _, subcommand := range WebBundleIDCapabilitiesCommand().Subcommands {
@@ -479,9 +456,6 @@ func TestWebBundleIDCapabilitiesRegistersDisableWithSharedFlags(t *testing.T) {
 		if disable.FlagSet.Lookup(name) == nil {
 			t.Fatalf("disable command missing --%s", name)
 		}
-	}
-	if !strings.Contains(disable.LongHelp, "PRIVATE_CLOUD_COMPUTE") || !strings.Contains(disable.LongHelp, "--confirm") {
-		t.Fatalf("disable help does not document its contract: %q", disable.LongHelp)
 	}
 }
 

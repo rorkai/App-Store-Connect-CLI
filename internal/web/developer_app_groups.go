@@ -1122,14 +1122,10 @@ func validateDeveloperPortalLegacyResponse(response developerPortalLegacyRespons
 // references that any destructive Bundle ID mutation has to PATCH back.
 //
 // Every App Group mutation replaces the complete bundleIdCapabilities
-// relationship, so a graph that cannot be read must abort before any write
-// rather than be rewritten as "no other capabilities". The Bundle ID detail
-// request explicitly selects bundleIdCapabilities and asks for the maximum
-// supported included count. A missing or links-only relationship therefore
-// cannot prove which capabilities belong to the Bundle ID and must abort. The
-// included array alone is not a completeness boundary: it has no independent
-// pagination metadata and a replacement PATCH built from a truncated array
-// could silently detach unrelated capabilities.
+// relationship, so a missing, links-only, or possibly truncated graph aborts
+// before any write rather than be rewritten as "no other capabilities". The
+// included array alone is not a completeness boundary: it has no pagination
+// metadata of its own.
 func developerBundleIDCapabilityReferencesForReplacement(current developerBundleIDResponse) ([]developerResource, error) {
 	rawRelationship, hasRelationship := current.Data.Relationships["bundleIdCapabilities"]
 	if !hasRelationship || developerRelationshipUnresolved(rawRelationship) {

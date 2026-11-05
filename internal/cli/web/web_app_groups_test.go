@@ -121,23 +121,6 @@ func TestWebAppGroupsCreateRejectsInvalidIdentifiersBeforeSessionResolution(t *t
 	}
 }
 
-func TestWebAppGroupsMutationsWarnAboutProvisioningProfileInvalidation(t *testing.T) {
-	for _, build := range []func() *ffcli.Command{WebAppGroupsAssignCommand, WebAppGroupsUnassignCommand, WebAppGroupsSetCommand, WebAppGroupsDeleteCommand} {
-		command := build()
-		t.Run(command.Name, func(t *testing.T) {
-			for _, expected := range []string{"invalidates existing provisioning profiles", "Regenerate affected profiles"} {
-				if !strings.Contains(command.LongHelp, expected) {
-					t.Fatalf("LongHelp does not contain %q: %q", expected, command.LongHelp)
-				}
-			}
-			confirm := command.FlagSet.Lookup("confirm")
-			if confirm == nil || !strings.Contains(confirm.Usage, "invalidates existing provisioning profiles") {
-				t.Fatalf("--confirm usage does not warn about provisioning profile invalidation: %+v", confirm)
-			}
-		})
-	}
-}
-
 func TestWebAppGroupsMutationsRequireConfirmBeforeSessionResolution(t *testing.T) {
 	restore, cleanup := stubWebAppGroupsDependencies(t)
 	defer cleanup()

@@ -236,83 +236,74 @@ func TestSetMedicalDeviceRegionRejectsIncompleteContactBeforePUT(t *testing.T) {
 	}
 }
 
-func TestSetMedicalDeviceRegionRejectsScalarContactRegionBeforePUT(t *testing.T) {
-	var putCalls int
-	fixture := handlertest.New(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements":
-			writeMedicalDeviceRegionRequirements(w)
-		case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements/req-123/forms":
-			writeMedicalDeviceRegionForm(w, `{"data":{"accountId":"account-123","contentId":"app-123","requirementId":"req-123","requirementName":"MEDICAL_DEVICE","formId":"form-123","medicalDeviceData":{"declaration":"yes","contactInformation":[{"legalEntityId":"entity-a","countriesOrRegions":"GBR","phone":"phone-a","email":"email-a","address":{"line":"address-a"}}],"registrationInfo":[{"countriesOrRegions":["GBR"],"declaration":"no"}]}},"constraints":{"$[*].countriesOrRegions":{"attributeName":"countriesOrRegions","options":[{"value":"GBR"}]}}}`)
-		case r.Method == http.MethodPut:
-			putCalls++
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprint(w, `{}`)
-		default:
-			fixture.Respond(w, "unexpected request: %s %s", r.Method, r.URL.String())
-			return
-		}
-	}))
-	defer server.Close()
-
-	_, err := testWebClient(server).SetMedicalDeviceRegion(
-		context.Background(), "account-123", "app-123", "GBR",
-		MedicalDeviceRegionOptions{
-			Declaration: true,
-			SupportInfo: []MedicalDeviceRegionSupportInfo{{
-				Locale:      "en-US",
-				Instruction: "https://example.invalid/ifu",
-				Statement:   "Use",
-				SafetyInfo:  "Safe",
-			}},
+func TestSetMedicalDeviceRegionRejectsInvalidFormBeforePUT(t *testing.T) {
+	declareYes := MedicalDeviceRegionOptions{
+		Declaration: true,
+		SupportInfo: []MedicalDeviceRegionSupportInfo{{
+			Locale:      "en-US",
+			Instruction: "https://example.invalid/ifu",
+			Statement:   "Use",
+			SafetyInfo:  "Safe",
+		}},
+	}
+	tests := []struct {
+		name    string
+		form    string
+		options MedicalDeviceRegionOptions
+		wantErr string
+	}{
+		{
+			name:    "scalar contact region",
+			form:    `{"data":{"accountId":"account-123","contentId":"app-123","requirementId":"req-123","requirementName":"MEDICAL_DEVICE","formId":"form-123","medicalDeviceData":{"declaration":"yes","contactInformation":[{"legalEntityId":"entity-a","countriesOrRegions":"GBR","phone":"phone-a","email":"email-a","address":{"line":"address-a"}}],"registrationInfo":[{"countriesOrRegions":["GBR"],"declaration":"no"}]}},"constraints":{"$[*].countriesOrRegions":{"attributeName":"countriesOrRegions","options":[{"value":"GBR"}]}}}`,
+			options: declareYes,
+			wantErr: "no complete contact coverage",
 		},
-	)
-	if err == nil || !strings.Contains(err.Error(), "no complete contact coverage") {
-		t.Errorf("SetMedicalDeviceRegion() error = %v, want scalar contact region rejection", err)
-	}
-	if putCalls != 0 {
-		t.Errorf("PUT calls = %d, want 0 for scalar contact region data", putCalls)
-	}
-}
-
-func TestSetMedicalDeviceRegionRejectsMissingConstraintContactBeforePUT(t *testing.T) {
-	var putCalls int
-	fixture := handlertest.New(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements":
-			writeMedicalDeviceRegionRequirements(w)
-		case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements/req-123/forms":
-			writeMedicalDeviceRegionForm(w, `{"data":{"accountId":"account-123","contentId":"app-123","requirementId":"req-123","requirementName":"MEDICAL_DEVICE","formId":"form-123","medicalDeviceData":{"declaration":"yes","contactInformation":[{"legalEntityId":"entity-a","countriesOrRegions":["GBR"],"phone":"phone-a","email":"email-a","address":{"line":"address-a"}}],"registrationInfo":[{"countriesOrRegions":["GBR"],"declaration":"no"}]}},"constraints":{"$[*].countriesOrRegions":{"attributeName":"countriesOrRegions","options":[{"value":"GBR"}]},"$[*].medicalDeviceData.contactInformation[1].legalEntityId":{"attributeName":"legalEntityId","required":true,"options":[{"value":"entity-b"}]},"$[*].medicalDeviceData.contactInformation[1].countriesOrRegions":{"attributeName":"countriesOrRegions","options":[{"listValues":["GBR"]}]},"$[*].medicalDeviceData.contactInformation[1].phone":{"attributeName":"phone","required":true,"options":[{"value":"phone-b"}]},"$[*].medicalDeviceData.contactInformation[1].email":{"attributeName":"email","required":true,"options":[{"value":"email-b"}]},"$[*].medicalDeviceData.contactInformation[1].address.addressLine1":{"attributeName":"address.addressLine1","required":true,"options":[{"value":"address-b"}]}}}`)
-		case r.Method == http.MethodPut:
-			putCalls++
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprint(w, `{}`)
-		default:
-			fixture.Respond(w, "unexpected request: %s %s", r.Method, r.URL.String())
-			return
-		}
-	}))
-	defer server.Close()
-
-	_, err := testWebClient(server).SetMedicalDeviceRegion(
-		context.Background(), "account-123", "app-123", "GBR",
-		MedicalDeviceRegionOptions{
-			Declaration: true,
-			SupportInfo: []MedicalDeviceRegionSupportInfo{{
-				Locale:      "en-US",
-				Instruction: "https://example.invalid/ifu",
-				Statement:   "Use",
-				SafetyInfo:  "Safe",
-			}},
+		{
+			name:    "missing constraint contact",
+			form:    `{"data":{"accountId":"account-123","contentId":"app-123","requirementId":"req-123","requirementName":"MEDICAL_DEVICE","formId":"form-123","medicalDeviceData":{"declaration":"yes","contactInformation":[{"legalEntityId":"entity-a","countriesOrRegions":["GBR"],"phone":"phone-a","email":"email-a","address":{"line":"address-a"}}],"registrationInfo":[{"countriesOrRegions":["GBR"],"declaration":"no"}]}},"constraints":{"$[*].countriesOrRegions":{"attributeName":"countriesOrRegions","options":[{"value":"GBR"}]},"$[*].medicalDeviceData.contactInformation[1].legalEntityId":{"attributeName":"legalEntityId","required":true,"options":[{"value":"entity-b"}]},"$[*].medicalDeviceData.contactInformation[1].countriesOrRegions":{"attributeName":"countriesOrRegions","options":[{"listValues":["GBR"]}]},"$[*].medicalDeviceData.contactInformation[1].phone":{"attributeName":"phone","required":true,"options":[{"value":"phone-b"}]},"$[*].medicalDeviceData.contactInformation[1].email":{"attributeName":"email","required":true,"options":[{"value":"email-b"}]},"$[*].medicalDeviceData.contactInformation[1].address.addressLine1":{"attributeName":"address.addressLine1","required":true,"options":[{"value":"address-b"}]}}}`,
+			options: declareYes,
+			wantErr: "form-defined contact candidate",
 		},
-	)
-	if err == nil || !strings.Contains(err.Error(), "form-defined contact candidate") {
-		t.Errorf("SetMedicalDeviceRegion() error = %v, want missing constraint contact error", err)
+		{
+			name:    "missing target row",
+			form:    `{"data":{"accountId":"account-123","contentId":"app-123","requirementId":"req-123","requirementName":"MEDICAL_DEVICE","formId":"form-123","medicalDeviceData":{"declaration":"yes","registrationInfo":[{"countriesOrRegions":["USA"],"declaration":"yes"}]}},"constraints":{"$[*].countriesOrRegions":{"attributeName":"countriesOrRegions","options":[{"value":"GBR"}]}}}`,
+			wantErr: "registrationInfo row",
+		},
+		{
+			name:    "malformed existing row",
+			form:    `{"data":{"accountId":"account-123","contentId":"app-123","requirementId":"req-123","requirementName":"MEDICAL_DEVICE","formId":"form-123","medicalDeviceData":{"declaration":"yes","registrationInfo":[{"countriesOrRegions":[],"declaration":"yes"},{"countriesOrRegions":["GBR"],"declaration":"yes"}]}},"constraints":{"$[*].countriesOrRegions":{"attributeName":"countriesOrRegions","options":[{"value":"GBR"}]}}}`,
+			wantErr: "without a country/region",
+		},
 	}
-	if putCalls != 0 {
-		t.Errorf("PUT calls = %d, want 0 when a constraint contact is missing", putCalls)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var putCalls int
+			fixture := handlertest.New(t)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements":
+					writeMedicalDeviceRegionRequirements(w)
+				case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements/req-123/forms":
+					writeMedicalDeviceRegionForm(w, tc.form)
+				case r.Method == http.MethodPut:
+					putCalls++
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = fmt.Fprint(w, `{}`)
+				default:
+					fixture.Respond(w, "unexpected request: %s %s", r.Method, r.URL.String())
+					return
+				}
+			}))
+			defer server.Close()
+
+			_, err := testWebClient(server).SetMedicalDeviceRegion(context.Background(), "account-123", "app-123", "GBR", tc.options)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("SetMedicalDeviceRegion() error = %v, want %q", err, tc.wantErr)
+			}
+			if putCalls != 0 {
+				t.Fatalf("PUT calls = %d, want 0", putCalls)
+			}
+		})
 	}
 }
 
@@ -548,68 +539,6 @@ func TestSetMedicalDeviceRegionRequiresTopLevelAvailabilityConstraint(t *testing
 				t.Errorf("PUT calls = %d, want 0 without top-level region availability", putCalls)
 			}
 		})
-	}
-}
-
-func TestSetMedicalDeviceRegionRequiresExistingTargetRow(t *testing.T) {
-	var putCalls int
-	fixture := handlertest.New(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements":
-			writeMedicalDeviceRegionRequirements(w)
-		case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements/req-123/forms":
-			writeMedicalDeviceRegionForm(w, `{"data":{"accountId":"account-123","contentId":"app-123","requirementId":"req-123","requirementName":"MEDICAL_DEVICE","formId":"form-123","medicalDeviceData":{"declaration":"yes","registrationInfo":[{"countriesOrRegions":["USA"],"declaration":"yes"}]}},"constraints":{"$[*].countriesOrRegions":{"attributeName":"countriesOrRegions","options":[{"value":"GBR"}]}}}`)
-		case r.Method == http.MethodPut:
-			putCalls++
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprint(w, `{}`)
-		default:
-			fixture.Respond(w, "unexpected request: %s %s", r.Method, r.URL.String())
-			return
-		}
-	}))
-	defer server.Close()
-
-	_, err := testWebClient(server).SetMedicalDeviceRegion(
-		context.Background(), "account-123", "app-123", "GBR", MedicalDeviceRegionOptions{},
-	)
-	if err == nil || !strings.Contains(err.Error(), "registrationInfo row") {
-		t.Fatalf("SetMedicalDeviceRegion() error = %v, want missing target-row error", err)
-	}
-	if putCalls != 0 {
-		t.Fatalf("PUT calls = %d, want 0", putCalls)
-	}
-}
-
-func TestSetMedicalDeviceRegionRejectsMalformedExistingRowBeforePUT(t *testing.T) {
-	var putCalls int
-	fixture := handlertest.New(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements":
-			writeMedicalDeviceRegionRequirements(w)
-		case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements/req-123/forms":
-			writeMedicalDeviceRegionForm(w, `{"data":{"accountId":"account-123","contentId":"app-123","requirementId":"req-123","requirementName":"MEDICAL_DEVICE","formId":"form-123","medicalDeviceData":{"declaration":"yes","registrationInfo":[{"countriesOrRegions":[],"declaration":"yes"},{"countriesOrRegions":["GBR"],"declaration":"yes"}]}},"constraints":{"$[*].countriesOrRegions":{"attributeName":"countriesOrRegions","options":[{"value":"GBR"}]}}}`)
-		case r.Method == http.MethodPut:
-			putCalls++
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprint(w, `{}`)
-		default:
-			fixture.Respond(w, "unexpected request: %s %s", r.Method, r.URL.String())
-			return
-		}
-	}))
-	defer server.Close()
-
-	_, err := testWebClient(server).SetMedicalDeviceRegion(
-		context.Background(), "account-123", "app-123", "GBR", MedicalDeviceRegionOptions{},
-	)
-	if err == nil || !strings.Contains(err.Error(), "without a country/region") {
-		t.Fatalf("SetMedicalDeviceRegion() error = %v, want malformed-row error", err)
-	}
-	if putCalls != 0 {
-		t.Fatalf("PUT calls = %d, want 0", putCalls)
 	}
 }
 

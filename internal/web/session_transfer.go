@@ -570,7 +570,7 @@ func OpenValidatedSessionBundle(ctx context.Context, bundle *SessionBundle) (*Au
 // validation only; use `asc web auth status` when live Apple validation is
 // needed. The imported session also becomes the last cached session.
 func ImportSessionBundle(bundle *SessionBundle) (SessionImportSummary, error) {
-	return importSessionBundleLocally(bundle, false)
+	return ImportSessionBundleWithOptions(bundle, false)
 }
 
 // ImportSessionBundleWithOptions imports a bundle and optionally permits
@@ -579,18 +579,6 @@ func ImportSessionBundle(bundle *SessionBundle) (SessionImportSummary, error) {
 // path; ordinary login and refresh writes must not erase other accounts. The
 // import itself performs local validation only; it does not contact Apple.
 func ImportSessionBundleWithOptions(bundle *SessionBundle, overwrite bool) (SessionImportSummary, error) {
-	return importSessionBundleLocally(bundle, overwrite)
-}
-
-// ImportSessionBundleWithContext retains the context-aware API for callers
-// compiled against the original transfer surface. Import is local-only, so
-// ctx is intentionally ignored; callers that need live validation should run
-// the status or resume workflow separately.
-func ImportSessionBundleWithContext(_ context.Context, bundle *SessionBundle, overwrite bool) (SessionImportSummary, error) {
-	return importSessionBundleLocally(bundle, overwrite)
-}
-
-func importSessionBundleLocally(bundle *SessionBundle, overwrite bool) (SessionImportSummary, error) {
 	if bundle == nil {
 		return SessionImportSummary{}, errors.New("web session bundle is empty")
 	}

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -164,35 +166,23 @@ func TestWebAppsDistributionViewRejectsPositionalArguments(t *testing.T) {
 	}
 }
 
-func TestWebAppsDistributionGroupIsRegisteredUnderWebApps(t *testing.T) {
-	group := WebAppsDistributionCommand()
-	if group.Name != "distribution" {
-		t.Fatalf("group name = %q, want distribution", group.Name)
-	}
-	if len(group.Subcommands) == 0 {
-		t.Fatal("expected distribution subcommands")
-	}
-
-	var hasDistribution bool
+func TestWebAppsRegistersDistributionAndHistory(t *testing.T) {
+	registered := map[string]*ffcli.Command{}
 	for _, sub := range WebAppsCommand().Subcommands {
-		if sub.Name == "distribution" {
-			hasDistribution = true
-		}
+		registered[sub.Name] = sub
 	}
-	if !hasDistribution {
+	if registered["history"] == nil {
+		t.Fatal("expected asc web apps history to be registered")
+	}
+	distribution := registered["distribution"]
+	if distribution == nil {
 		t.Fatal("expected asc web apps distribution to be registered")
 	}
-}
-
-func TestWebAppsDistributionGroupIncludesSetCommand(t *testing.T) {
-	group := WebAppsDistributionCommand()
-
-	for _, sub := range group.Subcommands {
+	for _, sub := range distribution.Subcommands {
 		if sub.Name == "set" {
 			return
 		}
 	}
-
 	t.Fatal("expected distribution set subcommand")
 }
 

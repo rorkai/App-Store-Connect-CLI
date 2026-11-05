@@ -696,77 +696,60 @@ func TestDisableDeveloperBundleIDCapabilityAllowsCompleteTargetRemoval(t *testin
 	}
 }
 
-func TestDisableDeveloperBundleIDCapabilityRejectsOmittedIncludedGraphAfterWrite(t *testing.T) {
-	requestCount := 0
-	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
-		case 2:
-			return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
-		case 3:
-			return developerPortalTestResponse(http.StatusOK, developerBundleResponse(true), nil), nil
-		case 4:
-			return developerPortalTestResponse(http.StatusOK, ``, nil), nil
-		case 5:
-			return developerPortalTestResponse(http.StatusOK, `{"data":{"id":"bundle-1","type":"bundleIds","attributes":{"name":"Example","identifier":"com.example.app"}}}`, nil), nil
-		default:
-			t.Fatalf("unexpected request %d: %s %s", requestCount, r.Method, r.URL.String())
-			return nil, nil
-		}
-	})
+func TestDisableDeveloperBundleIDCapabilityRejectsUnresolvableIncludedGraphAfterWrite(t *testing.T) {
+	tests := []struct {
+		name      string
+		readBack  string
+		wantError string
+	}{
+		{
+			name:      "omitted graph",
+			readBack:  `{"data":{"id":"bundle-1","type":"bundleIds","attributes":{"name":"Example","identifier":"com.example.app"}}}`,
+			wantError: "did not resolve",
+		},
+		{
+			name:      "malformed graph",
+			readBack:  `{"data":{"id":"bundle-1","type":"bundleIds","attributes":{"name":"Example","identifier":"com.example.app"},"relationships":{"bundleIdCapabilities":{"data":[{"type":"bundleIdCapabilities","id":"icloud-1"}]}}},"included":[{"type":"bundleIdCapabilities","id":"icloud-1","attributes":{"enabled":true}}]}`,
+			wantError: "missing capability relationship",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			requestCount := 0
+			client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+				requestCount++
+				switch requestCount {
+				case 1:
+					return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
+				case 2:
+					return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
+				case 3:
+					return developerPortalTestResponse(http.StatusOK, developerBundleResponse(true), nil), nil
+				case 4:
+					return developerPortalTestResponse(http.StatusOK, ``, nil), nil
+				case 5:
+					return developerPortalTestResponse(http.StatusOK, tc.readBack, nil), nil
+				default:
+					t.Fatalf("unexpected request %d: %s %s", requestCount, r.Method, r.URL.String())
+					return nil, nil
+				}
+			})
 
-	_, err := client.DisableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityDisableRequest{
-		BundleID:   "bundle-1",
-		Capability: "PRIVATE_CLOUD_COMPUTE",
-	})
-	var unverified *DeveloperBundleIDCapabilityUnverifiedError
-	if !errors.As(err, &unverified) {
-		t.Fatalf("error = %v, want unverified omitted-graph result", err)
-	}
-	if !strings.Contains(err.Error(), "did not resolve") {
-		t.Fatalf("error = %v, want unresolved ownership diagnostic", err)
-	}
-	if requestCount != 5 {
-		t.Fatalf("request count = %d, want 5", requestCount)
-	}
-}
-
-func TestDisableDeveloperBundleIDCapabilityRejectsMalformedIncludedGraphAfterWrite(t *testing.T) {
-	requestCount := 0
-	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
-		case 2:
-			return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
-		case 3:
-			return developerPortalTestResponse(http.StatusOK, developerBundleResponse(true), nil), nil
-		case 4:
-			return developerPortalTestResponse(http.StatusOK, ``, nil), nil
-		case 5:
-			return developerPortalTestResponse(http.StatusOK, `{"data":{"id":"bundle-1","type":"bundleIds","attributes":{"name":"Example","identifier":"com.example.app"},"relationships":{"bundleIdCapabilities":{"data":[{"type":"bundleIdCapabilities","id":"icloud-1"}]}}},"included":[{"type":"bundleIdCapabilities","id":"icloud-1","attributes":{"enabled":true}}]}`, nil), nil
-		default:
-			t.Fatalf("unexpected request %d: %s %s", requestCount, r.Method, r.URL.String())
-			return nil, nil
-		}
-	})
-
-	_, err := client.DisableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityDisableRequest{
-		BundleID:   "bundle-1",
-		Capability: "PRIVATE_CLOUD_COMPUTE",
-	})
-	var unverified *DeveloperBundleIDCapabilityUnverifiedError
-	if !errors.As(err, &unverified) {
-		t.Fatalf("error = %v, want unverified malformed-graph result", err)
-	}
-	if !strings.Contains(err.Error(), "missing capability relationship") {
-		t.Fatalf("error = %v, want malformed included-data diagnostic", err)
-	}
-	if requestCount != 5 {
-		t.Fatalf("request count = %d, want 5", requestCount)
+			_, err := client.DisableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityDisableRequest{
+				BundleID:   "bundle-1",
+				Capability: "PRIVATE_CLOUD_COMPUTE",
+			})
+			var unverified *DeveloperBundleIDCapabilityUnverifiedError
+			if !errors.As(err, &unverified) {
+				t.Fatalf("error = %v, want unverified result", err)
+			}
+			if !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("error = %v, want %q", err, tc.wantError)
+			}
+			if requestCount != 5 {
+				t.Fatalf("request count = %d, want 5", requestCount)
+			}
+		})
 	}
 }
 

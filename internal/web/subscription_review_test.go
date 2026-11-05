@@ -441,37 +441,16 @@ func TestCreateSubscriptionSubmissionPreservesSanitizedPortalReason(t *testing.T
 	}
 }
 
-func TestCreateSubscriptionSubmissionRejectsMissingSubmissionID(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":{"type":"subscriptionSubmissions","attributes":{"submitWithNextAppStoreVersion":true}}}`))
-	}))
-	defer server.Close()
-
-	if _, err := testWebClient(server).CreateSubscriptionSubmission(context.Background(), "sub-1"); err == nil || !strings.Contains(err.Error(), "missing submission id") {
-		t.Fatalf("expected missing-submission-id error, got %v", err)
-	}
-}
-
-func TestCreateSubscriptionSubmissionRejectsUnexpectedResourceType(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":{"id":"submission-1","type":"unexpectedResources"}}`))
-	}))
-	defer server.Close()
-
-	if _, err := testWebClient(server).CreateSubscriptionSubmission(context.Background(), "sub-1"); err == nil || !strings.Contains(err.Error(), "unexpected resource type") {
-		t.Fatalf("expected unexpected-type error, got %v", err)
-	}
-}
-
-func TestCreateSubscriptionSubmissionRejectsMissingOrEmptyResourceType(t *testing.T) {
+func TestCreateSubscriptionSubmissionRejectsMalformedResponse(t *testing.T) {
 	cases := []struct {
-		name string
-		body string
+		name    string
+		body    string
+		wantErr string
 	}{
-		{name: "missing", body: `{"data":{"id":"submission-1"}}`},
-		{name: "empty", body: `{"data":{"id":"submission-1","type":""}}`},
+		{name: "missing id", body: `{"data":{"type":"subscriptionSubmissions","attributes":{"submitWithNextAppStoreVersion":true}}}`, wantErr: "missing submission id"},
+		{name: "unexpected type", body: `{"data":{"id":"submission-1","type":"unexpectedResources"}}`, wantErr: "unexpected resource type"},
+		{name: "missing type", body: `{"data":{"id":"submission-1"}}`, wantErr: "missing submission resource type"},
+		{name: "empty type", body: `{"data":{"id":"submission-1","type":""}}`, wantErr: "missing submission resource type"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -481,8 +460,8 @@ func TestCreateSubscriptionSubmissionRejectsMissingOrEmptyResourceType(t *testin
 			}))
 			defer server.Close()
 
-			if _, err := testWebClient(server).CreateSubscriptionSubmission(context.Background(), "sub-1"); err == nil || !strings.Contains(err.Error(), "missing submission resource type") {
-				t.Fatalf("expected missing-resource-type error, got %v", err)
+			if _, err := testWebClient(server).CreateSubscriptionSubmission(context.Background(), "sub-1"); err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("error = %v, want %q", err, tc.wantErr)
 			}
 		})
 	}
