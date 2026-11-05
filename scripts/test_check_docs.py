@@ -1447,8 +1447,7 @@ class HookChecksTest(unittest.TestCase):
                 self.assertNotIn("make format-check", calls)
 
     def test_website_and_wall_fast_paths_remain_separate(self) -> None:
-        for path, expected in [("index.mdx", "make check-website-docs"),
-                               (".mintlify/config.json", "make check-website-docs"),
+        for path, expected in [("website/src/content/docs/index.mdx", "make check-website-docs"),
                                ("website/astro.config.mjs", "make check-website-docs"),
                                ("docs/wall-of-apps.json", "make check-wall-of-apps")]:
             with self.subTest(path=path):

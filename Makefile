@@ -277,7 +277,7 @@ check-repo-docs:
 
 .PHONY: check-website-docs
 check-website-docs:
-	@echo "$(BLUE)Checking Mintlify website docs...$(NC)"
+	@echo "$(BLUE)Checking website docs...$(NC)"
 	python3 ./scripts/check_website_docs.py
 	python3 ./scripts/check_website_commands.py
 
@@ -380,7 +380,7 @@ help:
 	@echo "  generate-command-docs Generate docs/COMMANDS.md from live CLI help"
 	@echo "  check-command-docs Validate docs command lists against live CLI help"
 	@echo "  check-repo-docs Validate local links in repository markdown docs"
-	@echo "  check-website-docs Validate Mintlify website navigation, links, and CLI examples"
+	@echo "  check-website-docs Validate website navigation, links, and CLI examples"
 	@echo "  check-agent-skills Validate repository-scoped Codex skills"
 	@echo "  check-openapi  Validate generated OpenAPI indexes"
 	@echo "  check-docs     Run all documentation checks"

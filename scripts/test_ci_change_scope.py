@@ -44,10 +44,10 @@ class ChangeScopeTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(ci_change_scope.classify([path]), "full")
 
-    def test_mintlify_content_uses_website_scope(self) -> None:
+    def test_website_content_uses_website_scope(self) -> None:
         self.assertEqual(
             ci_change_scope.classify(
-                ["docs.json", "guides/getting-started.mdx", "website/astro.config.mjs"]
+                ["website/navigation.json", "website/src/content/docs/guides/testflight.mdx"]
             ),
             "website",
         )
@@ -59,7 +59,7 @@ class ChangeScopeTest(unittest.TestCase):
         )
         self.assertEqual(
             ci_change_scope.classify(
-                ["internal/telemetry/client.go", "commands/telemetry.mdx"]
+                ["internal/telemetry/client.go", "website/src/content/docs/commands/telemetry.mdx"]
             ),
             "full",
         )
@@ -110,7 +110,7 @@ class ChangeScopeTest(unittest.TestCase):
                 self.assertEqual(ci_change_scope.classify([path]), "full")
 
     def test_dedicated_workflow_impact_matches_owned_paths(self) -> None:
-        self.assertTrue(ci_change_scope.affects_website(["guides/testflight.mdx"]))
+        self.assertTrue(ci_change_scope.affects_website(["website/src/content/docs/guides/testflight.mdx"]))
         self.assertFalse(ci_change_scope.affects_website(["docs/TESTING.md"]))
 
 

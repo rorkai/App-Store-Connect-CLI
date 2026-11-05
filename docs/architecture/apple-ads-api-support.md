@@ -879,7 +879,7 @@ Updated:
 - `commands/ads.mdx`
 - `authentication.mdx` with Apple Ads auth subsection
 - `configuration/environment-variables.mdx` with `ASC_ADS_*` variables
-- `docs.json` navigation for the new command page
+- `website/navigation.json` sidebar entry for the new command page
 - `docs/COMMANDS.md` via `make generate-command-docs`
 - `README.md` feature list
 

@@ -20,7 +20,7 @@ scope:
 | --- | --- |
 | Wall source only | Wall source validation |
 | Repository documentation only | Formatting and documentation validation |
-| Mintlify website content only | Dedicated website validator workflow |
+| Website content only | Dedicated website validator workflow |
 | Telemetry runtime package only | Formatting, targeted Linux and Windows tests, and Linux/macOS `go build .` |
 | Any general, mixed, or unknown change | Full required suite and native platform builds |
 
