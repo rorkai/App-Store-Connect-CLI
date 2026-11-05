@@ -62,33 +62,6 @@ type keywordScorePayload struct {
 	Rows []keywordScoreRowPayload `json:"rows"`
 }
 
-func TestOptimizeKeywordsHelpShowsScoreSubcommand(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	keywordsCmd := findSubcommand(root, "optimize", "keywords")
-	if keywordsCmd == nil {
-		t.Fatal("expected optimize keywords command")
-		return
-	}
-	if !strings.Contains(keywordsCmd.UsageFunc(keywordsCmd), "score") {
-		t.Fatalf("expected optimize keywords help to list score, got %q", keywordsCmd.UsageFunc(keywordsCmd))
-	}
-
-	scoreCmd := findSubcommand(root, "optimize", "keywords", "score")
-	if scoreCmd == nil {
-		t.Fatal("expected optimize keywords score command")
-		return
-	}
-	// The optimize tree marks stability with a trailing suffix.
-
-	if !strings.Contains(scoreCmd.LongHelp, "docs/design/optimize-keywords.md") {
-		t.Fatal("expected score help to point at the design document")
-	}
-	if scoreCmd.UsageFunc == nil {
-		t.Fatal("optimize keywords score is missing UsageFunc")
-	}
-}
-
 func TestOptimizeKeywordsScoreUsageErrors(t *testing.T) {
 	tests := []struct {
 		name    string

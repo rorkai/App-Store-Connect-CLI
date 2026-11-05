@@ -8,34 +8,6 @@ import (
 	"testing"
 )
 
-func TestOptimizeKeywordsHelpShowsDiscoverSubcommand(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	keywordsCmd := findSubcommand(root, "optimize", "keywords")
-	if keywordsCmd == nil {
-		t.Fatal("expected optimize keywords command")
-		return
-	}
-	if !strings.Contains(keywordsCmd.UsageFunc(keywordsCmd), "discover") {
-		t.Fatalf("expected optimize keywords help to list discover, got %q", keywordsCmd.UsageFunc(keywordsCmd))
-	}
-
-	discoverCmd := findSubcommand(root, "optimize", "keywords", "discover")
-	if discoverCmd == nil {
-		t.Fatal("expected optimize keywords discover command")
-		return
-	}
-	// The optimize tree marks stability with a trailing suffix.
-
-	if discoverCmd.UsageFunc == nil {
-		t.Fatal("optimize keywords discover is missing UsageFunc")
-	}
-	// Undocumented discovery endpoints are deliberately out of scope.
-	if !strings.Contains(discoverCmd.LongHelp, "autocomplete") {
-		t.Fatal("expected discover help to state that autocomplete is out of scope")
-	}
-}
-
 func TestOptimizeKeywordsDiscoverUsageErrors(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -398,78 +398,56 @@ func TestPricingAvailabilityRemoveFromSaleRequiresAllPlatformsWhenMultiplePlatfo
 }
 
 func TestPricingAvailabilityRemoveFromSaleFailsClosedWhenPlatformsCannotBeVerified(t *testing.T) {
-	setupAuth(t)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	tests := []struct {
+		name     string
+		response func() *http.Response
+		wantErr  []string
+	}{
+		{
+			name: "platform lookup fails",
+			response: func() *http.Response {
+				return jsonHTTPResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden"}]}`)
+			},
+			wantErr: []string{"could not verify live platform listings", "--all-platforms", "Forbidden"},
+		},
+		{
+			name:     "platform state is unknown",
+			response: unknownPlatformStateAppStoreVersionsResponse,
+			wantErr:  []string{"could not verify live platform listings", "FUTURE_SALE_STATE", "--all-platforms"},
+		},
+	}
 
-	var requests atomic.Int32
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(1)
-		if req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions" {
-			return jsonHTTPResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden"}]}`), nil
-		}
-		return nil, fmt.Errorf("unexpected request after failed platform verification: %s %s", req.Method, req.URL.String())
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"pricing", "availability", "remove-from-sale", "--app", "app-1", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected platform verification failure")
-		}
-		for _, want := range []string{"could not verify live platform listings", "--all-platforms", "Forbidden"} {
-			if !strings.Contains(err.Error(), want) {
-				t.Fatalf("error missing %q: %v", want, err)
+			var requests atomic.Int32
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests.Add(1)
+				if req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions" {
+					return test.response(), nil
+				}
+				return nil, fmt.Errorf("unexpected request after failed platform verification: %s %s", req.Method, req.URL.String())
+			})
+
+			stdout, _, err := runRootCommand(t, []string{"pricing", "availability", "remove-from-sale", "--app", "app-1", "--confirm"})
+			if err == nil {
+				t.Fatal("expected platform verification failure")
 			}
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("expected no stdout before mutation, got %q", stdout)
-	}
-	if got := requests.Load(); got != 1 {
-		t.Fatalf("request count = %d, want only the failed platform lookup", got)
-	}
-}
-
-func TestPricingAvailabilityRemoveFromSaleFailsClosedWhenPlatformStateIsUnverifiable(t *testing.T) {
-	setupAuth(t)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	var requests atomic.Int32
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(1)
-		if req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions" {
-			return unknownPlatformStateAppStoreVersionsResponse(), nil
-		}
-		return nil, fmt.Errorf("unexpected request after failed platform state verification: %s %s", req.Method, req.URL.String())
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"pricing", "availability", "remove-from-sale", "--app", "app-1", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected unverifiable platform state failure")
-		}
-		for _, want := range []string{"could not verify live platform listings", "FUTURE_SALE_STATE", "--all-platforms"} {
-			if !strings.Contains(err.Error(), want) {
-				t.Fatalf("error missing %q: %v", want, err)
+			for _, want := range test.wantErr {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("error missing %q: %v", want, err)
+				}
 			}
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("expected no stdout before mutation, got %q", stdout)
-	}
-	if got := requests.Load(); got != 1 {
-		t.Fatalf("request count = %d, want only the platform lookup", got)
+			if stdout != "" {
+				t.Fatalf("expected no stdout before mutation, got %q", stdout)
+			}
+			if got := requests.Load(); got != 1 {
+				t.Fatalf("request count = %d, want only the platform lookup", got)
+			}
+		})
 	}
 }
 

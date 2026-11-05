@@ -102,20 +102,38 @@ func TestCustomPagesListEmitsQuerySurface(t *testing.T) {
 	}
 }
 
-func TestCustomPagesListRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
-	const nextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appCustomProductPages?cursor=next"
+func TestCustomPagesListRejectsInvalidQueryFlagsBeforeAuth(t *testing.T) {
+	next := []string{"--next", "https://api.appstoreconnect.apple.com/v1/apps/app-1/appCustomProductPages?cursor=next"}
+	app := []string{"--app", "app-1"}
 	tests := []struct {
 		name string
+		base []string
 		args []string
 		want string
 	}{
-		{name: "visible", args: []string{"--visible", "true"}, want: "--next cannot be combined with --visible"},
-		{name: "fields", args: []string{"--fields", "name"}, want: "--next cannot be combined with --fields"},
-		{name: "app fields", args: []string{"--app-fields", "name"}, want: "--next cannot be combined with --app-fields"},
-		{name: "version fields", args: []string{"--version-fields", "version"}, want: "--next cannot be combined with --version-fields"},
-		{name: "include", args: []string{"--include", "app"}, want: "--next cannot be combined with --include"},
-		{name: "versions limit", args: []string{"--versions-limit", "10"}, want: "--next cannot be combined with --versions-limit"},
-		{name: "limit", args: []string{"--limit", "10"}, want: "--next cannot be combined with --limit"},
+		{name: "next with visible", base: next, args: []string{"--visible", "true"}, want: "--next cannot be combined with --visible"},
+		{name: "next with fields", base: next, args: []string{"--fields", "name"}, want: "--next cannot be combined with --fields"},
+		{name: "next with app fields", base: next, args: []string{"--app-fields", "name"}, want: "--next cannot be combined with --app-fields"},
+		{name: "next with version fields", base: next, args: []string{"--version-fields", "version"}, want: "--next cannot be combined with --version-fields"},
+		{name: "next with include", base: next, args: []string{"--include", "app"}, want: "--next cannot be combined with --include"},
+		{name: "next with versions limit", base: next, args: []string{"--versions-limit", "10"}, want: "--next cannot be combined with --versions-limit"},
+		{name: "visible", base: app, args: []string{"--visible", "maybe"}, want: "--visible must be true or false"},
+		{name: "page fields", base: app, args: []string{"--fields", "name,invalid"}, want: "--fields must be one of"},
+		{name: "app fields", base: app, args: []string{"--app-fields", "invalid"}, want: "--app-fields must be one of"},
+		{name: "version fields", base: app, args: []string{"--version-fields", "invalid"}, want: "--version-fields must be one of"},
+		{name: "include", base: app, args: []string{"--include", "invalid"}, want: "--include must be one of"},
+		{name: "versions limit explicitly zero", base: app, args: []string{"--versions-limit", "0"}, want: "--versions-limit must be between 1 and 50"},
+		{name: "versions limit", base: app, args: []string{"--versions-limit", "51"}, want: "--versions-limit must be between 1 and 50"},
+		{name: "visible empty", base: app, args: []string{"--visible", ""}, want: "--visible must not be empty"},
+		{name: "visible delimiters", base: app, args: []string{"--visible", ","}, want: "--visible must not be empty"},
+		{name: "fields empty", base: app, args: []string{"--fields", ""}, want: "--fields must not be empty"},
+		{name: "fields delimiters", base: app, args: []string{"--fields", ","}, want: "--fields must not be empty"},
+		{name: "app fields whitespace", base: app, args: []string{"--app-fields", " \t"}, want: "--app-fields must not be empty"},
+		{name: "app fields delimiters", base: app, args: []string{"--app-fields", ","}, want: "--app-fields must not be empty"},
+		{name: "version fields empty", base: app, args: []string{"--version-fields", ""}, want: "--version-fields must not be empty"},
+		{name: "version fields delimiters", base: app, args: []string{"--version-fields", ","}, want: "--version-fields must not be empty"},
+		{name: "include whitespace", base: app, args: []string{"--include", " \t"}, want: "--include must not be empty"},
+		{name: "include delimiters", base: app, args: []string{"--include", ","}, want: "--include must not be empty"},
 	}
 
 	for _, test := range tests {
@@ -127,79 +145,10 @@ func TestCustomPagesListRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 			})
 			defer restore()
 
-			args := append([]string{"product-pages", "custom-pages", "list", "--next", nextURL}, test.args...)
-			assertUsageExit(t, args, "custom-pages list: "+test.want)
-			if clientFactoryCalled {
-				t.Fatal("client factory ran before --next conflict validation")
-			}
-		})
-	}
-}
-
-func TestCustomPagesListRejectsInvalidQueryValuesBeforeAuth(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{name: "visible", args: []string{"--visible", "maybe"}, want: "--visible must be true or false"},
-		{name: "page fields", args: []string{"--fields", "name,invalid"}, want: "--fields must be one of"},
-		{name: "app fields", args: []string{"--app-fields", "invalid"}, want: "--app-fields must be one of"},
-		{name: "version fields", args: []string{"--version-fields", "invalid"}, want: "--version-fields must be one of"},
-		{name: "include", args: []string{"--include", "invalid"}, want: "--include must be one of"},
-		{name: "versions limit explicitly zero", args: []string{"--versions-limit", "0"}, want: "--versions-limit must be between 1 and 50"},
-		{name: "versions limit", args: []string{"--versions-limit", "51"}, want: "--versions-limit must be between 1 and 50"},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-				clientFactoryCalled = true
-				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
-
-			args := append([]string{"product-pages", "custom-pages", "list", "--app", "app-1"}, test.args...)
+			args := append(append([]string{"product-pages", "custom-pages", "list"}, test.base...), test.args...)
 			assertUsageExit(t, args, "custom-pages list: "+test.want)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before query validation")
-			}
-		})
-	}
-}
-
-func TestCustomPagesListRejectsExplicitEmptyQueryFlagsBeforeAuth(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{name: "visible empty", args: []string{"--visible", ""}, want: "--visible must not be empty"},
-		{name: "visible delimiters", args: []string{"--visible", ","}, want: "--visible must not be empty"},
-		{name: "fields empty", args: []string{"--fields", ""}, want: "--fields must not be empty"},
-		{name: "fields delimiters", args: []string{"--fields", ","}, want: "--fields must not be empty"},
-		{name: "app fields whitespace", args: []string{"--app-fields", " \t"}, want: "--app-fields must not be empty"},
-		{name: "app fields delimiters", args: []string{"--app-fields", ","}, want: "--app-fields must not be empty"},
-		{name: "version fields empty", args: []string{"--version-fields", ""}, want: "--version-fields must not be empty"},
-		{name: "version fields delimiters", args: []string{"--version-fields", ","}, want: "--version-fields must not be empty"},
-		{name: "include whitespace", args: []string{"--include", " \t"}, want: "--include must not be empty"},
-		{name: "include delimiters", args: []string{"--include", ","}, want: "--include must not be empty"},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-				clientFactoryCalled = true
-				return nil, errors.New("client factory must not run during empty-value validation")
-			})
-			defer restore()
-
-			args := append([]string{"product-pages", "custom-pages", "list", "--app", "app-1"}, test.args...)
-			assertUsageExit(t, args, "custom-pages list: "+test.want)
-			if clientFactoryCalled {
-				t.Fatal("client factory ran before empty-value validation")
 			}
 		})
 	}
@@ -278,58 +227,39 @@ func TestCustomPagesListRelationshipFlagsRequireIncludes(t *testing.T) {
 	}
 }
 
-func TestCustomPagesListAllowsNextWithoutApp(t *testing.T) {
-	const nextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appCustomProductPages?cursor=next"
-	installCustomPagesQueryTestClient(t, func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path != "/v1/apps/app-1/appCustomProductPages" || req.URL.Query().Get("cursor") != "next" {
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"data":[{"type":"appCustomProductPages","id":"page-next"}],"links":{"next":""}}`)
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"product-pages", "custom-pages", "list", "--next", nextURL, "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
+func TestCustomPagesListAllowsNextWithOrWithoutApp(t *testing.T) {
+	tests := []struct {
+		name     string
+		appArgs  []string
+		rawQuery string
+	}{
+		{name: "without app", rawQuery: "cursor=next"},
+		{name: "with app keeps the opaque next query", appArgs: []string{"--app", "app-compat"}, rawQuery: "cursor=opaque%2Btoken&limit=17"},
 	}
-	if !strings.Contains(stdout, `"id":"page-next"`) {
-		t.Fatalf("stdout = %q, want page-next", stdout)
-	}
-}
 
-func TestCustomPagesListAllowsNextWithApp(t *testing.T) {
-	const nextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appCustomProductPages?cursor=opaque%2Btoken&limit=17"
-	installCustomPagesQueryTestClient(t, func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path != "/v1/apps/app-1/appCustomProductPages" || req.URL.RawQuery != "cursor=opaque%2Btoken&limit=17" {
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"data":[{"type":"appCustomProductPages","id":"page-opaque"}],"links":{"next":""}}`)
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			nextURL := "https://api.appstoreconnect.apple.com/v1/apps/app-1/appCustomProductPages?" + test.rawQuery
+			installCustomPagesQueryTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+				if req.URL.Path != "/v1/apps/app-1/appCustomProductPages" || req.URL.RawQuery != test.rawQuery {
+					t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"data":[{"type":"appCustomProductPages","id":"page-next"}],"links":{"next":""}}`)
+			})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"product-pages", "custom-pages", "list", "--app", "app-compat", "--next", nextURL, "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"page-opaque"`) {
-		t.Fatalf("stdout = %q, want page-opaque", stdout)
+			args := append([]string{"product-pages", "custom-pages", "list"}, test.appArgs...)
+			args = append(args, "--next", nextURL, "--output", "json")
+			stdout, stderr, runErr := runRootCommand(t, args)
+			if runErr != nil {
+				t.Fatalf("run error: %v", runErr)
+			}
+			if stderr != "" {
+				t.Fatalf("stderr = %q, want empty", stderr)
+			}
+			if !strings.Contains(stdout, `"id":"page-next"`) {
+				t.Fatalf("stdout = %q, want page-next", stdout)
+			}
+		})
 	}
 }

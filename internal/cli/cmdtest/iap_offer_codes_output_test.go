@@ -436,27 +436,20 @@ func TestIAPOfferCodesCreateFallsBackToNumericIDAfterLookupTimeout(t *testing.T)
 	}
 }
 
-func TestIAPOfferCodesListRejectsInvalidNextURL(t *testing.T) {
-	assertUsageExitCode(
-		t,
-		[]string{
-			"iap", "offer-codes", "list",
-			"--next", "https://example.com/v2/inAppPurchases/9000000001/offerCodes?cursor=AQ",
-		},
-		"iap offer-codes list: --next must be an App Store Connect URL",
-	)
-}
-
-// TestIAPOfferCodesListRejectsMalformedNextURL asserts the usage contract for
-// the two rejection shapes shared.ValidateNextURL produces. Both print the
-// diagnostic and exit 2; they previously returned a plain fmt.Errorf and left
-// stderr empty.
+// TestIAPOfferCodesListRejectsMalformedNextURL asserts the usage contract
+// (diagnostic on stderr, exit 2) for the rejections shared.ValidateNextURL
+// produces.
 func TestIAPOfferCodesListRejectsMalformedNextURL(t *testing.T) {
 	tests := []struct {
 		name    string
 		next    string
 		wantErr string
 	}{
+		{
+			name:    "foreign host",
+			next:    "https://example.com/v2/inAppPurchases/9000000001/offerCodes?cursor=AQ",
+			wantErr: "iap offer-codes list: --next must be an App Store Connect URL",
+		},
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v2/inAppPurchases/9000000001/offerCodes?cursor=AQ",

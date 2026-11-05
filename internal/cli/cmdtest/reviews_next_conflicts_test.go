@@ -1,12 +1,10 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -115,134 +113,79 @@ func TestReviewContinuationsRejectServerQueryFlagsBeforeAuth(t *testing.T) {
 	}
 }
 
-func TestReviewAttachmentsListHelpDocumentsNextAlternative(t *testing.T) {
-	cmd := findCommandByPath(t, "review", "attachments-list")
-	usage := cmd.FlagSet.Lookup("review-detail").Usage
-	if !strings.Contains(usage, "unless --next") {
-		t.Fatalf("--review-detail usage = %q, want --next alternative", usage)
+func TestReviewPaginationFollowsServerNextURL(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		args       []string
+		resource   string
+		firstQuery map[string]string
+	}{
+		{
+			name:       "reviews summarizations",
+			path:       "/v1/apps/app-1/customerReviewSummarizations",
+			args:       []string{"reviews", "summarizations", "--app", "app-1", "--platform", "IOS"},
+			resource:   "customerReviewSummarizations",
+			firstQuery: map[string]string{"filter[platform]": "IOS", "limit": "200"},
+		},
+		{
+			name:       "review attachments-list",
+			path:       "/v1/appStoreReviewDetails/detail-1/appStoreReviewAttachments",
+			args:       []string{"review", "attachments-list", "--review-detail", "detail-1"},
+			resource:   "appStoreReviewAttachments",
+			firstQuery: map[string]string{"limit": "200"},
+		},
 	}
-}
 
-func TestReviewsSummarizationsPaginationFollowsNextWithoutInitialSelectors(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	const nextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/customerReviewSummarizations?cursor=next"
-	requestCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		requestCount++
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/customerReviewSummarizations" {
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-			http.Error(w, "unexpected request", http.StatusBadRequest)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		switch requestCount {
-		case 1:
-			if got := req.URL.Query().Get("filter[platform]"); got != "IOS" {
-				t.Errorf("first request platform = %q, want IOS", got)
+			nextURL := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=next"
+			requestCount := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				requestCount++
+				if req.Method != http.MethodGet || req.URL.Path != test.path {
+					t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				switch requestCount {
+				case 1:
+					for key, want := range test.firstQuery {
+						if got := req.URL.Query().Get(key); got != want {
+							t.Errorf("first request %s = %q, want %q", key, got, want)
+						}
+					}
+					_, _ = io.WriteString(w, `{"data":[{"type":"`+test.resource+`","id":"item-1"}],"links":{"next":"`+nextURL+`"}}`)
+				case 2:
+					if got := req.URL.Query().Get("cursor"); got != "next" {
+						t.Errorf("second request cursor = %q, want next", got)
+					}
+					_, _ = io.WriteString(w, `{"data":[{"type":"`+test.resource+`","id":"item-2"}],"links":{"next":""}}`)
+				default:
+					t.Errorf("unexpected request count %d", requestCount)
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+				}
+			}))
+			t.Cleanup(server.Close)
+			installDefaultTransport(t, serverRoundTripper(t, server))
+
+			stdout, stderr, runErr := runRootCommand(t, append(test.args, "--paginate", "--output", "json"))
+			if runErr != nil {
+				t.Fatalf("run error: %v", runErr)
 			}
-			if got := req.URL.Query().Get("limit"); got != "200" {
-				t.Errorf("first request limit = %q, want 200", got)
+			if stderr != "" {
+				t.Fatalf("stderr = %q, want empty", stderr)
 			}
-			_, _ = io.WriteString(w, `{"data":[{"type":"customerReviewSummarizations","id":"summary-1"}],"links":{"next":"`+nextURL+`"}}`)
-		case 2:
-			if got := req.URL.Query().Get("cursor"); got != "next" {
-				t.Errorf("second request cursor = %q, want next", got)
+			if !strings.Contains(stdout, `"id":"item-1"`) || !strings.Contains(stdout, `"id":"item-2"`) {
+				t.Fatalf("stdout = %q, want both pages", stdout)
 			}
-			_, _ = io.WriteString(w, `{"data":[{"type":"customerReviewSummarizations","id":"summary-2"}],"links":{"next":""}}`)
-		default:
-			t.Errorf("unexpected request count %d", requestCount)
-			http.Error(w, "unexpected request", http.StatusBadRequest)
-		}
-	}))
-	t.Cleanup(server.Close)
-	installReviewNextTestTransport(t, server)
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"reviews", "summarizations", "--app", "app-1", "--platform", "IOS", "--paginate", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"summary-1"`) || !strings.Contains(stdout, `"id":"summary-2"`) {
-		t.Fatalf("stdout = %q, want both pages", stdout)
-	}
-	if requestCount != 2 {
-		t.Fatalf("request count = %d, want 2", requestCount)
-	}
-}
-
-func TestReviewAttachmentsPaginationFollowsNextWithoutInitialSelector(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	const nextURL = "https://api.appstoreconnect.apple.com/v1/appStoreReviewDetails/detail-1/appStoreReviewAttachments?cursor=next"
-	requestCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		requestCount++
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreReviewDetails/detail-1/appStoreReviewAttachments" {
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-			http.Error(w, "unexpected request", http.StatusBadRequest)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		switch requestCount {
-		case 1:
-			if got := req.URL.Query().Get("limit"); got != "200" {
-				t.Errorf("first request limit = %q, want 200", got)
+			if requestCount != 2 {
+				t.Fatalf("request count = %d, want 2", requestCount)
 			}
-			_, _ = io.WriteString(w, `{"data":[{"type":"appStoreReviewAttachments","id":"attachment-1"}],"links":{"next":"`+nextURL+`"}}`)
-		case 2:
-			if got := req.URL.Query().Get("cursor"); got != "next" {
-				t.Errorf("second request cursor = %q, want next", got)
-			}
-			_, _ = io.WriteString(w, `{"data":[{"type":"appStoreReviewAttachments","id":"attachment-2"}],"links":{"next":""}}`)
-		default:
-			t.Errorf("unexpected request count %d", requestCount)
-			http.Error(w, "unexpected request", http.StatusBadRequest)
-		}
-	}))
-	t.Cleanup(server.Close)
-	installReviewNextTestTransport(t, server)
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "attachments-list", "--review-detail", "detail-1", "--paginate", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
+		})
 	}
-	if !strings.Contains(stdout, `"id":"attachment-1"`) || !strings.Contains(stdout, `"id":"attachment-2"`) {
-		t.Fatalf("stdout = %q, want both pages", stdout)
-	}
-	if requestCount != 2 {
-		t.Fatalf("request count = %d, want 2", requestCount)
-	}
-}
-
-func installReviewNextTestTransport(t *testing.T, server *httptest.Server) {
-	t.Helper()
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse server URL: %v", err)
-	}
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		cloned.Host = req.URL.Host
-		return server.Client().Transport.RoundTrip(cloned)
-	}))
 }

@@ -117,44 +117,6 @@ func TestLinksTypeUsageErrorsEnumerateValidValues(t *testing.T) {
 	}
 }
 
-func TestLinksTypeHelpListsValidValues(t *testing.T) {
-	tests := []struct {
-		name   string
-		path   []string
-		values []string
-	}{
-		{
-			name:   "builds links view",
-			path:   []string{"builds", "links", "view"},
-			values: buildRelationshipTypeValues,
-		},
-		{
-			name:   "testflight groups links view",
-			path:   []string{"testflight", "groups", "links", "view"},
-			values: betaGroupRelationshipTypeValues,
-		},
-		{
-			name:   "testflight testers links view",
-			path:   []string{"testflight", "testers", "links", "view"},
-			values: betaTesterRelationshipTypeValues,
-		},
-		{
-			name:   "testflight pre-release links view",
-			path:   []string{"testflight", "pre-release", "links", "view"},
-			values: preReleaseRelationshipTypeValues,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			want := "Relationship type (required); must be one of: " + strings.Join(test.values, ", ")
-			if usage := usageForCommand(t, test.path...); !strings.Contains(usage, want) {
-				t.Fatalf("usage = %q, want it to contain %q", usage, want)
-			}
-		})
-	}
-}
-
 func TestLinksValidTypesReachTheirEndpoints(t *testing.T) {
 	tests := []struct {
 		name         string

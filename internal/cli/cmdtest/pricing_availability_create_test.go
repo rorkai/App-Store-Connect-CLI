@@ -225,62 +225,37 @@ func TestPricingAvailabilityCreate_RelationshipRejectionExplainsFallback(t *test
 	}
 }
 
-func TestPricingAvailabilityCreate_RejectsUnknownTerritory(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "create",
-			"--app", "app-1",
-			"--territory", "Atlantis",
-			"--available", "true",
-			"--available-in-new-territories", "true",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected unknown territory error")
+func TestPricingAvailabilityCreate_RejectsInvalidInputWithUsageExit(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		wantStderr string
+	}{
+		{
+			name:       "unknown territory",
+			args:       []string{"pricing", "availability", "create", "--app", "app-1", "--territory", "Atlantis", "--available", "true", "--available-in-new-territories", "true"},
+			wantStderr: `territory "Atlantis" could not be mapped`,
+		},
+		{
+			name:       "positional argument",
+			args:       []string{"pricing", "availability", "create", "extra", "--app", "app-1", "--territory", "USA", "--available", "true", "--available-in-new-territories", "true"},
+			wantStderr: "pricing availability create does not accept positional arguments",
+		},
 	}
-	if got := cmd.ExitCodeFromError(runErr); got != cmd.ExitUsage {
-		t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, got)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, `territory "Atlantis" could not be mapped`) {
-		t.Fatalf("unexpected stderr: %q", stderr)
-	}
-}
 
-func TestPricingAvailabilityCreate_RejectsPositionalArguments(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "create", "extra",
-			"--app", "app-1",
-			"--territory", "USA",
-			"--available", "true",
-			"--available-in-new-territories", "true",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err == nil {
-			t.Fatal("expected positional argument error")
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "pricing availability create does not accept positional arguments") {
-		t.Fatalf("unexpected stderr: %q", stderr)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr, runErr := runRootCommand(t, test.args)
+			if got := cmd.ExitCodeFromError(runErr); got != cmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d (err=%v)", cmd.ExitUsage, got, runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("unexpected stderr: %q", stderr)
+			}
+		})
 	}
 }
 

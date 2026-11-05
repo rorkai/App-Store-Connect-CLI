@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -54,52 +52,37 @@ func newSyntheticScheduleServer(t *testing.T) *httptest.Server {
 	return server
 }
 
-func runPricingCurrent(t *testing.T, args ...string) (string, string, error) {
-	t.Helper()
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
-}
-
 func TestPricingCurrentNotConfiguredIsExpectedNegativeJSON(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	useServerTransport(t, newNotFoundServer(t, "/v1/apps/app-1/appPriceSchedule", appPriceScheduleNotConfiguredBody))
-
-	stdout, stderr, runErr := runPricingCurrent(t, "pricing", "current", "--app", "app-1", "--output", "json")
-
-	assertNotConfiguredExpectedNegative(t, runErr)
-	wantStderr := `App app-1 has no price schedule configured yet; create it with: asc pricing schedule create --app app-1 --free --base-territory "USA"` + "\n"
-	if stderr != wantStderr {
-		t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
+	tests := []struct {
+		name   string
+		server func(t *testing.T) *httptest.Server
+	}{
+		{
+			name: "schedule read 404",
+			server: func(t *testing.T) *httptest.Server {
+				return newNotFoundServer(t, "/v1/apps/app-1/appPriceSchedule", appPriceScheduleNotConfiguredBody)
+			},
+		},
+		{name: "synthetic schedule with manual prices 404", server: newSyntheticScheduleServer},
 	}
-	if stdout != `{"appId":"app-1","configured":false}`+"\n" {
-		t.Fatalf("unexpected stdout: %q", stdout)
-	}
-}
 
-func TestPricingCurrentManualPricesNotConfiguredIsExpectedNegative(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	useServerTransport(t, newSyntheticScheduleServer(t))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			useServerTransport(t, test.server(t))
 
-	stdout, stderr, runErr := runPricingCurrent(t, "pricing", "current", "--app", "app-1", "--output", "json")
+			stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "json"})
 
-	assertNotConfiguredExpectedNegative(t, runErr)
-	wantStderr := `App app-1 has no price schedule configured yet; create it with: asc pricing schedule create --app app-1 --free --base-territory "USA"` + "\n"
-	if stderr != wantStderr {
-		t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
-	}
-	if stdout != `{"appId":"app-1","configured":false}`+"\n" {
-		t.Fatalf("unexpected stdout: %q", stdout)
+			assertNotConfiguredExpectedNegative(t, runErr)
+			wantStderr := `App app-1 has no price schedule configured yet; create it with: asc pricing schedule create --app app-1 --free --base-territory "USA"` + "\n"
+			if stderr != wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
+			}
+			if stdout != `{"appId":"app-1","configured":false}`+"\n" {
+				t.Fatalf("unexpected stdout: %q", stdout)
+			}
+		})
 	}
 }
 
@@ -108,7 +91,7 @@ func TestPricingCurrentNotConfiguredTableOutput(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	useServerTransport(t, newNotFoundServer(t, "/v1/apps/app-1/appPriceSchedule", appPriceScheduleNotConfiguredBody))
 
-	stdout, stderr, runErr := runPricingCurrent(t, "pricing", "current", "--app", "app-1", "--output", "table")
+	stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "table"})
 
 	assertNotConfiguredExpectedNegative(t, runErr)
 	if !strings.Contains(stderr, "App app-1 has no price schedule configured yet") {
@@ -124,7 +107,7 @@ func TestPricingCurrentUnknownAppStillReturnsNotFound(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	useServerTransport(t, newNotFoundServer(t, "/v1/apps/app-1/appPriceSchedule", appNotFoundBody))
 
-	stdout, stderr, runErr := runPricingCurrent(t, "pricing", "current", "--app", "app-1", "--output", "json")
+	stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "json"})
 
 	if runErr == nil || !errors.Is(runErr, asc.ErrNotFound) {
 		t.Fatalf("expected asc.ErrNotFound, got %v", runErr)

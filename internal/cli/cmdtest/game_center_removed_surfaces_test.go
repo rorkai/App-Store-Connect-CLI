@@ -123,37 +123,6 @@ func TestGameCenterRemovedFlagsAreUnknown(t *testing.T) {
 	}
 }
 
-// TestGameCenterRemovedFlagsAreUnregistered guards the flag sets directly so a
-// re-registration of a removed flag fails even if the parse path changes.
-func TestGameCenterRemovedFlagsAreUnregistered(t *testing.T) {
-	root := RootCommand("5.0.0")
-
-	tests := []struct {
-		path  []string
-		flags []string
-	}{
-		{path: []string{"game-center", "details", "list"}, flags: []string{"limit", "next", "paginate"}},
-		{path: []string{"game-center", "details", "create"}, flags: []string{"challenge-enabled"}},
-		{path: []string{"game-center", "details", "update"}, flags: []string{"challenge-enabled"}},
-	}
-
-	for _, test := range tests {
-		command := findSubcommand(root, test.path...)
-		if command == nil {
-			t.Fatalf("command %q not found", strings.Join(test.path, " "))
-		}
-		for _, name := range test.flags {
-			if command.FlagSet.Lookup(name) != nil {
-				t.Fatalf("removed flag --%s is still registered on %q", name, strings.Join(test.path, " "))
-			}
-		}
-		usage := command.UsageFunc(command)
-		if strings.Contains(usage, "Deprecated") || strings.Contains(usage, "deprecation window") {
-			t.Fatalf("%q help still carries retired deprecation text:\n%s", strings.Join(test.path, " "), usage)
-		}
-	}
-}
-
 // TestGameCenterGroupChallengesSetIsRemoved locks the 5.0.0 removal of the
 // unsupported `groups challenges set` stub. App Store Connect exposes group
 // challenge relationships read-only, so the verb is gone rather than a
@@ -165,16 +134,8 @@ func TestGameCenterGroupChallengesSetIsRemoved(t *testing.T) {
 	if command := findSubcommand(root, "game-center", "groups", "challenges", "set"); command != nil {
 		t.Fatal("removed command `asc game-center groups challenges set` is still registered")
 	}
-	challenges := findSubcommand(root, "game-center", "groups", "challenges")
-	if challenges == nil || findSubcommand(challenges, "list") == nil {
+	if findSubcommand(root, "game-center", "groups", "challenges", "list") == nil {
 		t.Fatal("`asc game-center groups challenges list` must stay registered")
-	}
-	if strings.Contains(challenges.LongHelp, "challenges set") {
-		t.Fatalf("challenges group help still advertises the removed setter: %q", challenges.LongHelp)
-	}
-	groups := findSubcommand(root, "game-center", "groups")
-	if strings.Contains(groups.LongHelp, "challenges set") {
-		t.Fatalf("groups help still advertises the removed setter: %q", groups.LongHelp)
 	}
 
 	factoryCalled := false

@@ -165,12 +165,17 @@ func TestProfileFlagResolvesInEitherPosition(t *testing.T) {
 }
 
 // TestProfileFlagAfterCommandReachesCredentialResolution proves the hoisted
-// selector is the one credential lookup uses, not just a parsed value.
+// selector is the one credential lookup uses, not just a parsed value, and
+// that the CLI's liberal `--flag false` support keeps working on either side
+// of a relocated selector.
 func TestProfileFlagAfterCommandReachesCredentialResolution(t *testing.T) {
 	for _, args := range [][]string{
 		{"--profile", "ghost", "apps", "list"},
 		{"apps", "list", "--profile", "ghost"},
 		{"apps", "list", "--profile=ghost"},
+		{"apps", "list", "--paginate", "false", "--profile", "ghost"},
+		{"apps", "list", "--profile", "ghost", "--paginate", "false"},
+		{"apps", "list", "--paginate", "--profile", "ghost"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			writeProfileFixtureConfig(t)
@@ -233,34 +238,6 @@ func TestProfileFlagAfterCommandWithoutValueIsUsageError(t *testing.T) {
 				"For help:\n  asc --help\n"
 			if stderr != want {
 				t.Fatalf("stderr = %q, want %q", stderr, want)
-			}
-		})
-	}
-}
-
-// TestProfileFlagAfterSpacedBooleanFlag keeps the CLI's liberal `--flag false`
-// support working on either side of a relocated selector.
-func TestProfileFlagAfterSpacedBooleanFlag(t *testing.T) {
-	for _, args := range [][]string{
-		{"apps", "list", "--paginate", "false", "--profile", "ghost"},
-		{"apps", "list", "--profile", "ghost", "--paginate", "false"},
-		{"apps", "list", "--paginate", "--profile", "ghost"},
-	} {
-		t.Run(strings.Join(args, " "), func(t *testing.T) {
-			writeProfileFixtureConfig(t)
-
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(args, "1.2.3")
-			})
-			if code == rootcmd.ExitSuccess {
-				t.Fatalf("exit code = %d, want a failure for a missing profile", code)
-			}
-			if stdout != "" {
-				t.Fatalf("stdout = %q, want empty", stdout)
-			}
-			if !strings.Contains(stderr, `credentials not found for profile "ghost"`) {
-				t.Fatalf("stderr = %q, want the selected profile named", stderr)
 			}
 		})
 	}

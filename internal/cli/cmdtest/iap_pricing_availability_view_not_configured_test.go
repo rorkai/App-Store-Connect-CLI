@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -22,27 +20,12 @@ const iapAvailabilityNotConfiguredBody = `{"errors":[{"id":"3ee73c04-a4b6-48e1-b
 // on 2026-09-13 with the IAP ID substituted.
 const iapNotFoundBody = `{"errors":[{"id":"6a1d8b64-3d4e-4a1c-9d0e-2f7c3b5a9e10","status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'inAppPurchases' with id '9000000001'"}]}`
 
-func runIAPPricingAvailabilityView(t *testing.T, args ...string) (string, string, error) {
-	t.Helper()
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
-}
-
 func TestIAPPricingAvailabilityViewNotConfiguredIsExpectedNegative(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	useServerTransport(t, newNotFoundServer(t, "/v2/inAppPurchases/9000000001/inAppPurchaseAvailability", iapAvailabilityNotConfiguredBody))
 
-	stdout, stderr, runErr := runIAPPricingAvailabilityView(t, "iap", "pricing", "availability", "view", "--iap-id", "9000000001", "--output", "json")
+	stdout, stderr, runErr := runRootCommand(t, []string{"iap", "pricing", "availability", "view", "--iap-id", "9000000001", "--output", "json"})
 
 	assertNotConfiguredExpectedNegative(t, runErr)
 	wantStderr := `In-app purchase 9000000001 has no availability configured yet; create it with: asc iap pricing availability set --iap-id 9000000001 --territories "USA"` + "\n"
@@ -59,7 +42,7 @@ func TestIAPPricingAvailabilityViewUnknownIAPStillReturnsNotFound(t *testing.T) 
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	useServerTransport(t, newNotFoundServer(t, "/v2/inAppPurchases/9000000001/inAppPurchaseAvailability", iapNotFoundBody))
 
-	stdout, stderr, runErr := runIAPPricingAvailabilityView(t, "iap", "pricing", "availability", "view", "--iap-id", "9000000001", "--output", "json")
+	stdout, stderr, runErr := runRootCommand(t, []string{"iap", "pricing", "availability", "view", "--iap-id", "9000000001", "--output", "json"})
 
 	if runErr == nil || !errors.Is(runErr, asc.ErrNotFound) {
 		t.Fatalf("expected asc.ErrNotFound, got %v", runErr)

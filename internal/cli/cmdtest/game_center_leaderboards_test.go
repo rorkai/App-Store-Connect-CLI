@@ -225,7 +225,7 @@ func TestGameCenterLeaderboardsUpdateScoringRequestBody(t *testing.T) {
 					t.Fatalf("read request body: %v", err)
 				}
 				assertJSONDocumentEqual(t, body, []byte(`{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{`+test.wantAttrs+`}}}`))
-				return gameCenterContractJSONResponse(`{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{}}}`), nil
+				return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{}}}`), nil
 			}))
 
 			args := append([]string{"game-center", "leaderboards", "update", "--id", "lb-1"}, test.args...)

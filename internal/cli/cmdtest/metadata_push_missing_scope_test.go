@@ -37,14 +37,6 @@ func (f *metadataScopeFixture) seen(prefix string) []string {
 	return matches
 }
 
-func metadataScopeJSONResponse(status int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: status,
-		Body:       io.NopCloser(strings.NewReader(body)),
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-	}
-}
-
 // installMetadataScopeTransport serves one app info with en-US and fr-FR
 // localizations and one version with en-US and fr-FR localizations.
 func installMetadataScopeTransport(t *testing.T) *metadataScopeFixture {
@@ -58,30 +50,30 @@ func installMetadataScopeTransport(t *testing.T) *metadataScopeFixture {
 		fixture.record(req)
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
-			return metadataScopeJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			return metadataScopeJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			return metadataScopeJSONResponse(http.StatusOK, `{"data":[
+			return jsonHTTPResponse(http.StatusOK, `{"data":[
 				{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","name":"App Name","subtitle":"Remote subtitle"}},
 				{"type":"appInfoLocalizations","id":"loc-app-fr","attributes":{"locale":"fr-FR","name":"App FR"}}
 			],"links":{"next":""}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return metadataScopeJSONResponse(http.StatusOK, `{"data":[
+			return jsonHTTPResponse(http.StatusOK, `{"data":[
 				{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"locale":"en-US","description":"Remote description","keywords":"one,two","supportUrl":"https://example.com/support","whatsNew":"Fixes"}},
 				{"type":"appStoreVersionLocalizations","id":"loc-ver-fr","attributes":{"locale":"fr-FR","description":"Description FR","keywords":"un,deux","supportUrl":"https://example.com/fr","whatsNew":"Corrections"}}
 			],"links":{"next":""}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			return metadataScopeJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-ver-en":
-			return metadataScopeJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"locale":"en-US","description":"Local description"}}}`), nil
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"locale":"en-US","description":"Local description"}}}`), nil
 		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-ver-fr":
 			return &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{}}, nil
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appInfoLocalizations/loc-app-en":
-			return metadataScopeJSONResponse(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","subtitle":"Local subtitle"}}}`), nil
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","subtitle":"Local subtitle"}}}`), nil
 		default:
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return metadataScopeJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404"}]}`), nil
+			return jsonHTTPResponse(http.StatusNotFound, `{"errors":[{"status":"404"}]}`), nil
 		}
 	})
 	return fixture

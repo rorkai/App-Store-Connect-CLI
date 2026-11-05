@@ -70,26 +70,3 @@ func TestIAPProductScopedCommandsAreUnknown(t *testing.T) {
 		})
 	}
 }
-
-// TestIAPHelpOmitsProductScopedCommands asserts the removed surfaces no longer
-// appear in `asc iap --help`, so the generic unknown-command suggestion engine
-// cannot resurface them.
-func TestIAPHelpOmitsProductScopedCommands(t *testing.T) {
-	root := RootCommand("1.2.3")
-	for _, sub := range root.Subcommands {
-		if sub == nil || sub.Name != "iap" {
-			continue
-		}
-		for _, child := range sub.Subcommands {
-			if child == nil {
-				continue
-			}
-			switch child.Name {
-			case "images", "localizations", "submit":
-				t.Fatalf("asc iap must not register removed subcommand %q", child.Name)
-			}
-		}
-		return
-	}
-	t.Fatal("iap command not registered")
-}

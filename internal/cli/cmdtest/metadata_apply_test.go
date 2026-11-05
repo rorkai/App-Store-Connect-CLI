@@ -85,7 +85,7 @@ func TestMetadataApplyReviewDirRequiresConfirmBeforeSideEffects(t *testing.T) {
 
 	dir := t.TempDir()
 	reviewDir := filepath.Join(t.TempDir(), "review")
-	stdout, stderr, runErr := runMetadataReviewCommandRaw(t, []string{
+	stdout, stderr, runErr := runRootCommand(t, []string{
 		"metadata", "apply",
 		"--app", "app-1",
 		"--version", "1.2.3",
@@ -336,7 +336,7 @@ func TestMetadataApplyReviewDirRejectsDriftBeforeMutation(t *testing.T) {
 		t.Fatalf("write drifted app-info metadata: %v", err)
 	}
 
-	stdout, stderr, runErr := runMetadataReviewCommandRaw(t, []string{
+	stdout, stderr, runErr := runRootCommand(t, []string{
 		"metadata", "apply",
 		"--app", "app-1",
 		"--version", "1.2.3",
@@ -447,22 +447,9 @@ func withMetadataReviewHTTP(t *testing.T, fn roundTripFunc) {
 	http.DefaultTransport = fn
 }
 
-func runMetadataReviewCommandRaw(t *testing.T, args []string) (stdout, stderr string, runErr error) {
-	t.Helper()
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr = captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
-}
-
 func runMetadataReviewCommand(t *testing.T, args []string) string {
 	t.Helper()
-	stdout, stderr, runErr := runMetadataReviewCommandRaw(t, args)
+	stdout, stderr, runErr := runRootCommand(t, args)
 	if runErr != nil {
 		t.Fatalf("run %v: %T %v\nstdout=%s\nstderr=%s", args, runErr, runErr, stdout, stderr)
 	}

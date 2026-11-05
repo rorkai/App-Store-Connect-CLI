@@ -87,18 +87,31 @@ func TestProfilesListStaleOnlyIsAComputedViewOverEveryPage(t *testing.T) {
 	}
 }
 
-func TestProfilesListIncludeStaleRejectsJSON(t *testing.T) {
-	requests := startProfilesListStaleStub(t)
+func TestProfilesListStaleFlagUsageErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "include-stale with json", args: []string{"--include-stale", "--output", "json"}, want: "--include-stale requires --output table or markdown"},
+		{name: "stale-only with next", args: []string{"--stale-only", "--next", "https://api.appstoreconnect.apple.com/v1/profiles?cursor=2"}, want: "--next cannot be combined with --stale-only"},
+	}
 
-	code, stdout, stderr := runProfilesList(t, "--include-stale", "--output", "json")
-	if code != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-	}
-	if stdout != "" || !strings.Contains(stderr, "--include-stale requires --output table or markdown") {
-		t.Fatalf("stdout = %q, stderr = %q", stdout, stderr)
-	}
-	if got := requests.Load(); got != 0 {
-		t.Fatalf("requests = %d, want 0", got)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			requests := startProfilesListStaleStub(t)
+
+			code, stdout, stderr := runProfilesList(t, test.args...)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d (stderr %q)", code, rootcmd.ExitUsage, stderr)
+			}
+			if stdout != "" || !strings.Contains(stderr, test.want) {
+				t.Fatalf("stdout = %q, stderr = %q, want %q", stdout, stderr, test.want)
+			}
+			if got := requests.Load(); got != 0 {
+				t.Fatalf("requests = %d, want 0", got)
+			}
+		})
 	}
 }
 
@@ -111,21 +124,6 @@ func TestProfilesListIncludeStaleAddsColumnToTable(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Stale") || !strings.Contains(stdout, "fresh-1") {
 		t.Fatalf("table = %q, want a Stale column with every profile", stdout)
-	}
-}
-
-func TestProfilesListStaleOnlyRejectsNext(t *testing.T) {
-	requests := startProfilesListStaleStub(t)
-
-	code, _, stderr := runProfilesList(t, "--stale-only", "--next", "https://api.appstoreconnect.apple.com/v1/profiles?cursor=2")
-	if code != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d (stderr %q)", code, rootcmd.ExitUsage, stderr)
-	}
-	if !strings.Contains(stderr, "--next cannot be combined with --stale-only") {
-		t.Fatalf("stderr = %q", stderr)
-	}
-	if got := requests.Load(); got != 0 {
-		t.Fatalf("requests = %d, want 0", got)
 	}
 }
 

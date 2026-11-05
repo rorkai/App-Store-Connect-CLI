@@ -120,82 +120,67 @@ func TestLocalizationsUpdateVersionRequiresVersion(t *testing.T) {
 	}
 }
 
-func TestLocalizationsUpdateVersionByResourceIDSkipsDiscovery(t *testing.T) {
-	setupLocUpdateAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requestCount := 0
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		if req.Method != http.MethodPatch || req.URL.Path != "/v1/appStoreVersionLocalizations/loc-1" {
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		body, _ := io.ReadAll(req.Body)
-		if !strings.Contains(string(body), `"description":"Updated"`) {
-			t.Fatalf("unexpected patch body: %s", body)
-		}
-		return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Updated"}}}`)
-	})
-
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"localizations", "update",
-			"--id", "loc-1",
-			"--description", "Updated",
-		}, "1.2.3")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+func TestLocalizationsUpdateByResourceIDSkipsDiscovery(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		path     string
+		wantBody string
+		response string
+	}{
+		{
+			name:     "version",
+			args:     []string{"--description", "Updated"},
+			path:     "/v1/appStoreVersionLocalizations/loc-1",
+			wantBody: `"description":"Updated"`,
+			response: `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Updated"}}}`,
+		},
+		{
+			name:     "app-info",
+			args:     []string{"--type", "app-info", "--name", "Updated"},
+			path:     "/v1/appInfoLocalizations/loc-1",
+			wantBody: `"name":"Updated"`,
+			response: `{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Updated"}}}`,
+		},
 	}
-	if requestCount != 1 {
-		t.Fatalf("request count = %d, want one direct PATCH", requestCount)
-	}
-	if !strings.Contains(stdout, `"id":"loc-1"`) {
-		t.Fatalf("expected updated localization output, got %q", stdout)
-	}
-}
 
-func TestLocalizationsUpdateAppInfoByResourceIDSkipsDiscovery(t *testing.T) {
-	setupLocUpdateAuth(t)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupLocUpdateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-	requestCount := 0
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		if req.Method != http.MethodPatch || req.URL.Path != "/v1/appInfoLocalizations/loc-1" {
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		return locUpdateJSONResponse(`{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Updated"}}}`)
-	})
+			requestCount := 0
+			http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requestCount++
+				if req.Method != http.MethodPatch || req.URL.Path != test.path {
+					return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+				}
+				body, _ := io.ReadAll(req.Body)
+				if !strings.Contains(string(body), test.wantBody) {
+					t.Fatalf("unexpected patch body: %s", body)
+				}
+				return locUpdateJSONResponse(test.response)
+			})
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"localizations", "update",
-			"--type", "app-info",
-			"--id", "loc-1",
-			"--name", "Updated",
-		}, "1.2.3")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
-		}
-	})
+			stdout, stderr := captureOutput(t, func() {
+				args := append([]string{"localizations", "update", "--id", "loc-1"}, test.args...)
+				if code := cmd.Run(args, "1.2.3"); code != cmd.ExitSuccess {
+					t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
+				}
+			})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if requestCount != 1 {
-		t.Fatalf("request count = %d, want one direct PATCH", requestCount)
-	}
-	if !strings.Contains(stdout, `"id":"loc-1"`) {
-		t.Fatalf("expected updated localization output, got %q", stdout)
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if requestCount != 1 {
+				t.Fatalf("request count = %d, want one direct PATCH", requestCount)
+			}
+			if !strings.Contains(stdout, `"id":"loc-1"`) {
+				t.Fatalf("expected updated localization output, got %q", stdout)
+			}
+		})
 	}
 }
 

@@ -9,12 +9,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
@@ -108,12 +106,12 @@ func TestIAPReviewScreenshotsUpdateSupportsIndividualFields(t *testing.T) {
 		{
 			name:         "checksum only",
 			args:         []string{"--checksum", "checksum-1"},
-			wantChecksum: stringPointer("checksum-1"),
+			wantChecksum: new("checksum-1"),
 		},
 		{
 			name:         "uploaded false",
 			args:         []string{"--uploaded", "false"},
-			wantUploaded: boolPointer(false),
+			wantUploaded: new(false),
 		},
 	}
 
@@ -244,81 +242,43 @@ func TestIAPReviewScreenshotsUpdateUsesRegisteredTableRenderer(t *testing.T) {
 }
 
 func TestIAPReviewScreenshotsUpdateRequiresAnUpdateFieldBeforeRequest(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "review-screenshots", "update",
-			"--screenshot-id", "shot-1",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected reported usage error, got %v", runErr)
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "no update flag"},
+		{name: "blank checksum counts as missing", args: []string{"--checksum", "  "}},
 	}
-	if !strings.Contains(stderr, "Error: at least one update flag is required") {
-		t.Fatalf("expected missing update field diagnostic, got %q", stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if requestCount != 0 {
-		t.Fatalf("expected no requests, got %d", requestCount)
-	}
-}
 
-func TestIAPReviewScreenshotsUpdateTreatsBlankChecksumAsMissing(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			requestCount := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requestCount++
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+				return nil, nil
+			})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "review-screenshots", "update",
-			"--screenshot-id", "shot-1",
-			"--checksum", "  ",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected usage error, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "Error: at least one update flag is required") {
-		t.Fatalf("expected missing update field diagnostic, got %q", stderr)
-	}
-	if requestCount != 0 {
-		t.Fatalf("expected no requests, got %d", requestCount)
+			args := append([]string{"iap", "review-screenshots", "update", "--screenshot-id", "shot-1"}, test.args...)
+			stdout, stderr, runErr := runRootCommand(t, append(args, "--output", "json"))
+			if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected reported usage error, got %v", runErr)
+			}
+			if !strings.Contains(stderr, "Error: at least one update flag is required") {
+				t.Fatalf("expected missing update field diagnostic, got %q", stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if requestCount != 0 {
+				t.Fatalf("expected no requests, got %d", requestCount)
+			}
+		})
 	}
 }
 
@@ -523,37 +483,8 @@ func iapReviewScreenshotResponse(id string, hasUploadOperations bool, state stri
 }
 
 func TestIAPReviewScreenshotsUpdateRejectsInvalidUploadedFlag(t *testing.T) {
-	command := exec.Command(os.Args[0], "-test.run=TestIAPReviewScreenshotsUpdateInvalidUploadedFlagHelper", "--", "iap", "review-screenshots", "update", "--screenshot-id", "shot-1", "--uploaded", "maybe")
-	command.Env = append(os.Environ(), "ASC_IAP_REVIEW_SCREENSHOT_FLAG_HELPER=1", "ASC_BYPASS_KEYCHAIN=1")
-	stdout, err := command.Output()
-	if err == nil {
-		t.Fatal("expected invalid --uploaded to fail")
-	}
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) {
-		t.Fatalf("expected process exit error, got %v", err)
-	}
-	if exitErr.ExitCode() != 2 {
-		t.Fatalf("expected exit code 2, got %d with stderr %q", exitErr.ExitCode(), exitErr.Stderr)
-	}
-	if len(stdout) != 0 {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(string(exitErr.Stderr), `invalid value "maybe" for flag -uploaded`) {
-		t.Fatalf("expected invalid bool diagnostic, got %q", exitErr.Stderr)
-	}
-}
-
-func TestIAPReviewScreenshotsUpdateInvalidUploadedFlagHelper(t *testing.T) {
-	if os.Getenv("ASC_IAP_REVIEW_SCREENSHOT_FLAG_HELPER") != "1" {
-		return
-	}
-	for i, arg := range os.Args {
-		if arg == "--" {
-			os.Exit(rootcmd.Run(os.Args[i+1:], "1.2.3"))
-		}
-	}
-	os.Exit(2)
+	setupUsageExitCodeEnv(t)
+	assertUsageExit(t, []string{"iap", "review-screenshots", "update", "--screenshot-id", "shot-1", "--uploaded", "maybe"}, `invalid value "maybe" for flag -uploaded`)
 }
 
 func TestIAPReviewScreenshotsUpdatePreservesAPIValidationError(t *testing.T) {
@@ -602,7 +533,3 @@ func TestIAPReviewScreenshotsUpdatePreservesAPIValidationError(t *testing.T) {
 		t.Fatalf("expected no command output before top-level formatting, stdout=%q stderr=%q", stdout, stderr)
 	}
 }
-
-func stringPointer(value string) *string { return &value }
-
-func boolPointer(value bool) *bool { return &value }

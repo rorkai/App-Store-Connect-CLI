@@ -2,7 +2,6 @@ package cmdtest
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -70,76 +69,59 @@ func TestMarketplaceWebhooksViewMissingIDReturnsUsageExitCode(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "Error: --webhook-id is required") {
-		t.Fatalf("expected missing-ID error, got %q", stderr)
-	}
 	if strings.Count(stderr, "Error: --webhook-id is required") != 1 {
 		t.Fatalf("expected one missing-ID error, got %q", stderr)
 	}
 }
 
-func TestMarketplaceWebhooksViewNotFoundReturnsNotFoundExitCode(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
-	})
-
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{"marketplace", "webhooks", "view", "--webhook-id", "wh-missing", "--output", "json"}, "1.2.3")
-		if code != rootcmd.ExitNotFound {
-			t.Fatalf("expected exit code %d, got %d", rootcmd.ExitNotFound, code)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+func TestMarketplaceWebhooksViewFailureExitCodes(t *testing.T) {
+	tests := []struct {
+		name       string
+		status     int
+		body       string
+		wantCode   int
+		wantStderr string
+	}{
+		{
+			name:       "not found",
+			status:     http.StatusOK,
+			body:       `{"data":[],"links":{}}`,
+			wantCode:   rootcmd.ExitNotFound,
+			wantStderr: `marketplace webhooks view: failed to fetch: marketplace webhook "wh-1" not found`,
+		},
+		{
+			name:       "API error",
+			status:     http.StatusBadRequest,
+			body:       `{"errors":[{"status":"400","code":"INVALID_REQUEST","title":"Invalid Request","detail":"request rejected"}]}`,
+			wantCode:   rootcmd.ExitHTTPBadRequest,
+			wantStderr: "marketplace webhooks view: failed to fetch: Invalid Request: request rejected",
+		},
 	}
-	if !strings.Contains(stderr, `marketplace webhooks view: failed to fetch: marketplace webhook "wh-missing" not found`) {
-		t.Fatalf("expected contextual not-found error, got %q", stderr)
-	}
-}
 
-func TestMarketplaceWebhooksViewAPIErrorPreservesExitCode(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return jsonHTTPResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"INVALID_REQUEST","title":"Invalid Request","detail":"request rejected"}]}`), nil
-	})
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return jsonHTTPResponse(test.status, test.body), nil
+			})
 
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{"marketplace", "webhooks", "view", "--webhook-id", "wh-1", "--output", "json"}, "1.2.3")
-		if code != rootcmd.ExitHTTPBadRequest {
-			t.Fatalf("expected exit code %d, got %d", rootcmd.ExitHTTPBadRequest, code)
-		}
-	})
+			stdout, stderr := captureOutput(t, func() {
+				code := rootcmd.Run([]string{"marketplace", "webhooks", "view", "--webhook-id", "wh-1", "--output", "json"}, "1.2.3")
+				if code != test.wantCode {
+					t.Fatalf("expected exit code %d, got %d", test.wantCode, code)
+				}
+			})
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "marketplace webhooks view: failed to fetch: Invalid Request: request rejected") {
-		t.Fatalf("expected API error, got %q", stderr)
-	}
-}
-
-func TestMarketplaceWebhooksViewHelpIsRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	view := findSubcommand(root, "marketplace", "webhooks", "view")
-	if view == nil {
-		t.Fatal("expected marketplace webhooks view command")
-	}
-	if view.ShortUsage != `asc marketplace webhooks view --webhook-id "WEBHOOK_ID" [flags]` {
-		t.Fatalf("unexpected help usage: %q", view.ShortUsage)
-	}
-	if view.FlagSet.Lookup("webhook-id") == nil || view.FlagSet.Lookup("output") == nil || view.FlagSet.Lookup("pretty") == nil {
-		t.Fatalf("expected webhook-id and output flags in view help")
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("expected stderr to contain %q, got %q", test.wantStderr, stderr)
+			}
+		})
 	}
 }

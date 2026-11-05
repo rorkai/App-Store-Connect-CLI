@@ -271,7 +271,7 @@ func TestGameCenterActivityRelationshipsSetRequestWiring(t *testing.T) {
 				if string(body) != test.wantBody+"\n" {
 					t.Fatalf("request body = %q, want %q", body, test.wantBody+"\n")
 				}
-				return gameCenterCreateResponse(http.StatusNoContent, ""), nil
+				return jsonHTTPResponse(http.StatusNoContent, ""), nil
 			}))
 
 			args := []string{"game-center", "activities", test.resource, "set", "--activity-id", "ACTIVITY_ID", "--ids", "RES_1,RES_2"}

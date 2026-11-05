@@ -210,7 +210,7 @@ func TestMetadataReviewInformationReadBackMismatchRedactsPassword(t *testing.T) 
 	if err := os.WriteFile(filepath.Join(dir, "review-information.json"), []byte(`{"demoAccountPassword":"@env:TEST_DEMO_PASSWORD"}`), 0o644); err != nil {
 		t.Fatalf("write review information: %v", err)
 	}
-	stdout, stderr, runErr := runMetadataReviewCommandRaw(t, []string{
+	stdout, stderr, runErr := runRootCommand(t, []string{
 		"metadata", "apply", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "review-information", "--output", "json",
 	})
 	if runErr == nil || len(server.writes) == 0 {
@@ -264,7 +264,7 @@ func TestMetadataReviewInformationRejectsUnsafePasswordSources(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(dir, "review-information.json"), []byte(`{"demoAccountPassword":"`+test.value+`"}`), 0o644); err != nil {
 				t.Fatalf("write review information: %v", err)
 			}
-			stdout, stderr, runErr := runMetadataReviewCommandRaw(t, []string{
+			stdout, stderr, runErr := runRootCommand(t, []string{
 				"metadata", "plan", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "review-information",
 				"--review-dir", filepath.Join(t.TempDir(), "review"),
 			})

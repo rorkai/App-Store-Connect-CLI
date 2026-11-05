@@ -50,7 +50,7 @@ func TestLocalizationsListResolvesVersionStringWithApp(t *testing.T) {
 		"filter[versionString]=1.0": `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`,
 	}, &log)
 
-	stdout, stderr, runErr := runLocalizationsList(t, "localizations", "list", "--app", "123456789", "--version", "1.0", "--output", "json")
+	stdout, stderr, runErr := runRootCommand(t, []string{"localizations", "list", "--app", "123456789", "--version", "1.0", "--output", "json"})
 	if runErr != nil {
 		t.Fatalf("Run() error = %v (stderr=%q)", runErr, stderr)
 	}
@@ -72,7 +72,7 @@ func TestLocalizationsListResolvesVersionStringWithPlatform(t *testing.T) {
 		"filter[platform]=MAC_OS&filter[versionString]=1.0": `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"MAC_OS","versionString":"1.0"}}],"links":{"next":""}}`,
 	}, &log)
 
-	_, stderr, runErr := runLocalizationsList(t, "localizations", "list", "--app", "123456789", "--version", "1.0", "--platform", "mac_os")
+	_, stderr, runErr := runRootCommand(t, []string{"localizations", "list", "--app", "123456789", "--version", "1.0", "--platform", "mac_os"})
 	if runErr != nil {
 		t.Fatalf("Run() error = %v (stderr=%q)", runErr, stderr)
 	}
@@ -86,7 +86,7 @@ func TestLocalizationsListPrefersVersionIDWhenValueIsResourceID(t *testing.T) {
 	var log []string
 	installLocalizationsVersionStringTransport(t, map[string]string{}, &log)
 
-	_, stderr, runErr := runLocalizationsList(t, "localizations", "list", "--app", "123456789", "--version", localizationsListVersionUUID)
+	_, stderr, runErr := runRootCommand(t, []string{"localizations", "list", "--app", "123456789", "--version", localizationsListVersionUUID})
 	if runErr != nil {
 		t.Fatalf("Run() error = %v (stderr=%q)", runErr, stderr)
 	}
@@ -139,7 +139,7 @@ func TestLocalizationsListVersionStringErrors(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var log []string
 			installLocalizationsVersionStringTransport(t, test.versions, &log)
-			stdout, stderr, runErr := runLocalizationsList(t, test.args...)
+			stdout, stderr, runErr := runRootCommand(t, test.args)
 			if runErr == nil {
 				t.Fatal("expected error")
 			}
@@ -223,7 +223,7 @@ func TestLocalizationsMutationsResolveVersionStrings(t *testing.T) {
 				} else {
 					args = append(args, "--version", "1.17.0", "--platform", "mac_os")
 				}
-				stdout, stderr, err := runLocalizationsList(t, args...)
+				stdout, stderr, err := runRootCommand(t, args)
 				if ambiguous {
 					if rootcmd.ExitCodeFromError(err) != rootcmd.ExitUsage || mutations != 0 || stdout != "" || !strings.Contains(stderr+err.Error(), "--version") {
 						t.Fatalf("expected ambiguity before mutation: stdout=%q stderr=%q err=%v mutations=%d", stdout, stderr, err, mutations)

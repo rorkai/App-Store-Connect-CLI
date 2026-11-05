@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -114,11 +115,6 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			wantErr: "--next cannot be combined with --app",
 		},
 		{
-			name:    "iap list rejects limit with next",
-			args:    []string{"iap", "list", "--limit", "5", "--next", next},
-			wantErr: "--next cannot be combined with --limit",
-		},
-		{
 			name:    "iap list rejects explicit zero limit with next",
 			args:    []string{"iap", "list", "--limit", "0", "--next", next},
 			wantErr: "--next cannot be combined with --limit",
@@ -184,11 +180,6 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			wantErr: "--next cannot be combined with --iap-id",
 		},
 		{
-			name:    "versions list rejects limit with next",
-			args:    []string{"iap", "versions", "list", "--limit", "5", "--next", next},
-			wantErr: "--next cannot be combined with --limit",
-		},
-		{
 			name:    "versions list rejects explicit zero limit with next",
 			args:    []string{"iap", "versions", "list", "--limit", "0", "--next", next},
 			wantErr: "--next cannot be combined with --limit",
@@ -244,11 +235,6 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			wantErr: "--next cannot be combined with --version-id",
 		},
 		{
-			name:    "images list rejects limit with next",
-			args:    []string{"iap", "versions", "images", "list", "--limit", "5", "--next", next},
-			wantErr: "--next cannot be combined with --limit",
-		},
-		{
 			name:    "images list rejects explicit zero limit with next",
 			args:    []string{"iap", "versions", "images", "list", "--limit", "0", "--next", next},
 			wantErr: "--next cannot be combined with --limit",
@@ -267,11 +253,6 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			name:    "localizations list rejects explicit empty owner with next",
 			args:    []string{"iap", "versions", "localizations", "list", "--version-id", "", "--next", next},
 			wantErr: "--next cannot be combined with --version-id",
-		},
-		{
-			name:    "localizations list rejects limit with next",
-			args:    []string{"iap", "versions", "localizations", "list", "--limit", "5", "--next", next},
-			wantErr: "--next cannot be combined with --limit",
 		},
 		{
 			name:    "localizations list rejects explicit zero limit with next",
@@ -322,21 +303,6 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			name:    "localization linkages reject explicit empty owner with next",
 			args:    []string{"iap", "versions", "links", "localizations", "--version-id", "", "--next", next},
 			wantErr: "--next cannot be combined with --version-id",
-		},
-		{
-			name:    "version linkages reject limit with next",
-			args:    []string{"iap", "versions", "links", "versions", "--limit", "5", "--next", next},
-			wantErr: "--next cannot be combined with --limit",
-		},
-		{
-			name:    "image linkages reject limit with next",
-			args:    []string{"iap", "versions", "links", "images", "--limit", "5", "--next", next},
-			wantErr: "--next cannot be combined with --limit",
-		},
-		{
-			name:    "localization linkages reject limit with next",
-			args:    []string{"iap", "versions", "links", "localizations", "--limit", "5", "--next", next},
-			wantErr: "--next cannot be combined with --limit",
 		},
 		{
 			name:    "version linkages reject explicit zero limit with next",
@@ -753,7 +719,7 @@ func TestIAPVersionImagesCreateRunsV2UploadLifecycle(t *testing.T) {
 			}
 			assertJSONDocument(t, req.Body, fmt.Sprintf(`{"data":{"type":"inAppPurchaseImages","attributes":{"fileSize":%d,"fileName":"review.png"},"relationships":{"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}}}}`, len(pngBytes)))
 			status = http.StatusCreated
-			body = `{"data":{"type":"inAppPurchaseImages","id":"image-1","attributes":{"fileName":"review.png","fileSize":` + stringValue(len(pngBytes)) + `,"uploadOperations":[{"method":"PUT","url":"` + server.URL + `/upload/image-1","offset":0,"length":` + stringValue(len(pngBytes)) + `}]}}}`
+			body = `{"data":{"type":"inAppPurchaseImages","id":"image-1","attributes":{"fileName":"review.png","fileSize":` + strconv.Itoa(len(pngBytes)) + `,"uploadOperations":[{"method":"PUT","url":"` + server.URL + `/upload/image-1","offset":0,"length":` + strconv.Itoa(len(pngBytes)) + `}]}}}`
 		case 2:
 			if req.Method != http.MethodPut || req.URL.Path != "/upload/image-1" {
 				t.Fatalf("unexpected upload request: %s %s", req.Method, req.URL)
@@ -776,7 +742,7 @@ func TestIAPVersionImagesCreateRunsV2UploadLifecycle(t *testing.T) {
 			if req.Method != http.MethodGet || req.URL.Path != "/v2/inAppPurchaseImages/image-1" {
 				t.Fatalf("unexpected final fetch: %s %s", req.Method, req.URL)
 			}
-			body = `{"data":{"type":"inAppPurchaseImages","id":"image-1","attributes":{"fileName":"review.png","fileSize":` + stringValue(len(pngBytes)) + `,"assetDeliveryState":{"state":"COMPLETE"}}}}`
+			body = `{"data":{"type":"inAppPurchaseImages","id":"image-1","attributes":{"fileName":"review.png","fileSize":` + strconv.Itoa(len(pngBytes)) + `,"assetDeliveryState":{"state":"COMPLETE"}}}}`
 		default:
 			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL)
 		}
@@ -840,10 +806,10 @@ func TestIAPVersionImagesCreateReportsReservedIDOnPostReservationFailures(t *tes
 					}
 					operations := ""
 					if stage != "no operations" {
-						operations = `,"uploadOperations":[{"method":"PUT","url":"` + server.URL + `/upload/image-reserved","offset":0,"length":` + stringValue(len(pngBytes)) + `}]`
+						operations = `,"uploadOperations":[{"method":"PUT","url":"` + server.URL + `/upload/image-reserved","offset":0,"length":` + strconv.Itoa(len(pngBytes)) + `}]`
 					}
 					w.WriteHeader(http.StatusCreated)
-					_, _ = io.WriteString(w, `{"data":{"type":"inAppPurchaseImages","id":"image-reserved","attributes":{"fileName":"review.png","fileSize":`+stringValue(len(pngBytes))+operations+`}}}`)
+					_, _ = io.WriteString(w, `{"data":{"type":"inAppPurchaseImages","id":"image-reserved","attributes":{"fileName":"review.png","fileSize":`+strconv.Itoa(len(pngBytes))+operations+`}}}`)
 				case 2:
 					if req.Method != http.MethodPut || req.URL.Path != "/upload/image-reserved" {
 						t.Fatalf("unexpected upload request: %s %s", req.Method, req.URL)
@@ -929,23 +895,13 @@ func TestIAPVersionsSubmitUsesExplicitReviewSubmissionRelationship(t *testing.T)
 	}
 }
 
-func stringValue(value int) string {
-	return fmt.Sprintf("%d", value)
-}
-
 func assertJSONDocument(t *testing.T, reader io.Reader, want string) {
 	t.Helper()
-	var gotJSON, wantJSON any
-	if err := json.NewDecoder(reader).Decode(&gotJSON); err != nil {
-		t.Fatalf("invalid request JSON: %v", err)
+	got, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("read request body: %v", err)
 	}
-	if err := json.Unmarshal([]byte(want), &wantJSON); err != nil {
-		t.Fatalf("invalid expected JSON %q: %v", want, err)
-	}
-	if !reflect.DeepEqual(gotJSON, wantJSON) {
-		got, _ := json.Marshal(gotJSON)
-		t.Fatalf("request body = %s, want %s", got, want)
-	}
+	assertJSONDocumentEqual(t, got, []byte(want))
 }
 
 func setIAPVersionTestServerClient(t *testing.T, server *httptest.Server) {

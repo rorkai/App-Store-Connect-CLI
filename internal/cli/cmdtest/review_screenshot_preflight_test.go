@@ -2,7 +2,6 @@ package cmdtest
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -72,22 +71,6 @@ func failOnAnyRequest(t *testing.T) *int {
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 	})
 	return &requests
-}
-
-// runReviewScreenshotCommand runs args and returns stderr and the run error.
-func runReviewScreenshotCommand(t *testing.T, args []string) (string, error) {
-	t.Helper()
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stderr, runErr
 }
 
 func writeJPEGNamed(t *testing.T, path string, width, height int) {
@@ -277,7 +260,7 @@ func runIAPReviewScreenshotCreateWithMockUpload(t *testing.T, path string) (stri
 		}
 	})
 
-	stderr, runErr := runReviewScreenshotCommand(t, []string{"iap", "review-screenshots", "create", "--iap-id", "9000000001", "--file", path, "--output", "json"})
+	_, stderr, runErr := runRootCommand(t, []string{"iap", "review-screenshots", "create", "--iap-id", "9000000001", "--file", path, "--output", "json"})
 	if runErr != nil {
 		t.Fatalf("expected success, got %v", runErr)
 	}
@@ -335,7 +318,7 @@ func TestSubscriptionsReviewScreenshotsCreateWarnsAboutUndocumentedSizeAndUpload
 		}
 	})
 
-	stderr, runErr := runReviewScreenshotCommand(t, []string{"subscriptions", "review", "screenshots", "create", "--subscription-id", "8000000001", "--file", path, "--output", "json"})
+	_, stderr, runErr := runRootCommand(t, []string{"subscriptions", "review", "screenshots", "create", "--subscription-id", "8000000001", "--file", path, "--output", "json"})
 	if runErr != nil {
 		t.Fatalf("expected success, got %v", runErr)
 	}
@@ -531,7 +514,7 @@ func TestSubscriptionsReviewScreenshotsCreateUploadsTheCheckedBytes(t *testing.T
 		}
 	})
 
-	stderr, runErr := runReviewScreenshotCommand(t, []string{"subscriptions", "review", "screenshots", "create", "--subscription-id", "8000000001", "--file", path, "--output", "json"})
+	_, stderr, runErr := runRootCommand(t, []string{"subscriptions", "review", "screenshots", "create", "--subscription-id", "8000000001", "--file", path, "--output", "json"})
 	if runErr != nil {
 		t.Fatalf("expected success, got %v (stderr %q)", runErr, stderr)
 	}
@@ -567,7 +550,7 @@ func TestSubscriptionsSetupRechecksReviewScreenshotReplacedAfterValidation(t *te
 		}
 	})
 
-	stderr, err := runReviewScreenshotCommand(t, []string{
+	_, stderr, err := runRootCommand(t, []string{
 		"subscriptions", "setup",
 		"--group-id", "group-1",
 		"--reference-name", "Pro Monthly",
