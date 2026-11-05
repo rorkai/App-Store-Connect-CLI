@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -214,78 +213,54 @@ func TestSelectReconcileCertificateAcceptsLiveMissingActivationAndRequiresValidi
 	}
 }
 
-func TestSigningCapabilitiesRecognizesLiveIncreasedMemoryLimit(t *testing.T) {
-	capabilities, unverified := signingCapabilitiesForEntitlements(map[string]any{
-		"com.apple.developer.kernel.increased-memory-limit": true,
-	})
-	if len(unverified) != 0 || !reflect.DeepEqual(capabilities, []string{"INCREASED_MEMORY_LIMIT"}) {
-		t.Fatalf("capabilities=%#v unverified=%#v", capabilities, unverified)
+func TestSigningCapabilitiesForEntitlements(t *testing.T) {
+	tests := []struct {
+		name             string
+		entitlements     map[string]any
+		wantCapabilities []string
+		wantUnverified   []string // substrings, one per unverified entry
+	}{
+		{
+			name:             "live increased memory limit",
+			entitlements:     map[string]any{"com.apple.developer.kernel.increased-memory-limit": true},
+			wantCapabilities: []string{"INCREASED_MEMORY_LIMIT"},
+		},
+		{
+			name: "type is not proof of entitlement settings",
+			entitlements: map[string]any{
+				"com.apple.security.application-groups":           []string{"group.com.example.shared"},
+				"com.apple.developer.in-app-payments":             []string{"merchant.com.example"},
+				"com.apple.developer.networking.networkextension": []string{"packet-tunnel-provider"},
+				"com.apple.developer.pass-type-identifiers":       []string{"TEAM1.com.example.pass"},
+			},
+			wantUnverified: []string{
+				"com.apple.developer.in-app-payments (capability settings)",
+				"com.apple.developer.networking.networkextension (capability settings)",
+				"com.apple.developer.pass-type-identifiers (capability settings)",
+				"com.apple.security.application-groups (capability settings)",
+			},
+		},
+		{name: "development task entitlement", entitlements: map[string]any{"get-task-allow": true}, wantUnverified: []string{"get-task-allow"}},
+		{name: "false get-task-allow", entitlements: map[string]any{"get-task-allow": false}},
+		{name: "development push environment", entitlements: map[string]any{"aps-environment": "development"}, wantUnverified: []string{"aps-environment"}},
+		{name: "production push environment", entitlements: map[string]any{"aps-environment": "production"}, wantCapabilities: []string{"PUSH_NOTIFICATIONS"}},
+		{name: "TestFlight entitlement", entitlements: map[string]any{"beta-reports-active": true}, wantUnverified: []string{"beta-reports-active"}},
+		{name: "false beta reports", entitlements: map[string]any{"beta-reports-active": false}},
 	}
-}
-
-func TestSigningCapabilitiesDoesNotTreatTypeAsProofOfEntitlementSettings(t *testing.T) {
-	capabilities, unverified := signingCapabilitiesForEntitlements(map[string]any{
-		"com.apple.security.application-groups":           []string{"group.com.example.shared"},
-		"com.apple.developer.in-app-payments":             []string{"merchant.com.example"},
-		"com.apple.developer.networking.networkextension": []string{"packet-tunnel-provider"},
-		"com.apple.developer.pass-type-identifiers":       []string{"TEAM1.com.example.pass"},
-	})
-	if len(capabilities) != 0 {
-		t.Fatalf("capabilities=%#v, want entitlement-specific settings to remain unverified", capabilities)
-	}
-	want := []string{
-		"com.apple.developer.in-app-payments (capability settings)",
-		"com.apple.developer.networking.networkextension (capability settings)",
-		"com.apple.developer.pass-type-identifiers (capability settings)",
-		"com.apple.security.application-groups (capability settings)",
-	}
-	if !reflect.DeepEqual(unverified, want) {
-		t.Fatalf("unverified=%#v, want %#v", unverified, want)
-	}
-}
-
-func TestSigningCapabilitiesRejectsDevelopmentTaskEntitlement(t *testing.T) {
-	capabilities, unverified := signingCapabilitiesForEntitlements(map[string]any{
-		"get-task-allow": true,
-	})
-	if len(capabilities) != 0 || len(unverified) != 1 || !strings.Contains(unverified[0], "get-task-allow") {
-		t.Fatalf("capabilities=%#v unverified=%#v, want development entitlement blocker", capabilities, unverified)
-	}
-	capabilities, unverified = signingCapabilitiesForEntitlements(map[string]any{
-		"get-task-allow": false,
-	})
-	if len(capabilities) != 0 || len(unverified) != 0 {
-		t.Fatalf("false get-task-allow capabilities=%#v unverified=%#v", capabilities, unverified)
-	}
-}
-
-func TestSigningCapabilitiesRejectsDevelopmentPushEnvironment(t *testing.T) {
-	capabilities, unverified := signingCapabilitiesForEntitlements(map[string]any{
-		"aps-environment": "development",
-	})
-	if len(capabilities) != 0 || len(unverified) != 1 || !strings.Contains(unverified[0], "aps-environment") {
-		t.Fatalf("capabilities=%#v unverified=%#v, want development push blocker", capabilities, unverified)
-	}
-	capabilities, unverified = signingCapabilitiesForEntitlements(map[string]any{
-		"aps-environment": "production",
-	})
-	if !reflect.DeepEqual(capabilities, []string{"PUSH_NOTIFICATIONS"}) || len(unverified) != 0 {
-		t.Fatalf("production push capabilities=%#v unverified=%#v", capabilities, unverified)
-	}
-}
-
-func TestSigningCapabilitiesRejectsTestFlightEntitlement(t *testing.T) {
-	capabilities, unverified := signingCapabilitiesForEntitlements(map[string]any{
-		"beta-reports-active": true,
-	})
-	if len(capabilities) != 0 || len(unverified) != 1 || !strings.Contains(unverified[0], "beta-reports-active") {
-		t.Fatalf("capabilities=%#v unverified=%#v, want TestFlight entitlement blocker", capabilities, unverified)
-	}
-	capabilities, unverified = signingCapabilitiesForEntitlements(map[string]any{
-		"beta-reports-active": false,
-	})
-	if len(capabilities) != 0 || len(unverified) != 0 {
-		t.Fatalf("false beta reports capabilities=%#v unverified=%#v", capabilities, unverified)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			capabilities, unverified := signingCapabilitiesForEntitlements(test.entitlements)
+			matches := len(capabilities) == len(test.wantCapabilities) && len(unverified) == len(test.wantUnverified)
+			for index := 0; matches && index < len(capabilities); index++ {
+				matches = capabilities[index] == test.wantCapabilities[index]
+			}
+			for index := 0; matches && index < len(unverified); index++ {
+				matches = strings.Contains(unverified[index], test.wantUnverified[index])
+			}
+			if !matches {
+				t.Fatalf("capabilities=%#v unverified=%#v, want %#v and %#v", capabilities, unverified, test.wantCapabilities, test.wantUnverified)
+			}
+		})
 	}
 }
 

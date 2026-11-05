@@ -273,17 +273,6 @@ func VerifyReconcileCompletion(ctx context.Context, options ReconcileApplyOption
 	return verifyReconcileCompletionAdapter(ctx, options, "", nil)
 }
 
-// VerifyReconcileCompletionFromArchive revalidates an exact completed receipt
-// using a caller-owned immutable archive snapshot as the archive authority.
-// The snapshot is still parsed and compared with the protected plan; this only
-// avoids depending on the mutable original archive path after snapshotting.
-func VerifyReconcileCompletionFromArchive(ctx context.Context, options ReconcileApplyOptions, archivePath string) (ReconcileReceiptView, error) {
-	if strings.TrimSpace(archivePath) == "" {
-		return ReconcileReceiptView{}, redactedReconcileExecutionError(ReconcileExecutionErrorPlanInvalid)
-	}
-	return verifyReconcileCompletionAdapter(ctx, options, filepath.Clean(archivePath), nil)
-}
-
 // VerifyReconcileCompletionFromEvidence verifies remote completion using an
 // immutable archive snapshot and exact protected run-local receipt/profile
 // copies. It does not depend on the nested generated receipt/profile paths.

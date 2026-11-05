@@ -120,19 +120,19 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
 			}
-			fieldValues, err := normalizeBundleIDSelection(*fields, bundleIDFieldsList(), "--fields")
+			fieldValues, err := shared.NormalizeSelection(*fields, bundleIDFieldsList(), "--fields")
 			if err != nil {
 				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
 			}
-			profileFieldValues, err := normalizeBundleIDSelection(*profileFields, bundleIDProfileFieldsList(), "--profile-fields")
+			profileFieldValues, err := shared.NormalizeSelection(*profileFields, bundleIDProfileFieldsList(), "--profile-fields")
 			if err != nil {
 				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
 			}
-			capabilityFieldValues, err := normalizeBundleIDSelection(*capabilityFields, bundleIDCapabilityFieldsList(), "--capability-fields")
+			capabilityFieldValues, err := shared.NormalizeSelection(*capabilityFields, bundleIDCapabilityFieldsList(), "--capability-fields")
 			if err != nil {
 				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
 			}
-			appFieldValues, err := normalizeBundleIDSelection(*appFields, shared.AppFieldsList(), "--app-fields")
+			appFieldValues, err := shared.NormalizeSelection(*appFields, shared.AppFieldsList(), "--app-fields")
 			if err != nil {
 				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
 			}
@@ -498,10 +498,6 @@ func normalizeBundleIDSort(value string) (string, error) {
 		}
 	}
 	return strings.Join(values, ","), nil
-}
-
-func normalizeBundleIDSelection(value string, allowed []string, flagName string) ([]string, error) {
-	return shared.NormalizeSelection(value, allowed, flagName)
 }
 
 func bundleIDSortValues() []string {

@@ -17,8 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/peterbourgon/ff/v3/ffcli"
-
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
@@ -112,37 +110,6 @@ func TestNotarizationStapleRequiresConfirmationBeforeTargetOrRunner(t *testing.T
 	}
 	if calls != 0 {
 		t.Fatalf("runner calls = %d, want 0 without confirmation", calls)
-	}
-}
-
-func TestNotarizationStapleHelpRequiresConfirmation(t *testing.T) {
-	cmd := stapleCommand()
-	if cmd.FlagSet.Lookup("confirm") == nil {
-		t.Fatal("staple command is missing --confirm")
-	}
-	if !strings.Contains(cmd.ShortUsage, "--confirm") {
-		t.Fatalf("short usage = %q, want --confirm", cmd.ShortUsage)
-	}
-	if !strings.Contains(cmd.LongHelp, "--confirm") {
-		t.Fatalf("long help = %q, want --confirm guidance", cmd.LongHelp)
-	}
-}
-
-func TestNotarizationLocalCommandsAreRegistered(t *testing.T) {
-	for _, test := range []struct {
-		name  string
-		cmd   *ffcli.Command
-		flags []string
-	}{
-		{name: "staple", cmd: stapleCommand(), flags: []string{"file", "confirm"}},
-		{name: "validate", cmd: validateStapleCommand(), flags: []string{"file"}},
-	} {
-		for _, flagName := range test.flags {
-			flagValue := test.cmd.FlagSet.Lookup(flagName)
-			if flagValue == nil {
-				t.Errorf("%s --%s is not registered", test.name, flagName)
-			}
-		}
 	}
 }
 

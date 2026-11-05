@@ -199,7 +199,7 @@ func runCertificateExport(_ context.Context, opts certificateExportOptions) (*as
 	if err != nil {
 		return nil, err
 	}
-	defer clearCertificateExportBytes(certificateInput.Data)
+	defer clear(certificateInput.Data)
 	certificate, err := parseCertificateExportCertificate(certificateInput.Data)
 	if err != nil {
 		return nil, err
@@ -216,7 +216,7 @@ func runCertificateExport(_ context.Context, opts certificateExportOptions) (*as
 	if err != nil {
 		return nil, err
 	}
-	defer clearCertificateExportBytes(privateKeyInput.Data)
+	defer clear(privateKeyInput.Data)
 	privateKey, err := parseCertificateExportPrivateKey(privateKeyInput.Data)
 	if err != nil {
 		return nil, err
@@ -231,7 +231,7 @@ func runCertificateExport(_ context.Context, opts certificateExportOptions) (*as
 		if readErr != nil {
 			return nil, readErr
 		}
-		defer clearCertificateExportBytes(csrInput.Data)
+		defer clear(csrInput.Data)
 		csr, parseErr := parseCertificateExportCSR(csrInput.Data)
 		if parseErr != nil {
 			return nil, parseErr
@@ -247,7 +247,7 @@ func runCertificateExport(_ context.Context, opts certificateExportOptions) (*as
 	if err != nil {
 		return nil, err
 	}
-	defer clearCertificateExportBytes(passwordInput.Data)
+	defer clear(passwordInput.Data)
 	password := trimCertificateExportPassword(passwordInput.Data)
 	if len(password) == 0 {
 		return nil, fmt.Errorf("password file contains an empty password")
@@ -257,7 +257,7 @@ func runCertificateExport(_ context.Context, opts certificateExportOptions) (*as
 	if err != nil {
 		return nil, fmt.Errorf("encode PKCS#12 identity: %w", err)
 	}
-	defer clearCertificateExportBytes(p12Data)
+	defer clear(p12Data)
 
 	if _, err := shared.SafeWriteFileNoSymlinkWithPreparationAndCreatorInRoot(
 		outputParent,
@@ -741,10 +741,4 @@ func trimCertificateExportPassword(data []byte) []byte {
 		return data[:len(data)-1]
 	}
 	return data
-}
-
-func clearCertificateExportBytes(data []byte) {
-	for i := range data {
-		data[i] = 0
-	}
 }

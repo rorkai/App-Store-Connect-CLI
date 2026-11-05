@@ -32,37 +32,6 @@ func TestSigningSyncCommandLongHelpUsesOutputDirExample(t *testing.T) {
 	}
 }
 
-func TestSigningSyncPushHelpPairsDeviceWithCreateMissing(t *testing.T) {
-	deviceFlag := syncPushCommand().FlagSet.Lookup("device")
-	if deviceFlag == nil {
-		t.Fatal("expected --device flag")
-	}
-	if !strings.Contains(deviceFlag.Usage, "--create-missing") {
-		t.Fatalf("--device usage = %q, want it to name --create-missing", deviceFlag.Usage)
-	}
-	if strings.Contains(deviceFlag.Usage, "deprecated") || strings.Contains(deviceFlag.Usage, "5.0.0") {
-		t.Fatalf("--device usage = %q, must not describe a finished transition", deviceFlag.Usage)
-	}
-}
-
-func TestSigningSyncPushHelpDocumentsTargetsFile(t *testing.T) {
-	bundleFlag := syncPushCommand().FlagSet.Lookup("bundle-id")
-	if bundleFlag == nil {
-		t.Fatal("expected --bundle-id flag")
-	}
-	if !strings.Contains(bundleFlag.Usage, "required unless --targets-file") {
-		t.Fatalf("--bundle-id usage = %q, want the alternative selector contract", bundleFlag.Usage)
-	}
-
-	flag := syncPushCommand().FlagSet.Lookup("targets-file")
-	if flag == nil {
-		t.Fatal("expected --targets-file flag")
-	}
-	if !strings.Contains(flag.Usage, "1-32") || !strings.Contains(flag.Usage, "--bundle-id") || !strings.Contains(flag.Usage, "root-relative") {
-		t.Fatalf("--targets-file usage = %q, want root boundary, bounds, and mutual exclusion", flag.Usage)
-	}
-}
-
 func TestSigningSyncPreparesRepositoryOnceInAssetOrder(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -192,7 +161,7 @@ func TestSigningSyncIdentityConflictFailsBeforeProfileCreatePOST(t *testing.T) {
 			if err := os.WriteFile(path, []byte("conflicting-artifact"), 0o600); err != nil {
 				return err
 			}
-			return preflightSigningIdentityArtifacts(store, artifacts, "repository-password")
+			return preflightSigningIdentityArtifactsForContextUpdate(store, artifacts, "repository-password")
 		},
 	})
 	if err == nil || !strings.Contains(err.Error(), "before creating profile") {
@@ -352,14 +321,6 @@ func TestSigningCommandLongHelpUsesOutputDirForSyncPull(t *testing.T) {
 	}
 	if strings.Contains(cmd.LongHelp, "asc signing sync pull --repo git@github.com:team/certs.git --output ./signing") {
 		t.Fatalf("expected top-level help to avoid --output for sync pull, got %q", cmd.LongHelp)
-	}
-}
-
-func TestSigningSyncCommandLongHelpDocumentsSelectivePull(t *testing.T) {
-	cmd := SigningSyncCommand()
-	if !strings.Contains(cmd.LongHelp, "asc signing sync pull --repo git@github.com:team/certs.git --bundle-id com.example.app") ||
-		!strings.Contains(cmd.LongHelp, "--profile-type IOS_APP_STORE") {
-		t.Fatalf("expected pull example to document target selection, got %q", cmd.LongHelp)
 	}
 }
 

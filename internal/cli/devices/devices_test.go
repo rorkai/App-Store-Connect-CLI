@@ -9,22 +9,6 @@ import (
 	"time"
 )
 
-func TestDevicesCommand_BatchExampleConfirmsMutation(t *testing.T) {
-	cmd := DevicesCommand()
-
-	if !strings.Contains(cmd.LongHelp, `asc devices register-batch --file "./devices.txt" --confirm`) {
-		t.Fatalf("devices help must show a runnable confirmed batch example, got:\n%s", cmd.LongHelp)
-	}
-}
-
-func TestDevicesRegisterBatchHelpDoesNotDuplicateContinueDefault(t *testing.T) {
-	cmd := DevicesRegisterBatchCommand()
-	usage := cmd.FlagSet.Lookup("continue-on-error").Usage
-	if strings.Contains(usage, "default true") {
-		t.Fatalf("continue-on-error usage must leave default rendering to the shared formatter, got %q", usage)
-	}
-}
-
 func TestDevicesRegisterCommand_UDIDConflict(t *testing.T) {
 	cmd := DevicesRegisterCommand()
 

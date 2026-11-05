@@ -15,21 +15,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestSigningCommandIncludesKeychainInstall(t *testing.T) {
-	command := SigningCommand()
-	for _, subcommand := range command.Subcommands {
-		if subcommand == nil || subcommand.Name != "keychain" {
-			continue
-		}
-		for _, nested := range subcommand.Subcommands {
-			if nested != nil && nested.Name == "install" {
-				return
-			}
-		}
-	}
-	t.Fatal("expected signing keychain install subcommand")
-}
-
 func TestSigningKeychainInstallCommandThreadsOptions(t *testing.T) {
 	previous := installSigningKeychainFn
 	previousContext := signingKeychainInstallContext

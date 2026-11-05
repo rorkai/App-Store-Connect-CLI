@@ -172,10 +172,6 @@ func printSigningResignResult(result signingResignResult, format string, pretty 
 }
 
 var (
-	executeSigningResignFn     = executeSigningResign
+	executeSigningResignFn     = executeSigningResignImplementation
 	printSigningResignResultFn = printSigningResignResult
 )
-
-func executeSigningResign(ctx context.Context, options signingResignOptions) (signingResignResult, error) {
-	return executeSigningResignImplementation(ctx, options)
-}

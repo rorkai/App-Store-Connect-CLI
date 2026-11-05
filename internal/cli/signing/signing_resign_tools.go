@@ -33,9 +33,6 @@ func runSigningResignTool(ctx context.Context, executable string, args ...string
 }
 
 func runSigningResignToolWithFallback(ctx context.Context, fallbackTimeout time.Duration, executable string, args ...string) (signingResignToolOutput, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if err := ctx.Err(); err != nil {
 		return signingResignToolOutput{}, err
 	}
@@ -43,8 +40,8 @@ func runSigningResignToolWithFallback(ctx context.Context, fallbackTimeout time.
 	defer cancel()
 	command := exec.CommandContext(toolContext, executable, args...)
 	command.Env = SanitizedChildEnvironment(os.Environ())
-	stdout := &signingResignBoundedBuffer{limit: signingResignToolOutputLimit}
-	stderr := &signingResignBoundedBuffer{limit: signingResignToolOutputLimit}
+	stdout := &boundedOutputBuffer{limit: signingResignToolOutputLimit}
+	stderr := &boundedOutputBuffer{limit: signingResignToolOutputLimit}
 	command.Stdout = stdout
 	command.Stderr = stderr
 	err := command.Run()
@@ -72,9 +69,6 @@ func runSigningResignToolWithFallback(ctx context.Context, fallbackTimeout time.
 }
 
 func signingResignToolContext(ctx context.Context, fallbackTimeout time.Duration) (context.Context, context.CancelFunc) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if _, hasDeadline := ctx.Deadline(); hasDeadline {
 		return ctx, func() {}
 	}
@@ -83,13 +77,13 @@ func signingResignToolContext(ctx context.Context, fallbackTimeout time.Duration
 
 const signingResignToolOutputLimit = infoplist.MaxBytes + 64*1024
 
-type signingResignBoundedBuffer struct {
+type boundedOutputBuffer struct {
 	data     []byte
 	overflow bool
 	limit    int
 }
 
-func (buffer *signingResignBoundedBuffer) Write(data []byte) (int, error) {
+func (buffer *boundedOutputBuffer) Write(data []byte) (int, error) {
 	if len(buffer.data) >= buffer.limit {
 		buffer.overflow = true
 		return len(data), nil
@@ -104,11 +98,11 @@ func (buffer *signingResignBoundedBuffer) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-func (buffer *signingResignBoundedBuffer) Bytes() []byte {
+func (buffer *boundedOutputBuffer) Bytes() []byte {
 	return append([]byte(nil), buffer.data...)
 }
 
-func (buffer *signingResignBoundedBuffer) Truncated() bool {
+func (buffer *boundedOutputBuffer) Truncated() bool {
 	return buffer.overflow
 }
 
@@ -169,7 +163,7 @@ func isUnsignedSigningResignCodeObject(stderr []byte) bool {
 }
 
 func signSigningResignObject(ctx context.Context, pathValue, identitySHA1, keychainPath, entitlementsPath string) error {
-	if err := contextError(ctx); err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	args := []string{"--force", "--sign", identitySHA1, "--keychain", keychainPath, "--timestamp=none"}
@@ -184,7 +178,7 @@ func signSigningResignObject(ctx context.Context, pathValue, identitySHA1, keych
 }
 
 func verifySigningResignObject(ctx context.Context, pathValue, teamID string, deep bool) error {
-	if err := contextError(ctx); err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	args := []string{"--verify", "--strict", "--all-architectures"}

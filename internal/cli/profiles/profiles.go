@@ -163,7 +163,7 @@ profiles reference. It cannot be combined with --next. With --fields, both
 			if err != nil {
 				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
-			profileFields, err := normalizeProfileFields(*fields, "--fields")
+			profileFields, err := shared.NormalizeSelection(*fields, profileFieldsList(), "--fields")
 			if err != nil {
 				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
@@ -173,15 +173,15 @@ profiles reference. It cannot be combined with --next. With --fields, both
 				fmt.Fprintln(os.Stderr, "Error: "+message)
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 			}
-			bundleIDFieldsValue, err := normalizeProfileFieldsSelection(*bundleIDFields, profileBundleIDFieldsList(), "--bundle-id-fields")
+			bundleIDFieldsValue, err := shared.NormalizeSelection(*bundleIDFields, profileBundleIDFieldsList(), "--bundle-id-fields")
 			if err != nil {
 				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
-			deviceFieldsValue, err := normalizeProfileFieldsSelection(*deviceFields, profileDeviceFieldsList(), "--device-fields")
+			deviceFieldsValue, err := shared.NormalizeSelection(*deviceFields, profileDeviceFieldsList(), "--device-fields")
 			if err != nil {
 				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
-			certificateFieldsValue, err := normalizeProfileFieldsSelection(*certificateFields, profileCertificateFieldsList(), "--certificate-fields")
+			certificateFieldsValue, err := shared.NormalizeSelection(*certificateFields, profileCertificateFieldsList(), "--certificate-fields")
 			if err != nil {
 				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
@@ -710,41 +710,11 @@ func profileIncludeList() []string {
 }
 
 func normalizeProfileSort(value string) (string, error) {
-	sortValues := shared.SplitCSV(value)
-	if len(sortValues) == 0 {
-		return "", nil
-	}
-	allowed := make(map[string]struct{}, len(profileSortList()))
-	for _, item := range profileSortList() {
-		allowed[item] = struct{}{}
-	}
-	for _, item := range sortValues {
-		if _, ok := allowed[item]; !ok {
-			return "", fmt.Errorf("--sort must be one of: %s", strings.Join(profileSortList(), ", "))
-		}
+	sortValues, err := shared.NormalizeSelection(value, profileSortList(), "--sort")
+	if err != nil {
+		return "", err
 	}
 	return strings.Join(sortValues, ","), nil
-}
-
-func normalizeProfileFields(value, flagName string) ([]string, error) {
-	return normalizeProfileFieldsSelection(value, profileFieldsList(), flagName)
-}
-
-func normalizeProfileFieldsSelection(value string, allowed []string, flagName string) ([]string, error) {
-	fields := shared.SplitCSV(value)
-	if len(fields) == 0 {
-		return nil, nil
-	}
-	allowedSet := make(map[string]struct{}, len(allowed))
-	for _, field := range allowed {
-		allowedSet[field] = struct{}{}
-	}
-	for _, field := range fields {
-		if _, ok := allowedSet[field]; !ok {
-			return nil, fmt.Errorf("%s must be one of: %s", flagName, strings.Join(allowed, ", "))
-		}
-	}
-	return fields, nil
 }
 
 func profileSortList() []string {

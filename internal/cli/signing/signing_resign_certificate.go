@@ -25,7 +25,7 @@ func extractSigningResignCertificate(ctx context.Context, codePath, expectedSHA2
 	if _, err := hex.DecodeString(expectedSHA256); err != nil {
 		return fmt.Errorf("expected signer certificate digest is invalid")
 	}
-	if err := contextError(ctx); err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	directory, err := os.MkdirTemp("", "asc-signing-resign-cert.")

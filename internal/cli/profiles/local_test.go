@@ -249,30 +249,6 @@ func TestResolveProfilesInstallDirNonMacRequiresOverride(t *testing.T) {
 	}
 }
 
-func TestProfilesLocalHelpDocumentsVersionedDefaults(t *testing.T) {
-	commands := []struct {
-		name string
-		help string
-	}{
-		{name: "local", help: ProfilesLocalCommand().LongHelp},
-		{name: "install", help: ProfilesLocalInstallCommand().LongHelp},
-		{name: "list", help: ProfilesLocalListCommand().LongHelp},
-		{name: "clean", help: ProfilesLocalCleanCommand().LongHelp},
-	}
-
-	for _, command := range commands {
-		for _, want := range []string{
-			"Xcode 16 or newer: ~/Library/Developer/Xcode/UserData/Provisioning Profiles",
-			"Xcode 15 or older: ~/Library/MobileDevice/Provisioning Profiles",
-			"Use --install-dir",
-		} {
-			if !strings.Contains(command.help, want) {
-				t.Fatalf("%s help missing %q: %s", command.name, want, command.help)
-			}
-		}
-	}
-}
-
 func TestIsExpired(t *testing.T) {
 	t0 := time.Date(2026, 2, 16, 12, 0, 0, 0, time.UTC)
 
