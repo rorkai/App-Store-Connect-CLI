@@ -19,7 +19,7 @@ func AnalyticsSalesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("sales", flag.ExitOnError)
 
 	vendor := fs.String("vendor", "", "Vendor number (or ASC_VENDOR_NUMBER/ASC_ANALYTICS_VENDOR_NUMBER env)")
-	reportType := fs.String("type", "", "Report type: SALES, PRE_ORDER, NEWSSTAND, SUBSCRIPTION, SUBSCRIPTION_EVENT, SUBSCRIBER, SUBSCRIPTION_OFFER_CODE_REDEMPTION, INSTALLS, FIRST_ANNUAL, WIN_BACK_ELIGIBILITY")
+	reportType := fs.String("type", "", "Report type: SALES, PRE_ORDER, NEWSSTAND, SUBSCRIPTION, SUBSCRIPTION_EVENT, SUBSCRIBER, SUBSCRIPTION_OFFER_CODE_REDEMPTION, INSTALLS (deprecated), FIRST_ANNUAL, WIN_BACK_ELIGIBILITY")
 	reportSubType := fs.String("subtype", "", "Report subtype: SUMMARY, DETAILED, SUMMARY_INSTALL_TYPE, SUMMARY_TERRITORY, SUMMARY_CHANNEL")
 	frequency := fs.String("frequency", "", "Frequency: DAILY, WEEKLY, MONTHLY, YEARLY")
 	date := fs.String("date", "", "Report date: daily/weekly YYYY-MM-DD, monthly YYYY-MM or YYYY-MM-DD, yearly YYYY or YYYY-MM-DD (optional for DAILY)")
@@ -82,6 +82,9 @@ Examples:
 			reportVersion, err := normalizeSalesReportVersion(*version, salesType, subType, freq)
 			if err != nil {
 				return shared.UsageError(fmt.Sprintf("analytics sales: %v", err))
+			}
+			if salesType == asc.SalesReportTypeInstalls {
+				fmt.Fprintln(os.Stderr, "Warning: the INSTALLS report type is deprecated. Apple stopped generating new INSTALLS reports on November 4, 2026; reports generated before then can still be downloaded.")
 			}
 
 			outputDate := reportDate
