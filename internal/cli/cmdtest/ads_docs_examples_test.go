@@ -139,9 +139,9 @@ func isolateAdsGuideEnv(t *testing.T) {
 func adsGuideCommands(t *testing.T) []string {
 	t.Helper()
 
-	data, err := os.ReadFile(filepath.Join("..", "..", "..", "commands", "ads.mdx"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "website", "src", "content", "docs", "commands", "ads.mdx"))
 	if err != nil {
-		t.Fatalf("read commands/ads.mdx: %v", err)
+		t.Fatalf("read website/src/content/docs/commands/ads.mdx: %v", err)
 	}
 
 	var commands []string

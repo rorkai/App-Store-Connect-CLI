@@ -1,0 +1,9 @@
+---
+interface Props {
+	cols?: number;
+}
+
+const { cols = 2 } = Astro.props;
+---
+
+<div class="card-group not-content" style={`--card-cols: ${cols}`}><slot /></div>

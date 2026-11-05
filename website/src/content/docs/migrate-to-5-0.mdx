@@ -1,0 +1,296 @@
+---
+title: Migrate to 5.0
+description: Upgrade automation from the 4.x command surface to 5.0
+---
+Version 5.0 removes every CLI-side compatibility surface that 4.x kept behind a
+deprecation warning, and turns the remaining "warns and continues" inputs into
+hard usage errors. A removed flag is not registered, so it exits with code `2`.
+Starting in 5.3.2, flags listed on this page also name the replacement or exact
+migration step when they were accepted by a published 4.x command; other
+unknown flags keep the generic diagnostic and optional `Try:` suggestion. A
+removed command fails with
+``Error: unknown command `asc <command>` ``, also exit `2`.
+
+If you have pinned CI jobs, shell scripts, or internal runbooks on 4.x, read
+this page before you cut over. Use `asc --help` and `asc <command> --help`
+against the 5.0 binary when updating automation. The CLI is the source of
+truth.
+
+## What changed
+
+* Confirmation is mandatory for `asc auth logout` and for the Game Center
+  relationship-replacement commands.
+* `--device` on `asc signing fetch` and `asc signing sync push` requires
+  `--create-missing`; the 4.x warn-and-ignore exception is gone.
+* `asc signing sync push|pull` only read the encryption password from
+  `--password-file` or `ASC_SIGNING_SYNC_PASSWORD`.
+* The App Store Connect API 4.4.1 product-scoped in-app purchase and
+  subscription commands (`... localizations`, `... images`, `iap submit`,
+  `subscriptions review submit|submit-group`) are removed in favor of the
+  version-scoped commands.
+* Every hidden or visible flag alias that printed ``Warning: `--x` is
+  deprecated. Use `--y`.`` is removed, including `--build` where `--build-id`
+  is canonical.
+* `asc builds ...` app-scoped `--build-number` selection requires `--platform`
+  instead of defaulting to `IOS`.
+* Unsupported shims that only ever printed a deprecation error are unregistered
+  (`asc game-center groups challenges set ...`, `asc app-clips
+  advanced-experiences images delete ...`, `--external-testing`,
+  `--challenge-enabled`, Game Center details pagination flags).
+* `ASC_MATCH_PASSWORD`, `ASC_IRIS_SESSION_CACHE`, and
+  `ASC_IRIS_SESSION_CACHE_DIR` are no longer read.
+
+## Confirmation is now required
+
+### `asc auth logout`
+
+4.x removed credentials without `--confirm` after printing a warning. 5.0
+rejects the call before touching any credential store. Pass an explicit target
+and `--confirm`:
+
+```bash
+asc auth logout --name "PROFILE" --confirm
+asc auth logout --all --confirm
+```
+
+`--confirm=false` is still rejected. Omitting both `--name` and `--all`
+continues to target every stored App Store Connect credential once `--confirm`
+is present.
+
+### Game Center relationship replacement
+
+`asc game-center groups achievements set`, `asc game-center groups leaderboards
+set`, `asc game-center leaderboard-sets members set`, and `asc game-center
+leaderboard-sets v2 members set` replace the full relationship on the server.
+4.x warned when `--confirm` was missing and continued; 5.0 fails with a usage
+error before any request.
+
+```bash
+asc game-center groups achievements set --group-id "GROUP_ID" \
+  --ids "ACHIEVEMENT_ID_1,ACHIEVEMENT_ID_2" \
+  --confirm
+```
+
+## Signing
+
+### `--device` requires `--create-missing`
+
+Device IDs are only sent to App Store Connect when a profile is created. 4.x
+accepted `--device` without `--create-missing`, warned, and ignored the IDs.
+5.0 rejects the combination with a usage error on both `asc signing fetch` and
+`asc signing sync push`.
+
+```bash
+asc signing fetch --bundle-id "com.example.app" \
+  --profile-type IOS_APP_DEVELOPMENT \
+  --device "DEVICE_ID_1,DEVICE_ID_2" \
+  --create-missing
+
+asc signing sync push --bundle-id "com.example.app" \
+  --profile-type IOS_APP_DEVELOPMENT \
+  --repo "git@github.com:team/signing.git" \
+  --device "DEVICE_ID_1,DEVICE_ID_2" \
+  --create-missing
+```
+
+### Encryption password sources
+
+`asc signing sync push` and `asc signing sync pull` no longer accept the inline
+`--password` flag and no longer read `ASC_MATCH_PASSWORD`. Provide the password
+through `--password-file` or `ASC_SIGNING_SYNC_PASSWORD`. When neither is set
+the commands fail with a usage error that names only those two sources.
+
+```bash
+asc signing sync pull --repo "git@github.com:team/signing.git" \
+  --password-file "./signing-password.txt"
+```
+
+## Removed commands
+
+Each path below now fails with the unknown-command usage error (exit `2`). The
+right-hand column is the canonical replacement that already existed in 4.x.
+
+### In-app purchases and subscriptions (App Store Connect API 4.4.1)
+
+| Removed in 5.0 | Replacement |
+| --- | --- |
+| `asc iap localizations list ...` | `asc iap versions localizations list --version-id "IAP_VERSION_ID"` |
+| `asc iap localizations create ...` | `asc iap versions localizations create --version-id "IAP_VERSION_ID" --name "NAME" --locale "LOCALE"` |
+| `asc iap localizations update ...` | `asc iap versions localizations update --localization-id "LOCALIZATION_ID" ...` |
+| `asc iap localizations delete ...` | `asc iap versions localizations delete --localization-id "LOCALIZATION_ID" --confirm` |
+| `asc iap images <subcommand> ...` | `asc iap versions images ...` |
+| `asc iap submit ...` | `asc review items add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"` |
+| `asc subscriptions localizations <subcommand> ...` | `asc subscriptions versions localizations ...` |
+| `asc subscriptions localizations sync ...` | Reconcile each locale with `asc subscriptions versions localizations` list/create/update/delete |
+| `asc subscriptions images <subcommand> ...` | `asc subscriptions versions images ...` (`upload` replaces both `create` and `update`) |
+| `asc subscriptions groups localizations <subcommand> ...` | `asc subscriptions groups versions localizations ...` |
+| `asc subscriptions groups localizations sync ...` | Reconcile each locale with `asc subscriptions groups versions localizations` list/create/update/delete |
+| `asc subscriptions review submit ...` | `asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"` |
+| `asc subscriptions review submit-group ...` | `asc review items add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"` |
+
+`asc iap setup` and `asc subscriptions setup` keep their localization flags.
+They still write through Apple's v1 localization resources and still print the
+same advisory warning as 4.x; that warning describes Apple's API, not a CLI
+compatibility path, and it is unchanged in 5.0.
+
+### Unsupported shims
+
+| Removed in 5.0 | Why | Use instead |
+| --- | --- | --- |
+| `asc game-center groups challenges set ...` | App Store Connect cannot replace a group's challenge relationships | `asc game-center challenges create --group-id "GROUP_ID" ...` |
+| `asc app-clips advanced-experiences images delete ...` | App Store Connect cannot delete advanced experience images | Upload a replacement with `asc app-clips advanced-experiences images create --file ...`, then attach it with `asc app-clips advanced-experiences update --experience-id "EXP_ID" --header-image-id "NEW_IMAGE_ID"` |
+
+## Removed flags
+
+Every row below was a compatibility alias in 4.x. Hidden aliases printed
+``Warning: `--old` is deprecated. Use `--new`.`` and continued; visible ones
+were labeled `Deprecated` in help. In 5.0 none of them are registered.
+
+### `--build` where `--build-id` is canonical
+
+`--build` is removed as a build selector on: `asc builds` subcommands that
+select a build (`wait`, `dsyms`, `info`, `expire`, `update`, `add-groups`,
+`remove-groups`, `individual-testers ...`, `metrics beta-usages`, `links view`,
+`app view`, `pre-release-version view`, `icons list`,
+`beta-app-review-submission view`, `build-beta-detail view`,
+`app-encryption-declaration view`, `test-notes ...`), `asc testflight testers
+list|add-builds|remove-builds|export`, `asc testflight notifications send`,
+`asc testflight config export`, `asc testflight review submit`,
+`asc testflight review submissions list`, `asc testflight distribution view`,
+`asc testflight feedback list`, `asc testflight crashes list`,
+`asc validate testflight`, `asc publish testflight`, `asc release stage`,
+`asc review submit`, `asc versions attach-build`,
+`asc build-localizations list|create`, `asc build-bundles list`,
+`asc performance metrics view`, `asc performance diagnostics list`,
+`asc performance download`, `asc encryption declarations list|assign-builds`,
+and `asc apps app-encryption-declarations list`.
+
+### Other aliases
+
+| Removed in 5.0 | Command | Replacement |
+| --- | --- | --- |
+| `--id` (build selector) | `asc builds app view ...`, `pre-release-version view`, `icons list`, `beta-app-review-submission view`, `build-beta-detail view`, `app-encryption-declaration view` | `--build-id` |
+| `--id` | `asc builds test-notes view|update|delete ...` | `--localization-id` |
+| `--newest` | `asc builds wait ...` | `--latest` |
+| `--app-id` | `asc builds list ...` | `--app` |
+| `--group-id` | `asc testflight groups view ...` | `--id` |
+| `--external-testing` | `asc testflight distribution edit ...` | `asc builds add-groups --submit --confirm` or `asc builds remove-groups --confirm` |
+| `--id` | `asc versions view|update ...` | `--version-id` |
+| `--app` | `asc apps view ...` | `--id` |
+| `--id` | `asc apps public view|prices|descriptions ...` | `--app` |
+| `--app-info` | `asc apps info view ...` | `--info-id` |
+| `--id` | `asc apps info relationships <category> ...`, `asc apps info territory-age-ratings list ...` | `--info-id` |
+| `--bundle-id` | `asc bundle-ids capabilities list ...` | `--bundle` |
+| `--version-id` | `asc localizations list|update ...` | `--version` |
+| `--localization-id` | `asc screenshots list ...` | `--version-localization` |
+| `--available-in-new-territories` | `asc pre-orders enable ...` | none; pre-orders are enabled by patching territory availabilities |
+| `--version-limit` | `asc subscriptions list|view ...` | `--versions-limit` |
+| `--subscription-id` | `asc subscriptions view ...` | `--id` |
+| `--image-limit`, `--localization-limit` | `asc subscriptions versions list|view ...` | `--images-limit`, `--localizations-limit` |
+| `--id` | `asc subscriptions review screenshots delete ...` | `--screenshot-id` |
+| `--limit`, `--next`, `--paginate` | `asc game-center details list ...` | none; each app has a single Game Center detail |
+| `--challenge-enabled` | `asc game-center details create|update ...` | none; App Store Connect no longer accepts `challengeEnabled` |
+| `--two-factor-code` | web commands present in 4.x that support session authentication | `--two-factor-code-command` or `ASC_WEB_2FA_CODE_COMMAND` |
+| `--id` | `asc xcode-cloud status ...` | `--run-id` |
+| `--password` | `asc signing sync push|pull ...` | `--password-file` or `ASC_SIGNING_SYNC_PASSWORD` |
+| `--keyword` | `asc ads v5 campaign-negative-keywords view ...`, `asc ads v5 ad-group-negative-keywords view ...` | `--negative-keyword` |
+
+The source-only `--price-id` compatibility code in the legacy offer-code
+package was never registered in the 4.x root command, so it is not part of the
+published migration surface. Use
+`asc subscriptions offers offer-codes create --prices "USA:PRICE_POINT_ID"`
+for subscription offer codes.
+
+## Removed accepted values
+
+`--territory ALL` on `asc subscriptions offers introductory create` was a
+deprecated spelling of `--all-territories`. `ALL` is now validated like any
+other territory value and rejected.
+
+```bash
+asc subscriptions offers introductory create \
+  --subscription-id "SUBSCRIPTION_ID" \
+  --all-territories \
+  --offer-duration ONE_MONTH \
+  --offer-mode FREE_TRIAL \
+  --number-of-periods 1
+```
+
+## Removed environment variables
+
+| Removed in 5.0 | Replacement |
+| --- | --- |
+| `ASC_MATCH_PASSWORD` | `ASC_SIGNING_SYNC_PASSWORD` or `--password-file` |
+| `ASC_IRIS_SESSION_CACHE` | `ASC_WEB_SESSION_CACHE` |
+| `ASC_IRIS_SESSION_CACHE_DIR` | `ASC_WEB_SESSION_CACHE_DIR` |
+
+A set `ASC_MATCH_PASSWORD` is ignored; if it was the only password source the
+signing sync command now fails with the missing `--password-file` usage error.
+The legacy app-create (IRIS) session cache is no longer imported into the web
+session cache.
+
+## Changed defaults and selection rules
+
+### `--build-number` requires `--platform`
+
+App-scoped build selection with `--build-number` (for example `asc builds info
+--app "APP_ID" --build-number 42`) defaulted to `--platform IOS` in 4.x behind a
+warning. 5.0 requires the platform explicitly:
+
+```bash
+asc builds info --app "APP_ID" --build-number 42 --platform IOS
+asc builds wait --app "APP_ID" --build-number 42 --platform IOS
+```
+
+## Not a breaking change
+
+* `asc ads v5 ...` is unchanged. Those commands wrap Apple's Campaign
+  Management API v5, which Apple retires on January 26, 2027. They keep their
+  `DEPRECATED:` help prefix and retirement warning until then; only the
+  CLI-side `--keyword` alias was removed.
+* Apple-side notices are unchanged: the `ACCESS_TO_REPORTS` role warning, the
+  marketplace webhooks warning, the `kidsAgeBand` sparse-field note,
+  `--age-rating-override` on `asc age-rating edit`, and
+  `asc subscriptions pricing availability` all describe Apple's API rather
+  than a CLI compatibility path.
+* `asc iap list --legacy` and `asc iap view --legacy` still switch to the v1
+  in-app purchase endpoints. They were never deprecated.
+* The hidden `--ref-name` / `--name` spellings on `asc iap setup` and the
+  hidden `--group-ref-name` / `--ref-name` / `--name` spellings on
+  `asc subscriptions setup` still work. They were undocumented synonyms, never
+  deprecated, so they stay until a release announces their removal.
+* The temporary `--password` compatibility flag on `asc web apps create`
+  remains available.
+* Commands that 1.0 and 4.0 already removed (`asc apps create ...`,
+  `asc submit create ...`, `asc submit preflight ...`,
+  `asc review items view ...`, `asc review items-get ...`) keep their existing
+  guidance messages.
+
+## Upgrade checklist
+
+1. Search your repo for `--build ` (with a trailing space) on the commands
+   listed above and replace it with `--build-id`.
+2. Add `--confirm` to every `asc auth logout` and Game Center `... set`
+   invocation, and `--platform` to every app-scoped `--build-number` selection.
+3. Pair every `--device` on `asc signing fetch` or `asc signing sync push`
+   with `--create-missing`, and move signing sync passwords to
+   `--password-file` or `ASC_SIGNING_SYNC_PASSWORD`.
+4. Replace product-scoped `asc iap localizations ...`, `asc iap images ...`,
+   `asc subscriptions localizations ...`, `asc subscriptions images ...`, and
+   `asc subscriptions groups localizations ...` calls with the version-scoped
+   commands, and route review submission through `asc review items add`.
+5. Replace `--two-factor-code` with `--two-factor-code-command` (or
+   `ASC_WEB_2FA_CODE_COMMAND`) in web automation.
+6. Re-run CI with the 5.0 binary and verify exit codes and stderr handling.
+
+## Related docs
+
+* [Migrate to 4.0](/migrate-to-4-0)
+* [Command Reference Overview](/commands/overview)
+* [Auth](/commands/auth)
+* [Builds](/commands/builds)
+* [In-App Purchases](/commands/iap)
+* [Signing](/commands/signing)
+* [Subscriptions](/commands/subscriptions)
+* [TestFlight](/commands/testflight)
+* [Web](/commands/web)

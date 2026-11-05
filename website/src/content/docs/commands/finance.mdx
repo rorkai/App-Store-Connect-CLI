@@ -1,0 +1,340 @@
+---
+title: Finance
+description: Download payments and financial reports from App Store Connect
+---
+The `finance` command provides access to App Store financial reports and payment data. These reports detail your earnings, payments, and financial transactions.
+
+## Overview
+
+Financial reports are monthly aggregated reports available to Account Holders, Admins, and users with the Finance role. They provide detailed breakdowns of:
+
+* Developer proceeds and payments
+* Regional sales and taxes
+* Commission adjustments
+* Currency conversions
+* Settlement dates
+
+## Permissions
+
+Financial reports require **Account Holder**, **Admin**, or **Finance** role in App Store Connect.
+
+## Download Financial Reports
+
+Download financial reports for a specific month and region.
+
+```bash
+asc finance reports \
+  --vendor "12345678" \
+  --report-type FINANCIAL \
+  --region "US" \
+  --date "2025-12"
+```
+
+**Required Flags:**
+
+* `--vendor` - Vendor number (or `ASC_VENDOR_NUMBER` env)
+* `--report-type` - Report type: `FINANCIAL` or `FINANCE_DETAIL`
+* `--region` - Region code (see [Region Codes](#region-codes))
+* `--date` - Report date in `YYYY-MM` format (Apple fiscal month)
+
+**Optional Flags:**
+
+* `--output` - Custom output path (default: `finance_report_{date}_{type}_{region}.tsv.gz`)
+* `--decompress` - Decompress to `.tsv` format
+
+## Report Types
+
+The App Store Connect UI shows four report types, but only two are available via API:
+
+### FINANCIAL
+
+Aggregated monthly financial report.
+
+**UI Equivalents:**
+
+* "All Countries or Regions (Single File)" → Use `--region ZZ`
+* "All Countries or Regions (Multiple Files)" → Use specific region codes (`US`, `EU`, etc.)
+
+**Features:**
+
+* Monthly summary of proceeds and payments
+* Available for individual countries or regional aggregates
+* Most commonly used report type
+
+**Example:**
+
+```bash
+# Download consolidated report for all regions
+asc finance reports \
+  --vendor "12345678" \
+  --report-type FINANCIAL \
+  --region "ZZ" \
+  --date "2025-12"
+
+# Download US-only report
+asc finance reports \
+  --vendor "12345678" \
+  --report-type FINANCIAL \
+  --region "US" \
+  --date "2025-12"
+```
+
+### FINANCE\_DETAIL
+
+Detailed report with transaction and settlement dates.
+
+**UI Equivalent:**
+
+* "All Countries or Regions (Detailed)"
+
+**Features:**
+
+* Transaction-level detail
+* Settlement date information
+* **IMPORTANT**: Requires `--region Z1` (only valid region for this type)
+
+**Example:**
+
+```bash
+asc finance reports \
+  --vendor "12345678" \
+  --report-type FINANCE_DETAIL \
+  --region "Z1" \
+  --date "2025-12" \
+  --decompress
+```
+
+### Transaction Tax Reports
+
+**Transaction Tax reports are not available through the public API.** An
+authenticated web-session command is available for the captured
+App Store Connect finance flow:
+
+```bash
+asc web finance transaction-tax download \
+  --date "2026-07" \
+  --output-path ./transaction-tax-2026-07.zip \
+  --output json
+```
+
+The manual App Store Connect flow remains available:
+
+1. Sign in to App Store Connect
+2. Go to **Payments and Financial Reports**
+3. Select **Create Reports**
+4. Choose **Transaction Tax**
+
+## Region Codes
+
+Financial reports use specific region codes to identify geographic areas.
+
+### View Available Regions
+
+List all region codes with their currencies:
+
+```bash
+asc finance regions
+```
+
+**Output formats:**
+
+```bash
+# JSON (default)
+asc finance regions
+
+# Table format
+asc finance regions --output table
+
+# Markdown format
+asc finance regions --output markdown
+```
+
+### Common Region Codes
+
+**Individual Countries:**
+
+* `US` - United States (USD)
+* `CA` - Canada (CAD)
+* `GB` - United Kingdom (GBP)
+* `AU` - Australia (AUD)
+* `JP` - Japan (JPY)
+* `DE` - Germany (EUR)
+* `FR` - France (EUR)
+
+**Regional Aggregates:**
+
+* `EU` - Euro-Zone countries
+* `LL` - Latin America
+* `AP` - Asia-Pacific
+* `WW` - Rest of World
+
+**Special Codes:**
+
+* `ZZ` - Consolidated (all regions in single file) - Use with `FINANCIAL`
+* `Z1` - Financial Detail (required for `FINANCE_DETAIL`)
+
+### Region Selection Guide
+
+**For FINANCIAL reports:**
+
+* Use `ZZ` for a single consolidated file with all regions
+* Use specific region codes (`US`, `EU`, etc.) for regional breakdowns
+* Use country codes for country-specific reports
+
+**For FINANCE\_DETAIL reports:**
+
+* **Must use `Z1`** (only valid region for detailed reports)
+
+## Report Format
+
+Financial reports are tab-separated value (TSV) files compressed with gzip.
+
+### Sample Structure
+
+```
+Start Date    End Date    UPC    ISRC/ISBN    Vendor Identifier    Quantity    Partner Share    Extended Partner Share    Partner Share Currency    Sales or Return    Apple Identifier    Artist/Show/Developer/Author    Title    Label/Studio/Network/Developer/Publisher    Grid    Product Type Identifier    ISAN/Other Identifier    Country Of Sale    Pre-order Flag    Promo Code    Customer Price    Customer Currency
+2025-12-01    2025-12-31    ...    ...    com.example.app    100    350.00    350.00    USD    S    123456789    Developer Name    App Name    Developer Name    ...    IA1    ...    US    ...    ...    4.99    USD
+```
+
+### Key Columns
+
+* **Start Date / End Date**: Reporting period
+* **Vendor Identifier**: Your product ID (SKU)
+* **Quantity**: Units sold or returned
+* **Partner Share**: Your proceeds
+* **Partner Share Currency**: Currency for proceeds
+* **Apple Identifier**: App ID
+* **Country Of Sale**: Transaction country
+* **Customer Price**: Price paid by customer
+* **Product Type Identifier**: Product type (e.g., `IA1` for in-app purchase)
+
+## Vendor Number
+
+Your vendor number identifies your organization in financial reports.
+
+**Finding Your Vendor Number:**
+
+1. Sign in to [App Store Connect](https://appstoreconnect.apple.com)
+2. Go to **Payments and Financial Reports**
+3. Your vendor number appears in the top right corner
+
+**Setting via Environment Variable:**
+
+```bash
+export ASC_VENDOR_NUMBER="12345678"
+```
+
+Once set, you can omit the `--vendor` flag:
+
+```bash
+asc finance reports \
+  --report-type FINANCIAL \
+  --region "US" \
+  --date "2025-12"
+```
+
+## Common Workflows
+
+### Download Monthly Reports for All Regions
+
+```bash
+# Download consolidated report
+asc finance reports \
+  --vendor "$ASC_VENDOR_NUMBER" \
+  --report-type FINANCIAL \
+  --region "ZZ" \
+  --date "$(date -d 'last month' +%Y-%m)" \
+  --decompress
+```
+
+### Download Detailed Report
+
+```bash
+# Get transaction-level detail
+asc finance reports \
+  --vendor "$ASC_VENDOR_NUMBER" \
+  --report-type FINANCE_DETAIL \
+  --region "Z1" \
+  --date "2025-12" \
+  --decompress \
+  --output "reports/finance_detail_2025_12.tsv"
+```
+
+### Multi-Region Analysis
+
+```bash
+#!/bin/bash
+# Download reports for key markets
+
+DATE="2025-12"
+REGIONS=("US" "EU" "JP" "GB" "AU")
+
+for region in "${REGIONS[@]}"; do
+  asc finance reports \
+    --vendor "$ASC_VENDOR_NUMBER" \
+    --report-type FINANCIAL \
+    --region "$region" \
+    --date "$DATE" \
+    --decompress \
+    --output "reports/finance_${DATE}_${region}.tsv"
+done
+```
+
+### Automated Monthly Download
+
+```bash
+#!/bin/bash
+# Download last month's financial report
+# Run on the 15th of each month (when reports are typically available)
+
+LAST_MONTH=$(date -d 'last month' +%Y-%m)
+
+asc finance reports \
+  --vendor "$ASC_VENDOR_NUMBER" \
+  --report-type FINANCIAL \
+  --region "ZZ" \
+  --date "$LAST_MONTH" \
+  --decompress
+
+echo "Downloaded financial report for $LAST_MONTH"
+```
+
+## Report Availability
+
+**Timeline:**
+
+* Financial reports are typically available by the **15th of each month** for the previous month
+* Example: December 2025 report available around January 15, 2026
+
+**Retention:**
+
+* Reports are retained for approximately **1 year**
+* Download and archive reports for longer-term record keeping
+
+## Troubleshooting
+
+### "Vendor number not found"
+
+Ensure you're using the correct vendor number from App Store Connect → Payments and Financial Reports.
+
+### "Report not available"
+
+* Check the date format (`YYYY-MM`)
+* Verify the report is available (typically by the 15th of the following month)
+* Confirm your account has Finance role permissions
+
+### "Invalid region code for report type"
+
+* For `FINANCE_DETAIL`, you must use `--region Z1`
+* For `FINANCIAL`, use country codes (`US`, `EU`) or `ZZ` for consolidated
+
+## Related Commands
+
+* [Analytics](/commands/analytics) - Sales and trends reports
+* [Insights](/commands/insights) - Weekly and daily metrics analysis
+* [Subscriptions](/commands/subscriptions) - Manage subscription pricing
+
+## API Reference
+
+* [Finance Reports](https://sosumi.ai/documentation/appstoreconnectapi/download_finance_reports)
+* [Financial Report Regions](https://developer.apple.com/help/app-store-connect/reference/financial-report-regions-and-currencies/)

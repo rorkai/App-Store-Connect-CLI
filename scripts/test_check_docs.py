@@ -140,78 +140,42 @@ class WebsiteDocsChecksTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             website = Path(tmpdir)
             (website / "guides").mkdir()
-            (website / "docs.json").write_text(
-                json.dumps(
-                    {
-                        "navigation": {
-                            "tabs": [{"groups": [{"pages": ["index", "guides/test"]}]}]
-                        },
-                        "redirects": [
-                            {"source": "/old-test", "destination": "/guides/test"}
-                        ],
-                    }
-                )
-            )
+            navigation = {
+                "topics": [
+                    {"items": [{"label": "Guides", "items": ["index", {"label": "Test", "slug": "guides/test"}]}]}
+                ],
+                "redirects": {"/old-test": "/guides/test"},
+            }
             (website / "index.mdx").write_text('[Guide](/guides/test)\n<a href="/guides/test">Guide</a>\n')
             (website / "guides" / "test.mdx").write_text("# Test\n")
 
             page_ids, routes = check_website_docs.collect_site_state(website)
-            self.assertEqual(check_website_docs.check_navigation(website, page_ids), [])
-            self.assertEqual(check_website_docs.check_redirects(website, routes), [])
+            self.assertEqual(check_website_docs.check_navigation(navigation, page_ids), [])
+            self.assertEqual(check_website_docs.check_redirects(navigation, routes), [])
             self.assertEqual(check_website_docs.check_internal_links(website, routes), [])
-
-    def test_website_docs_accept_nested_navigation_groups(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            website = Path(tmpdir)
-            (website / "guides").mkdir()
-            (website / "docs.json").write_text(
-                json.dumps(
-                    {
-                        "navigation": {
-                            "tabs": [
-                                {
-                                    "groups": [
-                                        {
-                                            "group": "Guides",
-                                            "pages": [
-                                                {
-                                                    "group": "Advanced",
-                                                    "pages": ["guides/test"],
-                                                }
-                                            ],
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    }
-                )
-            )
-            (website / "index.mdx").write_text("# Home\n")
-            (website / "guides" / "test.mdx").write_text("# Test\n")
-
-            page_ids, _ = check_website_docs.collect_site_state(website)
-            self.assertEqual(check_website_docs.check_navigation(website, page_ids), [])
 
     def test_website_docs_report_missing_navigation_page(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             website = Path(tmpdir)
-            (website / "docs.json").write_text(
-                json.dumps({"navigation": {"tabs": [{"groups": [{"pages": ["missing"]}]}]}})
-            )
             (website / "index.mdx").write_text("# Home\n")
+            navigation = {"topics": [{"items": [{"label": "Group", "items": [{"label": "Gone", "slug": "missing"}]}]}]}
 
             page_ids, _ = check_website_docs.collect_site_state(website)
-            errors = check_website_docs.check_navigation(website, page_ids)
+            errors = check_website_docs.check_navigation(navigation, page_ids)
             self.assertEqual(len(errors), 1)
             self.assertIn("missing page", errors[0])
+
+    def test_website_docs_reject_duplicate_redirect_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            navigation_path = Path(tmpdir) / "navigation.json"
+            navigation_path.write_text('{"redirects": {"/old": "/a", "/old": "/b"}}')
+
+            with self.assertRaisesRegex(ValueError, "duplicate keys"):
+                check_website_docs.load_navigation(navigation_path)
 
     def test_website_docs_report_missing_route(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             website = Path(tmpdir)
-            (website / "docs.json").write_text(
-                json.dumps({"navigation": {"tabs": [{"groups": [{"pages": ["index"]}]}]}})
-            )
             (website / "index.mdx").write_text("[Missing](/guides/unknown)\n")
 
             _, routes = check_website_docs.collect_site_state(website)
@@ -222,29 +186,17 @@ class WebsiteDocsChecksTest(unittest.TestCase):
     def test_website_docs_report_missing_redirect_destination(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             website = Path(tmpdir)
-            (website / "docs.json").write_text(
-                json.dumps(
-                    {
-                        "navigation": {"tabs": [{"groups": [{"pages": ["index"]}]}]},
-                        "redirects": [
-                            {"source": "/old-index", "destination": "/missing-page"}
-                        ],
-                    }
-                )
-            )
             (website / "index.mdx").write_text("# Home\n")
+            navigation = {"redirects": {"/old-index": "/missing-page"}}
 
             _, routes = check_website_docs.collect_site_state(website)
-            errors = check_website_docs.check_redirects(website, routes)
+            errors = check_website_docs.check_redirects(navigation, routes)
             self.assertEqual(len(errors), 1)
             self.assertIn("redirect destination", errors[0])
 
     def test_website_docs_ignore_angle_bracket_external_links(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             website = Path(tmpdir)
-            (website / "docs.json").write_text(
-                json.dumps({"navigation": {"tabs": [{"groups": [{"pages": ["index"]}]}]}})
-            )
             (website / "index.mdx").write_text("[External](<https://example.com/docs>)\n")
 
             _, routes = check_website_docs.collect_site_state(website)
@@ -257,9 +209,6 @@ class WebsiteDocsChecksTest(unittest.TestCase):
             website = tmp / "website"
             website.mkdir()
             (tmp / "shared.png").write_text("png\n")
-            (website / "docs.json").write_text(
-                json.dumps({"navigation": {"tabs": [{"groups": [{"pages": ["index"]}]}]}})
-            )
             (website / "index.mdx").write_text("![Shared](../shared.png)\n")
 
             _, routes = check_website_docs.collect_site_state(website)
@@ -1500,6 +1449,7 @@ class HookChecksTest(unittest.TestCase):
     def test_website_and_wall_fast_paths_remain_separate(self) -> None:
         for path, expected in [("index.mdx", "make check-website-docs"),
                                (".mintlify/config.json", "make check-website-docs"),
+                               ("website/astro.config.mjs", "make check-website-docs"),
                                ("docs/wall-of-apps.json", "make check-wall-of-apps")]:
             with self.subTest(path=path):
                 code, calls = self.run_hook([path])

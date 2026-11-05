@@ -1,0 +1,530 @@
+---
+title: Screenshots
+description: Capture, frame, review, and upload App Store screenshots
+---
+Manage the full screenshot workflow from local capture to App Store upload.
+
+## Overview
+
+The `screenshots` command provides both local automation for capturing and framing screenshots, and App Store operations for uploading and managing screenshots in your app listings.
+
+## Version Selectors
+
+For `list`, `upload`, `plan`, and `apply`, `--version` accepts an App Store version ID, an API resource self-link, or a numeric version string such as `1.2.3`. Numeric strings require `--app` or `ASC_APP_ID` and default to `IOS` unless `--platform` is supplied. Other raw values are treated as IDs, not version-string filters.
+
+Version IDs retain their actual platform. `list --version VERSION_ID` needs no app. An explicit app verifies ownership; `--platform` also requires an app and verifies the platform. Upload, plan, and apply always require an app. `--version-id` remains supported as explicit ID selection, including numeric IDs; it cannot be combined with `--version`.
+
+```bash
+asc screenshots list --version "VERSION_ID" --locale "en-US"
+asc screenshots plan --app "123456789" --version "VERSION_ID"
+```
+
+## Local Workflow
+
+If you encounter issues, please [file feedback](https://github.com/rorkai/App-Store-Connect-CLI/issues/new/choose).
+
+### Capture Screenshots
+
+Capture screenshots from running simulators or applications:
+
+```bash
+asc screenshots capture --bundle-id "com.example.app" --name home
+```
+
+**Supported Providers:**
+
+* `axe` - Screenshot provider for iOS simulators
+* `macos` - Screenshot provider for macOS applications
+
+**Capture Options:**
+
+* `--bundle-id` - Application bundle identifier
+* `--name` - Screenshot name (without extension)
+* `--output-dir` - Output directory for raw PNG files
+* `--provider` - Capture provider (axe or macos)
+* `--udid` - Simulator UDID or "booted"
+
+### Frame Screenshots
+
+Add device frames, backgrounds, and title overlays to raw screenshots:
+
+```bash
+asc screenshots frame --input ./screenshots/raw/home.png --device iphone-air
+
+# Frame every PNG in a directory and resume after a partial failure
+asc screenshots frame --input-dir ./screenshots/raw --output-dir ./screenshots/framed \
+  --device ipad-pro-13 --frame-color space-gray --overlay-config ./overlay.json --resume
+```
+
+**Supported Devices and Frame Colors:**
+
+Frames come from the pinned Koubou 0.20.0 frame catalog. The first color is the default. Run `asc screenshots list-frame-devices --output json` for the same matrix.
+
+| Device | Frame | Output size | Display type | `--frame-color` values |
+| --- | --- | --- | --- | --- |
+| `iphone-air` | iPhone Air | 1260x2736 | `APP_IPHONE_69` | `light-gold`, `cloud-white`, `sky-blue`, `space-black` |
+| `iphone-17-pro` | iPhone 17 Pro | 1206x2622 | `APP_IPHONE_61` | `silver`, `cosmic-orange`, `deep-blue` |
+| `iphone-17-pro-max` | iPhone 17 Pro Max | 1320x2868 | `APP_IPHONE_69` | `silver`, `cosmic-orange`, `deep-blue` |
+| `iphone-16e` | iPhone 16 (front profile) | 1179x2556 | `APP_IPHONE_61` | `white`, `black` |
+| `iphone-17` | iPhone 17 | 1206x2622 | `APP_IPHONE_61` | `white`, `black`, `lavender`, `mist-blue`, `sage` |
+| `mac` | Canvas (no bezel) | 2880x1800 | `APP_DESKTOP` | none |
+| `ipad-pro-13` | iPad Pro 13" (M4) | 2064x2752 | `APP_IPAD_PRO_3GEN_129` | `silver`, `space-gray` |
+| `ipad-pro-11` | iPad Pro 11" (M4) | 1668x2388 | `APP_IPAD_PRO_3GEN_11` | `silver`, `space-gray` |
+| `ipad-air-13` | iPad Air 13" (M2) | 2064x2752 | `APP_IPAD_PRO_3GEN_129` | `space-gray`, `blue`, `purple`, `stardust` |
+| `ipad-air-11` | iPad Air 11" (M2) | 1668x2388 | `APP_IPAD_PRO_3GEN_11` | `space-gray`, `blue`, `purple`, `stardust` |
+| `ipad-mini` | iPad mini | 1488x2266 | `APP_IPAD_PRO_3GEN_11` | `starlight` |
+| `watch-series-11` | Apple Watch Series 11 46mm | 416x496 | `APP_WATCH_SERIES_10` | `aluminum-jet-black-sport-band-black` and 14 more case and band variants |
+| `watch-ultra-3` | Apple Watch Ultra 3 | 422x514 | `APP_WATCH_ULTRA` | `black-ocean-band-black`, `black-ocean-band-anchor-blue`, `natural-ocean-band-anchor-blue`, `natural-ocean-band-neon-green` |
+| `apple-tv` | Apple TV 4K | 3840x2160 | `APP_APPLE_TV` | none |
+
+Koubou finds the screen by flood-filling transparent pixels from the frame edge. Some watch band variants (Milanese, Alpine, and Trail Loops, plus several titanium Sport Bands) enclose transparent band pixels, so Koubou detects a screen larger than the display and misplaces the screenshot. Those variants are not offered.
+
+**Framing Options:**
+
+* `--input` - Path to raw screenshot PNG
+* `--input-dir` - Frame every PNG directly inside this directory (non-recursive). Outputs are named `<input>-<device>.png` in `--output-dir`
+* `--device` - Frame device profile
+* `--frame-color` - Frame color variant for `--device`
+* `--output-path` - Exact output path for the framed PNG (not with `--input-dir`)
+* `--output-dir` - Output directory when `--output-path` is not set
+* `--output` - Output format (`json`, `table`, or `markdown`)
+* `--title` - Overlay title text
+* `--subtitle` - Overlay subtitle or keyword text
+* `--title-color` - Title text color (hex format)
+* `--subtitle-color` - Subtitle text color (hex format)
+* `--font` - Font for title and subtitle: an installed family name, or a path to a `.ttf`, `.otf`, or `.ttc` file (defaults to Arial)
+* `--text-position` - `top` (default) or `bottom`
+* `--text-box` - Draw a filled box behind the title and subtitle (off by default)
+* `--text-box-color` - Box fill as `#RGB`, `#RRGGBB`, or `#RRGGBBAA` (defaults to `#00000099`)
+* `--text-box-padding` - Box padding in pixels (defaults to a quarter of each overlay's font size)
+* `--text-box-radius` - Box corner radius in pixels (defaults to the padding; `0` draws square corners)
+* `--bg-color` - Solid background color
+* `--overlay-config` - JSON file with `default` and `data[]` entries (`filter`, `title`, `keyword`, `background`, `textBox`, `textBoxColor`, `textBoxPadding`, `textBoxRadius`). Each input uses the first `data[]` entry whose `filter` appears in its file name, otherwise `default`. Explicit flags win over the matched entry.
+* `--resume` - Skip inputs whose source and render settings still match `.asc/reports/screenshots-frame/state.json`
+* `--parallel-workers` - With `--input-dir`, run up to N renders at once (default `1`, at most the CPU count)
+
+Title, subtitle, font, text position, text box, and background apply to every device. On bezel devices, text reserves a band at the top or bottom of the canvas and the frame is scaled into the remaining space; without `--bg-color`, text overlays sit on a dark gradient. Without text, bezel frames keep the full-canvas layout.
+
+**Text boxes and font files:**
+
+A text box keeps captions legible over busy or light backgrounds. `--text-box` turns it on for every input; an `--overlay-config` entry turns it on for the inputs it matches with `"textBox": true`. The `--text-box-*` flags override the matched entry's `textBoxColor`, `textBoxPadding`, and `textBoxRadius` key by key.
+
+```bash
+asc screenshots frame --input ./screenshots/raw/home.png --device iphone-air \
+  --title "Plan every trip" --subtitle "Offline maps" --bg-color "#f2c14e" \
+  --font ./brand/Brand-Bold.ttf --text-box --text-box-color "#1b3a5bcc"
+```
+
+```json
+{
+  "default": {"title": "Plan every trip", "textBox": true},
+  "data": [
+    {"filter": "paywall", "title": "Unlock Pro", "textBox": true, "textBoxColor": "#ffffffcc", "textBoxRadius": 0},
+    {"filter": "settings", "title": "Make it yours"}
+  ]
+}
+```
+
+When `--font` names a `.ttf`, `.otf`, or `.ttc` file, asc reads it before Koubou runs and copies it into its private Koubou work directory, so the font does not need to be installed on the rendering host, such as a CI runner. A missing, unreadable, or non-font file is a usage error. So are an invalid box color, a negative padding or radius, a `--text-box-*` flag when no input enables the box, and an overlay entry that sets `textBoxColor`, `textBoxPadding`, or `textBoxRadius` without `"textBox": true` (unless `--text-box` is set). `--resume` treats the box settings and the font file contents as render settings, so changing either renders the input again.
+
+With `--input-dir`, a failed input does not stop the batch. The receipt lists every input with `framed`, `skipped`, or `failed` status, and the command exits `1` when any input failed. With `--resume`, each completed input is recorded as soon as it is written, so rerunning the same command retries only the failed inputs. With `--parallel-workers N`, up to N inputs render at once, each as its own Koubou run with its own receipt row, resume entry, and output file; the receipt still lists inputs in name order. Unknown `--device`, `--frame-color`, or `--text-position` values are usage errors (exit `2`) that list the allowed values.
+
+**Requirements:**
+
+* Koubou CLI tool (version 0.20.0 exactly)
+* Install via: `pip install koubou==0.20.0` or `brew install bitomule/tap/koubou`, or download the matching version from [releases](https://github.com/bitomule/koubou/releases)
+* Run `kou setup-frames` once with network access to download the device frames
+
+**Upgrading from Koubou 0.18.x:**
+
+`asc screenshots frame` now requires Koubou 0.20.0 and reports any other version as unsupported. Upgrade with `pip install -U koubou==0.20.0` or `brew upgrade bitomule/tap/koubou`, then run `kou setup-frames` again so the 0.20.0 frames are downloaded.
+
+Frames that asc generates look the same after the upgrade: the frame artwork is unchanged, and asc anchors every generated text and image item on its center. Custom `--config` YAML files may need two edits:
+
+* Koubou 0.19.4 removed the `"` character from 18 frame names. Update references such as `iPad Air 13" - M2 - Space Gray - Portrait` to `iPad Air 13 - M2 - Space Gray - Portrait`.
+* Koubou 0.19.0 made content `alignment` the true horizontal anchor for text and image items. Items with `alignment: left` or `alignment: right` now start or end at their `position` x value, so adjust those x values.
+
+### Review Workflow
+
+Generate, review, and approve framed screenshots:
+
+```bash
+# Generate review HTML
+asc screenshots review-generate --framed-dir ./screenshots/framed
+
+# Open review in browser
+asc screenshots review-open --output-dir ./screenshots/review
+
+# Approve ready screenshots
+asc screenshots review-approve --all-ready --output-dir ./screenshots/review
+```
+
+### Plan and Apply Approved Artifacts
+
+Turn approved review artifacts into a deterministic upload plan before mutating
+remote screenshot state:
+
+```bash
+# Preview upload intent from approved review artifacts
+asc screenshots plan --app "123456789" --version "1.2.3"
+
+# Apply the approved upload plan
+asc screenshots apply --app "123456789" --version "1.2.3" --confirm
+```
+
+**Plan/Apply Options:**
+
+* `--app` - App Store Connect app ID
+* `--version` - App Store version ID, API self-link, or numeric version string
+* `--version-id` - Explicit App Store version ID (alternative to `--version`)
+* `--review-output-dir` - Directory containing `manifest.json` and `approved.json`
+* `--skip-existing` - Skip files whose checksum already exists remotely
+* `--replace` - Delete existing screenshots in each target set before uploading
+* `--confirm` - Required for `apply`
+
+### Run from Plan
+
+Execute the full capture and framing workflow from a JSON plan:
+
+```bash
+asc screenshots run --plan .asc/screenshots.json
+```
+
+**Plan Format:**
+
+```json
+{
+  "screenshots": [
+    {
+      "name": "home",
+      "bundle_id": "com.example.app",
+      "device": "iphone-air",
+      "title": "Welcome Home",
+      "subtitle": "Your personalized dashboard"
+    }
+  ]
+}
+```
+
+### Run a Screenshot Matrix
+
+Capture one existing screenshot plan across device, locale, appearance, and
+content-variant axes with bounded local concurrency:
+
+```bash
+asc screenshots matrix --plan .asc/screenshots-matrix.json --max-concurrency 2 --output json --pretty
+```
+
+Targets must already exist and be booted simulators. The command does not build,
+install, create, boot, clone, or delete simulators, and it does not upload
+screenshots. After validation succeeds, the command writes raw artifacts plus
+an offline `review/manifest.json` and `review/index.html`, including failed or
+canceled cells.
+
+The matrix plan is a separate JSON/JSONC file. Its four axes are expanded in
+declaration order, with a maximum of 256 cells:
+
+```jsonc
+{
+  "version": 1,
+  "base_plan": "screenshots.json",
+  "devices": [
+    {"id": "iphone-17-pro", "udid": "SIMULATOR_UDID"},
+    {"id": "ipad-pro-13", "udid": "ANOTHER_SIMULATOR_UDID"}
+  ],
+  "locales": ["en-US", "ja-JP"],
+  "appearances": ["light", "dark"],
+  "content_variants": [
+    {"id": "default"},
+    {"id": "empty", "launch_arguments": ["--fixture", "empty"]}
+  ],
+  "execution": {"max_concurrency": 2, "max_attempts": 2, "retry_backoff_ms": 500},
+  "output": {
+    "raw_dir": "./screenshots/matrix/raw",
+    "framed_dir": "./screenshots/matrix/framed",
+    "review_dir": "./screenshots/matrix/review",
+    "frame": {"enabled": false}
+  }
+}
+```
+
+Framing is disabled in this example because an iPad must never be represented
+by an iPhone frame. When framing is enabled, every matrix device needs an
+explicit supported mapping; syntax is checked by the frame-device parser and
+family compatibility is checked against the actual simulator during preflight.
+Use `--max-attempts` and `--retry-backoff` to override the plan. Retries apply
+only to execution and framing; validation, cancellation, and cleanup failures
+are reported without retrying. See [the matrix design note](https://github.com/rorkai/App-Store-Connect-CLI/blob/main/docs/design/screenshots-matrix.md)
+for the complete result, privacy, and review contracts.
+
+### List Frame Devices
+
+Show all supported frame device profiles:
+
+```bash
+asc screenshots list-frame-devices
+asc screenshots list-frame-devices --output json
+```
+
+## App Store Workflow
+
+### List Screenshots
+
+List all screenshots for a version localization:
+
+```bash
+asc screenshots list --version-localization "LOC_ID"
+```
+
+With `--version` or `--version-id`, `--locale` is optional. Omit it to list every
+localization of the version. JSON output then fills a `localizations` array with
+one entry per locale and leaves the top-level `versionLocalizationId` and `sets`
+keys empty, and table output gains a leading `Locale` column:
+
+```bash
+# Every localization of the version
+asc screenshots list --app "123456789" --version "1.2.3"
+
+# One localization
+asc screenshots list --app "123456789" --version "1.2.3" --locale "en-US"
+```
+
+List the screenshots of one screenshot set in the set's order. JSON output is
+Apple's `GET /v1/appScreenshotSets/{id}/appScreenshots` response unmodified,
+including `assetDeliveryState` warnings and `uploadOperations`:
+
+```bash
+asc screenshots list --set-id "SET_ID"
+asc screenshots list --set-id "SET_ID" --fields "fileName,assetDeliveryState" --paginate
+```
+
+### Check Screenshot Sizes
+
+Display supported screenshot dimensions and device types:
+
+```bash
+# Show common iOS submission sizes (iPhone 6.5" and iPad Pro 12.9")
+asc screenshots sizes
+
+# Show all supported sizes
+asc screenshots sizes --all
+
+# Filter by specific device type
+asc screenshots sizes --display-type "APP_IPHONE_65"
+```
+
+**Common Display Types:**
+
+* `APP_IPHONE_65` - iPhone 6.5" (required for most iOS submissions)
+* `APP_IPAD_PRO_3GEN_129` - iPad Pro 12.9" (required for iPad submissions)
+* `APP_IPHONE_67` - iPhone 6.7"
+* `APP_IPHONE_61` - iPhone 6.1"
+* `APP_IPHONE_DUO` - iPhone Duo (required starting April 2027 for apps built with the iOS 27.1 SDK or later)
+
+### Upload Screenshots
+
+Upload screenshots to App Store Connect:
+
+```bash
+# Upload one locale without looking up a localization ID
+asc screenshots upload --app "123456789" \
+  --version "1.2.3" \
+  --locale "en-US" \
+  --path "./screenshots/en-US" \
+  --device-type "IPHONE_65"
+
+# Replace only en-US's iPhone 6.5" set (other locales are untouched)
+asc screenshots upload --app "123456789" \
+  --version "1.2.3" \
+  --locale "en-US" \
+  --path "./screenshots/en-US" \
+  --device-type "IPHONE_65" \
+  --replace --confirm
+
+# Upload single file
+asc screenshots upload --version-localization "LOC_ID" \
+  --path "./screenshot.png" \
+  --device-type "IPHONE_65"
+
+# Upload directory (all PNG files)
+asc screenshots upload --version-localization "LOC_ID" \
+  --path "./screenshots/iphone" \
+  --device-type "IPHONE_65"
+
+# Upload the first 10 sorted files when the source folder has extras
+asc screenshots upload --version-localization "LOC_ID" \
+  --path "./screenshots/iphone" \
+  --device-type "IPHONE_65" \
+  --max-screenshots 10
+
+# Upload a set with bounded parallelism (default and maximum: 10, a full set)
+asc screenshots upload --version-localization "LOC_ID" \
+  --path "./screenshots/iphone" \
+  --device-type "IPHONE_65" \
+  --concurrency 4
+
+# Fan out across locale directories in one run
+asc screenshots upload --app "123456789" \
+  --version "1.2.3" \
+  --path "./screenshots" \
+  --device-type "IPHONE_65"
+```
+
+With `--locale`, `--path` points directly at that locale's screenshot file or
+directory, the same way `--version-localization` uploads read it. `--locale`
+takes exactly one locale, and `--version-id` works in place of `--version`.
+The version must already have a localization for that locale; otherwise the
+command fails and lists the version's locales. `--locale` cannot be combined
+with `--version-localization` or `--resume`.
+
+App-scoped uploads (`--app` with `--version` or `--version-id`) print the
+fan-out JSON result: `appId`, `version`, `versionId`, `platform`,
+`displayType`, and a `localizations` array. With `--locale` that array has one
+entry. `--version-localization` uploads print the single-localization result.
+
+Without `--locale`, for app/version fan-out uploads, structure `--path` with locale directories such as
+`./screenshots/en-US/iphone/*.png` and `./screenshots/fr-FR/iphone/*.png`.
+Each locale directory is matched against the remote App Store version
+localizations, and only files matching the selected `--device-type` are
+uploaded from each locale subtree. A device-rooted layout such as
+`./screenshots/iphone/en-US/*.png` also works when `--path` points at
+`./screenshots/iphone`.
+
+**File Requirements:**
+
+* Format: PNG or JPEG
+* Exact dimensions must match the device type specification
+* A screenshot set can contain at most 10 images; use `--max-screenshots 10`
+  to upload the first 10 sorted files when a source folder contains extras
+* `--concurrency` controls parallel uploads within one set (1–8, default 4);
+  results and remote ordering remain deterministic
+* Use `asc screenshots sizes` to verify required dimensions
+* Partial failures write a retry artifact under `.asc/reports/screenshots-upload/`;
+  if cleanup of a remote asset fails, the asset ID is retained in the artifact
+
+**Resume a Failed Upload:**
+
+```bash
+# Resume from the artifact printed by the failed run
+asc screenshots upload \
+  --resume ".asc/reports/screenshots-upload/failures-123.json"
+```
+
+Resume retries unresolved remote-asset cleanup before creating any new
+reservations. A remote asset already absent from App Store Connect is treated
+as cleaned up, so retrying the same artifact is safe.
+
+**Typical Submission:**
+
+```bash
+# iPhone set (required)
+asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" \
+  --path "./screenshots/iphone" \
+  --device-type "IPHONE_65"
+
+# iPad set (for iPad apps)
+asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" \
+  --path "./screenshots/ipad" \
+  --device-type "IPAD_PRO_3GEN_129"
+
+# Multi-locale iPhone set
+asc screenshots upload --app "123456789" \
+  --version "1.2.3" \
+  --path "./screenshots" \
+  --device-type "IPHONE_65"
+```
+
+### Upload Through the Asset Library
+
+Apple has deprecated screenshot sets in favor of the Asset Library, without
+announcing a removal date. Screenshot sets stay the default. Add `--asset-library`
+to upload to the library and place the screenshots on a version localization:
+
+```bash
+# See the library, placement group and remaining capacity without changing anything
+asc screenshots upload --version-localization "LOC_ID" \
+  --path "./screenshots/duo" \
+  --device-type "IPHONE_DUO" \
+  --asset-library --dry-run
+
+# Upload the sorted files, place them, and order them after existing placements
+asc screenshots upload --version-localization "LOC_ID" \
+  --path "./screenshots/duo" \
+  --device-type "IPHONE_DUO" \
+  --asset-library
+```
+
+The placement group comes from Apple's reference data for `--device-type`. If
+Apple publishes no single match, the command lists the offered groups; pass one
+with `--placement-group`. Existing placements are kept and count toward the
+group's limit. `--skip-existing`, `--replace` and `--concurrency` do not apply.
+
+Every file is uploaded before any is placed, so a failed upload leaves the
+localization unchanged. If a later step fails, the command exits non-zero and
+the receipt keeps each file's `assetId`, `placementId` and `state`, with
+`complete: false`. Uploaded media is never deleted automatically. Inspect with
+`asc localizations placements list`, then finish with
+`asc localizations placements create` and `reorder`.
+
+### Download Screenshots
+
+Download existing screenshots from App Store Connect:
+
+```bash
+asc screenshots download --version-localization "LOC_ID" \
+  --output-dir "./screenshots/downloaded"
+```
+
+### Reorder Screenshots
+
+Set the order of the screenshots in an existing set. `--ids` must list every
+screenshot in the set exactly once; the command reads the set first and sends
+no update when an ID is missing or does not belong to the set:
+
+```bash
+asc screenshots reorder --set-id "SET_ID" --ids "THIRD_ID,FIRST_ID,SECOND_ID"
+```
+
+### Delete Screenshots
+
+Remove screenshots from a version localization:
+
+```bash
+asc screenshots delete --id "SCREENSHOT_ID" --confirm
+```
+
+## Complete Example Workflow
+
+```bash
+# 1. Capture raw screenshots
+asc screenshots capture --bundle-id "com.example.app" --name home
+asc screenshots capture --bundle-id "com.example.app" --name profile
+asc screenshots capture --bundle-id "com.example.app" --name settings
+
+# 2. Frame screenshots with device bezels and text
+asc screenshots frame --input ./screenshots/raw/home.png \
+  --device iphone-air \
+  --title "Welcome Home" \
+  --subtitle "Your personalized dashboard"
+
+asc screenshots frame --input ./screenshots/raw/profile.png \
+  --device iphone-air \
+  --title "Your Profile" \
+  --subtitle "Manage your account"
+
+# 3. Review framed screenshots
+asc screenshots review-generate --framed-dir ./screenshots/framed
+asc screenshots review-open --output-dir ./screenshots/review
+asc screenshots review-approve --all-ready --output-dir ./screenshots/review
+
+# 4. Preview upload intent from approved artifacts
+asc screenshots plan --app "123456789" --version "1.2.3"
+
+# 5. Apply the approved upload plan
+asc screenshots apply --app "123456789" --version "1.2.3" --confirm
+```
+
+## Related Commands
+
+* [Video Previews](/commands/video-previews) - Manage app preview videos
+* [Apps](/commands/apps) - Manage app metadata and versions

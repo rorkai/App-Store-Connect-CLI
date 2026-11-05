@@ -1,6 +1,6 @@
 # Asset Library image upload
 
-Historical implementation scope and probe evidence are preserved below. For the current integrated workflow and OpenAPI 4.5.1 contract, see the [Asset Library guide](../../guides/asset-library.mdx).
+Historical implementation scope and probe evidence are preserved below. For the current integrated workflow and OpenAPI 4.5.1 contract, see the [Asset Library guide](../../website/src/content/docs/guides/asset-library.mdx).
 
 On 2026-10-06 the owner's disposable ASC Test app verified public image
 reservation (POST 201), returned object-storage PUT (200), commit (PATCH 200),

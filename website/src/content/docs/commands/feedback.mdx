@@ -1,0 +1,82 @@
+---
+title: feedback
+description: "Inspect beta tester feedback with `asc testflight feedback`"
+---
+
+import { Card, CardGroup, ParamField } from '@components/mdx';
+
+Feedback workflows now live under `asc testflight feedback ...`. This page keeps the older `feedback` URL, but the current CLI surface is the `testflight feedback` command family.
+
+## Usage
+
+```bash
+asc testflight feedback <subcommand> [flags]
+```
+
+## List feedback
+
+Retrieve feedback for an app:
+
+```bash
+asc testflight feedback list --app APP_ID
+asc testflight feedback list --app APP_ID --output table
+asc testflight feedback list --app APP_ID --include-screenshots
+asc testflight feedback list --app APP_ID --paginate
+```
+
+## View or delete a submission
+
+```bash
+asc testflight feedback view --submission-id SUBMISSION_ID
+asc testflight feedback delete --submission-id SUBMISSION_ID --confirm
+```
+
+## Useful flags
+
+<ParamField path="--app" type="string" required>
+  App Store Connect app ID
+</ParamField>
+
+<ParamField path="--include-screenshots" type="boolean">
+  Include screenshot URLs in feedback output
+</ParamField>
+
+<ParamField path="--limit" type="number">
+  Maximum number of results
+</ParamField>
+
+<ParamField path="--paginate" type="boolean">
+  Fetch all pages automatically
+</ParamField>
+
+## Example workflows
+
+### View all feedback in table format
+
+```bash
+asc testflight feedback list --app 123456789 --output table --paginate
+```
+
+### Export feedback to file
+
+```bash
+asc testflight feedback list --app 123456789 --paginate > feedback.json
+```
+
+### Filter recent feedback by device or OS
+
+```bash
+asc testflight feedback list --app 123456789 --device-model "iPhone15,3" --os-version "17.2"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Crashes command" icon="bug" href="/commands/crashes">
+    View TestFlight crash submissions
+  </Card>
+
+  <Card title="TestFlight command" icon="plane" href="/commands/testflight">
+    Manage TestFlight groups, testers, feedback, and crashes
+  </Card>
+</CardGroup>

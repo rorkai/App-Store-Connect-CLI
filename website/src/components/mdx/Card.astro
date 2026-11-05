@@ -1,0 +1,26 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import { icons } from './icons';
+
+interface Props {
+	title: string;
+	icon?: string;
+	href?: string;
+}
+
+const { title, icon, href } = Astro.props;
+const Tag = href ? 'a' : 'div';
+const svg = icon ? icons[icon] : undefined;
+const brandIcon = icon === 'github' || icon === 'gitlab' ? icon : undefined;
+---
+
+<Tag class:list={['card', { 'card-link': href }]} href={href}>
+	{
+		svg && (
+			<svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={svg} />
+		)
+	}
+	{brandIcon && <Icon class="card-icon" name={brandIcon} />}
+	<p class="card-title">{title}</p>
+	<div class="card-body"><slot /></div>
+</Tag>

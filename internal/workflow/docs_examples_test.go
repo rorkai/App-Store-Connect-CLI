@@ -13,9 +13,9 @@ import (
 // docWorkflowPages are the pages that ship .asc/workflow.json examples.
 // Keep this list in sync with the workflow documentation set.
 var docWorkflowPages = []string{
-	"concepts/workflows.mdx",
-	"configuration/workflows.mdx",
-	"guides/automation.mdx",
+	"website/src/content/docs/concepts/workflows.mdx",
+	"website/src/content/docs/configuration/workflows.mdx",
+	"website/src/content/docs/guides/automation.mdx",
 	"docs/WORKFLOWS.md",
 }
 

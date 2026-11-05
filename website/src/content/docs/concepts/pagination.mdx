@@ -1,0 +1,258 @@
+---
+title: Pagination
+description: Fetch all pages automatically with --paginate or control pagination manually for memory-efficient streaming.
+---
+
+import { Card, CardGroup, Note, Warning } from '@components/mdx';
+
+The App Store Connect API returns large result sets in pages. The CLI provides automatic pagination to fetch all results with a single flag.
+
+## Automatic Pagination
+
+Use the `--paginate` flag to fetch all pages automatically:
+
+```bash
+asc apps list --paginate
+```
+
+Without `--paginate`, the CLI returns only the first page (default limit varies by endpoint, typically 50-200 items).
+
+<Note>
+  The `--paginate` flag fetches **all pages** into memory before rendering output. For very large result sets, use manual pagination instead.
+</Note>
+
+## Manual Pagination
+
+Control page-by-page fetching with `--limit` and `--next`:
+
+```bash
+# Get first page with custom limit
+asc apps list --limit 10 --output json
+
+# Response includes links.next URL
+{
+  "data": [...],
+  "links": {
+    "next": "https://api.appstoreconnect.apple.com/v1/apps?cursor=..."
+  }
+}
+
+# Fetch next page using the URL
+asc apps list --next "https://api.appstoreconnect.apple.com/v1/apps?cursor=..."
+```
+
+<Warning>
+  The `--next` URL must be a valid App Store Connect API URL (`https://api.appstoreconnect.apple.com`). The CLI validates the URL for security.
+</Warning>
+
+## How Pagination Works
+
+The CLI uses a generic pagination system (`internal/asc/client_pagination.go`) that:
+
+1. **Fetches the first page** from the API
+2. **Checks for `links.next`** in the response
+3. **Fetches subsequent pages** until `links.next` is empty
+4. **Aggregates results** into a single response using reflection
+5. **Detects cycles** to prevent infinite loops on repeated pagination URLs
+
+### Pagination Interface
+
+All paginated responses implement:
+
+```go
+type PaginatedResponse interface {
+    GetLinks() *Links
+    GetData() any
+}
+```
+
+The `PaginateAll` function works with any response type that follows this interface.
+
+## Memory Considerations
+
+### Buffered (Default)
+
+With `--paginate`, all pages are buffered in memory:
+
+```bash
+# Fetches all pages into memory, then renders
+asc apps list --paginate --output table
+```
+
+**Use when:**
+
+* Result set is reasonably sized (\< 10,000 items)
+* You need table or markdown output
+* You want a single aggregated result
+
+### Streaming (Advanced)
+
+For very large datasets, some commands support `--stream` with `--paginate`:
+
+```bash
+# Emits NDJSON (newline-delimited JSON) page-by-page for very large result sets
+asc subscriptions pricing price-points list --subscription-id "SUB_ID" --paginate --stream
+```
+
+Each page is printed as a separate JSON line:
+
+```json
+{"data":[...],"links":{"next":"..."}}
+{"data":[...],"links":{"next":"..."}}
+{"data":[...],"links":{}}
+```
+
+**Use when:**
+
+* Result set is very large (> 10,000 items)
+* You need to process results incrementally
+* Memory usage is a concern
+
+<Note>
+  Streaming mode only works with JSON output. Table and markdown formats require buffering all results.
+</Note>
+
+## Pagination Limits
+
+### API Limits
+
+The App Store Connect API enforces maximum page sizes per endpoint:
+
+* Apps: 200
+* Builds: 200
+* Beta Testers: 200
+* Analytics: 100
+
+The CLI automatically uses the maximum allowed limit when `--paginate` is set.
+
+### Setting Custom Limits
+
+Control the page size with `--limit`:
+
+```bash
+# Fetch 10 items per page (useful for testing)
+asc builds list --app APP_ID --limit 10 --paginate
+```
+
+Smaller limits result in more API requests but may reduce memory usage slightly.
+
+## Error Handling
+
+If a page fetch fails mid-pagination:
+
+```bash
+asc apps list --paginate
+```
+
+**Behavior:**
+
+* Pages fetched **before** the error are returned
+* The error is reported with the page number: `page 3: unauthorized`
+* Exit code reflects the error (see [Error Handling](/concepts/error-handling))
+
+### Cycle Detection
+
+The CLI detects repeated `links.next` URLs to prevent infinite loops:
+
+```bash
+# If the API returns the same next URL twice
+asc apps list --paginate
+# Error: page 5: detected repeated pagination URL
+```
+
+## Examples
+
+### Fetch All Apps
+
+```bash
+asc apps list --paginate --output json > all_apps.json
+```
+
+### Fetch All Builds for an App
+
+```bash
+asc builds list --app APP_ID --paginate
+```
+
+### Manual Pagination Loop (Shell Script)
+
+```bash
+#!/bin/bash
+NEXT=""
+while true; do
+  if [ -n "$NEXT" ]; then
+    RESPONSE=$(asc apps list --next "$NEXT" --output json)
+  else
+    RESPONSE=$(asc apps list --limit 50 --output json)
+  fi
+  echo "$RESPONSE" | jq '.data[] | .attributes.name'
+  
+  NEXT=$(echo "$RESPONSE" | jq -r '.links.next // empty')
+  if [ -z "$NEXT" ]; then
+    break
+  fi
+done
+```
+
+### Count All Beta Testers
+
+```bash
+asc testflight testers list --paginate --output json | jq '.data | length'
+```
+
+## Implementation Details
+
+The pagination system uses reflection to handle any response type:
+
+```go
+// From internal/asc/client_pagination.go
+func PaginateAll(
+    ctx context.Context,
+    firstPage PaginatedResponse,
+    fetchNext PaginateFunc,
+) (PaginatedResponse, error)
+```
+
+Key features:
+
+* **Type-safe aggregation** using reflection on the `Data` field
+* **Cycle detection** with a `seenNext` map
+* **Type validation** ensures all pages match the first page's type
+* **Context support** for cancellation and timeouts
+
+### Spinner Indicator
+
+When `--paginate` is used in an interactive terminal, a spinner appears on stderr:
+
+```bash
+asc apps list --paginate
+# stderr: ⠋ Fetching...
+```
+
+The spinner is automatically hidden in non-interactive contexts (pipes, CI).
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use --paginate by Default" icon="infinity">
+    Always use `--paginate` unless you specifically want only the first page.
+  </Card>
+
+  <Card title="Combine with Filters" icon="filter">
+    Filter before paginating to reduce API calls: `--filter[platform]=IOS --paginate`
+  </Card>
+
+  <Card title="Save JSON Output" icon="floppy-disk">
+    Cache paginated results to avoid repeated API calls during development.
+  </Card>
+
+  <Card title="Monitor Rate Limits" icon="gauge">
+    Paginating large datasets consumes API rate limits. Use `--limit` to control request frequency.
+  </Card>
+</CardGroup>
+
+## Related
+
+* [Output Formats](/concepts/output-formats) - How pagination interacts with different output formats
+* [Error Handling](/concepts/error-handling) - Handling errors during pagination
+* [Filtering & Sorting](/concepts/pagination) - Reduce pagination needs with filters

@@ -1,0 +1,222 @@
+---
+title: reviews
+description: List and manage App Store customer reviews and ratings
+---
+
+import { Card, CardGroup, Note, ParamField } from '@components/mdx';
+
+The `reviews` command manages customer reviews and ratings from the App Store.
+
+## Usage
+
+```bash
+asc reviews <subcommand> [flags]
+```
+
+## Subcommands
+
+### List reviews
+
+List customer reviews for an app:
+
+```bash
+asc reviews list --app APP_ID
+asc reviews list --app APP_ID --sort -createdDate
+asc reviews list --app APP_ID --stars 1
+asc reviews list --app APP_ID --stars 1,2
+asc reviews list --app APP_ID --review-territory USA,GBR
+asc reviews list --app APP_ID --fields rating,title --include reviewTerritory --territory-fields currency
+```
+
+### Get review
+
+Get details for a specific review:
+
+```bash
+asc reviews view --id REVIEW_ID
+asc reviews view --id REVIEW_ID --include response,reviewTerritory --territory-fields currency
+```
+
+`view` accepts the same `--fields`, `--include`, `--response-fields`, and `--territory-fields` flags as `list`.
+
+### Respond to review
+
+Post a developer response to a review:
+
+```bash
+asc reviews respond \
+  --review-id REVIEW_ID \
+  --response "Thank you for your feedback! We've fixed this issue in v1.2.0."
+```
+
+### Get ratings
+
+Get rating summary:
+
+```bash
+asc reviews ratings --app APP_ID
+```
+
+### Review summarizations
+
+List App Store review summarizations for an app:
+
+```bash
+asc reviews summarizations --app "APP_ID" --platform IOS
+asc reviews summarizations --app "APP_ID" --platform IOS --territory USA
+asc reviews summarizations --next "<links.next>"
+```
+
+### Manage existing review responses
+
+Inspect or delete an existing response:
+
+```bash
+asc reviews response view --id "RESPONSE_ID"
+asc reviews response delete --id "RESPONSE_ID" --confirm
+asc reviews response for-review --review-id "REVIEW_ID"
+```
+
+## List flags
+
+<ParamField path="--app" type="string" required>
+  App ID to list reviews for
+</ParamField>
+
+<ParamField path="--sort" type="string">
+  Sort order: `createdDate`, `-createdDate`, `rating`, `-rating`
+</ParamField>
+
+<ParamField path="--stars" type="string">
+  Filter by star ratings, comma-separated (1-5). Accepts one rating (`--stars 1`) or several (`--stars 1,2`).
+</ParamField>
+
+<ParamField path="--territory" type="string">
+  Filter by the review's `territory` attribute, comma-separated (e.g., `US`, `GB`)
+</ParamField>
+
+<ParamField path="--review-territory" type="string">
+  Filter by related `reviewTerritory` IDs, comma-separated (e.g., `USA,GBR`)
+</ParamField>
+
+<ParamField path="--fields" type="string">
+  Comma-separated customer review fields: `rating`, `title`, `body`, `reviewerNickname`, `createdDate`, `territory`, `response`, `reviewTerritory`
+</ParamField>
+
+<ParamField path="--include" type="string">
+  Comma-separated relationships to include: `response`, `reviewTerritory`
+</ParamField>
+
+<ParamField path="--response-fields" type="string">
+  Comma-separated included response fields: `responseBody`, `lastModifiedDate`, `state`, `review`. Includes `response`.
+</ParamField>
+
+<ParamField path="--territory-fields" type="string">
+  Comma-separated included territory fields: `currency`. Includes `reviewTerritory`.
+</ParamField>
+
+<ParamField path="--output" type="string">
+  Output format: `json`, `table`, or `markdown`
+</ParamField>
+
+<ParamField path="--limit" type="number">
+  Maximum number of results
+</ParamField>
+
+<ParamField path="--paginate" type="boolean">
+  Fetch all pages automatically
+</ParamField>
+
+## Output example
+
+```json
+{
+  "data": [
+    {
+      "id": "review-id",
+      "type": "customerReviews",
+      "attributes": {
+        "rating": 5,
+        "title": "Great app!",
+        "body": "Love the new features in this update.",
+        "reviewerNickname": "HappyUser",
+        "createdDate": "2024-03-04T12:00:00Z",
+        "territory": "USA"
+      }
+    }
+  ]
+}
+```
+
+## Example workflows
+
+### View recent low-rated reviews
+
+```bash
+asc reviews list \
+  --app 123456789 \
+  --stars 1,2 \
+  --sort -createdDate \
+  --output table
+```
+
+### Respond to reviews
+
+```bash
+# Get low-rated reviews
+asc reviews list --app 123456789 --stars 1 --output json | \
+jq -r '.data[].id' | while read review_id; do
+  asc reviews respond \
+    --review-id "$review_id" \
+    --response "Thank you for your feedback. We'd like to help resolve this issue. Please contact us at support@example.com."
+done
+```
+
+### Export reviews to CSV
+
+```bash
+asc reviews list --app 123456789 --paginate --output json | \
+jq -r '.data[] | [.attributes.rating, .attributes.title, .attributes.body, .attributes.createdDate] | @csv' > reviews.csv
+```
+
+### Get rating summary
+
+```bash
+asc reviews ratings --app 123456789 --output table
+```
+
+**Example output:**
+
+```
+Rating  Count  Percentage
+5       1000   50%
+4       500    25%
+3       300    15%
+2       150    7.5%
+1       50     2.5%
+Average: 4.2
+```
+
+## Response guidelines
+
+<Note>
+  Apple guidelines for responding to reviews:
+
+  * Be professional and courteous
+  * Don't request that users change their review
+  * Don't include promotional content
+  * Keep responses focused on addressing the feedback
+  * You can only respond once per review
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Review command" icon="clipboard-check" href="/commands/review">
+    Manage App Store review submissions
+  </Card>
+
+  <Card title="Feedback command" icon="comment" href="/commands/feedback">
+    View TestFlight feedback
+  </Card>
+</CardGroup>

@@ -25,4 +25,4 @@ hoc profile when its devices differ from the enabled device list, and
 and ad hoc device sets. `asc signing sync nuke --profile-type TYPE --confirm`
 deletes every profile of one type, revokes its certificates, and removes their
 encrypted artifacts; `--dry-run` previews the plan without changes. See
-[Renew, refresh, and remove synced profiles](../commands/signing.mdx#renew-refresh-and-remove-synced-profiles).
+[Renew, refresh, and remove synced profiles](../website/src/content/docs/commands/signing.mdx#renew-refresh-and-remove-synced-profiles).

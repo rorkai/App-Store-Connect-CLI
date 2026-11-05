@@ -1,0 +1,401 @@
+---
+title: TestFlight Distribution
+description: Distribute builds to beta testers using TestFlight
+---
+
+import { Note, Step, Steps } from '@components/mdx';
+
+Manage your TestFlight beta testing program end-to-end, from organizing beta groups to collecting feedback from testers.
+
+## Overview
+
+TestFlight allows you to distribute pre-release builds to internal and external testers. The CLI provides complete automation for:
+
+* Managing beta groups and testers
+* Distributing builds to specific groups
+* Collecting and reviewing crash reports and feedback
+* Tracking beta tester metrics
+
+## Beta Groups Workflow
+
+<Steps>
+  <Step title="List existing beta groups">
+    View all beta groups for your app:
+
+    ```bash
+    asc testflight groups list --app "YOUR_APP_ID"
+    ```
+
+    Filter to internal or external groups:
+
+    ```bash
+    asc testflight groups list --app "YOUR_APP_ID" --internal
+    asc testflight groups list --app "YOUR_APP_ID" --external
+    ```
+  </Step>
+
+  <Step title="Create a new beta group">
+    Create an external beta group:
+
+    ```bash
+    asc testflight groups create --app "YOUR_APP_ID" --name "External Beta Testers"
+    ```
+
+    Create an internal beta group:
+
+    ```bash
+    asc testflight groups create --app "YOUR_APP_ID" --name "QA Team" --internal
+    ```
+
+    Attach existing builds and testers in the create request:
+
+    ```bash
+    asc testflight groups create --app "YOUR_APP_ID" --name "Release Candidates" \
+      --build-id "BUILD_ID1,BUILD_ID2" \
+      --tester "TESTER_ID1,TESTER_ID2"
+    ```
+
+    App Store Connect can create the group even when this request fails, for
+    example on an unknown build ID. The error then names the group and the
+    commands to attach the builds and testers or delete it. Don't rerun the
+    create command, or you get a second group with the same name.
+  </Step>
+
+  <Step title="Configure group settings">
+    Enable public link for external distribution:
+
+    ```bash
+    asc testflight groups edit --id "GROUP_ID" \
+      --public-link-enabled \
+      --public-link-limit-enabled \
+      --public-link-limit 100
+    ```
+
+    Enable feedback collection:
+
+    ```bash
+    asc testflight groups edit --id "GROUP_ID" --feedback-enabled
+    ```
+
+    Control whether the group's iOS builds are available on Apple silicon Macs and Apple Vision:
+
+    ```bash
+    asc testflight groups edit --id "GROUP_ID" \
+      --ios-builds-available-for-apple-silicon-mac \
+      --ios-builds-available-for-apple-vision=false
+    ```
+  </Step>
+</Steps>
+
+## Managing Beta Testers
+
+<Steps>
+  <Step title="Add beta testers">
+    Add a new tester to a beta group:
+
+    ```bash
+    asc testflight testers add \
+      --app "YOUR_APP_ID" \
+      --email "tester@example.com" \
+      --group "Beta Testers"
+    ```
+
+    Optionally include name details:
+
+    ```bash
+    asc testflight testers add \
+      --app "YOUR_APP_ID" \
+      --email "tester@example.com" \
+      --first-name "Jane" \
+      --last-name "Doe" \
+      --group "Beta Testers"
+    ```
+
+    Give a new tester specific builds, with or without a group:
+
+    ```bash
+    asc testflight testers add \
+      --email "tester@example.com" \
+      --build-id "BUILD_ID1,BUILD_ID2"
+    ```
+  </Step>
+
+  <Step title="Import testers in bulk">
+    Export existing testers to CSV:
+
+    ```bash
+    asc testflight testers export \
+      --app "YOUR_APP_ID" \
+      --output "./testers.csv"
+    ```
+
+    <Note>
+      Export prefixes a cell with a single quote when its first character would start a spreadsheet formula (`=`, `+`, `-`, `@`), so opening the file in Excel, Numbers, or Google Sheets cannot execute tester or group values. When a prefix is needed, export adds an `_asc_formula_escaping` provenance column. `asc testflight testers import` only removes prefixes from rows carrying that marker, so leading apostrophes in third-party or user-authored CSV files remain unchanged.
+    </Note>
+
+    Import testers from CSV (with dry-run first):
+
+    ```bash
+    asc testflight testers import \
+      --app "YOUR_APP_ID" \
+      --input "./testers.csv" \
+      --dry-run
+
+    # After verifying, apply the plan
+    asc testflight testers import \
+      --app "YOUR_APP_ID" \
+      --input "./testers.csv" \
+      --confirm
+    ```
+
+    `--confirm` is required unless `--dry-run` is set.
+  </Step>
+
+  <Step title="List and filter testers">
+    List all testers for an app:
+
+    ```bash
+    asc testflight testers list --app "YOUR_APP_ID"
+    ```
+
+    Filter by beta group:
+
+    ```bash
+    asc testflight testers list --app "YOUR_APP_ID" --group "Beta Testers"
+    ```
+
+    Filter by build:
+
+    ```bash
+    asc testflight testers list --app "YOUR_APP_ID" --build-id "BUILD_ID"
+    ```
+  </Step>
+
+  <Step title="Send invitations">
+    Invite a tester to start testing:
+
+    ```bash
+    asc testflight testers invite \
+      --app "YOUR_APP_ID" \
+      --email "tester@example.com"
+    ```
+
+    Invite and auto-create if tester doesn't exist:
+
+    ```bash
+    asc testflight testers invite \
+      --app "YOUR_APP_ID" \
+      --email "newtester@example.com" \
+      --group "Beta Testers"
+    ```
+  </Step>
+</Steps>
+
+## Distributing Builds to Groups
+
+<Steps>
+  <Step title="Find your build ID">
+    List recent builds:
+
+    ```bash
+    asc builds list --app "YOUR_APP_ID" --sort "-uploadedDate" --limit 5
+    ```
+
+    Get a specific build:
+
+    ```bash
+    asc builds info --app "YOUR_APP_ID" --version "1.0" --build-number "42" --platform IOS
+    ```
+  </Step>
+
+  <Step title="Add build to beta groups">
+    Add a build to one or more groups:
+
+    ```bash
+    asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID"
+    ```
+
+    Add to multiple groups:
+
+    ```bash
+    asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID1,GROUP_ID2"
+    ```
+  </Step>
+
+  <Step title="Verify distribution">
+    Check which groups have access to a build:
+
+    ```bash
+    asc testflight distribution view --build-id "BUILD_ID"
+    ```
+  </Step>
+</Steps>
+
+## Feedback and Crash Reports
+
+<Steps>
+  <Step title="View crash submissions">
+    Get crash submission details:
+
+    ```bash
+    asc testflight crashes view --submission-id "SUBMISSION_ID"
+    ```
+
+    Download the crash log:
+
+    ```bash
+    asc testflight crashes log --submission-id "SUBMISSION_ID"
+    ```
+  </Step>
+
+  <Step title="View screenshot feedback">
+    Get screenshot submission with annotations:
+
+    ```bash
+    asc testflight feedback view --submission-id "SUBMISSION_ID"
+    ```
+  </Step>
+
+  <Step title="Retrieve crash logs">
+    Get detailed crash logs for analysis:
+
+    ```bash
+    asc testflight crashes log --crash-log-id "CRASH_LOG_ID"
+    ```
+  </Step>
+
+  <Step title="Clean up old feedback (optional)">
+    Delete processed crash submissions:
+
+    ```bash
+    asc testflight crashes delete --submission-id "SUBMISSION_ID" --confirm
+    ```
+
+    Delete screenshot submissions:
+
+    ```bash
+    asc testflight feedback delete --submission-id "SUBMISSION_ID" --confirm
+    ```
+  </Step>
+</Steps>
+
+## Beta Tester Metrics
+
+Track how testers engage with your builds:
+
+```bash
+asc testflight metrics app-testers --app "YOUR_APP_ID"
+```
+
+This provides insights into:
+
+* Number of sessions per tester
+* App version usage
+* Install and session counts
+
+## Complete Example Workflow
+
+Here's a complete workflow for distributing a new build:
+
+```bash
+# 1. Set your app ID
+export ASC_APP_ID="YOUR_APP_ID"
+
+# 2. Find the latest build
+asc builds list --app "$ASC_APP_ID" --sort "-uploadedDate" --limit 1 --output json
+BUILD_ID="..." # Extract from output
+
+# 3. Create or find your beta group
+asc testflight groups list --app "$ASC_APP_ID"
+GROUP_ID="..." # Use existing or create new
+
+# 4. Add build to the beta group
+asc builds add-groups --build-id "$BUILD_ID" --group "$GROUP_ID"
+
+# 5. List testers in the group
+asc testflight testers list --app "$ASC_APP_ID" --group "$GROUP_ID"
+
+# 6. Add new testers if needed
+asc testflight testers add \
+  --app "$ASC_APP_ID" \
+  --email "newtester@example.com" \
+  --group "Beta Testers"
+
+# 7. Send invitations
+asc testflight testers invite --app "$ASC_APP_ID" --email "newtester@example.com"
+
+# 8. Monitor beta tester activity
+asc testflight metrics app-testers --app "$ASC_APP_ID"
+```
+
+## Troubleshooting
+
+### Tester Not Receiving Invitation
+
+1. Verify the tester is added to the group:
+   ```bash
+   asc testflight testers list --app "YOUR_APP_ID" --group "GROUP_ID"
+   ```
+
+2. Check if invitation was sent:
+   ```bash
+   asc testflight testers view --id "TESTER_ID"
+   ```
+
+3. Resend invitation:
+   ```bash
+   asc testflight testers invite --app "YOUR_APP_ID" --email "tester@example.com"
+   ```
+
+### Build Not Appearing for Testers
+
+1. Verify build is assigned to the group:
+   ```bash
+   asc testflight distribution view --build-id "BUILD_ID"
+   ```
+
+2. Check build processing status:
+   ```bash
+   asc builds info --build-id "BUILD_ID"
+   ```
+
+3. Ensure build passed TestFlight review:
+   ```bash
+   asc testflight review submissions list --build-id "BUILD_ID"
+   ```
+
+### Managing Group Limits
+
+Internal groups have a limit of 100 testers. External groups can have up to 10,000 testers.
+
+To check current tester counts:
+
+```bash
+asc testflight groups view --id "GROUP_ID"
+```
+
+If you hit limits, create additional groups:
+
+```bash
+asc testflight groups create --app "YOUR_APP_ID" --name "Beta Testers Group 2"
+```
+
+## Best Practices
+
+1. **Organize by testing focus**: Create separate groups for different testing purposes (QA, feature testing, general beta)
+
+2. **Use CSV import for bulk operations**: Export your current tester list, make changes, and re-import
+
+3. **Enable feedback collection**: Turn on feedback for external groups to collect valuable user input
+
+4. **Monitor crash reports**: Regularly check crash submissions and address issues before App Store release
+
+5. **Set public link limits**: For public beta links, set reasonable limits to control your beta population size
+
+6. **Track metrics**: Use beta tester usage metrics to identify your most active testers
+
+## Related Commands
+
+* [App Store Submission](/guides/app-store-submission) - Submit builds for App Store review
+* [Build Management](/commands/builds) - Manage builds in App Store Connect
+* [Analytics and Reports](/guides/analytics-reports) - Download usage and crash analytics

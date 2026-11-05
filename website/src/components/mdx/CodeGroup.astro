@@ -1,0 +1,34 @@
+---
+// Renders sibling titled code blocks as one block with a tab per title.
+// Without JavaScript the blocks stay stacked, each with its own title.
+---
+
+<asc-code-group class="code-group"><slot /></asc-code-group>
+
+<script>
+	class CodeGroup extends HTMLElement {
+		connectedCallback() {
+			const blocks = [...this.querySelectorAll<HTMLElement>(':scope > .expressive-code')];
+			if (blocks.length < 2) return;
+			const tabs = document.createElement('div');
+			tabs.className = 'code-group-tabs';
+			tabs.setAttribute('role', 'tablist');
+			const select = (index: number) => {
+				blocks.forEach((block, i) => (block.hidden = i !== index));
+				[...tabs.children].forEach((tab, i) => tab.setAttribute('aria-selected', String(i === index)));
+			};
+			blocks.forEach((block, index) => {
+				const button = document.createElement('button');
+				button.type = 'button';
+				button.setAttribute('role', 'tab');
+				button.textContent = block.querySelector('figcaption .title')?.textContent ?? `Tab ${index + 1}`;
+				button.addEventListener('click', () => select(index));
+				tabs.append(button);
+			});
+			this.classList.add('code-group-ready');
+			this.prepend(tabs);
+			select(0);
+		}
+	}
+	customElements.define('asc-code-group', CodeGroup);
+</script>

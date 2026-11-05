@@ -1,0 +1,8 @@
+---
+// Desktop shows the section tabs in the header, so the topic list is mobile-only.
+import Default from '@astrojs/starlight/components/Sidebar.astro';
+import TopicsSidebar from 'starlight-sidebar-topics/components/Sidebar.astro';
+---
+
+<div class="md:sl-hidden"><TopicsSidebar /></div>
+<Default><slot /></Default>

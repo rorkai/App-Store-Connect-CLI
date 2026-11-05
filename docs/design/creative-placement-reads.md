@@ -1,6 +1,6 @@
 # Product-page header and search-result placement reads
 
-Historical implementation scope and probe evidence are preserved below. For the current integrated workflow and OpenAPI 4.5.1 contract, see the [Asset Library guide](../../guides/asset-library.mdx).
+Historical implementation scope and probe evidence are preserved below. For the current integrated workflow and OpenAPI 4.5.1 contract, see the [Asset Library guide](../../website/src/content/docs/guides/asset-library.mdx).
 
 This note records the initial shipped scope. The shared placement commands are extended by [Library asset reuse](library-asset-reuse.md).
 On 2026-10-06 the ASC Test app's signed-in browser requested

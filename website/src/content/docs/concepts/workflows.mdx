@@ -1,0 +1,743 @@
+---
+title: Workflows
+description: Automate multi-step tasks by composing CLI commands and shell scripts in declarative JSON workflows.
+---
+
+import { Note, Warning } from '@components/mdx';
+
+Workflows let you define reusable, multi-step automation sequences in a declarative JSON file. Think of workflows as lightweight CI/CD pipelines for App Store Connect tasks.
+
+## Quick Start
+
+Create a workflow file at `.asc/workflow.json`:
+
+```json
+{
+  "workflows": {
+    "beta": {
+      "description": "Distribute latest build to TestFlight beta group",
+      "steps": [
+        "asc builds list --app $APP_ID --limit 1 --sort -uploadedDate",
+        {
+          "name": "add_to_group",
+          "run": "asc builds add-groups --build-id $BUILD_ID --group $GROUP_ID"
+        }
+      ]
+    }
+  }
+}
+```
+
+Run it:
+
+```bash
+asc workflow run beta BUILD_ID:abc123 GROUP_ID:xyz789
+```
+
+## Workflow File Structure
+
+Workflows are defined in `.asc/workflow.json` (or a custom path with `--file`).
+
+### Top-Level Schema
+
+```json
+{
+  "env": {
+    "APP_ID": "123456789",
+    "VERSION": "1.0.0"
+  },
+  "before_all": "asc auth status",
+  "after_all": "echo workflow_done",
+  "error": "echo workflow_failed",
+  "workflows": {
+    "workflow_name": {
+      "description": "...",
+      "steps": [...]
+    }
+  }
+}
+```
+
+| Field        | Type   | Description                                                     |
+| ------------ | ------ | --------------------------------------------------------------- |
+| `env`        | object | Global environment variables available to all workflows         |
+| `before_all` | string | Shell command run before any workflow                           |
+| `after_all`  | string | Shell command run only after the workflow completes successfully |
+| `error`      | string | Shell command run only on workflow failure                      |
+| `workflows`  | object | Map of named workflows                                          |
+
+### Workflow Schema
+
+```json
+{
+  "description": "Human-readable description",
+  "private": false,
+  "env": {
+    "BUILD_ID": ""
+  },
+  "steps": [
+    "asc apps list",
+    {
+      "name": "step_name",
+      "run": "asc builds list --app $APP_ID",
+      "if": "LIST_BUILDS",
+      "with": {
+        "NOTE": "custom value"
+      },
+      "workflow": "other_workflow"
+    }
+  ]
+}
+```
+
+| Field         | Type    | Description                                                   |
+| ------------- | ------- | ------------------------------------------------------------- |
+| `description` | string  | Optional description (shown in `workflow list`)               |
+| `private`     | boolean | Hide from `workflow list` (callable only via other workflows) |
+| `env`         | object  | Workflow-specific environment variables                       |
+| `steps`       | array   | Ordered list of steps to execute                              |
+
+### Step Schema
+
+Steps can be **short form** (bare string) or **long form** (object):
+
+```json
+// Short form
+"asc apps list"
+
+// Long form
+{
+  "name": "list_apps",
+  "run": "asc apps list --output json",
+  "if": "VARIABLE_NAME",
+  "retry": {"max_attempts": 4, "delay": "5s"},
+  "timeout": "1m",
+  "with": {"KEY": "value"},
+  "workflow": "sub_workflow_name"
+}
+```
+
+| Field      | Type   | Required    | Description                                                      |
+| ---------- | ------ | ----------- | ---------------------------------------------------------------- |
+| `run`      | string | Conditional | Shell command to execute (mutually exclusive with `workflow`)    |
+| `workflow` | string | Conditional | Name of another workflow to call (mutually exclusive with `run`) |
+| `name`     | string | No          | Step identifier (for debugging and JSON output)                  |
+| `if`       | string | No          | Name of a variable that must hold a truthy value for the step to run |
+| `with`     | object | No          | Additional environment variables for this step only              |
+| `retry`    | object | No          | Explicit fixed-delay retry policy for `run` steps                 |
+| `timeout`  | string | No          | Positive per-attempt timeout for `run` steps                      |
+
+<Warning>
+  A step must have **either** `run` or `workflow`, but not both.
+</Warning>
+
+### Bounded retry and timeout
+
+Long-form `run` steps can opt into bounded retries with `retry.max_attempts`
+(2-100) and a fixed positive `retry.delay`, plus a positive per-attempt
+`timeout`. Durations use values such as `250ms`, `10s`, or `2m` and are capped
+at `24h`.
+
+Retry is never implicit. Choose it only for a command that is safe to repeat;
+the runner does not infer whether a command is read-only or a mutation.
+Workflow-call steps and lifecycle hooks do not accept these fields. Attempt
+diagnostics go to stderr, successful-attempt outputs are persisted, and resume
+continues to skip already successful steps.
+
+A step with `timeout` but no `retry` becomes terminal if it times out, so
+`--resume` cannot replay a command that may have completed remotely. Combining
+`retry` and `timeout` keeps failures resumable because retry is the explicit
+repeat-safety opt-in.
+Persisted diagnostics from a failed timeout-configured step do not create a
+resume checkpoint by themselves. Recovery still requires a prior successful
+step or hook, or an explicitly retry-enabled failure. Omit either field to
+disable it; explicit `null` is invalid.
+
+## Environment Variables
+
+Workflows support environment variable expansion using `$VAR` or `${VAR}` syntax:
+
+```json
+{
+  "env": {
+    "APP_ID": "123456789",
+    "VERSION": "1.0.0"
+  },
+  "workflows": {
+    "example": {
+      "steps": [
+        "asc apps view --id $APP_ID",
+        "asc versions list --app ${APP_ID} --filter[versionString]=$VERSION"
+      ]
+    }
+  }
+}
+```
+
+### Variable Precedence
+
+For steps in the workflow you invoked, highest to lowest:
+
+1. **Runtime parameters**: `asc workflow run example VAR:value`
+2. **Workflow-level `env`**: `{"env": {"VAR": "value"}}`
+3. **Global `env`**: Top-level `env` object
+4. **Process environment**: inherited from your shell
+
+Steps inside a called sub-workflow resolve against the calling step's `with`
+plus everything the caller already had in scope, highest to lowest:
+
+1. **Step-level `with`** on the calling `workflow` step
+2. **Runtime parameters**
+3. **Calling workflow's `env`**
+4. **Global `env`**
+5. **Called workflow's own `env`**
+6. **Process environment**
+
+A called workflow's own `env` is the lowest-priority map in its own scope, so it
+supplies defaults that the caller overrides rather than values that win.
+
+<Warning>
+  Step `with` outranks runtime parameters. A value hardcoded in a sub-workflow
+  call's `with` cannot be overridden with `KEY:VALUE` at run time, and nothing
+  warns about it. Omit the key from `with` when the caller should be able to
+  override it.
+</Warning>
+
+`with` values are used literally. Only `${steps.NAME.OUTPUT}` references are
+interpolated, so `"MSG": "v$VERSION"` reaches the step as the literal text
+`v$VERSION`. Compose such strings inside the step's `run` command instead.
+
+### Runtime Parameters
+
+Pass parameters when running a workflow:
+
+```bash
+asc workflow run beta \
+  BUILD_ID:abc123 \
+  GROUP_ID:xyz789 \
+  APP_ID:123456789
+```
+
+Parameters follow the format `KEY:VALUE`. They override every variable source
+except a sub-workflow call's `with`.
+
+## Conditional Steps
+
+The `if` field names a **variable**, not an expression. The step runs only when
+that variable holds a truthy value: `1`, `true`, `yes`, `y`, or `on`
+(case-insensitive, surrounding whitespace ignored). Every other value is falsy,
+including an unset variable, an empty string, and any other non-empty value such
+as an ID, a version string, or a file path. Use `if` as a boolean feature flag,
+never as a "was this ID supplied?" check.
+
+The variable is looked up in the workflow environment first (runtime parameters,
+`with`, workflow `env`, global `env`) and then in the process environment.
+
+<Warning>
+  A skipped step is not an error. The run still reports `"status": "ok"` and
+  exits `0`, and the skipped step appears in `steps[]` with `"status": "skipped"`.
+  Gating a mutating step on a value like `BUILD_ID` or `./build/MyApp.ipa`
+  silently skips it on a green run.
+</Warning>
+
+```json
+{
+  "steps": [
+    {
+      "name": "upload_build",
+      "run": "asc builds upload --path app.ipa"
+    },
+    {
+      "name": "publish_app_store_release",
+      "if": "SUBMIT_FOR_REVIEW",
+      "run": "asc publish appstore --app $APP_ID --ipa ./build/MyApp.ipa --version $VERSION --submit --confirm"
+    }
+  ]
+}
+```
+
+Skip the submission step:
+
+```bash
+asc workflow run release
+```
+
+Include the submission step:
+
+```bash
+asc workflow run release SUBMIT_FOR_REVIEW:true
+```
+
+The older, unsupported form is a shell expression such as
+`"if": "test \"$SUBMIT_FOR_REVIEW\" = \"true\""`. That string is used as a
+variable name, never resolves, and silently skips the step.
+
+## Calling Other Workflows
+
+Workflows can call other workflows using the `workflow` field:
+
+```json
+{
+  "workflows": {
+    "preflight": {
+      "private": true,
+      "description": "Pre-deployment checks",
+      "steps": [
+        "asc auth status",
+        "asc apps view --id $APP_ID"
+      ]
+    },
+    "deploy": {
+      "description": "Deploy to TestFlight",
+      "steps": [
+        {
+          "workflow": "preflight",
+          "with": {"NOTE": "Running preflight checks"}
+        },
+        "asc builds upload --path app.ipa"
+      ]
+    }
+  }
+}
+```
+
+Run the parent workflow:
+
+```bash
+asc workflow run deploy APP_ID:123456789
+```
+
+The `preflight` workflow is called first, with access to the `NOTE` variable.
+
+<Note>
+  Private workflows (`"private": true`) are hidden from `asc workflow list` but can be called by other workflows.
+</Note>
+
+## Hooks
+
+Workflows support lifecycle hooks at the definition level:
+
+### before\_all
+
+Runs **once** before any workflow:
+
+```json
+{
+  "before_all": "asc auth status",
+  "workflows": {...}
+}
+```
+
+Use for authentication checks, environment validation, or setup tasks.
+
+### after\_all
+
+Runs **once** after the workflow completes **successfully**:
+
+```json
+{
+  "after_all": "echo workflow_done",
+  "workflows": {...}
+}
+```
+
+Use for success notifications or logging.
+
+<Warning>
+  `after_all` is skipped when any step, or `before_all`, fails. Cleanup that has
+  to happen on every run belongs in `error` as well, or in the CI job that
+  invoked `asc`. A run that fails executes `before_all`, the steps up to the
+  failure, and then `error`.
+</Warning>
+
+### error
+
+Runs **only** on workflow failure:
+
+```json
+{
+  "error": "echo workflow_failed && curl -X POST https://hooks.slack.com/...",
+  "workflows": {...}
+}
+```
+
+Use for error notifications or rollback logic.
+
+<Warning>
+  Hooks run via `bash` (with `pipefail`) or `sh`. At least one shell must be in `PATH`.
+</Warning>
+
+## Output Format
+
+Workflow output is **JSON-only** on stdout:
+
+```bash
+asc workflow run beta BUILD_ID:abc123 GROUP_ID:xyz789 --pretty
+```
+
+```json
+{
+  "workflow": "beta",
+  "status": "ok",
+  "run_id": "beta-20260312T120000Z-b8142978",
+  "run_file": "/path/to/project/.asc/runs/beta-20260312T120000Z-b8142978.json",
+  "outputs": {
+    "resolve_build": {
+      "BUILD_ID": "abc123"
+    }
+  },
+  "hooks": {
+    "before_all": {
+      "command": "asc auth status",
+      "status": "ok",
+      "duration_ms": 69
+    },
+    "after_all": {
+      "command": "echo workflow_done",
+      "status": "ok",
+      "duration_ms": 3
+    }
+  },
+  "steps": [
+    {
+      "index": 1,
+      "name": "resolve_build",
+      "command": "asc builds info --app $APP_ID --latest --platform IOS --output json",
+      "status": "ok",
+      "duration_ms": 3,
+      "outputs": {
+        "BUILD_ID": "abc123"
+      }
+    },
+    {
+      "index": 2,
+      "name": "add_to_group",
+      "command": "asc builds add-groups --build-id 'abc123' --group xyz789",
+      "status": "ok",
+      "duration_ms": 2
+    }
+  ],
+  "duration_ms": 80
+}
+```
+
+There is no `exit_code` and no `success` field. Gate CI on `.status`, which is
+`"ok"` or `"error"`; a failed run also exits non-zero. Hooks are nested under
+`hooks`, never at the top level.
+
+| Field            | Type    | Notes                                                                      |
+| ---------------- | ------- | -------------------------------------------------------------------------- |
+| `workflow`       | string  | Name that was run                                                          |
+| `status`         | string  | `ok` or `error`                                                            |
+| `error`          | string  | Failure message; omitted on success                                        |
+| `failed_step`    | string  | Step name (or generated key) that failed; omitted on success               |
+| `recoverable`    | boolean | Present when `--resume` can continue this run                              |
+| `terminal`       | boolean | Present when resume is refused; `terminal_reason` explains why             |
+| `terminal_reason` | string  | Reason resume is refused; present with `terminal`                           |
+| `run_id`         | string  | Resume handle; also the run-state file name                                |
+| `run_file`       | string  | Absolute path to the persisted run state                                   |
+| `resumed`        | boolean | Present when the run was started with `--resume`                           |
+| `resume`         | object  | `{"command": "..."}` — the exact command to continue                       |
+| `outputs`        | object  | Declared step outputs, keyed by step name                                  |
+| `hooks`          | object  | `before_all` / `after_all` / `error` results, each with `status`           |
+| `steps`          | array   | One entry per step, in execution order                                     |
+| `duration_ms`    | number  | Total run duration                                                         |
+
+Each `steps[]` entry carries `index`, `name`, `command`, `status`, and
+`duration_ms`, plus `outputs`, `attempts`, `failure_reason`, `error`,
+`workflow`, and `parent_workflow` when they apply. Step `status` is one of `ok`,
+`error`, `skipped`, `resumed`, or `dry-run`.
+
+A failed run keeps stdout machine-parseable and adds the recovery block:
+
+```json
+{
+  "workflow": "beta",
+  "status": "error",
+  "error": "workflow: beta step 2: exit status 3",
+  "failed_step": "add_to_group",
+  "recoverable": true,
+  "run_id": "beta-20260312T120000Z-c31f1daf",
+  "run_file": "/path/to/project/.asc/runs/beta-20260312T120000Z-c31f1daf.json",
+  "resume": {
+    "command": "asc workflow run --file '/path/to/project/.asc/workflow.json' 'beta' --resume 'beta-20260312T120000Z-c31f1daf'"
+  },
+  "hooks": {
+    "before_all": {
+      "command": "asc auth status",
+      "status": "ok",
+      "duration_ms": 66
+    },
+    "error": {
+      "command": "echo workflow_failed",
+      "status": "ok",
+      "duration_ms": 5
+    }
+  },
+  "steps": [
+    {
+      "index": 1,
+      "name": "resolve_build",
+      "command": "asc builds info --app $APP_ID --latest --platform IOS --output json",
+      "status": "ok",
+      "duration_ms": 7
+    },
+    {
+      "index": 2,
+      "name": "add_to_group",
+      "command": "asc builds add-groups --build-id 'abc123' --group xyz789",
+      "status": "error",
+      "duration_ms": 8,
+      "failure_reason": "command_failed",
+      "error": "exit status 3"
+    }
+  ],
+  "duration_ms": 30
+}
+```
+
+Step and hook command output streams to **stderr** to keep stdout machine-parseable.
+
+## Commands
+
+### workflow run
+
+Run a named workflow:
+
+```bash
+asc workflow run <name> [KEY:VALUE ...] [flags]
+```
+
+Flags:
+
+* `--file` - Path to workflow\.json (default: `.asc/workflow.json`)
+* `--dry-run` - Preview steps without executing
+* `--pretty` - Pretty-print JSON output
+* `--resume` - Continue a prior run by its `run_id`
+
+Example:
+
+```bash
+asc workflow run beta \
+  BUILD_ID:abc123 \
+  GROUP_ID:xyz789 \
+  --dry-run \
+  --pretty
+```
+
+Resume the run reported in `run_id`, using the same workflow name it was created
+from:
+
+```bash
+asc workflow run beta --resume beta-20260312T120000Z-c31f1daf
+```
+
+Resume reuses the original workflow file, saved parameters, and persisted step
+outputs, so it rejects extra `KEY:VALUE` arguments and cannot be combined with
+`--dry-run`. A run ID belongs to exactly one workflow: passing it to a different
+name fails with `resume run "..." belongs to workflow "beta", not "release"`.
+Runs marked `terminal` are refused rather than replayed.
+
+### workflow list
+
+List available workflows:
+
+```bash
+asc workflow list [flags]
+```
+
+Flags:
+
+* `--file` - Path to workflow\.json
+* `--all` - Include private workflows
+* `--pretty` - Pretty-print JSON output
+
+Output:
+
+```json
+[
+  {
+    "name": "beta",
+    "description": "Distribute latest build to TestFlight beta group",
+    "step_count": 2
+  },
+  {
+    "name": "release",
+    "description": "Publish a version to the App Store",
+    "step_count": 3
+  }
+]
+```
+
+`private` is omitted unless it is `true`, so it only appears with `--all`.
+
+### workflow validate
+
+Validate workflow file for errors and cycles:
+
+```bash
+asc workflow validate [flags]
+```
+
+Flags:
+
+* `--file` - Path to workflow\.json
+* `--output` - Output format: `json` (the only accepted value)
+* `--pretty` - Pretty-print JSON output
+
+Output:
+
+```json
+{
+  "valid": true
+}
+```
+
+`errors` is omitted when the file is valid. On failure the command exits
+non-zero and each error carries a stable `code` plus the location fields that
+apply:
+
+```json
+{
+  "valid": false,
+  "errors": [
+    {
+      "code": "step_no_action",
+      "workflow": "beta",
+      "step": 2,
+      "message": "workflow \"beta\" step 2 must have run or workflow"
+    },
+    {
+      "code": "cyclic_reference",
+      "workflow": "release",
+      "message": "cyclic workflow reference: release -> release"
+    }
+  ]
+}
+```
+
+## Security Considerations
+
+<Warning>
+  Workflows intentionally execute arbitrary shell commands. Only run workflow files you trust.
+</Warning>
+
+### Best Practices
+
+* **Review workflow files** before running them, especially with `--file`
+* **Gitignore `.asc/runs/`** - every run writes `run_file` there with the run
+  parameters and all declared step outputs, and nothing prunes it
+* **Never map a secret into `outputs`** - it is persisted in the run-state file
+* **Avoid running workflows from untrusted sources** (e.g., unreviewed PRs)
+* **Be careful with secrets** - steps inherit your process environment
+* **In CI, use secret masking** - workflows may log environment variables
+* **Use `workflow validate`** to check structure, but **validation does not check safety**
+
+### CI/CD Considerations
+
+```yaml
+# GitHub Actions example
+- name: Run workflow
+  env:
+    ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+    ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+    BUILD_ID: ${{ secrets.BUILD_ID }}
+  run: asc workflow run beta "BUILD_ID:$BUILD_ID"
+```
+
+<Note>
+  Avoid running workflows on untrusted pull requests with access to secrets or tokens.
+</Note>
+
+## Examples
+
+### TestFlight Distribution
+
+```json
+{
+  "env": {
+    "APP_ID": "123456789"
+  },
+  "workflows": {
+    "beta": {
+      "description": "Distribute build to TestFlight beta group",
+      "env": {
+        "BUILD_ID": "",
+        "GROUP_ID": "",
+        "ADD_TO_GROUP": "false"
+      },
+      "steps": [
+        {
+          "name": "list_builds",
+          "run": "asc builds list --app $APP_ID --sort -uploadedDate --limit 5"
+        },
+        {
+          "name": "list_groups",
+          "run": "asc testflight groups list --app $APP_ID --limit 20"
+        },
+        {
+          "name": "add_build_to_group",
+          "if": "ADD_TO_GROUP",
+          "run": "asc builds add-groups --build-id $BUILD_ID --group $GROUP_ID"
+        }
+      ]
+    }
+  }
+}
+```
+
+Run (the last step only executes because `ADD_TO_GROUP` is truthy):
+
+```bash
+asc workflow run beta ADD_TO_GROUP:true BUILD_ID:abc123 GROUP_ID:xyz789
+```
+
+Gate on the dedicated `ADD_TO_GROUP` flag, not on `BUILD_ID`. `BUILD_ID:abc123`
+is a falsy value, so `"if": "BUILD_ID"` would skip the step on every run.
+
+### App Store Submission
+
+```json
+{
+  "workflows": {
+    "release": {
+      "description": "Submit version for App Store review",
+      "steps": [
+        {
+          "workflow": "preflight",
+          "with": {"NOTE": "running preflight checks"}
+        },
+        {
+          "name": "publish",
+          "run": "asc publish appstore --app $APP_ID --ipa ./build/MyApp.ipa --version $VERSION --submit --confirm"
+        }
+      ]
+    },
+    "preflight": {
+      "private": true,
+      "description": "Pre-submission checks",
+      "steps": [
+        "asc auth status",
+        "asc apps view --id $APP_ID",
+        "asc builds info --build-id $BUILD_ID"
+      ]
+    }
+  }
+}
+```
+
+Run:
+
+```bash
+asc workflow run release \
+  APP_ID:123456789 \
+  VERSION:1.0.0 \
+  BUILD_ID:abc123
+```
+
+## Related
+
+* [Error Handling](/concepts/error-handling) - How workflows handle step failures
+* [Output Formats](/concepts/output-formats) - Workflow output is JSON-only
+* [Authentication](/authentication) - Workflows inherit authentication

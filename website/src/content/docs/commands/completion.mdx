@@ -1,0 +1,280 @@
+---
+title: completion
+description: Generate shell completion scripts for bash, zsh, and fish
+---
+Generate shell completion scripts to enable tab completion for App Store Connect CLI commands.
+
+## Quick Start
+
+```bash
+# Bash
+asc completion --shell bash >> ~/.bashrc
+
+# Zsh
+asc completion --shell zsh >> ~/.zshrc
+
+# Fish
+asc completion --shell fish > ~/.config/fish/completions/asc.fish
+```
+
+## Usage
+
+```bash
+asc completion --shell <bash|zsh|fish>
+```
+
+**Flags:**
+
+* `--shell` - Shell type: `bash`, `zsh`, or `fish` (required)
+
+## Supported Shells
+
+### Bash
+
+Generate and load bash completion:
+
+```bash
+# Generate completion script
+asc completion --shell bash > /tmp/asc-completion.bash
+
+# Add to .bashrc
+echo 'source /tmp/asc-completion.bash' >> ~/.bashrc
+
+# Reload shell
+source ~/.bashrc
+```
+
+Or append directly:
+
+```bash
+asc completion --shell bash >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Zsh
+
+Generate and load zsh completion:
+
+```bash
+# Generate completion script
+asc completion --shell zsh > /tmp/asc-completion.zsh
+
+# Add to .zshrc
+echo 'source /tmp/asc-completion.zsh' >> ~/.zshrc
+
+# Reload shell
+source ~/.zshrc
+```
+
+Or append directly:
+
+```bash
+asc completion --shell zsh >> ~/.zshrc
+source ~/.zshrc
+```
+
+### Fish
+
+Generate and install fish completion:
+
+```bash
+# Create completions directory if it doesn't exist
+mkdir -p ~/.config/fish/completions
+
+# Generate completion script
+asc completion --shell fish > ~/.config/fish/completions/asc.fish
+
+# Reload completions (or restart fish)
+fish_update_completions
+```
+
+## How It Works
+
+The completion script provides tab completion for:
+
+* Top-level and nested subcommands (for example, `builds list` and `apps info view`)
+* Flags accepted by the command at the current path
+
+Deprecated compatibility commands and hidden flag aliases are not suggested. Completion tracks flags that consume a value, so a flag value that matches a subcommand name does not move completion into the wrong command path. It does not query App Store Connect for remote resource IDs or other flag values.
+
+**Abbreviated examples:**
+
+```bash
+$ asc <TAB>
+--api-debug   --debug       --profile     --report
+apps          auth          builds        completion
+devices       metadata      profiles      testflight
+...           users         webhooks      xcode-cloud
+
+$ asc builds <TAB>
+count         info          list          upload        wait
+
+$ asc builds list <TAB>
+--app                 --build-number        --exclude-expired
+--limit               --next                --not-expired
+--output              --paginate            --platform
+--pretty              --processing-state    --sort
+--version
+```
+
+## Manual Installation
+
+### Bash (Linux)
+
+```bash
+# System-wide (requires sudo)
+sudo asc completion --shell bash > /etc/bash_completion.d/asc
+
+# User-level
+mkdir -p ~/.local/share/bash-completion/completions
+asc completion --shell bash > ~/.local/share/bash-completion/completions/asc
+```
+
+### Bash (macOS with Homebrew)
+
+```bash
+# Install bash-completion if not already installed
+brew install bash-completion@2
+
+# Add to Homebrew's completion directory
+asc completion --shell bash > $(brew --prefix)/etc/bash_completion.d/asc
+```
+
+### Zsh (with Oh My Zsh)
+
+```bash
+# Create custom completion directory
+mkdir -p ~/.oh-my-zsh/custom/plugins/asc
+
+# Generate completion
+asc completion --shell zsh > ~/.oh-my-zsh/custom/plugins/asc/_asc
+
+# Add to .zshrc plugins
+# plugins=(... asc)
+```
+
+### Zsh (macOS with Homebrew)
+
+```bash
+# Add to Homebrew's completion directory
+asc completion --shell zsh > $(brew --prefix)/share/zsh/site-functions/_asc
+
+# Rebuild completion cache
+rm -f ~/.zcompdump
+compinit
+```
+
+## Verification
+
+Test that completion is working:
+
+```bash
+# Type the command and press TAB
+asc <TAB>
+
+# Nested commands and flags are also completed
+asc builds <TAB>
+asc builds list <TAB>
+
+# These should show commands and flags valid at the current path
+```
+
+If completion doesn't work:
+
+1. Verify the script was added to the correct location
+2. Reload your shell configuration
+3. Check for syntax errors in the completion script
+
+## Troubleshooting
+
+### Bash: Command not found
+
+Ensure bash-completion is installed:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install bash-completion
+
+# macOS with Homebrew
+brew install bash-completion@2
+```
+
+### Zsh: Completion not loading
+
+Ensure completion is enabled in `.zshrc`:
+
+```bash
+# Add to .zshrc if missing
+autoload -Uz compinit
+compinit
+```
+
+### Fish: Permission denied
+
+Ensure the completions directory exists and is writable:
+
+```bash
+mkdir -p ~/.config/fish/completions
+chmod 755 ~/.config/fish/completions
+```
+
+## Advanced Configuration
+
+### Custom Completion Location
+
+Save completion to a custom location:
+
+```bash
+# Create custom directory
+mkdir -p ~/my-completions
+
+# Generate completion
+asc completion --shell bash > ~/my-completions/asc-completion.bash
+
+# Add to .bashrc
+echo 'source ~/my-completions/asc-completion.bash' >> ~/.bashrc
+```
+
+### Conditional Loading
+
+Load completion only when `asc` is available:
+
+```bash
+# Add to .bashrc or .zshrc
+if command -v asc &> /dev/null; then
+  source ~/my-completions/asc-completion.bash
+fi
+```
+
+## CI/CD Integration
+
+Generate completion in Docker containers:
+
+```dockerfile
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y bash-completion
+
+COPY asc /usr/local/bin/asc
+RUN asc completion --shell bash > /etc/bash_completion.d/asc
+
+CMD ["/bin/bash"]
+```
+
+## Updates
+
+Regenerate completion after upgrading the CLI:
+
+```bash
+# Bash
+asc completion --shell bash > /tmp/asc-completion.bash
+source /tmp/asc-completion.bash
+
+# Zsh
+asc completion --shell zsh > /tmp/asc-completion.zsh
+source /tmp/asc-completion.zsh
+
+# Fish
+asc completion --shell fish > ~/.config/fish/completions/asc.fish
+fish_update_completions
+```

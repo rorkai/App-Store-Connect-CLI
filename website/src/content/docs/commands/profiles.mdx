@@ -1,0 +1,495 @@
+---
+title: Profiles
+description: Manage provisioning profiles
+---
+Create, download, and manage provisioning profiles for app development and distribution.
+
+## Overview
+
+Provisioning profiles bind your app's bundle ID, certificates, and (for development) devices together, allowing your app to run on devices or be distributed through various channels.
+
+## List Profiles
+
+List all provisioning profiles or filter by type:
+
+```bash
+# List all profiles
+asc profiles list
+
+# Filter by profile type
+asc profiles list --profile-type IOS_APP_STORE
+
+# List multiple types
+asc profiles list --profile-type IOS_APP_DEVELOPMENT,IOS_APP_STORE
+
+# Fetch all pages automatically
+asc profiles list --paginate
+```
+
+### Pagination Options
+
+* `--limit` - Results per page (1-200)
+* `--next` - Fetch next page using a `links.next` URL
+* `--paginate` - Automatically fetch all pages
+
+### Stale Profiles
+
+A profile is stale when it is `INVALID` or its expiration date has passed.
+
+```bash
+# Only stale profiles, across every page
+asc profiles list --stale-only
+
+# Add a Stale column to table output
+asc profiles list --include-stale --output table
+```
+
+`--stale-only` always reads every page and cannot be combined with `--next`. Its JSON keeps Apple's envelope shape but is a computed view: `data` holds only stale profiles, and `meta` and pagination links are dropped because they describe the unfiltered list; `included` keeps only resources the stale profiles reference. With `--fields`, both flags need `profileState` and `expirationDate`. `--include-stale` works with table and markdown output only; with JSON it is a usage error.
+
+## Get Profile Details
+
+Retrieve a specific profile by ID:
+
+```bash
+asc profiles view --id "PROFILE_ID"
+
+# Include related resources
+asc profiles view --id "PROFILE_ID" \
+  --include bundleId,certificates,devices
+```
+
+**Available includes:**
+
+* `bundleId` - Bundle identifier details
+* `certificates` - Signing certificates in the profile
+* `devices` - Registered devices (development/ad hoc profiles only)
+
+`--bundle-id-fields`, `--certificate-fields`, and `--device-fields` select the fields of each included resource and require the matching `--include` value.
+
+## Profile Types
+
+### iOS Profile Types
+
+**App Store:**
+
+```bash
+asc profiles list --profile-type IOS_APP_STORE
+```
+
+* Used for: App Store submission
+* Requires: iOS Distribution certificate
+* Devices: Not required
+
+**Development:**
+
+```bash
+asc profiles list --profile-type IOS_APP_DEVELOPMENT
+```
+
+* Used for: Running apps on development devices
+* Requires: iOS Development certificate
+* Devices: Required (up to 100 devices)
+
+**Ad Hoc:**
+
+```bash
+asc profiles list --profile-type IOS_APP_ADHOC
+```
+
+* Used for: Testing outside TestFlight
+* Requires: iOS Distribution certificate
+* Devices: Required (up to 100 devices)
+
+**In-House (Enterprise):**
+
+```bash
+asc profiles list --profile-type IOS_APP_INHOUSE
+```
+
+* Used for: Enterprise internal distribution
+* Requires: iOS Distribution certificate
+* Devices: Not required
+* Requires: Apple Developer Enterprise Program
+
+### tvOS Profile Types
+
+* `TVOS_APP_STORE` - tvOS App Store
+* `TVOS_APP_DEVELOPMENT` - tvOS development
+* `TVOS_APP_ADHOC` - tvOS Ad Hoc
+* `TVOS_APP_INHOUSE` - tvOS Enterprise
+
+### macOS Profile Types
+
+* `MAC_APP_STORE` - Mac App Store
+* `MAC_APP_DEVELOPMENT` - macOS development
+* `MAC_APP_DIRECT` - Direct distribution (Developer ID)
+* `MAC_CATALYST_APP_STORE` - Mac Catalyst App Store
+* `MAC_CATALYST_APP_DEVELOPMENT` - Mac Catalyst development
+* `MAC_CATALYST_APP_DIRECT` - Mac Catalyst direct
+
+## Create Profile
+
+Create a new provisioning profile:
+
+```bash
+# App Store profile (no devices needed)
+asc profiles create --name "My App Store Profile" \
+  --profile-type IOS_APP_STORE \
+  --bundle "BUNDLE_ID" \
+  --certificate "CERT_ID"
+
+# Development profile (devices required)
+asc profiles create --name "My Dev Profile" \
+  --profile-type IOS_APP_DEVELOPMENT \
+  --bundle "BUNDLE_ID" \
+  --certificate "CERT_ID_1,CERT_ID_2" \
+  --device "DEVICE_ID_1,DEVICE_ID_2"
+```
+
+### Required Parameters
+
+* `--name` - Profile name (descriptive, for your reference)
+* `--profile-type` - Profile type (see [Profile Types](#profile-types))
+* `--bundle` - Bundle ID resource ID
+* `--certificate` - Certificate ID(s), comma-separated
+
+### Optional Parameters
+
+* `--device` - Device ID(s), comma-separated (required for development/ad hoc)
+
+### Finding Resource IDs
+
+**Bundle ID:**
+
+```bash
+asc bundle-ids list --output json | grep -A2 "com.example.app"
+```
+
+**Certificate IDs:**
+
+```bash
+asc certificates list --certificate-type IOS_DISTRIBUTION --output json
+```
+
+**Device IDs:**
+
+```bash
+asc devices list --platform IOS --output json
+```
+
+## Download Profile
+
+Download a provisioning profile:
+
+```bash
+asc profiles download --id "PROFILE_ID" \
+  --output "./profile.mobileprovision"
+```
+
+Native macOS profiles conventionally use `.provisionprofile`; iOS, tvOS, and
+legacy profiles use `.mobileprovision`. Both extensions can be:
+
+* Installed with `asc profiles local install --path "./profile.mobileprovision"`
+* Opened with Xcode
+* Used in CI/CD pipelines
+
+## Inspect Profile
+
+Inspect a downloaded provisioning profile file:
+
+```bash
+asc profiles inspect --path "./profile.mobileprovision"
+```
+
+Use JSON when scripts need to validate the embedded bundle ID, team ID, certificates, or entitlements:
+
+```bash
+asc profiles inspect --path "./profile.mobileprovision" --output json
+```
+
+Print entitlement key/value rows for quick terminal checks:
+
+```bash
+asc profiles inspect --path "./profile.mobileprovision" --entitlements
+```
+
+This command reads local disk only. It decodes the signed provisioning profile payload and reports identifiers, expiration, certificate fingerprints, device counts, and entitlement values.
+
+For a native macOS profile, use the same commands with a `.provisionprofile`
+path. Local list and clean operations recognize both extensions.
+
+### Install Profile
+
+```bash
+# Install into the active Xcode's provisioning profile directory
+asc profiles local install --path "./profile.mobileprovision"
+
+# Or open with Xcode
+open profile.mobileprovision
+```
+
+On macOS, the default directory follows the active Xcode selected by `DEVELOPER_DIR` or `xcode-select`:
+
+* Xcode 16 or newer: `~/Library/Developer/Xcode/UserData/Provisioning Profiles`
+* Xcode 15 or older: `~/Library/MobileDevice/Provisioning Profiles`
+
+Pass `--install-dir` to choose a directory explicitly or when no full Xcode is active. Xcode 16 and newer can still load previously downloaded profiles from the older directory, but `profiles local` operates on one directory per invocation. Use an explicit `--install-dir "$HOME/Library/MobileDevice/Provisioning Profiles"` when you need to inspect or clean that compatibility store.
+
+## Delete Profile
+
+Delete a provisioning profile:
+
+```bash
+asc profiles delete --id "PROFILE_ID" --confirm
+```
+
+**Note:** Deleted profiles cannot be recovered. Apps signed with deleted profiles will continue to work until the profile expires.
+
+## Profile Relationships
+
+View related resources for a profile:
+
+```bash
+# Get bundle ID relationship
+asc profiles links bundle-id --id "PROFILE_ID"
+
+# Get certificates relationship
+asc profiles links certificates --id "PROFILE_ID"
+
+# Get devices relationship (development/ad hoc only)
+asc profiles links devices --id "PROFILE_ID"
+```
+
+## Local Profile Management
+
+Manage profiles on your local machine:
+
+```bash
+# List locally installed profiles
+asc profiles local list
+
+# Remove expired profiles
+asc profiles local clean --expired --confirm
+
+# Get UUID of a profile file
+asc profiles inspect --path "./profile.mobileprovision" --output json | jq -r '.uuid'
+```
+
+## Complete Example Workflows
+
+### Create App Store Profile
+
+```bash
+# 1. Find bundle ID
+asc bundle-ids list --output json | grep "com.example.app"
+# Note: BUNDLE_ID from response
+
+# 2. Find distribution certificate
+asc certificates list --certificate-type IOS_DISTRIBUTION --output json
+# Note: CERT_ID from response
+
+# 3. Create profile
+asc profiles create --name "Example App Store" \
+  --profile-type IOS_APP_STORE \
+  --bundle "BUNDLE_ID" \
+  --certificate "CERT_ID"
+
+# 4. Download profile (from creation response)
+asc profiles download --id "PROFILE_ID" \
+  --output "./signing/appstore.mobileprovision"
+
+# 5. Install profile
+asc profiles local install \
+  --path "./signing/appstore.mobileprovision"
+```
+
+### Create Development Profile
+
+```bash
+# 1. Register your device (if not already registered)
+asc devices register --name "My iPhone" \
+  --platform IOS \
+  --udid "00008030-001234567890ABCD"
+
+# 2. Find resource IDs
+asc bundle-ids list --output json | grep "com.example.app"
+asc certificates list --certificate-type IOS_DEVELOPMENT --output json
+asc devices list --platform IOS --output json
+
+# 3. Create development profile
+asc profiles create --name "Example Development" \
+  --profile-type IOS_APP_DEVELOPMENT \
+  --bundle "BUNDLE_ID" \
+  --certificate "DEV_CERT_ID" \
+  --device "DEVICE_ID_1,DEVICE_ID_2"
+
+# 4. Download and install
+asc profiles download --id "PROFILE_ID" \
+  --output "./dev.mobileprovision"
+asc profiles local install --path "./dev.mobileprovision"
+```
+
+### Update Profile with New Device
+
+Profiles cannot be updated directly. Create a new profile:
+
+```bash
+# 1. Register new device
+asc devices register --name "New iPad" \
+  --platform IOS \
+  --udid "00008103-001234567890ABCD"
+
+# 2. Get existing profile details
+asc profiles view --id "OLD_PROFILE_ID" \
+  --include bundleId,certificates,devices \
+  --output json
+
+# 3. Create new profile with all devices (old + new)
+asc profiles create --name "Example Development v2" \
+  --profile-type IOS_APP_DEVELOPMENT \
+  --bundle "BUNDLE_ID" \
+  --certificate "CERT_ID" \
+  --device "OLD_DEVICE_1,OLD_DEVICE_2,NEW_DEVICE_ID"
+
+# 4. Delete old profile
+asc profiles delete --id "OLD_PROFILE_ID" --confirm
+```
+
+### Rotate Certificates in Profile
+
+```bash
+# 1. Create new certificate
+asc certificates csr generate --key-out ./new.key --csr-out ./new.csr
+asc certificates create --certificate-type IOS_DISTRIBUTION \
+  --csr ./new.csr
+
+# 2. Get profile details
+asc profiles view --id "PROFILE_ID" \
+  --include bundleId,devices \
+  --output json
+
+# 3. Create new profile with new certificate
+asc profiles create --name "Example App Store v2" \
+  --profile-type IOS_APP_STORE \
+  --bundle "BUNDLE_ID" \
+  --certificate "NEW_CERT_ID"
+
+# 4. Download new profile
+asc profiles download --id "NEW_PROFILE_ID" \
+  --output "./appstore-v2.mobileprovision"
+
+# 5. Revoke old certificate and delete old profile
+asc certificates revoke --id "OLD_CERT_ID" --confirm
+asc profiles delete --id "OLD_PROFILE_ID" --confirm
+```
+
+### CI/CD Profile Management
+
+```bash
+# GitHub Actions / CI script
+#!/bin/bash
+set -e
+
+# Download profile
+asc profiles download --id "$PROFILE_ID" \
+  --output "./build.mobileprovision"
+
+# Install profile
+asc profiles local install --path "./build.mobileprovision"
+
+# Get profile UUID for Xcode
+PROFILE_UUID=$(asc profiles inspect --path "./build.mobileprovision" --output json | jq -r '.uuid')
+echo "PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
+```
+
+## Profile States
+
+Profiles can be in different states:
+
+* `ACTIVE` - Valid and ready to use
+* `INVALID` - Profile has issues (expired, revoked certificate, etc.)
+
+Check profile state:
+
+```bash
+asc profiles view --id "PROFILE_ID" --output json | grep profileState
+```
+
+## Profile Expiration
+
+Profiles expire after 1 year. To renew:
+
+1. Create a new profile with the same configuration
+2. Download and install the new profile
+3. Delete the old profile
+
+Profiles automatically expire when:
+
+* Any certificate in the profile is revoked
+* Any certificate in the profile expires
+* The bundle ID is deleted
+
+## Troubleshooting
+
+### Profile Invalid After Certificate Revocation
+
+```bash
+# Create new certificate
+asc certificates create --certificate-type IOS_DISTRIBUTION \
+  --csr ./new.csr
+
+# Create new profile with new certificate
+asc profiles create --name "Renewed Profile" \
+  --profile-type IOS_APP_STORE \
+  --bundle "BUNDLE_ID" \
+  --certificate "NEW_CERT_ID"
+```
+
+### Device Limit Reached (100 devices)
+
+Development and Ad Hoc profiles are limited to 100 devices.
+
+**Solution:**
+
+* Use TestFlight for broader testing (no device limit)
+* Remove unused devices from your account (once per year)
+* Split testing across multiple profiles if needed
+
+### Profile Content Empty
+
+```
+Error: profile content is empty
+```
+
+The profile may be in an invalid state.
+
+**Solution:**
+
+```bash
+# Check profile state
+asc profiles view --id "PROFILE_ID" --output json
+
+# If invalid, create a new profile
+```
+
+### Cannot Find Profile in Xcode
+
+Profiles must be installed in the correct location:
+
+```bash
+# Check installed profiles
+asc profiles local list --output table
+
+# Re-install profile
+asc profiles download --id "PROFILE_ID" --output ./profile.mobileprovision
+asc profiles local install --path "./profile.mobileprovision"
+
+# Restart Xcode
+```
+
+## Related Commands
+
+* [Signing](/commands/signing) - High-level signing workflow
+* [Certificates](/commands/certificates) - Manage certificates
+* [Bundle IDs](/commands/bundle-ids) - Manage bundle identifiers
+* [Devices](/commands/devices) - Register devices

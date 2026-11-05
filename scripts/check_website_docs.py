@@ -11,8 +11,16 @@ from pathlib import Path
 from doc_links import extract_targets, is_within_root, normalize_target
 
 
-def load_docs_json(website_root: Path) -> dict:
-    return json.loads((website_root / "docs.json").read_text())
+def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
+    keys = [key for key, _ in pairs]
+    duplicates = sorted({key for key in keys if keys.count(key) > 1})
+    if duplicates:
+        raise ValueError(f"duplicate keys {duplicates}")
+    return dict(pairs)
+
+
+def load_navigation(navigation_path: Path) -> dict:
+    return json.loads(navigation_path.read_text(), object_pairs_hook=reject_duplicate_keys)
 
 
 def route_for_path(path_str: str) -> str:
@@ -35,33 +43,16 @@ def collect_site_state(website_root: Path) -> tuple[set[str], set[str]]:
     return page_ids, routes
 
 
-def iter_navigation_pages(node: object) -> list[str]:
+def iter_navigation_pages(items: list) -> list[str]:
     pages: list[str] = []
-    if isinstance(node, dict):
-        for key, value in node.items():
-            if key == "pages" and isinstance(value, list):
-                for page in value:
-                    if isinstance(page, str):
-                        pages.append(page)
-                    else:
-                        pages.extend(iter_navigation_pages(page))
-            else:
-                pages.extend(iter_navigation_pages(value))
-    elif isinstance(node, list):
-        for item in node:
-            pages.extend(iter_navigation_pages(item))
+    for item in items:
+        if isinstance(item, str):
+            pages.append(item)
+        elif isinstance(item, dict):
+            if isinstance(item.get("slug"), str):
+                pages.append(item["slug"])
+            pages.extend(iter_navigation_pages(item.get("items", [])))
     return pages
-
-
-def iter_redirects(config: dict) -> list[tuple[str, str]]:
-    redirects = []
-    for item in config.get("redirects", []):
-        if isinstance(item, dict):
-            source = item.get("source")
-            destination = item.get("destination")
-            if isinstance(source, str) and isinstance(destination, str):
-                redirects.append((source, destination))
-    return redirects
 
 
 def resolve_route(source_page_id: str, target: str) -> tuple[str, str]:
@@ -77,27 +68,20 @@ def resolve_route(source_page_id: str, target: str) -> tuple[str, str]:
     return "route", route_for_path(normalized)
 
 
-def check_navigation(website_root: Path, page_ids: set[str]) -> list[str]:
+def check_navigation(navigation: dict, page_ids: set[str]) -> list[str]:
     errors: list[str] = []
-    config = load_docs_json(website_root)
-    for page in iter_navigation_pages(config):
+    for page in iter_navigation_pages(navigation.get("topics", [])):
         if page not in page_ids:
-            errors.append(f"docs.json references missing page {page!r}")
+            errors.append(f"navigation.json references missing page {page!r}")
     return errors
 
 
-def check_redirects(website_root: Path, routes: set[str]) -> list[str]:
+def check_redirects(navigation: dict, routes: set[str]) -> list[str]:
     errors: list[str] = []
-    config = load_docs_json(website_root)
-    seen_sources: set[str] = set()
-    for source, destination in iter_redirects(config):
-        if source in seen_sources:
-            errors.append(f"docs.json contains duplicate redirect source {source!r}")
-            continue
-        seen_sources.add(source)
+    for source, destination in navigation.get("redirects", {}).items():
         if destination not in routes:
             errors.append(
-                f"docs.json redirect destination {destination!r} does not resolve to a page"
+                f"navigation.json redirect destination {destination!r} does not resolve to a page"
             )
     return errors
 
@@ -127,21 +111,27 @@ def check_internal_links(website_root: Path, routes: set[str]) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Validate Mintlify website docs.")
+    parser = argparse.ArgumentParser(description="Validate website docs.")
     parser.add_argument(
         "--website-root",
-        default=".",
-        help="Path to the Mintlify docs root.",
+        default="website/src/content/docs",
+        help="Path to the website docs content root.",
+    )
+    parser.add_argument(
+        "--navigation",
+        default="website/navigation.json",
+        help="Path to the website sidebar and redirect config.",
     )
     args = parser.parse_args(argv)
 
     repo_root = Path(__file__).resolve().parents[1]
     website_root = (repo_root / args.website_root).resolve()
+    navigation = load_navigation(repo_root / args.navigation)
     page_ids, routes = collect_site_state(website_root)
 
     errors = []
-    errors.extend(check_navigation(website_root, page_ids))
-    errors.extend(check_redirects(website_root, routes))
+    errors.extend(check_navigation(navigation, page_ids))
+    errors.extend(check_redirects(navigation, routes))
     errors.extend(check_internal_links(website_root, routes))
     if errors:
         print("Website docs validation failed:", file=sys.stderr)

@@ -1,0 +1,454 @@
+{
+  "topics": [
+    {
+      "label": "Documentation",
+      "link": "/introduction/",
+      "icon": "open-book",
+      "items": [
+        {
+          "label": "Getting Started",
+          "items": [
+            {
+              "label": "Introduction",
+              "slug": "introduction"
+            },
+            {
+              "label": "Migrate to 5.0",
+              "slug": "migrate-to-5-0"
+            },
+            {
+              "label": "Migrate to 4.0",
+              "slug": "migrate-to-4-0"
+            },
+            {
+              "label": "Installation",
+              "slug": "installation"
+            },
+            {
+              "label": "Authentication",
+              "slug": "authentication"
+            },
+            {
+              "label": "Quickstart",
+              "slug": "quickstart"
+            }
+          ]
+        },
+        {
+          "label": "Core Concepts",
+          "items": [
+            {
+              "label": "Output formats",
+              "slug": "concepts/output-formats"
+            },
+            {
+              "label": "Value indirection",
+              "slug": "concepts/value-indirection"
+            },
+            {
+              "label": "Pagination",
+              "slug": "concepts/pagination"
+            },
+            {
+              "label": "Error handling",
+              "slug": "concepts/error-handling"
+            },
+            {
+              "label": "Read-only mode",
+              "slug": "concepts/read-only-mode"
+            },
+            {
+              "label": "Workflows",
+              "slug": "concepts/workflows"
+            }
+          ]
+        },
+        {
+          "label": "Guides",
+          "items": [
+            {
+              "label": "TestFlight",
+              "slug": "guides/testflight"
+            },
+            {
+              "label": "App Store submission",
+              "slug": "guides/app-store-submission"
+            },
+            {
+              "label": "Agent iOS release",
+              "slug": "guides/agent-ios-release"
+            },
+            {
+              "label": "Code signing",
+              "slug": "guides/code-signing"
+            },
+            {
+              "label": "Metadata management",
+              "slug": "guides/metadata-management"
+            },
+            {
+              "label": "Analytics reports",
+              "slug": "guides/analytics-reports"
+            },
+            {
+              "label": "Apple Ads playbooks",
+              "slug": "guides/apple-ads-playbooks"
+            },
+            {
+              "label": "Screenshots",
+              "slug": "guides/screenshots"
+            },
+            {
+              "label": "Asset Library",
+              "slug": "guides/asset-library"
+            },
+            {
+              "label": "Automation",
+              "slug": "guides/automation"
+            }
+          ]
+        },
+        {
+          "label": "CI/CD Integration",
+          "items": [
+            {
+              "label": "Overview",
+              "slug": "cicd/overview"
+            },
+            {
+              "label": "GitHub Actions",
+              "slug": "cicd/github-actions"
+            },
+            {
+              "label": "GitLab CI",
+              "slug": "cicd/gitlab-ci"
+            },
+            {
+              "label": "Bitrise",
+              "slug": "cicd/bitrise"
+            },
+            {
+              "label": "CircleCI",
+              "slug": "cicd/circleci"
+            }
+          ]
+        },
+        {
+          "label": "Configuration",
+          "items": [
+            {
+              "label": "Environment variables",
+              "slug": "configuration/environment-variables"
+            },
+            {
+              "label": "Profiles",
+              "slug": "configuration/profiles"
+            },
+            {
+              "label": "Workflows",
+              "slug": "configuration/workflows"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Command Reference",
+      "link": "/commands/overview/",
+      "icon": "forward-slash",
+      "items": [
+        {
+          "label": "Overview",
+          "items": [
+            {
+              "label": "Overview",
+              "slug": "commands/overview"
+            },
+            {
+              "label": "Global flags",
+              "slug": "commands/global-flags"
+            },
+            {
+              "label": "Web",
+              "slug": "commands/web"
+            }
+          ]
+        },
+        {
+          "label": "App Management",
+          "items": [
+            {
+              "label": "Apps",
+              "slug": "commands/apps"
+            },
+            {
+              "label": "Age rating",
+              "slug": "commands/age-rating"
+            },
+            {
+              "label": "App tags",
+              "slug": "commands/app-tags"
+            },
+            {
+              "label": "App info",
+              "slug": "commands/app-info"
+            },
+            {
+              "label": "Localizations",
+              "slug": "commands/localizations"
+            },
+            {
+              "label": "Categories",
+              "slug": "commands/categories"
+            },
+            {
+              "label": "Pricing",
+              "slug": "commands/pricing"
+            },
+            {
+              "label": "Screenshots",
+              "slug": "commands/screenshots"
+            },
+            {
+              "label": "Video previews",
+              "slug": "commands/video-previews"
+            },
+            {
+              "label": "Versions",
+              "slug": "commands/versions"
+            },
+            {
+              "label": "Metadata",
+              "slug": "commands/metadata"
+            }
+          ]
+        },
+        {
+          "label": "TestFlight & Builds",
+          "items": [
+            {
+              "label": "TestFlight",
+              "slug": "commands/testflight"
+            },
+            {
+              "label": "Builds",
+              "slug": "commands/builds"
+            },
+            {
+              "label": "Feedback",
+              "slug": "commands/feedback"
+            },
+            {
+              "label": "Crashes",
+              "slug": "commands/crashes"
+            },
+            {
+              "label": "Sandbox testers",
+              "slug": "commands/sandbox"
+            }
+          ]
+        },
+        {
+          "label": "Monetization & Analytics",
+          "items": [
+            {
+              "label": "Analytics",
+              "slug": "commands/analytics"
+            },
+            {
+              "label": "Apple Ads",
+              "slug": "commands/ads"
+            },
+            {
+              "label": "Finance",
+              "slug": "commands/finance"
+            },
+            {
+              "label": "Performance",
+              "slug": "commands/performance"
+            },
+            {
+              "label": "In-app purchases",
+              "slug": "commands/iap"
+            },
+            {
+              "label": "Subscriptions",
+              "slug": "commands/subscriptions"
+            },
+            {
+              "label": "In-app events",
+              "slug": "commands/app-events"
+            },
+            {
+              "label": "Insights",
+              "slug": "commands/insights"
+            }
+          ]
+        },
+        {
+          "label": "Signing",
+          "items": [
+            {
+              "label": "Signing",
+              "slug": "commands/signing"
+            },
+            {
+              "label": "Bundle IDs",
+              "slug": "commands/bundle-ids"
+            },
+            {
+              "label": "Certificates",
+              "slug": "commands/certificates"
+            },
+            {
+              "label": "Profiles",
+              "slug": "commands/profiles"
+            }
+          ]
+        },
+        {
+          "label": "Review & Release",
+          "items": [
+            {
+              "label": "Release",
+              "slug": "commands/release"
+            },
+            {
+              "label": "Status",
+              "slug": "commands/status"
+            },
+            {
+              "label": "Release notes",
+              "slug": "commands/release-notes"
+            },
+            {
+              "label": "Review",
+              "slug": "commands/review"
+            },
+            {
+              "label": "Reviews",
+              "slug": "commands/reviews"
+            },
+            {
+              "label": "Submit",
+              "slug": "commands/submit"
+            },
+            {
+              "label": "Validate",
+              "slug": "commands/validate"
+            },
+            {
+              "label": "Publish",
+              "slug": "commands/publish"
+            }
+          ]
+        },
+        {
+          "label": "Team & Access",
+          "items": [
+            {
+              "label": "Auth",
+              "slug": "commands/auth"
+            },
+            {
+              "label": "Users",
+              "slug": "commands/users"
+            },
+            {
+              "label": "Devices",
+              "slug": "commands/devices"
+            }
+          ]
+        },
+        {
+          "label": "Automation & Utilities",
+          "items": [
+            {
+              "label": "Workflow",
+              "slug": "commands/workflow"
+            },
+            {
+              "label": "Webhooks",
+              "slug": "commands/webhooks"
+            },
+            {
+              "label": "Xcode Cloud",
+              "slug": "commands/xcode-cloud"
+            },
+            {
+              "label": "Notify",
+              "slug": "commands/notify"
+            },
+            {
+              "label": "Migrate",
+              "slug": "commands/migrate"
+            },
+            {
+              "label": "System status",
+              "slug": "commands/system-status"
+            },
+            {
+              "label": "Completion",
+              "slug": "commands/completion"
+            },
+            {
+              "label": "Telemetry",
+              "slug": "commands/telemetry"
+            },
+            {
+              "label": "API",
+              "slug": "commands/api"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Resources",
+      "link": "/resources/troubleshooting/",
+      "icon": "information",
+      "items": [
+        {
+          "label": "Resources",
+          "items": [
+            {
+              "label": "Troubleshooting",
+              "slug": "resources/troubleshooting"
+            },
+            {
+              "label": "FAQ",
+              "slug": "resources/faq"
+            },
+            {
+              "label": "Contributing",
+              "slug": "resources/contributing"
+            },
+            {
+              "label": "API notes",
+              "slug": "resources/api-notes"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "redirects": {
+    "/migrate-to-1-0": "/migrate-to-4-0",
+    "/commands": "/commands/overview",
+    "/CONTRIBUTING": "/resources/contributing",
+    "/core-concepts/authentication": "/authentication",
+    "/api-reference/commands": "/commands/overview",
+    "/guides/workflows": "/concepts/workflows",
+    "/guides/authentication": "/authentication",
+    "/guides/ci-cd": "/cicd/overview",
+    "/getting-started/authentication": "/authentication",
+    "/guides/filtering-sorting": "/concepts/pagination",
+    "/api-reference/builds/list": "/commands/builds",
+    "/api-reference/bundle-ids/list": "/commands/bundle-ids",
+    "/api-reference/certificates/list": "/commands/certificates",
+    "/api-reference/devices/list": "/commands/devices",
+    "/api-reference/profiles/list": "/commands/profiles",
+    "/api-reference/app-info/list": "/commands/app-info",
+    "/api-reference/localizations/list": "/commands/localizations"
+  }
+}

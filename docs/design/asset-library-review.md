@@ -1,6 +1,6 @@
 # Asset Library items in review submissions
 
-Historical implementation scope and probe evidence are preserved below. For the current integrated workflow and OpenAPI 4.5.1 contract, see the [Asset Library guide](../../guides/asset-library.mdx).
+Historical implementation scope and probe evidence are preserved below. For the current integrated workflow and OpenAPI 4.5.1 contract, see the [Asset Library guide](../../website/src/content/docs/guides/asset-library.mdx).
 
 ## Contract and evidence
 

@@ -1,0 +1,315 @@
+---
+title: Authentication Commands
+description: Manage App Store Connect API credentials and authentication
+---
+
+import { ParamField } from '@components/mdx';
+
+## Overview
+
+Authentication commands manage your App Store Connect API credentials. Credentials are stored securely in the system keychain when available, with a config file fallback.
+
+## Authentication resolution
+
+Resolution depends on whether a profile is selected, whether environment credentials are complete, and whether keychain access is bypassed. See the [credential resolution matrix](/authentication#credential-resolution) for the authoritative behavior.
+
+The short version:
+
+* `--profile` or `ASC_PROFILE` selects a stored profile and disables the environment-only fast path.
+* Without a profile and with keychain bypass disabled, a complete environment credential set skips stored lookup.
+* Environment fields can fill gaps only after an eligible stored credential is returned.
+* `ASC_BYPASS_KEYCHAIN=1` skips keychain; environment fallback follows only missing-config or permitted default-selection errors.
+* `--strict-auth` or `ASC_STRICT_AUTH=true` rejects credentials assembled from multiple sources.
+
+## Commands
+
+### `asc auth init`
+
+Create a template config.json for authentication. It writes the `ASC_CONFIG_PATH` file when that variable is set, otherwise `~/.asc/config.json`.
+
+<ParamField path="--force" type="boolean" default="false">
+  Overwrite existing config.json
+</ParamField>
+
+<ParamField path="--local" type="boolean" default="false">
+  Write config.json to `./.asc` in the current repo instead of `~/.asc`
+</ParamField>
+
+<ParamField path="--open" type="boolean" default="false">
+  Open the App Store Connect API keys page in your browser
+</ParamField>
+
+**Examples:**
+
+```bash
+asc auth init
+asc auth init --local
+asc auth init --force
+asc auth init --open
+```
+
+**Response:**
+
+```json
+{
+  "config_path": "/Users/name/.asc/config.json",
+  "created": true,
+  "config": {}
+}
+```
+
+***
+
+### `asc auth login`
+
+Register and store App Store Connect API key credentials.
+
+<ParamField path="--name" type="string" required>
+  Friendly name for this key
+</ParamField>
+
+<ParamField path="--key-id" type="string" required>
+  App Store Connect API Key ID
+</ParamField>
+
+<ParamField path="--issuer-id" type="string">
+  App Store Connect Issuer ID. Required for team and enterprise keys; omit for individual keys.
+</ParamField>
+
+<ParamField path="--key-type" type="string" default="team">
+  API key type: `team`, `individual`, or `enterprise` (Enterprise Program API)
+</ParamField>
+
+<ParamField path="--private-key" type="string" required>
+  Path to private key (.p8) file
+</ParamField>
+
+<ParamField path="--bypass-keychain" type="boolean" default="false">
+  Store credentials in config.json instead of keychain: the `ASC_CONFIG_PATH` file when set, otherwise `~/.asc/config.json`
+</ParamField>
+
+<ParamField path="--local" type="boolean" default="false">
+  When bypassing keychain, write to `./.asc/config.json`
+</ParamField>
+
+<ParamField path="--network" type="boolean" default="false">
+  Validate credentials with a lightweight API request
+</ParamField>
+
+<ParamField path="--skip-validation" type="boolean" default="false">
+  Skip JWT and network validation checks
+</ParamField>
+
+<ParamField path="--fix-permissions" type="boolean" default="false">
+  Change an over-permissive private key file to `0600` before reading it
+</ParamField>
+
+The private key file must not be readable by other users. Without
+`--fix-permissions`, login fails with the `file_permissions_insecure`
+diagnostic. When the path can be displayed safely, it prints an exact,
+shell-quoted `chmod 600` command; otherwise it recommends `--fix-permissions`
+without embedding the path in executable-looking text. With
+`--fix-permissions`, asc changes the file to `0600`, reports the change on
+stderr, and continues through the normal validation path. A symlinked or
+non-regular key path is rejected instead of being changed. If the operating
+system cannot securely open the file for descriptor-bound repair, such as an
+owner-unreadable key on macOS, asc fails without changing it.
+
+**Examples:**
+
+```bash
+asc auth login --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
+asc auth login --name "MyIndividualKey" --key-id "ABC123" --key-type individual --private-key /path/to/AuthKey.p8
+asc auth login --bypass-keychain --local --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
+asc auth login --network --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
+asc auth login --fix-permissions --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
+```
+
+**Output:**
+
+```
+Storing credentials in system keychain
+Successfully registered API key 'MyKey'
+```
+
+***
+
+### `asc auth switch`
+
+Switch the default authentication profile.
+
+<ParamField path="--name" type="string" required>
+  Profile name to set as default
+</ParamField>
+
+**Examples:**
+
+```bash
+asc auth switch --name "Personal"
+asc auth switch --name "Client"
+```
+
+**Output:**
+
+```
+Default profile set to 'Personal'
+```
+
+***
+
+### `asc auth logout`
+
+Remove stored API credentials.
+
+<ParamField path="--all" type="boolean" default="false">
+  Remove all stored credentials
+</ParamField>
+
+<ParamField path="--name" type="string">
+  Remove a named credential
+</ParamField>
+
+<ParamField path="--confirm" type="boolean" default="false">
+  Confirm credential removal (required)
+</ParamField>
+
+<ParamField path="--include-global" type="boolean" default="false">
+  Also remove matching credentials from `~/.asc/config.json` when `ASC_CONFIG_PATH` points to another file
+</ParamField>
+
+**Examples:**
+
+```bash
+asc auth logout --all --confirm
+asc auth logout --name "MyKey" --confirm
+asc auth logout --all --include-global --confirm
+```
+
+`--confirm` is required. Omitting it, or passing an explicit `--confirm=false`, is a usage error (exit 2) and no credentials are changed. Omitting `--name` removes all credentials; pass `--name` or `--all` to make the target explicit.
+
+Logout removes matching credentials from the keychain and the active config file. When `ASC_CONFIG_PATH` is set, that file is the only config file logout changes. If `~/.asc/config.json` still holds matching credentials, logout leaves them in place and prints a warning to stderr naming the file. To remove them too, run logout with `ASC_CONFIG_PATH` unset or pass `--include-global`. Without `ASC_CONFIG_PATH`, logout also cleans `~/.asc/config.json`, as before.
+
+**Output:**
+
+```
+Successfully removed stored credential 'MyKey'
+```
+
+***
+
+### `asc auth status`
+
+Show current authentication status.
+
+<ParamField path="--output" type="string" default="table">
+  Output format: `table`, `json`
+</ParamField>
+
+<ParamField path="--verbose" type="boolean" default="false">
+  Show detailed storage information
+</ParamField>
+
+<ParamField path="--validate" type="boolean" default="false">
+  Validate stored credentials via network
+</ParamField>
+
+**Examples:**
+
+```bash
+asc auth status
+asc auth status --output json
+asc auth status --verbose
+asc auth status --validate
+```
+
+**Response (table):**
+
+```
+Credential storage: System Keychain
+Location: system keychain
+
+Stored credentials:
+Name    Key ID   Default  Stored In
+MyKey   ABC123   yes      keychain
+```
+
+**Response (JSON):**
+
+```json
+{
+  "storageBackend": "System Keychain",
+  "storageLocation": "system keychain",
+  "credentials": [
+    {
+      "name": "MyKey",
+      "keyId": "ABC123",
+      "isDefault": true,
+      "storedIn": "keychain"
+    }
+  ],
+  "environmentCredentialsProvided": false,
+  "environmentCredentialsComplete": false
+}
+```
+
+***
+
+### `asc auth doctor`
+
+Diagnose authentication configuration issues.
+
+<ParamField path="--output" type="string" default="text">
+  Output format: `text`, `json`
+</ParamField>
+
+<ParamField path="--fix" type="boolean" default="false">
+  Attempt to fix issues where possible
+</ParamField>
+
+<ParamField path="--confirm" type="boolean" default="false">
+  Confirm applying fixes (required with `--fix`)
+</ParamField>
+
+**Examples:**
+
+```bash
+asc auth doctor
+asc auth doctor --output json
+asc auth doctor --fix --confirm
+```
+
+**Response:**
+
+```
+Auth Doctor
+
+Keychain:
+  [OK] Keychain available
+  [OK] Keychain accessible
+
+Config:
+  [OK] Config file exists
+  [OK] Config file readable
+
+Profiles:
+  [OK] Profile 'MyKey' valid
+
+No issues found.
+```
+
+## Environment Variables
+
+* `ASC_KEY_ID` - API Key ID
+* `ASC_ISSUER_ID` - Issuer ID
+* `ASC_PRIVATE_KEY_PATH` - Path to .p8 file
+* `ASC_PRIVATE_KEY` - PEM-encoded private key
+* `ASC_PRIVATE_KEY_B64` - Base64-encoded private key
+* `ASC_KEY_TYPE` - API key type: `team` (default), `individual`, or `enterprise`
+* `ASC_BYPASS_KEYCHAIN` - Set to `1`, `true`, `yes`, or `on` to bypass keychain
+* `ASC_STRICT_AUTH` - Set to `true`, `1`, `yes`, `y`, or `on` to fail when required credential fields mix sources
+* `ASC_PROFILE` - Select a named profile
+* `ASC_CONFIG_PATH` - Select an absolute config file path
+
+## Generating API Keys
+
+Generate API keys at: [https://appstoreconnect.apple.com/access/integrations/api](https://appstoreconnect.apple.com/access/integrations/api)

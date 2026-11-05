@@ -1,0 +1,402 @@
+---
+title: metadata
+description: Manage app metadata with deterministic file workflows
+---
+Manage app metadata with deterministic file workflows. Pull metadata from App Store Connect, edit locally, and push changes back.
+
+## Quick Start
+
+```bash
+asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"
+asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata" --dry-run
+asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata"
+```
+
+## Features
+
+**Phase 1 scope:**
+
+* App-info localizations: name, subtitle, privacyPolicyUrl, privacyChoicesUrl, privacyPolicyText
+* Version localizations: description, keywords, marketingUrl, promotionalText, supportUrl, whatsNew
+
+**Not yet included:**
+
+* Categories, copyright, review information, age ratings, screenshots
+
+## Subcommands
+
+* `pull` - Pull metadata from App Store Connect into canonical files
+* `push` - Push metadata changes from canonical files
+* `validate` - Validate metadata files for errors
+
+## Commands
+
+### metadata pull
+
+Pull metadata from App Store Connect into canonical files:
+
+```bash
+asc metadata pull --app "APP_ID" --dir "./metadata"
+asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"
+asc metadata pull --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata"
+asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata" --force
+```
+
+When `--version` is omitted, the app's newest active editable App Store version
+(`PREPARE_FOR_SUBMISSION`, `DEVELOPER_REJECTED`, `REJECTED`,
+`METADATA_REJECTED`, `READY_FOR_REVIEW`, `WAITING_FOR_REVIEW`, or
+`INVALID_BINARY`) is used, then a `DEVELOPER_REMOVED_FROM_SALE` version, and
+finally the live version. The selected version is reported on stderr
+and its version string names the `version/<version>/` directory. Pass
+`--platform` when the app has candidate versions on more than one platform.
+Resolution completes before any metadata file is written, so an ambiguous or
+missing default leaves the output directory unchanged.
+
+**Flags:**
+
+* `--app` - App Store Connect app ID (or `ASC_APP_ID`)
+* `--version` - App version string (e.g., `1.2.3`); defaults to the active editable version, then a developer-removed version, else the live version
+* `--platform` - Optional platform: `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`; also selects the default version
+* `--dir` - Output root directory (required)
+* `--force` - Overwrite existing metadata files in `--dir`
+* `--include` - Included metadata scopes (default: `localizations`)
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+**Directory structure:**
+
+```
+metadata/
+├── app-info/
+│   ├── en-US.json
+│   ├── es-ES.json
+│   └── default.json
+└── versions/
+    └── 1.2.3/
+        ├── en-US.json
+        ├── es-ES.json
+        └── default.json
+```
+
+### metadata push
+
+Push metadata changes from canonical files:
+
+```bash
+asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata" --dry-run
+asc metadata push --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata" --dry-run
+asc metadata push --app "APP_ID" --app-info "APP_INFO_ID" --version "1.2.3" --dir "./metadata"
+asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata" --allow-deletes --confirm
+```
+
+**Flags:**
+
+* `--app` - App Store Connect app ID (or `ASC_APP_ID`)
+* `--app-info` - App Info ID (optional override)
+* `--version` - App version string (e.g., `1.2.3`) (required)
+* `--platform` - Optional platform: `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`
+* `--dir` - Metadata root directory (required)
+* `--include` - Included metadata scopes (default: `localizations`)
+* `--dry-run` - Preview changes without mutating App Store Connect
+* `--allow-deletes` - Allow destructive delete operations (disables default locale fallback)
+* `--confirm` - Confirm destructive operations (required for deletes, field clears, or `--review-dir` applies)
+* `--if-exists` - Behavior when a locale already exists: `fail` (default), `skip`, `update`
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+**Notes:**
+
+* `default.json` fallback is applied only when `--allow-deletes` is not set
+* With `--allow-deletes`, remote locales missing locally are planned as deletes
+* A missing `app-info/` or `version/<version>/` directory leaves that scope unmanaged: its remote localizations are not read, planned, or deleted. An existing directory, even an empty one, manages every locale in that scope. A push still requires at least one metadata `.json` file somewhere under `--dir`, so an otherwise empty tree is rejected instead of deleting a whole scope
+* Omitted fields are treated as no-op; they do not imply deletion
+* Explicit `null` clears only supported nullable fields and requires an existing locale when it is the file's only intent
+* `--if-exists skip` records an existing locale as `status: skipped` and leaves it untouched; `--if-exists update` applies the planned fields, including explicit `null` clears, to it instead and requires `--confirm` when a locale planned as a create clears a field. `fail` keeps today's behavior and reports the conflict.
+
+### metadata validate
+
+Validate metadata files for errors. Validation is offline by default:
+
+```bash
+asc metadata validate --dir "./metadata"
+asc metadata validate --dir "./metadata" --check-urls
+```
+
+**Flags:**
+
+* `--dir` - Metadata root directory (required)
+* `--check-urls` - Fetch support and privacy policy URLs to detect failed responses, redirects to another host, and site-root destinations
+* `--subscription-app` - Enable subscription-specific Terms of Use / EULA link checks
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
+`--check-urls` is an explicit network opt-in. It checks each unique URL once
+with bounded concurrency and timeouts, follows redirects, and refuses private,
+loopback, link-local, and reserved network targets. URL findings are warnings:
+they appear in the normal validation result but keep exit status 0 when the
+metadata has no errors.
+
+## File Format
+
+### App Info Localization
+
+**metadata/app-info/en-US.json:**
+
+```json
+{
+  "name": "MyApp",
+  "subtitle": "The best app ever",
+  "privacyPolicyUrl": "https://example.com/privacy",
+  "privacyChoicesUrl": "https://example.com/privacy-choices",
+  "privacyPolicyText": "We respect your privacy..."
+}
+```
+
+**Supported fields:**
+
+* `name` - App name (30 characters max)
+* `subtitle` - App subtitle (30 characters max)
+* `privacyPolicyUrl` - Privacy policy URL
+* `privacyChoicesUrl` - Privacy choices URL
+* `privacyPolicyText` - Privacy policy text
+
+### Version Localization
+
+**metadata/versions/1.2.3/en-US.json:**
+
+```json
+{
+  "description": "MyApp is the best app for...",
+  "keywords": "productivity,tools,business",
+  "marketingUrl": "https://example.com",
+  "promotionalText": "Try it free for 30 days!",
+  "supportUrl": "https://example.com/support",
+  "whatsNew": "Bug fixes and performance improvements"
+}
+```
+
+**Supported fields:**
+
+* `description` - App description (4000 characters max)
+* `keywords` - Keywords (100 characters max)
+* `marketingUrl` - Marketing URL
+* `promotionalText` - Promotional text (170 characters max)
+* `supportUrl` - Support URL
+* `whatsNew` - What's new / release notes (4000 characters max)
+
+### Clearing nullable fields
+
+To clear a supported nullable field, set it to JSON `null` in its localization
+file. `subtitle`, `privacyPolicyUrl`, and `promotionalText` support explicit
+clears. Omitted keys leave remote values unchanged; empty strings are not clear
+instructions, and `null` is rejected for fields without clear support.
+An explicit-locale file can combine a clear with other field updates.
+Applying a planned clear requires `--confirm`; dry-run plans do not.
+
+A clear-only file must name a locale that already exists in App Store Connect.
+`metadata plan`, `metadata push`, and `metadata apply` report an error for a
+missing locale instead of silently treating the clear as a successful no-op.
+`metadata validate` accepts these explicit-locale clear-only files offline;
+the remote locale existence check happens during plan, push, or apply.
+
+```json
+{
+  "promotionalText": null
+}
+```
+
+### Default Locale
+
+**metadata/app-info/default.json:**
+
+```json
+{
+  "name": "MyApp",
+  "subtitle": "The best app"
+}
+```
+
+The `default.json` file provides fallback values for locales not explicitly defined. It is only applied when `--allow-deletes` is not set.
+It cannot contain `null` clear fields because its values fan out to multiple
+locales; put a clear in the corresponding locale-specific file instead.
+
+## Workflow
+
+### 1. Pull Current Metadata
+
+Pull metadata from App Store Connect:
+
+```bash
+asc metadata pull \
+  --app "123456789" \
+  --version "1.2.3" \
+  --dir "./metadata"
+```
+
+### 2. Edit Locally
+
+Edit the JSON files in your preferred editor:
+
+```bash
+vim metadata/versions/1.2.3/en-US.json
+```
+
+### 3. Preview Changes
+
+Preview changes with `--dry-run`:
+
+```bash
+asc metadata push \
+  --app "123456789" \
+  --version "1.2.3" \
+  --dir "./metadata" \
+  --dry-run
+```
+
+**Output:**
+
+```
+App ID: 123456789
+Version: 1.2.3
+Dir: ./metadata
+Dry Run: true
+
+change   key                              scope    locale  version  field           reason                              from                           to
+add      versions:1.2.3:es-ES:whatsNew   versions es-ES   1.2.3    whatsNew        field exists locally but not remotely                              Correcciones de errores
+update   versions:1.2.3:en-US:whatsNew   versions en-US   1.2.3    whatsNew        field value differs                 Bug fixes                      Bug fixes and improvements
+
+operation              scope     count
+create_localization    versions  1
+update_localization    versions  1
+```
+
+### 4. Apply Changes
+
+Apply changes to App Store Connect:
+
+```bash
+asc metadata push \
+  --app "123456789" \
+  --version "1.2.3" \
+  --dir "./metadata"
+```
+
+## Examples
+
+### Add New Locale
+
+1. Create locale file:
+   ```bash
+   cp metadata/app-info/en-US.json metadata/app-info/ja-JP.json
+   vim metadata/app-info/ja-JP.json
+   ```
+
+2. Edit content:
+   ```json
+   {
+     "name": "私のアプリ",
+     "subtitle": "最高のアプリ"
+   }
+   ```
+
+3. Push changes:
+   ```bash
+   asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata"
+   ```
+
+### Update What's New
+
+1. Edit release notes:
+   ```bash
+   vim metadata/versions/1.2.3/en-US.json
+   ```
+
+2. Update `whatsNew` field:
+   ```json
+   {
+     "whatsNew": "Version 1.2.3 includes:\n- New features\n- Bug fixes\n- Performance improvements"
+   }
+   ```
+
+3. Preview and apply:
+   ```bash
+   asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata" --dry-run
+   asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata"
+   ```
+
+### Delete Locale
+
+With `--allow-deletes`, remove a locale by deleting its file:
+
+```bash
+# Remove locale file
+rm metadata/app-info/ja-JP.json
+rm metadata/version/1.2.3/ja-JP.json
+
+# Push with delete confirmation
+asc metadata push \
+  --app "APP_ID" \
+  --version "1.2.3" \
+  --dir "./metadata" \
+  --allow-deletes \
+  --confirm
+```
+
+## Version Control
+
+Commit metadata files to version control:
+
+```bash
+git add metadata/
+git commit -m "Update app metadata for v1.2.3"
+git push
+```
+
+Benefits:
+
+* Track changes over time
+* Review metadata changes in pull requests
+* Revert to previous versions
+* Collaborate on metadata updates
+
+## CI/CD Integration
+
+```yaml
+name: Update Metadata
+on:
+  push:
+    paths:
+      - 'metadata/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Push metadata
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_APP_ID: ${{ secrets.APP_ID }}
+        run: |
+          asc metadata push \
+            --app "$ASC_APP_ID" \
+            --version "1.2.3" \
+            --dir "./metadata"
+```
+
+## Multiple App Info IDs
+
+If you have multiple app infos (e.g., different platforms), specify the app info ID:
+
+```bash
+asc metadata push \
+  --app "APP_ID" \
+  --app-info "APP_INFO_ID" \
+  --version "1.2.3" \
+  --dir "./metadata"
+```
+
+The CLI will auto-resolve the correct app info in most cases, but you can override it when needed.

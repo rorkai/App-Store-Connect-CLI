@@ -1,0 +1,391 @@
+---
+title: Review Commands
+description: Manage App Store review details, attachments, submissions, and history
+---
+
+import { Card, CardGroup, ParamField } from '@components/mdx';
+
+The `review` command provides grouped submission and item workflows alongside
+the existing hyphenated leaf commands for compatibility.
+
+## Overview
+
+Common review commands:
+
+```bash
+asc review status --app "123456789"
+asc review doctor --app "123456789"
+asc review details-get --id "DETAIL_ID"
+asc review details-for-version --version-id "VERSION_ID"
+asc review details-create --version-id "VERSION_ID" --contact-first-name "Dev" --contact-last-name "Support" --contact-email "dev@example.com" --contact-phone "+1 408 555 0100"
+asc review details-update --id "DETAIL_ID" --notes "Updated review notes"
+asc review attachments-list --review-detail "DETAIL_ID"
+asc review attachments-get --id "ATTACHMENT_ID"
+asc review attachments-upload --review-detail "DETAIL_ID" --file ./review-doc.pdf
+asc review submissions list --app "123456789"
+asc review submissions-get --id "SUBMISSION_ID"
+asc review submissions-create --app "123456789" --platform IOS
+asc review submissions-submit --id "SUBMISSION_ID" --confirm
+asc review submissions-cancel --id "SUBMISSION_ID" --confirm
+asc review submissions-update --id "SUBMISSION_ID" --canceled=true --confirm
+asc review submissions-items-ids --id "SUBMISSION_ID"
+asc review items-list --submission "SUBMISSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
+asc review items-update --id "ITEM_ID" --resolved true
+asc review items-update --id "ITEM_ID" --clear-removed
+asc review items-remove --id "ITEM_ID" --confirm
+asc review history --app "123456789"
+```
+
+## Commands
+
+### `asc review status`
+
+Show app-scoped App Review status and the next recommended action.
+
+**Examples:**
+
+```bash
+asc review status --app "123456789"
+asc review status --app "123456789" --version "1.2.3"
+asc review status --app "123456789" --version-id "VERSION_ID"
+```
+
+***
+
+### `asc review doctor`
+
+Explain why an app cannot be submitted for review.
+
+**Examples:**
+
+```bash
+asc review doctor --app "123456789"
+asc review doctor --app "123456789" --version "1.2.3"
+asc review doctor --app "123456789" --version-id "VERSION_ID"
+```
+
+`asc review doctor` checks submission readiness exposed by the public App Store
+Connect API. App Store Regulations and Permits declarations—including whether
+the app is a personal service—are not checked because doctor uses an API key.
+Doctor output reports this boundary under `coverageWarnings` in JSON and
+under **Coverage Warnings** in table and Markdown output. Coverage warnings do
+not change blocker counts or exit behavior. When no public-API blockers are
+found, the next action still directs you to inspect these declarations with
+`asc web apps declarations list --app APP_ID` before submission.
+
+***
+
+### `asc review submissions list`
+
+This nested command path lists review submissions for an
+app or globally.
+
+The existing stable `asc review submissions-list` command remains available
+with the same flags, output, and behavior.
+
+<ParamField path="--app" type="string">
+  App Store Connect app ID (or `ASC_APP_ID`)
+</ParamField>
+
+<ParamField path="--platform" type="string">
+  Filter by platform: `IOS`, `MAC_OS`, `TV_OS`, `VISION_OS` (comma-separated)
+</ParamField>
+
+<ParamField path="--state" type="string">
+  Filter by submission state (comma-separated)
+</ParamField>
+
+<ParamField path="--paginate" type="boolean" default="false">
+  Automatically fetch all pages
+</ParamField>
+
+<ParamField path="--item-fields" type="string">
+  Sparse fields for included review-submission items. Supplying this flag
+  automatically adds `items` to `--include`.
+</ParamField>
+
+<ParamField path="--include" type="string">
+  Related resources to include: `app`, `items`, `appStoreVersionForReview`,
+  `submittedByActor`, or `lastUpdatedByActor` (comma-separated)
+</ParamField>
+
+<ParamField path="--app-fields, --app-store-version-fields, --actor-fields" type="string">
+  Sparse fields for the matching included resource. Each flag requires its
+  `--include` value. `asc review submissions-get` accepts the same flags.
+</ParamField>
+
+**Examples:**
+
+```bash
+asc review submissions list --app "123456789"
+asc review submissions list --app "123456789" --platform IOS --state READY_FOR_REVIEW
+asc review submissions list --app "123456789" --paginate
+asc review submissions list --app "123456789" --item-fields subscriptionVersion
+```
+
+***
+
+### `asc review submissions-get`
+
+Get a review submission by ID.
+
+<ParamField path="--id" type="string" required>
+  Review submission ID
+</ParamField>
+
+<ParamField path="--item-fields" type="string">
+  Sparse fields for included review-submission items. Supplying this flag
+  automatically includes `items`.
+</ParamField>
+
+<ParamField path="--include" type="string">
+  Related resources to include (comma-separated)
+</ParamField>
+
+**Examples:**
+
+```bash
+asc review submissions-get --id "SUBMISSION_ID"
+asc review submissions-get --id "SUBMISSION_ID" --item-fields subscriptionGroupVersion
+```
+
+***
+
+### `asc review submissions-update`
+
+Update the nullable `platform`, `submitted`, or `canceled` attributes on a
+review submission.
+
+<ParamField path="--id" type="string" required>
+  Review submission ID
+</ParamField>
+
+<ParamField path="--platform" type="string">
+  Platform: `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`
+</ParamField>
+
+<ParamField path="--submitted" type="boolean">
+  Set whether the submission is submitted
+</ParamField>
+
+<ParamField path="--canceled" type="boolean">
+  Set whether the submission is canceled
+</ParamField>
+
+Use `--clear-platform`, `--clear-submitted`, or `--clear-canceled` to send JSON
+`null`. Setting `--submitted=true` or `--canceled=true` requires `--confirm`.
+The corresponding false and clear operations do not.
+When `--canceled=true` is refused because the submission is not cancellable,
+the error explains the submission's current state the same way as
+`asc review submissions-cancel`.
+
+```bash
+asc review submissions-update --id "SUBMISSION_ID" --platform IOS
+asc review submissions-update --id "SUBMISSION_ID" --submitted=false
+asc review submissions-update --id "SUBMISSION_ID" --clear-canceled
+asc review submissions-update --id "SUBMISSION_ID" --canceled=true --confirm
+```
+
+***
+
+### `asc review items-list`, `asc review items-add`, and `asc review items-update`
+
+List items with version relationships and add any of the three API 4.4.1
+version resources to a review submission.
+
+```bash
+asc review items-list --submission "SUBMISSION_ID" --include subscriptionVersion --subscription-version-fields version,state
+asc review items-add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersionExperimentsV2 --item-id "EXPERIMENT_ID"
+asc review items-update --id "ITEM_ID" --resolved false
+asc review items-update --id "ITEM_ID" --clear-removed
+```
+
+`--if-exists fail|skip` (default `fail`) controls a 409 that reports the item
+as already on the submission: `skip` reads the item back, prints it, and exits
+0. `update` is rejected because an item carries no inputs to re-apply. Other
+409s, such as `STATE_ERROR.*` for an unreviewable resource or a submission that
+is no longer editable, keep failing.
+
+```bash
+asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID" --if-exists skip
+```
+
+`--item-type appStoreVersionExperimentV2`, the 3.x singular spelling of
+`appStoreVersionExperimentsV2`, was removed in 4.0.0. It is rejected with an
+error naming the canonical value.
+
+`--fields` controls review-item fields. The related sparse-field flags are
+`--iap-version-fields`, `--subscription-version-fields`, and
+`--subscription-group-version-fields`. `--item-fields` exposes the expanded
+review-item relationship fields on submission list and detail commands and
+automatically includes the related `items` resources.
+
+API 4.4.1 permits item updates only through the nullable `resolved` and
+`removed` attributes. Use `--resolved true|false` or `--removed true|false` to
+set a value and `--clear-resolved` or `--clear-removed` to send JSON `null`.
+The `state` field is response-only. Setting `--removed=true` also requires
+`--confirm`.
+
+API 4.4.1 does not provide `GET /v1/reviewSubmissionItems/{id}`. Use
+`asc review items list --submission "SUBMISSION_ID"` instead. The
+deprecated `asc review items view` and `asc review items-get` commands
+were removed in 4.0.0.
+
+***
+
+### `asc review submissions-cancel`
+
+Cancel a review submission.
+
+<ParamField path="--id" type="string" required>
+  Review submission ID
+</ParamField>
+
+<ParamField path="--confirm" type="boolean" required>
+  Confirm cancellation
+</ParamField>
+
+**Examples:**
+
+```bash
+asc review submissions-cancel --id "SUBMISSION_ID" --confirm
+```
+
+If App Store Connect refuses with `Resource is not in cancellable state`, the
+command reads the submission once and explains its state and the next step,
+for example that a `READY_FOR_REVIEW` draft was never submitted, or that an
+`UNRESOLVED_ISSUES` submission needs a fix or a Resolution Center reply. If
+that read fails, the command reports the refusal as it did before, with Apple's
+original error text.
+
+***
+
+### `asc review details-update`
+
+Update App Store review details.
+
+<ParamField path="--id" type="string" required>
+  App Store review detail ID
+</ParamField>
+
+<ParamField path="--contact-email" type="string">
+  Contact email
+</ParamField>
+
+<ParamField path="--contact-phone" type="string">
+  Contact phone with a plus sign and country code, for example `+1 408 555 0100`
+</ParamField>
+
+<ParamField path="--notes" type="string">
+  Reviewer instructions or context; at most 4,000 characters
+</ParamField>
+
+<ParamField path="--demo-account-required" type="boolean">
+  Set `true` only when App Review needs demo credentials
+</ParamField>
+
+<ParamField path="--demo-account-name" type="string">
+  Demo account name when demo credentials are required
+</ParamField>
+
+<ParamField path="--demo-account-password" type="string">
+  Demo account password when demo credentials are required
+</ParamField>
+
+**Examples:**
+
+```bash
+asc review details-update --id "DETAIL_ID" --notes "Reviewer can use the guest flow from the welcome screen."
+asc review details-update --id "DETAIL_ID" --demo-account-required=true --demo-account-name "reviewer@example.com" --demo-account-password "rotated-password" --notes "This account has full reviewer access."
+```
+
+***
+
+### `asc review attachments-upload`
+
+Upload a review attachment.
+
+<ParamField path="--review-detail" type="string" required>
+  App Store review detail ID
+</ParamField>
+
+<ParamField path="--file" type="string" required>
+  Path to the attachment file
+</ParamField>
+
+**Examples:**
+
+```bash
+asc review attachments-upload --review-detail "REVIEW_DETAIL_ID" --file ./review-doc.pdf
+```
+
+***
+
+### `asc review history`
+
+Show enriched review submission history for an app.
+
+<ParamField path="--app" type="string">
+  App Store Connect app ID (or `ASC_APP_ID`)
+</ParamField>
+
+<ParamField path="--platform" type="string">
+  Filter by platform: `IOS`, `MAC_OS`, `TV_OS`, `VISION_OS`
+</ParamField>
+
+<ParamField path="--state" type="string">
+  Filter by submission state
+</ParamField>
+
+<ParamField path="--version" type="string">
+  Filter by version string (for example `1.2.0`)
+</ParamField>
+
+<ParamField path="--paginate" type="boolean" default="false">
+  Automatically fetch all pages
+</ParamField>
+
+**Examples:**
+
+```bash
+asc review history --app "123456789"
+asc review history --app "123456789" --platform IOS --state COMPLETE
+asc review history --app "123456789" --version "1.2.0"
+```
+
+## Additional Current Subcommands
+
+The live `review` surface also includes:
+
+* `asc review attachments-get`
+* `asc review attachments-delete`
+* `asc review submissions-update`
+* `asc review submissions-items-ids`
+* `asc review items-list`
+* `asc review items-update`
+* `asc review items-remove`
+
+Use `asc review --help` for the full current subcommand list.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Submit command" icon="paper-plane" href="/commands/submit">
+    Check submission status or submit builds for App Store review
+  </Card>
+
+  <Card title="Reviews command" icon="star" href="/commands/reviews">
+    Manage customer reviews
+  </Card>
+
+  <Card title="Submission guide" icon="book-open" href="/guides/app-store-submission">
+    Complete submission guide
+  </Card>
+</CardGroup>
