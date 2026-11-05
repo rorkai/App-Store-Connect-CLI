@@ -165,6 +165,12 @@ func TestInspectPKGProductArchiveRejectsUnsafeInfoPlistEntries(t *testing.T) {
 			if err != nil || manifest.Status != "readable" || manifest.Components[0].App != nil || len(manifest.Warnings) != 1 {
 				t.Fatalf("manifest=%+v err=%v", manifest, err)
 			}
+			if name == "oversized" {
+				want := fmt.Sprintf("component Demo.pkg: app Info.plist is unreadable: declared Info.plist size %d exceeds %d bytes", len(entry.Data), maxPlistBytes)
+				if manifest.Warnings[0] != want {
+					t.Fatalf("warning = %q, want %q", manifest.Warnings[0], want)
+				}
+			}
 		})
 	}
 }
