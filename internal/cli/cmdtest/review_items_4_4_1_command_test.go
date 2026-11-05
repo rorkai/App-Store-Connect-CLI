@@ -98,6 +98,7 @@ func TestRunReviewItemsAddSupports441SubscriptionVersionTypes(t *testing.T) {
 	}{
 		{name: "subscription version", itemType: "subscriptionVersions", relationshipName: "subscriptionVersion", resourceType: "subscriptionVersions"},
 		{name: "subscription group version", itemType: "subscriptionGroupVersions", relationshipName: "subscriptionGroupVersion", resourceType: "subscriptionGroupVersions"},
+		{name: "retention message version", itemType: "retentionMessageVersions", relationshipName: "retentionMessageVersion", resourceType: "retentionMessageVersions"},
 	}
 
 	for _, test := range tests {

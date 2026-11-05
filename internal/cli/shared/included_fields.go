@@ -20,6 +20,7 @@ var includedResources = map[string]includedResource{
 	"actors":                                 {"actor-fields", []string{"actorType", "userFirstName", "userLastName", "userEmail", "apiKeyId"}},
 	"alternativeDistributionPackages":        {"alternative-distribution-package-fields", []string{"sourceFileChecksum", "versions"}},
 	"appAssetLibraryImages":                  {"asset-image-fields", []string{"category", "createdDate", "lastModifiedDate", "fileName", "fileSize", "imageAsset", "referenceName", "specId", "state", "stateDetails", "uploadOperations", "placements"}},
+	"appAssetLibraryPlacements":              {"placement-fields", []string{"mediaType", "placementType", "placementGroup", "createdDate", "lastModifiedDate", "state", "stateDetails", "image", "video", "appEventLocalization", "appStoreVersionLocalization", "appCustomProductPageLocalization", "appStoreVersionExperimentTreatmentLocalization", "retentionMessageVersion"}},
 	"appAssetLibraryVideos":                  {"asset-video-fields", []string{"category", "createdDate", "lastModifiedDate", "fileName", "fileSize", "previewFrameImage", "previewFrameTimeCode", "referenceName", "specId", "state", "stateDetails", "uploadOperations", "videoAsset", "placements"}},
 	"appCategories":                          {"category-fields", []string{"platforms", "subcategories", "parent"}},
 	"appClipAppStoreReviewDetails":           {"app-clip-review-detail-fields", []string{"invocationUrls", "appClipDefaultExperience"}},
@@ -70,11 +71,19 @@ var includedResources = map[string]includedResource{
 	"passTypeIds":                            {"pass-type-id-fields", []string{"name", "identifier", "certificates"}},
 	"preReleaseVersions":                     {"pre-release-version-fields", []string{"version", "platform", "builds", "app"}},
 	"promotedPurchases":                      {"promoted-purchase-fields", []string{"visibleForAllUsers", "enabled", "state", "inAppPurchaseV2", "subscription"}},
+	"retentionMessageLocalizations":          {"retention-message-localization-fields", []string{"locale", "header", "body", "retentionMessageVersion"}},
+	"retentionMessageVersions":               {"retention-message-version-fields", []string{"state", "retentionMessage", "localizations", "placement"}},
+	"retentionMessages":                      {"retention-message-fields", []string{"referenceName", "versions", "subscriptions"}},
 	"retentionOfferPrices":                   {"price-fields", []string{"territory", "subscriptionPricePoint"}},
 	"routingAppCoverages":                    {"routing-app-coverage-fields", []string{"fileSize", "fileName", "sourceFileChecksum", "uploadOperations", "assetDeliveryState", "appStoreVersion"}},
 	"subscriptionPricePoints":                {"price-point-fields", []string{"customerPrice", "proceeds", "proceedsYear2", "territory", "equalizations", "adjustedEqualizations"}},
 	"subscriptions":                          {"subscription-fields", []string{"name", "productId", "familySharable", "state", "subscriptionPeriod", "reviewNote", "groupLevel", "multiSeatStatus", "marketSettings", "subscriptionLocalizations", "appStoreReviewScreenshot", "group", "introductoryOffers", "promotionalOffers", "offerCodes", "prices", "pricePoints", "promotedPurchase", "subscriptionAvailability", "winBackOffers", "images", "planAvailabilities", "versions", "retentionOffers", "retentionMessage", "retentionMessageOffers"}},
 	"territories":                            {"territory-fields", []string{"currency"}},
+}
+
+// IncludedResourceFields returns the fields[type] values published for a resource type.
+func IncludedResourceFields(resourceType string) []string {
+	return slices.Clone(includedResources[resourceType].fields)
 }
 
 type includedFieldFlag struct {

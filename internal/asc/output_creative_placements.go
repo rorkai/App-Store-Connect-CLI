@@ -32,6 +32,9 @@ func CreativePlacementResourceRows(payload []byte) ([]string, [][]string, error)
 		return nil, nil, fmt.Errorf("placements: invalid response: %w", err)
 	}
 	raw := bytes.TrimSpace(envelope.Data)
+	if bytes.Equal(raw, []byte("null")) {
+		return creativePlacementItemRows([]byte("[]"))
+	}
 	if len(raw) == 0 || raw[0] != '{' {
 		return nil, nil, fmt.Errorf("placements: expected a data resource")
 	}

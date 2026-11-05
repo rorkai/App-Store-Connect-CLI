@@ -44,6 +44,7 @@ Examples:
   asc subscriptions pricing availability edit --subscription-id "SUB_ID" --territories "US,Canada"
   asc subscriptions offers offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
   asc subscriptions offers win-back list --subscription-id "SUB_ID"
+  asc subscriptions retention-messages list --app "APP_ID"
   asc subscriptions review screenshots create --subscription-id "SUB_ID" --file "./review.png"
   asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --visible-for-all-users true`,
 		FlagSet:   fs,
@@ -62,6 +63,7 @@ Examples:
 			SubscriptionsPromotedPurchasesCommand(),
 			SubscriptionsVersionsCommand(),
 			SubscriptionsGracePeriodsCommand(),
+			SubscriptionsRetentionMessagesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

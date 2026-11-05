@@ -27,6 +27,7 @@ const (
 	ReviewSubmissionItemTypeInAppPurchaseVersion            ReviewSubmissionItemType = "inAppPurchaseVersions"
 	ReviewSubmissionItemTypeSubscriptionVersion             ReviewSubmissionItemType = "subscriptionVersions"
 	ReviewSubmissionItemTypeSubscriptionGroupVersion        ReviewSubmissionItemType = "subscriptionGroupVersions"
+	ReviewSubmissionItemTypeRetentionMessageVersion         ReviewSubmissionItemType = "retentionMessageVersions"
 )
 
 // ReviewSubmissionItemAttributes describes review submission item attributes.
@@ -57,6 +58,7 @@ type ReviewSubmissionItemRelationships struct {
 	InAppPurchaseVersion            *Relationship `json:"inAppPurchaseVersion,omitempty"`
 	SubscriptionVersion             *Relationship `json:"subscriptionVersion,omitempty"`
 	SubscriptionGroupVersion        *Relationship `json:"subscriptionGroupVersion,omitempty"`
+	RetentionMessageVersion         *Relationship `json:"retentionMessageVersion,omitempty"`
 }
 
 // VersionLinkagesKnown reports whether both requested version linkages were returned.
@@ -144,6 +146,7 @@ type ReviewSubmissionItemCreateRelationships struct {
 	InAppPurchaseVersion            *Relationship `json:"inAppPurchaseVersion,omitempty"`
 	SubscriptionVersion             *Relationship `json:"subscriptionVersion,omitempty"`
 	SubscriptionGroupVersion        *Relationship `json:"subscriptionGroupVersion,omitempty"`
+	RetentionMessageVersion         *Relationship `json:"retentionMessageVersion,omitempty"`
 }
 
 // ReviewSubmissionItemCreateData is the data portion of a review submission item create request.
@@ -179,6 +182,12 @@ var reviewSubmissionItemTypeSpecs = []reviewSubmissionItemTypeSpec{
 		canonical: ReviewSubmissionItemTypeSubscriptionGroupVersion,
 		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
 			relationships.SubscriptionGroupVersion = reviewSubmissionItemRelationship(ResourceTypeSubscriptionGroupVersions, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeRetentionMessageVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.RetentionMessageVersion = reviewSubmissionItemRelationship(ResourceTypeRetentionMessageVersions, itemID)
 		},
 	},
 	{

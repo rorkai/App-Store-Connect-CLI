@@ -147,6 +147,10 @@ const (
 	ResourceTypeSubscriptionGroupLocalizations                  = types.ResourceTypeSubscriptionGroupLocalizations
 	ResourceTypeSubscriptionGroupVersions                       = types.ResourceTypeSubscriptionGroupVersions
 	ResourceTypeSubscriptionGroupSubmissions                    = types.ResourceTypeSubscriptionGroupSubmissions
+	ResourceTypeRetentionMessages                               = types.ResourceTypeRetentionMessages
+	ResourceTypeRetentionMessageVersions                        = types.ResourceTypeRetentionMessageVersions
+	ResourceTypeRetentionMessageLocalizations                   = types.ResourceTypeRetentionMessageLocalizations
+	ResourceTypeAppAssetLibraryPlacements                       = types.ResourceTypeAppAssetLibraryPlacements
 	ResourceTypeSubscriptions                                   = types.ResourceTypeSubscriptions
 	ResourceTypeSubscriptionVersions                            = types.ResourceTypeSubscriptionVersions
 	ResourceTypeSubscriptionLocalizations                       = types.ResourceTypeSubscriptionLocalizations

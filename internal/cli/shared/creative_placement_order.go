@@ -32,6 +32,8 @@ func creativePlacementRelationship(resource string) string {
 		return "appStoreVersionExperimentTreatmentLocalization"
 	case "appEventLocalizations":
 		return "appEventLocalization"
+	case "retentionMessageVersions":
+		return "retentionMessageVersion"
 	default:
 		return ""
 	}

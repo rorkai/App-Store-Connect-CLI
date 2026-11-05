@@ -33,6 +33,7 @@ Examples:
   asc review items add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
+  asc review items add --submission "SUBMISSION_ID" --item-type retentionMessageVersions --item-id "RETENTION_MESSAGE_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type appAssetLibraryImages --item-id "IMAGE_ID"
   asc review items update --id "ITEM_ID" --resolved true
   asc review items remove --id "ITEM_ID" --confirm`,
@@ -45,6 +46,7 @@ Examples:
   asc review items add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
+  asc review items add --submission "SUBMISSION_ID" --item-type retentionMessageVersions --item-id "RETENTION_MESSAGE_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type appAssetLibraryImages --item-id "IMAGE_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type gameCenterChallengeVersions --item-id "VERSION_ID"`),
 			reviewItemsUpdateCommand("update", "review items update", `asc review items update --id "ITEM_ID" [flags]`, `asc review items update --id "ITEM_ID" --resolved true
@@ -188,6 +190,7 @@ var reviewSubmissionItemFields = []string{
 	"appStoreVersionExperimentV2", "appEvent", "backgroundAssetVersion", "gameCenterAchievementVersion",
 	"gameCenterActivityVersion", "gameCenterChallengeVersion", "gameCenterLeaderboardSetVersion",
 	"gameCenterLeaderboardVersion", "inAppPurchaseVersion", "subscriptionVersion", "subscriptionGroupVersion",
+	"retentionMessageVersion",
 }
 
 var reviewSubmissionItemIncludes = reviewSubmissionItemFields[1:]
@@ -208,6 +211,7 @@ var reviewSubmissionItemIncludedResources = map[string]string{
 	"gameCenterChallengeVersion":      "gameCenterChallengeVersions",
 	"gameCenterLeaderboardSetVersion": "gameCenterLeaderboardSetVersions",
 	"gameCenterLeaderboardVersion":    "gameCenterLeaderboardVersions",
+	"retentionMessageVersion":         "retentionMessageVersions",
 }
 
 var (
@@ -636,6 +640,8 @@ func reviewSubmissionItemRelationshipName(itemType asc.ReviewSubmissionItemType)
 		return "subscriptionVersion"
 	case asc.ReviewSubmissionItemTypeSubscriptionGroupVersion:
 		return "subscriptionGroupVersion"
+	case asc.ReviewSubmissionItemTypeRetentionMessageVersion:
+		return "retentionMessageVersion"
 	default:
 		return ""
 	}
@@ -688,6 +694,8 @@ func reviewSubmissionItemLinkedID(item asc.ReviewSubmissionItemResource, itemTyp
 		return relationship(item.Relationships.SubscriptionVersion)
 	case asc.ReviewSubmissionItemTypeSubscriptionGroupVersion:
 		return relationship(item.Relationships.SubscriptionGroupVersion)
+	case asc.ReviewSubmissionItemTypeRetentionMessageVersion:
+		return relationship(item.Relationships.RetentionMessageVersion)
 	default:
 		return ""
 	}
