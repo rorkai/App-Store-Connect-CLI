@@ -1073,14 +1073,15 @@ func parseRawTestCases(rawCases []rawTestCase) ([]TestCase, error) {
 		if err != nil {
 			return nil, err
 		}
+		// Prefer numeric seconds to the localized, rounded display duration.
 		if !hasJSONValue(rawCase.DurationMS) {
-			durationMS, err = decodeDurationMS(rawCase.Duration)
+			durationMS, err = decodeDurationMS(rawCase.DurationInSecs)
 			if err != nil {
 				return nil, err
 			}
 		}
-		if !hasJSONValue(rawCase.DurationMS) && !hasJSONValue(rawCase.Duration) {
-			durationMS, err = decodeDurationMS(rawCase.DurationInSecs)
+		if !hasJSONValue(rawCase.DurationMS) && !hasJSONValue(rawCase.DurationInSecs) {
+			durationMS, err = decodeDurationMS(rawCase.Duration)
 			if err != nil {
 				return nil, err
 			}
@@ -1157,14 +1158,15 @@ func parseRawTestNode(node rawTestNode) (TestCase, error) {
 	if err != nil {
 		return TestCase{}, fmt.Errorf("decode test case duration: %w", err)
 	}
+	// Prefer numeric seconds to the localized, rounded display duration.
 	if !hasJSONValue(node.DurationMS) {
-		durationMS, err = decodeDurationMS(node.Duration)
+		durationMS, err = decodeDurationMS(node.DurationInSeconds)
 		if err != nil {
 			return TestCase{}, fmt.Errorf("decode test case duration: %w", err)
 		}
 	}
-	if !hasJSONValue(node.DurationMS) && !hasJSONValue(node.Duration) {
-		durationMS, err = decodeDurationMS(node.DurationInSeconds)
+	if !hasJSONValue(node.DurationMS) && !hasJSONValue(node.DurationInSeconds) {
+		durationMS, err = decodeDurationMS(node.Duration)
 		if err != nil {
 			return TestCase{}, fmt.Errorf("decode test case duration: %w", err)
 		}
