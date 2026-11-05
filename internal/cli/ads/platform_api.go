@@ -289,11 +289,6 @@ func validateRawPlatformAdAccountPathID(method, pathOnly, effectiveAdAccountID s
 	return nil
 }
 
-func rawPlatformRequestRequiresAdAccount(method, pathValue string) (bool, error) {
-	kind, err := rawPlatformRequestContextKind(method, pathValue)
-	return kind == appleads.ContextAdAccount, err
-}
-
 func rawPlatformRequestContextKind(method, pathValue string) (appleads.ContextKind, error) {
 	pathOnly, err := platformPathOnly(pathValue)
 	if err != nil {

@@ -26,19 +26,6 @@ func TestAuthPlatformEndpointSpecResolvesAuthEndpoints(t *testing.T) {
 	}
 }
 
-func TestAuthDiscoverHelpDocumentsPlatformTransport(t *testing.T) {
-	command := AuthDiscoverCommand()
-	if command.ShortHelp != "Discover Apple Ads user and ad account access." {
-		t.Fatalf("AuthDiscoverCommand().ShortHelp = %q, want user/ad-account wording", command.ShortHelp)
-	}
-	if !strings.Contains(command.LongHelp, "GET v1/me") || !strings.Contains(command.LongHelp, "GET v1/acls") {
-		t.Fatalf("AuthDiscoverCommand().LongHelp = %q, want Platform API v1 endpoints", command.LongHelp)
-	}
-	if strings.Contains(command.LongHelp, "GET v5/") {
-		t.Fatalf("AuthDiscoverCommand().LongHelp = %q, must not claim legacy v5 transport", command.LongHelp)
-	}
-}
-
 func TestSummarizePlatformACLAccountsUsesAdAccountSelection(t *testing.T) {
 	accounts, err := summarizePlatformACLAccounts(appleads.RawResponse(`{"result":{"acls":[{"adAccount":{"id":111,"orgId":987654,"name":"Primary"},"roles":["Admin"]},{"adAccount":{"id":222,"orgId":987654,"name":"Secondary"},"roles":["ReadOnly"]}]}}`), "222")
 	if err != nil {

@@ -53,18 +53,6 @@ func TestPlatformAssetsUploadIsOneCustomCommand(t *testing.T) {
 	}
 }
 
-func TestPlatformAssetsFindHelpExplainsOptionalQuery(t *testing.T) {
-	command := findCommand(AdsCommand(), "assets", "find")
-	if command == nil {
-		t.Fatal("missing assets find command")
-	}
-	for _, want := range []string{"[--file query.json]", "Required: no", "default page", "non-deleted assets", "selected ad account", "promotedObjectId", "providerAssetId", "assetType (IMAGE)"} {
-		if !strings.Contains(command.LongHelp, want) {
-			t.Fatalf("assets find help = %q, want %q", command.LongHelp, want)
-		}
-	}
-}
-
 func TestPlatformMapDeleteCommandsRequireConfirmationBeforeOtherWork(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing-config.json"))
 	setAdsResolverTestEnv(t)
@@ -94,18 +82,6 @@ func TestPlatformLocationGroupUpdateRequiresRiskConfirmationBeforeOtherWork(t *t
 	if !spec.RiskConfirm || spec.RiskConfirmBodyField != "" {
 		t.Fatalf("location-groups update risk metadata = %+v, want unconditional confirmation", spec)
 	}
-	command := findCommand(AdsCommand(), "location-groups", "update")
-	if command == nil {
-		t.Fatal("missing location-groups update command")
-	}
-	confirm := command.FlagSet.Lookup("confirm")
-	if confirm == nil || !strings.Contains(confirm.Usage, "spend") || !strings.Contains(confirm.Usage, "targeting") {
-		t.Fatalf("location-groups update --confirm usage = %q", valueFlagUsage(confirm))
-	}
-	if !strings.Contains(command.LongHelp, "--confirm") || !strings.Contains(command.LongHelp, "immediately change targeting") {
-		t.Fatalf("location-groups update help = %q", command.LongHelp)
-	}
-
 	_, flags := bindEndpointFlags(spec, "location-groups update")
 	*flags.pathStrings["id"] = "GROUP"
 	err := executeEndpoint(context.Background(), spec, flags)

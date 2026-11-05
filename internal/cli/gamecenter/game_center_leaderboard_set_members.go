@@ -145,13 +145,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--set-id")
 			}
 
-			leaderboardIDsProvided := false
-			fs.Visit(func(flag *flag.Flag) {
-				if flag.Name == "leaderboard-ids" {
-					leaderboardIDsProvided = true
-				}
-			})
-			if !leaderboardIDsProvided {
+			if !flagPassed(fs, "leaderboard-ids") {
 				fmt.Fprintln(os.Stderr, "Error: --leaderboard-ids is required")
 				return shared.MissingRequiredUsageError("--leaderboard-ids")
 			}

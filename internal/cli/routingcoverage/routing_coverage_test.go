@@ -223,36 +223,27 @@ func TestPrepareRoutingCoverageFileRejectsOutOfWorkingDirectorySymlinks(t *testi
 }
 
 func TestPrepareRoutingCoverageFileRejectsSymlinkedParent(t *testing.T) {
-	root := t.TempDir()
-	outside := t.TempDir()
-	if err := os.WriteFile(filepath.Join(outside, "coverage.geojson"), []byte(validRoutingCoverageGeoJSON), 0o600); err != nil {
-		t.Fatalf("write fixture: %v", err)
-	}
-	if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
-		t.Fatalf("create parent symlink: %v", err)
-	}
-	t.Chdir(root)
+	for name, absolute := range map[string]bool{"relative": false, "absolute": true} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			outside := t.TempDir()
+			if err := os.WriteFile(filepath.Join(outside, "coverage.geojson"), []byte(validRoutingCoverageGeoJSON), 0o600); err != nil {
+				t.Fatalf("write fixture: %v", err)
+			}
+			if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
+				t.Fatalf("create parent symlink: %v", err)
+			}
+			t.Chdir(root)
 
-	_, err := PrepareRoutingCoverageFile(filepath.Join("linked", "coverage.geojson"))
-	if !errors.Is(err, rootfs.ErrSymlink) {
-		t.Fatalf("PrepareRoutingCoverageFile() error = %v, want rootfs.ErrSymlink", err)
-	}
-}
-
-func TestPrepareRoutingCoverageFileRejectsAbsoluteSymlinkedParent(t *testing.T) {
-	root := t.TempDir()
-	outside := t.TempDir()
-	if err := os.WriteFile(filepath.Join(outside, "coverage.geojson"), []byte(validRoutingCoverageGeoJSON), 0o600); err != nil {
-		t.Fatalf("write fixture: %v", err)
-	}
-	if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
-		t.Fatalf("create parent symlink: %v", err)
-	}
-	t.Chdir(root)
-
-	_, err := PrepareRoutingCoverageFile(filepath.Join(root, "linked", "coverage.geojson"))
-	if !errors.Is(err, rootfs.ErrSymlink) {
-		t.Fatalf("PrepareRoutingCoverageFile() error = %v, want rootfs.ErrSymlink", err)
+			path := filepath.Join("linked", "coverage.geojson")
+			if absolute {
+				path = filepath.Join(root, path)
+			}
+			_, err := PrepareRoutingCoverageFile(path)
+			if !errors.Is(err, rootfs.ErrSymlink) {
+				t.Fatalf("PrepareRoutingCoverageFile(%q) error = %v, want rootfs.ErrSymlink", path, err)
+			}
+		})
 	}
 }
 

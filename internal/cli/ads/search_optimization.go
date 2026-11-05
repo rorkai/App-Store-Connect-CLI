@@ -363,11 +363,7 @@ func fetchOptimizationCampaigns(ctx context.Context, client *appleads.Client, re
 }
 
 func fetchOptimizationSuggestions(ctx context.Context, client *appleads.Client, request SearchOptimizationRequest, phrases bool) ([]SearchSuggestion, error) {
-	return fetchOptimizationSuggestionsLimited(ctx, client, request, phrases, 0)
-}
-
-func fetchOptimizationSuggestionsLimited(ctx context.Context, client *appleads.Client, request SearchOptimizationRequest, phrases bool, limit int) ([]SearchSuggestion, error) {
-	items, _, err := fetchOptimizationSuggestionsLimitedWithMore(ctx, client, request, phrases, limit)
+	items, _, err := fetchOptimizationSuggestionsLimitedWithMore(ctx, client, request, phrases, 0)
 	return items, err
 }
 

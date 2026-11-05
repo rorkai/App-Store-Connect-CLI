@@ -75,20 +75,42 @@ func TestResolveReportOutputPaths_Decompress(t *testing.T) {
 	}
 }
 
-func TestNormalizeReportDate_MonthlyValidation(t *testing.T) {
-	_, err := normalizeReportDate("2024/01/02", asc.SalesReportFrequencyMonthly)
-	if err == nil {
-		t.Fatal("expected error for malformed monthly date")
+func TestNormalizeReportDate(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     string
+		frequency asc.SalesReportFrequency
+		want      string
+		wantErr   bool
+	}{
+		{name: "daily omitted", value: "", frequency: asc.SalesReportFrequencyDaily, want: ""},
+		{name: "monthly key", value: "2024-01", frequency: asc.SalesReportFrequencyMonthly, want: "2024-01"},
+		{name: "monthly full date", value: "2024-02-15", frequency: asc.SalesReportFrequencyMonthly, want: "2024-02"},
+		{name: "monthly leap day", value: "2024-02-29", frequency: asc.SalesReportFrequencyMonthly, want: "2024-02"},
+		{name: "monthly malformed", value: "2024/01/02", frequency: asc.SalesReportFrequencyMonthly, wantErr: true},
+		{name: "yearly key", value: "2024", frequency: asc.SalesReportFrequencyYearly, want: "2024"},
+		{name: "yearly mid-year date", value: "2024-06-30", frequency: asc.SalesReportFrequencyYearly, want: "2024"},
+		{name: "yearly last day", value: "2024-12-31", frequency: asc.SalesReportFrequencyYearly, want: "2024"},
+		{name: "weekly monday becomes sunday", value: "2026-02-09", frequency: asc.SalesReportFrequencyWeekly, want: "2026-02-15"},
+		{name: "weekly sunday unchanged", value: "2026-02-15", frequency: asc.SalesReportFrequencyWeekly, want: "2026-02-15"},
+		{name: "weekly midweek rejected", value: "2026-02-11", frequency: asc.SalesReportFrequencyWeekly, wantErr: true},
 	}
-}
-
-func TestNormalizeReportDate_AllowsOmission(t *testing.T) {
-	date, err := normalizeReportDate("", asc.SalesReportFrequencyDaily)
-	if err != nil {
-		t.Fatalf("expected omitted date to be valid, got %v", err)
-	}
-	if date != "" {
-		t.Fatalf("expected empty normalized date, got %q", date)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := normalizeReportDate(test.value, test.frequency)
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("normalizeReportDate(%q, %s) = %q, want error", test.value, test.frequency, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("normalizeReportDate(%q, %s) error: %v", test.value, test.frequency, err)
+			}
+			if got != test.want {
+				t.Fatalf("normalizeReportDate(%q, %s) = %q, want %q", test.value, test.frequency, got, test.want)
+			}
+		})
 	}
 }
 
@@ -130,135 +152,40 @@ func TestNormalizeSalesReportSubTypeSupportsDocumentedValues(t *testing.T) {
 	}
 }
 
-func TestNormalizeReportDate_MonthlyFormat(t *testing.T) {
-	date, err := normalizeReportDate("2024-01", asc.SalesReportFrequencyMonthly)
-	if err != nil {
-		t.Fatalf("expected monthly date to parse, got %v", err)
+func TestNormalizeSalesReportVersion(t *testing.T) {
+	tests := []struct {
+		name       string
+		value      string
+		reportType asc.SalesReportType
+		subType    asc.SalesReportSubType
+		frequency  asc.SalesReportFrequency
+		want       asc.SalesReportVersion
+		wantErr    bool
+	}{
+		{name: "subscription defaults to 1_4", value: "  ", reportType: asc.SalesReportTypeSubscription, subType: asc.SalesReportSubTypeSummary, frequency: asc.SalesReportFrequencyDaily, want: asc.SalesReportVersion1_4},
+		{name: "sales defaults to 1_0", value: "  ", reportType: asc.SalesReportTypeSales, subType: asc.SalesReportSubTypeSummary, frequency: asc.SalesReportFrequencyDaily, want: asc.SalesReportVersion1_0},
+		{name: "subscriber defaults to 1_3", reportType: asc.SalesReportTypeSubscriber, subType: asc.SalesReportSubTypeDetailed, frequency: asc.SalesReportFrequencyDaily, want: asc.SalesReportVersion1_3},
+		{name: "monthly installs defaults to 1_2", reportType: asc.SalesReportTypeInstalls, subType: asc.SalesReportSubTypeSummary, frequency: asc.SalesReportFrequencyMonthly, want: asc.SalesReportVersion1_2},
+		{name: "version outside tuple", value: "1_4", reportType: asc.SalesReportTypeSales, subType: asc.SalesReportSubTypeSummary, frequency: asc.SalesReportFrequencyDaily, wantErr: true},
+		{name: "dotted version", value: "1.4", reportType: asc.SalesReportTypeSubscription, subType: asc.SalesReportSubTypeSummary, frequency: asc.SalesReportFrequencyDaily, wantErr: true},
+		{name: "undocumented future version", value: " 1_5 ", reportType: asc.SalesReportTypeSubscription, subType: asc.SalesReportSubTypeSummary, frequency: asc.SalesReportFrequencyDaily, wantErr: true},
 	}
-	if date != "2024-01" {
-		t.Fatalf("expected monthly report key 2024-01, got %q", date)
-	}
-}
-
-func TestNormalizeReportDate_MonthlyFullDate(t *testing.T) {
-	for _, input := range []string{"2024-02-15", "2024-02-29"} {
-		date, err := normalizeReportDate(input, asc.SalesReportFrequencyMonthly)
-		if err != nil {
-			t.Fatalf("expected monthly date %s to parse, got %v", input, err)
-		}
-		if date != "2024-02" {
-			t.Fatalf("expected monthly report key 2024-02 for %s, got %q", input, date)
-		}
-	}
-}
-
-func TestNormalizeReportDate_YearlyFormat(t *testing.T) {
-	date, err := normalizeReportDate("2024", asc.SalesReportFrequencyYearly)
-	if err != nil {
-		t.Fatalf("expected yearly date to parse, got %v", err)
-	}
-	if date != "2024" {
-		t.Fatalf("expected yearly report key 2024, got %q", date)
-	}
-}
-
-func TestNormalizeReportDate_YearlyFullDate(t *testing.T) {
-	for _, input := range []string{"2024-06-30", "2024-12-31"} {
-		date, err := normalizeReportDate(input, asc.SalesReportFrequencyYearly)
-		if err != nil {
-			t.Fatalf("expected yearly date %s to parse, got %v", input, err)
-		}
-		if date != "2024" {
-			t.Fatalf("expected yearly report key 2024 for %s, got %q", input, date)
-		}
-	}
-}
-
-func TestNormalizeReportDate_WeeklyMondayConvertsToSunday(t *testing.T) {
-	date, err := normalizeReportDate("2026-02-09", asc.SalesReportFrequencyWeekly)
-	if err != nil {
-		t.Fatalf("expected weekly monday date to parse, got %v", err)
-	}
-	if date != "2026-02-15" {
-		t.Fatalf("expected weekly monday date to normalize to sunday 2026-02-15, got %q", date)
-	}
-}
-
-func TestNormalizeReportDate_WeeklySundayRemainsSunday(t *testing.T) {
-	date, err := normalizeReportDate("2026-02-15", asc.SalesReportFrequencyWeekly)
-	if err != nil {
-		t.Fatalf("expected weekly sunday date to parse, got %v", err)
-	}
-	if date != "2026-02-15" {
-		t.Fatalf("expected weekly sunday date to remain unchanged, got %q", date)
-	}
-}
-
-func TestNormalizeReportDate_WeeklyRejectsNonBoundaryDate(t *testing.T) {
-	_, err := normalizeReportDate("2026-02-11", asc.SalesReportFrequencyWeekly)
-	if err == nil {
-		t.Fatal("expected error for weekly non-monday/sunday date")
-	}
-}
-
-func TestNormalizeSalesReportVersionRejectsVersionOutsideTuple(t *testing.T) {
-	_, err := normalizeSalesReportVersion("1_4", asc.SalesReportTypeSales, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyDaily)
-	if err == nil {
-		t.Fatal("expected SALES/SUMMARY/DAILY version 1_4 to be rejected")
-	}
-}
-
-func TestNormalizeSalesReportVersionDefaultsSubscriptionTo1_4(t *testing.T) {
-	version, err := normalizeSalesReportVersion("  ", asc.SalesReportTypeSubscription, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyDaily)
-	if err != nil {
-		t.Fatalf("expected empty version to use the default, got %v", err)
-	}
-	if version != asc.SalesReportVersion1_4 {
-		t.Fatalf("expected subscription default version 1_4, got %q", version)
-	}
-}
-
-func TestNormalizeSalesReportVersionPreservesOtherDefaults(t *testing.T) {
-	version, err := normalizeSalesReportVersion("  ", asc.SalesReportTypeSales, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyDaily)
-	if err != nil {
-		t.Fatalf("expected empty version to use the default, got %v", err)
-	}
-	if version != asc.SalesReportVersion1_0 {
-		t.Fatalf("expected sales default version 1_0, got %q", version)
-	}
-}
-
-func TestNormalizeSalesReportVersionDefaultsSubscriberTo1_3(t *testing.T) {
-	version, err := normalizeSalesReportVersion("", asc.SalesReportTypeSubscriber, asc.SalesReportSubTypeDetailed, asc.SalesReportFrequencyDaily)
-	if err != nil {
-		t.Fatalf("expected empty version to use the default, got %v", err)
-	}
-	if version != asc.SalesReportVersion1_3 {
-		t.Fatalf("expected subscriber default version 1_3, got %q", version)
-	}
-}
-
-func TestNormalizeSalesReportVersionDefaultsMonthlyInstallsTo1_2(t *testing.T) {
-	version, err := normalizeSalesReportVersion("", asc.SalesReportTypeInstalls, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyMonthly)
-	if err != nil {
-		t.Fatalf("expected empty version to use the default, got %v", err)
-	}
-	if version != asc.SalesReportVersion1_2 {
-		t.Fatalf("expected monthly installs default version 1_2, got %q", version)
-	}
-}
-
-func TestNormalizeSalesReportVersionRejectsInvalidValue(t *testing.T) {
-	_, err := normalizeSalesReportVersion("1.4", asc.SalesReportTypeSubscription, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyDaily)
-	if err == nil {
-		t.Fatal("expected invalid version error")
-	}
-}
-
-func TestNormalizeSalesReportVersionRejectsUndocumentedFutureVersion(t *testing.T) {
-	_, err := normalizeSalesReportVersion(" 1_5 ", asc.SalesReportTypeSubscription, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyDaily)
-	if err == nil {
-		t.Fatal("expected undocumented version 1_5 to be rejected")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := normalizeSalesReportVersion(test.value, test.reportType, test.subType, test.frequency)
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("normalizeSalesReportVersion(%q) = %q, want error", test.value, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("normalizeSalesReportVersion(%q) error: %v", test.value, err)
+			}
+			if got != test.want {
+				t.Fatalf("normalizeSalesReportVersion(%q) = %q, want %q", test.value, got, test.want)
+			}
+		})
 	}
 }
 

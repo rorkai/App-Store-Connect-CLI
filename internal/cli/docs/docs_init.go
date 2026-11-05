@@ -424,7 +424,7 @@ func resolveContainedDocsEntry(root rootfs.Root, name string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: agent-file target is not contained: %w", rootfs.ErrSymlink, err)
 	}
-	if err := validateContainedAgentTarget(target); err != nil {
+	if err := validateContainedMarkdownTarget(target); err != nil {
 		return "", err
 	}
 	return target, nil
@@ -443,10 +443,6 @@ func validateContainedMarkdownTarget(name string) error {
 		}
 	}
 	return nil
-}
-
-func validateContainedAgentTarget(name string) error {
-	return validateContainedMarkdownTarget(name)
 }
 
 func validateInitReferencePlan(ascPlan ascReferencePlan, linkPlan agentLinkPlan) error {

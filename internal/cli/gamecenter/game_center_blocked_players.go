@@ -97,12 +97,10 @@ func gameCenterBlockedPlayersUpdateCommand() *ffcli.Command {
 			return shared.UsageError(command + ": --blocked is required")
 		}
 		var bundle *string
-		fs.Visit(func(f *flag.Flag) {
-			if f.Name == "bundle-id" {
-				value := strings.TrimSpace(*bundleID)
-				bundle = &value
-			}
-		})
+		if flagPassed(fs, "bundle-id") {
+			value := strings.TrimSpace(*bundleID)
+			bundle = &value
+		}
 		if bundle != nil && *bundle == "" {
 			return shared.UsageError("--bundle-id must not be empty")
 		}
