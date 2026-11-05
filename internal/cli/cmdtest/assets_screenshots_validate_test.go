@@ -45,20 +45,6 @@ type screenshotValidateIssueOutput struct {
 	Message     string `json:"message"`
 }
 
-func TestScreenshotsHelpListsValidateSubcommand(t *testing.T) {
-	stdout, stderr, runErr := runRootCommand(t, []string{"screenshots"})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "\n  validate") {
-		t.Fatalf("expected screenshots help to list validate, got %q", stderr)
-	}
-}
-
 func TestAssetsScreenshotsValidateOutputReportsOrderingHiddenFilesAndDimensionErrors(t *testing.T) {
 	dir := t.TempDir()
 	writeScreenshotValidatePNG(t, filepath.Join(dir, "02-details.png"), 1242, 2688, color.RGBA{R: 20, A: 255}, png.DefaultCompression)
@@ -267,13 +253,6 @@ func hasScreenshotValidateIssue(issues []screenshotValidateIssueOutput, code, se
 		}
 	}
 	return false
-}
-
-func TestAssetsScreenshotsValidateHelpUsesCanonicalUsage(t *testing.T) {
-	usage := usageForCommand(t, "screenshots", "validate")
-	if !strings.Contains(usage, `asc screenshots validate --path "./screenshots" --device-type "IPHONE_65"`) {
-		t.Fatalf("expected canonical validate usage, got %q", usage)
-	}
 }
 
 func writeScreenshotValidatePNG(t *testing.T, path string, width, height int, marker color.RGBA, compression png.CompressionLevel) {

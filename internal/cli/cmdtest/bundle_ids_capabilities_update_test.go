@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -12,94 +10,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
-
-func TestBundleIDCapabilitiesUpdateMissingID(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"bundle-ids", "capabilities", "update", "--settings", `[{"key":"ICLOUD_VERSION"}]`}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--id is required") {
-		t.Fatalf("expected --id is required error, got %q", stderr)
-	}
-}
-
-func TestBundleIDCapabilitiesUpdateNoUpdateFields(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"bundle-ids", "capabilities", "update", "--id", "cap1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "at least one update field is required") {
-		t.Fatalf("expected update field required error, got %q", stderr)
-	}
-}
-
-func TestBundleIDCapabilitiesUpdateEmptySettingsArrayNoUpdateFields(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"bundle-ids", "capabilities", "update", "--id", "cap1", "--settings", "[]"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "at least one update field is required") {
-		t.Fatalf("expected update field required error, got %q", stderr)
-	}
-}
-
-func TestBundleIDCapabilitiesUpdateInvalidSettingsJSON(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"bundle-ids", "capabilities", "update", "--id", "cap1", "--settings", "not-json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--settings must be valid JSON array") {
-		t.Fatalf("expected invalid JSON error, got %q", stderr)
-	}
-}
 
 func TestBundleIDCapabilitiesSettingsValidationStopsBeforeHTTP(t *testing.T) {
 	setupAuth(t)
@@ -129,6 +39,26 @@ func TestBundleIDCapabilitiesSettingsValidationStopsBeforeHTTP(t *testing.T) {
 		wantErr     string
 		wantDetails []string
 	}{
+		{
+			name:    "update requires id",
+			args:    []string{"bundle-ids", "capabilities", "update", "--settings", `[{"key":"ICLOUD_VERSION"}]`},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "update requires an update field",
+			args:    []string{"bundle-ids", "capabilities", "update", "--id", "cap1"},
+			wantErr: "at least one update field is required",
+		},
+		{
+			name:    "update rejects empty settings array",
+			args:    []string{"bundle-ids", "capabilities", "update", "--id", "cap1", "--settings", "[]"},
+			wantErr: "at least one update field is required",
+		},
+		{
+			name:    "update rejects invalid settings JSON",
+			args:    []string{"bundle-ids", "capabilities", "update", "--id", "cap1", "--settings", "not-json"},
+			wantErr: "--settings must be valid JSON array",
+		},
 		{
 			name:    "add rejects unknown field",
 			args:    []string{"bundle-ids", "capabilities", "add", "--bundle", "bundle1", "--capability", "ICLOUD", "--settings", `[{"key":"ICLOUD_VERSION","typo":true}]`},

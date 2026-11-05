@@ -13,42 +13,44 @@ import (
 
 const buildNumberRequiresPlatformError = "Error: --platform is required with --build-number"
 
-func TestBuildsInfoByBuildNumberRequiresPlatform(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
+func TestBuildsByBuildNumberRequiresPlatform(t *testing.T) {
+	for _, args := range [][]string{
+		{"builds", "info", "--app", "123456789", "--build-number", "42", "--output", "json"},
+		{"builds", "wait", "--app", "123456789", "--build-number", "42", "--poll-interval", "1ms"},
+	} {
+		t.Run(args[1], func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+				return nil, nil
+			}))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--build-number", "42", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
 
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected usage error, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, buildNumberRequiresPlatformError) {
-		t.Fatalf("expected stderr to require --platform, got %q", stderr)
-	}
-	if strings.Contains(stderr, "Defaulting to IOS") {
-		t.Fatalf("expected no implicit IOS default, got %q", stderr)
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected usage error, got %v", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, buildNumberRequiresPlatformError) {
+				t.Fatalf("expected stderr to require --platform, got %q", stderr)
+			}
+			if strings.Contains(stderr, "Defaulting to IOS") {
+				t.Fatalf("expected no implicit IOS default, got %q", stderr)
+			}
+		})
 	}
 }
 

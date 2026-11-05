@@ -172,99 +172,67 @@ func TestDevicesRegisterBatchDryRunPlansWithoutCreating(t *testing.T) {
 	}
 }
 
-func TestDevicesRegisterBatchReportsPartialAPIFailuresAndContinues(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	inputPath := filepath.Join(t.TempDir(), "devices.txt")
-	if err := os.WriteFile(inputPath, []byte("UDID-1\tDevice One\tIOS\nUDID-2\tDevice Two\tIOS\n"), 0o600); err != nil {
-		t.Fatalf("write input: %v", err)
-	}
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	createCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/devices":
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/devices":
-			createCount++
-			if createCount == 1 {
+func TestDevicesRegisterBatchContinuesAfterIsolatedFailure(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		failFirst func() (*http.Response, error)
+	}{
+		{
+			name: "API failure",
+			failFirst: func() (*http.Response, error) {
 				return jsonResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR","detail":"invalid device"}]}`)
+			},
+		},
+		{
+			name:      "request timeout",
+			failFirst: func() (*http.Response, error) { return nil, context.DeadlineExceeded },
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			inputPath := filepath.Join(t.TempDir(), "devices.txt")
+			if err := os.WriteFile(inputPath, []byte("UDID-1\tDevice One\tIOS\nUDID-2\tDevice Two\tIOS\n"), 0o600); err != nil {
+				t.Fatalf("write input: %v", err)
 			}
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"devices","id":"device-2","attributes":{"name":"Device Two","udid":"UDID-2","platform":"IOS"}}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"devices", "register-batch", "--file", inputPath, "--confirm"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
-	if runErr == nil {
-		t.Fatal("expected reported partial failure")
-	}
-	if createCount != 2 {
-		t.Fatalf("expected processing to continue after one API failure, got %d creates", createCount)
-	}
-	if !strings.Contains(stdout, `"registered":1`) || !strings.Contains(stdout, `"failed":1`) || !strings.Contains(stdout, `"status":"failed"`) {
-		t.Fatalf("expected machine-readable partial result, got %q", stdout)
-	}
-}
+			createCount := 0
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/devices":
+					return jsonResponse(http.StatusOK, `{"data":[]}`)
+				case req.Method == http.MethodPost && req.URL.Path == "/v1/devices":
+					createCount++
+					if createCount == 1 {
+						return test.failFirst()
+					}
+					return jsonResponse(http.StatusCreated, `{"data":{"type":"devices","id":"device-2","attributes":{"name":"Device Two","udid":"UDID-2","platform":"IOS"}}}`)
+				default:
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}))
 
-func TestDevicesRegisterBatchContinuesAfterIsolatedRequestTimeout(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	inputPath := filepath.Join(t.TempDir(), "devices.txt")
-	if err := os.WriteFile(inputPath, []byte("UDID-1\tDevice One\tIOS\nUDID-2\tDevice Two\tIOS\n"), 0o600); err != nil {
-		t.Fatalf("write input: %v", err)
-	}
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	createCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/devices":
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/devices":
-			createCount++
-			if createCount == 1 {
-				return nil, context.DeadlineExceeded
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			if err := root.Parse([]string{"devices", "register-batch", "--file", inputPath, "--confirm"}); err != nil {
+				t.Fatalf("parse error: %v", err)
 			}
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"devices","id":"device-2","attributes":{"name":"Device Two","udid":"UDID-2","platform":"IOS"}}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"devices", "register-batch", "--file", inputPath, "--confirm"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
-	if runErr == nil {
-		t.Fatal("expected reported partial failure")
-	}
-	if createCount != 2 {
-		t.Fatalf("expected processing to continue after one request timeout, got %d creates", createCount)
-	}
-	if !strings.Contains(stdout, `"registered":1`) || !strings.Contains(stdout, `"failed":1`) {
-		t.Fatalf("expected machine-readable partial result, got %q", stdout)
+			var runErr error
+			stdout, _ := captureOutput(t, func() {
+				runErr = root.Run(context.Background())
+			})
+			if runErr == nil {
+				t.Fatal("expected reported partial failure")
+			}
+			if createCount != 2 {
+				t.Fatalf("expected processing to continue after one failure, got %d creates", createCount)
+			}
+			if !strings.Contains(stdout, `"registered":1`) || !strings.Contains(stdout, `"failed":1`) || !strings.Contains(stdout, `"status":"failed"`) {
+				t.Fatalf("expected machine-readable partial result, got %q", stdout)
+			}
+		})
 	}
 }
 

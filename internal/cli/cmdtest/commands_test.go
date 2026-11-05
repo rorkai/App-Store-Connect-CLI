@@ -105,43 +105,27 @@ func writeECDSAPEM(t *testing.T, path string) {
 	}
 }
 
-func TestVersionSubcommandPrintsVersion(t *testing.T) {
-	root := RootCommand("1.2.3")
+func TestVersionPrintsVersion(t *testing.T) {
+	for _, arg := range []string{"version", "--version"} {
+		t.Run(arg, func(t *testing.T) {
+			root := RootCommand("1.2.3")
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"version"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{arg}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
 
-	if stdout != "1.2.3\n" {
-		t.Fatalf("expected stdout to be version, got %q", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-}
-
-func TestVersionFlagPrintsVersion(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"--version"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stdout != "1.2.3\n" {
-		t.Fatalf("expected stdout to be version, got %q", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+			if stdout != "1.2.3\n" {
+				t.Fatalf("expected stdout to be version, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
 	}
 }
 
@@ -585,6 +569,16 @@ func TestBuildsWaitValidationErrors(t *testing.T) {
 			wantErr: "--latest or --build-number is required when using --app",
 		},
 		{
+			name:    "builds wait version-only selector",
+			args:    []string{"builds", "wait", "--app", "APP_123", "--version", "2.4.0"},
+			wantErr: "Error: --latest or --build-number is required",
+		},
+		{
+			name:    "builds wait since-only selector",
+			args:    []string{"builds", "wait", "--app", "APP_123", "--since", "2026-03-02T18:00:00Z"},
+			wantErr: "Error: --latest or --build-number is required",
+		},
+		{
 			name:    "builds wait selectors mutually exclusive",
 			args:    []string{"builds", "wait", "--build-id", "BUILD_123", "--app", "APP_123", "--build-number", "42"},
 			wantErr: "--build-id is mutually exclusive with app-scoped selectors",
@@ -791,6 +785,16 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 			name:    "beta-groups list missing app or global",
 			args:    []string{"testflight", "groups", "list"},
 			wantErr: "--app or --global is required",
+		},
+		{
+			name:    "beta-groups list global with app",
+			args:    []string{"testflight", "groups", "list", "--global", "--app", "app-1"},
+			wantErr: "Error: --global and --app are mutually exclusive",
+		},
+		{
+			name:    "beta-groups list internal with external",
+			args:    []string{"testflight", "groups", "list", "--global", "--internal", "--external"},
+			wantErr: "Error: --internal and --external are mutually exclusive",
 		},
 		{
 			name:    "beta-groups create missing app",
@@ -1839,6 +1843,11 @@ func TestDevicesValidationErrors(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
+			name:    "devices list limit out of range",
+			args:    []string{"devices", "list", "--limit", "500"},
+			wantErr: "devices list: --limit must be between 1 and 200",
+		},
+		{
 			name:    "devices update missing id",
 			args:    []string{"devices", "update", "--status", "ENABLED"},
 			wantErr: "--id is required",
@@ -2018,18 +2027,6 @@ func TestCertificatesCreateGenerateCSRFlagValidationHelper(t *testing.T) {
 		}
 	}
 	os.Exit(2)
-}
-
-func TestDevicesListLimitValidation(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	if err := root.Parse([]string{"devices", "list", "--limit", "500"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if err := root.Run(context.Background()); err == nil {
-		t.Fatal("expected error, got nil")
-	}
 }
 
 func TestTestFlightAppsValidationErrors(t *testing.T) {
@@ -4096,6 +4093,16 @@ func TestVersionsValidationErrors(t *testing.T) {
 			args:    []string{"versions", "delete", "--version-id", "VERSION_123"},
 			wantErr: "Error: --confirm is required to delete a version",
 		},
+		{
+			name:    "promotions create missing version id",
+			args:    []string{"versions", "promotions", "create"},
+			wantErr: "Error: --version-id is required",
+		},
+		{
+			name:    "promotions create missing treatment id",
+			args:    []string{"versions", "promotions", "create", "--version-id", "VERSION_ID"},
+			wantErr: "Error: --treatment-id is required",
+		},
 	}
 
 	for _, test := range tests {
@@ -4176,41 +4183,6 @@ func TestAppInfoValidationErrors(t *testing.T) {
 			args:    []string{"apps", "info", "territory-age-ratings", "list"},
 			wantErr: "--app or --info-id is required",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestAppInfosValidationErrors(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
 		{
 			name:    "apps info list missing app",
 			args:    []string{"apps", "info", "list"},
@@ -4243,7 +4215,9 @@ func TestAppInfosValidationErrors(t *testing.T) {
 	}
 }
 
-func TestAppsUpdateValidationErrors(t *testing.T) {
+func TestAppsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
 	tests := []struct {
 		name    string
 		args    []string
@@ -4269,45 +4243,15 @@ func TestAppsUpdateValidationErrors(t *testing.T) {
 			args:    []string{"apps", "update", "--id", "APP_ID", "--content-rights", "INVALID"},
 			wantErr: "Error: --content-rights must be DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestAppsAppEncryptionDeclarationsValidationErrors(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
 		{
 			name:    "apps app-encryption-declarations list missing id",
 			args:    []string{"apps", "app-encryption-declarations", "list"},
 			wantErr: "--id is required",
+		},
+		{
+			name:    "apps search-keywords list missing app",
+			args:    []string{"apps", "search-keywords", "list"},
+			wantErr: "--app is required",
 		},
 	}
 
@@ -4833,111 +4777,76 @@ func TestAuthSwitchUnknownProfile(t *testing.T) {
 	})
 }
 
-func TestAuthStatusShowsEnvFallbackNote(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_PROFILE", "")
-	t.Setenv("ASC_KEY_ID", "ENVKEY")
-	t.Setenv("ASC_ISSUER_ID", "ENVISS")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
-
-	previousProfile := shared.SelectedProfile()
-	shared.SetSelectedProfile("")
-	t.Cleanup(func() {
-		shared.SetSelectedProfile(previousProfile)
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "status", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+func TestAuthStatusEnvironmentCredentialNotes(t *testing.T) {
+	tests := []struct {
+		name       string
+		profile    string
+		issuerID   string
+		keyPath    string
+		want       []string
+		wantAbsent []string
+	}{
+		{
+			name:       "env fallback",
+			issuerID:   "ENVISS",
+			keyPath:    "/tmp/AuthKey.p8",
+			want:       []string{"Environment credentials detected", "stored config credentials are preferred"},
+			wantAbsent: []string{"ENVKEY", "ENVISS"},
+		},
+		{
+			name: "env incomplete",
+			want: []string{"Environment credentials are incomplete"},
+		},
+		{
+			name:     "profile overrides env",
+			profile:  "client",
+			issuerID: "ENVISS",
+			keyPath:  "/tmp/AuthKey.p8",
+			want:     []string{`Profile "client" selected; environment credentials will be ignored.`},
+		},
 	}
-	if !strings.Contains(stdout, "Environment credentials detected") {
-		t.Fatalf("expected env credentials note, got %q", stdout)
-	}
-	if !strings.Contains(stdout, "stored config credentials are preferred") {
-		t.Fatalf("expected fallback note to explain stored-config precedence, got %q", stdout)
-	}
-	if strings.Contains(stdout, "ENVKEY") || strings.Contains(stdout, "ENVISS") {
-		t.Fatalf("expected redacted env identifiers, got %q", stdout)
-	}
-}
 
-func TestAuthStatusEnvIncomplete(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_PROFILE", "")
-	t.Setenv("ASC_KEY_ID", "ENVKEY")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_PROFILE", test.profile)
+			t.Setenv("ASC_KEY_ID", "ENVKEY")
+			t.Setenv("ASC_ISSUER_ID", test.issuerID)
+			t.Setenv("ASC_PRIVATE_KEY_PATH", test.keyPath)
 
-	previousProfile := shared.SelectedProfile()
-	shared.SetSelectedProfile("")
-	t.Cleanup(func() {
-		shared.SetSelectedProfile(previousProfile)
-	})
+			previousProfile := shared.SelectedProfile()
+			shared.SetSelectedProfile("")
+			t.Cleanup(func() {
+				shared.SetSelectedProfile(previousProfile)
+			})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "status", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{"auth", "status", "--output", "table"}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, "Environment credentials are incomplete") {
-		t.Fatalf("expected env incomplete note, got %q", stdout)
-	}
-}
-
-func TestAuthStatusProfileOverridesEnvNote(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_PROFILE", "client")
-	t.Setenv("ASC_KEY_ID", "ENVKEY")
-	t.Setenv("ASC_ISSUER_ID", "ENVISS")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
-
-	previousProfile := shared.SelectedProfile()
-	shared.SetSelectedProfile("")
-	t.Cleanup(func() {
-		shared.SetSelectedProfile(previousProfile)
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "status", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `Profile "client" selected; environment credentials will be ignored.`) {
-		t.Fatalf("expected profile override note, got %q", stdout)
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			for _, want := range test.want {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("expected stdout to contain %q, got %q", want, stdout)
+				}
+			}
+			for _, absent := range test.wantAbsent {
+				if strings.Contains(stdout, absent) {
+					t.Fatalf("expected stdout to omit %q, got %q", absent, stdout)
+				}
+			}
+		})
 	}
 }
 
@@ -5012,175 +4921,90 @@ func TestAuthDoctorFixRequiresConfirm(t *testing.T) {
 	})
 }
 
-func TestAuthStatusValidateSuccess(t *testing.T) {
-	tempDir := t.TempDir()
-	keyPath := filepath.Join(tempDir, "AuthKey.p8")
-	writeECDSAPEM(t, keyPath)
-
-	cfg := &config.Config{
-		DefaultKeyName: "default",
-		Keys: []config.Credential{
-			{
-				Name:           "default",
-				KeyID:          "KEY123",
-				IssuerID:       "ISS456",
-				PrivateKeyPath: keyPath,
-			},
+func TestAuthStatusValidateReportsCredentialResult(t *testing.T) {
+	tests := []struct {
+		name          string
+		validateErr   error
+		wantOutput    string
+		wantReportErr bool
+	}{
+		{name: "works", wantOutput: "default (Key ID: KEY123): works"},
+		{
+			name:        "forbidden still works",
+			validateErr: authcli.NewPermissionWarning(errors.New("forbidden")),
+			wantOutput:  "default (Key ID: KEY123): works (insufficient permissions for apps list)",
+		},
+		{
+			name:          "failure returns reported error",
+			validateErr:   errors.New("validation failed"),
+			wantOutput:    "default (Key ID: KEY123): failed",
+			wantReportErr: true,
 		},
 	}
-	configPath := filepath.Join(tempDir, "config.json")
-	if err := config.SaveAt(configPath, cfg); err != nil {
-		t.Fatalf("SaveAt() error: %v", err)
-	}
 
-	t.Setenv("ASC_CONFIG_PATH", configPath)
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_PROFILE", "")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			keyPath := filepath.Join(tempDir, "AuthKey.p8")
+			writeECDSAPEM(t, keyPath)
 
-	previousProfile := shared.SelectedProfile()
-	shared.SetSelectedProfile("")
-	t.Cleanup(func() {
-		shared.SetSelectedProfile(previousProfile)
-	})
-
-	restoreValidator := authcli.SetStatusValidateCredential(func(ctx context.Context, cred auth.Credential) error {
-		return nil
-	})
-	t.Cleanup(restoreValidator)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "status", "--output", "table", "--validate"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, "default (Key ID: KEY123): works") {
-		t.Fatalf("expected validation ok output, got %q", stdout)
-	}
-}
-
-func TestAuthStatusValidateForbiddenReportsWorks(t *testing.T) {
-	tempDir := t.TempDir()
-	keyPath := filepath.Join(tempDir, "AuthKey.p8")
-	writeECDSAPEM(t, keyPath)
-
-	cfg := &config.Config{
-		DefaultKeyName: "default",
-		Keys: []config.Credential{
-			{
-				Name:           "default",
-				KeyID:          "KEY123",
-				IssuerID:       "ISS456",
-				PrivateKeyPath: keyPath,
-			},
-		},
-	}
-	configPath := filepath.Join(tempDir, "config.json")
-	if err := config.SaveAt(configPath, cfg); err != nil {
-		t.Fatalf("SaveAt() error: %v", err)
-	}
-
-	t.Setenv("ASC_CONFIG_PATH", configPath)
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_PROFILE", "")
-
-	previousProfile := shared.SelectedProfile()
-	shared.SetSelectedProfile("")
-	t.Cleanup(func() {
-		shared.SetSelectedProfile(previousProfile)
-	})
-
-	restoreValidator := authcli.SetStatusValidateCredential(func(ctx context.Context, cred auth.Credential) error {
-		return authcli.NewPermissionWarning(errors.New("forbidden"))
-	})
-	t.Cleanup(restoreValidator)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "status", "--output", "table", "--validate"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, "default (Key ID: KEY123): works (insufficient permissions for apps list)") {
-		t.Fatalf("expected insufficient permissions output, got %q", stdout)
-	}
-}
-
-func TestAuthStatusValidateFailureReturnsReportedError(t *testing.T) {
-	tempDir := t.TempDir()
-	keyPath := filepath.Join(tempDir, "AuthKey.p8")
-	writeECDSAPEM(t, keyPath)
-
-	cfg := &config.Config{
-		DefaultKeyName: "default",
-		Keys: []config.Credential{
-			{
-				Name:           "default",
-				KeyID:          "KEY123",
-				IssuerID:       "ISS456",
-				PrivateKeyPath: keyPath,
-			},
-		},
-	}
-	configPath := filepath.Join(tempDir, "config.json")
-	if err := config.SaveAt(configPath, cfg); err != nil {
-		t.Fatalf("SaveAt() error: %v", err)
-	}
-
-	t.Setenv("ASC_CONFIG_PATH", configPath)
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_PROFILE", "")
-
-	previousProfile := shared.SelectedProfile()
-	shared.SetSelectedProfile("")
-	t.Cleanup(func() {
-		shared.SetSelectedProfile(previousProfile)
-	})
-
-	restoreValidator := authcli.SetStatusValidateCredential(func(ctx context.Context, cred auth.Credential) error {
-		return errors.New("validation failed")
-	})
-	t.Cleanup(restoreValidator)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "status", "--output", "table", "--validate"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err == nil {
-			t.Fatal("expected error, got nil")
-		} else {
-			if _, ok := errors.AsType[ReportedError](err); !ok {
-				t.Fatalf("expected reported error, got %v", err)
+			cfg := &config.Config{
+				DefaultKeyName: "default",
+				Keys: []config.Credential{
+					{
+						Name:           "default",
+						KeyID:          "KEY123",
+						IssuerID:       "ISS456",
+						PrivateKeyPath: keyPath,
+					},
+				},
 			}
-		}
-	})
+			configPath := filepath.Join(tempDir, "config.json")
+			if err := config.SaveAt(configPath, cfg); err != nil {
+				t.Fatalf("SaveAt() error: %v", err)
+			}
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, "default (Key ID: KEY123): failed") {
-		t.Fatalf("expected validation failed output, got %q", stdout)
+			t.Setenv("ASC_CONFIG_PATH", configPath)
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_PROFILE", "")
+
+			previousProfile := shared.SelectedProfile()
+			shared.SetSelectedProfile("")
+			t.Cleanup(func() {
+				shared.SetSelectedProfile(previousProfile)
+			})
+
+			restoreValidator := authcli.SetStatusValidateCredential(func(ctx context.Context, cred auth.Credential) error {
+				return test.validateErr
+			})
+			t.Cleanup(restoreValidator)
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{"auth", "status", "--output", "table", "--validate"}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !test.wantReportErr {
+					if err != nil {
+						t.Fatalf("run error: %v", err)
+					}
+					return
+				}
+				if _, ok := errors.AsType[ReportedError](err); !ok {
+					t.Fatalf("expected reported error, got %v", err)
+				}
+			})
+
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if !strings.Contains(stdout, test.wantOutput) {
+				t.Fatalf("expected %q in output, got %q", test.wantOutput, stdout)
+			}
+		})
 	}
 }
 
@@ -5710,402 +5534,6 @@ func TestXcodeCloudMutualExclusiveFlags(t *testing.T) {
 			}
 			if !strings.Contains(stderr, test.wantErr) {
 				t.Fatalf("expected error %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestVersionsPromotionsCreateRequiresVersionID(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "promotions", "create"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --version-id is required") {
-		t.Fatalf("expected missing version error, got %q", stderr)
-	}
-}
-
-func TestVersionsPromotionsCreateRequiresTreatmentID(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "promotions", "create", "--version-id", "VERSION_ID"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --treatment-id is required") {
-		t.Fatalf("expected missing treatment error, got %q", stderr)
-	}
-}
-
-func TestAppEventsListRequiresAppID(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	root := RootCommand("1.2.3")
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"app-events", "list"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --app is required") {
-		t.Fatalf("expected missing app error, got %q", stderr)
-	}
-}
-
-func TestAppEventsCreateValidationErrors(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "missing app",
-			args:    []string{"app-events", "create", "--name", "Launch", "--event-type", "CHALLENGE", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z"},
-			wantErr: "Error: --app is required",
-		},
-		{
-			name:    "missing name",
-			args:    []string{"app-events", "create", "--app", "APP_ID", "--event-type", "CHALLENGE", "--start", "2026-01-01T00:00:00Z", "--end", "2026-01-02T00:00:00Z"},
-			wantErr: "Error: --name is required",
-		},
-		{
-			name:    "missing end time",
-			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--event-type", "CHALLENGE", "--start", "2026-01-01T00:00:00Z"},
-			wantErr: "Error: --end is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestAppEventsUpdateValidationErrors(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "missing event-id",
-			args:    []string{"app-events", "update", "--name", "Launch"},
-			wantErr: "Error: --event-id is required",
-		},
-		{
-			name:    "missing update fields",
-			args:    []string{"app-events", "update", "--event-id", "EVENT_ID"},
-			wantErr: "Error: at least one update flag is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestAppEventsDeleteRequiresConfirm(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	root := RootCommand("1.2.3")
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"app-events", "delete", "--event-id", "EVENT_ID"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --confirm is required") {
-		t.Fatalf("expected confirm error, got %q", stderr)
-	}
-}
-
-func TestAppEventLocalizationsValidationErrors(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "list missing event-id",
-			args:    []string{"app-events", "localizations", "list"},
-			wantErr: "Error: --event-id is required",
-		},
-		{
-			name:    "create missing locale",
-			args:    []string{"app-events", "localizations", "create", "--event-id", "EVENT_ID"},
-			wantErr: "Error: --locale is required",
-		},
-		{
-			name:    "update missing localization-id",
-			args:    []string{"app-events", "localizations", "update", "--name", "New Name"},
-			wantErr: "Error: --localization-id is required",
-		},
-		{
-			name:    "update missing fields",
-			args:    []string{"app-events", "localizations", "update", "--localization-id", "LOC_ID"},
-			wantErr: "Error: at least one update flag is required",
-		},
-		{
-			name:    "delete missing confirm",
-			args:    []string{"app-events", "localizations", "delete", "--localization-id", "LOC_ID"},
-			wantErr: "Error: --confirm is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestAppEventScreenshotsValidationErrors(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "list missing localization",
-			args:    []string{"app-events", "screenshots", "list"},
-			wantErr: "Error: --event-id or --localization-id is required",
-		},
-		{
-			name:    "create missing path",
-			args:    []string{"app-events", "screenshots", "create", "--event-id", "EVENT_ID", "--asset-type", "EVENT_CARD"},
-			wantErr: "Error: --path is required",
-		},
-		{
-			name:    "create missing localization",
-			args:    []string{"app-events", "screenshots", "create", "--path", "./event.png", "--asset-type", "EVENT_CARD"},
-			wantErr: "Error: --event-id or --localization-id is required",
-		},
-		{
-			name:    "delete missing confirm",
-			args:    []string{"app-events", "screenshots", "delete", "--screenshot-id", "SHOT_ID"},
-			wantErr: "Error: --confirm is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestAppEventVideoClipsValidationErrors(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "list missing localization",
-			args:    []string{"app-events", "video-clips", "list"},
-			wantErr: "Error: --event-id or --localization-id is required",
-		},
-		{
-			name:    "create missing path",
-			args:    []string{"app-events", "video-clips", "create", "--event-id", "EVENT_ID", "--asset-type", "EVENT_CARD"},
-			wantErr: "Error: --path is required",
-		},
-		{
-			name:    "create missing localization",
-			args:    []string{"app-events", "video-clips", "create", "--path", "./clip.mov", "--asset-type", "EVENT_CARD"},
-			wantErr: "Error: --event-id or --localization-id is required",
-		},
-		{
-			name:    "delete missing confirm",
-			args:    []string{"app-events", "video-clips", "delete", "--clip-id", "CLIP_ID"},
-			wantErr: "Error: --confirm is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestAppEventsSubmitValidationErrors(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "missing confirm",
-			args:    []string{"app-events", "submit", "--event-id", "EVENT_ID", "--app", "APP_ID"},
-			wantErr: "Error: --confirm is required",
-		},
-		{
-			name:    "missing event-id",
-			args:    []string{"app-events", "submit", "--app", "APP_ID", "--confirm"},
-			wantErr: "Error: --event-id is required",
-		},
-		{
-			name:    "missing app",
-			args:    []string{"app-events", "submit", "--event-id", "EVENT_ID", "--confirm"},
-			wantErr: "Error: --app is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
 			}
 		})
 	}

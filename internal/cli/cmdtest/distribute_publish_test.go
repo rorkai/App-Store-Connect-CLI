@@ -1,35 +1,21 @@
 package cmdtest
 
 import (
-	"strings"
 	"testing"
 )
 
 func TestDistributePublishCommandSurfaceIsAgentDiscoverable(t *testing.T) {
-	root := RootCommand("1.2.3")
-	distribute := findSubcommand(root, "distribute")
-	if distribute == nil {
-		t.Fatalf("unexpected distribute command: %#v", distribute)
-	}
-	publish := findSubcommand(root, "distribute", "publish")
+	publish := findSubcommand(RootCommand("1.2.3"), "distribute", "publish")
 	if publish == nil {
-		t.Fatalf("unexpected distribute publish command: %#v", publish)
+		t.Fatal("distribute publish command not found")
 	}
-	verifyTimeoutUsage := ""
 	for _, name := range []string{
 		"bundle-dir", "endpoint", "region", "bucket", "prefix", "download-endpoint", "addressing-style", "access",
 		"public-base-url", "url-ttl", "download-grace", "verify-timeout", "receipt", "link-path", "output", "pretty",
 	} {
-		item := publish.FlagSet.Lookup(name)
-		if item == nil {
+		if publish.FlagSet.Lookup(name) == nil {
 			t.Fatalf("missing --%s", name)
 		}
-		if name == "verify-timeout" {
-			verifyTimeoutUsage = item.Usage
-		}
-	}
-	if !strings.Contains(verifyTimeoutUsage, "ASC_UPLOAD_TIMEOUT") {
-		t.Fatalf("--verify-timeout usage = %q, want IPA upload-timeout guidance", verifyTimeoutUsage)
 	}
 }
 

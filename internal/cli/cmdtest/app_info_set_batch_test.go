@@ -39,6 +39,16 @@ func TestAppInfoSetBatchValidationErrors(t *testing.T) {
 			wantErr: "--locale and --locales are mutually exclusive",
 		},
 		{
+			name: "invalid locale",
+			args: []string{
+				"apps", "info", "edit",
+				"--app", "APP_ID",
+				"--locales", "en_US,de-DE",
+				"--whats-new", "Fixes",
+			},
+			wantErr: "invalid locale",
+		},
+		{
 			name: "from-dir cannot be combined with locale",
 			args: []string{
 				"apps", "info", "edit",
@@ -82,54 +92,6 @@ func TestAppInfoSetBatchValidationErrors(t *testing.T) {
 				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
 			}
 		})
-	}
-}
-
-func TestRunAppInfoSetInvalidLocalesReturnsUsageExitCode(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"apps", "info", "edit",
-			"--app", "APP_ID",
-			"--locales", "en_US,de-DE",
-			"--whats-new", "Fixes",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-	if !strings.Contains(stderr, "invalid locale") {
-		t.Fatalf("expected invalid locale message, got %q", stderr)
-	}
-}
-
-func TestRunAppInfoSetFromDirConflictReturnsUsageExitCode(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"apps", "info", "edit",
-			"--app", "APP_ID",
-			"--from-dir", "/tmp/metadata",
-			"--locale", "en-US",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-	if !strings.Contains(stderr, "--from-dir cannot be used with --locale or --locales") {
-		t.Fatalf("expected from-dir conflict message, got %q", stderr)
 	}
 }
 

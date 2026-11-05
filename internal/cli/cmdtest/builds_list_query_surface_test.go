@@ -192,52 +192,31 @@ func TestBuildsBetaReviewStateRejectsBlankCSV(t *testing.T) {
 	}
 }
 
-func TestBuildsListIncludeDefaultsToPreReleaseVersion(t *testing.T) {
-	captured := buildsListQuerySurfaceStub(t)
-
-	_, stderr, err := runBuildsListQuerySurface(t, "builds", "list", "--app", "123456789")
-	if err != nil {
-		t.Fatalf("run error: %v (stderr=%q)", err, stderr)
+func TestBuildsListIncludeAlwaysCarriesPreReleaseVersion(t *testing.T) {
+	tests := []struct {
+		name        string
+		include     []string
+		wantInclude string
+	}{
+		{name: "default", wantInclude: "preReleaseVersion"},
+		{name: "union", include: []string{"--include", "app,buildBetaDetail"}, wantInclude: "preReleaseVersion,app,buildBetaDetail"},
+		{name: "deduplicated", include: []string{"--include", "preReleaseVersion,betaGroups,preReleaseVersion"}, wantInclude: "preReleaseVersion,betaGroups"},
 	}
 
-	if got := captured.query.Get("include"); got != "preReleaseVersion" {
-		t.Fatalf("expected default include=preReleaseVersion, got %q", got)
-	}
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			captured := buildsListQuerySurfaceStub(t)
 
-func TestBuildsListIncludeUnionsWithPreReleaseVersion(t *testing.T) {
-	captured := buildsListQuerySurfaceStub(t)
+			args := append([]string{"builds", "list", "--app", "123456789"}, test.include...)
+			_, stderr, err := runBuildsListQuerySurface(t, args...)
+			if err != nil {
+				t.Fatalf("run error: %v (stderr=%q)", err, stderr)
+			}
 
-	_, stderr, err := runBuildsListQuerySurface(
-		t,
-		"builds", "list",
-		"--app", "123456789",
-		"--include", "app,buildBetaDetail",
-	)
-	if err != nil {
-		t.Fatalf("run error: %v (stderr=%q)", err, stderr)
-	}
-
-	if got := captured.query.Get("include"); got != "preReleaseVersion,app,buildBetaDetail" {
-		t.Fatalf("expected include to union the table default, got %q", got)
-	}
-}
-
-func TestBuildsListIncludeDoesNotDuplicatePreReleaseVersion(t *testing.T) {
-	captured := buildsListQuerySurfaceStub(t)
-
-	_, stderr, err := runBuildsListQuerySurface(
-		t,
-		"builds", "list",
-		"--app", "123456789",
-		"--include", "preReleaseVersion,betaGroups,preReleaseVersion",
-	)
-	if err != nil {
-		t.Fatalf("run error: %v (stderr=%q)", err, stderr)
-	}
-
-	if got := captured.query.Get("include"); got != "preReleaseVersion,betaGroups" {
-		t.Fatalf("expected deduplicated include, got %q", got)
+			if got := captured.query.Get("include"); got != test.wantInclude {
+				t.Fatalf("include = %q, want %q", got, test.wantInclude)
+			}
+		})
 	}
 }
 

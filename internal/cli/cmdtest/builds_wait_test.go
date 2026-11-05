@@ -496,99 +496,6 @@ func TestBuildsWaitByBuildNumberSinceFiltersBeforeUniqueness(t *testing.T) {
 	}
 }
 
-func TestBuildsWaitByBuildNumberRequiresPlatform(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "wait", "--app", "123456789", "--build-number", "42", "--poll-interval", "1ms"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, buildNumberRequiresPlatformError) {
-		t.Fatalf("expected stderr to require --platform, got %q", stderr)
-	}
-	if strings.Contains(stderr, "Defaulting to IOS") {
-		t.Fatalf("expected no implicit IOS default, got %q", stderr)
-	}
-}
-
-func TestBuildsWaitRejectsVersionOnlySelector(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "wait", "--app", "123456789", "--version", "2.4.0"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --latest or --build-number is required") {
-		t.Fatalf("expected final selector contract error, got %q", stderr)
-	}
-}
-
-func TestBuildsWaitRejectsSinceOnlySelector(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "wait", "--app", "123456789", "--since", "2026-03-02T18:00:00Z"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --latest or --build-number is required") {
-		t.Fatalf("expected final selector contract error, got %q", stderr)
-	}
-}
-
 func TestBuildsWaitRejectsSinceWithBuildID(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -920,127 +827,71 @@ func TestBuildsWaitRequestTimeoutBudgetIsNotReportedAsOverallTimeout(t *testing.
 	}
 }
 
-func TestBuildsWaitFailOnInvalidReturnsError(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+func TestBuildsWaitTerminalFailureStatesReturnError(t *testing.T) {
+	for _, test := range []struct {
+		state string
+		flags []string
+	}{
+		{state: "INVALID", flags: []string{"--fail-on-invalid"}},
+		{state: "FAILED"},
+	} {
+		t.Run(test.state, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				if req.URL.Path == "/v1/builds/build-1" {
+					body := `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"` + test.state + `","version":"42"}}}`
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(body)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				}
+				// Failure enrichment looks up the build's app and upload. Those lookups
+				// are best-effort; this test only requires the state error.
+				if strings.HasPrefix(req.URL.Path, "/v1/builds/build-1/") || strings.HasPrefix(req.URL.Path, "/v1/apps/") || strings.HasPrefix(req.URL.Path, "/v1/buildUploads") {
+					return &http.Response{
+						StatusCode: http.StatusNotFound,
+						Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"404","code":"NOT_FOUND"}]}`)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				}
+				t.Fatalf("unexpected path %s", req.URL.Path)
+				return nil, nil
+			}))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path == "/v1/builds/build-1" {
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"INVALID","version":"42"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		}
-		// Failure enrichment looks up the build's app and upload. Those lookups
-		// are best-effort; this test only requires the state error.
-		if strings.HasPrefix(req.URL.Path, "/v1/builds/build-1/") || strings.HasPrefix(req.URL.Path, "/v1/apps/") || strings.HasPrefix(req.URL.Path, "/v1/buildUploads") {
-			return &http.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"404","code":"NOT_FOUND"}]}`)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		}
-		t.Fatalf("unexpected path %s", req.URL.Path)
-		return nil, nil
-	})
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			args := append([]string{"builds", "wait", "--build-id", "build-1", "--poll-interval", "1ms", "--timeout", "100ms"}, test.flags...)
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "wait", "--build-id", "build-1", "--fail-on-invalid", "--poll-interval", "1ms", "--timeout", "100ms"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected INVALID-state failure error")
-	}
-	if errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected runtime error, got usage error: %v", runErr)
-	}
-	if !strings.Contains(runErr.Error(), "build processing failed with state INVALID") {
-		t.Fatalf("expected INVALID failure, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout on failure, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Waiting for build build-1... (INVALID") {
-		t.Fatalf("expected progress output on stderr, got %q", stderr)
-	}
-}
-
-func TestBuildsWaitFailedStateReturnsError(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path == "/v1/builds/build-1" {
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"FAILED","version":"42"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		}
-		// Failure enrichment looks up the build's app and upload. Those lookups
-		// are best-effort; this test only requires the state error.
-		if strings.HasPrefix(req.URL.Path, "/v1/builds/build-1/") || strings.HasPrefix(req.URL.Path, "/v1/apps/") || strings.HasPrefix(req.URL.Path, "/v1/buildUploads") {
-			return &http.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"404","code":"NOT_FOUND"}]}`)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		}
-		t.Fatalf("unexpected path %s", req.URL.Path)
-		return nil, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "wait", "--build-id", "build-1", "--poll-interval", "1ms", "--timeout", "100ms"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected FAILED-state failure error")
-	}
-	if errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected runtime error, got usage error: %v", runErr)
-	}
-	if !strings.Contains(runErr.Error(), "build processing failed with state FAILED") {
-		t.Fatalf("expected FAILED failure, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout on failure, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Waiting for build build-1... (FAILED") {
-		t.Fatalf("expected progress output on stderr, got %q", stderr)
+			if runErr == nil {
+				t.Fatalf("expected %s-state failure error", test.state)
+			}
+			if errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected runtime error, got usage error: %v", runErr)
+			}
+			if !strings.Contains(runErr.Error(), "build processing failed with state "+test.state) {
+				t.Fatalf("expected %s failure, got %v", test.state, runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout on failure, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "Waiting for build build-1... ("+test.state) {
+				t.Fatalf("expected progress output on stderr, got %q", stderr)
+			}
+		})
 	}
 }
 

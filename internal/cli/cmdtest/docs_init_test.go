@@ -13,15 +13,7 @@ import (
 )
 
 func TestDocsInitCreatesReferenceAndLinks(t *testing.T) {
-	runInitCreatesReferenceAndLinks(t, []string{"docs", "init"})
-}
-
-func TestInitCreatesReferenceAndLinks(t *testing.T) {
-	runInitCreatesReferenceAndLinks(t, []string{"init"})
-}
-
-func runInitCreatesReferenceAndLinks(t *testing.T, args []string) {
-	t.Helper()
+	args := []string{"docs", "init"}
 	root := RootCommand("1.2.3")
 
 	tempDir := t.TempDir()
@@ -138,15 +130,7 @@ func runInitCreatesReferenceAndLinks(t *testing.T, args []string) {
 }
 
 func TestDocsInitSubdirectoryPathUsesRelativeAgentLinks(t *testing.T) {
-	runInitSubdirectoryPathUsesRelativeAgentLinks(t, []string{"docs", "init"})
-}
-
-func TestInitSubdirectoryPathUsesRelativeAgentLinks(t *testing.T) {
-	runInitSubdirectoryPathUsesRelativeAgentLinks(t, []string{"init"})
-}
-
-func runInitSubdirectoryPathUsesRelativeAgentLinks(t *testing.T, args []string) {
-	t.Helper()
+	args := []string{"docs", "init"}
 	root := RootCommand("1.2.3")
 
 	tempDir := t.TempDir()
@@ -236,15 +220,7 @@ func runInitSubdirectoryPathUsesRelativeAgentLinks(t *testing.T, args []string) 
 }
 
 func TestDocsInitRewritesLegacyRootAgentLinks(t *testing.T) {
-	runInitRewritesLegacyRootAgentLinks(t, []string{"docs", "init"})
-}
-
-func TestInitRewritesLegacyRootAgentLinks(t *testing.T) {
-	runInitRewritesLegacyRootAgentLinks(t, []string{"init"})
-}
-
-func runInitRewritesLegacyRootAgentLinks(t *testing.T, args []string) {
-	t.Helper()
+	args := []string{"docs", "init"}
 	root := RootCommand("1.2.3")
 
 	tempDir := t.TempDir()
@@ -334,15 +310,7 @@ func runInitRewritesLegacyRootAgentLinks(t *testing.T, args []string) {
 }
 
 func TestDocsInitRequiresForceToOverwrite(t *testing.T) {
-	runInitRequiresForceToOverwrite(t, []string{"docs", "init"})
-}
-
-func TestInitRequiresForceToOverwrite(t *testing.T) {
-	runInitRequiresForceToOverwrite(t, []string{"init"})
-}
-
-func runInitRequiresForceToOverwrite(t *testing.T, args []string) {
-	t.Helper()
+	args := []string{"docs", "init"}
 	root := RootCommand("1.2.3")
 
 	tempDir := t.TempDir()

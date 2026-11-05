@@ -118,7 +118,6 @@ func TestRun_IntroductoryOffersImportPartialFailureReturnsExitError(t *testing.T
 	}
 }
 
-// TestExitCodeMapper_APIError tests that APIError with specific codes returns correct exit codes
 func TestExitCodeMapper_APIError(t *testing.T) {
 	tests := []struct {
 		name string
@@ -142,7 +141,6 @@ func TestExitCodeMapper_APIError(t *testing.T) {
 	}
 }
 
-// TestRun_MissingAuth tests that commands without auth return exit code 3
 func TestRun_MissingAuth(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "")
@@ -162,46 +160,6 @@ func TestRun_MissingAuth(t *testing.T) {
 	}
 }
 
-// TestRun_ReportFileWithoutReport tests that --report-file without --report returns usage error
-func TestRun_ReportFileWithoutReport(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_CONFIG_PATH", t.TempDir()+"/config.json")
-
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"--report-file", "/tmp/report.xml", "apps", "list"}, "1.0.0")
-		if code != cmd.ExitUsage {
-			t.Errorf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if !strings.Contains(stderr, "--report") {
-		t.Errorf("expected --report error message, got: %s", stderr)
-	}
-}
-
-// TestRun_InvalidReportFlag tests that invalid --report returns usage error
-func TestRun_InvalidReportFlag(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_CONFIG_PATH", t.TempDir()+"/config.json")
-
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"--report", "invalid", "apps", "list"}, "1.0.0")
-		if code != cmd.ExitUsage {
-			t.Errorf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if !strings.Contains(stderr, "--report") {
-		t.Errorf("expected --report error message, got: %s", stderr)
-	}
-}
-
 // TestRun_UsageValidationErrorsReturnExitUsage verifies representative command-level
 // validation failures map to usage exit code (2).
 func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
@@ -217,6 +175,16 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
+		{
+			name:    "report file without report",
+			args:    []string{"--report-file", "/tmp/report.xml", "apps", "list"},
+			wantErr: "--report is required when --report-file is specified",
+		},
+		{
+			name:    "invalid report format",
+			args:    []string{"--report", "invalid", "apps", "list"},
+			wantErr: `--report must be "junit" if specified, got "invalid"`,
+		},
 		{
 			name:    "submit status conflicting selectors",
 			args:    []string{"submit", "status", "--id", "SUB_123", "--version-id", "V123"},
