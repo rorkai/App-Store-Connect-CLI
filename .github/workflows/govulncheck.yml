@@ -20,6 +20,7 @@ on:
       - "!configuration/**"
       - "!guides/**"
       - "!resources/**"
+      - "!website/**"
       - "**.go"
   push:
     branches: [main]
