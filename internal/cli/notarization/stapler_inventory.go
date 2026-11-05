@@ -115,9 +115,6 @@ func (target *validatedStaplerTarget) captureRegularFileFingerprint(ctx context.
 	if target == nil || target.directory || target.identity == nil || target.handle == nil {
 		return staplerRegularFileFingerprint{}, errors.New("regular-file target is missing")
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if err := ctx.Err(); err != nil {
 		return staplerRegularFileFingerprint{}, err
 	}
@@ -265,9 +262,6 @@ func (inventory staplerDirectoryInventory) equal(other staplerDirectoryInventory
 func (target *validatedStaplerTarget) captureDirectoryInventory(ctx context.Context) (staplerDirectoryInventory, error) {
 	if target == nil || !target.directory {
 		return staplerDirectoryInventory{}, nil
-	}
-	if ctx == nil {
-		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		return staplerDirectoryInventory{}, err
@@ -478,7 +472,7 @@ func openStaplerInventoryDirectory(filesystemRoot *os.Root, relative string, exp
 		return nil, nil, err
 	}
 
-	components := strings.Split(filepathToSlashForStaplerInventory(cleaned), "/")
+	components := strings.Split(filepath.ToSlash(cleaned), "/")
 	current := filesystemRoot
 	owned := false
 	defer func() {
@@ -1081,10 +1075,6 @@ func filepathCleanForStaplerInventory(value string) string {
 		return "."
 	}
 	return cleaned
-}
-
-func filepathToSlashForStaplerInventory(value string) string {
-	return filepath.ToSlash(value)
 }
 
 func staplerInventoryDisplayPath(relative string) string {

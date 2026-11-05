@@ -60,8 +60,8 @@ func TestRunSigningResignToolRetainsChildExitCause(t *testing.T) {
 	}
 }
 
-func TestSigningResignBoundedBufferReportsTruncation(t *testing.T) {
-	buffer := &signingResignBoundedBuffer{limit: 4}
+func TestBoundedOutputBufferReportsTruncation(t *testing.T) {
+	buffer := &boundedOutputBuffer{limit: 4}
 	if _, err := buffer.Write([]byte("12345")); err != nil {
 		t.Fatal(err)
 	}

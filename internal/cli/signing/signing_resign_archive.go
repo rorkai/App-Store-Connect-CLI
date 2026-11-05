@@ -56,7 +56,7 @@ type signingResignArchive struct {
 // preflightSigningResignArchive bounds the central-directory inventory before
 // archive/zip allocates one *zip.File per declared entry.
 func preflightSigningResignArchive(ctx context.Context, file *os.File, size int64) error {
-	if err := contextError(ctx); err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if file == nil || size < 22 {
@@ -154,7 +154,7 @@ func preflightSigningResignArchive(ctx context.Context, file *os.File, size int6
 		actualEntries := uint64(0)
 		metadataBytes := uint64(0)
 		for position < directoryEndOffset {
-			if err := contextError(ctx); err != nil {
+			if err := ctx.Err(); err != nil {
 				return err
 			}
 			if actualEntries >= signingResignMaxArchiveEntries {
@@ -191,7 +191,7 @@ func preflightSigningResignArchive(ctx context.Context, file *os.File, size int6
 }
 
 func snapshotSigningResignIPA(ctx context.Context, source *os.File, size int64, destination *os.Root) (*os.File, string, error) {
-	if err := contextError(ctx); err != nil {
+	if err := ctx.Err(); err != nil {
 		return nil, "", err
 	}
 	if source == nil {
@@ -279,9 +279,6 @@ func validateStableSigningResignIPA(before, after os.FileInfo, size int64) error
 }
 
 func copySigningResignWithContext(ctx context.Context, destination io.Writer, source io.Reader, expected int64) (int64, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	buffer := make([]byte, 64<<10)
 	var written int64
 	for {
@@ -351,7 +348,7 @@ func validateSigningResignArchive(ctx context.Context, reader *zip.Reader) error
 	}
 	var expanded uint64
 	for _, member := range reader.File {
-		if err := contextError(ctx); err != nil {
+		if err := ctx.Err(); err != nil {
 			return err
 		}
 		opened, err := member.Open()
@@ -466,7 +463,7 @@ func materializeSigningResignArchive(ctx context.Context, reader *zip.Reader, de
 	}
 	var directories []directoryMode
 	for _, member := range members {
-		if err := contextError(ctx); err != nil {
+		if err := ctx.Err(); err != nil {
 			return err
 		}
 		name := filepath.FromSlash(strings.TrimSuffix(member.Name, "/"))
@@ -631,7 +628,7 @@ func inspectSigningResignTarget(ctx context.Context, tree rootfs.Root, relativeP
 }
 
 func inspectSigningResignTargetWithEntitlements(ctx context.Context, tree rootfs.Root, relativePath, kind string, readEntitlements bool) (signingResignTarget, error) {
-	if err := contextError(ctx); err != nil {
+	if err := ctx.Err(); err != nil {
 		return signingResignTarget{}, err
 	}
 	infoPath := filepath.FromSlash(path.Join(relativePath, "Info.plist"))
@@ -834,7 +831,7 @@ func enumerateSigningResignMachOFilesRoot(ctx context.Context, root *os.Root) ([
 	var result []string
 	var walk func(current *os.Root, prefix string) error
 	walk = func(current *os.Root, prefix string) error {
-		if err := contextError(ctx); err != nil {
+		if err := ctx.Err(); err != nil {
 			return err
 		}
 		directory, err := current.Open(".")
@@ -847,7 +844,7 @@ func enumerateSigningResignMachOFilesRoot(ctx context.Context, root *os.Root) ([
 			return errors.Join(readErr, closeErr)
 		}
 		for _, entry := range entries {
-			if err := contextError(ctx); err != nil {
+			if err := ctx.Err(); err != nil {
 				return err
 			}
 			name := entry.Name()
@@ -1011,11 +1008,4 @@ func validateSigningResignTargetIDs(targets []signingResignTarget) error {
 
 func targetExecutablePath(treeRoot string, target signingResignTarget) string {
 	return filepath.Join(treeRoot, filepath.FromSlash(path.Join(target.RelativePath, target.Executable)))
-}
-
-func contextError(ctx context.Context) error {
-	if ctx == nil {
-		return nil
-	}
-	return ctx.Err()
 }

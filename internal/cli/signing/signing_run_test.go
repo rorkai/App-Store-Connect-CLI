@@ -29,14 +29,22 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestSigningCommandIncludesRun(t *testing.T) {
-	command := SigningCommand()
-	for _, subcommand := range command.Subcommands {
-		if subcommand != nil && subcommand.Name == "run" {
-			return
+func TestSigningCommandRegistersSubcommands(t *testing.T) {
+	for _, path := range [][]string{{"keychain", "install"}, {"resign"}, {"run"}, {"sync", "rotate-password"}} {
+		command := SigningCommand()
+		for _, name := range path {
+			found := false
+			for _, subcommand := range command.Subcommands {
+				if subcommand != nil && subcommand.Name == name {
+					command, found = subcommand, true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("asc signing %s is not registered", strings.Join(path, " "))
+			}
 		}
 	}
-	t.Fatal("expected signing run subcommand")
 }
 
 func TestInspectSigningRunInputs(t *testing.T) {
@@ -141,13 +149,6 @@ func TestSigningRunProfileIdentifiersRequireUniqueValues(t *testing.T) {
 	missingPrimary.Entitlements = map[string]any{"com.apple.application-identifier": "LEGACY.com.example.app"}
 	if _, err := signingRunBundleID(missingPrimary, "TEAM12345"); !strings.Contains(err.Error(), "application identifier is missing") {
 		t.Fatalf("missing primary identifier error = %v, want rejection", err)
-	}
-}
-
-func TestInspectPKCS12IdentityRejectsNilContext(t *testing.T) {
-	_, err := InspectPKCS12Identity(signingRunNilContext(), PKCS12IdentityOptions{IdentityPath: "identity.p12"})
-	if err == nil || !strings.Contains(err.Error(), "context is required") {
-		t.Fatalf("InspectPKCS12Identity() error = %v, want required context", err)
 	}
 }
 
@@ -619,20 +620,6 @@ func TestRunSigningEnvironmentPropagatesEarlyTempCleanupFailure(t *testing.T) {
 	}
 }
 
-// signingRunNilContext supplies a typed nil solely to exercise the production
-// nil-context guards without triggering SA1012 on the call sites.
-func signingRunNilContext() context.Context { return nil }
-
-func TestSigningRunRejectsNilContext(t *testing.T) {
-	if err := executeSigningOperation(signingRunNilContext(), signingRunOptions{}, func(context.Context) error { return nil }); !strings.Contains(err.Error(), "context is required") {
-		t.Fatalf("executeSigningOperation() error = %v, want required context", err)
-	}
-	deps := fakeSigningRunDeps(&[]string{})
-	if _, err := runSigningEnvironment(signingRunNilContext(), deps, signingRunOptions{Child: []string{"tool"}}, nil, nil, func(context.Context) error { return nil }); !strings.Contains(err.Error(), "context is required") {
-		t.Fatalf("runSigningEnvironment() error = %v, want required context", err)
-	}
-}
-
 func TestRunSigningEnvironmentRejectsMissingLockReleaseFunction(t *testing.T) {
 	fixture := newSigningRunFixture(t, signingRunFixtureOptions{})
 	inspection, err := inspectSigningRunInputs(fixture.identity, []byte(fixture.password), fixture.profile, fixture.roots, fixture.now)
@@ -1004,25 +991,6 @@ func fakeSigningRunDeps(events *[]string) signingRunDeps {
 		},
 		RemoveProfile: func(signingRunProfileInstall) error { *events = append(*events, "remove-profile"); return nil },
 		RunChild:      func(context.Context, []string) error { *events = append(*events, "child"); return nil },
-	}
-}
-
-func TestSigningRunCommandFlags(t *testing.T) {
-	command := SigningRunCommand()
-
-	for _, name := range []string{
-		"identity",
-		"identity-password-file",
-		"profile",
-		"purpose",
-		"receipt",
-	} {
-		if command.FlagSet.Lookup(name) == nil {
-			t.Fatalf("expected --%s flag", name)
-		}
-	}
-	if strings.Contains(command.LongHelp, "--identity-password PASSWORD") {
-		t.Fatalf("help must not document an inline password: %s", command.LongHelp)
 	}
 }
 

@@ -601,9 +601,6 @@ func readSigningPlanArtifactSilent(path string) (signingReconcilePlanArtifact, e
 }
 
 func readSigningPlanArtifactWithUsage(path string, usageError func(string) error) (signingReconcilePlanArtifact, error) {
-	if usageError == nil {
-		return signingReconcilePlanArtifact{}, errors.New("signing reconcile usage error handler is required")
-	}
 	data, err := readProtectedFileBounded(path, reconcilePlanFileMaxBytes)
 	if err != nil {
 		message := "invalid signing reconcile plan: " + protectedInputDiagnostic(err)

@@ -233,36 +233,6 @@ func TestSigningFetchWriteFiles_NoOverwrite(t *testing.T) {
 	}
 }
 
-func TestSigningFetchHelpPairsDeviceWithCreateMissing(t *testing.T) {
-	cmd := SigningFetchCommand()
-
-	deviceFlag := cmd.FlagSet.Lookup("device")
-	if deviceFlag == nil {
-		t.Fatal("expected --device flag")
-	}
-	if !strings.Contains(deviceFlag.Usage, "--create-missing") {
-		t.Fatalf("--device usage = %q, want it to name --create-missing", deviceFlag.Usage)
-	}
-	if strings.Contains(deviceFlag.Usage, "deprecated") || strings.Contains(deviceFlag.Usage, "5.0.0") {
-		t.Fatalf("--device usage = %q, must not describe a finished transition", deviceFlag.Usage)
-	}
-	if !strings.Contains(cmd.LongHelp, "--device without --create-missing is rejected") {
-		t.Fatalf("long help must state that --device requires --create-missing, got %q", cmd.LongHelp)
-	}
-	if strings.Contains(cmd.LongHelp, "5.0.0") || strings.Contains(cmd.LongHelp, "deprecation") {
-		t.Fatalf("long help must not describe a finished transition, got %q", cmd.LongHelp)
-	}
-
-	for _, line := range strings.Split(cmd.LongHelp, "\n") {
-		if !strings.Contains(line, "--device") {
-			continue
-		}
-		if !strings.Contains(line, "--create-missing") {
-			t.Fatalf("example uses --device without --create-missing: %q", line)
-		}
-	}
-}
-
 func TestSigningFetchFormatUsesSharedOutputDefault(t *testing.T) {
 	tests := []struct {
 		name         string

@@ -185,17 +185,45 @@ func TestPlanSigningResignEntitlementsRejectsWildcardOnlyKVSReplacement(t *testi
 	}
 }
 
-func TestSigningResignEntitlementWildcardMustBeTerminal(t *testing.T) {
-	for _, profileValue := range []any{"NEWPREFIX.*.suffix", "NEWPREFIX.*suffix", "NEWPREFIX.**"} {
-		if signingResignStrictEntitlementValuePermits(profileValue, "NEWPREFIX.com.example.app") {
-			t.Fatalf("malformed wildcard %q authorized a concrete value", profileValue)
-		}
+func TestSigningResignEntitlementValuePermits(t *testing.T) {
+	strict := signingResignStrictEntitlementValuePermits
+	legacy := signingResignEntitlementValuePermits
+	concrete := "NEWPREFIX.com.example.app"
+	structured := []any{map[string]any{"name": "one"}, true}
+	tests := []struct {
+		name    string
+		permits func(profileValue, signedValue any) bool
+		profile any
+		signed  any
+		want    bool
+	}{
+		{name: "strict terminal wildcard", permits: strict, profile: "NEWPREFIX.*", signed: concrete, want: true},
+		{name: "strict bare wildcard", permits: strict, profile: "*", signed: "OLD.value"},
+		{name: "strict wildcard without dotted prefix", permits: strict, profile: "TEAM*", signed: "TEAM.value"},
+		{name: "strict inner wildcard", permits: strict, profile: "NEWPREFIX.*.suffix", signed: concrete},
+		{name: "strict wildcard with suffix", permits: strict, profile: "NEWPREFIX.*suffix", signed: concrete},
+		{name: "strict double wildcard", permits: strict, profile: "NEWPREFIX.**", signed: concrete},
+		{name: "strict list against string", permits: strict, profile: []any{"TEAM.*"}, signed: "TEAM.value"},
+		{name: "strict list with non-string entry", permits: strict, profile: []any{"TEAM.*", 42}, signed: "TEAM.value"},
+		{name: "strict list with non-string entry against list", permits: strict, profile: []any{"NEWPREFIX.*", 7}, signed: []any{concrete}},
+		{name: "strict list with inner wildcard", permits: strict, profile: []any{"NEWPREFIX.*", "NEWPREFIX.*.suffix"}, signed: []any{concrete}},
+		{name: "strict list with suffixed wildcard", permits: strict, profile: []any{"NEWPREFIX.*", "NEWPREFIX.*suffix"}, signed: []any{concrete}},
+		{name: "strict exact boolean", permits: strict, profile: true, signed: true, want: true},
+		{name: "strict different boolean", permits: strict, profile: true, signed: false},
+		{name: "strict exact dictionary", permits: strict, profile: map[string]any{"mode": "strict"}, signed: map[string]any{"mode": "strict"}, want: true},
+		{name: "strict exact literal-wildcard array", permits: strict, profile: []any{"literal*", "other"}, signed: []any{"literal*", "other"}, want: true},
+		{name: "strict exact structured array", permits: strict, profile: structured, signed: []any{map[string]any{"name": "one"}, true}, want: true},
+		{name: "strict reordered structured array", permits: strict, profile: structured, signed: []any{true, map[string]any{"name": "one"}}},
+		{name: "legacy bare wildcard", permits: legacy, profile: "*", signed: "OLD.value", want: true},
+		{name: "legacy double wildcard", permits: legacy, profile: "NEWPREFIX.**", signed: "NEWPREFIX.*suffix", want: true},
+		{name: "legacy non-string list entry", permits: legacy, profile: []any{123}, signed: []any{123}},
 	}
-	if !signingResignStrictEntitlementValuePermits("NEWPREFIX.*", "NEWPREFIX.com.example.app") {
-		t.Fatal("terminal wildcard did not authorize its concrete prefix")
-	}
-	if !signingResignEntitlementValuePermits("NEWPREFIX.**", "NEWPREFIX.*suffix") {
-		t.Fatal("legacy no-flag matcher changed its historical wildcard behavior")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := test.permits(test.profile, test.signed); got != test.want {
+				t.Fatalf("permits(%#v, %#v) = %t, want %t", test.profile, test.signed, got, test.want)
+			}
+		})
 	}
 }
 
@@ -223,18 +251,6 @@ func TestSigningResignRebaseRejectsUnsafeClaimStrings(t *testing.T) {
 	}
 }
 
-func TestSigningResignRebaseRejectsMalformedProfileArrayEntries(t *testing.T) {
-	for _, profileValue := range []any{
-		[]any{"NEWPREFIX.*", 7},
-		[]any{"NEWPREFIX.*", "NEWPREFIX.*.suffix"},
-		[]any{"NEWPREFIX.*", "NEWPREFIX.*suffix"},
-	} {
-		if signingResignStrictEntitlementValuePermits(profileValue, []any{"NEWPREFIX.com.example.app"}) {
-			t.Fatalf("malformed profile %#v authorized a concrete value", profileValue)
-		}
-	}
-}
-
 func TestPlanSigningResignEntitlementsUsesStrictAuthorizationOnlyWhenRebasing(t *testing.T) {
 	target := rebaseTestTarget("application", "Payload/App.app", "com.example.app", map[string]any{
 		"com.example.claim": "OLD.value",
@@ -247,33 +263,6 @@ func TestPlanSigningResignEntitlementsUsesStrictAuthorizationOnlyWhenRebasing(t 
 	}
 	if _, err := planSigningResignEntitlements(signingResignArchive{MainPath: target.RelativePath, Targets: []signingResignTarget{target}}, map[string]signingResignProfile{target.BundleID: profile}, true); err == nil || !strings.Contains(err.Error(), "com.example.claim") {
 		t.Fatalf("rebasing plan error = %v, want strict claim refusal", err)
-	}
-}
-
-func TestSigningResignStrictAuthorizationPreservesExactNonStringScalars(t *testing.T) {
-	if !signingResignStrictEntitlementValuePermits(true, true) {
-		t.Fatal("exact boolean authorization was rejected")
-	}
-	profile := map[string]any{"mode": "strict"}
-	if !signingResignStrictEntitlementValuePermits(profile, map[string]any{"mode": "strict"}) {
-		t.Fatal("exact dictionary authorization was rejected")
-	}
-	if signingResignStrictEntitlementValuePermits(true, false) {
-		t.Fatal("different boolean authorization was accepted")
-	}
-}
-
-func TestSigningResignStrictAuthorizationPreservesExactStructuredArrays(t *testing.T) {
-	literal := []any{"literal*", "other"}
-	if !signingResignStrictEntitlementValuePermits(literal, []any{"literal*", "other"}) {
-		t.Fatal("exact literal-wildcard array was rejected")
-	}
-	structured := []any{map[string]any{"name": "one"}, true}
-	if !signingResignStrictEntitlementValuePermits(structured, []any{map[string]any{"name": "one"}, true}) {
-		t.Fatal("exact structured array was rejected")
-	}
-	if signingResignStrictEntitlementValuePermits(structured, []any{true, map[string]any{"name": "one"}}) {
-		t.Fatal("differing structured array was accepted")
 	}
 }
 

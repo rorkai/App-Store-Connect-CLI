@@ -49,7 +49,7 @@ func runSigningResignEnvironment(ctx context.Context, identity *signingRunIdenti
 		deps.DeleteKeychain == nil {
 		return fmt.Errorf("signing environment is incomplete")
 	}
-	if err := contextError(ctx); err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 

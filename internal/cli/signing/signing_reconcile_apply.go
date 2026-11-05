@@ -44,9 +44,6 @@ func executeSigningReconcileApplyPlanSilent(ctx context.Context, plan signingRec
 }
 
 func executeSigningReconcileApplyPlanWithUsage(ctx context.Context, plan signingReconcilePlanArtifact, usageError func(string) error) (signingReconcileReceipt, error) {
-	if usageError == nil {
-		return signingReconcileReceipt{}, errors.New("signing reconcile usage error handler is required")
-	}
 	if !plan.Ready || len(plan.Blockers) > 0 {
 		return signingReconcileReceipt{}, newReconcilePlanDrift(usageError("signing reconcile plan is blocked; rerun plan after resolving blockers"))
 	}
@@ -422,9 +419,6 @@ func loadOrStartSigningReceipt(plan signingReconcilePlanArtifact) (signingReconc
 }
 
 func loadOrStartSigningReceiptWithUsage(plan signingReconcilePlanArtifact, usageError func(string) error) (signingReconcileReceipt, error) {
-	if usageError == nil {
-		return signingReconcileReceipt{}, errors.New("signing reconcile usage error handler is required")
-	}
 	receiptPath := filepath.Join(plan.Paths.StateDir, "receipt.json")
 	data, err := readProtectedFile(receiptPath)
 	if err == nil {
