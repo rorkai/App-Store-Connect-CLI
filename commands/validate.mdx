@@ -64,6 +64,19 @@ flagged. Findings include the locale, field, matched text, resource type and ID,
 and a remediation step. They are warnings by default and become blocking with
 `--strict`.
 
+The same fields are checked for wording App Review commonly rejects:
+
+| Finding                         | Severity | Matches                                                                 |
+| ------------------------------- | -------- | ----------------------------------------------------------------------- |
+| `content.other_platforms`       | Warning  | `Android`, `Google Play`, `Play Store`, and other app marketplaces       |
+| `content.test_words`            | Warning  | `test build`, `debug version`, `demo build`, `for testing purposes`     |
+| `content.unfinished_features`   | Info     | `coming soon`, `pre-release`, `public beta`, `beta version`             |
+
+Matching respects word boundaries, so `androids` never matches. Lowercase
+`android` matches only in keywords, and bare `beta` is ignored because it is
+ordinary product wording. A copyright year range that ends before the current
+year is reported as `legal.format.copyright_year_outdated` (info).
+
 The canonical validator also reports warning-only metadata-quality findings for
 app names shorter than two Unicode characters and for empty keyword segments,
 non-canonical separators, repeated phrases, or terms already present in the
