@@ -13,7 +13,7 @@ Preserve the PR context and authority under `AGENTS.md`: status reads once; watc
 2. Fetch checks, reviews, top-level comments, and GraphQL review threads in parallel where possible. Separate required checks from advisory jobs.
 3. Separate new actionable feedback from resolved, outdated, informational, duplicate, or bot-noise comments.
 4. If the head changed outside this workflow, inspect the new diff before relying on prior conclusions.
-5. If `main` advanced, refresh the merge-base diff and mergeability; follow the branch-update rules in `AGENTS.md`.
+5. Refresh GitHub mergeability. A newer `main` alone does not invalidate prior local review or validation; follow the branch-update rules in `AGENTS.md`.
 
 ## Address actionable feedback
 
@@ -31,7 +31,7 @@ Apply fixes and external writes only when authorized. Otherwise report the verif
 - `observed`: a one-time check completed; report the requested facts and mark readiness unverified unless separately established. An actionable finding does not make a completed read-only check blocked.
 - `changed`: pushed a fix; include commit and validation.
 - `pending`: required checks, required reviews, or actionable reviews are still running; identify exactly what remains. This is an intermediate state during a user-requested loop, not the final handoff.
-- `clean`: the final full-branch local review in `AGENTS.md` is clear for the current head and base, required checks pass, required reviews are satisfied, the latest head is mergeable, and no actionable unresolved thread remains. Report advisory jobs without treating them as blockers.
+- `clean`: the final full-branch local review in `AGENTS.md` is clear for the current head and recorded review base, required checks pass, required reviews are satisfied, the latest head is mergeable, and no actionable unresolved thread remains. A later base advance alone does not invalidate that review. Report advisory jobs without treating them as blockers.
 - `blocked`: user input, permissions, an external outage, or an unsafe product decision prevents progress.
 
 For an authorized merge, reapply `$audit-asc-pr`'s complete gate immediately before merging and follow the history rules in `AGENTS.md`.
