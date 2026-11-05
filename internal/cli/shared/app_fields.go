@@ -46,6 +46,7 @@ func appFieldsEnum() []string {
 		"appAvailabilityV2",
 		"inAppPurchases",
 		"subscriptionGroups",
+		"retentionMessages",
 		"gameCenterEnabledVersions",
 		"performanceOverviews",
 		"perfPowerMetrics",
