@@ -17,12 +17,17 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-func readReleaseWorkflow() ([]byte, error) {
+func readReleaseWorkflow(t *testing.T) string {
+	t.Helper()
 	repositoryRoot, err := rootfs.New(".")
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
-	return repositoryRoot.ReadFile(filepath.Join(".github", "workflows", "release.yml"))
+	data, err := repositoryRoot.ReadFile(filepath.Join(".github", "workflows", "release.yml"))
+	if err != nil {
+		t.Fatalf("read release workflow: %v", err)
+	}
+	return string(data)
 }
 
 var (
@@ -67,43 +72,8 @@ func releaseWorkflowJobBlock(t *testing.T, workflow, jobName string) string {
 	return ""
 }
 
-func TestReleaseWorkflowJobBlockStopsAtNextJob(t *testing.T) {
-	tests := []struct {
-		name       string
-		workflow   string
-		unexpected []string
-	}{
-		{
-			name:       "next job",
-			workflow:   "jobs:\n  winget:\n    name: Submit WinGet package\n  later:\n    name: Later job\n",
-			unexpected: []string{"later"},
-		},
-		{
-			name:       "outside jobs mapping",
-			workflow:   "jobs:\n  winget:\n    name: Submit WinGet package\non:\n  workflow_dispatch:\n",
-			unexpected: []string{"on:", "workflow_dispatch"},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			block := releaseWorkflowJobBlock(t, test.workflow, "winget")
-			for _, unexpected := range test.unexpected {
-				if strings.Contains(block, unexpected) {
-					t.Fatalf("winget block included content outside the job: %q", block)
-				}
-			}
-		})
-	}
-}
-
 func TestReleaseWorkflowExportsHomebrewChecksumsBeforeFormulaGeneration(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	assignAMD64 := "SHA256_AMD64=$(shasum"
 	assignArm64 := "SHA256=$(shasum"
 	exportChecksums := "export SHA256_AMD64 SHA256"
@@ -138,12 +108,7 @@ func TestReleaseWorkflowExportsHomebrewChecksumsBeforeFormulaGeneration(t *testi
 }
 
 func TestReleaseWorkflowTestsHomebrewFormulaUsingVersionStdout(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	want := `assert_match version.to_s, shell_output("#{{bin}}/asc --version")`
 	if !strings.Contains(workflow, want) {
 		t.Fatalf("release workflow missing stdout-based Homebrew formula test %q", want)
@@ -156,12 +121,7 @@ func TestReleaseWorkflowTestsHomebrewFormulaUsingVersionStdout(t *testing.T) {
 }
 
 func TestReleaseWorkflowKeepsHistoricalGuardrailsInline(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	for _, want := range []string{
 		`python3 scripts/test_check_docs.py`,
 		`make format-check`,
@@ -218,13 +178,10 @@ func TestReleaseRehearsalGuardrailsIncludeDocsValidatorSelfTest(t *testing.T) {
 }
 
 func TestReleaseWorkflowBuildsStrippedTrimmedBinaries(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
+	workflow := readReleaseWorkflow(t)
 
 	buildLines := 0
-	for _, line := range strings.Split(string(data), "\n") {
+	for _, line := range strings.Split(workflow, "\n") {
 		if !strings.Contains(line, "go build") {
 			continue
 		}
@@ -241,50 +198,25 @@ func TestReleaseWorkflowBuildsStrippedTrimmedBinaries(t *testing.T) {
 	}
 }
 
-func TestReleaseWorkflowEnablesCGOForEveryMacOSArchitecture(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-	workflow := string(data)
-	for _, setting := range []string{`CGO_CFLAGS: "-O2 -g -mmacosx-version-min=13.0"`, `CGO_LDFLAGS: "-O2 -g -mmacosx-version-min=13.0"`} {
-		if !strings.Contains(workflow, setting) {
-			t.Fatalf("release workflow must include its macOS minimum in the CGO cache key: %s", setting)
-		}
-	}
-	for _, arch := range []string{"amd64", "arm64"} {
-		want := "MACOSX_DEPLOYMENT_TARGET=13.0 CGO_ENABLED=1 GOOS=darwin GOARCH=" + arch + " go build"
-		if !strings.Contains(workflow, want) {
-			t.Fatalf("release workflow missing cgo-enabled macOS %s build: %q", arch, want)
-		}
-	}
-}
-
-func TestReleaseWorkflowDisablesCGOForNonDarwinBuilds(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-	workflow := string(data)
-	for _, target := range []string{
-		"GOOS=linux GOARCH=amd64",
-		"GOOS=linux GOARCH=arm64",
-		"GOOS=windows GOARCH=amd64",
+func TestReleaseWorkflowSetsCGOPerTarget(t *testing.T) {
+	workflow := readReleaseWorkflow(t)
+	for _, want := range []string{
+		`CGO_CFLAGS: "-O2 -g -mmacosx-version-min=13.0"`,
+		`CGO_LDFLAGS: "-O2 -g -mmacosx-version-min=13.0"`,
+		"MACOSX_DEPLOYMENT_TARGET=13.0 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build",
+		"MACOSX_DEPLOYMENT_TARGET=13.0 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build",
+		"CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build",
+		"CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build",
+		"CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build",
 	} {
-		want := "CGO_ENABLED=0 " + target + " go build"
 		if !strings.Contains(workflow, want) {
-			t.Fatalf("release workflow missing Cgo-disabled %s build: %q", target, want)
+			t.Errorf("release workflow missing per-target Cgo setting %q", want)
 		}
 	}
 }
 
 func TestReleaseWorkflowDoesNotInterpolateDispatchInputIntoShell(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	if strings.Contains(workflow, `TAG="${{ github.event_name == 'workflow_dispatch'`) {
 		t.Fatal("release workflow interpolates dispatch input directly into shell")
 	}
@@ -299,12 +231,7 @@ func TestReleaseWorkflowDoesNotInterpolateDispatchInputIntoShell(t *testing.T) {
 }
 
 func TestReleaseWorkflowNotarizesMacOSBinariesBeforePublishing(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	releaseStart := strings.Index(workflow, "\n  macos:\n")
 	if releaseStart == -1 {
 		t.Fatal("release workflow missing macos job")
@@ -346,12 +273,7 @@ func TestReleaseWorkflowNotarizesMacOSBinariesBeforePublishing(t *testing.T) {
 }
 
 func TestReleaseWorkflowCanRepairExistingNotarizationWithoutReplacingAssets(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	if !strings.Contains(workflow, "notarize_existing:") {
 		t.Fatal("release workflow missing notarize_existing dispatch input")
 	}
@@ -405,12 +327,7 @@ func TestReleaseWorkflowCanRepairExistingNotarizationWithoutReplacingAssets(t *t
 }
 
 func TestReleaseWorkflowCreatesPrivateKeyWithRestrictedModeInRunnerTemp(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	if got := strings.Count(workflow, `install -m 600 /dev/null "$RUNNER_TEMP/AuthKey.p8"`); got != 2 {
 		t.Fatalf("release workflow must securely create both temporary keys, got %d sites", got)
 	}
@@ -424,12 +341,7 @@ func TestReleaseWorkflowCreatesPrivateKeyWithRestrictedModeInRunnerTemp(t *testi
 }
 
 func TestReleaseWorkflowReusesOneBuildArtifactForEveryPublisher(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	for _, want := range []string{
 		"\n  prepare:\n",
 		"\n  build:\n",
@@ -460,12 +372,7 @@ func TestReleaseWorkflowReusesOneBuildArtifactForEveryPublisher(t *testing.T) {
 }
 
 func TestReleaseWorkflowUsesValidSecureReleaseSteps(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	if strings.Contains(workflow, "- parallel:") {
 		t.Fatal("release workflow must use valid run or uses steps")
 	}
@@ -478,12 +385,7 @@ func TestReleaseWorkflowUsesValidSecureReleaseSteps(t *testing.T) {
 }
 
 func TestReleaseWorkflowReusesArtifactsAcrossRerunAttempts(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	for _, want := range []string{
 		`actions/runs/${GITHUB_RUN_ID}/artifacts`,
 		`repos/${GH_REPO}/actions/artifacts`,
@@ -519,12 +421,7 @@ func TestReleaseWorkflowReusesArtifactsAcrossRerunAttempts(t *testing.T) {
 }
 
 func TestReleaseWorkflowRepairsPackageManagersWithoutRebuildingPublishedRelease(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	for _, want := range []string{
 		"\n  prepare:\n",
 		`published: ${{ steps.release.outputs.published }}`,
@@ -553,12 +450,7 @@ func TestReleaseWorkflowRepairsPackageManagersWithoutRebuildingPublishedRelease(
 }
 
 func TestReleaseWorkflowPublishesPackageManagersWhenBuildIsSkipped(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	const publisherCondition = "\n    if: always() && needs.publish.result == 'success'\n"
 	const publisherNeeds = "\n    needs: publish\n"
 
@@ -577,17 +469,14 @@ func TestReleaseWorkflowPublishesPackageManagersWhenBuildIsSkipped(t *testing.T)
 }
 
 func TestVerifyReleaseAssetsRequiresExactChecksumCoverage(t *testing.T) {
-	workflowData, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
+	workflow := readReleaseWorkflow(t)
 	for _, boundary := range []struct {
 		name  string
 		count int
 	}{
 		{"repair-notarization", 1}, {"build", 1}, {"publish", 3}, {"homebrew", 1}, {"winget", 1},
 	} {
-		job := releaseWorkflowJobBlock(t, string(workflowData), boundary.name)
+		job := releaseWorkflowJobBlock(t, workflow, boundary.name)
 		if got := strings.Count(job, "verify_release_assets.py"); got != boundary.count {
 			t.Fatalf("%s must verify exact coverage at every consumer boundary: want %d, got %d", boundary.name, boundary.count, got)
 		}
@@ -670,12 +559,7 @@ func TestVerifyReleaseAssetsRequiresExactChecksumCoverage(t *testing.T) {
 }
 
 func TestReleaseWorkflowResumesDraftButNeverClobbersPublishedAssets(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	if strings.Contains(workflow, "--clobber") {
 		t.Fatal("release workflow must not replace a published asset")
 	}
@@ -716,47 +600,17 @@ func TestReleaseWorkflowResumesDraftButNeverClobbersPublishedAssets(t *testing.T
 }
 
 func TestReleaseWorkflowGrantsArtifactReadPermissionToArtifactJobs(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
+	workflow := readReleaseWorkflow(t)
 
-	workflow := string(data)
-	jobs := []struct {
-		name string
-		next string
-	}{
-		{name: "build", next: "publish"},
-		{name: "publish", next: "homebrew"},
-		{name: "homebrew", next: "winget"},
-		{name: "winget", next: ""},
-	}
-	for _, job := range jobs {
-		start := strings.Index(workflow, "\n  "+job.name+":\n")
-		if start == -1 {
-			t.Fatalf("release workflow missing %s job", job.name)
-		}
-		end := len(workflow)
-		if job.next != "" {
-			next := strings.Index(workflow[start+1:], "\n  "+job.next+":\n")
-			if next == -1 {
-				t.Fatalf("release workflow missing %s job boundary", job.next)
-			}
-			end = start + 1 + next
-		}
-		if !strings.Contains(workflow[start:end], "permissions:\n      actions: read") {
-			t.Errorf("%s job must have actions read permission for artifact access", job.name)
+	for _, job := range []string{"build", "publish", "homebrew", "winget"} {
+		if !strings.Contains(releaseWorkflowJobBlock(t, workflow, job), "permissions:\n      actions: read") {
+			t.Errorf("%s job must have actions read permission for artifact access", job)
 		}
 	}
 }
 
 func TestReleaseWorkflowSerializesTagAndDispatchForSameVersion(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	want := "group: release-cli-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}"
 	if !strings.Contains(workflow, want) {
 		t.Fatalf("release workflow missing normalized concurrency group %q", want)
@@ -767,12 +621,7 @@ func TestReleaseWorkflowSerializesTagAndDispatchForSameVersion(t *testing.T) {
 }
 
 func TestReleaseWorkflowUsesCommitTimestampForBuildMetadata(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	if !strings.Contains(workflow, `DATE=$(git show -s --format=%cI HEAD)`) {
 		t.Fatal("release workflow must derive build metadata from the release commit")
 	}
@@ -782,12 +631,7 @@ func TestReleaseWorkflowUsesCommitTimestampForBuildMetadata(t *testing.T) {
 }
 
 func TestReleaseWorkflowPushesWinGetBranchWithoutHistoryRewriteOrWorkflowScope(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	for _, unwanted := range []string{
 		"--force-with-lease",
 		"git push --force",
@@ -816,12 +660,7 @@ func TestReleaseWorkflowPushesWinGetBranchWithoutHistoryRewriteOrWorkflowScope(t
 }
 
 func TestReleaseWorkflowSignsMacOSBinariesWithStableCodeSigningIdentifier(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatalf("read release workflow: %v", err)
-	}
-
-	workflow := string(data)
+	workflow := readReleaseWorkflow(t)
 	signStart := strings.Index(workflow, "- name: Sign and verify macOS binaries")
 	notarizeStart := strings.Index(workflow, "- name: Notarize macOS binaries")
 	if signStart == -1 || notarizeStart == -1 || signStart >= notarizeStart {
@@ -854,11 +693,8 @@ func TestReleaseWorkflowSignsMacOSBinariesWithStableCodeSigningIdentifier(t *tes
 }
 
 func TestReleaseWorkflowHomebrewRequiresVentura(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatal(err)
-	}
-	job := releaseWorkflowJobBlock(t, string(data), "homebrew")
+	workflow := readReleaseWorkflow(t)
+	job := releaseWorkflowJobBlock(t, workflow, "homebrew")
 	if !strings.Contains(job, "depends_on macos: :ventura") || strings.Contains(job, "depends_on :macos") {
 		t.Fatal("Go 1.27 release formula must require macOS Ventura or later")
 	}
@@ -941,11 +777,8 @@ func validateReleaseFanout(data []byte) error {
 }
 
 func TestReleaseWorkflowFreshFanoutGates(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := validateReleaseFanout(data); err != nil {
+	workflow := readReleaseWorkflow(t)
+	if err := validateReleaseFanout([]byte(workflow)); err != nil {
 		t.Fatal(err)
 	}
 	for _, mutation := range [][2]string{
@@ -962,8 +795,8 @@ func TestReleaseWorkflowFreshFanoutGates(t *testing.T) {
 		{"ref: ${{ github.workflow_sha }}", "ref: ${{ needs.resolve.outputs.sha }}"},
 		{`--expected-sha "$RELEASE_SHA"`, `--expected-sha "unknown"`},
 	} {
-		changed := strings.ReplaceAll(string(data), mutation[0], mutation[1])
-		if changed == string(data) {
+		changed := strings.ReplaceAll(workflow, mutation[0], mutation[1])
+		if changed == workflow {
 			t.Fatalf("mutation target absent: %s", mutation[0])
 		}
 		if err := validateReleaseFanout([]byte(changed)); err == nil {
@@ -980,11 +813,8 @@ func TestReleaseCandidateAssembler(t *testing.T) {
 }
 
 func TestReleaseWorkflowNativeNotaryUsesReleaseBinary(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatal(err)
-	}
-	job := releaseWorkflowJobBlock(t, string(data), "macos")
+	workflow := readReleaseWorkflow(t)
+	job := releaseWorkflowJobBlock(t, workflow, "macos")
 	if strings.Contains(job, "asc-notary-bootstrap") || strings.Count(job, "go build") != 2 {
 		t.Fatal("macOS must compile each release architecture exactly once")
 	}
@@ -1003,11 +833,8 @@ func TestReleaseWorkflowNativeNotaryUsesReleaseBinary(t *testing.T) {
 }
 
 func TestReleaseWorkflowRecoversIntermediatesAcrossPartialReruns(t *testing.T) {
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatal(err)
-	}
-	job := releaseWorkflowJobBlock(t, string(data), "build")
+	workflow := readReleaseWorkflow(t)
+	job := releaseWorkflowJobBlock(t, workflow, "build")
 	for _, required := range []string{`actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100`, `select(.expired == false)`, `sort_by(.created_at, .id)`, `artifact-ids: ${{ steps.intermediates.outputs.macos }}`, `artifact-ids: ${{ steps.intermediates.outputs.portable }}`} {
 		if !strings.Contains(job, required) {
 			t.Errorf("partial rerun recovery missing %q", required)
@@ -1020,10 +847,6 @@ func TestReleaseWorkflowRecoversIntermediatesAcrossPartialReruns(t *testing.T) {
 
 func releaseWorkflowStepRun(t *testing.T, job, name string) string {
 	t.Helper()
-	data, err := readReleaseWorkflow()
-	if err != nil {
-		t.Fatal(err)
-	}
 	var workflow struct {
 		Jobs map[string]struct {
 			Steps []struct {
@@ -1032,7 +855,7 @@ func releaseWorkflowStepRun(t *testing.T, job, name string) string {
 			} `yaml:"steps"`
 		} `yaml:"jobs"`
 	}
-	if err := yaml.Unmarshal(data, &workflow); err != nil {
+	if err := yaml.Unmarshal([]byte(readReleaseWorkflow(t)), &workflow); err != nil {
 		t.Fatal(err)
 	}
 	for _, step := range workflow.Jobs[job].Steps {

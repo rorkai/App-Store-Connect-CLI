@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+func flushSpool(store spoolStore, deliver eventSender) error {
+	return flushSpoolWhileEnabled(store, deliver, func() (bool, error) { return true, nil })
+}
+
 func TestFlushSpoolRemovesSuccessfullyDeliveredEvents(t *testing.T) {
 	store := testSpoolStore(filepath.Join(t.TempDir(), spoolFileName))
 	for _, id := range []string{"event-01", "event-02"} {

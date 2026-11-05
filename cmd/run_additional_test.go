@@ -150,97 +150,57 @@ func TestRun_InvalidReportFormatWinsOverUnknownFlag(t *testing.T) {
 	}
 }
 
-func TestRun_UnknownFlagBetweenCompleteReportOptionsWritesJUnit(t *testing.T) {
-	resetReportFlags(t)
-	reportPath := filepath.Join(t.TempDir(), "result.xml")
+func TestRun_UnknownRootFlagAroundReportOptionsWritesJUnit(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		leading    []string
+		flag       string
+		wantStderr string
+	}{
+		{
+			name:       "between complete report options",
+			leading:    []string{"--report", "junit", "--bogus"},
+			flag:       "--bogus",
+			wantStderr: "Error: unknown flag `--bogus` for `asc`\nFor help:\n  asc --help\n",
+		},
+		{
+			name:       "before spaced boolean and report options",
+			leading:    []string{"--bogus", "--strict-auth", "false", "--report", "junit"},
+			flag:       "--bogus",
+			wantStderr: "Error: unknown flag `--bogus` for `asc`\nFor help:\n  asc --help\n",
+		},
+		{
+			name:       "with value before report options",
+			leading:    []string{"--profiel", "ci", "--report", "junit"},
+			flag:       "--profiel",
+			wantStderr: "Error: unknown flag `--profiel` for `asc`\nTry:\n  --profile\nFor help:\n  asc --help\n",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			resetReportFlags(t)
+			reportPath := filepath.Join(t.TempDir(), "result.xml")
+			args := append(append([]string{}, tt.leading...), "--report-file", reportPath, "builds", "list")
 
-	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{
-			"--report", "junit",
-			"--bogus",
-			"--report-file", reportPath,
-			"builds", "list",
-		}, "1.0.0"); code != ExitUsage {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
-		}
-	})
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	want := "Error: unknown flag `--bogus` for `asc`\nFor help:\n  asc --help\n"
-	if stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
-	}
-	data, err := os.ReadFile(reportPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error: %v", err)
-	}
-	if !strings.Contains(string(data), "unknown flag `--bogus` for `asc`") {
-		t.Fatalf("report does not identify the unknown flag: %s", data)
-	}
-}
-
-func TestRun_UnknownFlagBeforeSpacedBooleanAndReportOptionsWritesJUnit(t *testing.T) {
-	resetReportFlags(t)
-	reportPath := filepath.Join(t.TempDir(), "result.xml")
-
-	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{
-			"--bogus",
-			"--strict-auth", "false",
-			"--report", "junit",
-			"--report-file", reportPath,
-			"builds", "list",
-		}, "1.0.0"); code != ExitUsage {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	want := "Error: unknown flag `--bogus` for `asc`\nFor help:\n  asc --help\n"
-	if stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
-	}
-	data, err := os.ReadFile(reportPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error: %v", err)
-	}
-	if !strings.Contains(string(data), "unknown flag `--bogus` for `asc`") {
-		t.Fatalf("report does not identify the unknown flag: %s", data)
-	}
-}
-
-func TestRun_UnknownFlagWithValueBeforeReportOptionsWritesJUnit(t *testing.T) {
-	resetReportFlags(t)
-	reportPath := filepath.Join(t.TempDir(), "result.xml")
-
-	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{
-			"--profiel", "ci",
-			"--report", "junit",
-			"--report-file", reportPath,
-			"builds", "list",
-		}, "1.0.0"); code != ExitUsage {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	want := "Error: unknown flag `--profiel` for `asc`\nTry:\n  --profile\nFor help:\n  asc --help\n"
-	if stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
-	}
-	data, err := os.ReadFile(reportPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error: %v", err)
-	}
-	if !strings.Contains(string(data), "unknown flag `--profiel` for `asc`") {
-		t.Fatalf("report does not identify the unknown flag: %s", data)
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != tt.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, tt.wantStderr)
+			}
+			data, err := os.ReadFile(reportPath)
+			if err != nil {
+				t.Fatalf("ReadFile() error: %v", err)
+			}
+			if want := "unknown flag `" + tt.flag + "` for `asc`"; !strings.Contains(string(data), want) {
+				t.Fatalf("report does not identify the unknown flag: %s", data)
+			}
+		})
 	}
 }
 
@@ -404,126 +364,62 @@ func TestRun_BareGroupPrintsHelpToStdoutAndExitsSuccessfully(t *testing.T) {
 	}
 }
 
-func TestRun_BareGroupWritesJUnitReport(t *testing.T) {
-	resetReportFlags(t)
-	reportPath := filepath.Join(t.TempDir(), "junit.xml")
+func TestRun_UnknownInputAndBareGroupWriteJUnitReport(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		args        []string
+		wantCode    int
+		wantCase    string
+		wantFailure string
+	}{
+		{name: "bare group", args: []string{"builds"}, wantCode: ExitSuccess, wantCase: "asc builds"},
+		{name: "unknown child", args: []string{"builds", "lsit"}, wantCode: ExitUsage, wantCase: "asc builds", wantFailure: "unknown command `asc builds lsit`"},
+		{name: "unknown flag", args: []string{"builds", "list", "--ap=PRIVATE_VALUE"}, wantCode: ExitUsage, wantCase: "asc builds list", wantFailure: "unknown flag `--ap` for `asc builds list`"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			resetReportFlags(t)
+			reportPath := filepath.Join(t.TempDir(), "junit.xml")
+			args := append([]string{"--report", "junit", "--report-file", reportPath}, tt.args...)
 
-	captureCommandOutput(t, func() {
-		if code := Run([]string{
-			"--report", "junit",
-			"--report-file", reportPath,
-			"builds",
-		}, "1.0.0"); code != ExitSuccess {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
-		}
-	})
+			captureCommandOutput(t, func() {
+				if code := Run(args, "1.0.0"); code != tt.wantCode {
+					t.Fatalf("Run() exit code = %d, want %d", code, tt.wantCode)
+				}
+			})
 
-	data, err := os.ReadFile(reportPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error: %v", err)
-	}
-
-	var suite struct {
-		Failures  int `xml:"failures,attr"`
-		TestCases []struct {
-			Name string `xml:"name,attr"`
-		} `xml:"testcase"`
-	}
-	if err := xml.Unmarshal(data, &suite); err != nil {
-		t.Fatalf("xml.Unmarshal() error: %v", err)
-	}
-	if suite.Failures != 0 {
-		t.Fatalf("failures = %d, want 0", suite.Failures)
-	}
-	if len(suite.TestCases) != 1 || suite.TestCases[0].Name != "asc builds" {
-		t.Fatalf("unexpected testcase payload: %+v", suite.TestCases)
-	}
-}
-
-func TestRun_UnknownChildWritesJUnitReport(t *testing.T) {
-	resetReportFlags(t)
-	reportPath := filepath.Join(t.TempDir(), "junit.xml")
-
-	captureCommandOutput(t, func() {
-		if code := Run([]string{
-			"--report", "junit",
-			"--report-file", reportPath,
-			"builds", "lsit",
-		}, "1.0.0"); code != ExitUsage {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
-		}
-	})
-
-	data, err := os.ReadFile(reportPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error: %v", err)
-	}
-
-	var suite struct {
-		Failures  int `xml:"failures,attr"`
-		TestCases []struct {
-			Name    string `xml:"name,attr"`
-			Failure struct {
-				Message string `xml:"message,attr"`
-			} `xml:"failure"`
-		} `xml:"testcase"`
-	}
-	if err := xml.Unmarshal(data, &suite); err != nil {
-		t.Fatalf("xml.Unmarshal() error: %v", err)
-	}
-	if suite.Failures != 1 {
-		t.Fatalf("failures = %d, want 1", suite.Failures)
-	}
-	if len(suite.TestCases) != 1 || suite.TestCases[0].Name != "asc builds" {
-		t.Fatalf("unexpected testcase payload: %+v", suite.TestCases)
-	}
-	if suite.TestCases[0].Failure.Message != "unknown command `asc builds lsit`" {
-		t.Fatalf("failure message = %q", suite.TestCases[0].Failure.Message)
-	}
-}
-
-func TestRun_UnknownFlagWritesJUnitReport(t *testing.T) {
-	resetReportFlags(t)
-	reportPath := filepath.Join(t.TempDir(), "junit.xml")
-
-	captureCommandOutput(t, func() {
-		if code := Run([]string{
-			"--report", "junit",
-			"--report-file", reportPath,
-			"builds", "list", "--ap=PRIVATE_VALUE",
-		}, "1.0.0"); code != ExitUsage {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
-		}
-	})
-
-	data, err := os.ReadFile(reportPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error: %v", err)
-	}
-
-	var suite struct {
-		Failures  int `xml:"failures,attr"`
-		TestCases []struct {
-			Name    string `xml:"name,attr"`
-			Failure struct {
-				Message string `xml:"message,attr"`
-			} `xml:"failure"`
-		} `xml:"testcase"`
-	}
-	if err := xml.Unmarshal(data, &suite); err != nil {
-		t.Fatalf("xml.Unmarshal() error: %v", err)
-	}
-	if suite.Failures != 1 {
-		t.Fatalf("failures = %d, want 1", suite.Failures)
-	}
-	if len(suite.TestCases) != 1 || suite.TestCases[0].Name != "asc builds list" {
-		t.Fatalf("unexpected testcase payload: %+v", suite.TestCases)
-	}
-	if suite.TestCases[0].Failure.Message != "unknown flag `--ap` for `asc builds list`" {
-		t.Fatalf("failure message = %q", suite.TestCases[0].Failure.Message)
-	}
-	if strings.Contains(string(data), "PRIVATE_VALUE") {
-		t.Fatalf("report leaked an inline flag value: %s", data)
+			data, err := os.ReadFile(reportPath)
+			if err != nil {
+				t.Fatalf("ReadFile() error: %v", err)
+			}
+			var suite struct {
+				Failures  int `xml:"failures,attr"`
+				TestCases []struct {
+					Name    string `xml:"name,attr"`
+					Failure *struct {
+						Message string `xml:"message,attr"`
+					} `xml:"failure"`
+				} `xml:"testcase"`
+			}
+			if err := xml.Unmarshal(data, &suite); err != nil {
+				t.Fatalf("xml.Unmarshal() error: %v", err)
+			}
+			wantFailures := 0
+			if tt.wantFailure != "" {
+				wantFailures = 1
+			}
+			if suite.Failures != wantFailures {
+				t.Fatalf("failures = %d, want %d", suite.Failures, wantFailures)
+			}
+			if len(suite.TestCases) != 1 || suite.TestCases[0].Name != tt.wantCase {
+				t.Fatalf("unexpected testcase payload: %+v", suite.TestCases)
+			}
+			if tt.wantFailure != "" && (suite.TestCases[0].Failure == nil || suite.TestCases[0].Failure.Message != tt.wantFailure) {
+				t.Fatalf("failure = %+v, want message %q", suite.TestCases[0].Failure, tt.wantFailure)
+			}
+			if strings.Contains(string(data), "PRIVATE_VALUE") {
+				t.Fatalf("report leaked an inline flag value: %s", data)
+			}
+		})
 	}
 }
 

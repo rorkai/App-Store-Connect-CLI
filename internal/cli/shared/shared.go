@@ -1041,10 +1041,6 @@ func ApplyRootLoggingOverrides() {
 	}
 }
 
-func checkMixedCredentialSources(sources credentialSource) error {
-	return checkMixedCredentialSourcesForKeyType(sources, config.CredentialKeyTypeTeam)
-}
-
 func checkMixedCredentialSourcesForKeyType(sources credentialSource, keyType string) error {
 	keyIDSource := strings.TrimSpace(sources.keyID)
 	issuerSource := strings.TrimSpace(sources.issuerID)

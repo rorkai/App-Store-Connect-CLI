@@ -679,91 +679,6 @@ func makeTruncatedTestPage(items int, next string, meta string) *asc.Response[te
 	return page
 }
 
-func TestPrintOutput_WarnsWithTotalWhenMorePagesExist(t *testing.T) {
-	page := makeTruncatedTestPage(2, "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc", `{"paging":{"total":7,"limit":2}}`)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := PrintOutput(page, "json", false); err != nil {
-			t.Errorf("PrintOutput() error = %v", err)
-		}
-	})
-
-	want := "Warning: showing 2 of 7 results; more pages exist (use --paginate or --next where supported)\n"
-	if stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
-	}
-	if !strings.Contains(stdout, `"item-0"`) || !strings.Contains(stdout, `"item-1"`) {
-		t.Fatalf("expected JSON payload on stdout, got %q", stdout)
-	}
-	if strings.Contains(stdout, "Warning") {
-		t.Fatalf("warning must not leak into stdout, got %q", stdout)
-	}
-	var decoded map[string]any
-	if err := json.Unmarshal([]byte(stdout), &decoded); err != nil {
-		t.Fatalf("stdout is no longer valid JSON: %v (%q)", err, stdout)
-	}
-}
-
-func TestPrintOutput_WarnsWithCountWhenTotalUnavailable(t *testing.T) {
-	page := makeTruncatedTestPage(3, "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc", "")
-
-	_, stderr := captureOutput(t, func() {
-		if err := PrintOutput(page, "json", false); err != nil {
-			t.Errorf("PrintOutput() error = %v", err)
-		}
-	})
-
-	want := "Warning: showing 3 results; more pages exist (use --paginate or --next where supported)\n"
-	if stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
-	}
-}
-
-func TestPrintOutput_NoWarningWhenNoNextLink(t *testing.T) {
-	// PaginateAll erases links.next on aggregated results, so this models a
-	// fully paginated response.
-	page := makeTruncatedTestPage(4, "", `{"paging":{"total":4,"limit":200}}`)
-
-	_, stderr := captureOutput(t, func() {
-		if err := PrintOutput(page, "json", false); err != nil {
-			t.Errorf("PrintOutput() error = %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected no warning for aggregated page, got %q", stderr)
-	}
-}
-
-func TestPrintOutput_NoWarningForNonPaginatedData(t *testing.T) {
-	_, stderr := captureOutput(t, func() {
-		if err := PrintOutput(map[string]string{"status": "ok"}, "json", false); err != nil {
-			t.Errorf("PrintOutput() error = %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected no warning for non-paginated data, got %q", stderr)
-	}
-}
-
-func TestPrintOutput_TypedNilPaginatedResponseDoesNotPanic(t *testing.T) {
-	var typedNil *asc.Response[testPageAttributes]
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := PrintOutput(typedNil, "json", false); err != nil {
-			t.Errorf("PrintOutput() error = %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected no warning for typed nil response, got %q", stderr)
-	}
-	if !strings.Contains(stdout, "null") {
-		t.Fatalf("expected null JSON output for typed nil, got %q", stdout)
-	}
-}
-
 // rawOnlyPage implements asc.PaginatedResponse without a countable item slice
 // to exercise the generic truncation notice.
 type rawOnlyPage struct {
@@ -774,21 +689,55 @@ type rawOnlyPage struct {
 func (r *rawOnlyPage) GetLinks() *asc.Links { return &r.links }
 func (r *rawOnlyPage) GetData() any         { return r.data }
 
-func TestPrintOutput_GenericWarningWhenCountUnavailable(t *testing.T) {
-	page := &rawOnlyPage{
-		links: asc.Links{Next: "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc"},
-		data:  json.RawMessage(`[{"id":"a"}]`),
-	}
+func TestPrintOutputTruncationWarning(t *testing.T) {
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc"
+	for _, tt := range []struct {
+		name       string
+		data       any
+		wantStderr string
+		wantStdout []string
+	}{
+		{
+			name:       "total available",
+			data:       makeTruncatedTestPage(2, nextURL, `{"paging":{"total":7,"limit":2}}`),
+			wantStderr: "Warning: showing 2 of 7 results; more pages exist (use --paginate or --next where supported)\n",
+			wantStdout: []string{`"item-0"`, `"item-1"`},
+		},
+		{
+			name:       "count without total",
+			data:       makeTruncatedTestPage(3, nextURL, ""),
+			wantStderr: "Warning: showing 3 results; more pages exist (use --paginate or --next where supported)\n",
+		},
+		{
+			name:       "count unavailable",
+			data:       &rawOnlyPage{links: asc.Links{Next: nextURL}, data: json.RawMessage(`[{"id":"a"}]`)},
+			wantStderr: "Warning: more pages exist (use --paginate or --next where supported)\n",
+		},
+		// PaginateAll erases links.next on aggregated results, so this models a
+		// fully paginated response.
+		{name: "no next link", data: makeTruncatedTestPage(4, "", `{"paging":{"total":4,"limit":200}}`)},
+		{name: "non-paginated data", data: map[string]string{"status": "ok"}},
+		{name: "typed nil page", data: (*asc.Response[testPageAttributes])(nil), wantStdout: []string{"null"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			stdout, stderr := captureOutput(t, func() {
+				if err := PrintOutput(tt.data, "json", false); err != nil {
+					t.Errorf("PrintOutput() error = %v", err)
+				}
+			})
 
-	_, stderr := captureOutput(t, func() {
-		if err := PrintOutput(page, "json", false); err != nil {
-			t.Errorf("PrintOutput() error = %v", err)
-		}
-	})
-
-	want := "Warning: more pages exist (use --paginate or --next where supported)\n"
-	if stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
+			if stderr != tt.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, tt.wantStderr)
+			}
+			if !json.Valid([]byte(stdout)) {
+				t.Fatalf("stdout is not valid JSON: %q", stdout)
+			}
+			for _, want := range tt.wantStdout {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("stdout = %q, want it to contain %s", stdout, want)
+				}
+			}
+		})
 	}
 }
 
@@ -1154,11 +1103,11 @@ func TestCheckMixedCredentialSourcesWarns(t *testing.T) {
 	t.Setenv(strictAuthEnvVar, "")
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := checkMixedCredentialSources(credentialSource{
+		if err := checkMixedCredentialSourcesForKeyType(credentialSource{
 			keyID:       "keychain",
 			issuerID:    "env",
 			keyMaterial: "env",
-		}); err != nil {
+		}, config.CredentialKeyTypeTeam); err != nil {
 			t.Fatalf("expected warning only, got %v", err)
 		}
 	})
@@ -1180,11 +1129,11 @@ func TestCheckMixedCredentialSourcesStrictErrors(t *testing.T) {
 	t.Setenv(strictAuthEnvVar, "")
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := checkMixedCredentialSources(credentialSource{
+		if err := checkMixedCredentialSourcesForKeyType(credentialSource{
 			keyID:       "keychain",
 			issuerID:    "env",
 			keyMaterial: "env",
-		}); err == nil {
+		}, config.CredentialKeyTypeTeam); err == nil {
 			t.Fatal("expected error, got nil")
 		}
 	})
@@ -1206,11 +1155,11 @@ func TestCheckMixedCredentialSourcesStrictAuthEnvErrors(t *testing.T) {
 	t.Setenv(strictAuthEnvVar, "yes")
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := checkMixedCredentialSources(credentialSource{
+		if err := checkMixedCredentialSourcesForKeyType(credentialSource{
 			keyID:       "keychain",
 			issuerID:    "env",
 			keyMaterial: "env",
-		}); err == nil {
+		}, config.CredentialKeyTypeTeam); err == nil {
 			t.Fatal("expected error, got nil")
 		}
 	})
