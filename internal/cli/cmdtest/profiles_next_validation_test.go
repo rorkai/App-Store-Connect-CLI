@@ -2,6 +2,7 @@ package cmdtest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
@@ -16,9 +17,25 @@ func TestProfilesListProfileStateFilter(t *testing.T) {
 		name       string
 		args       []string
 		wantFilter string
+		response   string
+		wantIDs    []string
+		wantStates []string
 	}{
-		{name: "defaults to active and invalid", wantFilter: "ACTIVE,INVALID"},
-		{name: "normalizes an explicit state", args: []string{"--profile-state", "invalid"}, wantFilter: "INVALID"},
+		{
+			name:       "defaults to active and invalid",
+			wantFilter: "ACTIVE,INVALID",
+			response:   `{"data":[{"type":"profiles","id":"profile-active","attributes":{"name":"Active","profileType":"IOS_APP_STORE","profileState":"ACTIVE"}},{"type":"profiles","id":"profile-invalid","attributes":{"name":"Expired","profileType":"IOS_APP_ADHOC","profileState":"INVALID"}}]}`,
+			wantIDs:    []string{"profile-active", "profile-invalid"},
+			wantStates: []string{"ACTIVE", "INVALID"},
+		},
+		{
+			name:       "normalizes an explicit state",
+			args:       []string{"--profile-state", "invalid"},
+			wantFilter: "INVALID",
+			response:   `{"data":[{"type":"profiles","id":"profile-invalid","attributes":{"name":"Expired","profileType":"IOS_APP_ADHOC","profileState":"INVALID"}}]}`,
+			wantIDs:    []string{"profile-invalid"},
+			wantStates: []string{"INVALID"},
+		},
 	}
 
 	for _, test := range tests {
@@ -38,7 +55,7 @@ func TestProfilesListProfileStateFilter(t *testing.T) {
 				if got := req.URL.Query().Get("filter[profileState]"); got != test.wantFilter {
 					t.Fatalf("filter[profileState] = %q, want %q", got, test.wantFilter)
 				}
-				return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"profiles","id":"profile-1","attributes":{"name":"Profile","profileState":"INVALID"}}]}`), nil
+				return jsonHTTPResponse(http.StatusOK, test.response), nil
 			})
 
 			args := append([]string{"profiles", "list"}, test.args...)
@@ -49,8 +66,24 @@ func TestProfilesListProfileStateFilter(t *testing.T) {
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if !strings.Contains(stdout, `"id":"profile-1"`) {
-				t.Fatalf("expected the profiles envelope, got %q", stdout)
+			var payload struct {
+				Data []struct {
+					ID         string `json:"id"`
+					Attributes struct {
+						ProfileState string `json:"profileState"`
+					} `json:"attributes"`
+				} `json:"data"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("unmarshal profiles output: %v\n%s", err, stdout)
+			}
+			if len(payload.Data) != len(test.wantIDs) {
+				t.Fatalf("profile count = %d, want %d", len(payload.Data), len(test.wantIDs))
+			}
+			for i, profile := range payload.Data {
+				if profile.ID != test.wantIDs[i] || profile.Attributes.ProfileState != test.wantStates[i] {
+					t.Fatalf("profile[%d] = %+v, want id %q and state %q", i, profile, test.wantIDs[i], test.wantStates[i])
+				}
 			}
 		})
 	}
