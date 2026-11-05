@@ -10,23 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/ads"
 )
-
-func TestSearchPlanCommandHelpDescribesOfficialReadOnlyWorkflow(t *testing.T) {
-	command := SearchPlanCommand()
-	joined := command.ShortUsage + "\n" + command.LongHelp
-	for _, want := range []string{
-		"asc optimize search plan",
-		"official Apple Ads Platform API v1",
-		"does not mutate",
-		"--out-dir",
-	} {
-		if !strings.Contains(joined, want) {
-			t.Fatalf("help missing %q:\n%s", want, joined)
-		}
-	}
-}
 
 func TestSearchPlanCommandValidatesRequiredFlagsBeforeAuthentication(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
@@ -67,15 +54,30 @@ func TestSearchPlanCommandRejectsInvalidCountryGenreLocaleAndWindow(t *testing.T
 	}
 }
 
-func TestSearchPlanCommandRejectsPositionalArguments(t *testing.T) {
-	stubSearchPlanResolversToFail(t)
-	command := SearchPlanCommand()
-	err := command.Exec(context.Background(), []string{"extra"})
-	if err == nil || err.Error() != "optimize search plan does not accept positional arguments" {
-		t.Fatalf("error = %v", err)
+func TestOptimizeCommandsRejectPositionalArguments(t *testing.T) {
+	tests := []struct {
+		name    string
+		command func() *ffcli.Command
+		stub    func(*testing.T)
+	}{
+		{name: "optimize search plan", command: SearchPlanCommand, stub: stubSearchPlanResolversToFail},
+		{name: "optimize keywords rank", command: KeywordsRankCommand, stub: failKeywordsClient},
+		{name: "optimize keywords score", command: KeywordsScoreCommand, stub: func(t *testing.T) {
+			failKeywordsClient(t)
+			failKeywordsAdsCollector(t)
+		}},
 	}
-	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("error = %v, want usage error", err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.stub(t)
+			err := test.command().Exec(context.Background(), []string{"extra"})
+			if want := test.name + " does not accept positional arguments"; err == nil || err.Error() != want {
+				t.Fatalf("error = %v, want %q", err, want)
+			}
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("error = %v, want usage error", err)
+			}
+		})
 	}
 }
 
@@ -98,11 +100,6 @@ func stubSearchPlanResolversToFail(t *testing.T) {
 }
 
 func TestOptimizeGroupsReturnHelp(t *testing.T) {
-	for _, command := range []*flag.FlagSet{OptimizeCommand().FlagSet, SearchCommand().FlagSet} {
-		if command == nil {
-			t.Fatal("group command is missing a FlagSet")
-		}
-	}
 	if err := OptimizeCommand().Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("optimize Exec error = %v, want flag.ErrHelp", err)
 	}

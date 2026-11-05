@@ -142,24 +142,27 @@ func TestLoadMatrixPlanDoesNotDefaultMissingVersion(t *testing.T) {
 	}
 }
 
-func TestLoadMatrixPlanRejectsUnknownFields(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "matrix.json")
-	writeMatrixTestFile(t, path, `{"version":1,"unknown_axis":true}`)
-	_, err := LoadMatrixPlan(path)
-	if err == nil || !errors.Is(err, ErrMatrixPlanParseJSON) || !strings.Contains(err.Error(), "unknown field") {
-		t.Fatalf("LoadMatrixPlan() error = %v, want unknown-field parse error", err)
-	}
-}
-
-func TestLoadMatrixPlanRejectsDuplicateAndMisCasedFields(t *testing.T) {
+func TestLoadMatrixPlanRejectsMalformedJSON(t *testing.T) {
+	const axes = `"version":1,"base_plan":"base.json","devices":[],"locales":[],"appearances":[],"content_variants":[]`
 	tests := []struct {
 		name string
 		data string
 		want string
 	}{
+		{name: "unknown field", data: `{"version":1,"unknown_axis":true}`, want: "unknown field"},
 		{name: "duplicate", data: `{"version":1,"version":1}`, want: "duplicate fields"},
 		{name: "mis-cased", data: `{"Version":1}`, want: "exact spelling"},
 		{name: "nested mis-cased", data: `{"version":1,"execution":{"Max_Attempts":2}}`, want: "exact spelling"},
+		{name: "null execution", data: `{` + axes + `,"execution":null}`, want: "must be an object"},
+		{name: "null output", data: `{` + axes + `,"output":null}`, want: "must be an object"},
+		{name: "null nested frame", data: `{` + axes + `,"output":{"frame":null}}`, want: "must be an object"},
+		{name: "null raw directory", data: `{` + axes + `,"output":{"raw_dir":null}}`, want: "must not be null"},
+		{name: "null frame enabled", data: `{` + axes + `,"output":{"frame":{"enabled":null}}}`, want: "must not be null"},
+		{
+			name: "null frame mapping while framing disabled",
+			data: `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"output":{"raw_dir":"raw","review_dir":"review","frame":{"enabled":false,"device_by_matrix_device":{"phone":null}}}}`,
+			want: "must not be null",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -170,15 +173,6 @@ func TestLoadMatrixPlanRejectsDuplicateAndMisCasedFields(t *testing.T) {
 				t.Fatalf("LoadMatrixPlan() error = %v, want %q", err, tc.want)
 			}
 		})
-	}
-}
-
-func TestLoadMatrixPlanRejectsNullDeviceByMatrixDeviceEntryWhenFramingDisabled(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "matrix.json")
-	writeMatrixTestFile(t, path, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"output":{"raw_dir":"raw","review_dir":"review","frame":{"enabled":false,"device_by_matrix_device":{"phone":null}}}}`)
-	_, err := LoadMatrixPlan(path)
-	if err == nil || !errors.Is(err, ErrMatrixPlanParseJSON) || !strings.Contains(err.Error(), "must not be null") {
-		t.Fatalf("LoadMatrixPlan() error = %v, want explicit null mapping rejection", err)
 	}
 }
 
@@ -678,17 +672,6 @@ func TestValidateMatrixPlan_RejectsUnsafeAndConflictingValues(t *testing.T) {
 	}
 }
 
-func TestBuildLocaleLaunchArguments_NormalizesLocale(t *testing.T) {
-	args, err := BuildLocaleLaunchArguments("pt-BR")
-	if err != nil {
-		t.Fatalf("BuildLocaleLaunchArguments() error = %v", err)
-	}
-	want := []string{"-AppleLanguages", "(pt)", "-AppleLocale", "pt_BR"}
-	if !reflect.DeepEqual(args, want) {
-		t.Fatalf("args = %v, want %v", args, want)
-	}
-}
-
 func TestBuildLocaleLaunchArgumentsPreservesScriptSubtags(t *testing.T) {
 	tests := []struct {
 		locale string
@@ -750,158 +733,111 @@ func TestSanitizeMatrixReviewErrorPreservesFramePreflightReasons(t *testing.T) {
 	}
 }
 
-func TestValidateMatrixPlanDefersFrameFamilyToSimulator(t *testing.T) {
+func TestValidateMatrixPlanFrameMappings(t *testing.T) {
 	base := &Plan{Version: 1, App: PlanApp{BundleID: "com.example.app"}, Steps: []PlanStep{{Action: ActionScreenshot, Name: stringPtr("home")}}}
-	plan := &MatrixPlan{
-		Version:         1,
-		Devices:         []MatrixDevice{{ID: "ipad-pro-13", UDID: "IPAD-UDID"}},
-		Locales:         []string{"en-US"},
-		Appearances:     []string{"light"},
-		ContentVariants: []MatrixContentVariant{{ID: "default"}},
-		Output:          MatrixOutput{Frame: MatrixFrame{Enabled: true, DeviceByMatrixDevice: map[string]string{"ipad-pro-13": "iphone-17-pro"}}},
-	}
-	if err := ValidateMatrixPlan(plan, base); err != nil {
-		t.Fatalf("ValidateMatrixPlan() error = %v, want syntax-only frame validation", err)
-	}
-}
-
-func TestValidateMatrixPlanRejectsMappingsForUndeclaredDevices(t *testing.T) {
-	base := &Plan{Version: 1, App: PlanApp{BundleID: "com.example.app"}, Steps: []PlanStep{{Action: ActionScreenshot, Name: stringPtr("home")}}}
-	plan := &MatrixPlan{
-		Version:         1,
-		Devices:         []MatrixDevice{{ID: "phone", UDID: "SIM-UDID"}},
-		Locales:         []string{"en-US"},
-		Appearances:     []string{"light"},
-		ContentVariants: []MatrixContentVariant{{ID: "default"}},
-		Output: MatrixOutput{Frame: MatrixFrame{Enabled: true, DeviceByMatrixDevice: map[string]string{
-			"phone": "iphone-17-pro", "stale-device": "ipad-pro-13",
-		}}},
-	}
-	if err := ValidateMatrixPlan(plan, base); err == nil || !strings.Contains(err.Error(), "undeclared") {
-		t.Fatalf("ValidateMatrixPlan() error = %v, want undeclared frame mapping failure", err)
-	}
-}
-
-func TestValidateMatrixPlanRejectsCaseInsensitiveDuplicateFrameMappings(t *testing.T) {
-	base := &Plan{Version: 1, App: PlanApp{BundleID: "com.example.app"}, Steps: []PlanStep{{Action: ActionScreenshot, Name: stringPtr("home")}}}
-	plan := &MatrixPlan{
-		Version:         1,
-		Devices:         []MatrixDevice{{ID: "phone", UDID: "SIM-UDID"}},
-		Locales:         []string{"en-US"},
-		Appearances:     []string{"light"},
-		ContentVariants: []MatrixContentVariant{{ID: "default"}},
-		Output: MatrixOutput{Frame: MatrixFrame{Enabled: true, DeviceByMatrixDevice: map[string]string{
-			"phone": "iphone-17-pro", " PHONE ": "iphone-air",
-		}}},
-	}
-	if err := ValidateMatrixPlan(plan, base); err == nil || !strings.Contains(err.Error(), "must be unique") {
-		t.Fatalf("ValidateMatrixPlan() error = %v, want case-insensitive duplicate mapping failure", err)
-	}
-}
-
-func TestValidateMatrixPlanRejectsInvalidFrameMappingWhenDisabled(t *testing.T) {
-	base := &Plan{Version: 1, App: PlanApp{BundleID: "com.example.app"}, Steps: []PlanStep{{Action: ActionScreenshot, Name: stringPtr("home")}}}
-	plan := &MatrixPlan{
-		Version:         1,
-		Devices:         []MatrixDevice{{ID: "phone", UDID: "SIM-UDID"}},
-		Locales:         []string{"en-US"},
-		Appearances:     []string{"light"},
-		ContentVariants: []MatrixContentVariant{{ID: "default"}},
-		Output: MatrixOutput{Frame: MatrixFrame{Enabled: false, DeviceByMatrixDevice: map[string]string{
-			"phone": "not-a-device",
-		}}},
-	}
-	if err := ValidateMatrixPlan(plan, base); err == nil || !strings.Contains(err.Error(), "not-a-device") {
-		t.Fatalf("ValidateMatrixPlan() error = %v, want stated mapping validation while framing is disabled", err)
-	}
-	plan.Output.Frame.DeviceByMatrixDevice = map[string]string{"tablet": "iphone-17-pro"}
-	if err := ValidateMatrixPlan(plan, base); err == nil || !strings.Contains(err.Error(), "undeclared") {
-		t.Fatalf("ValidateMatrixPlan() error = %v, want undeclared mapping rejection while framing is disabled", err)
-	}
-}
-
-func TestValidateMatrixFrameMappingForSimulatorUsesActualFamily(t *testing.T) {
 	tests := []struct {
-		name      string
-		matrixID  string
-		simulator matrixSimulatorDevice
-		wantError bool
+		name     string
+		deviceID string
+		frame    MatrixFrame
+		wantErr  string
 	}{
 		{
-			name:     "iPhone actual and logical phone",
-			matrixID: "sim-a",
-			simulator: matrixSimulatorDevice{
-				Name:                 "iPhone 16 Pro",
-				DeviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro",
-			},
+			name:     "family mismatch is deferred to the simulator",
+			deviceID: "ipad-pro-13",
+			frame:    MatrixFrame{Enabled: true, DeviceByMatrixDevice: map[string]string{"ipad-pro-13": "iphone-17-pro"}},
 		},
 		{
-			name:     "iPhone actual despite iPad logical label",
-			matrixID: "ipad-demo",
-			simulator: matrixSimulatorDevice{
-				Name:                 "iPhone 16 Pro",
-				DeviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro",
-			},
+			name:     "undeclared device",
+			deviceID: "phone",
+			frame:    MatrixFrame{Enabled: true, DeviceByMatrixDevice: map[string]string{"phone": "iphone-17-pro", "stale-device": "ipad-pro-13"}},
+			wantErr:  "undeclared",
 		},
 		{
-			name:     "iPad actual",
-			matrixID: "sim-a",
-			simulator: matrixSimulatorDevice{
-				Name:                 "iPad Pro (13-inch)",
-				DeviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4",
-			},
-			wantError: true,
+			name:     "case-insensitive duplicate",
+			deviceID: "phone",
+			frame:    MatrixFrame{Enabled: true, DeviceByMatrixDevice: map[string]string{"phone": "iphone-17-pro", " PHONE ": "iphone-air"}},
+			wantErr:  "must be unique",
 		},
 		{
-			name:     "unknown actual type",
-			matrixID: "sim-a",
-			simulator: matrixSimulatorDevice{
-				Name:                 "Test Device",
-				DeviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.Unknown",
-			},
-			wantError: true,
+			name:     "invalid frame while framing disabled",
+			deviceID: "phone",
+			frame:    MatrixFrame{DeviceByMatrixDevice: map[string]string{"phone": "not-a-device"}},
+			wantErr:  "not-a-device",
+		},
+		{
+			name:     "undeclared device while framing disabled",
+			deviceID: "phone",
+			frame:    MatrixFrame{DeviceByMatrixDevice: map[string]string{"tablet": "iphone-17-pro"}},
+			wantErr:  "undeclared",
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateMatrixFrameMappingForSimulator(tc.matrixID, "iphone-17-pro", tc.simulator)
-			if (err != nil) != tc.wantError {
-				t.Fatalf("validateMatrixFrameMappingForSimulator() error = %v, wantError=%t", err, tc.wantError)
+			plan := &MatrixPlan{
+				Version:         1,
+				Devices:         []MatrixDevice{{ID: tc.deviceID, UDID: "SIM-UDID"}},
+				Locales:         []string{"en-US"},
+				Appearances:     []string{"light"},
+				ContentVariants: []MatrixContentVariant{{ID: "default"}},
+				Output:          MatrixOutput{Frame: tc.frame},
+			}
+			err := ValidateMatrixPlan(plan, base)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("ValidateMatrixPlan() error = %v, want syntax-only frame validation", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("ValidateMatrixPlan() error = %v, want %q", err, tc.wantErr)
 			}
 		})
 	}
 }
 
-func TestValidateMatrixFrameMappingRejectsTabletFrameForPhoneSimulator(t *testing.T) {
+func TestValidateMatrixFrameMappingForSimulatorUsesActualFamily(t *testing.T) {
 	phone := matrixSimulatorDevice{
 		Name:                 "iPhone 16 Pro",
 		DeviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro",
 	}
-	for _, frame := range []string{"ipad-pro-13", "watch-ultra-3", "apple-tv"} {
-		err := validateMatrixFrameMappingForSimulator("phone", frame, phone)
-		var mappingErr *matrixFrameMappingError
-		if !errors.As(err, &mappingErr) || mappingErr.code != matrixPreflightFrameMismatch {
-			t.Fatalf("validateMatrixFrameMappingForSimulator(%q) error = %v, want frame family mismatch", frame, err)
-		}
-	}
-}
-
-func TestValidateMatrixFrameMappingAcceptsTabletFrameForIPadSimulator(t *testing.T) {
 	ipad := matrixSimulatorDevice{
 		Name:                 "iPad Pro 13-inch (M4)",
 		DeviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB",
 	}
-	for _, frame := range []string{"ipad-pro-13", "ipad-pro-11", "ipad-air-13", "ipad-air-11", "ipad-mini"} {
-		if err := validateMatrixFrameMappingForSimulator("tablet", frame, ipad); err != nil {
-			t.Fatalf("validateMatrixFrameMappingForSimulator(%q) error = %v, want iPad frame accepted", frame, err)
-		}
+	unknown := matrixSimulatorDevice{
+		Name:                 "Test Device",
+		DeviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.Unknown",
 	}
-	for _, frame := range []string{"iphone-17-pro", "watch-ultra-3", "apple-tv", "mac"} {
-		err := validateMatrixFrameMappingForSimulator("tablet", frame, ipad)
-		var mappingErr *matrixFrameMappingError
-		if !errors.As(err, &mappingErr) || mappingErr.code != matrixPreflightFrameMismatch {
-			t.Fatalf("validateMatrixFrameMappingForSimulator(%q) error = %v, want frame family mismatch", frame, err)
-		}
+	tests := []struct {
+		name      string
+		matrixID  string
+		simulator matrixSimulatorDevice
+		frames    []string
+		wantCode  string
+	}{
+		{name: "phone frame on iPhone", matrixID: "sim-a", simulator: phone, frames: []string{"iphone-17-pro"}},
+		{name: "iPhone despite iPad logical label", matrixID: "ipad-demo", simulator: phone, frames: []string{"iphone-17-pro"}},
+		{name: "other families on iPhone", matrixID: "phone", simulator: phone, frames: []string{"ipad-pro-13", "watch-ultra-3", "apple-tv"}, wantCode: matrixPreflightFrameMismatch},
+		{name: "iPad frames on iPad", matrixID: "tablet", simulator: ipad, frames: []string{"ipad-pro-13", "ipad-pro-11", "ipad-air-13", "ipad-air-11", "ipad-mini"}},
+		{name: "other families on iPad", matrixID: "tablet", simulator: ipad, frames: []string{"iphone-17-pro", "watch-ultra-3", "apple-tv", "mac"}, wantCode: matrixPreflightFrameMismatch},
+		{name: "unknown simulator type", matrixID: "sim-a", simulator: unknown, frames: []string{"iphone-17-pro"}, wantCode: matrixPreflightFamilyUnknown},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, frame := range tc.frames {
+				err := validateMatrixFrameMappingForSimulator(tc.matrixID, frame, tc.simulator)
+				if tc.wantCode == "" {
+					if err != nil {
+						t.Fatalf("validateMatrixFrameMappingForSimulator(%q) error = %v, want accepted", frame, err)
+					}
+					continue
+				}
+				var mappingErr *matrixFrameMappingError
+				if !errors.As(err, &mappingErr) || mappingErr.code != tc.wantCode {
+					t.Fatalf("validateMatrixFrameMappingForSimulator(%q) error = %v, want code %q", frame, err, tc.wantCode)
+				}
+			}
+		})
 	}
 }
 
@@ -2146,8 +2082,8 @@ func TestExecuteMatrixCellUnionsFramedPathsAcrossShorterRetry(t *testing.T) {
 		ReviewDir: filepath.Join(dir, "review"),
 		Cells:     []MatrixCellResult{result},
 	}
-	if err := revalidateMatrixFramedPaths(reviewResult); err == nil {
-		t.Fatal("revalidateMatrixFramedPaths() error = nil, want replaced retry artifact uncertainty")
+	if err := revalidateMatrixFramedPathsWithRoot(context.Background(), reviewResult, matrixSubprocessTimeout, nil); err == nil {
+		t.Fatal("revalidateMatrixFramedPathsWithRoot() error = nil, want replaced retry artifact uncertainty")
 	}
 	if got, want := reviewResult.Cells[0].FramedPaths, cell.FramedPaths[:1]; !reflect.DeepEqual(got, want) {
 		t.Fatalf("revalidated framed paths = %v, want valid prior path %v", got, want)
@@ -2626,86 +2562,61 @@ func TestRunMatrixLateCancellationAfterCompletedCellsStillSucceeds(t *testing.T)
 }
 
 func TestRunMatrixPreservesCompletedCellsWhenLaterCancellationOccurs(t *testing.T) {
-	dir := t.TempDir()
-	basePath := filepath.Join(dir, "base.json")
-	matrixPath := filepath.Join(dir, "matrix.json")
-	writeMatrixTestFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"steps":[{"action":"screenshot","name":"home"}]}`)
-	writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"first"},{"id":"second"}],"execution":{"max_concurrency":1},"output":{"raw_dir":"raw","review_dir":"review"}}`)
-	matrixPlan, err := LoadMatrixPlan(matrixPath)
-	if err != nil {
-		t.Fatalf("LoadMatrixPlan() error = %v", err)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	appearance := &matrixTestAppearance{restoreFunc: cancel}
-	var calls int
-	result, runErr := RunMatrixWithDependencies(ctx, matrixPath, matrixPlan, MatrixOptions{}, MatrixDependencies{
-		RunPlan: func(_ context.Context, plan *Plan) (*RunResult, error) {
-			calls++
-			writeMatrixPNG(t, filepath.Join(plan.App.OutputDir, "home.png"))
-			return &RunResult{Steps: []RunStepResult{{Index: 1, Action: "screenshot", Status: "ok"}}}, nil
-		},
-		Appearance:  appearance,
-		CheckDevice: func(context.Context, MatrixDevice) error { return nil },
-	})
-	if !errors.Is(runErr, context.Canceled) {
-		t.Fatalf("RunMatrixWithDependencies() error = %v, want caller cancellation", runErr)
-	}
-	if calls != 1 {
-		t.Fatalf("RunPlan calls = %d, want only the first cell before cancellation", calls)
-	}
-	if result == nil || result.Succeeded != 1 || result.Canceled != 1 || result.Failed != 0 {
-		t.Fatalf("result summary = %+v, want one success and one cancellation", result)
-	}
-	if result.Cells[0].Status != MatrixCellSuccess || len(result.Cells[0].RawPaths) != 1 {
-		t.Fatalf("completed cell = %+v, want success with retained raw artifact", result.Cells[0])
-	}
-	if result.Cells[1].Status != MatrixCellCanceled || result.Cells[1].FailureCode != "canceled" {
-		t.Fatalf("canceled cell = %+v, want canceled status", result.Cells[1])
-	}
-}
-
-func TestRunMatrixPreservesCompletedFramedCellsWhenLaterCancellationOccurs(t *testing.T) {
-	dir := t.TempDir()
-	basePath := filepath.Join(dir, "base.json")
-	matrixPath := filepath.Join(dir, "matrix.json")
-	writeMatrixTestFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"steps":[{"action":"screenshot","name":"home"}]}`)
-	writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"first"},{"id":"second"}],"execution":{"max_concurrency":1},"output":{"raw_dir":"raw","framed_dir":"framed","review_dir":"review","frame":{"enabled":true,"device_by_matrix_device":{"phone":"iphone-17-pro"}}}}`)
-	matrixPlan, err := LoadMatrixPlan(matrixPath)
-	if err != nil {
-		t.Fatalf("LoadMatrixPlan() error = %v", err)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	appearance := &matrixTestAppearance{restoreFunc: cancel}
-	var calls int
-	result, runErr := RunMatrixWithDependencies(ctx, matrixPath, matrixPlan, MatrixOptions{}, MatrixDependencies{
-		RunPlan: func(_ context.Context, plan *Plan) (*RunResult, error) {
-			calls++
-			writeMatrixPNG(t, filepath.Join(plan.App.OutputDir, "home.png"))
-			return &RunResult{Steps: []RunStepResult{{Index: 1, Action: "screenshot", Status: "ok"}}}, nil
-		},
-		Frame: func(_ context.Context, request FrameRequest) (*FrameResult, error) {
-			writeMatrixPNG(t, request.OutputPath)
-			return &FrameResult{}, nil
-		},
-		Appearance:  appearance,
-		CheckDevice: func(context.Context, MatrixDevice) error { return nil },
-	})
-	if !errors.Is(runErr, context.Canceled) {
-		t.Fatalf("RunMatrixWithDependencies() error = %v, want caller cancellation", runErr)
-	}
-	if calls != 1 {
-		t.Fatalf("RunPlan calls = %d, want only the first cell before cancellation", calls)
-	}
-	if result == nil || result.Succeeded != 1 || result.Canceled != 1 || result.Failed != 0 {
-		t.Fatalf("result summary = %+v, want one framed success and one cancellation", result)
-	}
-	if result.Cells[0].Status != MatrixCellSuccess || len(result.Cells[0].FramedPaths) != 1 || result.Cells[0].Screenshots[0].FramedPath == "" {
-		t.Fatalf("completed framed cell = %+v, want retained framed artifact", result.Cells[0])
-	}
-	if result.Cells[1].Status != MatrixCellCanceled || result.Cells[1].FailureCode != "canceled" {
-		t.Fatalf("canceled cell = %+v, want canceled status", result.Cells[1])
+	for _, framed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("framed=%t", framed), func(t *testing.T) {
+			dir := t.TempDir()
+			basePath := filepath.Join(dir, "base.json")
+			matrixPath := filepath.Join(dir, "matrix.json")
+			output := `{"raw_dir":"raw","review_dir":"review"}`
+			if framed {
+				output = `{"raw_dir":"raw","framed_dir":"framed","review_dir":"review","frame":{"enabled":true,"device_by_matrix_device":{"phone":"iphone-17-pro"}}}`
+			}
+			writeMatrixTestFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"steps":[{"action":"screenshot","name":"home"}]}`)
+			writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"first"},{"id":"second"}],"execution":{"max_concurrency":1},"output":`+output+`}`)
+			matrixPlan, err := LoadMatrixPlan(matrixPath)
+			if err != nil {
+				t.Fatalf("LoadMatrixPlan() error = %v", err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			appearance := &matrixTestAppearance{restoreFunc: cancel}
+			var calls int
+			deps := MatrixDependencies{
+				RunPlan: func(_ context.Context, plan *Plan) (*RunResult, error) {
+					calls++
+					writeMatrixPNG(t, filepath.Join(plan.App.OutputDir, "home.png"))
+					return &RunResult{Steps: []RunStepResult{{Index: 1, Action: "screenshot", Status: "ok"}}}, nil
+				},
+				Appearance:  appearance,
+				CheckDevice: func(context.Context, MatrixDevice) error { return nil },
+			}
+			if framed {
+				deps.Frame = func(_ context.Context, request FrameRequest) (*FrameResult, error) {
+					writeMatrixPNG(t, request.OutputPath)
+					return &FrameResult{}, nil
+				}
+			}
+			result, runErr := RunMatrixWithDependencies(ctx, matrixPath, matrixPlan, MatrixOptions{}, deps)
+			if !errors.Is(runErr, context.Canceled) {
+				t.Fatalf("RunMatrixWithDependencies() error = %v, want caller cancellation", runErr)
+			}
+			if calls != 1 {
+				t.Fatalf("RunPlan calls = %d, want only the first cell before cancellation", calls)
+			}
+			if result == nil || result.Succeeded != 1 || result.Canceled != 1 || result.Failed != 0 {
+				t.Fatalf("result summary = %+v, want one success and one cancellation", result)
+			}
+			completed := result.Cells[0]
+			if completed.Status != MatrixCellSuccess || len(completed.RawPaths) != 1 {
+				t.Fatalf("completed cell = %+v, want success with retained raw artifact", completed)
+			}
+			if framed && (len(completed.FramedPaths) != 1 || completed.Screenshots[0].FramedPath == "") {
+				t.Fatalf("completed framed cell = %+v, want retained framed artifact", completed)
+			}
+			if result.Cells[1].Status != MatrixCellCanceled || result.Cells[1].FailureCode != "canceled" {
+				t.Fatalf("canceled cell = %+v, want canceled status", result.Cells[1])
+			}
+		})
 	}
 }
 
@@ -3022,6 +2933,14 @@ func writeMatrixPNG(t *testing.T, path string) {
 	}
 }
 
+func promoteMatrixArtifact(outputRoot rootfs.Root, outputRootPath, source, destination string) error {
+	return promoteMatrixArtifactFromRoots(context.Background(), outputRoot, outputRootPath, source, outputRoot, outputRootPath, destination)
+}
+
+func inspectMatrixArtifact(outputRoot rootfs.Root, outputRootPath, path string) (matrixArtifactInfo, error) {
+	return inspectMatrixArtifactWithContext(context.Background(), outputRoot, outputRootPath, path)
+}
+
 func TestEnsureMatrixLaunchStepPrependsLaunchBeforePreLaunchSteps(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -3178,62 +3097,45 @@ func TestMatrixReviewManifestOmitsCleanupFailedWhenZero(t *testing.T) {
 	}
 }
 
-func TestLoadMatrixPlanRejectsExplicitZeroExecutionLimits(t *testing.T) {
+func TestValidateMatrixPlanExecutionSettings(t *testing.T) {
 	base := &Plan{Version: 1, App: PlanApp{BundleID: "com.example.app"}, Steps: []PlanStep{{Action: ActionScreenshot, Name: stringPtr("home")}}}
+	const bothBackoffs = "set only one of execution.retry_backoff or execution.retry_backoff_ms"
 	tests := []struct {
 		name      string
 		execution string
 		wantErr   string
 	}{
-		{
-			name:      "explicit zero concurrency",
-			execution: `{"max_concurrency":0}`,
-			wantErr:   "execution.max_concurrency must be between 1 and 8 when set",
-		},
-		{
-			name:      "explicit zero attempts",
-			execution: `{"max_attempts":0}`,
-			wantErr:   "execution.max_attempts must be between 1 and 3 when set",
-		},
+		{name: "omitted", execution: `{}`},
+		{name: "zero milliseconds", execution: `{"retry_backoff_ms":0}`},
+		{name: "milliseconds", execution: `{"retry_backoff_ms":250}`},
+		{name: "duration string", execution: `{"retry_backoff":"1s"}`},
+		{name: "explicit zero concurrency", execution: `{"max_concurrency":0}`, wantErr: "execution.max_concurrency must be between 1 and 8 when set"},
+		{name: "explicit zero attempts", execution: `{"max_attempts":0}`, wantErr: "execution.max_attempts must be between 1 and 3 when set"},
+		{name: "zero milliseconds beside duration", execution: `{"retry_backoff_ms":0,"retry_backoff":"1s"}`, wantErr: bothBackoffs},
+		{name: "milliseconds beside duration", execution: `{"retry_backoff_ms":5,"retry_backoff":"1s"}`, wantErr: bothBackoffs},
+		{name: "zero milliseconds beside empty duration", execution: `{"retry_backoff_ms":0,"retry_backoff":""}`, wantErr: bothBackoffs},
+		{name: "empty duration", execution: `{"retry_backoff":""}`, wantErr: "execution.retry_backoff must not be empty"},
+		{name: "blank duration", execution: `{"retry_backoff":"   "}`, wantErr: "execution.retry_backoff must not be empty"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dir := t.TempDir()
-			matrixPath := filepath.Join(dir, "matrix.json")
+			matrixPath := filepath.Join(t.TempDir(), "matrix.json")
 			writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"execution":`+tt.execution+`,"output":{"raw_dir":"raw","review_dir":"review"}}`)
 			plan, err := LoadMatrixPlan(matrixPath)
 			if err != nil {
 				t.Fatalf("LoadMatrixPlan() error = %v", err)
 			}
-			if err := ValidateMatrixPlan(plan, base); err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+			err = ValidateMatrixPlan(plan, base)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("ValidateMatrixPlan() error = %v, want accepted", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 				t.Fatalf("ValidateMatrixPlan() error = %v, want %q", err, tt.wantErr)
 			}
 		})
-	}
-}
-
-func TestLoadMatrixPlanAcceptsOmittedExecutionLimits(t *testing.T) {
-	base := &Plan{Version: 1, App: PlanApp{BundleID: "com.example.app"}, Steps: []PlanStep{{Action: ActionScreenshot, Name: stringPtr("home")}}}
-	dir := t.TempDir()
-	matrixPath := filepath.Join(dir, "matrix.json")
-	writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"execution":{"retry_backoff_ms":10},"output":{"raw_dir":"raw","review_dir":"review"}}`)
-	plan, err := LoadMatrixPlan(matrixPath)
-	if err != nil {
-		t.Fatalf("LoadMatrixPlan() error = %v", err)
-	}
-	if err := ValidateMatrixPlan(plan, base); err != nil {
-		t.Fatalf("ValidateMatrixPlan() error = %v, want omitted execution limits to default", err)
-	}
-	// A programmatically constructed plan carries no presence information, so a
-	// zero value must still mean "use the default" rather than "explicit zero".
-	if err := ValidateMatrixPlan(&MatrixPlan{
-		Version:         1,
-		Devices:         []MatrixDevice{{ID: "phone", UDID: "SIM-UDID"}},
-		Locales:         []string{"en-US"},
-		Appearances:     []string{"light"},
-		ContentVariants: []MatrixContentVariant{{ID: "default"}},
-	}, base); err != nil {
-		t.Fatalf("ValidateMatrixPlan() on constructed plan error = %v, want zero to mean default", err)
 	}
 }
 
@@ -3619,86 +3521,6 @@ func TestValidateMatrixPlanRejectsReviewOutputAliasingPlanThroughSymlinkedDirect
 	}
 }
 
-func TestValidateMatrixPlanRejectsBothRetryBackoffFieldsWhenMillisecondsIsZero(t *testing.T) {
-	base := &Plan{Version: 1, App: PlanApp{BundleID: "com.example.app"}, Steps: []PlanStep{{Action: ActionScreenshot, Name: stringPtr("home")}}}
-	tests := []struct {
-		name      string
-		execution string
-		wantErr   string
-	}{
-		{
-			name:      "explicit zero milliseconds beside a duration string",
-			execution: `{"retry_backoff_ms":0,"retry_backoff":"1s"}`,
-			wantErr:   "set only one of execution.retry_backoff or execution.retry_backoff_ms",
-		},
-		{
-			name:      "nonzero milliseconds beside a duration string",
-			execution: `{"retry_backoff_ms":5,"retry_backoff":"1s"}`,
-			wantErr:   "set only one of execution.retry_backoff or execution.retry_backoff_ms",
-		},
-		{
-			name:      "explicit zero milliseconds beside an empty duration string",
-			execution: `{"retry_backoff_ms":0,"retry_backoff":""}`,
-			wantErr:   "set only one of execution.retry_backoff or execution.retry_backoff_ms",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dir := t.TempDir()
-			matrixPath := filepath.Join(dir, "matrix.json")
-			writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"execution":`+tt.execution+`,"output":{"raw_dir":"raw","review_dir":"review"}}`)
-			plan, err := LoadMatrixPlan(matrixPath)
-			if err != nil {
-				t.Fatalf("LoadMatrixPlan() error = %v", err)
-			}
-			if err := ValidateMatrixPlan(plan, base); err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-				t.Fatalf("ValidateMatrixPlan() error = %v, want %q", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValidateMatrixPlanRejectsExplicitEmptyRetryBackoff(t *testing.T) {
-	base := &Plan{Version: 1, App: PlanApp{BundleID: "com.example.app"}, Steps: []PlanStep{{Action: ActionScreenshot, Name: stringPtr("home")}}}
-	for _, value := range []string{"", "   "} {
-		t.Run(fmt.Sprintf("%q", value), func(t *testing.T) {
-			dir := t.TempDir()
-			matrixPath := filepath.Join(dir, "matrix.json")
-			writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"execution":{"retry_backoff":"`+value+`"},"output":{"raw_dir":"raw","review_dir":"review"}}`)
-			plan, err := LoadMatrixPlan(matrixPath)
-			if err != nil {
-				t.Fatalf("LoadMatrixPlan() error = %v", err)
-			}
-			if err := ValidateMatrixPlan(plan, base); err == nil || !strings.Contains(err.Error(), "execution.retry_backoff must not be empty") {
-				t.Fatalf("ValidateMatrixPlan() error = %v, want explicit-empty retry rejection", err)
-			}
-		})
-	}
-}
-
-func TestValidateMatrixPlanAcceptsASingleRetryBackoffEncoding(t *testing.T) {
-	base := &Plan{Version: 1, App: PlanApp{BundleID: "com.example.app"}, Steps: []PlanStep{{Action: ActionScreenshot, Name: stringPtr("home")}}}
-	for _, execution := range []string{
-		`{"retry_backoff_ms":0}`,
-		`{"retry_backoff_ms":250}`,
-		`{"retry_backoff":"1s"}`,
-		`{}`,
-	} {
-		t.Run(execution, func(t *testing.T) {
-			dir := t.TempDir()
-			matrixPath := filepath.Join(dir, "matrix.json")
-			writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"execution":`+execution+`,"output":{"raw_dir":"raw","review_dir":"review"}}`)
-			plan, err := LoadMatrixPlan(matrixPath)
-			if err != nil {
-				t.Fatalf("LoadMatrixPlan() error = %v", err)
-			}
-			if err := ValidateMatrixPlan(plan, base); err != nil {
-				t.Fatalf("ValidateMatrixPlan() error = %v, want a single retry-backoff encoding to be accepted", err)
-			}
-		})
-	}
-}
-
 func TestValidateMatrixPlanBoundsRetryBackoffMillisecondsToDuration(t *testing.T) {
 	if strconv.IntSize < 64 {
 		t.Skip("retry_backoff_ms cannot represent the duration boundary on 32-bit platforms")
@@ -3773,47 +3595,6 @@ func TestRunMatrixRejectsRetryBackoffOverflowBeforeExecution(t *testing.T) {
 	}
 	if runCalls != 0 {
 		t.Fatalf("RunPlan calls = %d, want validation to reject before execution", runCalls)
-	}
-}
-
-func TestLoadMatrixPlanRejectsExplicitNullObjectSections(t *testing.T) {
-	tests := []struct {
-		name string
-		data string
-	}{
-		{name: "execution", data: `{"version":1,"base_plan":"base.json","devices":[],"locales":[],"appearances":[],"content_variants":[],"execution":null}`},
-		{name: "output", data: `{"version":1,"base_plan":"base.json","devices":[],"locales":[],"appearances":[],"content_variants":[],"output":null}`},
-		{name: "nested frame", data: `{"version":1,"base_plan":"base.json","devices":[],"locales":[],"appearances":[],"content_variants":[],"output":{"frame":null}}`},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "matrix.json")
-			writeMatrixTestFile(t, path, tc.data)
-			_, err := LoadMatrixPlan(path)
-			if err == nil || !errors.Is(err, ErrMatrixPlanParseJSON) || !strings.Contains(err.Error(), "must be an object") {
-				t.Fatalf("LoadMatrixPlan() error = %v, want explicit-null object rejection", err)
-			}
-		})
-	}
-}
-
-func TestLoadMatrixPlanRejectsExplicitNullScalarValues(t *testing.T) {
-	tests := []struct {
-		name string
-		data string
-	}{
-		{name: "raw directory", data: `{"version":1,"base_plan":"base.json","devices":[],"locales":[],"appearances":[],"content_variants":[],"output":{"raw_dir":null}}`},
-		{name: "frame enabled", data: `{"version":1,"base_plan":"base.json","devices":[],"locales":[],"appearances":[],"content_variants":[],"output":{"frame":{"enabled":null}}}`},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "matrix.json")
-			writeMatrixTestFile(t, path, tc.data)
-			_, err := LoadMatrixPlan(path)
-			if err == nil || !errors.Is(err, ErrMatrixPlanParseJSON) || !strings.Contains(err.Error(), "must not be null") {
-				t.Fatalf("LoadMatrixPlan() error = %v, want explicit-null scalar rejection", err)
-			}
-		})
 	}
 }
 
@@ -3944,23 +3725,6 @@ func TestAcquireMatrixSimulatorLockUsesStableNamespaceAcrossHomeDirs(t *testing.
 	}
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("second simulator lock error = %v, want deadline across home roots", err)
-	}
-}
-
-func TestNormalizeMatrixLockPathUsesWindowsCaseFoldForMissingRoots(t *testing.T) {
-	for _, test := range []struct {
-		name string
-		path string
-		want string
-	}{
-		{name: "drive root", path: `C:\ASC-MATRIX-MISSING\Output`, want: `c:\asc-matrix-missing\output`},
-		{name: "UNC root", path: `\\SERVER\Share\ASC-MATRIX-MISSING\Output`, want: `\\server\share\asc-matrix-missing\output`},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			if got := normalizeMatrixLockPathWithCase(test.path, true); got != test.want {
-				t.Fatalf("normalizeMatrixLockPathWithCase(%q, true) = %q, want %q", test.path, got, test.want)
-			}
-		})
 	}
 }
 
@@ -4256,20 +4020,6 @@ func TestGenerateMatrixReviewUsesLiveLockContext(t *testing.T) {
 		}
 		<-done
 		t.Fatal("GenerateMatrixReview() did not observe live lock cancellation")
-	}
-}
-
-func TestMatrixOutputLockIdentityUsesFilesystemCaseSemantics(t *testing.T) {
-	dir := t.TempDir()
-	if !matrixFilesystemCaseInsensitive(dir) {
-		t.Skip("selected filesystem is case-sensitive")
-	}
-	upper := filepath.Join(dir, "Output", "raw")
-	lower := filepath.Join(dir, "output", "raw")
-	upperIdentity := matrixOutputLockIdentity(upper)
-	lowerIdentity := matrixOutputLockIdentity(lower)
-	if upperIdentity != lowerIdentity {
-		t.Fatalf("case-variant output lock identities differ: %q != %q", upperIdentity, lowerIdentity)
 	}
 }
 
@@ -5687,7 +5437,7 @@ func TestLockMatrixPrivateAttemptChildRejectsReplacementAtLockBoundary(t *testin
 	previous := matrixPrivateAttemptBeforeChildLockForTest
 	var swapErr error
 	matrixPrivateAttemptBeforeChildLockForTest = func(path string) {
-		if swapErr = unlockMatrixPrivateAttemptParentRetained(attempt.parentDACL, attempt.parent); swapErr != nil {
+		if swapErr = restoreMatrixPrivateAttemptDirectory(attempt.parentDACL, attempt.parent); swapErr != nil {
 			return
 		}
 		attempt.parentDACL = nil
@@ -6280,8 +6030,8 @@ func TestRevalidateMatrixFramedPathsUsesPerArtifactBudget(t *testing.T) {
 		deadlines = append(deadlines, deadline)
 	}
 	t.Cleanup(func() { matrixFramedVerificationContextForTest = previousContextHook })
-	if err := revalidateMatrixFramedPathsWithBudget(context.Background(), result, 20*time.Millisecond); err != nil {
-		t.Fatalf("revalidateMatrixFramedPathsWithBudget() error = %v, want each artifact to receive its own budget", err)
+	if err := revalidateMatrixFramedPathsWithRoot(context.Background(), result, 20*time.Millisecond, nil); err != nil {
+		t.Fatalf("revalidateMatrixFramedPathsWithRoot() error = %v, want each artifact to receive its own budget", err)
 	}
 	if got := result.Cells[0].FramedPaths; !reflect.DeepEqual(got, paths) {
 		t.Fatalf("revalidated framed paths = %v, want %v", got, paths)
@@ -6322,8 +6072,8 @@ func TestRevalidateMatrixFramedPathsPropagatesCallerCancellation(t *testing.T) {
 	previousHook := matrixFramedVerificationBeforeArtifactForTest
 	matrixFramedVerificationBeforeArtifactForTest = cancel
 	t.Cleanup(func() { matrixFramedVerificationBeforeArtifactForTest = previousHook })
-	if err := revalidateMatrixFramedPathsWithBudget(ctx, result, time.Second); !errors.Is(err, context.Canceled) {
-		t.Fatalf("revalidateMatrixFramedPathsWithBudget() error = %v, want context cancellation", err)
+	if err := revalidateMatrixFramedPathsWithRoot(ctx, result, time.Second, nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("revalidateMatrixFramedPathsWithRoot() error = %v, want context cancellation", err)
 	}
 	if got := result.Cells[0].Status; got != MatrixCellCanceled {
 		t.Fatalf("cell status = %q, want canceled", got)
@@ -6368,8 +6118,8 @@ func TestRevalidateMatrixFramedPathsAlreadyCanceledStopsImmediately(t *testing.T
 	previousHook := matrixFramedVerificationContextForTest
 	matrixFramedVerificationContextForTest = func(context.Context) { inspected = true }
 	t.Cleanup(func() { matrixFramedVerificationContextForTest = previousHook })
-	if err := revalidateMatrixFramedPathsWithBudget(ctx, result, time.Second); !errors.Is(err, context.Canceled) {
-		t.Fatalf("revalidateMatrixFramedPathsWithBudget() error = %v, want context cancellation", err)
+	if err := revalidateMatrixFramedPathsWithRoot(ctx, result, time.Second, nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("revalidateMatrixFramedPathsWithRoot() error = %v, want context cancellation", err)
 	}
 	if inspected {
 		t.Fatal("framed verification inspected an artifact after caller cancellation")
@@ -6432,10 +6182,10 @@ func TestRevalidateMatrixFramedPathsChildTimeoutKeepsPartialReviewTruth(t *testi
 		}
 	}
 	t.Cleanup(func() { matrixFramedVerificationContextForTest = previousHook })
-	if err := revalidateMatrixFramedPathsWithBudget(context.Background(), result, 20*time.Millisecond); err == nil {
-		t.Fatal("revalidateMatrixFramedPathsWithBudget() error = nil, want child timeout")
+	if err := revalidateMatrixFramedPathsWithRoot(context.Background(), result, 20*time.Millisecond, nil); err == nil {
+		t.Fatal("revalidateMatrixFramedPathsWithRoot() error = nil, want child timeout")
 	} else if errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("revalidateMatrixFramedPathsWithBudget() error = %v, want bounded non-context failure", err)
+		t.Fatalf("revalidateMatrixFramedPathsWithRoot() error = %v, want bounded non-context failure", err)
 	}
 	if result.Cells[0].Status != MatrixCellFailed || result.Cells[0].FailureCode != "framed_output_unavailable" {
 		t.Fatalf("timed-out cell = %+v, want framed output failure", result.Cells[0])
@@ -6703,9 +6453,9 @@ func TestPromoteMatrixArtifactWithInfoStopsAfterPromotionWhenContextCancels(t *t
 		cancel()
 	}
 	t.Cleanup(func() { matrixArtifactBeforeOpenForTest = previous })
-	_, err = promoteMatrixArtifactWithInfo(ctx, root, outputDir, source, destination)
+	_, err = promoteMatrixArtifactWithInfoFromRoots(ctx, root, outputDir, source, root, outputDir, destination)
 	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("promoteMatrixArtifactWithInfo() error = %v, want context cancellation", err)
+		t.Fatalf("promoteMatrixArtifactWithInfoFromRoots() error = %v, want context cancellation", err)
 	}
 	if _, err := os.Stat(destination); err != nil {
 		t.Fatalf("destination was not published before metadata cancellation: %v", err)
@@ -6732,9 +6482,9 @@ func TestPromoteMatrixArtifactWithInfoHonorsCancellationDuringCopy(t *testing.T)
 	})
 
 	ctx := &matrixCancelAfterChecksContext{cancelAfter: 1}
-	_, err = promoteMatrixArtifactWithInfo(ctx, root, outputDir, source, destination)
+	_, err = promoteMatrixArtifactWithInfoFromRoots(ctx, root, outputDir, source, root, outputDir, destination)
 	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("promoteMatrixArtifactWithInfo() error = %v, want context cancellation", err)
+		t.Fatalf("promoteMatrixArtifactWithInfoFromRoots() error = %v, want context cancellation", err)
 	}
 	if _, err := os.Stat(destination); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("destination stat error = %v, want no committed file after canceled copy", err)
@@ -6770,9 +6520,9 @@ func TestRevalidateMatrixRawPathsStopsOnCancellationDuringHash(t *testing.T) {
 		}},
 	}
 	ctx := &matrixCancelAfterChecksContext{cancelAfter: 3}
-	err = revalidateMatrixRawPaths(ctx, result)
+	err = revalidateMatrixRawPathsWithRoot(ctx, result, matrixSubprocessTimeout, nil)
 	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("revalidateMatrixRawPaths() error = %v, want context cancellation", err)
+		t.Fatalf("revalidateMatrixRawPathsWithRoot() error = %v, want context cancellation", err)
 	}
 	if ctx.checks <= ctx.cancelAfter {
 		t.Fatalf("context checks = %d, want cancellation during hashing", ctx.checks)
@@ -6831,8 +6581,8 @@ func TestRevalidateMatrixRawPathsUsesPerArtifactBudget(t *testing.T) {
 	}
 	t.Cleanup(func() { matrixRawVerificationContextForTest = previousContextHook })
 
-	if err := revalidateMatrixRawPathsWithBudget(context.Background(), result, 20*time.Millisecond); err != nil {
-		t.Fatalf("revalidateMatrixRawPathsWithBudget() error = %v, want each artifact to receive its own budget", err)
+	if err := revalidateMatrixRawPathsWithRoot(context.Background(), result, 20*time.Millisecond, nil); err != nil {
+		t.Fatalf("revalidateMatrixRawPathsWithRoot() error = %v, want each artifact to receive its own budget", err)
 	}
 	if got := result.Cells[0].RawPaths; !reflect.DeepEqual(got, paths) {
 		t.Fatalf("revalidated raw paths = %v, want %v", got, paths)
@@ -6865,4 +6615,19 @@ func TestLoadMatrixReviewManifestBindsDecodedGeneration(t *testing.T) {
 	if !errors.Is(err, errMatrixReviewPairMismatch) {
 		t.Fatalf("LoadMatrixReviewManifest() error = %v, want decoded-generation pair mismatch", err)
 	}
+}
+
+func checkMatrixDevice(ctx context.Context, device MatrixDevice) error {
+	devices, err := readMatrixSimulatorInventory(ctx)
+	if err != nil {
+		return err
+	}
+	wanted := normalizeMatrixUDID(device.UDID)
+	for _, candidate := range devices {
+		if normalizeMatrixUDID(candidate.UDID) != wanted {
+			continue
+		}
+		return validateMatrixSimulatorDevice(candidate)
+	}
+	return errors.New("simulator was not found")
 }

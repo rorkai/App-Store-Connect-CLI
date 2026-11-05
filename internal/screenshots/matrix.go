@@ -873,10 +873,6 @@ func finalizeMatrixPrivateAttemptDirectory(handle *matrixPrivateAttemptDACLHandl
 	return errors.Join(restoreErr, finalizeMatrixPrivateAttemptDACLHandle(handle))
 }
 
-func unlockMatrixPrivateAttemptParentRetained(handle *matrixPrivateAttemptDACLHandle, parent *os.Root) error {
-	return restoreMatrixPrivateAttemptDirectory(handle, parent)
-}
-
 func lockMatrixPrivateAttemptChild(attempt *matrixPrivateAttemptRoot) error {
 	if attempt == nil || attempt.pinned == nil {
 		return errors.New("private matrix attempt root is unavailable")
@@ -3094,10 +3090,6 @@ func cloneScreenshotPlan(base *Plan) (*Plan, error) {
 	return &clone, nil
 }
 
-func promoteMatrixArtifact(outputRoot rootfs.Root, outputRootPath, source, destination string) error {
-	return promoteMatrixArtifactFromRoots(context.Background(), outputRoot, outputRootPath, source, outputRoot, outputRootPath, destination)
-}
-
 func promoteMatrixArtifactFromRoots(ctx context.Context, sourceRoot rootfs.Root, sourceRootPath, source string, destinationRoot rootfs.Root, destinationRootPath, destination string) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -3131,10 +3123,6 @@ type matrixArtifactInfo struct {
 	digest   [sha256.Size]byte
 }
 
-func promoteMatrixArtifactWithInfo(ctx context.Context, outputRoot rootfs.Root, outputRootPath, source, destination string) (matrixArtifactInfo, error) {
-	return promoteMatrixArtifactWithInfoFromRoots(ctx, outputRoot, outputRootPath, source, outputRoot, outputRootPath, destination)
-}
-
 func promoteMatrixArtifactWithInfoFromRoots(ctx context.Context, sourceRoot rootfs.Root, sourceRootPath, source string, destinationRoot rootfs.Root, destinationRootPath, destination string) (matrixArtifactInfo, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -3149,10 +3137,6 @@ func promoteMatrixArtifactWithInfoFromRoots(ctx context.Context, sourceRoot root
 		return matrixArtifactInfo{}, err
 	}
 	return inspectMatrixArtifactWithContext(ctx, destinationRoot, destinationRootPath, destination)
-}
-
-func inspectMatrixArtifact(outputRoot rootfs.Root, outputRootPath, path string) (matrixArtifactInfo, error) {
-	return inspectMatrixArtifactWithContext(context.Background(), outputRoot, outputRootPath, path)
 }
 
 func inspectMatrixArtifactWithContext(ctx context.Context, outputRoot rootfs.Root, outputRootPath, path string) (matrixArtifactInfo, error) {
@@ -3292,14 +3276,6 @@ func mergeMatrixRawArtifacts(result *MatrixCellResult, attempt matrixAttemptResu
 	for path, artifact := range attempt.RawArtifacts {
 		result.rawArtifacts[path] = artifact
 	}
-}
-
-func revalidateMatrixRawPaths(ctx context.Context, result *MatrixResult) error {
-	return revalidateMatrixRawPathsWithBudget(ctx, result, matrixSubprocessTimeout)
-}
-
-func revalidateMatrixRawPathsWithBudget(ctx context.Context, result *MatrixResult, budget time.Duration) error {
-	return revalidateMatrixRawPathsWithRoot(ctx, result, budget, nil)
 }
 
 func revalidateMatrixRawPathsWithRoot(ctx context.Context, result *MatrixResult, budget time.Duration, retainedRoot *rootfs.Root) error {
@@ -3445,14 +3421,6 @@ func mergeMatrixFramedArtifacts(result *MatrixCellResult, attempt matrixAttemptR
 	for path, artifact := range attempt.FramedArtifacts {
 		result.framedArtifacts[path] = artifact
 	}
-}
-
-func revalidateMatrixFramedPaths(result *MatrixResult) error {
-	return revalidateMatrixFramedPathsWithBudget(context.Background(), result, matrixSubprocessTimeout)
-}
-
-func revalidateMatrixFramedPathsWithBudget(ctx context.Context, result *MatrixResult, budget time.Duration) error {
-	return revalidateMatrixFramedPathsWithRoot(ctx, result, budget, nil)
 }
 
 func revalidateMatrixFramedPathsWithRoot(ctx context.Context, result *MatrixResult, budget time.Duration, retainedRoot *rootfs.Root) error {
@@ -4044,21 +4012,6 @@ func readMatrixSimulatorInventoryWithTimeout(ctx context.Context, timeout time.D
 		devices = append(devices, runtimeDevices...)
 	}
 	return devices, nil
-}
-
-func checkMatrixDevice(ctx context.Context, device MatrixDevice) error {
-	devices, err := readMatrixSimulatorInventory(ctx)
-	if err != nil {
-		return err
-	}
-	wanted := normalizeMatrixUDID(device.UDID)
-	for _, candidate := range devices {
-		if normalizeMatrixUDID(candidate.UDID) != wanted {
-			continue
-		}
-		return validateMatrixSimulatorDevice(candidate)
-	}
-	return errors.New("simulator was not found")
 }
 
 const (

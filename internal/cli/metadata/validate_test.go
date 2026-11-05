@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -430,4 +431,8 @@ func TestValidateDirNormalizesVersionDefaultLocaleInIssues(t *testing.T) {
 	if result.Issues[0].Locale != DefaultLocale {
 		t.Fatalf("expected locale %q, got %q", DefaultLocale, result.Issues[0].Locale)
 	}
+}
+
+func validateDir(dir string) (ValidateResult, error) {
+	return validateDirWithOptions(context.Background(), dir, validateDirOptions{})
 }

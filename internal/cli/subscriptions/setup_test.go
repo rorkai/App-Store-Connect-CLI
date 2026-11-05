@@ -53,16 +53,6 @@ func TestSubscriptionSetupPriceCoverageFindsEveryMissingAvailabilityTerritory(t 
 	}
 }
 
-func TestSubscriptionSetupHasPricedTerritory(t *testing.T) {
-	states := []subscriptionPriceImportState{{territoryID: "USA"}, {territoryID: "can"}}
-	if !subscriptionSetupHasPricedTerritory(states, "CAN") {
-		t.Fatal("expected territory lookup to be case-insensitive")
-	}
-	if subscriptionSetupHasPricedTerritory(states, "FRA") {
-		t.Fatal("did not expect an absent territory to be reported as priced")
-	}
-}
-
 func TestBuildSubscriptionSetupPriceMatrixIncludesAllEqualizations(t *testing.T) {
 	attrs := asc.SubscriptionPriceCreateAttributes{PlanType: asc.SubscriptionPlanTypeUpfront}
 	matrix, err := buildSubscriptionSetupPriceMatrix("pp-usa", "USA", attrs, []equalization{

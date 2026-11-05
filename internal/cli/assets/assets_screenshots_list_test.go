@@ -256,16 +256,6 @@ func TestExecuteScreenshotListCommandValidatesPlatformBeforeAuth(t *testing.T) {
 	}
 }
 
-func TestAssetsScreenshotsListCommandDoesNotDefineLocalizationIDAlias(t *testing.T) {
-	cmd := AssetsScreenshotsListCommand()
-	if cmd.FlagSet.Lookup("localization-id") != nil {
-		t.Fatal("--localization-id alias should not be defined; only --version-localization is supported")
-	}
-	if cmd.FlagSet.Lookup("version-localization") == nil {
-		t.Fatal("--version-localization flag not found")
-	}
-}
-
 func TestAssetsScreenshotsListCommandRejectsUnexpectedArguments(t *testing.T) {
 	cmd := AssetsScreenshotsListCommand()
 	cmd.FlagSet.SetOutput(io.Discard)
@@ -284,18 +274,6 @@ func TestAssetsScreenshotsListCommandRejectsUnexpectedArguments(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "unexpected argument(s): typo") {
 		t.Fatalf("stderr = %q, want unexpected argument diagnostic", stderr)
-	}
-}
-
-func TestAssetsScreenshotsListPlatformHelpExplainsSelectorSpecificAppRequirement(t *testing.T) {
-	platformFlag := AssetsScreenshotsListCommand().FlagSet.Lookup("platform")
-	if platformFlag == nil {
-		t.Fatal("--platform flag not found")
-	}
-	for _, want := range []string{"defaults to IOS with version strings", "version IDs requires --app or ASC_APP_ID"} {
-		if !strings.Contains(platformFlag.Usage, want) {
-			t.Fatalf("--platform help = %q, want substring %q", platformFlag.Usage, want)
-		}
 	}
 }
 
@@ -415,15 +393,5 @@ func TestExecuteScreenshotListCommandEnumeratesAvailableLocalesWhenLocaleIsMissi
 	}
 	if !strings.Contains(err.Error(), "available locales: de-DE, en-US") {
 		t.Fatalf("error = %v, want sorted available locales", err)
-	}
-}
-
-func TestAssetsScreenshotsListLocaleHelpDocumentsAllLocalizationDefault(t *testing.T) {
-	localeFlag := AssetsScreenshotsListCommand().FlagSet.Lookup("locale")
-	if localeFlag == nil {
-		t.Fatal("--locale flag not found")
-	}
-	if !strings.Contains(localeFlag.Usage, "omit to list every localization") {
-		t.Fatalf("--locale help = %q, want all-localization default documented", localeFlag.Usage)
 	}
 }

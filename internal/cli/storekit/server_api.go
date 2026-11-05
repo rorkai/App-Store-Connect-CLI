@@ -410,7 +410,7 @@ type requiredFlag struct {
 }
 
 func validateServerRead(args []string, flags serverReadFlags, required ...requiredFlag) error {
-	if err := rejectUnexpectedArgs(args); err != nil {
+	if err := shared.RejectPositionalArgs(args); err != nil {
 		return err
 	}
 	for _, item := range required {

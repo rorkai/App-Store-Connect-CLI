@@ -178,7 +178,7 @@ func bindServerWriteFlags(fs *flag.FlagSet) serverWriteFlags {
 }
 
 func (f serverWriteFlags) validate(args []string, check func() error, required ...requiredFlag) error {
-	if err := rejectUnexpectedArgs(args); err != nil {
+	if err := shared.RejectPositionalArgs(args); err != nil {
 		return err
 	}
 	for _, item := range required {

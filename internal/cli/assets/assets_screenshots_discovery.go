@@ -244,10 +244,6 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 	return result, nil
 }
 
-func collectLocaleAssetFiles(rootPath, displayType string) ([]screenshotLocaleAssetFiles, error) {
-	return collectLocaleAssetFilesWithLimit(rootPath, displayType, 0)
-}
-
 func collectLocaleAssetFilesWithLimit(rootPath, displayType string, maxScreenshots int) ([]screenshotLocaleAssetFiles, error) {
 	info, err := os.Lstat(rootPath)
 	if err != nil {
@@ -382,10 +378,6 @@ func walkMatchingScreenshotFiles(rootPath, displayType string, opts screenshotMa
 		}
 		return nil
 	})
-}
-
-func collectLocaleAssetFilesRecursive(rootPath, displayType string) ([]string, error) {
-	return collectLocaleAssetFilesRecursiveWithLimit(rootPath, displayType, 0)
 }
 
 func collectLocaleAssetFilesRecursiveWithLimit(rootPath, displayType string, maxScreenshots int) ([]string, error) {

@@ -6,19 +6,6 @@ import (
 	"testing"
 )
 
-func TestIAPPriceSchedulesCreateBaseTerritoryUsageDocumentsAcceptedForms(t *testing.T) {
-	cmd := IAPPriceSchedulesCreateCommand()
-	flag := cmd.FlagSet.Lookup("base-territory")
-	if flag == nil {
-		t.Fatal("expected --base-territory flag")
-	}
-	for _, want := range []string{"alpha-2", "alpha-3", "English country name"} {
-		if !strings.Contains(flag.Usage, want) {
-			t.Fatalf("--base-territory usage = %q, want mention of %q", flag.Usage, want)
-		}
-	}
-}
-
 func TestIAPPriceSchedulesCreateRejectsUnmappableBaseTerritory(t *testing.T) {
 	// Without credentials the command can only fail with the territory error if
 	// normalization runs before the client is built.

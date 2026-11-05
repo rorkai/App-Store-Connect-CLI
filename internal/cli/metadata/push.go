@@ -387,10 +387,6 @@ func MetadataPushCommand() *ffcli.Command {
 	})
 }
 
-func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
-	return loadLocalMetadataWithAssets(dir, version, false)
-}
-
 func loadLocalMetadataWithAssets(dir, version string, allowEmpty bool) (localMetadataBundle, error) {
 	localAppInfo := make(map[string]appInfoLocalPatch)
 	localVersion := make(map[string]versionLocalPatch)

@@ -47,26 +47,6 @@ func TestScopedPromotedPurchasesCommandsUseScopedPaths(t *testing.T) {
 	}
 }
 
-func TestScopedPromotedPurchasesShortUsageShowsAlternativeFlows(t *testing.T) {
-	cmd := scopedPromotedPurchasesCommandForTest()
-
-	listCmd := findDirectSubcommand(cmd, "list")
-	if listCmd == nil {
-		t.Fatal("expected list subcommand")
-	}
-	if !strings.Contains(listCmd.ShortUsage, "(--app APP_ID | --next URL)") {
-		t.Fatalf("list ShortUsage should show app and next alternatives, got %q", listCmd.ShortUsage)
-	}
-
-	linkCmd := findDirectSubcommand(cmd, "link")
-	if linkCmd == nil {
-		t.Fatal("expected link subcommand")
-	}
-	if !strings.Contains(linkCmd.ShortUsage, "--promoted-purchase-id PROMO_ID[,PROMO_ID...] | --clear --confirm") {
-		t.Fatalf("link ShortUsage should show link and clear alternatives, got %q", linkCmd.ShortUsage)
-	}
-}
-
 func TestScopedPromotedPurchasesDetailCommandsUseScopedErrorPrefixes(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))

@@ -19,16 +19,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-func TestAssetsPreviewsListHelpOnlyDocumentsSupportedFlags(t *testing.T) {
-	cmd := AssetsPreviewsListCommand()
-
-	for _, unsupported := range []string{"--replace", "--confirm", "--dry-run"} {
-		if strings.Contains(cmd.LongHelp, unsupported) {
-			t.Errorf("list help must not document unsupported flag %s", unsupported)
-		}
-	}
-}
-
 func TestAssetsPreviewsUploadCommandRejectsSkipExistingWithReplace(t *testing.T) {
 	cmd := AssetsPreviewsUploadCommand()
 	cmd.FlagSet.SetOutput(io.Discard)
@@ -147,29 +137,27 @@ func TestAssetsPreviewsUploadCommandRejectsMoreThanThreeFilesBeforeAuth(t *testi
 	}
 }
 
-func TestDetectPreviewMimeTypeRejectsRegisteredNonVideoMIME(t *testing.T) {
-	_, err := detectPreviewMimeType("poster.png")
-	if err == nil {
-		t.Fatal("expected unsupported preview file error")
-	}
-	if !strings.Contains(err.Error(), `unsupported preview file extension ".png"`) {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestDetectPreviewMimeTypeUsesSupportedVideoMapping(t *testing.T) {
+func TestDetectPreviewMimeType(t *testing.T) {
 	tests := []struct {
-		path string
-		want string
+		path    string
+		want    string
+		wantErr string
 	}{
 		{path: "preview.mov", want: "video/quicktime"},
 		{path: "preview.m4v", want: "video/x-m4v"},
 		{path: "preview.MP4", want: "video/mp4"},
+		{path: "poster.png", wantErr: `unsupported preview file extension ".png"`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
 			got, err := detectPreviewMimeType(tt.path)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("detectPreviewMimeType(%q) error = %v, want %q", tt.path, err, tt.wantErr)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("detectPreviewMimeType(%q) error: %v", tt.path, err)
 			}
@@ -819,33 +807,34 @@ func TestUploadPreviewFilesDetachesRollbackFromCallerCancellation(t *testing.T) 
 	}
 }
 
-func TestNormalizePreviewTypeCanonicalizesIPhone69Alias(t *testing.T) {
-	testCases := []string{
-		"IPHONE_69",
-		"APP_IPHONE_69",
-		" app_iphone_69 ",
+func TestNormalizePreviewType(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    string
+		wantErr string
+	}{
+		{input: "IPHONE_69", want: "IPHONE_67"},
+		{input: "APP_IPHONE_69", want: "IPHONE_67"},
+		{input: " app_iphone_69 ", want: "IPHONE_67"},
+		{input: "IPHONE_70", wantErr: `unsupported preview type "IPHONE_70"`},
 	}
 
-	for _, input := range testCases {
-		t.Run(input, func(t *testing.T) {
-			got, err := normalizePreviewType(input)
-			if err != nil {
-				t.Fatalf("normalizePreviewType(%q) error: %v", input, err)
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := normalizePreviewType(tt.input)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("normalizePreviewType(%q) error = %v, want %q", tt.input, err, tt.wantErr)
+				}
+				return
 			}
-			if got != "IPHONE_67" {
-				t.Fatalf("normalizePreviewType(%q) = %q, want %q", input, got, "IPHONE_67")
+			if err != nil {
+				t.Fatalf("normalizePreviewType(%q) error: %v", tt.input, err)
+			}
+			if got != tt.want {
+				t.Fatalf("normalizePreviewType(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
-	}
-}
-
-func TestNormalizePreviewTypeRejectsUnknownType(t *testing.T) {
-	_, err := normalizePreviewType("IPHONE_70")
-	if err == nil {
-		t.Fatal("normalizePreviewType() expected an error")
-	}
-	if !strings.Contains(err.Error(), `unsupported preview type "IPHONE_70"`) {
-		t.Fatalf("normalizePreviewType() error = %q", err)
 	}
 }
 

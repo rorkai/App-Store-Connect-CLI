@@ -67,20 +67,20 @@ func TestDecodeMetadataKeywordValueArrayExpandsEmbeddedSeparators(t *testing.T) 
 }
 
 func TestBuildMetadataKeywordFieldNormalizesMixedInput(t *testing.T) {
-	field, count, err := buildMetadataKeywordField([]string{
+	details, err := buildMetadataKeywordFieldDetails([]string{
 		"habit tracker",
 		" mood journal ",
 		"Habit Tracker",
 		"sleep log",
 	})
 	if err != nil {
-		t.Fatalf("buildMetadataKeywordField() error: %v", err)
+		t.Fatalf("buildMetadataKeywordFieldDetails() error: %v", err)
 	}
-	if field != "habit tracker,mood journal,sleep log" {
-		t.Fatalf("expected canonical keyword field, got %q", field)
+	if details.field != "habit tracker,mood journal,sleep log" {
+		t.Fatalf("expected canonical keyword field, got %q", details.field)
 	}
-	if count != 3 {
-		t.Fatalf("expected count 3, got %d", count)
+	if details.count != 3 {
+		t.Fatalf("expected count 3, got %d", details.count)
 	}
 }
 

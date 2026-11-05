@@ -235,89 +235,40 @@ func TestResolveScreenshotDownloadURLPreservesMetadataFetchError(t *testing.T) {
 }
 
 func TestAssetsScreenshotsSizesCommandFilter(t *testing.T) {
-	cmd := AssetsScreenshotsSizesCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse([]string{"--display-type", "APP_IPHONE_65"}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	tests := []struct {
+		displayType string
+		want        string
+	}{
+		{displayType: "APP_IPHONE_65", want: "APP_IPHONE_65"},
+		{displayType: "IPHONE_69", want: "APP_IPHONE_69"},
+		{displayType: "IMESSAGE_APP_IPHONE_69", want: "IMESSAGE_APP_IPHONE_69"},
 	}
+	for _, test := range tests {
+		t.Run(test.displayType, func(t *testing.T) {
+			cmd := AssetsScreenshotsSizesCommand()
+			cmd.FlagSet.SetOutput(io.Discard)
+			if err := cmd.FlagSet.Parse([]string{"--display-type", test.displayType}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Exec(context.Background(), cmd.FlagSet.Args()); err != nil {
-			t.Fatalf("exec error: %v", err)
-		}
-	})
+			stdout, stderr := captureOutput(t, func() {
+				if err := cmd.Exec(context.Background(), cmd.FlagSet.Args()); err != nil {
+					t.Fatalf("exec error: %v", err)
+				}
+			})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
 
-	var result asc.ScreenshotSizesResult
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("decode output: %v", err)
-	}
-	if len(result.Sizes) != 1 {
-		t.Fatalf("expected 1 size entry, got %d", len(result.Sizes))
-	}
-	if result.Sizes[0].DisplayType != "APP_IPHONE_65" {
-		t.Fatalf("expected APP_IPHONE_65, got %q", result.Sizes[0].DisplayType)
-	}
-}
-
-func TestAssetsScreenshotsSizesCommandSupportsIPhone69Alias(t *testing.T) {
-	cmd := AssetsScreenshotsSizesCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse([]string{"--display-type", "IPHONE_69"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Exec(context.Background(), cmd.FlagSet.Args()); err != nil {
-			t.Fatalf("exec error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var result asc.ScreenshotSizesResult
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("decode output: %v", err)
-	}
-	if len(result.Sizes) != 1 {
-		t.Fatalf("expected 1 size entry, got %d", len(result.Sizes))
-	}
-	if result.Sizes[0].DisplayType != "APP_IPHONE_69" {
-		t.Fatalf("expected APP_IPHONE_69, got %q", result.Sizes[0].DisplayType)
-	}
-}
-
-func TestAssetsScreenshotsSizesCommandSupportsIMessageIPhone69Alias(t *testing.T) {
-	cmd := AssetsScreenshotsSizesCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse([]string{"--display-type", "IMESSAGE_APP_IPHONE_69"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Exec(context.Background(), cmd.FlagSet.Args()); err != nil {
-			t.Fatalf("exec error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var result asc.ScreenshotSizesResult
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("decode output: %v", err)
-	}
-	if len(result.Sizes) != 1 {
-		t.Fatalf("expected 1 size entry, got %d", len(result.Sizes))
-	}
-	if result.Sizes[0].DisplayType != "IMESSAGE_APP_IPHONE_69" {
-		t.Fatalf("expected IMESSAGE_APP_IPHONE_69, got %q", result.Sizes[0].DisplayType)
+			var result asc.ScreenshotSizesResult
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("decode output: %v", err)
+			}
+			if len(result.Sizes) != 1 || result.Sizes[0].DisplayType != test.want {
+				t.Fatalf("sizes = %+v, want one %s entry", result.Sizes, test.want)
+			}
+		})
 	}
 }
 
@@ -381,105 +332,55 @@ func TestAssetsScreenshotsSizesCommandRejectsAllWithDisplayType(t *testing.T) {
 	}
 }
 
-func TestAssetsScreenshotsUploadCommandRejectsSkipExistingWithReplace(t *testing.T) {
-	cmd := AssetsScreenshotsUploadCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse([]string{
-		"--version-localization", "LOC_ID",
-		"--path", "./screenshots",
-		"--device-type", "IPHONE_65",
-		"--skip-existing",
-		"--replace",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+func TestAssetsScreenshotsUploadCommandValidatesFlagsBeforeUpload(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "skip existing with replace",
+			args: []string{"--version-localization", "LOC_ID", "--path", "./screenshots", "--device-type", "IPHONE_65", "--skip-existing", "--replace"},
+			want: "--skip-existing and --replace are mutually exclusive",
+		},
+		{
+			name: "missing upload mode",
+			want: "choose an upload mode: --version-localization VERSION_LOCALIZATION_ID; (--app APP_ID or ASC_APP_ID) with --version VERSION or --version-id VERSION_ID; or --resume ARTIFACT_PATH",
+		},
+		{
+			name: "invalid concurrency",
+			args: []string{"--concurrency", "11"},
+			want: "screenshots upload: --concurrency must be between 1 and 10",
+		},
+		{
+			name: "max screenshots with resume",
+			args: []string{"--resume", ".asc/reports/screenshots-upload/failures.json", "--max-screenshots", "10"},
+			want: "--resume cannot be combined with --skip-existing, --replace, --confirm, --dry-run, or --max-screenshots",
+		},
 	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cmd := AssetsScreenshotsUploadCommand()
+			cmd.FlagSet.SetOutput(io.Discard)
+			if err := cmd.FlagSet.Parse(test.args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-	})
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
+			})
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--skip-existing and --replace are mutually exclusive") {
-		t.Fatalf("expected mutually exclusive error in stderr, got %q", stderr)
-	}
-}
-
-func TestAssetsScreenshotsUploadCommandRequiresUploadMode(t *testing.T) {
-	cmd := AssetsScreenshotsUploadCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse(nil); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-	}
-	const want = "Error: choose an upload mode: --version-localization VERSION_LOCALIZATION_ID; (--app APP_ID or ASC_APP_ID) with --version VERSION or --version-id VERSION_ID; or --resume ARTIFACT_PATH\n"
-	if stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
-	}
-}
-
-func TestAssetsScreenshotsUploadCommandRejectsInvalidConcurrency(t *testing.T) {
-	cmd := AssetsScreenshotsUploadCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse([]string{"--concurrency", "11"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if runErr == nil || !strings.Contains(runErr.Error(), "--concurrency must be between 1 and 10") {
-		t.Fatalf("expected invalid concurrency error, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--concurrency must be between 1 and 10") {
-		t.Fatalf("expected invalid concurrency diagnostic, got %q", stderr)
-	}
-}
-
-func TestAssetsScreenshotsUploadCommandRejectsMaxScreenshotsWithResume(t *testing.T) {
-	cmd := AssetsScreenshotsUploadCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse([]string{
-		"--resume", ".asc/reports/screenshots-upload/failures.json",
-		"--max-screenshots", "10",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--resume cannot be combined with --skip-existing, --replace, --confirm, --dry-run, or --max-screenshots") {
-		t.Fatalf("expected max-screenshots resume error in stderr, got %q", stderr)
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+			}
+			if want := "Error: " + test.want + "\n"; stderr != want {
+				t.Fatalf("stderr = %q, want %q", stderr, want)
+			}
+		})
 	}
 }
 

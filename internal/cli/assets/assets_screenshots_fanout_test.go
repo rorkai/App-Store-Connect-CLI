@@ -742,3 +742,11 @@ func TestUploadScreenshotsFanoutRejectsDuplicateLocaleAssetFileNames(t *testing.
 		}
 	}
 }
+
+func collectLocaleAssetFiles(rootPath, displayType string) ([]screenshotLocaleAssetFiles, error) {
+	return collectLocaleAssetFilesWithLimit(rootPath, displayType, 0)
+}
+
+func collectLocaleAssetFilesRecursive(rootPath, displayType string) ([]string, error) {
+	return collectLocaleAssetFilesRecursiveWithLimit(rootPath, displayType, 0)
+}

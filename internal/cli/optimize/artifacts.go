@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -84,7 +85,7 @@ func buildMetadataCandidatesCSV(report SearchPlanReport) ([]byte, error) {
 		seen[normalizeSearchTerm(keyword)] = struct{}{}
 	}
 	for _, row := range report.Rows {
-		if !containsString(row.Actions, "metadata_candidate") {
+		if !slices.Contains(row.Actions, "metadata_candidate") {
 			continue
 		}
 		term := strings.TrimSpace(row.Term)
@@ -157,7 +158,7 @@ type bulkKeywordArtifactData struct {
 func buildExactKeywordArtifact(rows []SearchPlanRow) ([]byte, error) {
 	payload := bulkKeywordArtifact{Items: []bulkKeywordArtifactItem{}}
 	for _, row := range rows {
-		if !containsString(row.Actions, "promote_exact") || row.AdGroupID == nil {
+		if !slices.Contains(row.Actions, "promote_exact") || row.AdGroupID == nil {
 			continue
 		}
 		payload.Items = append(payload.Items, bulkKeywordArtifactItem{
@@ -175,7 +176,7 @@ func buildExactKeywordArtifact(rows []SearchPlanRow) ([]byte, error) {
 func buildNegativeKeywordArtifact(rows []SearchPlanRow) ([]byte, error) {
 	payload := bulkKeywordArtifact{Items: []bulkKeywordArtifactItem{}}
 	for _, row := range rows {
-		if !containsString(row.Actions, "negative_candidate") || row.CampaignID == nil {
+		if !slices.Contains(row.Actions, "negative_candidate") || row.CampaignID == nil {
 			continue
 		}
 		item := bulkKeywordArtifactItem{
@@ -193,13 +194,4 @@ func buildNegativeKeywordArtifact(rows []SearchPlanRow) ([]byte, error) {
 		payload.Items = append(payload.Items, item)
 	}
 	return canonicalSearchPlanJSON(payload)
-}
-
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }
