@@ -616,6 +616,13 @@ func registerAllOutputRenderers() {
 	registerRowsWithSingleResourceAdapter(gameCenterChallengeLocalizationsRows)
 	registerRows(gameCenterChallengeLocalizationDeleteResultRows)
 	registerRowsWithSingleResourceAdapter(gameCenterChallengeImagesRows)
+	registerRows(func(resp *GameCenterChallengeVersionDefaultImageResponse) ([]string, [][]string) {
+		list := &GameCenterChallengeImagesResponse{}
+		if resp != nil && resp.Data != nil {
+			list.Data = []Resource[GameCenterChallengeImageAttributes]{*resp.Data}
+		}
+		return gameCenterChallengeImagesRows(list)
+	})
 	registerRows(gameCenterChallengeImageUploadResultRows)
 	registerRows(gameCenterChallengeImageDeleteResultRows)
 	registerRowsWithSingleResourceAdapter(gameCenterChallengeReleasesRows)
@@ -626,6 +633,13 @@ func registerAllOutputRenderers() {
 	registerRowsWithSingleResourceAdapter(gameCenterActivityLocalizationsRows)
 	registerRows(gameCenterActivityLocalizationDeleteResultRows)
 	registerRowsWithSingleResourceAdapter(gameCenterActivityImagesRows)
+	registerRows(func(resp *GameCenterActivityVersionDefaultImageResponse) ([]string, [][]string) {
+		list := &GameCenterActivityImagesResponse{}
+		if resp != nil && resp.Data != nil {
+			list.Data = []Resource[GameCenterActivityImageAttributes]{*resp.Data}
+		}
+		return gameCenterActivityImagesRows(list)
+	})
 	registerRows(gameCenterActivityImageUploadResultRows)
 	registerRows(gameCenterActivityImageDeleteResultRows)
 	registerRowsWithSingleResourceAdapter(gameCenterActivityReleasesRows)
