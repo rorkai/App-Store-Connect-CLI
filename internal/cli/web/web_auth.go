@@ -55,7 +55,7 @@ func webPasswordEnvAssignmentExample() string {
 var (
 	openTTYFn                                = openTTY
 	promptTwoFactorCodeFn                    = promptTwoFactorCodeInteractive
-	twoFactorPromptAvailableFn               = twoFactorPromptAvailable
+	twoFactorPromptAvailableFn               = terminalPromptAvailable
 	promptPasswordFn                         = promptPasswordInteractive
 	readTwoFactorCodeFromCommandFn           = readTwoFactorCodeFromCommand
 	webLoginFn                               = webcore.Login
@@ -416,7 +416,7 @@ func promptTwoFactorCodeInteractive() (string, error) {
 	return "", errNoTwoFactorCodeSource
 }
 
-func twoFactorPromptAvailable() bool {
+func terminalPromptAvailable() bool {
 	if tty, err := openTTYFn(); err == nil {
 		_ = tty.Close()
 		return true

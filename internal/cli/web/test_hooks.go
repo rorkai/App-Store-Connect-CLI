@@ -84,35 +84,11 @@ func SetDeleteDeveloperAppGroup(fn func(context.Context, *webcore.Client, webcor
 	}
 }
 
-func SetEnableDeveloperBundleIDCapability(fn func(context.Context, *webcore.Client, webcore.DeveloperBundleIDCapabilityEnableRequest) (*webcore.DeveloperBundleIDCapabilityEnableResult, error)) func() {
-	prev := enableDeveloperBundleIDCapabilityFn
-	enableDeveloperBundleIDCapabilityFn = fn
-	return func() {
-		enableDeveloperBundleIDCapabilityFn = prev
-	}
-}
-
-func SetDisableDeveloperBundleIDCapability(fn func(context.Context, *webcore.Client, webcore.DeveloperBundleIDCapabilityDisableRequest) (*asc.DeveloperBundleIDCapabilityDisableResult, error)) func() {
-	prev := disableDeveloperBundleIDCapabilityFn
-	disableDeveloperBundleIDCapabilityFn = fn
-	return func() {
-		disableDeveloperBundleIDCapabilityFn = prev
-	}
-}
-
 func SetListDeveloperBundleIDs(fn func(context.Context, *webcore.Client) (*webcore.DeveloperBundleIDsListResult, error)) func() {
 	prev := listDeveloperBundleIDsFn
 	listDeveloperBundleIDsFn = fn
 	return func() {
 		listDeveloperBundleIDsFn = prev
-	}
-}
-
-func SetGetDeveloperBundleID(fn func(context.Context, *webcore.Client, string) (*webcore.DeveloperBundleIDGetResult, error)) func() {
-	prev := getDeveloperBundleIDFn
-	getDeveloperBundleIDFn = fn
-	return func() {
-		getDeveloperBundleIDFn = prev
 	}
 }
 

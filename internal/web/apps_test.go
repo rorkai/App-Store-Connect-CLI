@@ -359,108 +359,52 @@ func TestGetAppRemovalStatePreservesBothVersionStateFields(t *testing.T) {
 	}
 }
 
-func TestGetAppRemovalStateLeavesVersionsUnloadedWhenRelationshipOmitted(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.api+json")
-		_, _ = w.Write([]byte(`{
-			"data": {
-				"type": "apps",
-				"id": "1234567890",
-				"attributes": {
-					"name": "Throwaway",
-					"bundleId": "com.example.throwaway",
-					"removed": false,
-					"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-					"marketplace": "APP_STORE"
-				}
+func TestGetAppRemovalStateLeavesVersionsUnloadedWithoutCompleteVersionData(t *testing.T) {
+	const appData = `"type": "apps",
+		"id": "1234567890",
+		"attributes": {
+			"name": "Throwaway",
+			"bundleId": "com.example.throwaway",
+			"removed": false,
+			"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
+			"marketplace": "APP_STORE"
+		}`
+	const relationships = `,
+		"relationships": {
+			"displayableVersions": {
+				"data": [{"type": "appStoreVersions", "id": "version-1"}]
 			}
-		}`))
-	}))
-	defer server.Close()
-
-	client := &Client{httpClient: server.Client(), baseURL: server.URL}
-	state, err := client.GetAppRemovalState(context.Background(), "1234567890")
-	if err != nil {
-		t.Fatalf("GetAppRemovalState error: %v", err)
-	}
-	if state.DisplayableVersionsLoaded {
-		t.Fatal("omitted displayableVersions relationship must not count as loaded")
-	}
-}
-
-func TestGetAppRemovalStateLeavesVersionsUnloadedWhenIncludeMissing(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.api+json")
-		_, _ = w.Write([]byte(`{
-			"data": {
-				"type": "apps",
-				"id": "1234567890",
-				"attributes": {
-					"name": "Throwaway",
-					"bundleId": "com.example.throwaway",
-					"removed": false,
-					"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-					"marketplace": "APP_STORE"
-				},
-				"relationships": {
-					"displayableVersions": {
-						"data": [{"type": "appStoreVersions", "id": "version-1"}]
-					}
-				}
-			}
-		}`))
-	}))
-	defer server.Close()
-
-	client := &Client{httpClient: server.Client(), baseURL: server.URL}
-	state, err := client.GetAppRemovalState(context.Background(), "1234567890")
-	if err != nil {
-		t.Fatalf("GetAppRemovalState error: %v", err)
-	}
-	if state.DisplayableVersionsLoaded {
-		t.Fatal("missing included displayableVersions must not count as loaded")
-	}
-}
-
-func TestGetAppRemovalStateLeavesVersionsUnloadedWhenStateFieldsMissing(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.api+json")
-		_, _ = w.Write([]byte(`{
-			"data": {
-				"type": "apps",
-				"id": "1234567890",
-				"attributes": {
-					"name": "Throwaway",
-					"bundleId": "com.example.throwaway",
-					"removed": false,
-					"appStoreLegacyStatus": "PREPARE_FOR_SUBMISSION",
-					"marketplace": "APP_STORE"
-				},
-				"relationships": {
-					"displayableVersions": {
-						"data": [{"type": "appStoreVersions", "id": "version-1"}]
-					}
-				}
-			},
+		}`
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "relationship omitted", body: `{"data": {` + appData + `}}`},
+		{name: "include missing", body: `{"data": {` + appData + relationships + `}}`},
+		{name: "state fields missing", body: `{"data": {` + appData + relationships + `},
 			"included": [{
 				"type": "appStoreVersions",
 				"id": "version-1",
-				"attributes": {
-					"platform": "IOS",
-					"versionString": "1.0"
-				}
-			}]
-		}`))
-	}))
-	defer server.Close()
-
-	client := &Client{httpClient: server.Client(), baseURL: server.URL}
-	state, err := client.GetAppRemovalState(context.Background(), "1234567890")
-	if err != nil {
-		t.Fatalf("GetAppRemovalState error: %v", err)
+				"attributes": {"platform": "IOS", "versionString": "1.0"}
+			}]}`},
 	}
-	if state.DisplayableVersionsLoaded {
-		t.Fatal("included versions without state fields must not count as loaded")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/vnd.api+json")
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer server.Close()
+
+			client := &Client{httpClient: server.Client(), baseURL: server.URL}
+			state, err := client.GetAppRemovalState(context.Background(), "1234567890")
+			if err != nil {
+				t.Fatalf("GetAppRemovalState error: %v", err)
+			}
+			if state.DisplayableVersionsLoaded {
+				t.Fatal("incomplete displayableVersions data must not count as loaded")
+			}
+		})
 	}
 }
 

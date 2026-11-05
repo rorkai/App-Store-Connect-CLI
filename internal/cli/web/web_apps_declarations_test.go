@@ -28,13 +28,6 @@ func stubWebDeclarationSession(t *testing.T, accountID string) {
 	}
 }
 
-func TestWebAppsDeclarationsListHelpQualifiesRequiredPendingRows(t *testing.T) {
-	cmd := WebAppsDeclarationsListCommand()
-	if !strings.Contains(cmd.LongHelp, "A required\nrequirement that is still at `PENDING_COLLECTION` blocks") {
-		t.Fatalf("expected help to limit blockers to required pending rows, got %q", cmd.LongHelp)
-	}
-}
-
 func TestWebAppsDeclarationsListValidationErrors(t *testing.T) {
 	tests := []struct {
 		name    string

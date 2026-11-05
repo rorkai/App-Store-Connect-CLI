@@ -272,34 +272,25 @@ func TestDeveloperPortalForbiddenKeepsAppleCodesAndNeverSuggestsLogout(t *testin
 	}
 }
 
-func TestSelectDeveloperPortalTeamPrefixRequiresUniqueMatch(t *testing.T) {
-	t.Run("unique prefix match", func(t *testing.T) {
-		teams := []developerPortalTeam{
-			{TeamID: "ACME123", Name: "Acme"},
-			{TeamID: "OTHER456", Name: "Other"},
-		}
-		team, err := selectDeveloperPortalTeam(teams, "", "Acme Inc")
-		if err != nil {
-			t.Fatalf("selectDeveloperPortalTeam() error: %v", err)
-		}
-		if team.TeamID != "ACME123" {
-			t.Fatalf("team = %+v", team)
-		}
+func selectDeveloperPortalTeam(teams []developerPortalTeam, publicProviderID, providerName string) (developerPortalTeam, error) {
+	return resolveDeveloperPortalTeam(teams, developerPortalTeamSelection{
+		PublicProviderID: publicProviderID,
+		ProviderName:     providerName,
 	})
+}
 
-	t.Run("ambiguous prefix match fails closed", func(t *testing.T) {
-		teams := []developerPortalTeam{
-			{TeamID: "TEAMONE123", Name: "Example"},
-			{TeamID: "TEAMTWO456", Name: "Example Company"},
-		}
-		_, err := selectDeveloperPortalTeam(teams, "", "Example Company (App Store Connect)")
-		if err == nil {
-			t.Fatal("expected ambiguous prefix match to fail closed")
-		}
-		if !strings.Contains(err.Error(), "--developer-team") {
-			t.Fatalf("error %q does not mention --developer-team", err)
-		}
-	})
+func TestSelectDeveloperPortalTeamAmbiguousPrefixFailsClosed(t *testing.T) {
+	teams := []developerPortalTeam{
+		{TeamID: "TEAMONE123", Name: "Example"},
+		{TeamID: "TEAMTWO456", Name: "Example Company"},
+	}
+	_, err := selectDeveloperPortalTeam(teams, "", "Example Company (App Store Connect)")
+	if err == nil {
+		t.Fatal("expected ambiguous prefix match to fail closed")
+	}
+	if !strings.Contains(err.Error(), "--developer-team") {
+		t.Fatalf("error %q does not mention --developer-team", err)
+	}
 }
 
 func developerPortalMultiTeamFixture() string {

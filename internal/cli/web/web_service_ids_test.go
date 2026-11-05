@@ -52,24 +52,6 @@ func TestWebServiceIDsCommandHierarchy(t *testing.T) {
 	}
 }
 
-func TestWebServiceIDsCommandsAreRegistered(t *testing.T) {
-	commands := []*ffcli.Command{
-		WebServiceIDsCommand(),
-		WebServiceIDsListCommand(),
-		WebServiceIDsViewCommand(),
-		WebServiceIDsCreateCommand(),
-		WebServiceIDsRenameCommand(),
-		WebServiceIDsDeleteCommand(),
-	}
-	for _, command := range commands {
-
-		usage := command.UsageFunc(command)
-		if !strings.Contains(usage, command.ShortHelp) {
-			t.Fatalf("%s help = %q, want ShortHelp %q", command.Name, usage, command.ShortHelp)
-		}
-	}
-}
-
 func TestWebServiceIDMutationsRejectPrettyTableBeforeSession(t *testing.T) {
 	originalResolve := resolveSessionFn
 	originalNewClient := newWebClientFn

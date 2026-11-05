@@ -147,7 +147,7 @@ func TestAppCreateCanPromptInteractivelyUsesControllingTTYWhenStdinIsNotTerminal
 		return false
 	}
 
-	if !appCreateCanPromptInteractively() {
+	if !terminalPromptAvailable() {
 		t.Fatal("expected controlling TTY to allow app-create prompts when stdin is not a terminal")
 	}
 	if _, err := tty.Stat(); err == nil {

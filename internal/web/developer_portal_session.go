@@ -126,13 +126,6 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	return nil
 }
 
-func selectDeveloperPortalTeam(teams []developerPortalTeam, publicProviderID, providerName string) (developerPortalTeam, error) {
-	return resolveDeveloperPortalTeam(teams, developerPortalTeamSelection{
-		PublicProviderID: publicProviderID,
-		ProviderName:     providerName,
-	})
-}
-
 func resolveDeveloperPortalTeam(teams []developerPortalTeam, selection developerPortalTeamSelection) (developerPortalTeam, error) {
 	valid := make([]developerPortalTeam, 0, len(teams))
 	for _, team := range teams {

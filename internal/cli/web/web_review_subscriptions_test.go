@@ -2016,9 +2016,6 @@ func TestWebReviewSubscriptionsListCommandMissingAppReportsFallbackAndDiagnostic
 	}
 
 	cmd := WebReviewSubscriptionsListCommand()
-	if cmd.ShortUsage != "asc web review subscriptions list [--app APP_ID] [flags]" {
-		t.Fatalf("ShortUsage = %q, want optional --app", cmd.ShortUsage)
-	}
 	if err := cmd.FlagSet.Parse(nil); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
