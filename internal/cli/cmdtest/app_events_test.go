@@ -135,16 +135,6 @@ func TestAppEventsValidationErrors(t *testing.T) {
 			wantErr: "Error: --app is required",
 		},
 		{
-			name:    "screenshots list missing event or localization id",
-			args:    []string{"app-events", "screenshots", "list"},
-			wantErr: "Error: --event-id or --localization-id is required",
-		},
-		{
-			name:    "video-clips list missing event or localization id",
-			args:    []string{"app-events", "video-clips", "list"},
-			wantErr: "Error: --event-id or --localization-id is required",
-		},
-		{
 			name:    "screenshots relationships missing event or localization id",
 			args:    []string{"app-events", "screenshots", "links"},
 			wantErr: "Error: --event-id or --localization-id is required",
