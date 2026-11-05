@@ -21,7 +21,7 @@ Apply fixes and external writes only when authorized. Otherwise report the verif
 
 1. Verify new claims against code, API schemas, and existing behavior.
 2. Reproduce a valid defect and add or update a focused test before changing behavior.
-3. Implement the smallest coherent fix, run the affected checks and required local review, then commit and push when authorized. Complete the final full-branch review loop in `AGENTS.md` before returning `clean`.
+3. Implement the smallest coherent fix, run the affected checks, and commit when authorized. Complete the final full-branch review loop in `AGENTS.md` on the final committed head, then push when authorized.
 4. When review communication is authorized, reply to and resolve only the threads fully addressed by that push.
 5. Re-fetch the PR after pushing and confirm the live head, checks, and thread state.
 6. Continue from the fresh head while required checks or reviews remain pending; apply new authorized fixes in additive commits.
