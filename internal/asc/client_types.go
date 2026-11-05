@@ -180,6 +180,8 @@ const (
 	ResourceTypeSubscriptionOfferCodeOneTimeUseCodes            = types.ResourceTypeSubscriptionOfferCodeOneTimeUseCodes
 	ResourceTypeWinBackOffers                                   = types.ResourceTypeWinBackOffers
 	ResourceTypeWinBackOfferPrices                              = types.ResourceTypeWinBackOfferPrices
+	ResourceTypeRetentionOffers                                 = types.ResourceTypeRetentionOffers
+	ResourceTypeRetentionOfferPrices                            = types.ResourceTypeRetentionOfferPrices
 	ResourceTypeNominations                                     = types.ResourceTypeNominations
 	ResourceTypeMarketplaceSearchDetails                        = types.ResourceTypeMarketplaceSearchDetails
 	ResourceTypeMarketplaceWebhooks                             = types.ResourceTypeMarketplaceWebhooks

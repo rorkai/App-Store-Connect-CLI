@@ -571,6 +571,7 @@ var selfLinkIDFlagExclusions = map[string]string{
 	"asc game-center achievements submit --scoped-player-id":    "Game Center player identifier",
 	"asc game-center leaderboards submit --scoped-player-id":    "Game Center player identifier",
 	"asc subscriptions offers win-back create --offer-id":       "offerId attribute, not a resource ID",
+	"asc subscriptions offers retention create --offer-id":      "offerId attribute, not a resource ID",
 	"asc validate --apple-id":                                   "cached Apple Account for the web session",
 }
 

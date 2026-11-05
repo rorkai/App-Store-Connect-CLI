@@ -70,7 +70,10 @@ var includedResources = map[string]includedResource{
 	"passTypeIds":                            {"pass-type-id-fields", []string{"name", "identifier", "certificates"}},
 	"preReleaseVersions":                     {"pre-release-version-fields", []string{"version", "platform", "builds", "app"}},
 	"promotedPurchases":                      {"promoted-purchase-fields", []string{"visibleForAllUsers", "enabled", "state", "inAppPurchaseV2", "subscription"}},
+	"retentionOfferPrices":                   {"price-fields", []string{"territory", "subscriptionPricePoint"}},
 	"routingAppCoverages":                    {"routing-app-coverage-fields", []string{"fileSize", "fileName", "sourceFileChecksum", "uploadOperations", "assetDeliveryState", "appStoreVersion"}},
+	"subscriptionPricePoints":                {"price-point-fields", []string{"customerPrice", "proceeds", "proceedsYear2", "territory", "equalizations", "adjustedEqualizations"}},
+	"subscriptions":                          {"subscription-fields", []string{"name", "productId", "familySharable", "state", "subscriptionPeriod", "reviewNote", "groupLevel", "multiSeatStatus", "marketSettings", "subscriptionLocalizations", "appStoreReviewScreenshot", "group", "introductoryOffers", "promotionalOffers", "offerCodes", "prices", "pricePoints", "promotedPurchase", "subscriptionAvailability", "winBackOffers", "images", "planAvailabilities", "versions", "retentionOffers", "retentionMessage", "retentionMessageOffers"}},
 	"territories":                            {"territory-fields", []string{"currency"}},
 }
 

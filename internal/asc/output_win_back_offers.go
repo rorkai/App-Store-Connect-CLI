@@ -41,7 +41,7 @@ func winBackOfferPricesRows(resp *WinBackOfferPricesResponse) ([]string, [][]str
 	headers := []string{"ID", "Territory", "Price Point"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		territoryID, pricePointID, err := winBackOfferPriceRelationshipIDs(item.Relationships)
+		territoryID, pricePointID, err := offerPriceRelationshipIDs(item.Relationships)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -56,13 +56,13 @@ func winBackOfferDeleteResultRows(result *WinBackOfferDeleteResult) ([]string, [
 	return headers, rows
 }
 
-func winBackOfferPriceRelationshipIDs(raw json.RawMessage) (string, string, error) {
+func offerPriceRelationshipIDs(raw json.RawMessage) (string, string, error) {
 	if len(raw) == 0 {
 		return "", "", nil
 	}
 	var relationships WinBackOfferPriceRelationships
 	if err := json.Unmarshal(raw, &relationships); err != nil {
-		return "", "", fmt.Errorf("decode win-back offer price relationships: %w", err)
+		return "", "", fmt.Errorf("decode offer price relationships: %w", err)
 	}
 	pricePointID := ""
 	if relationships.SubscriptionPricePoint != nil {

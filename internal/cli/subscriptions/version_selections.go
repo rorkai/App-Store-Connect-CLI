@@ -129,7 +129,7 @@ var subscriptionRelatedFieldFlags = []subscriptionRelatedFieldFlag{
 	},
 	{
 		"retention-offer-fields", "retentionOffers",
-		[]string{"referenceName", "offerId", "duration", "offerMode", "periodCount", "customerEligibilityPaidSubscriptionDurationInMonths", "customerEligibilityWaitBetweenOffersInMonths", "targetSubscriptionPlanType", "subscription", "prices"},
+		retentionOfferFieldsList(),
 		func(f *asc.SubscriptionRelatedFields, v []string) { f.RetentionOffers = v },
 	},
 	{
