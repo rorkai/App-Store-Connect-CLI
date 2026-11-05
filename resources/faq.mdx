@@ -236,7 +236,6 @@
     "workflows": {
       "release": {
         "steps": [
-          {"name": "validate", "run": "asc validate --app 123456789 --version 1.2.3"},
           {"name": "publish", "run": "asc publish appstore --app 123456789 --ipa ./MyApp.ipa --version 1.2.3 --submit --confirm"}
         ]
       }
@@ -271,7 +270,7 @@
 </Accordion>
 
 <Accordion title="How do I handle API rate limits?">
-  The CLI retries rate-limited (429) requests for every method. GET/HEAD requests are also retried on timeouts, 5xx responses, and transport errors. Configure retry behavior:
+  The CLI retries rate-limited (429) requests for every method. GET/HEAD requests also retry on 408, 500, 502, 503, 504, and transient transport errors. Configure retry behavior:
 
   ```bash  theme={null}
   export ASC_MAX_RETRIES=5
@@ -280,7 +279,7 @@
   export ASC_RETRY_LOG=true
   ```
 
-  **Note**: POST/PATCH/PUT/DELETE requests are not replayed after a timeout, 5xx, or transport error, because the write may already have been applied.
+  **Note**: Ordinary POST/PATCH/PUT/DELETE requests are not replayed after a timeout, server error, or transport error, because the write may already have been applied. Explicitly idempotent mutations, such as setting territory availability, use the read retry policy.
 
   For long-running operations, increase timeouts:
 
