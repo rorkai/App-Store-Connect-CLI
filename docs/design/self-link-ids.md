@@ -226,7 +226,9 @@ carried past flag parsing on purpose, so callers keep a plain `*string`.
   identifiers (`asc apps update --bundle-id`, `asc signing ...`,
   `asc shots ...`), Game Center vendor identifiers, in-app purchase and
   subscription `productId` attributes, `offerId` on
-  `asc win-back-offers create --offer-id`, seed IDs, scoped player IDs, and
+  `asc win-back-offers create --offer-id` and
+  `asc subscriptions offers retention create --offer-id`, seed IDs, scoped
+  player IDs, and
   locales or territories.
   A URL is never a valid value for these, so the normalizer would only add a
   misleading error message.

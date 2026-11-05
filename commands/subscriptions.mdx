@@ -1205,6 +1205,34 @@ asc subscriptions offers offer-codes one-time-codes update \
   --confirm
 ```
 
+## Retention Offers
+
+Retention offers are discounts shown with a subscription's retention message when people start to cancel. Each `--price` is a subscription price point ID, one per territory. Creating an offer does not present it; add it to the subscription's presented offers.
+
+```bash  theme={null}
+# Create a retention offer
+asc subscriptions offers retention create \
+  --subscription-id "SUB_ID" \
+  --reference-name "winter" \
+  --offer-id "winter_one_month" \
+  --duration ONE_MONTH \
+  --offer-mode PAY_UP_FRONT \
+  --period-count 1 \
+  --eligibility-paid-months 3 \
+  --price "SUBSCRIPTION_PRICE_POINT_ID"
+
+# Present it with the subscription's retention message
+asc subscriptions offers retention presented add \
+  --subscription-id "SUB_ID" \
+  --retention-offer-id "OFFER_ID"
+
+# Stop presenting it
+asc subscriptions offers retention presented remove \
+  --subscription-id "SUB_ID" \
+  --retention-offer-id "OFFER_ID" \
+  --confirm
+```
+
 ## App Store Review
 
 Manage review screenshots for subscription approval.

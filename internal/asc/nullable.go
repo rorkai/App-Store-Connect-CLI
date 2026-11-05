@@ -79,3 +79,16 @@ func (n *NullablePlatform) UnmarshalJSON(data []byte) error {
 	n.Value = &value
 	return nil
 }
+
+// NullableInt represents an integer that may be explicitly null in JSON.
+// Use a nil pointer to omit the field entirely.
+type NullableInt struct {
+	Value *int
+}
+
+func (n NullableInt) MarshalJSON() ([]byte, error) {
+	if n.Value == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(*n.Value)
+}
