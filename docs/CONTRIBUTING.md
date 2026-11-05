@@ -9,7 +9,7 @@ This file covers patterns for AI agents working on the codebase.
 - Branch from `main` and keep one logical change per branch
 - Do not commit directly to `main` unless explicitly instructed; prefer PRs
 - Prefer `git worktree add` for parallel tasks; remove with `git worktree remove` when done
-- Compare the branch with current `main` before merging. Do not rebase or merge `main` into a clean branch merely because `main` advanced; update only when GitHub reports an actual merge conflict or refuses an explicitly authorized merge attempt made after every readiness gate passes under strict up-to-date branch protection, and never bypass protection with an admin merge
+- Follow `AGENTS.md` for the final review and merge gates. A newer `main` alone does not require another local review, test run, or branch update. Update only to resolve an actual merge conflict or a demonstrated integration defect; keep required checks passing and never bypass branch protection with an admin merge
 - Preserve additive PR commits. Do not force-push, rebase, squash, or otherwise rewrite shared history unless the user explicitly requests it. When merging, use a regular merge commit by default
 - Commit small, coherent changes; no WIP commits on shared branches
 - Use concise, present-tense commit messages that match repo style
