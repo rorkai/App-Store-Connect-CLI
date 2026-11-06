@@ -665,6 +665,11 @@ type Client struct {
 	cachedJWT          string
 	cachedJWTExpiresAt time.Time
 
+	// bearerToken is a token signed elsewhere (ASC_BEARER_TOKEN); when set,
+	// the client has no private key and sends it until it expires.
+	bearerToken          string
+	bearerTokenExpiresAt time.Time
+
 	mutatingRequestLimiterOnce sync.Once
 	mutatingRequestLimiter     chan struct{}
 

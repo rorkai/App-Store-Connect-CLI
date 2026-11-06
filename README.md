@@ -108,6 +108,8 @@ asc auth login \
 Generate API keys at:
 https://appstoreconnect.apple.com/access/integrations/api
 
+If a service holds the private key and signs App Store Connect tokens for you, set `ASC_BEARER_TOKEN` to such a token instead of configuring a key; `asc` sends it until it expires (Apple's maximum is 20 minutes). See [Authentication](https://docs.asccli.sh/authentication#option-4-a-token-signed-elsewhere).
+
 If you are running in CI, a headless shell, or a machine where keychain access is not available, use config-backed auth instead:
 
 ```bash

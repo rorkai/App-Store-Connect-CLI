@@ -173,6 +173,17 @@ Alternatively, pass the key content directly:
   Never commit private keys to version control. Use secret management tools in CI/CD (GitHub Secrets, GitLab CI Variables, etc.).
 </Warning>
 
+### Option 4: A token signed elsewhere
+
+When a service keeps the private key and signs App Store Connect API tokens for you, pass the token instead of the key:
+
+```bash
+export ASC_BEARER_TOKEN="eyJhbGciOiJFUzI1NiIs..."
+asc apps list
+```
+
+`ASC_BEARER_TOKEN` takes precedence over every stored profile and private-key variable. `asc` sends the token as is and cannot renew it: Apple caps a token at 20 minutes, and once it expires commands fail with an error naming `ASC_BEARER_TOKEN` before sending a request; mint a new one. Notarization (`asc notarization`) needs its own token scope and still requires a private key. Commands that hand the key to Xcode or `altool` also need a private key.
+
 ## Apple Account web sessions
 
 `asc web` commands use a cached Apple Account web session, not an API key. That
@@ -264,7 +275,7 @@ asc --profile "WorkApp" apps list
 
 ## Credential resolution
 
-Authentication does not use one universal `environment > config > keychain` order. Profile selection, environment completeness, and keychain bypass change which source is consulted first. This matrix is the source of truth for App Store Connect API credentials:
+A non-empty `ASC_BEARER_TOKEN` skips this resolution entirely (see [Option 4](#option-4-a-token-signed-elsewhere)). Otherwise, authentication does not use one universal `environment > config > keychain` order. Profile selection, environment completeness, and keychain bypass change which source is consulted first. This matrix is the source of truth for App Store Connect API credentials:
 
 | Selector and bypass state | First source | Environment behavior |
 | --- | --- | --- |
@@ -510,6 +521,7 @@ Without `ASC_CONFIG_PATH`, logout removes matching credentials from the active c
 | `ASC_PRIVATE_KEY`      | Raw PEM content               | `-----BEGIN PRIVATE KEY-----\n...`     |
 | `ASC_PRIVATE_KEY_B64`  | Base64-encoded PEM            | `LS0tLS1CRUdJTi...`                    |
 | `ASC_KEY_TYPE`         | API key type (`team`, `individual`, or `enterprise`) | `team`                         |
+| `ASC_BEARER_TOKEN`     | App Store Connect token signed elsewhere; replaces key credentials | `eyJhbGciOiJFUzI1NiIs...` |
 | `ASC_PROFILE`          | Named profile to use          | `MyApp`                                |
 | `ASC_BYPASS_KEYCHAIN`  | Skip keychain, use config/env | `1`, `true`, `yes`, `on`               |
 | `ASC_STRICT_AUTH`      | Fail when required fields mix sources | `1`, `true`, `yes`, `y`, `on`   |

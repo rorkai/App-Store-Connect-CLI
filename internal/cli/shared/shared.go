@@ -42,6 +42,7 @@ const (
 	profileEnvVar          = "ASC_PROFILE"
 	strictAuthEnvVar       = "ASC_STRICT_AUTH"
 	defaultOutputEnvVar    = "ASC_DEFAULT_OUTPUT"
+	bearerTokenEnvVar      = "ASC_BEARER_TOKEN"
 )
 
 const (
@@ -949,7 +950,27 @@ func allowsEnvFallbackForStoredError(err error) bool {
 	return errors.Is(err, config.ErrNotFound) || errors.Is(err, auth.ErrDefaultCredentialsNotFound)
 }
 
+// bearerTokenClient returns a client for ASC_BEARER_TOKEN, a token signed by
+// a service that keeps the private key (for example `rork apple asc`). It
+// takes precedence over every stored or environment key; ok is false when the
+// variable is unset.
+func bearerTokenClient(timeout time.Duration) (client *asc.Client, ok bool, err error) {
+	token := strings.TrimSpace(os.Getenv(bearerTokenEnvVar))
+	if token == "" {
+		return nil, false, nil
+	}
+	ApplyRootLoggingOverrides()
+	client, err = asc.NewClientFromBearerToken(token, timeout)
+	if err != nil {
+		return nil, true, fmt.Errorf("%s: %w", bearerTokenEnvVar, err)
+	}
+	return client, true, nil
+}
+
 func getASCClient() (*asc.Client, error) {
+	if client, ok, err := bearerTokenClient(0); ok {
+		return client, err
+	}
 	resolved, err := resolveCredentials()
 	if err != nil {
 		return nil, err
@@ -958,6 +979,9 @@ func getASCClient() (*asc.Client, error) {
 }
 
 func getASCClientWithTimeout(timeout time.Duration) (*asc.Client, error) {
+	if client, ok, err := bearerTokenClient(timeout); ok {
+		return client, err
+	}
 	resolved, err := resolveCredentials()
 	if err != nil {
 		return nil, err
