@@ -24,6 +24,7 @@ func CustomPageLocalizationsScreenshotSetsUploadCommand() *ffcli.Command {
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
+	pollInterval := shared.BindMediaPollIntervalFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -38,6 +39,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			ctx, pollErr := pollInterval.Apply(ctx)
+			if pollErr != nil {
+				return pollErr
+			}
 			result, err := executeCustomPageScreenshotUpload(ctx, *localizationID, *path, *deviceType, false)
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations screenshot-sets upload: %w", err)
@@ -55,6 +60,7 @@ func CustomPageLocalizationsScreenshotSetsSyncCommand() *ffcli.Command {
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	confirm := fs.Bool("confirm", false, "Confirm sync (deletes existing media in the matching set before upload)")
+	pollInterval := shared.BindMediaPollIntervalFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -70,6 +76,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			ctx, pollErr := pollInterval.Apply(ctx)
+			if pollErr != nil {
+				return pollErr
+			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to sync")
 				return shared.MissingRequiredUsageError("--confirm")
@@ -91,6 +101,7 @@ func CustomPageLocalizationsPreviewSetsUploadCommand() *ffcli.Command {
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	path := fs.String("path", "", "Path to preview file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
+	pollInterval := shared.BindMediaPollIntervalFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -105,6 +116,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			ctx, pollErr := pollInterval.Apply(ctx)
+			if pollErr != nil {
+				return pollErr
+			}
 			result, err := executeCustomPagePreviewUpload(ctx, *localizationID, *path, *deviceType, false)
 			if result != nil {
 				if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
@@ -127,6 +142,7 @@ func CustomPageLocalizationsPreviewSetsSyncCommand() *ffcli.Command {
 	path := fs.String("path", "", "Path to preview file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	confirm := fs.Bool("confirm", false, "Confirm sync (deletes existing media in the matching set before upload)")
+	pollInterval := shared.BindMediaPollIntervalFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -142,6 +158,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			ctx, pollErr := pollInterval.Apply(ctx)
+			if pollErr != nil {
+				return pollErr
+			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to sync")
 				return shared.MissingRequiredUsageError("--confirm")

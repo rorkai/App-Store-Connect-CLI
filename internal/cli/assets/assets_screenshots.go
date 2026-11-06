@@ -762,6 +762,7 @@ func AssetsScreenshotsUploadCommand() *ffcli.Command {
 	concurrency := fs.Int("concurrency", defaultScreenshotUploadConcurrency, "Parallel screenshot uploads within a set (1-10)")
 	assetLibrary := fs.Bool("asset-library", false, "Upload to the Asset Library and place on the localization instead of using a screenshot set (requires --version-localization)")
 	placementGroup := fs.String("placement-group", "", "Placement group to use with --asset-library (defaults to the group Apple publishes for --device-type)")
+	pollInterval := shared.BindMediaPollIntervalFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -829,6 +830,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			ctx, pollErr := pollInterval.Apply(ctx)
+			if pollErr != nil {
+				return pollErr
+			}
 			if *concurrency < 1 || *concurrency > maxScreenshotUploadConcurrency {
 				return shared.UsageError(fmt.Sprintf("screenshots upload: --concurrency must be between 1 and %d", maxScreenshotUploadConcurrency))
 			}

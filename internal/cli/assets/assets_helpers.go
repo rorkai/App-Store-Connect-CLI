@@ -17,7 +17,6 @@ import (
 
 const (
 	assetUploadDefaultTimeout = 10 * time.Minute
-	assetPollInterval         = 2 * time.Second
 )
 
 func contextWithAssetUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -104,7 +103,7 @@ func flagWasSet(fs *flag.FlagSet, name string) bool {
 
 func waitForAssetDeliveryState(ctx context.Context, assetID string, fetch func(context.Context) (*asc.AssetDeliveryState, error)) (string, error) {
 	var lastState string
-	_, err := asc.PollUntil(ctx, assetPollInterval, func(ctx context.Context) (struct{}, bool, error) {
+	_, err := asc.PollMediaUntil(ctx, func(ctx context.Context) (struct{}, bool, error) {
 		state, err := fetch(ctx)
 		if err != nil {
 			return struct{}{}, false, err
@@ -119,7 +118,7 @@ func waitForAssetDeliveryState(ctx context.Context, assetID string, fetch func(c
 			}
 		}
 		return struct{}{}, false, nil
-	})
+	}, asc.PollOptions{})
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return lastState, fmt.Errorf("timed out waiting for asset %s delivery: %w", assetID, err)

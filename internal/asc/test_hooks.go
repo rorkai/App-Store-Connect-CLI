@@ -7,10 +7,10 @@ func ResetConfigCacheForTest() {
 	resetConfigCacheForTest()
 }
 
-// SetAssetLibraryProcessingPollIntervalForTest replaces how often Asset Library
-// uploads poll for processing. The returned function restores the previous value.
-func SetAssetLibraryProcessingPollIntervalForTest(interval time.Duration) func() {
-	previous := assetLibraryProcessingPollInterval
-	assetLibraryProcessingPollInterval = interval
-	return func() { assetLibraryProcessingPollInterval = previous }
+// SetMediaPollIntervalsForTest replaces the default media processing poll
+// schedule bounds. The returned function restores the previous values.
+func SetMediaPollIntervalsForTest(initial, maxInterval time.Duration) func() {
+	previousInitial, previousMax := mediaPollInitialInterval, mediaPollMaxInterval
+	mediaPollInitialInterval, mediaPollMaxInterval = initial, maxInterval
+	return func() { mediaPollInitialInterval, mediaPollMaxInterval = previousInitial, previousMax }
 }

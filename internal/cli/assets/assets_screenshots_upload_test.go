@@ -151,11 +151,7 @@ func TestUploadScreenshotsDryRunValidatesSourceRootBeforePreview(t *testing.T) {
 func TestUploadScreenshotsSkipExistingStartsUploadTimeoutAfterChecksumFiltering(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "200ms")
 	t.Setenv("ASC_UPLOAD_TIMEOUT", "30s")
-	originalPollInterval := screenshotSettlementPollInterval
-	screenshotSettlementPollInterval = time.Millisecond
-	t.Cleanup(func() {
-		screenshotSettlementPollInterval = originalPollInterval
-	})
+	t.Cleanup(asc.SetMediaPollIntervalsForTest(time.Millisecond, time.Millisecond))
 
 	filePath := writeAssetsTestPNG(t, t.TempDir(), "01-home.png")
 	fileSizeBytes := fileSize(t, filePath)
@@ -434,12 +430,8 @@ func TestUploadScreenshotsSkipExistingChecksumTimeoutIncludesAssetID(t *testing.
 
 func TestWaitForScreenshotSettlementReportsCallerCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	originalPollInterval := screenshotSettlementPollInterval
-	screenshotSettlementPollInterval = time.Millisecond
-	t.Cleanup(func() {
-		screenshotSettlementPollInterval = originalPollInterval
-		cancel()
-	})
+	t.Cleanup(asc.SetMediaPollIntervalsForTest(time.Millisecond, time.Millisecond))
+	t.Cleanup(cancel)
 
 	deliveryCalls := 0
 	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {

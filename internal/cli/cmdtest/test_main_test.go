@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 	restoreControllingTTY := webcli.DisableControllingTTYForTesting()
 	// The core web package tests the default and rate-limit behavior.
 	restorePacing := webcore.DisableRequestPacingForTesting()
-	restoreAssetLibraryPoll := asc.SetAssetLibraryProcessingPollIntervalForTest(time.Millisecond)
+	restoreAssetLibraryPoll := asc.SetMediaPollIntervalsForTest(time.Millisecond, time.Millisecond)
 
 	_ = os.Setenv("ASC_CONFIG_PATH", testConfigPath)
 	_ = os.Setenv("ASC_BYPASS_KEYCHAIN", "1")

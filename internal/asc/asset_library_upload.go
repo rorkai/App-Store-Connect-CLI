@@ -7,10 +7,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"time"
 )
-
-var assetLibraryProcessingPollInterval = 2 * time.Second
 
 type assetLibraryImageUploadResponse struct {
 	Data struct {
@@ -125,7 +122,7 @@ func (c *Client) UploadAssetLibraryImageWithCategory(ctx context.Context, librar
 	}
 	result.Uploaded = true
 	nextStage("processing")
-	_, err = PollUntilTolerant(ctx, assetLibraryProcessingPollInterval, func(context.Context) (struct{}, bool, error) {
+	_, err = PollMediaUntil(ctx, func(context.Context) (struct{}, bool, error) {
 		raw, err := request("GET", path, nil)
 		if err != nil {
 			return struct{}{}, false, err

@@ -396,8 +396,15 @@ uploaded from each locale subtree. A device-rooted layout such as
 * Exact dimensions must match the device type specification
 * A screenshot set can contain at most 10 images; use `--max-screenshots 10`
   to upload the first 10 sorted files when a source folder contains extras
-* `--concurrency` controls parallel uploads within one set (1–8, default 4);
+* `--concurrency` controls parallel uploads within one set (1–10, default 10);
   results and remote ordering remain deterministic
+* While a screenshot processes, the upload checks its state every 2s, then
+  slows to every 15s after about 30s. Each processing file uses one request per
+  check against App Store Connect's 3600 requests per hour per API key. Pass
+  `--poll-interval 30s` to check at a fixed slower rate, for example when CI
+  jobs share a key. The same flag works on `video-previews upload`,
+  `asset-library images upload`, `asset-library videos upload`, and the
+  `product-pages` screenshot and preview set uploads
 * Use `asc screenshots sizes` to verify required dimensions
 * Partial failures write a retry artifact under `.asc/reports/screenshots-upload/`;
   if cleanup of a remote asset fails, the asset ID is retained in the artifact

@@ -115,7 +115,7 @@ func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, librar
 		return result, fmt.Errorf("commit video %s: %w", result.VideoID, err)
 	}
 	result.Uploaded = true
-	_, err = PollUntilTolerant(ctx, assetLibraryProcessingPollInterval, func(context.Context) (struct{}, bool, error) {
+	_, err = PollMediaUntil(ctx, func(context.Context) (struct{}, bool, error) {
 		raw, err := request("GET", path, nil)
 		if err != nil {
 			return struct{}{}, false, err
