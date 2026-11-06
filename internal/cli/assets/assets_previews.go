@@ -114,6 +114,7 @@ func assetsPreviewsUploadCommandWithDependencies(deps previewUploadDependencies)
 	assetLibrary := fs.Bool("asset-library", false, "Upload to the Asset Library and place on the localization instead of using a preview set")
 	placementGroup := fs.String("placement-group", "", "Placement group to use with --asset-library (defaults to the group Apple publishes for --device-type)")
 	timeCode := fs.String("time-code", "", "Poster frame timecode, set after Apple finishes processing each video (e.g., 00:00:05:00 or 00:00:05.000); not available with --asset-library")
+	pollInterval := shared.BindMediaPollIntervalFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -161,6 +162,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			ctx, pollErr := pollInterval.Apply(ctx)
+			if pollErr != nil {
+				return pollErr
+			}
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-localization is required")

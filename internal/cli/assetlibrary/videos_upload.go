@@ -63,6 +63,7 @@ func videosUploadCommand() *ffcli.Command {
 	category := fs.String("category", "CREATIVE_ASSETS", "Asset category: CREATIVE_ASSETS or APP_SCREENSHOTS_AND_PREVIEWS")
 	referenceName := bindUploadReferenceNameFlag(fs)
 	timeCode := fs.String("time-code", "", "Poster frame time code: HH:MM:SS:FF or HH:MM:SS.mmm")
+	pollInterval := shared.BindMediaPollIntervalFlag(fs)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{Name: "upload", ShortUsage: "asc asset-library videos upload --library-id ID --file video.mp4 [flags]", ShortHelp: "Upload a video to the Asset Library and wait for processing.", LongHelp: `Upload a video independently of an app version, placement or review submission.
 
@@ -80,6 +81,10 @@ Examples:
   asc asset-library videos upload --library-id LIBRARY_ID --file ./duo-preview.mp4 --category APP_SCREENSHOTS_AND_PREVIEWS
   asc asset-library videos upload --library-id LIBRARY_ID --file ./cms-8f3a21.mp4 --reference-name "Hero en-US 3.14"
   asc asset-library videos upload --library-id LIBRARY_ID --file ./header.mp4 --time-code 00:00:03:00`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+		ctx, pollErr := pollInterval.Apply(ctx)
+		if pollErr != nil {
+			return pollErr
+		}
 		if len(args) > 0 {
 			return shared.UsageErrorf("asset-library videos upload: unexpected argument %q", args[0])
 		}

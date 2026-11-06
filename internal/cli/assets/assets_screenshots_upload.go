@@ -15,8 +15,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-var screenshotSettlementPollInterval = assetPollInterval
-
 func normalizeScreenshotDisplayType(input string) (string, error) {
 	value := strings.ToUpper(strings.TrimSpace(input))
 	if value == "" {
@@ -612,7 +610,7 @@ func waitForScreenshotSettlement(ctx context.Context, client *asc.Client, screen
 
 	lastState := ""
 	lastRemote := asc.Resource[asc.AppScreenshotAttributes]{}
-	settled, err := asc.PollUntil(ctx, screenshotSettlementPollInterval, func(ctx context.Context) (asc.Resource[asc.AppScreenshotAttributes], bool, error) {
+	settled, err := asc.PollMediaUntil(ctx, func(ctx context.Context) (asc.Resource[asc.AppScreenshotAttributes], bool, error) {
 		resp, err := client.GetAppScreenshot(ctx, assetID)
 		if err != nil {
 			return asc.Resource[asc.AppScreenshotAttributes]{}, false, fmt.Errorf("fetch screenshot %s during checksum settlement: %w", assetID, err)
@@ -632,7 +630,7 @@ func waitForScreenshotSettlement(ctx context.Context, client *asc.Client, screen
 			}
 		}
 		return resp.Data, false, nil
-	})
+	}, asc.PollOptions{})
 	if err == nil {
 		return settled, nil
 	}

@@ -18,9 +18,7 @@ func TestAssetLibraryImageProgress(t *testing.T) {
 	for _, outcome := range []string{"ready", "failed", "canceled"} {
 		t.Run(outcome, func(t *testing.T) {
 			setFastAssetUploadRetries(t, "1")
-			previous := assetLibraryProcessingPollInterval
-			assetLibraryProcessingPollInterval = time.Nanosecond
-			t.Cleanup(func() { assetLibraryProcessingPollInterval = previous })
+			t.Cleanup(SetMediaPollIntervalsForTest(time.Nanosecond, time.Nanosecond))
 			attempts, polls := 0, 0
 			var server *httptest.Server
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

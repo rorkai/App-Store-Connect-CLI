@@ -23,6 +23,7 @@ func imagesUploadCommand() *ffcli.Command {
 	category := fs.String("category", "CREATIVE_ASSETS", "Asset category: CREATIVE_ASSETS or APP_SCREENSHOTS_AND_PREVIEWS")
 	referenceName := bindUploadReferenceNameFlag(fs)
 	progress := fs.Bool("progress", false, "Emit structured upload progress as JSONL on stderr")
+	pollInterval := shared.BindMediaPollIntervalFlag(fs)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "upload", ShortUsage: "asc asset-library images upload --library-id ID --file image.png [flags]",
@@ -38,6 +39,10 @@ Examples:
   asc asset-library images upload --library-id LIBRARY_ID --file ./cms-8f3a21.png --reference-name "Hero en-US 3.14"`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			ctx, pollErr := pollInterval.Apply(ctx)
+			if pollErr != nil {
+				return pollErr
+			}
 			if len(args) != 0 {
 				return shared.UsageErrorf("asset-library images upload: unexpected argument %q", args[0])
 			}
