@@ -490,7 +490,7 @@ jobs:
 
       - name: Set up native dependency builder Python
         if: hashFiles('scripts/build_fido2_deps.py') != ''
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
 
