@@ -5,9 +5,18 @@ package uploadlock
 import (
 	"errors"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/sys/windows"
 )
+
+func accountLockDir() (string, error) {
+	dir, err := windows.KnownFolderPath(windows.FOLDERID_LocalAppData, windows.KF_FLAG_DEFAULT)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "asc"), nil
+}
 
 func tryLock(file *os.File) (bool, error) {
 	var overlapped windows.Overlapped

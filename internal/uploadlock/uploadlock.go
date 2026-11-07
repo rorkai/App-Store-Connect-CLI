@@ -9,6 +9,7 @@ package uploadlock
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -36,17 +37,23 @@ var (
 	pollInterval = defaultPollInterval
 )
 
+// defaultLockDir anchors the lock to the OS account rather than HOME, so
+// processes that run with different HOME values still share one lock.
 func defaultLockDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("resolve home dir: %w", err)
+	dir, err := accountLockDir()
+	if err == nil {
+		return dir, nil
+	}
+	home, homeErr := os.UserHomeDir()
+	if homeErr != nil {
+		return "", fmt.Errorf("resolve lock dir: %w", errors.Join(err, homeErr))
 	}
 	return filepath.Join(home, ".asc", "cache"), nil
 }
 
-// Acquire takes the machine-wide asc upload lock and returns the function that
-// releases it. The operating system also releases the lock when the process
-// exits, including after a crash.
+// Acquire takes the asc upload lock shared by every process of this OS user
+// and returns the function that releases it. The operating system also
+// releases the lock when the process exits, including after a crash.
 //
 // While another asc process holds the lock, Acquire tells stderr once and
 // waits up to 30 minutes. Callers should take the lock before they start any

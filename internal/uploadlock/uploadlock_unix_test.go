@@ -30,6 +30,21 @@ func TestHelperHoldUploadLock(t *testing.T) {
 	_, _ = io.Copy(io.Discard, os.Stdin)
 }
 
+func TestDefaultLockDirIsSharedAcrossHOMEValues(t *testing.T) {
+	want, err := defaultLockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", t.TempDir())
+	got, err := defaultLockDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("lock dir with another HOME = %q, want %q", got, want)
+	}
+}
+
 type notifyingWriter struct {
 	once    sync.Once
 	written chan struct{}
