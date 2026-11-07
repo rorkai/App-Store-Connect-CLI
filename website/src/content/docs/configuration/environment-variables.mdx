@@ -364,6 +364,16 @@ For `subscriptions offers introductory create`, an explicit request timeout also
   Upload and streamed download timeout in seconds (alternative to `ASC_UPLOAD_TIMEOUT`)
 </ParamField>
 
+<ParamField path="ASC_UPLOAD_LOCK" type="boolean">
+  Set to `0` to let `screenshots upload` and `video-previews upload` run while another
+  `asc` upload is running on the same machine. By default the second upload prints
+  `Waiting for another asc upload to finish` and waits up to 30 minutes before it sends
+  any request, so concurrent runs do not compete for the account's rate limit and the
+  network. The wait does not count against `ASC_UPLOAD_TIMEOUT`.
+
+  Default: `1`
+</ParamField>
+
 ## Retry and debugging variables
 
 Configure retry behavior and debug logging.

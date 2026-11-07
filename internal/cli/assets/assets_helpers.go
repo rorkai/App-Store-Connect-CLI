@@ -13,6 +13,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/uploadlock"
 )
 
 const (
@@ -24,6 +25,13 @@ func contextWithAssetUploadTimeout(ctx context.Context) (context.Context, contex
 		ctx = context.Background()
 	}
 	return context.WithTimeout(ctx, asc.ResolveUploadTimeoutWithDefault(assetUploadDefaultTimeout))
+}
+
+// acquireAssetUploadLock waits for any other asc upload on this machine to
+// finish. Upload commands take it after validating their input and before
+// they start an upload deadline, so the wait is not charged to the upload.
+func acquireAssetUploadLock(ctx context.Context) (func(), error) {
+	return uploadlock.Acquire(ctx, os.Stderr)
 }
 
 // ContextWithAssetUploadTimeout returns a context with the asset upload timeout.

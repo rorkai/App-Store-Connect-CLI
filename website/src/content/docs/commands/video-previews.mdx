@@ -82,6 +82,8 @@ The CLI handles the multi-step upload process automatically:
 4. Commits the upload
 5. Polls for processing completion
 
+Only one `asc` upload runs at a time on a machine: while another `screenshots upload` or `video-previews upload` is running, the command prints `Waiting for another asc upload to finish` and waits up to 30 minutes before it sends any request. Set `ASC_UPLOAD_LOCK=0` to skip the wait. The wait does not count against `ASC_UPLOAD_TIMEOUT`.
+
 **Example Output:**
 
 ```json
