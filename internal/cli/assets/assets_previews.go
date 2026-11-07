@@ -1064,7 +1064,7 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		}
 	}
 
-	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
+	uploadCtx, cancel := contextWithAssetUploadTimeout(withAssetUploadWork(ctx, files))
 	defer cancel()
 
 	if replace {

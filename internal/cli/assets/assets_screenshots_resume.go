@@ -293,7 +293,7 @@ func executeAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 		return buildAppScreenshotUploadResult(cfg.LocalizationID, prepared.Set, true, results), nil
 	}
 
-	uploadCtx, cancel := cfg.UploadContext(ctx)
+	uploadCtx, cancel := cfg.UploadContext(withAssetUploadWork(ctx, prepared.Files))
 	defer cancel()
 
 	var openedFiles openedScreenshotFiles
@@ -395,7 +395,7 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 		return asc.AppScreenshotUploadResult{}, fmt.Errorf("resume artifact %q has no pending files or ordering work", artifactPath)
 	}
 
-	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
+	uploadCtx, cancel := contextWithAssetUploadTimeout(withAssetUploadWork(ctx, artifact.PendingFiles))
 	defer cancel()
 
 	if len(artifact.CleanupFailures) > 0 {

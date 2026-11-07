@@ -16,15 +16,48 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/uploadlock"
 )
 
+// The default upload deadline grows with the files it covers, from the
+// base for no recorded work up to the maximum. ASC_UPLOAD_TIMEOUT replaces it.
 const (
 	assetUploadDefaultTimeout = 10 * time.Minute
+	assetUploadTimeoutPerFile = time.Minute
+	assetUploadTimeoutPerMiB  = 30 * time.Second
+	assetUploadMaxTimeout     = time.Hour
 )
+
+type assetUploadWorkKey struct{}
+
+type assetUploadWork struct {
+	files int
+	bytes int64
+}
+
+// withAssetUploadWork records the files that the next upload deadline must
+// cover, so contextWithAssetUploadTimeout can size its default to them.
+func withAssetUploadWork(ctx context.Context, files []string) context.Context {
+	work := assetUploadWork{files: len(files)}
+	for _, filePath := range files {
+		if info, err := os.Stat(filePath); err == nil {
+			work.bytes += info.Size()
+		}
+	}
+	return context.WithValue(ctx, assetUploadWorkKey{}, work)
+}
+
+func assetUploadTimeoutForWork(work assetUploadWork) time.Duration {
+	mib := (work.bytes + 1<<20 - 1) >> 20
+	timeout := assetUploadDefaultTimeout +
+		time.Duration(work.files)*assetUploadTimeoutPerFile +
+		time.Duration(mib)*assetUploadTimeoutPerMiB
+	return min(timeout, assetUploadMaxTimeout)
+}
 
 func contextWithAssetUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return context.WithTimeout(ctx, asc.ResolveUploadTimeoutWithDefault(assetUploadDefaultTimeout))
+	work, _ := ctx.Value(assetUploadWorkKey{}).(assetUploadWork)
+	return context.WithTimeout(ctx, asc.ResolveUploadTimeoutWithDefault(assetUploadTimeoutForWork(work)))
 }
 
 // acquireAssetUploadLock waits for any other asc upload on this machine to

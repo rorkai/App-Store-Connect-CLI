@@ -226,7 +226,7 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 		defer closeOpenedScreenshotFiles(openedFiles)
 	}
 
-	uploadCtx, cancel := cfg.UploadContext(ctx)
+	uploadCtx, cancel := cfg.UploadContext(withAssetUploadWork(ctx, files))
 	defer cancel()
 
 	if cfg.Replace {
