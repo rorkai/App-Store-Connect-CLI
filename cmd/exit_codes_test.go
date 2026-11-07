@@ -71,6 +71,11 @@ func TestExitCodeFromError(t *testing.T) {
 			expected: ExitAuth,
 		},
 		{
+			name:     "ASC_BEARER_TOKEN expiring mid-run returns auth failure",
+			err:      fmt.Errorf("failed to generate JWT: %w", asc.ErrBearerTokenExpired),
+			expected: ExitAuth,
+		},
+		{
 			name:     "wrapped invalid Apple Account credentials return auth failure",
 			err:      fmt.Errorf("SRP login failed: %w", webcore.ErrInvalidAppleAccountCredentials),
 			expected: ExitAuth,

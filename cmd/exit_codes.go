@@ -67,6 +67,7 @@ func ExitCodeFromError(err error) int {
 	if errors.Is(err, shared.ErrMissingAuth) ||
 		errors.Is(err, asc.ErrUnauthorized) ||
 		errors.Is(err, asc.ErrForbidden) ||
+		errors.Is(err, asc.ErrBearerTokenExpired) ||
 		errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) ||
 		errors.Is(err, webcore.ErrTwoFactorCodeRejected) {
 		return ExitAuth

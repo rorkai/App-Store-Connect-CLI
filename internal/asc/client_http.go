@@ -91,6 +91,9 @@ func (c *Client) validateRequestHost(target string) error {
 // generateJWT generates a JWT for the client's API
 func (c *Client) generateJWT() (string, error) {
 	now := time.Now()
+	if c.bearerToken != "" {
+		return c.bearerJWT(now)
+	}
 
 	c.jwtMu.Lock()
 	defer c.jwtMu.Unlock()
