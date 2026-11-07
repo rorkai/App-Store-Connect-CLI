@@ -29,6 +29,12 @@ func TestAssetUploadsWaitForAnotherAscUploadAfterValidatingInput(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	missingSourcePath := filepath.Join(artifactDir, "missing-source.json")
+	missingSource := `{"versionLocalizationId":"LOC_123","setId":"SET_123","rootPath":"` + artifactDir + `","pendingFiles":["` + filepath.Join(artifactDir, "gone.png") + `"]}`
+	if err := os.WriteFile(missingSourcePath, []byte(missingSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
 	const heldLockError = "another asc upload still held"
 	tests := []struct {
 		name     string
@@ -52,6 +58,11 @@ func TestAssetUploadsWaitForAnotherAscUploadAfterValidatingInput(t *testing.T) {
 			name:    "screenshots upload --resume reports a missing artifact without waiting",
 			args:    []string{"screenshots", "upload", "--resume", filepath.Join(artifactDir, "missing.json")},
 			wantErr: "load resume artifact",
+		},
+		{
+			name:    "screenshots upload --resume reports a missing pending file without waiting",
+			args:    []string{"screenshots", "upload", "--resume", missingSourcePath},
+			wantErr: "gone.png: no such file or directory",
 		},
 		{
 			name:     "video-previews upload",
