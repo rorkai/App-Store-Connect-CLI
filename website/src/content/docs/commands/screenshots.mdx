@@ -403,8 +403,9 @@ uploaded from each locale subtree. A device-rooted layout such as
   `Waiting for another asc upload to finish` and waits up to 30 minutes before
   it sends any request. The wait does not count against `ASC_UPLOAD_TIMEOUT`.
   Set `ASC_UPLOAD_LOCK=0` to upload without waiting
-* Each set's upload deadline defaults to 10 minutes plus 1 minute per file and
-  30 seconds per MiB, at most 1 hour; `ASC_UPLOAD_TIMEOUT` replaces it
+* Without `--asset-library`, each set's upload deadline defaults to 10 minutes
+  plus 1 minute per file and 30 seconds per MiB, at most 1 hour;
+  `ASC_UPLOAD_TIMEOUT` replaces it
 * While a screenshot processes, the upload checks its state every 2s, then
   slows to every 15s after about 30s. Each processing file uses one request per
   check against App Store Connect's 3600 requests per hour per API key. Pass
