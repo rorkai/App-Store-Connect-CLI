@@ -277,7 +277,7 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if err == nil {
 		t.Fatal("expected resumeAppScreenshotUpload() error")
 	}
@@ -352,7 +352,7 @@ func TestResumeAppScreenshotUploadRetriesCleanupBeforeNewUploads(t *testing.T) {
 		}
 	}))
 
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if err == nil || !strings.Contains(err.Error(), "cleanup unavailable") {
 		t.Fatalf("first resume error = %v, want cleanup failure", err)
 	}
@@ -370,7 +370,7 @@ func TestResumeAppScreenshotUploadRetriesCleanupBeforeNewUploads(t *testing.T) {
 		t.Fatalf("rewritten cleanup failures = %#v, want leaked-1", artifact.CleanupFailures)
 	}
 
-	result, err = resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	result, err = resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("second resume error = %v, want 404 cleanup to be idempotent", err)
 	}
@@ -533,7 +533,7 @@ func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testin
 		t.Fatalf("unexpected pending asset: %#v", pending)
 	}
 
-	result, err = resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	result, err = resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -632,7 +632,7 @@ func TestResumeAppScreenshotUploadRejectsChangedFileForCompletedReservation(t *t
 		}
 	}))
 
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if err == nil {
 		t.Fatal("expected changed-file error")
 	}
@@ -688,7 +688,7 @@ func TestResumeAppScreenshotUploadRejectsSymlinkedParentBelowRecordedRoot(t *tes
 		writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":"settled","assetDeliveryState":{"state":"COMPLETE"}}}}`)
 	}))
 
-	_, err = resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	_, err = resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if !errors.Is(err, rootfs.ErrSymlink) {
 		t.Fatalf("resumeAppScreenshotUpload() error = %v, want rootfs.ErrSymlink", err)
 	}
@@ -981,7 +981,7 @@ func TestResumeAppScreenshotUploadOrderingOnlyDoesNotRequireSourceRoot(t *testin
 		writeAssetsTestJSON(w, http.StatusNoContent, "")
 	}))
 
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -1200,7 +1200,7 @@ func TestResumeAppScreenshotUploadSkipExistingPreservesPendingLocalOrder(t *test
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -1273,7 +1273,7 @@ func TestResumeAppScreenshotUploadSkipExistingRetriesOrderingWithoutIDs(t *testi
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -1360,7 +1360,7 @@ func TestPersistScreenshotUploadFailureArtifactNormalizesPendingPathsForResume(t
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}

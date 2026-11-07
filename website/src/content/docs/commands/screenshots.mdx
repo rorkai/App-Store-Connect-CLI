@@ -398,6 +398,14 @@ uploaded from each locale subtree. A device-rooted layout such as
   to upload the first 10 sorted files when a source folder contains extras
 * `--concurrency` controls parallel uploads within one set (1–10, default 10);
   results and remote ordering remain deterministic
+* Only one `asc` upload runs at a time on a machine. While another
+  `screenshots upload` or `video-previews upload` is running, the command prints
+  `Waiting for another asc upload to finish` and waits up to 30 minutes before
+  it sends any request. The wait does not count against `ASC_UPLOAD_TIMEOUT`.
+  Set `ASC_UPLOAD_LOCK=0` to upload without waiting
+* Without `--asset-library`, each set's upload deadline defaults to 10 minutes
+  plus 1 minute per file and 30 seconds per MiB, at most 1 hour;
+  `ASC_UPLOAD_TIMEOUT` replaces it
 * While a screenshot processes, the upload checks its state every 2s, then
   slows to every 15s after about 30s. Each processing file uses one request per
   check against App Store Connect's 3600 requests per hour per API key. Pass

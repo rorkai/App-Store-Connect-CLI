@@ -86,6 +86,9 @@ Examples:
 
 type previewUploadDependencies struct {
 	GetClient func() (*asc.Client, error)
+	// AcquireUploadLock waits for other asc uploads on this machine; nil
+	// uploads without waiting.
+	AcquireUploadLock func(context.Context) (func(), error)
 }
 
 const maxPreviewsPerSet = 3
@@ -93,7 +96,8 @@ const maxPreviewsPerSet = 3
 // AssetsPreviewsUploadCommand returns the previews upload subcommand.
 func AssetsPreviewsUploadCommand() *ffcli.Command {
 	return assetsPreviewsUploadCommandWithDependencies(previewUploadDependencies{
-		GetClient: shared.GetASCClient,
+		GetClient:         shared.GetASCClient,
+		AcquireUploadLock: acquireAssetUploadLock,
 	})
 }
 
@@ -147,6 +151,10 @@ not finish in time, or Apple rejects or does not keep the value, the command
 exits non-zero with a failure in the receipt, but the delivered preview is
 kept; retry with asc video-previews set-poster-frame. Files skipped by
 --skip-existing keep their poster frame. --asset-library does not support it.
+
+Only one asc upload runs at a time on a machine. While another screenshots or
+video-previews upload is running, this command waits up to 30 minutes before
+it sends any request; ASC_UPLOAD_LOCK=0 skips the wait.
 
 Examples:
   asc video-previews upload --version-localization "VERSION_LOCALIZATION_ID" --path "./previews/duo.mp4" --device-type "IPHONE_DUO" --asset-library --dry-run
@@ -224,6 +232,13 @@ Examples:
 			}
 
 			defer client.CloseUploadConnections()
+			if !*dryRun && deps.AcquireUploadLock != nil {
+				release, err := deps.AcquireUploadLock(ctx)
+				if err != nil {
+					return fmt.Errorf("video-previews upload: %w", err)
+				}
+				defer release()
+			}
 
 			if *assetLibrary {
 				result, err := assetlibrary.UploadToLocalization(ctx, client, assetlibrary.LocalizationUpload{
@@ -1049,7 +1064,7 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		}
 	}
 
-	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
+	uploadCtx, cancel := contextWithAssetUploadTimeout(withAssetUploadWork(ctx, files))
 	defer cancel()
 
 	if replace {

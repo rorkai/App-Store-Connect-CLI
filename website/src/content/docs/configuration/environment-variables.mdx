@@ -357,11 +357,23 @@ For `subscriptions offers introductory create`, an explicit request timeout also
   preview, and dSYM download commands. Each file gets its own budget; parent cancellation and earlier
   deadlines still apply. Listing and metadata requests use `ASC_TIMEOUT`.
 
-  Default: `5m` (`30m` for `asc asset-library videos upload`, which also waits for Apple's video processing)
+  Default: `5m` (`30m` for `asc asset-library videos upload`, which also waits for Apple's video processing;
+  for `screenshots upload` and `video-previews upload` without `--asset-library`, 10 minutes per set plus 1 minute per file and
+  30 seconds per MiB, at most 1 hour)
 </ParamField>
 
 <ParamField path="ASC_UPLOAD_TIMEOUT_SECONDS" type="number">
   Upload and streamed download timeout in seconds (alternative to `ASC_UPLOAD_TIMEOUT`)
+</ParamField>
+
+<ParamField path="ASC_UPLOAD_LOCK" type="boolean">
+  Set to `0` to let `screenshots upload` and `video-previews upload` run while another
+  `asc` upload is running on the same machine. By default the second upload prints
+  `Waiting for another asc upload to finish` and waits up to 30 minutes before it sends
+  any request, so concurrent runs do not compete for the account's rate limit and the
+  network. The wait does not count against `ASC_UPLOAD_TIMEOUT`.
+
+  Default: `1`
 </ParamField>
 
 ## Retry and debugging variables

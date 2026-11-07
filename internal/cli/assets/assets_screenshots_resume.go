@@ -293,7 +293,7 @@ func executeAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 		return buildAppScreenshotUploadResult(cfg.LocalizationID, prepared.Set, true, results), nil
 	}
 
-	uploadCtx, cancel := cfg.UploadContext(ctx)
+	uploadCtx, cancel := cfg.UploadContext(withAssetUploadWork(ctx, prepared.Files))
 	defer cancel()
 
 	var openedFiles openedScreenshotFiles
@@ -382,7 +382,10 @@ func screenshotUploadArtifactWriteError(uploadErr, artifactErr error) error {
 	return errors.Join(uploadErr, fmt.Errorf("write screenshot upload failure artifact: %w", artifactErr))
 }
 
-func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifactPath string) (asc.AppScreenshotUploadResult, error) {
+// resumeAppScreenshotUpload validates the failure artifact and its pending
+// files, then takes the upload lock with acquireUploadLock (nil skips it)
+// before resuming.
+func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifactPath string, acquireUploadLock func(context.Context) (func(), error)) (asc.AppScreenshotUploadResult, error) {
 	artifact, err := loadScreenshotUploadFailureArtifact(artifactPath)
 	if err != nil {
 		return asc.AppScreenshotUploadResult{}, fmt.Errorf("load resume artifact: %w", err)
@@ -394,8 +397,26 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 	if len(artifact.PendingFiles) == 0 && len(artifact.OrderedIDs) == 0 && len(artifact.CleanupFailures) == 0 && !canRetrySkippedOrdering {
 		return asc.AppScreenshotUploadResult{}, fmt.Errorf("resume artifact %q has no pending files or ordering work", artifactPath)
 	}
+	syncAfterUpload := !artifact.SkipExisting || len(artifact.Files) == 0
+	sourceRootPath := strings.TrimSpace(artifact.RootPath)
+	if screenshotArtifactNeedsSourceFiles(artifact) {
+		sourceRootPath, err = resolveScreenshotUploadRoot(artifact.RootPath, screenshotArtifactSourcePaths(artifact))
+		if err != nil {
+			return asc.AppScreenshotUploadResult{}, fmt.Errorf("resolve resume source root: %w", err)
+		}
+	}
+	if err := validateResumedScreenshotFiles(sourceRootPath, artifact.PendingFiles); err != nil {
+		return asc.AppScreenshotUploadResult{}, shared.NewValidationError(err)
+	}
+	if acquireUploadLock != nil {
+		release, err := acquireUploadLock(ctx)
+		if err != nil {
+			return asc.AppScreenshotUploadResult{}, err
+		}
+		defer release()
+	}
 
-	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
+	uploadCtx, cancel := contextWithAssetUploadTimeout(withAssetUploadWork(ctx, artifact.PendingFiles))
 	defer cancel()
 
 	if len(artifact.CleanupFailures) > 0 {
@@ -431,17 +452,6 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 		artifact.CleanupFailures = nil
 	}
 
-	syncAfterUpload := !artifact.SkipExisting || len(artifact.Files) == 0
-	sourceRootPath := strings.TrimSpace(artifact.RootPath)
-	if screenshotArtifactNeedsSourceFiles(artifact) {
-		sourceRootPath, err = resolveScreenshotUploadRoot(artifact.RootPath, screenshotArtifactSourcePaths(artifact))
-		if err != nil {
-			return asc.AppScreenshotUploadResult{}, fmt.Errorf("resolve resume source root: %w", err)
-		}
-	}
-	if err := validateResumedScreenshotFiles(sourceRootPath, artifact.PendingFiles); err != nil {
-		return asc.AppScreenshotUploadResult{}, shared.NewValidationError(err)
-	}
 	progress, uploadErr := resumeScreenshotsWithOrderState(uploadCtx, client, artifact.SetID, artifact.OrderedIDs, artifact.PendingFiles, artifact.PendingAssets, sourceRootPath, true, syncAfterUpload)
 
 	result := asc.AppScreenshotUploadResult{
