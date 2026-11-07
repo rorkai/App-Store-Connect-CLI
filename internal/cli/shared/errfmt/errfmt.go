@@ -26,6 +26,7 @@ const (
 	requestTimeoutHint = "Increase the request timeout (e.g. set `ASC_TIMEOUT=90s`)."
 	uploadTimeoutHint  = "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=45m`)."
 	systemStatusHint   = "Check Apple's service health with `asc system-status --service \"App Store Connect\"`."
+	bearerTokenHint    = "Set ASC_BEARER_TOKEN to a new token from the service that holds your private key, or unset it to use your configured credentials."
 	missingAuthHint    = "Run `asc auth status` to see configured credentials. To add an API key, create one at " + auth.APIKeysURL +
 		" and run `" + auth.LoginCommandExample + "` (or set ASC_KEY_ID/ASC_ISSUER_ID/ASC_PRIVATE_KEY_PATH)."
 	networkHint = "Check your network connection and proxy settings (HTTPS_PROXY), then retry."
@@ -48,6 +49,12 @@ func Classify(err error) ClassifiedError {
 	// sign-in.
 	if missing, ok := errors.AsType[*shared.MissingWebSessionError](err); ok {
 		return ClassifiedError{Message: err.Error(), Hint: missing.Hint}
+	}
+
+	// The stored-key hint below does not help a caller whose token was signed
+	// elsewhere; only the service that holds the key can mint a new one.
+	if errors.Is(err, asc.ErrBearerTokenExpired) || errors.Is(err, asc.ErrInvalidBearerToken) {
+		return ClassifiedError{Message: err.Error(), Hint: bearerTokenHint}
 	}
 
 	if errors.Is(err, shared.ErrMissingAuth) {

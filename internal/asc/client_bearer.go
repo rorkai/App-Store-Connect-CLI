@@ -13,6 +13,9 @@ import (
 // cannot sign a new one without the private key.
 var ErrBearerTokenExpired = errors.New("the App Store Connect token expired; mint a new one")
 
+// ErrInvalidBearerToken reports a token that is not a JWT with an expiry.
+var ErrInvalidBearerToken = errors.New("invalid bearer token")
+
 // ErrNotaryNeedsPrivateKey reports a notarization request from a client that
 // only holds an App Store Connect token.
 var ErrNotaryNeedsPrivateKey = errors.New("notarization needs a private key; ASC_BEARER_TOKEN only authorizes App Store Connect API requests")
@@ -25,10 +28,10 @@ func NewClientFromBearerToken(token string, timeout time.Duration) (*Client, err
 	token = strings.TrimSpace(token)
 	claims := jwt.RegisteredClaims{}
 	if _, _, err := jwt.NewParser().ParseUnverified(token, &claims); err != nil {
-		return nil, fmt.Errorf("invalid bearer token: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidBearerToken, err)
 	}
 	if claims.ExpiresAt == nil {
-		return nil, errors.New("invalid bearer token: it has no expiry")
+		return nil, fmt.Errorf("%w: it has no expiry", ErrInvalidBearerToken)
 	}
 	if !time.Now().Before(claims.ExpiresAt.Time) {
 		return nil, ErrBearerTokenExpired

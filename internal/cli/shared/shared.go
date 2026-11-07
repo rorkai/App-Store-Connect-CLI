@@ -962,7 +962,7 @@ func bearerTokenClient(timeout time.Duration) (client *asc.Client, ok bool, err 
 	ApplyRootLoggingOverrides()
 	client, err = asc.NewClientFromBearerToken(token, timeout)
 	if err != nil {
-		return nil, true, fmt.Errorf("%s: %w", bearerTokenEnvVar, err)
+		return nil, true, missingAuthError{msg: fmt.Sprintf("%s: %v", bearerTokenEnvVar, err), cause: err}
 	}
 	return client, true, nil
 }

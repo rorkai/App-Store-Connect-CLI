@@ -36,12 +36,15 @@ func signedTestToken(t *testing.T, expiresAt time.Time) string {
 	if err != nil {
 		t.Fatalf("GenerateKey() error: %v", err)
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.RegisteredClaims{
-		Issuer:    "ISSUER",
-		Audience:  jwt.ClaimStrings{"appstoreconnect-v1"},
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(expiresAt),
-	})
+	claims := jwt.RegisteredClaims{
+		Issuer:   "ISSUER",
+		Audience: jwt.ClaimStrings{"appstoreconnect-v1"},
+		IssuedAt: jwt.NewNumericDate(time.Now()),
+	}
+	if !expiresAt.IsZero() {
+		claims.ExpiresAt = jwt.NewNumericDate(expiresAt)
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 	token.Header["kid"] = "KEY123"
 	signed, err := token.SignedString(key)
 	if err != nil {
@@ -75,20 +78,35 @@ func TestBearerTokenAuthenticatesWithoutAPrivateKey(t *testing.T) {
 	}
 }
 
-func TestExpiredBearerTokenFailsBeforeAnyRequest(t *testing.T) {
-	isolateBearerTokenAuth(t, signedTestToken(t, time.Now().Add(-time.Minute)))
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request to %s", req.URL)
-		return nil, nil
-	}))
+func TestUnusableBearerTokenFailsAsAuthBeforeAnyRequest(t *testing.T) {
+	tests := []struct {
+		name  string
+		token string
+	}{
+		{"expired", signedTestToken(t, time.Now().Add(-time.Minute))},
+		{"malformed", "not-a-jwt"},
+		{"no expiry", signedTestToken(t, time.Time{})},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			isolateBearerTokenAuth(t, test.token)
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("unexpected request to %s", req.URL)
+				return nil, nil
+			}))
 
-	_, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"apps", "list"}, "1.2.3"); code == 0 {
-			t.Fatal("exit code = 0, want a failure")
-		}
-	})
+			_, stderr := captureOutput(t, func() {
+				if code := cmd.Run([]string{"apps", "list"}, "1.2.3"); code != cmd.ExitAuth {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitAuth)
+				}
+			})
 
-	if !strings.Contains(stderr, "ASC_BEARER_TOKEN") || !strings.Contains(stderr, "expired") {
-		t.Fatalf("stderr = %q, want an expired ASC_BEARER_TOKEN error", stderr)
+			if !strings.Contains(stderr, "Error: apps: ASC_BEARER_TOKEN: ") {
+				t.Fatalf("stderr = %q, want an ASC_BEARER_TOKEN error", stderr)
+			}
+			if !strings.Contains(stderr, "Hint: Set ASC_BEARER_TOKEN to a new token") || strings.Contains(stderr, "asc auth login") {
+				t.Fatalf("stderr = %q, want the bearer token hint instead of the private key hint", stderr)
+			}
+		})
 	}
 }
