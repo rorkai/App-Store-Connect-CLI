@@ -594,12 +594,34 @@ func validateOpenedScreenshotFileFormat(filePath string, file *os.File) error {
 }
 
 func waitForScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (string, error) {
+	if screenshotNoWaitFromContext(ctx) {
+		return currentScreenshotDeliveryState(ctx, client, screenshotID)
+	}
 	settled, err := waitForScreenshotSettlement(ctx, client, screenshotID)
 	state := ""
 	if settled.Attributes.AssetDeliveryState != nil {
 		state = settled.Attributes.AssetDeliveryState.State
 	}
 	return state, err
+}
+
+// currentScreenshotDeliveryState checks the state once: a committed upload is
+// good enough, only an outright FAILED is reported.
+func currentScreenshotDeliveryState(ctx context.Context, client *asc.Client, screenshotID string) (string, error) {
+	resp, err := client.GetAppScreenshot(ctx, strings.TrimSpace(screenshotID))
+	if err != nil {
+		return "", fmt.Errorf("fetch screenshot %s: %w", screenshotID, err)
+	}
+	state := "UPLOAD_COMPLETE"
+	if resp.Data.Attributes.AssetDeliveryState != nil {
+		if s := strings.ToUpper(strings.TrimSpace(resp.Data.Attributes.AssetDeliveryState.State)); s != "" {
+			state = s
+		}
+		if state == "FAILED" {
+			return state, fmt.Errorf("screenshot %s delivery failed: %s", screenshotID, formatAssetErrors(resp.Data.Attributes.AssetDeliveryState.Errors))
+		}
+	}
+	return state, nil
 }
 
 func waitForScreenshotSettlement(ctx context.Context, client *asc.Client, screenshotID string) (asc.Resource[asc.AppScreenshotAttributes], error) {

@@ -1,0 +1,118 @@
+package cmdtest
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+)
+
+// --no-wait must check each committed screenshot exactly once instead of
+// polling until processing finishes, report the state it saw, and still fail
+// on a delivery App Store Connect already marked FAILED.
+func TestRunScreenshotsUploadNoWaitChecksEachFileOnce(t *testing.T) {
+	tests := []struct {
+		name       string
+		state      string
+		wantCode   int
+		wantState  string
+		wantStderr string
+	}{
+		{name: "committed", state: "UPLOAD_COMPLETE", wantCode: cmd.ExitSuccess, wantState: "UPLOAD_COMPLETE"},
+		{name: "failed", state: "FAILED", wantCode: cmd.ExitError, wantStderr: "delivery failed"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			t.Setenv("ASC_APP_ID", "")
+
+			workDir := t.TempDir()
+			file := writeCmdtestScreenshotPNG(t, workDir, "01-home.png")
+			size := cmdtestFileSize(t, file)
+
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+			var mu sync.Mutex
+			stateChecks := 0
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
+					return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
+				case req.Method == http.MethodGet && (req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots" ||
+					req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots"):
+					return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+				case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+					return screenshotsUploadJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-1","length":%d,"offset":0}]}}}`, size))
+				case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+					return screenshotsUploadJSONResponse(http.StatusOK, `{}`)
+				case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshots/new-1":
+					return screenshotsUploadJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-1","attributes":{"uploaded":true,"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`)
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/new-1":
+					mu.Lock()
+					stateChecks++
+					mu.Unlock()
+					return screenshotsUploadJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-1","attributes":{"assetDeliveryState":{"state":%q,"errors":[{"code":"IMAGE_INCORRECT_DIMENSIONS","description":"bad size"}]}}}}`, test.state))
+				case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+					return screenshotsUploadJSONResponse(http.StatusNoContent, "")
+				default:
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			})
+
+			previousDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Getwd() error: %v", err)
+			}
+			if err := os.Chdir(workDir); err != nil {
+				t.Fatalf("Chdir() error: %v", err)
+			}
+			t.Cleanup(func() { _ = os.Chdir(previousDir) })
+
+			stdout, stderr := captureOutput(t, func() {
+				code := cmd.Run([]string{
+					"screenshots", "upload",
+					"--version-localization", "LOC_123",
+					"--path", file,
+					"--device-type", "IPHONE_65",
+					"--no-wait",
+					"--output", "json",
+				}, "1.2.3")
+				if code != test.wantCode {
+					t.Fatalf("exit code = %d, want %d", code, test.wantCode)
+				}
+			})
+
+			if stateChecks != 1 {
+				t.Fatalf("state checks = %d, want exactly 1", stateChecks)
+			}
+			if test.wantStderr != "" {
+				if !strings.Contains(stderr, test.wantStderr) {
+					t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+				}
+				return
+			}
+			var result struct {
+				Results []struct {
+					AssetID string `json:"assetId"`
+					State   string `json:"state"`
+				} `json:"results"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("parse stdout: %v\nstdout=%s", err, stdout)
+			}
+			if len(result.Results) != 1 || result.Results[0].AssetID != "new-1" || result.Results[0].State != test.wantState {
+				t.Fatalf("results = %+v, want new-1 in %s", result.Results, test.wantState)
+			}
+		})
+	}
+}
