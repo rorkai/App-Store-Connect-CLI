@@ -382,7 +382,9 @@ func screenshotUploadArtifactWriteError(uploadErr, artifactErr error) error {
 	return errors.Join(uploadErr, fmt.Errorf("write screenshot upload failure artifact: %w", artifactErr))
 }
 
-func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifactPath string) (asc.AppScreenshotUploadResult, error) {
+// resumeAppScreenshotUpload validates the failure artifact, then takes the
+// upload lock with acquireUploadLock (nil skips it) before resuming.
+func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifactPath string, acquireUploadLock func(context.Context) (func(), error)) (asc.AppScreenshotUploadResult, error) {
 	artifact, err := loadScreenshotUploadFailureArtifact(artifactPath)
 	if err != nil {
 		return asc.AppScreenshotUploadResult{}, fmt.Errorf("load resume artifact: %w", err)
@@ -393,6 +395,13 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 	canRetrySkippedOrdering := artifact.SkipExisting && len(artifact.Files) > 0 && len(artifact.Results) > 0
 	if len(artifact.PendingFiles) == 0 && len(artifact.OrderedIDs) == 0 && len(artifact.CleanupFailures) == 0 && !canRetrySkippedOrdering {
 		return asc.AppScreenshotUploadResult{}, fmt.Errorf("resume artifact %q has no pending files or ordering work", artifactPath)
+	}
+	if acquireUploadLock != nil {
+		release, err := acquireUploadLock(ctx)
+		if err != nil {
+			return asc.AppScreenshotUploadResult{}, err
+		}
+		defer release()
 	}
 
 	uploadCtx, cancel := contextWithAssetUploadTimeout(withAssetUploadWork(ctx, artifact.PendingFiles))

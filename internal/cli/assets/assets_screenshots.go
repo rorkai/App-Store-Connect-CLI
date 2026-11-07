@@ -875,13 +875,8 @@ Examples:
 				}
 
 				defer client.CloseUploadConnections()
-				release, err := acquireAssetUploadLock(ctx)
-				if err != nil {
-					return fmt.Errorf("screenshots upload: %w", err)
-				}
-				defer release()
 
-				result, err := resumeAppScreenshotUpload(ctx, client, resumePath)
+				result, err := resumeAppScreenshotUpload(ctx, client, resumePath, acquireAssetUploadLock)
 				if hasAppScreenshotUploadResultOutput(result) {
 					if printErr := shared.PrintOutput(&result, *output.Output, *output.Pretty); printErr != nil {
 						return printErr
