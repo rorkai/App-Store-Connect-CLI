@@ -959,6 +959,14 @@ func bearerTokenClient(timeout time.Duration) (client *asc.Client, ok bool, err 
 	if token == "" {
 		return nil, false, nil
 	}
+	// The token already names its key and team, so a selection that would
+	// pick other credentials or another API host cannot be honored.
+	if profile := resolveProfileName(); profile != "" {
+		return nil, true, fmt.Errorf("%s cannot be combined with profile %q from --profile or %s; unset one of them", bearerTokenEnvVar, profile, profileEnvVar)
+	}
+	if config.IsEnterpriseCredentialKeyType(config.NormalizeCredentialKeyType(os.Getenv(keyTypeEnvVar))) {
+		return nil, true, fmt.Errorf("%s does not support %s=enterprise; unset %s or use the enterprise private key", bearerTokenEnvVar, keyTypeEnvVar, keyTypeEnvVar)
+	}
 	ApplyRootLoggingOverrides()
 	client, err = asc.NewClientFromBearerToken(token, timeout)
 	if err != nil {

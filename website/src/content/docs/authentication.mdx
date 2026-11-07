@@ -182,7 +182,7 @@ export ASC_BEARER_TOKEN="eyJhbGciOiJFUzI1NiIs..."
 asc apps list
 ```
 
-`ASC_BEARER_TOKEN` takes precedence over every stored profile and private-key variable. `asc` sends the token as is and cannot renew it: Apple caps a token at 20 minutes, and once it expires commands exit `3`, the authentication failure code, with an error naming `ASC_BEARER_TOKEN` before sending a request; mint a new one. A malformed token, or one with no expiry, exits `3` the same way. Notarization (`asc notarization`) needs its own token scope and still requires a private key. Commands that hand the key to Xcode or `altool` also need a private key.
+`ASC_BEARER_TOKEN` takes precedence over every stored profile and private-key variable. `asc` sends the token as is and cannot renew it: Apple caps a token at 20 minutes, and once it expires commands exit `3`, the authentication failure code, with an error naming `ASC_BEARER_TOKEN` before sending a request; mint a new one. A malformed token, or one with no expiry, exits `3` the same way. The token already names its key and team, so `asc` refuses to combine it with `--profile`, `ASC_PROFILE`, or `ASC_KEY_TYPE=enterprise`. Notarization (`asc notarization`) needs its own token scope and still requires a private key. Commands that hand the key to Xcode or `altool` also need a private key.
 
 ## Apple Account web sessions
 

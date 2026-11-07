@@ -26,6 +26,7 @@ func isolateBearerTokenAuth(t *testing.T, token string) {
 	t.Setenv("ASC_PRIVATE_KEY", "")
 	t.Setenv("ASC_PRIVATE_KEY_B64", "")
 	t.Setenv("ASC_STRICT_AUTH", "")
+	t.Setenv("ASC_KEY_TYPE", "")
 	t.Setenv("ASC_CONFIG_PATH", t.TempDir()+"/config.json")
 	t.Setenv("ASC_BEARER_TOKEN", token)
 }
@@ -106,6 +107,55 @@ func TestUnusableBearerTokenFailsAsAuthBeforeAnyRequest(t *testing.T) {
 			}
 			if !strings.Contains(stderr, "Hint: Set ASC_BEARER_TOKEN to a new token") || strings.Contains(stderr, "asc auth login") {
 				t.Fatalf("stderr = %q, want the bearer token hint instead of the private key hint", stderr)
+			}
+		})
+	}
+}
+
+func TestBearerTokenRejectsSelectionsItCannotHonorBeforeAnyRequest(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "profile flag",
+			args:    []string{"--profile", "Other", "apps", "list"},
+			wantErr: `ASC_BEARER_TOKEN cannot be combined with profile "Other"`,
+		},
+		{
+			name:    "profile env",
+			env:     map[string]string{"ASC_PROFILE": "Other"},
+			args:    []string{"apps", "list"},
+			wantErr: `ASC_BEARER_TOKEN cannot be combined with profile "Other"`,
+		},
+		{
+			name:    "enterprise key type",
+			env:     map[string]string{"ASC_KEY_TYPE": "enterprise"},
+			args:    []string{"apps", "list"},
+			wantErr: "ASC_BEARER_TOKEN does not support ASC_KEY_TYPE=enterprise",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			isolateBearerTokenAuth(t, signedTestToken(t, time.Now().Add(20*time.Minute)))
+			for name, value := range test.env {
+				t.Setenv(name, value)
+			}
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("unexpected request to %s", req.URL)
+				return nil, nil
+			}))
+
+			_, stderr := captureOutput(t, func() {
+				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitError {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+				}
+			})
+
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantErr)
 			}
 		})
 	}
