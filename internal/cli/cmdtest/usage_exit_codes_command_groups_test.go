@@ -608,6 +608,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "versions list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "versions list owner with next",
+			args:    []string{"versions", "list", "--app", "APP_A", "--next", "https://api.appstoreconnect.apple.com/v1/apps/APP_B/appStoreVersions?cursor=next"},
+			wantErr: "versions list: --next cannot be combined with --app",
+		},
+		{
 			name:    "web apps compatibility view without app",
 			args:    []string{"web", "apps", "compatibility", "view"},
 			wantErr: "--app is required (or set ASC_APP_ID)",

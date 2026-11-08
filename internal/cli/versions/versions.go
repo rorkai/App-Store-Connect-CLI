@@ -121,7 +121,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("versions list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "versions list", "version", "platform", "state"); err != nil {
+			if err := shared.RejectNextFlagConflicts(fs, *next, "versions list", "version", "platform", "state", "app"); err != nil {
 				return err
 			}
 			if *latest && strings.TrimSpace(*next) != "" {

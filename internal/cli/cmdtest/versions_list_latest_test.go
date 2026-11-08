@@ -188,14 +188,14 @@ func TestVersionsListLatestKeepsOnlySelectedIncludesAndRedactsSecrets(t *testing
 
 func TestVersionsListLatestRejectsNextURL(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{"versions", "list", "--app", "app-1", "--latest", "--next", "https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=x"}, "1.2.3"); code != rootcmd.ExitUsage {
+		if code := rootcmd.Run([]string{"versions", "list", "--latest", "--next", "https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=x"}, "1.2.3"); code != rootcmd.ExitUsage {
 			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
 		}
 	})
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "--latest") || !strings.Contains(stderr, "--next") {
+	if !strings.Contains(stderr, "--latest fetches all pages itself and cannot be combined with --next") {
 		t.Fatalf("expected latest/next conflict diagnostic, got %q", stderr)
 	}
 }
