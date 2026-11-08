@@ -66,9 +66,10 @@ type latestBuild struct {
 	ProcessingState string `json:"processingState,omitempty"`
 	// Expired reports Apple's build expiry flag, which stays independent of
 	// processingState: an expired build is still VALID but no longer installable.
-	Expired      *bool  `json:"expired,omitempty"`
-	UploadedDate string `json:"uploadedDate,omitempty"`
-	Platform     string `json:"platform,omitempty"`
+	Expired            *bool  `json:"expired,omitempty"`
+	UploadedDate       string `json:"uploadedDate,omitempty"`
+	Platform           string `json:"platform,omitempty"`
+	appStoreRestricted bool
 }
 
 type testFlightSection struct {
@@ -637,13 +638,14 @@ func fillBuildsAndTestFlight(ctx context.Context, client *asc.Client, appID stri
 		section := &buildsSection{}
 		if latest != nil {
 			entry := &latestBuild{
-				ID:              latest.ID,
-				Version:         latestContext.Version,
-				BuildNumber:     latest.Attributes.Version,
-				ProcessingState: latest.Attributes.ProcessingState,
-				Expired:         optionalBuildExpired(latest.Attributes),
-				UploadedDate:    latest.Attributes.UploadedDate,
-				Platform:        latestContext.Platform,
+				ID:                 latest.ID,
+				Version:            latestContext.Version,
+				BuildNumber:        latest.Attributes.Version,
+				ProcessingState:    latest.Attributes.ProcessingState,
+				appStoreRestricted: strings.EqualFold(strings.TrimSpace(string(latest.Attributes.BuildAudienceType)), string(asc.BuildAudienceTypeInternalOnly)),
+				Expired:            optionalBuildExpired(latest.Attributes),
+				UploadedDate:       latest.Attributes.UploadedDate,
+				Platform:           latestContext.Platform,
 			}
 			section.Latest = entry
 		}

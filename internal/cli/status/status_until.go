@@ -184,7 +184,7 @@ func resolveNextCommands(resp *dashboardResponse, appID string, platform string)
 	switch strings.ToUpper(strings.TrimSpace(version.State)) {
 	case "PREPARE_FOR_SUBMISSION":
 		add("Check App Store submission readiness.", false, "validate", "--app", appID, "--version-id", version.VersionID)
-		if build != nil && strings.EqualFold(build.ProcessingState, "VALID") && build.Version == version.Version && build.Platform == version.Platform {
+		if build != nil && !build.appStoreRestricted && strings.EqualFold(build.ProcessingState, "VALID") && build.Version == version.Version && build.Platform == version.Platform {
 			add("Attach the latest build and submit the version for App Review.", true, "review", "submit", "--app", appID, "--version-id", version.VersionID, "--build-id", build.ID, "--confirm")
 		}
 	case "WAITING_FOR_REVIEW", "IN_REVIEW":
