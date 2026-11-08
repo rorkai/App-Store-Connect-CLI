@@ -30,8 +30,8 @@ func SubmitCancelCommand() *ffcli.Command {
 
 Cancels an active review submission. Use --id for a known submission ID,
 or --version-id to find and cancel the submission for a specific version.
-When using --version-id, provide --app for reliable lookup via the modern
-reviewSubmissions API; without --app, falls back to the legacy endpoint.
+When supplied with --version-id, --app must match the version owner.
+The command tries the modern reviewSubmissions API before the legacy endpoint.
 
 Examples:
   asc submit cancel --id "SUBMISSION_ID" --confirm
@@ -87,21 +87,15 @@ Examples:
 				// Prefer the app relationship on the version itself so a stale
 				// ASC_APP_ID/config value does not misdirect the modern lookup.
 				resolvedAppID := ""
-				versionResp, vErr := client.GetAppStoreVersion(requestCtx, resolvedVersionID, asc.WithAppStoreVersionInclude([]string{"app"}))
-				if vErr == nil {
-					if aid, aidErr := resolveAppIDFromVersionResponse(versionResp); aidErr == nil {
-						if explicitAppID != "" && explicitAppID != aid {
-							return fmt.Errorf("submit cancel: version %q belongs to app %q, not %q", resolvedVersionID, aid, explicitAppID)
-						}
-						resolvedAppID = aid
-					}
+				versionResp, ownerErr := client.GetAppStoreVersion(requestCtx, resolvedVersionID, asc.WithAppStoreVersionInclude([]string{"app"}))
+				if ownerErr == nil {
+					resolvedAppID, ownerErr = resolveAppIDFromVersionResponse(versionResp)
+				}
+				if explicitAppID != "" && ownerErr == nil && explicitAppID != resolvedAppID {
+					return fmt.Errorf("submit cancel: version %q belongs to app %q, not %q", resolvedVersionID, resolvedAppID, explicitAppID)
 				}
 				if resolvedAppID == "" {
-					if explicitAppID != "" {
-						resolvedAppID = explicitAppID
-					} else {
-						resolvedAppID = shared.ResolveAppID(*appID)
-					}
+					resolvedAppID = shared.ResolveAppID(*appID)
 				}
 
 				if resolvedAppID != "" {
@@ -109,6 +103,8 @@ Examples:
 					if findErr != nil {
 						fmt.Fprintf(os.Stderr, "Warning: modern review submission lookup failed: %v (falling back to legacy)\n", findErr)
 					} else if submission != nil {
+						// A version match in the app-scoped listing also proves ownership.
+						ownerErr = nil
 						if submission.Attributes.SubmissionState == asc.ReviewSubmissionStateCanceling {
 							resolvedSubmissionID = submission.ID
 							result := &asc.AppStoreVersionSubmissionCancelResult{
@@ -154,6 +150,10 @@ Examples:
 							return shared.PrintOutput(result, *output.Output, *output.Pretty)
 						}
 					}
+				}
+
+				if explicitAppID != "" && ownerErr != nil {
+					return fmt.Errorf("submit cancel: could not verify app %q owns version %q: %w", explicitAppID, resolvedVersionID, ownerErr)
 				}
 
 				// Fall back to legacy version submission lookup.
