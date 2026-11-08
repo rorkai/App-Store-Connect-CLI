@@ -603,17 +603,12 @@ Examples:
 
 			instanceFound := false
 			for _, report := range reports {
-				instances, err := fetchAnalyticsReportInstances(ctx, client, report.ID)
+				instances, err := fetchAnalyticsReportInstancesMatchingID(ctx, client, report.ID, strings.TrimSpace(*instanceID))
 				if err != nil {
 					return fmt.Errorf("analytics download: failed to fetch instances: %w", err)
 				}
-				for _, instance := range instances {
-					if instance.ID == strings.TrimSpace(*instanceID) {
-						instanceFound = true
-						break
-					}
-				}
-				if instanceFound {
+				if len(instances) > 0 {
+					instanceFound = true
 					break
 				}
 			}

@@ -341,6 +341,11 @@ func fetchAnalyticsReports(ctx context.Context, client *asc.Client, requestID st
 }
 
 func fetchAnalyticsReportInstances(ctx context.Context, client *asc.Client, reportID string, opts ...asc.AnalyticsReportInstancesOption) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
+	return fetchAnalyticsReportInstancesMatchingID(ctx, client, reportID, "", opts...)
+}
+
+// fetchAnalyticsReportInstancesMatchingID stops at an exact match when instanceID is set.
+func fetchAnalyticsReportInstancesMatchingID(ctx context.Context, client *asc.Client, reportID, instanceID string, opts ...asc.AnalyticsReportInstancesOption) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
 	var (
 		all  []asc.Resource[asc.AnalyticsReportInstanceAttributes]
 		next string
@@ -364,7 +369,15 @@ func fetchAnalyticsReportInstances(ctx context.Context, client *asc.Client, repo
 		if err != nil {
 			return nil, err
 		}
-		all = append(all, resp.Data...)
+		if instanceID == "" {
+			all = append(all, resp.Data...)
+		} else {
+			for _, instance := range resp.Data {
+				if instance.ID == instanceID {
+					return []asc.Resource[asc.AnalyticsReportInstanceAttributes]{instance}, nil
+				}
+			}
+		}
 		if resp.Links.Next == "" {
 			break
 		}
