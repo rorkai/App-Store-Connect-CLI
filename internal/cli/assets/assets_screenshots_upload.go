@@ -673,7 +673,7 @@ func waitForScreenshotSettlement(ctx context.Context, client *asc.Client, screen
 			}
 		}
 		return resp.Data, false, nil
-	}, asc.PollOptions{})
+	}, asc.PollOptions{Tolerate: asc.IsTransientWaitError})
 	if err == nil {
 		return settled, nil
 	}
