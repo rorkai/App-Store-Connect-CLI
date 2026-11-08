@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 	"howett.net/plist"
 )
@@ -702,6 +703,7 @@ func TestXcodeExportValidatesIPADestinationBeforeImplicitOptionGeneration(t *tes
 func TestXcodeExportWaitIgnoresUnusedIPAParent(t *testing.T) {
 	restore := overrideXcodeCommandTestHooks(t)
 	defer restore()
+	getASCClientFn = func() (*asc.Client, error) { return &asc.Client{}, nil }
 
 	parent := filepath.Join(t.TempDir(), "not-a-directory")
 	if err := os.WriteFile(parent, []byte("file"), 0o600); err != nil {
@@ -735,6 +737,7 @@ func TestXcodeExportWaitIgnoresUnusedIPAParent(t *testing.T) {
 func TestXcodeExportWaitGeneratesUploadOptionsWhenPathIsOmitted(t *testing.T) {
 	restore := overrideXcodeCommandTestHooks(t)
 	defer restore()
+	getASCClientFn = func() (*asc.Client, error) { return &asc.Client{}, nil }
 
 	archivePath := writeXcodeExportOptionsTestArchive(t)
 	wantErr := errors.New("stop after generation")
