@@ -298,7 +298,7 @@ func executeAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 
 	var openedFiles openedScreenshotFiles
 	if cfg.Replace && len(prepared.Files) > 0 {
-		openedFiles, err = openAndValidateScreenshotFiles(cfg.RootPath, prepared.Files)
+		openedFiles, err = openAndValidateScreenshotFiles(cfg.RootPath, cfg.DisplayType, prepared.Files)
 		if err != nil {
 			return asc.AppScreenshotUploadResult{}, err
 		}
