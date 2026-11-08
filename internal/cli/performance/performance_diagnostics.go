@@ -2,8 +2,10 @@ package performance
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -73,6 +75,9 @@ Examples:
 			if err := shared.RejectNextFlagConflicts(fs, *next, "performance diagnostics list", "diagnostic-type", "fields"); err != nil {
 				return err
 			}
+			if err := validateDiagnosticSignaturesCursor(*next, trimmedBuildID); err != nil {
+				return shared.UsageErrorf("performance diagnostics list: %v", err)
+			}
 
 			diagnosticTypes, err := normalizeDiagnosticSignatureTypes(shared.SplitCSVUpper(*diagnosticType))
 			if err != nil {
@@ -123,6 +128,29 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func validateDiagnosticSignaturesCursor(next, buildID string) error {
+	next = strings.TrimSpace(next)
+	if next == "" {
+		return nil
+	}
+	if err := shared.ValidateNextURL(next); err != nil {
+		return err
+	}
+	parsed, err := url.Parse(next)
+	if err != nil {
+		return err
+	}
+	path, hasPrefix := strings.CutPrefix(parsed.Path, "/v1/builds/")
+	cursorBuildID, hasSuffix := strings.CutSuffix(path, "/diagnosticSignatures")
+	if _, err := asc.ValidateResourcePathSegment(cursorBuildID); !hasPrefix || !hasSuffix || err != nil {
+		return errors.New("--next must point to a build's diagnostic signatures")
+	}
+	if buildID != cursorBuildID {
+		return errors.New("--build-id must match the build in --next")
+	}
+	return nil
 }
 
 // PerformanceDiagnosticsGetCommand returns the diagnostics get subcommand.
