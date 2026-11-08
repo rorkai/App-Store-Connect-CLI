@@ -459,6 +459,28 @@ func TestGetAllRatings_AllStorefrontHTTPFailuresRetainStatus(t *testing.T) {
 	}
 }
 
+func TestGetAllRatings_PartialStorefrontFailureWithoutMatchRetainsStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Query().Get("country") == "us" {
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		writeBody(t, w, `{"resultCount":0,"results":[]}`)
+	}))
+	defer server.Close()
+
+	client := &Client{HTTPClient: &http.Client{Transport: &testTransport{baseURL: server.URL}}}
+	_, err := client.GetAllRatings(context.Background(), "123", 5, context.WithCancel)
+	var statusError interface{ HTTPStatusCode() int }
+	if !errors.As(err, &statusError) || statusError.HTTPStatusCode() != http.StatusTooManyRequests {
+		t.Fatalf("lookup error = %v, want HTTP 429", err)
+	}
+	if !strings.Contains(err.Error(), "could not determine storefront availability for app 123") {
+		t.Fatalf("lookup error = %v, want an incomplete availability diagnostic", err)
+	}
+}
+
 func TestGetAllRatings_PreservesStorefrontFailureWhenFallbackOutlastsCountryDeadline(t *testing.T) {
 	client := &Client{
 		BaseURL: "https://example.test",
