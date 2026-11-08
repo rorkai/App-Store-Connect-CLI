@@ -175,6 +175,9 @@ func TestSubscriptionsListRejectsOpaqueNextOwnerAndLimitBeforeClient(t *testing.
 			if !strings.Contains(stderr, test.message) {
 				t.Fatalf("stderr = %q, want %q", stderr, test.message)
 			}
+			if strings.Contains(stderr, "use --group-id with the group-scoped next URL") {
+				t.Fatalf("stderr recommends combining --next with --group-id, which is rejected: %q", stderr)
+			}
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before opaque next validation")
 			}

@@ -663,7 +663,7 @@ Examples:
 				fs,
 				nextValue,
 				"builds list",
-				"beta-review-state", "include", "sort", "platform", "processing-state",
+				"app", "beta-review-state", "include", "sort", "platform", "processing-state",
 				"version", "build-number", "limit", "exclude-expired", "not-expired",
 			); err != nil {
 				return err

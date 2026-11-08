@@ -188,12 +188,13 @@ func TestBuildsListLookupAmbiguousName(t *testing.T) {
 	}
 }
 
-func TestBuildsListNextURLSkipsAppLookupForNonNumericApp(t *testing.T) {
+func TestBuildsListNextURLSkipsAppLookupForInheritedNonNumericApp(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/builds?cursor=AQ"
+	t.Setenv("ASC_APP_ID", "com.example.lookup")
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
@@ -227,7 +228,6 @@ func TestBuildsListNextURLSkipsAppLookupForNonNumericApp(t *testing.T) {
 		if err := root.Parse([]string{
 			"builds", "list",
 			"--next", nextURL,
-			"--app", "com.example.lookup",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
