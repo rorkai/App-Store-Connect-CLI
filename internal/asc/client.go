@@ -1147,7 +1147,7 @@ func (c *Client) GetBetaTester(ctx context.Context, testerID string) (*BetaTeste
 // CreateBetaTester creates a beta tester, attaching any beta groups and builds
 // in the same request.
 func (c *Client) CreateBetaTester(ctx context.Context, email, firstName, lastName string, groupIDs, buildIDs []string) (*BetaTesterResponse, error) {
-	groups := buildRelationshipList(ResourceTypeBetaGroups, groupIDs)
+	groups := buildRelationshipList(ResourceTypeBetaGroups, normalizeUniqueList(groupIDs))
 	builds := buildRelationshipList(ResourceTypeBuilds, buildIDs)
 	var relationships *BetaTesterCreateRelationships
 	if groups != nil || builds != nil {
