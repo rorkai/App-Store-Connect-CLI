@@ -173,6 +173,12 @@ func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
 			want:         `{` + groups + `}`,
 		},
 		{
+			name:         "group name and ID resolve to one relationship",
+			args:         []string{"--app", "app-1", "--group", "Beta,group-1"},
+			wantRequests: []string{"GET /v1/apps/app-1/betaGroups", "POST /v1/betaTesters"},
+			want:         `{` + groups + `}`,
+		},
+		{
 			name:         "groups and builds",
 			args:         []string{"--app", "app-1", "--group", "Beta", "--build-id", "build-1, build-2,build-1"},
 			wantRequests: []string{"GET /v1/apps/app-1/betaGroups", "POST /v1/betaTesters"},
