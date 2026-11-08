@@ -686,7 +686,8 @@ func promotedPurchaseScopeByID(ctx context.Context, client *asc.Client, promoted
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
-	resp, err := client.GetPromotedPurchase(requestCtx, strings.TrimSpace(promotedPurchaseID))
+	resp, err := client.GetPromotedPurchase(requestCtx, strings.TrimSpace(promotedPurchaseID),
+		asc.WithPromotedPurchaseInclude([]string{"inAppPurchaseV2", "subscription"}))
 	if err != nil {
 		return promotedPurchaseScope{}, fmt.Errorf("failed to fetch promoted purchase %q: %w", promotedPurchaseID, err)
 	}

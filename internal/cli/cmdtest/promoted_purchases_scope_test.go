@@ -3,114 +3,85 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-func TestIAPPromotedPurchasesListFiltersToInAppPurchases(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-1/promotedPurchases" {
-			t.Fatalf("expected app promoted purchases path, got %s", req.URL.Path)
-		}
-
-		body := `{"data":[` +
-			`{"type":"promotedPurchases","id":"promo-iap","relationships":{"inAppPurchaseV2":{"data":{"type":"inAppPurchases","id":"iap-1"}}}},` +
-			`{"type":"promotedPurchases","id":"promo-sub","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-1"}}}}` +
-			`],"links":{"next":""}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"iap", "promoted-purchases", "list", "--app", "app-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+func TestScopedPromotedPurchasesResolveOmittedProductLinkage(t *testing.T) {
+	tests := []struct {
+		group string
+		id    string
+	}{
+		{group: "iap", id: "promo-iap"},
+		{group: "subscriptions", id: "promo-sub"},
 	}
-	if !strings.Contains(stdout, `"id":"promo-iap"`) {
-		t.Fatalf("expected output to contain iap promoted purchase, got %q", stdout)
-	}
-	if strings.Contains(stdout, `"id":"promo-sub"`) {
-		t.Fatalf("expected output to exclude subscription promoted purchase, got %q", stdout)
-	}
-}
+	for _, test := range tests {
+		for _, action := range []string{"list", "view"} {
+			t.Run(test.group+"/"+action, func(t *testing.T) {
+				setupSubmitCreateAuth(t)
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					if req.Method != http.MethodGet {
+						t.Errorf("unexpected method %s", req.Method)
+						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					switch req.URL.Path {
+					case "/v1/apps/app-1/promotedPurchases":
+						fmt.Fprint(w, `{"data":[{"type":"promotedPurchases","id":"promo-iap"},{"type":"promotedPurchases","id":"promo-sub"}]}`)
+					case "/v1/promotedPurchases/promo-iap", "/v1/promotedPurchases/promo-sub":
+						id := strings.TrimPrefix(req.URL.Path, "/v1/promotedPurchases/")
+						if req.URL.Query().Get("include") != "inAppPurchaseV2,subscription" {
+							fmt.Fprintf(w, `{"data":{"type":"promotedPurchases","id":%q}}`, id)
+							return
+						}
+						if id == "promo-iap" {
+							fmt.Fprint(w, `{"data":{"type":"promotedPurchases","id":"promo-iap","relationships":{"inAppPurchaseV2":{"data":{"type":"inAppPurchases","id":"iap-1"}}}},"included":[{"type":"inAppPurchases","id":"iap-1"}]}`)
+						} else {
+							fmt.Fprint(w, `{"data":{"type":"promotedPurchases","id":"promo-sub","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-1"}}}},"included":[{"type":"subscriptions","id":"sub-1"}]}`)
+						}
+					default:
+						t.Errorf("unexpected path %s", req.URL.Path)
+						w.WriteHeader(http.StatusBadRequest)
+					}
+				}))
+				defer server.Close()
+				setIAPRelatedTestServerClient(t, server)
 
-func TestSubscriptionsPromotedPurchasesListFiltersToSubscriptions(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
+				args := []string{test.group, "promoted-purchases", action, "--output", "json"}
+				var wantData any = map[string]any{"type": "promotedPurchases", "id": test.id}
+				if action == "list" {
+					args = append(args, "--app", "app-1")
+					wantData = []any{wantData}
+				} else {
+					args = append(args, "--promoted-purchase-id", test.id)
+				}
+				var exit int
+				stdout, stderr := captureOutput(t, func() { exit = cmd.Run(args, "1.2.3") })
+				if exit != cmd.ExitSuccess || stderr != "" {
+					t.Fatalf("exit = %d, stderr = %q", exit, stderr)
+				}
+				var result struct {
+					Data     any             `json:"data"`
+					Included json.RawMessage `json:"included"`
+				}
+				if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+					t.Fatalf("decode result: %v", err)
+				}
+				if !reflect.DeepEqual(result.Data, wantData) || len(result.Included) != 0 {
+					t.Fatalf("result = %s, want data %v without internal includes", stdout, wantData)
+				}
+			})
 		}
-		if req.URL.Path != "/v1/apps/app-1/promotedPurchases" {
-			t.Fatalf("expected app promoted purchases path, got %s", req.URL.Path)
-		}
-
-		body := `{"data":[` +
-			`{"type":"promotedPurchases","id":"promo-iap","relationships":{"inAppPurchaseV2":{"data":{"type":"inAppPurchases","id":"iap-1"}}}},` +
-			`{"type":"promotedPurchases","id":"promo-sub","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-1"}}}}` +
-			`],"links":{"next":""}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "promoted-purchases", "list", "--app", "app-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"promo-sub"`) {
-		t.Fatalf("expected output to contain subscription promoted purchase, got %q", stdout)
-	}
-	if strings.Contains(stdout, `"id":"promo-iap"`) {
-		t.Fatalf("expected output to exclude in-app promoted purchase, got %q", stdout)
 	}
 }
 
