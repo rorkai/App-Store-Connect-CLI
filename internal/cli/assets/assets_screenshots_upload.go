@@ -605,23 +605,28 @@ func waitForScreenshotDelivery(ctx context.Context, client *asc.Client, screensh
 	return state, err
 }
 
-// currentScreenshotDeliveryState checks the state once: a committed upload is
-// good enough, only an outright FAILED is reported.
+// currentScreenshotDeliveryState checks once for a committed upload. An
+// inconclusive read leaves the last known upload stage intact for resume.
 func currentScreenshotDeliveryState(ctx context.Context, client *asc.Client, screenshotID string) (string, error) {
 	resp, err := client.GetAppScreenshot(ctx, strings.TrimSpace(screenshotID))
 	if err != nil {
 		return "", fmt.Errorf("fetch screenshot %s: %w", screenshotID, err)
 	}
-	state := "UPLOAD_COMPLETE"
-	if resp.Data.Attributes.AssetDeliveryState != nil {
-		if s := strings.ToUpper(strings.TrimSpace(resp.Data.Attributes.AssetDeliveryState.State)); s != "" {
-			state = s
-		}
-		if state == "FAILED" {
-			return state, fmt.Errorf("screenshot %s delivery failed: %s", screenshotID, formatAssetErrors(resp.Data.Attributes.AssetDeliveryState.Errors))
-		}
+	delivery := resp.Data.Attributes.AssetDeliveryState
+	state := ""
+	if delivery != nil {
+		state = strings.ToUpper(strings.TrimSpace(delivery.State))
 	}
-	return state, nil
+	switch state {
+	case "UPLOAD_COMPLETE", "COMPLETE":
+		return state, nil
+	case "FAILED":
+		return state, fmt.Errorf("screenshot %s delivery failed: %s", screenshotID, formatAssetErrors(delivery.Errors))
+	case "":
+		return "", fmt.Errorf("screenshot %s upload commit not confirmed: missing delivery state", screenshotID)
+	default:
+		return "", fmt.Errorf("screenshot %s upload commit not confirmed: delivery state %q", screenshotID, state)
+	}
 }
 
 func waitForScreenshotSettlement(ctx context.Context, client *asc.Client, screenshotID string) (asc.Resource[asc.AppScreenshotAttributes], error) {
