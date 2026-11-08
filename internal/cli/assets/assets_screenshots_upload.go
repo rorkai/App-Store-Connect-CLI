@@ -685,7 +685,11 @@ func waitForScreenshotSettlement(ctx context.Context, client *asc.Client, screen
 		return lastRemote, fmt.Errorf("canceled waiting for screenshot %s checksum settlement%s: %w", assetID, stateDetail, err)
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return lastRemote, fmt.Errorf("timed out waiting for screenshot %s checksum settlement%s: %w", assetID, stateDetail, err)
+		err = fmt.Errorf("timed out waiting for screenshot %s checksum settlement%s: %w", assetID, stateDetail, err)
+		if errors.Is(context.Cause(ctx), errAssetUploadDeadline) {
+			err = fmt.Errorf("screenshot upload failed: %w", err)
+		}
+		return lastRemote, err
 	}
 	return lastRemote, err
 }
