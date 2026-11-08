@@ -46,6 +46,9 @@ func (f *addGroupsDiagnosticsFixture) transport() roundTripFunc {
 		case "GET /v1/builds/build-1/app":
 			return jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`)
 		case "GET /v1/apps/app-1/betaGroups":
+			if req.URL.Query().Get("cursor") == "UNNEEDED" {
+				return nil, io.ErrUnexpectedEOF
+			}
 			if f.groupsBody != "" {
 				return jsonResponse(http.StatusOK, f.groupsBody)
 			}
@@ -136,6 +139,27 @@ func runAddGroupsDiagnosticsArgs(t *testing.T, fixture *addGroupsDiagnosticsFixt
 		runErr = root.Run(context.Background())
 	})
 	return stdout, stderr, runErr
+}
+
+func TestBuildsAddGroupsExactIDDoesNotFetchUnneededGroupPage(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "0")
+	fixture := &addGroupsDiagnosticsFixture{
+		t:          t,
+		groupsBody: `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"QA","isInternalGroup":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/betaGroups?cursor=UNNEEDED"}}`,
+	}
+	stdout, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
+	if runErr != nil {
+		t.Fatalf("exact group ID failed: %v (stderr=%q)", runErr, stderr)
+	}
+	wantRequests := []string{
+		"GET /v1/builds/build-1/app",
+		"GET /v1/apps/app-1/betaGroups",
+		"GET /v1/builds/build-1",
+		"POST /v1/builds/build-1/relationships/betaGroups",
+	}
+	if !reflect.DeepEqual(fixture.requests, wantRequests) || !strings.Contains(stdout, `"groupIds":["group-1"]`) {
+		t.Fatalf("requests = %v, stdout = %q", fixture.requests, stdout)
+	}
 }
 
 func TestBuildsAddGroupsDryRunDoesNotPostAndReportsAdvisoryState(t *testing.T) {

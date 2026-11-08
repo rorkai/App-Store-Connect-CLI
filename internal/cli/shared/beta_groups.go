@@ -56,11 +56,33 @@ type AddBuildBetaGroupsResult struct {
 
 // ResolveBetaGroups lists an app's beta groups and resolves the provided IDs or names.
 func ResolveBetaGroups(ctx context.Context, client betaGroupsClient, appID string, groups []string, opts ResolveBetaGroupsOptions) ([]ResolvedBetaGroup, error) {
-	allGroups, err := ListAllBetaGroups(ctx, client, appID)
+	page, err := client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsLimit(200))
+	if err == nil && !betaGroupPageContainsAllIDs(page, groups) {
+		page, err = paginateBetaGroups(ctx, client, appID, page)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to list beta groups: %w", err)
 	}
-	return ResolveBetaGroupsFromList(groups, allGroups, opts)
+	return ResolveBetaGroupsFromList(groups, page, opts)
+}
+
+// A name must still be checked against the full list for ambiguity.
+func betaGroupPageContainsAllIDs(page *asc.BetaGroupsResponse, selectors []string) bool {
+	if page == nil {
+		return false
+	}
+	ids := make(map[string]struct{}, len(page.Data))
+	for _, group := range page.Data {
+		ids[strings.TrimSpace(group.ID)] = struct{}{}
+	}
+	for _, selector := range selectors {
+		if id := strings.TrimSpace(selector); id != "" {
+			if _, found := ids[id]; !found {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // NormalizeBetaGroupName collapses every Unicode space run to one ASCII space.
@@ -202,6 +224,10 @@ func ListAllBetaGroups(ctx context.Context, client betaGroupsClient, appID strin
 	if err != nil {
 		return nil, err
 	}
+	return paginateBetaGroups(ctx, client, appID, firstPage)
+}
+
+func paginateBetaGroups(ctx context.Context, client betaGroupsClient, appID string, firstPage *asc.BetaGroupsResponse) (*asc.BetaGroupsResponse, error) {
 	if firstPage == nil || firstPage.Links.Next == "" {
 		return firstPage, nil
 	}
