@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -1698,6 +1699,11 @@ func TestMetadataPushDryRunUsesExplicitAppInfoOverride(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
+		case "/v1/appInfos/appinfo-override":
+			if req.Method != http.MethodGet || req.URL.Query().Get("include") != "app" {
+				return nil, fmt.Errorf("expected App Info ownership lookup, got %s %s", req.Method, req.URL.RequestURI())
+			}
+			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"appinfo-override","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
 		case "/v1/appInfos/appinfo-override/appInfoLocalizations":
 			body := `{"data":[],"links":{"next":""}}`
 			return &http.Response{
