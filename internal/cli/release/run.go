@@ -357,6 +357,14 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 			)
 		}
 
+		build, err := client.GetBuild(requestCtx, opts.BuildID)
+		if err != nil {
+			return stepOutcome{}, fmt.Errorf("validate build: %w", err)
+		}
+		if err := shared.RequireAppStoreBuildAudience(build); err != nil {
+			return stepOutcome{}, fmt.Errorf("validate build: %w", err)
+		}
+
 		status := "ok"
 		message := "build belongs to app and matches platform"
 		if opts.DryRun {

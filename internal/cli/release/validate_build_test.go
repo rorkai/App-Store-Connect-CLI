@@ -408,6 +408,8 @@ func TestExecuteStageValidatesBuildOnceBeforeAttaching(t *testing.T) {
 			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"APP_123"}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123/preReleaseVersion":
 			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"2.4.0","platform":"IOS"}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123":
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"42","buildAudienceType":"APP_STORE_ELIGIBLE"}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_123/appStoreVersions":
 			return releaseJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"VERSION_123","attributes":{"versionString":"2.4.0","platform":"IOS"}}]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123/build":
@@ -447,5 +449,60 @@ func TestExecuteStageValidatesBuildOnceBeforeAttaching(t *testing.T) {
 	}
 	if requestOrder[0] != "GET /v1/builds/BUILD_123/relationships/app" {
 		t.Fatalf("expected the build to be resolved before anything else, got %v", requestOrder)
+	}
+}
+
+func TestExecuteStageRejectsInternalOnlyBuildBeforeMutating(t *testing.T) {
+	originalClientFactory := releaseClientFactory
+	originalMetadataExecutor := metadataPushExecutor
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		releaseClientFactory = originalClientFactory
+		metadataPushExecutor = originalMetadataExecutor
+		http.DefaultTransport = originalTransport
+	})
+	metadataApplied := false
+	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+		metadataApplied = true
+		return metadata.PushPlanResult{}, nil
+	}
+	var mutations []string
+	http.DefaultTransport = releaseRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			mutations = append(mutations, req.Method+" "+req.URL.Path)
+		}
+		switch req.Method + " " + req.URL.Path {
+		case "GET /v1/builds/BUILD_123":
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"42","processingState":"VALID","buildAudienceType":"INTERNAL_ONLY"}}}`)
+		case "GET /v1/apps/APP_123/appStoreVersions":
+			return releaseJSONResponse(http.StatusOK, `{"data":[]}`)
+		case "POST /v1/appStoreVersions":
+			return releaseJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersions","id":"VERSION_123","attributes":{"versionString":"2.4.0","platform":"IOS"}}}`)
+		case "GET /v1/appStoreVersions/VERSION_123/build":
+			return releaseJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case "PATCH /v1/appStoreVersions/VERSION_123/relationships/build":
+			return releaseJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"Build is not eligible for App Store distribution"}]}`)
+		}
+		if response, ok := releaseBuildAppLinkageResponse(req); ok {
+			return response, nil
+		}
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+	})
+	releaseClientFactory = func() (*asc.Client, error) { return newReleaseTestClient(t), nil }
+
+	result, err := executeStage(context.Background(), runOptions{
+		AppID:          "APP_123",
+		Version:        "2.4.0",
+		BuildID:        "BUILD_123",
+		MetadataDir:    "./metadata/version/2.4.0",
+		Platform:       "IOS",
+		Timeout:        releaseRunTimeout,
+		Confirm:        true,
+		CheckpointFile: filepath.Join(t.TempDir(), "stage-checkpoint.json"),
+	})
+	if err == nil || !strings.Contains(err.Error(), "INTERNAL_ONLY") ||
+		result.FailedStep != stepValidateBuild || metadataApplied || len(mutations) != 0 {
+		t.Fatalf("internal-only build should fail preflight without writes: failedStep=%q metadata=%t mutations=%v err=%v",
+			result.FailedStep, metadataApplied, mutations, err)
 	}
 }

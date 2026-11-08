@@ -20,18 +20,19 @@ func TestRunReleaseStageReadinessBlockersAreExpectedNegative(t *testing.T) {
 
 	const version = `{"type":"appStoreVersions","id":"ver-1","attributes":{"versionString":"1.0.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}`
 	responses := map[string]string{
+		"/v1/builds/build-1":                                      `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1","processingState":"VALID","buildAudienceType":"APP_STORE_ELIGIBLE"}}}`,
 		"/v1/builds/build-1/relationships/app":                    `{"data":{"type":"apps","id":"app-1"}}`,
 		"/v1/builds/build-1/preReleaseVersion":                    `{"data":{"type":"preReleaseVersions","id":"pre-1","attributes":{"version":"1.0.0","platform":"IOS"}}}`,
 		"/v1/appStoreVersions/ver-1":                              `{"data":` + version + `}`,
 		"/v1/appStoreVersions/ver-1/build":                        `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1","processingState":"VALID"}}}`,
 		"/v1/appStoreVersions/ver-0/appStoreVersionLocalizations": `{"data":[]}`,
 		"/v1/appStoreVersions/ver-1/appStoreVersionLocalizations": `{"data":[]}`,
-		"/v1/apps/app-1":                           `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`,
-		"/v1/apps/app-1/appInfos":                  `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`,
-		"/v1/appInfos/info-1/appInfoLocalizations": `{"data":[]}`,
-		"/v1/territories":                          `{"data":[]}`,
-		"/v1/apps/app-1/subscriptionGroups":        `{"data":[]}`,
-		"/v1/apps/app-1/inAppPurchasesV2":          `{"data":[]}`,
+		"/v1/apps/app-1":                                          `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`,
+		"/v1/apps/app-1/appInfos":                                 `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`,
+		"/v1/appInfos/info-1/appInfoLocalizations":                `{"data":[]}`,
+		"/v1/territories":                                         `{"data":[]}`,
+		"/v1/apps/app-1/subscriptionGroups":                       `{"data":[]}`,
+		"/v1/apps/app-1/inAppPurchasesV2":                         `{"data":[]}`,
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
