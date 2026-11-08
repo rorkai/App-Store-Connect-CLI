@@ -457,8 +457,8 @@ Examples:
 				instanceOpts = append(instanceOpts, asc.WithAnalyticsReportInstancesGranularities(granularities))
 			}
 
-			foundInstance := false
-			if strings.TrimSpace(*instanceID) == "" {
+			targetInstanceID := strings.TrimSpace(*instanceID)
+			if targetInstanceID == "" {
 				collected, instanceCount, err := collectAnalyticsReports(ctx, client, reports, instanceOpts, *includeSegments, processingDateFilter)
 				if err != nil {
 					return err
@@ -469,9 +469,12 @@ Examples:
 				}
 			} else {
 				for _, report := range reports {
-					instances, err := fetchAnalyticsReportInstances(ctx, client, report.ID, instanceOpts...)
+					instances, err := fetchAnalyticsReportInstancesMatchingID(ctx, client, report.ID, targetInstanceID, instanceOpts...)
 					if err != nil {
 						return fmt.Errorf("analytics view: failed to fetch instances: %w", err)
+					}
+					if len(instances) == 0 {
+						continue
 					}
 
 					reportResult := asc.AnalyticsReportGetReport{
@@ -483,9 +486,6 @@ Examples:
 					}
 
 					for _, instance := range instances {
-						if strings.TrimSpace(*instanceID) != "" && instance.ID != strings.TrimSpace(*instanceID) {
-							continue
-						}
 						instanceResult := asc.AnalyticsReportGetInstance{
 							ID:             instance.ID,
 							ReportDate:     instance.Attributes.ReportDate,
@@ -513,24 +513,13 @@ Examples:
 						reportResult.Instances = append(reportResult.Instances, instanceResult)
 					}
 
-					if strings.TrimSpace(*instanceID) != "" {
-						if len(reportResult.Instances) > 0 {
-							result.Data = append(result.Data, reportResult)
-							foundInstance = true
-							break
-						}
-						continue
-					}
-
-					if processingDateFilter != "" && len(reportResult.Instances) == 0 {
-						continue
-					}
 					result.Data = append(result.Data, reportResult)
+					break
 				}
 			}
 
-			if strings.TrimSpace(*instanceID) != "" && !foundInstance {
-				return analyticsNotFoundError(fmt.Errorf("analytics view: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID)), "--instance-id")
+			if targetInstanceID != "" && len(result.Data) == 0 {
+				return analyticsNotFoundError(fmt.Errorf("analytics view: instance %q not found for request %q", targetInstanceID, strings.TrimSpace(*requestID)), "--instance-id")
 			}
 			if processingDateFilter != "" && len(result.Data) == 0 {
 				if strings.TrimSpace(*next) == "" && !*paginate {
