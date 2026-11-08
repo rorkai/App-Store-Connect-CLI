@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -475,6 +476,38 @@ func TestWaitForScreenshotSettlementReportsCallerCancellation(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "timed out") {
 		t.Fatalf("caller cancellation must not be reported as a timeout: %v", err)
+	}
+}
+
+func TestScreenshotSettlementTimeoutHintMatchesDeadline(t *testing.T) {
+	t.Setenv("ASC_UPLOAD_TIMEOUT", "2ms")
+	t.Cleanup(asc.SetMediaPollIntervalsForTest(time.Millisecond, time.Millisecond))
+	client := newAssetsUploadTestHandlerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/appScreenshots/unsettled-1" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+		writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"unsettled-1","attributes":{"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`)
+	}))
+	for _, tc := range []struct {
+		name    string
+		context func(context.Context) (context.Context, context.CancelFunc)
+		want    string
+	}{
+		{"upload deadline", contextWithAssetUploadTimeout, "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=45m`)."},
+		{"request deadline", func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return context.WithTimeout(ctx, 2*time.Millisecond)
+		}, "Increase the request timeout (e.g. set `ASC_TIMEOUT=90s`)."},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := tc.context(context.Background())
+				defer cancel()
+				_, err := waitForScreenshotSettlement(ctx, client, "unsettled-1")
+				if !errors.Is(err, context.DeadlineExceeded) || errfmt.Classify(err).Hint != tc.want {
+					t.Fatalf("settlement error = %v, hint = %q, want deadline and %q", err, errfmt.Classify(err).Hint, tc.want)
+				}
+			})
+		})
 	}
 }
 

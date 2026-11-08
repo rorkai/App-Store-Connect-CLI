@@ -25,6 +25,8 @@ const (
 	assetUploadMaxTimeout     = time.Hour
 )
 
+var errAssetUploadDeadline = errors.New("asset upload deadline reached")
+
 type assetUploadWorkKey struct{}
 
 type assetUploadWork struct {
@@ -57,7 +59,7 @@ func contextWithAssetUploadTimeout(ctx context.Context) (context.Context, contex
 		ctx = context.Background()
 	}
 	work, _ := ctx.Value(assetUploadWorkKey{}).(assetUploadWork)
-	return context.WithTimeout(ctx, asc.ResolveUploadTimeoutWithDefault(assetUploadTimeoutForWork(work)))
+	return context.WithTimeoutCause(ctx, asc.ResolveUploadTimeoutWithDefault(assetUploadTimeoutForWork(work)), errAssetUploadDeadline)
 }
 
 // acquireAssetUploadLock waits for any other asc upload on this machine to
