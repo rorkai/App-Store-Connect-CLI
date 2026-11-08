@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -529,6 +530,12 @@ func generateReportDates(start, end string, freq asc.SalesReportFrequency) ([]st
 }
 
 func fetchAnalyticsReportSegments(ctx context.Context, client *asc.Client, instanceID string) ([]asc.Resource[asc.AnalyticsReportSegmentAttributes], error) {
+	return fetchAnalyticsReportSegmentsUntilMatch(ctx, client, instanceID, "")
+}
+
+// fetchAnalyticsReportSegmentsUntilMatch keeps the visited pages for ambiguity and
+// not-ready handling, but stops paging once the requested segment has been seen.
+func fetchAnalyticsReportSegmentsUntilMatch(ctx context.Context, client *asc.Client, instanceID, segmentID string) ([]asc.Resource[asc.AnalyticsReportSegmentAttributes], error) {
 	var (
 		all  []asc.Resource[asc.AnalyticsReportSegmentAttributes]
 		next string
@@ -550,6 +557,11 @@ func fetchAnalyticsReportSegments(ctx context.Context, client *asc.Client, insta
 			return nil, err
 		}
 		all = append(all, resp.Data...)
+		if segmentID != "" && slices.ContainsFunc(resp.Data, func(segment asc.Resource[asc.AnalyticsReportSegmentAttributes]) bool {
+			return segment.ID == segmentID
+		}) {
+			break
+		}
 		if resp.Links.Next == "" {
 			break
 		}

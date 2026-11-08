@@ -629,7 +629,7 @@ Examples:
 				return analyticsNotFoundError(fmt.Errorf("analytics download: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID)), "--instance-id")
 			}
 
-			segments, err := fetchAnalyticsReportSegments(ctx, client, strings.TrimSpace(*instanceID))
+			segments, err := fetchAnalyticsReportSegmentsUntilMatch(ctx, client, strings.TrimSpace(*instanceID), strings.TrimSpace(*segmentID))
 			if err != nil {
 				return fmt.Errorf("analytics download: failed to fetch segments: %w", err)
 			}

@@ -246,6 +246,61 @@ func TestAnalyticsDownloadRefreshesTimeoutThroughBodyTransfer(t *testing.T) {
 	assertAnalyticsDeadlinesRefresh(t, deadlines)
 }
 
+func TestAnalyticsDownloadStopsSegmentPagingAfterExactMatch(t *testing.T) {
+	setupAnalyticsTimeoutTest(t)
+	const reportData = "selected analytics segment"
+	const targetURL = "https://mzstatic.com/selected.csv.gz"
+	segmentPages, downloads := 0, 0
+	setAnalyticsTimeoutTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/analyticsReportRequests/" + analyticsViewRequestID + "/reports":
+			return analyticsViewJSONResponse(`{"data":[{"type":"analyticsReports","id":"report-1"}],"links":{}}`), nil
+		case "/v1/analyticsReports/report-1/instances":
+			return analyticsViewJSONResponse(`{"data":[{"type":"analyticsReportInstances","id":"instance-1"}],"links":{}}`), nil
+		case "/v1/analyticsReportInstances/instance-1/segments":
+			segmentPages++
+			if req.URL.Query().Get("cursor") != "" {
+				return nil, io.ErrUnexpectedEOF
+			}
+			return analyticsViewJSONResponse(`{
+				"data":[
+					{"type":"analyticsReportSegments","id":"other-segment","attributes":{"url":"https://mzstatic.com/other.csv.gz"}},
+					{"type":"analyticsReportSegments","id":"segment-1","attributes":{"url":"` + targetURL + `"}}
+				],
+				"links":{"next":"https://api.appstoreconnect.apple.com/v1/analyticsReportInstances/instance-1/segments?cursor=next"}
+			}`), nil
+		case "/selected.csv.gz":
+			downloads++
+			requireAnalyticsRequestAuth(t, req, false)
+			return &http.Response{
+				StatusCode:    http.StatusOK,
+				Body:          io.NopCloser(strings.NewReader(reportData)),
+				ContentLength: int64(len(reportData)),
+			}, nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	}))
+
+	outputPath := filepath.Join(t.TempDir(), "analytics-report.csv.gz")
+	stdout, _, runErr := runCommand(t, []string{
+		"analytics", "download", "--request-id", analyticsViewRequestID,
+		"--instance-id", "instance-1", "--segment-id", "segment-1",
+		"--output", outputPath, "--output-format", "json",
+	})
+	if runErr != nil {
+		t.Fatalf("download failed after %d segment pages: %v", segmentPages, runErr)
+	}
+	if segmentPages != 1 || downloads != 1 || !strings.Contains(stdout, `"segmentId":"segment-1"`) {
+		t.Fatalf("pages=%d downloads=%d stdout=%s, want one page and one download of segment-1", segmentPages, downloads, stdout)
+	}
+	data, err := os.ReadFile(outputPath)
+	if err != nil || string(data) != reportData {
+		t.Fatalf("downloaded data=%q err=%v, want %q", data, err, reportData)
+	}
+}
+
 func TestAnalyticsViewFreshTimeoutsPreserveParentCancellation(t *testing.T) {
 	setupAnalyticsTimeoutTest(t)
 
