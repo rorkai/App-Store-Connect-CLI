@@ -71,6 +71,16 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "analytics view: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "view request id differs from cursor",
+			args:    []string{"analytics", "view", "--request-id", analyticsUsageExitRequestID, "--next", "https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/22222222-2222-2222-2222-222222222222/reports?cursor=AQ"},
+			wantErr: "analytics view: --request-id must match the report request in --next",
+		},
+		{
+			name:    "view next points at request list",
+			args:    []string{"analytics", "view", "--next", "https://api.appstoreconnect.apple.com/v1/apps/6759231657/analyticsReportRequests?limit=1"},
+			wantErr: "analytics view: --next must point to an analytics report request's reports",
+		},
+		{
 			name:    "download invalid request id",
 			args:    []string{"analytics", "download", "--request-id", "not-a-uuid", "--instance-id", "instance-1"},
 			wantErr: "analytics download: --request-id must be a valid UUID",

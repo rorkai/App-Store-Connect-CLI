@@ -81,18 +81,29 @@ func TestAnalyticsReportsRelationshipsAcceptsPrefixedReportID(t *testing.T) {
 }
 
 func TestAnalyticsViewPaginateFromNextFollowsReportPages(t *testing.T) {
+	t.Run("cursor only", func(t *testing.T) {
+		testAnalyticsViewPaginateFromNext(t)
+	})
+	t.Run("with matching request id", func(t *testing.T) {
+		testAnalyticsViewPaginateFromNext(t, "--request-id", analyticsUsageExitRequestID)
+	})
+}
+
+func testAnalyticsViewPaginateFromNext(t *testing.T, requestArgs ...string) {
+	t.Helper()
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const (
-		firstReportsURL    = "https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/request-1/reports?cursor=AQ&limit=200"
-		secondReportsURL   = "https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/request-1/reports?cursor=BQ&limit=200"
+		reportsURL         = "https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/" + analyticsUsageExitRequestID + "/reports"
+		firstReportsURL    = reportsURL + "?cursor=AQ&limit=200"
+		secondReportsURL   = reportsURL + "?cursor=BQ&limit=200"
 		firstInstancesURL  = "https://api.appstoreconnect.apple.com/v1/analyticsReports/analytics-report-next-1/instances?limit=200"
 		secondInstancesURL = "https://api.appstoreconnect.apple.com/v1/analyticsReports/analytics-report-next-2/instances?limit=200"
 	)
 
 	bodies := map[string]string{
-		firstReportsURL:    `{"data":[{"type":"analyticsReports","id":"analytics-report-next-1","attributes":{"name":"Retention","category":"APP_USAGE","granularity":"DAILY"}}],"links":{"first":"https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/request-1/reports","prev":"https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/request-1/reports?cursor=9w","next":"` + secondReportsURL + `"}}`,
+		firstReportsURL:    `{"data":[{"type":"analyticsReports","id":"analytics-report-next-1","attributes":{"name":"Retention","category":"APP_USAGE","granularity":"DAILY"}}],"links":{"first":"` + reportsURL + `","prev":"` + reportsURL + `?cursor=9w","next":"` + secondReportsURL + `"}}`,
 		secondReportsURL:   `{"data":[{"type":"analyticsReports","id":"analytics-report-next-2","attributes":{"name":"Acquisition","category":"APP_STORE","granularity":"DAILY"}}],"links":{"next":""}}`,
 		firstInstancesURL:  `{"data":[{"type":"analyticsReportInstances","id":"analytics-instance-next-1","attributes":{"reportDate":"2024-01-01","processingDate":"2024-01-02T00:00:00Z","granularity":"DAILY","version":"1"}}],"links":{"next":""}}`,
 		secondInstancesURL: `{"data":[{"type":"analyticsReportInstances","id":"analytics-instance-next-2","attributes":{"reportDate":"2024-01-03","processingDate":"2024-01-04T00:00:00Z","granularity":"DAILY","version":"1"}}],"links":{"next":""}}`,
@@ -132,7 +143,7 @@ func TestAnalyticsViewPaginateFromNextFollowsReportPages(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"analytics", "view", "--paginate", "--next", firstReportsURL}); err != nil {
+		if err := root.Parse(append([]string{"analytics", "view", "--paginate", "--next", firstReportsURL}, requestArgs...)); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -152,8 +163,8 @@ func TestAnalyticsViewPaginateFromNextFollowsReportPages(t *testing.T) {
 		}
 	}
 	for _, link := range []string{
-		`"first":"https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/request-1/reports"`,
-		`"prev":"https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/request-1/reports?cursor=9w"`,
+		`"first":"` + reportsURL + `"`,
+		`"prev":"` + reportsURL + `?cursor=9w"`,
 	} {
 		if !strings.Contains(stdout, link) {
 			t.Fatalf("expected output to contain %q, got %q", link, stdout)

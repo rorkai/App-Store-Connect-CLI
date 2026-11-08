@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -351,6 +352,29 @@ Examples:
 	}
 }
 
+func validateAnalyticsViewCursor(next, requestID string) error {
+	next = strings.TrimSpace(next)
+	if next == "" {
+		return nil
+	}
+	if err := shared.ValidateNextURL(next); err != nil {
+		return err
+	}
+	parsed, err := url.Parse(next)
+	if err != nil {
+		return err
+	}
+	path, hasPrefix := strings.CutPrefix(parsed.Path, "/v1/analyticsReportRequests/")
+	cursorRequestID, hasSuffix := strings.CutSuffix(path, "/reports")
+	if _, err := asc.ValidateResourcePathSegment(cursorRequestID); !hasPrefix || !hasSuffix || err != nil {
+		return errors.New("--next must point to an analytics report request's reports")
+	}
+	if requestID = strings.TrimSpace(requestID); requestID != "" && !strings.EqualFold(requestID, cursorRequestID) {
+		return errors.New("--request-id must match the report request in --next")
+	}
+	return nil
+}
+
 // AnalyticsViewCommand retrieves analytics reports and instances for a request.
 func AnalyticsViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
@@ -413,7 +437,7 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
 				return shared.UsageError("analytics view: --limit must be between 1 and 200")
 			}
-			if err := shared.ValidateNextURL(*next); err != nil {
+			if err := validateAnalyticsViewCursor(*next, *requestID); err != nil {
 				return shared.UsageErrorf("analytics view: %v", err)
 			}
 
