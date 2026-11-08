@@ -14,6 +14,26 @@ import (
 
 type screenshotConcurrencyKey struct{}
 
+type screenshotNoWaitKey struct{}
+
+// withScreenshotNoWait makes uploads return once each file is uploaded and
+// committed (UPLOAD_COMPLETE) instead of polling until App Store Connect
+// finishes processing it.
+func withScreenshotNoWait(ctx context.Context, noWait bool) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, screenshotNoWaitKey{}, noWait)
+}
+
+func screenshotNoWaitFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	value, _ := ctx.Value(screenshotNoWaitKey{}).(bool)
+	return value
+}
+
 const (
 	// App Store Connect holds at most 10 screenshots per set, so 10 uploads a full set in one round.
 	defaultScreenshotUploadConcurrency = 10

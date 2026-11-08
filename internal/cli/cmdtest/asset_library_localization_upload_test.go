@@ -386,6 +386,7 @@ func TestLibraryUploadFlagConflicts(t *testing.T) {
 		{screenshots("--asset-library", "--skip-existing"), "--asset-library cannot be combined with --skip-existing"},
 		{screenshots("--asset-library", "--replace", "--confirm"), "--asset-library cannot be combined with --replace"},
 		{screenshots("--asset-library", "--concurrency", "2"), "--asset-library cannot be combined with --concurrency"},
+		{screenshots("--asset-library", "--no-wait"), "--asset-library cannot be combined with --no-wait"},
 		{[]string{"screenshots", "upload", "--asset-library", "--app", "1", "--version", "1.0", "--locale", "en-US", "--path", file, "--device-type", "IPHONE_DUO"}, "--asset-library requires --version-localization"},
 		{[]string{"screenshots", "upload", "--asset-library", "--resume", "failures.json"}, "--resume cannot be combined with"},
 		{previews("--placement-group", "G"), "--placement-group requires --asset-library"},

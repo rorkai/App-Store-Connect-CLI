@@ -208,7 +208,12 @@ func waitForPendingScreenshotDelivery(ctx context.Context, client *asc.Client, p
 	if err != nil {
 		return asc.AssetUploadResultItem{}, pending, false, err
 	}
-	return completedPendingScreenshotResult(pending), screenshotPendingAsset{}, false, nil
+	result := completedPendingScreenshotResult(pending)
+	if screenshotNoWaitFromContext(ctx) {
+		// --no-wait only checked the state once; report it instead of claiming COMPLETE.
+		result.State = pending.State
+	}
+	return result, screenshotPendingAsset{}, false, nil
 }
 
 func completedPendingScreenshotResult(pending screenshotPendingAsset) asc.AssetUploadResultItem {

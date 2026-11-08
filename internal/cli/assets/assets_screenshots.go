@@ -766,6 +766,7 @@ func AssetsScreenshotsUploadCommand() *ffcli.Command {
 	assetLibrary := fs.Bool("asset-library", false, "Upload to the Asset Library and place on the localization instead of using a screenshot set (requires --version-localization)")
 	placementGroup := fs.String("placement-group", "", "Placement group to use with --asset-library (defaults to the group Apple publishes for --device-type)")
 	pollInterval := shared.BindMediaPollIntervalFlag(fs)
+	noWait := fs.Bool("no-wait", false, "Return once each file is uploaded and committed instead of waiting for App Store Connect processing; check later with asc screenshots list")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -813,6 +814,14 @@ command exits non-zero and prints a receipt with each file's asset and placement
 ID. Nothing is deleted automatically; inspect the placements before retrying.
 Use --dry-run to see the library, group and capacity without changing anything.
 
+--no-wait returns once each file is uploaded and committed (UPLOAD_COMPLETE)
+instead of polling every file until App Store Connect finishes processing it.
+Each file still gets one state check, so a delivery that has already FAILED is
+reported. Processing polls cost App Store Connect requests from the key's
+hourly limit; large multi-locale uploads can exhaust it and stall on 429s.
+Check the final state later with asc screenshots list. --no-wait cannot be
+combined with --asset-library.
+
 Only one asc upload runs at a time on a machine. While another screenshots or
 video-previews upload is running, this command waits up to 30 minutes before
 it sends any request; ASC_UPLOAD_LOCK=0 skips the wait.
@@ -833,6 +842,7 @@ Examples:
   asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots/en-US.png" --device-type "IPHONE_65"
   asc screenshots upload --app "123456789" --version "1.2.3" --path "./screenshots" --device-type "IPHONE_65"
   asc screenshots upload --app "123456789" --version "VERSION_ID" --path "./screenshots/ipad" --device-type "IPAD_PRO_3GEN_129" --dry-run
+  asc screenshots upload --app "123456789" --version "1.2.3" --path "./screenshots" --device-type "IPHONE_65" --replace --confirm --no-wait
   asc screenshots upload --resume ".asc/reports/screenshots-upload/failures-123.json"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -847,7 +857,11 @@ Examples:
 			if *assetLibrary && flagWasSet(fs, "concurrency") {
 				return shared.UsageError("--asset-library cannot be combined with --concurrency; library uploads run one at a time to keep file order")
 			}
+			if *assetLibrary && *noWait {
+				return shared.UsageError("--asset-library cannot be combined with --no-wait; library uploads wait for processing before placing each file")
+			}
 			ctx = withScreenshotUploadConcurrency(ctx, *concurrency)
+			ctx = withScreenshotNoWait(ctx, *noWait)
 			resumePath := strings.TrimSpace(*resume)
 			if resumePath != "" {
 				if *assetLibrary || strings.TrimSpace(*placementGroup) != "" {
