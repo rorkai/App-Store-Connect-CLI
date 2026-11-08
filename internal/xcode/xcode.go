@@ -274,8 +274,19 @@ func Archive(ctx context.Context, opts ArchiveOptions) (*ArchiveResult, error) {
 	if err := validateArchiveInputPaths(opts); err != nil {
 		return nil, err
 	}
-	if err := prepareArchiveDestination(opts.ArchivePath, opts.Overwrite); err != nil {
+	destination := opts.ArchivePath
+	replace, err := prepareArchiveDestination(destination, opts.Overwrite)
+	if err != nil {
 		return nil, err
+	}
+	var replacement *archiveReplacement
+	if replace {
+		replacement, err = stageArchiveReplacement(destination)
+		if err != nil {
+			return nil, err
+		}
+		defer replacement.cleanup(opts.LogWriter)
+		opts.ArchivePath = replacement.path
 	}
 
 	args := buildArchiveCommand(opts)
@@ -288,8 +299,17 @@ func Archive(ctx context.Context, opts ArchiveOptions) (*ArchiveResult, error) {
 		return nil, err
 	}
 
+	if replacement != nil {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if err := replacement.publish(); err != nil {
+			return nil, fmt.Errorf("replace existing archive: %w", err)
+		}
+	}
+
 	return &ArchiveResult{
-		ArchivePath:   opts.ArchivePath,
+		ArchivePath:   destination,
 		BundleID:      info.BundleID,
 		Version:       info.Version,
 		BuildNumber:   info.BuildNumber,
@@ -2078,23 +2098,21 @@ func containsArg(args []string, want string) bool {
 	return false
 }
 
-func prepareArchiveDestination(archivePath string, overwrite bool) error {
+func prepareArchiveDestination(archivePath string, overwrite bool) (bool, error) {
 	parent := filepath.Dir(archivePath)
 	if err := os.MkdirAll(parent, 0o755); err != nil {
-		return fmt.Errorf("create archive output directory: %w", err)
+		return false, fmt.Errorf("create archive output directory: %w", err)
 	}
-	_, err := os.Stat(archivePath)
+	_, err := os.Lstat(archivePath)
 	switch {
 	case err == nil && !overwrite:
-		return fmt.Errorf("--archive-path already exists: %s (use --overwrite to replace it)", archivePath)
-	case err == nil && overwrite:
-		if removeErr := os.RemoveAll(archivePath); removeErr != nil {
-			return fmt.Errorf("remove existing archive path: %w", removeErr)
-		}
-	case err != nil && !errors.Is(err, os.ErrNotExist):
-		return fmt.Errorf("stat archive path: %w", err)
+		return false, fmt.Errorf("--archive-path already exists: %s (use --overwrite to replace it)", archivePath)
+	case err == nil:
+		return true, nil
+	case !errors.Is(err, os.ErrNotExist):
+		return false, fmt.Errorf("stat archive path: %w", err)
 	}
-	return nil
+	return false, nil
 }
 
 func prepareIPAPath(ipaPath string, overwrite bool) error {
