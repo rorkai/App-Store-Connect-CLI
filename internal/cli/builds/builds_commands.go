@@ -363,8 +363,10 @@ Examples:
 				result.Operations = nil
 
 				if *wait || testNotesValue != "" {
+					waitCtx, waitCancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
+					defer waitCancel()
 					fmt.Fprintf(os.Stderr, "Waiting for build %s (%s) to appear in App Store Connect...\n", buildNumberValue, versionValue)
-					buildResp, err := shared.WaitForBuildByNumberOrUploadFailure(requestCtx, client, resolvedAppID, uploadResp.Data.ID, versionValue, buildNumberValue, string(platformValue), *pollInterval)
+					buildResp, err := shared.WaitForBuildByNumberOrUploadFailure(waitCtx, client, resolvedAppID, uploadResp.Data.ID, versionValue, buildNumberValue, string(platformValue), *pollInterval)
 					if err != nil {
 						return fmt.Errorf("builds upload: %w", err)
 					}
@@ -376,14 +378,14 @@ Examples:
 					if testNotesValue != "" {
 						fmt.Fprintf(os.Stderr, "Build %s discovered; setting What to Test notes...\n", buildResp.Data.ID)
 						upsertOpts := shared.UpsertBetaBuildLocalizationOptions{AppID: resolvedAppID, Diagnostics: os.Stderr}
-						if _, err := shared.UpsertBetaBuildLocalization(requestCtx, client, buildResp.Data.ID, localeValue, testNotesValue, upsertOpts); err != nil {
+						if _, err := shared.UpsertBetaBuildLocalization(waitCtx, client, buildResp.Data.ID, localeValue, testNotesValue, upsertOpts); err != nil {
 							return fmt.Errorf("builds upload: %w", shared.NewTestNotesRecoveryError(buildResp.Data.ID, localeValue, testNotesValue, err))
 						}
 					}
 
 					if *wait {
 						fmt.Fprintf(os.Stderr, "Build %s discovered; waiting for processing...\n", buildResp.Data.ID)
-						if _, err := shared.WaitForBuildProcessingWithDetails(requestCtx, client, resolvedAppID, buildResp.Data.ID, *pollInterval); err != nil {
+						if _, err := shared.WaitForBuildProcessingWithDetails(waitCtx, client, resolvedAppID, buildResp.Data.ID, *pollInterval); err != nil {
 							return fmt.Errorf("builds upload: %w", err)
 						}
 					}
