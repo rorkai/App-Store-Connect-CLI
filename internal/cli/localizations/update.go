@@ -253,7 +253,7 @@ func updateAppInfoLocalization(ctx context.Context, p updateAppInfoParams) error
 	defer cancel()
 
 	if localizationID == "" {
-		appInfo, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(p.appInfoID))
+		appInfo, err := shared.ResolveOwnedAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(p.appInfoID))
 		if err != nil {
 			return fmt.Errorf("localizations update: %w", err)
 		}

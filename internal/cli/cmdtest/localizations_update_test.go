@@ -605,6 +605,8 @@ func TestLocalizationsUpdateMissingAppInfoLocaleSuggestsCreation(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	stubTransport(t, func(req *http.Request) (*http.Response, error) {
 		switch req.Method + " " + req.URL.Path {
+		case "GET /v1/appInfos/selected-info":
+			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"selected-info","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
 		case "GET /v1/appInfos/selected-info/appInfoLocalizations":
 			return locUpdateJSONResponse(`{"data":[],"links":{}}`)
 		default:

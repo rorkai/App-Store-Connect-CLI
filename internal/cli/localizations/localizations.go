@@ -682,7 +682,7 @@ Examples:
 				}
 
 				appInfo, err := shared.RetryReadWithFreshTimeout(ctx, func(resolveCtx context.Context) (string, error) {
-					return shared.ResolveAppInfoID(resolveCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
+					return shared.ResolveOwnedAppInfoID(resolveCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
 				})
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)

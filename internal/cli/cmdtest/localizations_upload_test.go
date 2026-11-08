@@ -447,6 +447,8 @@ func TestAppInfoLocalizationsUploadUsesFreshReadbackAfterMutationTimeout(t *test
 	patches := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1":
+			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"appinfo-1","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			reads++
 			name := "Old Name"
@@ -727,6 +729,8 @@ func runPartialAppInfoLocalizationUpload(t *testing.T) (partialLocalizationUploa
 	patches := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1":
+			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"appinfo-1","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"en-id","attributes":{"locale":"en-US","name":"Old English"}},{"type":"appInfoLocalizations","id":"fr-id","attributes":{"locale":"fr-FR","name":"Old French"}},{"type":"appInfoLocalizations","id":"ja-id","attributes":{"locale":"ja","name":"Old Japanese"}}],"links":{"next":""}}`), nil
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appInfoLocalizations/en-id":
