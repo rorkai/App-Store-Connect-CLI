@@ -35,7 +35,8 @@ func (e *responseBodyReadError) Unwrap() error {
 	return e.err
 }
 
-func isResponseBodyReadError(err error) bool {
+// IsResponseBodyReadError reports whether a successful API response body could not be read.
+func IsResponseBodyReadError(err error) bool {
 	var readErr *responseBodyReadError
 	return errors.As(err, &readErr)
 }

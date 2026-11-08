@@ -126,7 +126,7 @@ func (c *Client) UploadAssetLibraryImageWithCategory(ctx context.Context, librar
 	var commitErr error
 	if err != nil {
 		commitErr = fmt.Errorf("commit image %s: %w", result.ImageID, err)
-		if !isResponseBodyReadError(err) || ctx.Err() != nil {
+		if !IsResponseBodyReadError(err) || ctx.Err() != nil {
 			return result, commitErr
 		}
 		// Apple returned success but the response body was lost. Confirm

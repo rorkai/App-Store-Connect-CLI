@@ -52,11 +52,30 @@ func PrepareBuildUpload(ctx context.Context, client *asc.Client, appID string, f
 	}
 
 	fileResp, err := client.CreateBuildUploadFile(ctx, fileReq)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create file reservation: %w", err)
+	if err == nil {
+		return uploadResp, fileResp, nil
 	}
 
-	return uploadResp, fileResp, nil
+	uploadID := uploadResp.Data.ID
+	if uploadID != "" && asc.IsResponseBodyReadError(err) && !errors.Is(err, context.Canceled) {
+		// Read the new parent's files without replaying the reservation POST.
+		lookupCtx, cancel := ContextWithTimeout(contextWithoutCurrentTimeout(ctx))
+		defer cancel()
+		files, lookupErr := client.GetBuildUploadFiles(lookupCtx, uploadID)
+		if lookupErr == nil && files.Links.Next == "" && len(files.Data) == 1 {
+			file := files.Data[0]
+			attrs, expected := file.Attributes, fileReq.Data.Attributes
+			if file.Type == asc.ResourceTypeBuildUploadFiles && file.ID != "" &&
+				attrs.FileName == expected.FileName && attrs.FileSize == expected.FileSize &&
+				attrs.UTI == expected.UTI && attrs.AssetType == expected.AssetType &&
+				attrs.AssetDeliveryState != nil && attrs.AssetDeliveryState.State != nil && *attrs.AssetDeliveryState.State == "AWAITING_UPLOAD" &&
+				len(attrs.UploadOperations) > 0 {
+				return uploadResp, &asc.BuildUploadFileResponse{Data: file}, nil
+			}
+		}
+	}
+
+	return nil, nil, fmt.Errorf("failed to create file reservation for build upload %q: %w", uploadID, err)
 }
 
 // CommitBuildUploadFile marks a reserved upload file as uploaded and optionally
