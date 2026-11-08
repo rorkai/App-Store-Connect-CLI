@@ -72,11 +72,11 @@ func TestAnalyticsInstancesLinksAcceptsPrefixedInstanceID(t *testing.T) {
 }
 
 func TestAnalyticsDownloadAcceptsPrefixedInstanceID(t *testing.T) {
-	runAnalyticsDownloadIDCase(t, "r39-example-instance", "33333333-3333-3333-3333-333333333333")
+	runAnalyticsDownloadIDCase(t, "r39-example-instance", "33333333-3333-3333-3333-333333333333", false)
 }
 
 func TestAnalyticsDownloadAcceptsPrefixedSegmentID(t *testing.T) {
-	runAnalyticsDownloadIDCase(t, "22222222-2222-2222-2222-222222222222", "s39-example-segment")
+	runAnalyticsDownloadIDCase(t, "22222222-2222-2222-2222-222222222222", "s39-example-segment", true)
 }
 
 func TestAnalyticsRequestIDValidationRemainsBeforeClientConstruction(t *testing.T) {
@@ -222,7 +222,7 @@ func TestAnalyticsResourcePathValidationRemainsBeforeClientConstruction(t *testi
 	}
 }
 
-func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string) {
+func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string, matchOnSecondPage bool) {
 	t.Helper()
 	setupAnalyticsResourceIDAuth(t)
 
@@ -230,25 +230,39 @@ func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string) {
 	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
-		switch requestCount {
-		case 1:
+		switch req.URL.Path {
+		case "/v1/analyticsReportRequests/" + analyticsViewRequestID + "/reports":
 			assertAnalyticsResourceIDRequest(t, req, "/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports", "limit=200", true)
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"data":[{"type":"analyticsReports","id":"r39-example-report"}],"links":{}}`)
-		case 2:
-			assertAnalyticsResourceIDRequest(t, req, "/v1/analyticsReports/r39-example-report/instances", "limit=200", true)
+		case "/v1/analyticsReports/r39-example-report/instances":
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"data":[{"type":"analyticsReportInstances","id":"`+instanceID+`"}],"links":{}}`)
-		case 3:
+			const nextPage = "https://api.appstoreconnect.apple.com/v1/analyticsReports/r39-example-report/instances?cursor="
+			switch req.URL.Query().Get("cursor") {
+			case "unused":
+				http.NotFound(w, req)
+			case "match":
+				assertAnalyticsResourceIDRequest(t, req, "/v1/analyticsReports/r39-example-report/instances", "cursor=match", true)
+				_, _ = io.WriteString(w, `{"data":[{"type":"analyticsReportInstances","id":"`+instanceID+`"}],"links":{"next":"`+nextPage+`unused"}}`)
+			default:
+				assertAnalyticsResourceIDRequest(t, req, "/v1/analyticsReports/r39-example-report/instances", "limit=200", true)
+				if matchOnSecondPage {
+					_, _ = io.WriteString(w, `{"data":[{"type":"analyticsReportInstances","id":"another-instance"}],"links":{"next":"`+nextPage+`match"}}`)
+				} else {
+					_, _ = io.WriteString(w, `{"data":[{"type":"analyticsReportInstances","id":"`+instanceID+`"}],"links":{"next":"`+nextPage+`unused"}}`)
+				}
+			}
+		case "/v1/analyticsReportInstances/" + instanceID + "/segments":
 			assertAnalyticsResourceIDRequest(t, req, "/v1/analyticsReportInstances/"+instanceID+"/segments", "limit=200", true)
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"data":[{"type":"analyticsReportSegments","id":"`+segmentID+`","attributes":{"url":"https://mzstatic.com/report.gz"}}],"links":{}}`)
-		case 4:
+		case "/report.gz":
 			assertAnalyticsResourceIDRequest(t, req, "/report.gz", "", false)
 			w.Header().Set("Content-Type", "application/a-gzip")
 			_, _ = io.WriteString(w, reportPayload)
 		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
+			t.Errorf("unexpected extra request: %s %s", req.Method, req.URL)
+			http.NotFound(w, req)
 		}
 	}))
 	t.Cleanup(server.Close)
@@ -271,8 +285,12 @@ func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount != 4 {
-		t.Fatalf("request count = %d, want 4", requestCount)
+	wantRequests := 4
+	if matchOnSecondPage {
+		wantRequests++
+	}
+	if requestCount != wantRequests {
+		t.Fatalf("request count = %d, want %d", requestCount, wantRequests)
 	}
 	data, err := os.ReadFile(outputPath)
 	if err != nil {
