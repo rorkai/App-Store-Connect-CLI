@@ -123,7 +123,7 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
 				return shared.UsageError("analytics requests: --limit must be between 1 and 200")
 			}
-			if err := shared.ValidateNextURL(*next); err != nil {
+			if err := validateAnalyticsRequestsCursor(*next, *appID); err != nil {
 				return shared.UsageErrorf("analytics requests: %v", err)
 			}
 			if strings.TrimSpace(*requestID) != "" {
@@ -207,6 +207,29 @@ Examples:
 			return shared.PrintOutput(response, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func validateAnalyticsRequestsCursor(next, appID string) error {
+	next = strings.TrimSpace(next)
+	if next == "" {
+		return nil
+	}
+	if err := shared.ValidateNextURL(next); err != nil {
+		return err
+	}
+	parsed, err := url.Parse(next)
+	if err != nil {
+		return err
+	}
+	path, hasPrefix := strings.CutPrefix(parsed.Path, "/v1/apps/")
+	cursorAppID, hasSuffix := strings.CutSuffix(path, "/analyticsReportRequests")
+	if _, err := asc.ValidateResourcePathSegment(cursorAppID); !hasPrefix || !hasSuffix || err != nil {
+		return errors.New("--next must point to an app's analytics report requests")
+	}
+	if appID = strings.TrimSpace(appID); appID != "" && appID != cursorAppID {
+		return errors.New("--app must match the app in --next")
+	}
+	return nil
 }
 
 func createOrReuseAnalyticsReportRequest(ctx context.Context, client *asc.Client, appID string, accessType asc.AnalyticsAccessType) (*asc.AnalyticsReportRequestReuseResult, error) {

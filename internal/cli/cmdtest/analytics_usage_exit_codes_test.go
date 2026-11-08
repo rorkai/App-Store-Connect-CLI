@@ -41,6 +41,21 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "analytics requests: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "requests next uses unsupported top-level collection",
+			args:    []string{"analytics", "requests", "--next", "https://api.appstoreconnect.apple.com/v1/analyticsReportRequests?limit=1"},
+			wantErr: "analytics requests: --next must point to an app's analytics report requests",
+		},
+		{
+			name:    "requests next points at unrelated resource",
+			args:    []string{"analytics", "requests", "--next", "https://api.appstoreconnect.apple.com/v1/apps?limit=1"},
+			wantErr: "analytics requests: --next must point to an app's analytics report requests",
+		},
+		{
+			name:    "requests app differs from cursor",
+			args:    []string{"analytics", "requests", "--app", "123456789", "--next", "https://api.appstoreconnect.apple.com/v1/apps/6759231657/analyticsReportRequests?limit=1"},
+			wantErr: "analytics requests: --app must match the app in --next",
+		},
+		{
 			name:    "requests invalid request id",
 			args:    []string{"analytics", "requests", "--request-id", "not-a-uuid"},
 			wantErr: "analytics requests: --request-id must be a valid UUID",
