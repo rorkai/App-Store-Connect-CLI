@@ -4156,3 +4156,37 @@ func TestPersistSessionKeepsNewerCookieWrittenByAnotherProcess(t *testing.T) {
 		t.Fatalf("persisted cookies = %v, want the other process's myacinfo plus this handle's itctx and Olympus myacinfo", values)
 	}
 }
+
+func TestCachedSessionRejectsDifferentAppleAccount(t *testing.T) {
+	withFileSessionCache(t)
+	if _, err := ImportSessionBundle(validTestBundle(time.Now().Add(time.Hour))); err != nil {
+		t.Fatal(err)
+	}
+
+	previousFetcher := sessionInfoFetcher
+	sessionInfoFetcher = func(context.Context, *http.Client) (*sessionInfo, error) {
+		info := &sessionInfo{}
+		info.Provider.ProviderID = 42
+		info.User.EmailAddress = "other@example.com"
+		return info, nil
+	}
+	t.Cleanup(func() { sessionInfoFetcher = previousFetcher })
+
+	for _, tc := range []struct {
+		name   string
+		resume func(context.Context, string) (*AuthSession, bool, error)
+	}{
+		{"normal", TryResumeSession},
+		{"read_only", ResumeCachedSessionWithoutPersist},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			session, ok, err := tc.resume(context.Background(), webTestSessionEmail)
+			if !errors.Is(err, ErrCachedSessionValidationFailed) || ok || (session != nil && session.Client != nil) {
+				t.Errorf("resume must reject a different Apple Account, got ok=%t err=%v", ok, err)
+			}
+		})
+	}
+	if _, ok, err := LoadCachedSession("other@example.com"); err != nil || ok {
+		t.Errorf("mismatched account was cached, got ok=%t err=%v", ok, err)
+	}
+}

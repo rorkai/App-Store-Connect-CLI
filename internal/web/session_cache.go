@@ -2558,6 +2558,9 @@ func resumeFromPersistedSession(ctx context.Context, sess persistedSession) (*Au
 		}
 		return nil, false, nil
 	}
+	if err := validateCachedSessionAccount(sess.UserEmail, info); err != nil {
+		return nil, false, err
+	}
 	cached := sess
 	session := &AuthSession{
 		Client:           client,
@@ -2599,10 +2602,25 @@ func resumeFromPersistedSessionReadOnly(ctx context.Context, sess persistedSessi
 	if err != nil || !ok {
 		return identity, ok, err
 	}
+	if err := validateCachedSessionAccount(sess.UserEmail, info); err != nil {
+		return identity, false, err
+	}
 	session := &AuthSession{Client: client, UserEmail: strings.TrimSpace(sess.UserEmail)}
 	applySessionInfo(session, info)
 	session.DeveloperTeamID = strings.TrimSpace(sess.DeveloperTeamID)
 	return session, true, nil
+}
+
+func validateCachedSessionAccount(expected string, info *sessionInfo) error {
+	if info == nil {
+		return nil
+	}
+	expected = strings.TrimSpace(expected)
+	actual := strings.TrimSpace(info.User.EmailAddress)
+	if expected != "" && actual != "" && !strings.EqualFold(expected, actual) {
+		return fmt.Errorf("%w: Apple session account does not match the cached account", ErrCachedSessionValidationFailed)
+	}
+	return nil
 }
 
 func readOnlyFileBackendSelection() backendSelection {
