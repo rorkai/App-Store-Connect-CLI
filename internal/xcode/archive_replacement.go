@@ -2,6 +2,7 @@ package xcode
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,11 +11,17 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
+var (
+	errArchiveSwapUnsupported = errors.New("atomic archive replacement is unsupported")
+	swapArchiveDirectoriesFn  = swapArchiveDirectories
+)
+
 type archiveReplacement struct {
-	parent *os.Root
-	dir    string
-	name   string
-	path   string
+	parent        *os.Root
+	dir           string
+	name          string
+	path          string
+	retainStaging bool
 }
 
 func stageArchiveReplacement(destination string) (*archiveReplacement, error) {
@@ -53,11 +60,55 @@ func (r *archiveReplacement) publish() error {
 		return err
 	}
 	defer stageDir.Close()
-	return swapArchiveDirectories(stageDir, parentDir, r.name)
+	err = swapArchiveDirectoriesFn(stageDir, parentDir, r.name)
+	if errors.Is(err, errArchiveSwapUnsupported) {
+		return r.publishWithBackup()
+	}
+	return err
+}
+
+// publishWithBackup handles volumes without atomic directory exchange. Keep
+// the prior archive in staging until publication succeeds or it is restored.
+func (r *archiveReplacement) publishWithBackup() error {
+	backup := filepath.Join(r.dir, "previous")
+	if err := r.parent.Rename(r.name, backup); err != nil {
+		return fmt.Errorf("back up existing archive: %w", err)
+	}
+	if err := r.renameToAvailableDestination(filepath.Join(r.dir, r.name)); err != nil {
+		if restoreErr := r.renameToAvailableDestination(backup); restoreErr != nil {
+			r.retainStaging = true
+			return errors.Join(err, fmt.Errorf("could not restore previous archive retained at %q: %w", filepath.Join(filepath.Dir(r.path), "previous"), restoreErr))
+		}
+		return err
+	}
+	return nil
+}
+
+func (r *archiveReplacement) renameToAvailableDestination(source string) error {
+	if _, err := r.parent.Lstat(r.name); err == nil {
+		return fmt.Errorf("archive destination was created during replacement: %w", os.ErrExist)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	info, err := r.parent.Lstat(source)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		// A prior non-directory can be restored without replacing a file
+		// created by a concurrent writer after the destination check.
+		return r.parent.Link(source, r.name)
+	}
+	// A validated archive is a nonempty directory. A rename cannot
+	// overwrite another nonempty directory or a file.
+	return r.parent.Rename(source, r.name)
 }
 
 func (r *archiveReplacement) cleanup(log io.Writer) {
 	defer r.parent.Close()
+	if r.retainStaging {
+		return
+	}
 	if err := r.parent.RemoveAll(r.dir); err != nil && log != nil {
 		fmt.Fprintf(log, "Warning: could not clean up archive staging directory: %v\n", err)
 	}

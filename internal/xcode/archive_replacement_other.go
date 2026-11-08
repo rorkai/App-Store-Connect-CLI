@@ -2,11 +2,8 @@
 
 package xcode
 
-import (
-	"errors"
-	"os"
-)
+import "os"
 
 func swapArchiveDirectories(_, _ *os.File, _ string) error {
-	return errors.New("atomic archive replacement requires macOS")
+	return errArchiveSwapUnsupported
 }

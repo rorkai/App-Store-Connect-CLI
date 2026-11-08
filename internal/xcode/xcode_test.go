@@ -141,14 +141,22 @@ func TestArchiveNormalizesTrailingSeparatorArchivePath(t *testing.T) {
 }
 
 func TestArchiveOverwritePreservesExistingArchiveUntilReplacementSucceeds(t *testing.T) {
-	for _, fail := range []bool{true, false} {
-		name := "success"
-		if fail {
-			name = "build failure"
-		}
-		t.Run(name, func(t *testing.T) {
-			if !fail && runtime.GOOS != "darwin" {
-				t.Skip("archive replacement requires the macOS atomic directory swap")
+	for _, tc := range []struct {
+		name           string
+		fail, fallback bool
+	}{
+		{name: "build failure", fail: true},
+		{name: "native swap"},
+		{name: "backup fallback", fallback: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if !tc.fail && !tc.fallback && runtime.GOOS != "darwin" {
+				t.Skip("native archive swap requires macOS")
+			}
+			if tc.fallback {
+				previous := swapArchiveDirectoriesFn
+				swapArchiveDirectoriesFn = func(_, _ *os.File, _ string) error { return errArchiveSwapUnsupported }
+				t.Cleanup(func() { swapArchiveDirectoriesFn = previous })
 			}
 			tempDir := t.TempDir()
 			projectPath := filepath.Join(tempDir, "Demo.xcodeproj")
@@ -168,7 +176,7 @@ func TestArchiveOverwritePreservesExistingArchiveUntilReplacementSucceeds(t *tes
 			runtimeGOOS = "darwin"
 			lookPathFn = func(string) (string, error) { return "/usr/bin/xcodebuild", nil }
 			commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
-			if fail {
+			if tc.fail {
 				t.Setenv("ASC_XCODE_HELPER_ARCHIVE_FAIL", "1")
 			}
 
@@ -178,7 +186,7 @@ func TestArchiveOverwritePreservesExistingArchiveUntilReplacementSucceeds(t *tes
 				ArchivePath: archivePath,
 				Overwrite:   true,
 			})
-			if fail {
+			if tc.fail {
 				if err == nil || !strings.Contains(err.Error(), "requested archive failure") {
 					t.Fatalf("expected xcodebuild archive failure, got %v", err)
 				}
@@ -200,6 +208,27 @@ func TestArchiveOverwritePreservesExistingArchiveUntilReplacementSucceeds(t *tes
 				t.Fatalf("archive staging left behind: %v, %v", stages, err)
 			}
 		})
+	}
+}
+
+func TestArchiveBackupRestoresOriginalOnPublicationFailure(t *testing.T) {
+	destination := filepath.Join(t.TempDir(), "Demo.xcarchive")
+	if err := writeArchiveInfoPlist(destination); err != nil {
+		t.Fatal(err)
+	}
+	replacement, err := stageArchiveReplacement(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer replacement.cleanup(nil)
+
+	// The staged archive disappeared before publication.
+	if err := replacement.publishWithBackup(); !os.IsNotExist(err) {
+		t.Fatalf("expected publication to fail with missing staged archive, got %v", err)
+	}
+	info, err := readArchiveBundleInfo(destination)
+	if err != nil || info.BundleID != "com.example.demo" {
+		t.Fatalf("prior archive was not restored: info=%+v err=%v", info, err)
 	}
 }
 
