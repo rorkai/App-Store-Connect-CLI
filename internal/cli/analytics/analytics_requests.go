@@ -421,8 +421,9 @@ func AnalyticsViewCommand() *ffcli.Command {
 The --processing-date and --granularity filters are sent to App Store Connect
 when fetching report instances. Granularity accepts DAILY, WEEKLY, and MONTHLY.
 Use --next with a report-page links.next URL to resume from that page. Combine
---next with --paginate to fetch every remaining report page; without
---paginate, only the supplied page is fetched.
+--next with --paginate to search the remaining report pages; without
+--paginate, only the supplied page is fetched. When selecting an exact
+--instance-id, the search stops once it finds the instance.
 
 Examples:
   asc analytics view --request-id "REQUEST_ID"
@@ -486,16 +487,9 @@ Examples:
 				return fmt.Errorf("analytics view: %w", err)
 			}
 
-			paginateReports := *paginate || (strings.TrimSpace(*next) == "" && strings.TrimSpace(*instanceID) != "")
-			reports, links, err := fetchAnalyticsReports(ctx, client, strings.TrimSpace(*requestID), *limit, *next, paginateReports)
-			if err != nil {
-				return fmt.Errorf("analytics view: failed to fetch reports: %w", err)
-			}
-
-			result := &asc.AnalyticsReportGetResult{
-				RequestID: strings.TrimSpace(*requestID),
-				Links:     links,
-			}
+			targetInstanceID := strings.TrimSpace(*instanceID)
+			paginateReports := *paginate || (strings.TrimSpace(*next) == "" && targetInstanceID != "")
+			result := &asc.AnalyticsReportGetResult{RequestID: strings.TrimSpace(*requestID)}
 			instanceOpts := make([]asc.AnalyticsReportInstancesOption, 0, 2)
 			if processingDateFilter != "" {
 				instanceOpts = append(instanceOpts, asc.WithAnalyticsReportInstancesProcessingDates([]string{processingDateFilter}))
@@ -504,8 +498,12 @@ Examples:
 				instanceOpts = append(instanceOpts, asc.WithAnalyticsReportInstancesGranularities(granularities))
 			}
 
-			targetInstanceID := strings.TrimSpace(*instanceID)
 			if targetInstanceID == "" {
+				reports, links, err := fetchAnalyticsReports(ctx, client, result.RequestID, *limit, *next, paginateReports)
+				if err != nil {
+					return fmt.Errorf("analytics view: %w", err)
+				}
+				result.Links = links
 				collected, instanceCount, err := collectAnalyticsReports(ctx, client, reports, instanceOpts, *includeSegments, processingDateFilter)
 				if err != nil {
 					return err
@@ -515,53 +513,17 @@ Examples:
 					fmt.Fprintf(os.Stderr, "analytics view: fetched %d instances without --processing-date or --granularity; narrow the query to avoid a full fan-out\n", instanceCount)
 				}
 			} else {
-				for _, report := range reports {
-					instances, err := fetchAnalyticsReportInstancesMatchingID(ctx, client, report.ID, targetInstanceID, instanceOpts...)
+				report, instances, links, err := findAnalyticsReportInstance(ctx, client, result.RequestID, targetInstanceID, *limit, *next, paginateReports, instanceOpts...)
+				if err != nil {
+					return fmt.Errorf("analytics view: %w", err)
+				}
+				result.Links = links
+				if len(instances) > 0 {
+					reportResult, err := analyticsReportResultFromInstances(ctx, client, report, instances, *includeSegments)
 					if err != nil {
-						return fmt.Errorf("analytics view: failed to fetch instances: %w", err)
+						return err
 					}
-					if len(instances) == 0 {
-						continue
-					}
-
-					reportResult := asc.AnalyticsReportGetReport{
-						ID:          report.ID,
-						ReportType:  report.Attributes.ReportType,
-						Name:        report.Attributes.Name,
-						Category:    report.Attributes.Category,
-						Granularity: report.Attributes.Granularity,
-					}
-
-					for _, instance := range instances {
-						instanceResult := asc.AnalyticsReportGetInstance{
-							ID:             instance.ID,
-							ReportDate:     instance.Attributes.ReportDate,
-							ProcessingDate: instance.Attributes.ProcessingDate,
-							Granularity:    instance.Attributes.Granularity,
-							Version:        instance.Attributes.Version,
-						}
-
-						if *includeSegments {
-							segments, err := fetchAnalyticsReportSegments(ctx, client, instance.ID)
-							if err != nil {
-								return fmt.Errorf("analytics view: failed to fetch segments: %w", err)
-							}
-							for _, segment := range segments {
-								instanceResult.Segments = append(instanceResult.Segments, asc.AnalyticsReportGetSegment{
-									ID:                segment.ID,
-									DownloadURL:       segment.Attributes.URL,
-									Checksum:          segment.Attributes.Checksum,
-									SizeInBytes:       segment.Attributes.SizeInBytes,
-									URLExpirationDate: segment.Attributes.URLExpirationDate,
-								})
-							}
-						}
-
-						reportResult.Instances = append(reportResult.Instances, instanceResult)
-					}
-
 					result.Data = append(result.Data, reportResult)
-					break
 				}
 			}
 
@@ -632,23 +594,11 @@ Examples:
 				return fmt.Errorf("analytics download: %w", err)
 			}
 
-			reports, _, err := fetchAnalyticsReports(ctx, client, strings.TrimSpace(*requestID), 0, "", true)
+			_, instances, _, err := findAnalyticsReportInstance(ctx, client, strings.TrimSpace(*requestID), strings.TrimSpace(*instanceID), 0, "", true)
 			if err != nil {
-				return fmt.Errorf("analytics download: failed to fetch reports: %w", err)
+				return fmt.Errorf("analytics download: %w", err)
 			}
-
-			instanceFound := false
-			for _, report := range reports {
-				instances, err := fetchAnalyticsReportInstancesMatchingID(ctx, client, report.ID, strings.TrimSpace(*instanceID))
-				if err != nil {
-					return fmt.Errorf("analytics download: failed to fetch instances: %w", err)
-				}
-				if len(instances) > 0 {
-					instanceFound = true
-					break
-				}
-			}
-			if !instanceFound {
+			if len(instances) == 0 {
 				return analyticsNotFoundError(fmt.Errorf("analytics download: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID)), "--instance-id")
 			}
 

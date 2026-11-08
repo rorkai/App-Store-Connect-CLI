@@ -89,6 +89,14 @@ func analyticsReportResult(ctx context.Context, client *asc.Client, report asc.R
 	if err != nil {
 		return asc.AnalyticsReportGetReport{}, 0, fmt.Errorf("analytics view: failed to fetch instances: %w", err)
 	}
+	result, err := analyticsReportResultFromInstances(ctx, client, report, instances, includeSegments)
+	if err != nil {
+		return asc.AnalyticsReportGetReport{}, 0, err
+	}
+	return result, len(instances), nil
+}
+
+func analyticsReportResultFromInstances(ctx context.Context, client *asc.Client, report asc.Resource[asc.AnalyticsReportAttributes], instances []asc.Resource[asc.AnalyticsReportInstanceAttributes], includeSegments bool) (asc.AnalyticsReportGetReport, error) {
 	reportResult := asc.AnalyticsReportGetReport{
 		ID:          report.ID,
 		ReportType:  report.Attributes.ReportType,
@@ -107,7 +115,7 @@ func analyticsReportResult(ctx context.Context, client *asc.Client, report asc.R
 		if includeSegments {
 			segments, err := fetchAnalyticsReportSegments(ctx, client, instance.ID)
 			if err != nil {
-				return asc.AnalyticsReportGetReport{}, 0, fmt.Errorf("analytics view: failed to fetch segments: %w", err)
+				return asc.AnalyticsReportGetReport{}, fmt.Errorf("analytics view: failed to fetch segments: %w", err)
 			}
 			for _, segment := range segments {
 				instanceResult.Segments = append(instanceResult.Segments, asc.AnalyticsReportGetSegment{
@@ -121,5 +129,5 @@ func analyticsReportResult(ctx context.Context, client *asc.Client, report asc.R
 		}
 		reportResult.Instances = append(reportResult.Instances, instanceResult)
 	}
-	return reportResult, len(instances), nil
+	return reportResult, nil
 }
