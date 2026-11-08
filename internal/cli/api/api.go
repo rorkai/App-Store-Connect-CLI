@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -55,6 +56,8 @@ prints nothing.
 METHOD and PATH are checked against the embedded schema index (see asc schema).
 An unknown operation is a usage error that lists the nearest known operations
 unless --allow-unknown-path is set. Every non-GET request requires --confirm.
+For non-GET requests, pass query parameters documented for the operation in
+PATH itself.
 
 Examples:
   asc api GET /v1/apps --query limit=5 --query "fields[apps]=name,bundleId"
@@ -101,7 +104,7 @@ Examples:
 			} else {
 				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
-				response, err = client.RawRequest(requestCtx, request.method, request.target, request.body)
+				response, err = client.RawRequestWithQuery(requestCtx, request.method, request.target, request.query, request.body)
 			}
 			if err != nil {
 				return fmt.Errorf("api: %w", err)
@@ -115,6 +118,7 @@ Examples:
 type rawRequest struct {
 	method   string
 	target   string
+	query    url.Values
 	body     []byte
 	paginate bool
 }
@@ -162,7 +166,7 @@ func parseRequest(positional []string, query []string, body, bodyFile string, bo
 		if paginate {
 			return rawRequest{}, shared.UsageError("api: --paginate is only supported for GET requests")
 		}
-		if len(query) > 0 || len(values) > 0 {
+		if len(query) > 0 {
 			return rawRequest{}, shared.UsageError("api: --query is only supported for GET requests")
 		}
 		if !confirm {
@@ -190,6 +194,15 @@ func parseRequest(positional []string, query []string, body, bodyFile string, bo
 	if !indexed && !allowUnknownPath {
 		return rawRequest{}, unknownOperationError(method, path)
 	}
+	if method != http.MethodGet {
+		for key := range values {
+			if !slices.ContainsFunc(endpoint.Parameters, func(param schema.Parameter) bool {
+				return param.In == "query" && param.Name == key
+			}) {
+				return rawRequest{}, shared.UsageError("api: PATH query parameters must be documented for this operation")
+			}
+		}
+	}
 	// The media-type check uses the matched template, so it applies under
 	// --allow-unknown-path too: the limitation is the response representation,
 	// not a gap in the index.
@@ -205,14 +218,15 @@ func parseRequest(positional []string, query []string, body, bodyFile string, bo
 	}
 
 	target := path
-	if len(values) > 0 {
+	if method == http.MethodGet && len(values) > 0 {
 		target += "?" + values.Encode()
+		values = nil
 	}
 	// Keep a full URL's host so the client refuses one meant for the other API.
 	if parsed, err := url.Parse(strings.TrimSpace(positional[1])); err == nil && parsed.Host != "" {
 		target = "https://" + parsed.Host + target
 	}
-	return rawRequest{method: method, target: target, body: payload, paginate: paginate}, nil
+	return rawRequest{method: method, target: target, query: values, body: payload, paginate: paginate}, nil
 }
 
 func normalizeMethod(raw string) (string, error) {

@@ -57,10 +57,9 @@ func resourcePath(template string, ids ...string) (string, error) {
 	return fmt.Sprintf(template, args...), nil
 }
 
-// validateMutatingRequestTarget rejects a query string on a mutating request.
-// The App Store Connect OpenAPI definition declares no query parameters for
-// POST, PATCH, PUT, or DELETE, so a query string can only come from an
-// identifier that escaped its path segment and changed the request target.
+// validateMutatingRequestTarget prevents a resource identifier from
+// introducing a query string into a mutation path. Explicit query parameters
+// must be supplied separately.
 func validateMutatingRequestTarget(method, path string) error {
 	switch method {
 	case http.MethodPost, http.MethodPatch, http.MethodPut, http.MethodDelete:
