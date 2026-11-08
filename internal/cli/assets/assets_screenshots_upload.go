@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image"
 	"io"
 	"os"
 	"path/filepath"
@@ -219,7 +220,7 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 
 	var openedFiles openedScreenshotFiles
 	if cfg.Replace && len(files) > 0 {
-		openedFiles, err = openAndValidateScreenshotFiles(sourceRootPath, files)
+		openedFiles, err = openAndValidateScreenshotFiles(sourceRootPath, cfg.DisplayType, files)
 		if err != nil {
 			return zero, err
 		}
@@ -438,7 +439,7 @@ func uploadScreenshotAsset(ctx context.Context, client *asc.Client, setID, sourc
 
 type openedScreenshotFiles map[string]*os.File
 
-func openAndValidateScreenshotFiles(sourceRootPath string, filePaths []string) (openedScreenshotFiles, error) {
+func openAndValidateScreenshotFiles(sourceRootPath, displayType string, filePaths []string) (openedScreenshotFiles, error) {
 	if len(filePaths) == 0 {
 		return nil, nil
 	}
@@ -462,7 +463,7 @@ func openAndValidateScreenshotFiles(sourceRootPath string, filePaths []string) (
 			closeOpened()
 			return nil, err
 		}
-		if err := validateOpenedScreenshotFileFormat(filePath, file); err != nil {
+		if err := validateOpenedScreenshotReplacement(filePath, displayType, file); err != nil {
 			_ = file.Close()
 			closeOpened()
 			return nil, err
@@ -476,6 +477,21 @@ func openAndValidateScreenshotFiles(sourceRootPath string, filePaths []string) (
 		opened[key] = file
 	}
 	return opened, nil
+}
+
+func validateOpenedScreenshotReplacement(filePath, displayType string, file *os.File) error {
+	if err := validateOpenedScreenshotFileFormat(filePath, file); err != nil {
+		return err
+	}
+	config, _, err := image.DecodeConfig(file)
+	if err != nil {
+		return markMediaInput(fmt.Errorf("%q: %w", filePath, err), shared.DiagnosticFileInvalidFormat)
+	}
+	if err := asc.ValidateScreenshotDimensionsForSize(filePath, config.Width, config.Height, displayType); err != nil {
+		return markMediaInput(err, shared.DiagnosticInvalidInput)
+	}
+	_, err = file.Seek(0, io.SeekStart)
+	return err
 }
 
 func closeOpenedScreenshotFiles(files openedScreenshotFiles) {

@@ -22,19 +22,39 @@ import (
 )
 
 func TestUploadScreenshotsReplaceValidatesOpenedFileBeforeDeletingExistingScreenshots(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		want []string
+	}{
+		{name: "format changed", want: []string{"01-home.png", "JPEG", ".png"}},
+		{name: "dimensions changed", want: []string{"01-home.png", "unsupported size 8x8", "APP_IPHONE_65"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testReplacementScreenshotValidation(t, tc.name == "dimensions changed", tc.want)
+		})
+	}
+}
+
+func testReplacementScreenshotValidation(t *testing.T, resize bool, wantErrors []string) {
+	t.Helper()
 	dir := t.TempDir()
 	filePath := writeAssetsTestPNGWithSize(t, dir, "01-home.png", 1242, 2688)
-	replacementPath := filepath.Join(dir, "replacement.jpg")
-	replacement, err := os.Create(replacementPath)
-	if err != nil {
-		t.Fatalf("create replacement: %v", err)
-	}
-	if err := jpeg.Encode(replacement, image.NewRGBA(image.Rect(0, 0, 8, 8)), nil); err != nil {
-		replacement.Close()
-		t.Fatalf("encode replacement: %v", err)
-	}
-	if err := replacement.Close(); err != nil {
-		t.Fatalf("close replacement: %v", err)
+	var replacementPath string
+	if resize {
+		replacementPath = writeAssetsTestPNGWithSize(t, dir, "replacement.png", 8, 8)
+	} else {
+		replacementPath = filepath.Join(dir, "replacement.jpg")
+		replacement, err := os.Create(replacementPath)
+		if err != nil {
+			t.Fatalf("create replacement: %v", err)
+		}
+		if err := jpeg.Encode(replacement, image.NewRGBA(image.Rect(0, 0, 8, 8)), nil); err != nil {
+			replacement.Close()
+			t.Fatalf("encode replacement: %v", err)
+		}
+		if err := replacement.Close(); err != nil {
+			t.Fatalf("close replacement: %v", err)
+		}
 	}
 
 	if err := validateScreenshotDimensions([]string{filePath}, "APP_IPHONE_65"); err != nil {
@@ -67,23 +87,24 @@ func TestUploadScreenshotsReplaceValidatesOpenedFileBeforeDeletingExistingScreen
 		}
 	}))
 
-	_, err = uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, true, false)
+	_, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, true, false)
 	if replacementErr != nil {
 		t.Fatalf("replace validated screenshot: %v", replacementErr)
 	}
 	if err == nil {
-		t.Fatal("uploadScreenshots() error = nil, want format mismatch")
+		t.Fatal("uploadScreenshots() error = nil, want invalid replacement")
 	}
-	for _, want := range []string{"01-home.png", "JPEG", ".png"} {
+	for _, want := range wantErrors {
 		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("uploadScreenshots() error = %q, want %q", err, want)
+			t.Errorf("uploadScreenshots() error = %q, want %q", err, want)
+			break
 		}
 	}
 	if deleted {
-		t.Fatal("existing screenshot was deleted before the replacement mismatch was rejected")
+		t.Error("existing screenshot was deleted before the replacement mismatch was rejected")
 	}
 	if reserved {
-		t.Fatal("replacement screenshot reached asset reservation")
+		t.Error("replacement screenshot reached asset reservation")
 	}
 }
 
