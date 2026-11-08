@@ -13,7 +13,7 @@ import (
 // cannot sign a new one without the private key.
 var ErrBearerTokenExpired = errors.New("the App Store Connect token expired; mint a new one")
 
-// ErrInvalidBearerToken reports a token that is not a JWT with an expiry.
+// ErrInvalidBearerToken reports a malformed or rejected external bearer token.
 var ErrInvalidBearerToken = errors.New("invalid bearer token")
 
 // ErrNotaryNeedsPrivateKey reports a notarization request from a client that

@@ -112,6 +112,53 @@ func TestUnusableBearerTokenFailsAsAuthBeforeAnyRequest(t *testing.T) {
 	}
 }
 
+func TestAppsListUnauthorizedHintMatchesCredentialSource(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		bearer   bool
+		wantHint string
+	}{
+		{name: "externally signed token", bearer: true, wantHint: "Set ASC_BEARER_TOKEN to a new token"},
+		{name: "private key", wantHint: "Try `asc auth status` and re-login if needed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			token := ""
+			if tc.bearer {
+				token = signedTestToken(t, time.Now().Add(20*time.Minute))
+			}
+			isolateBearerTokenAuth(t, token)
+			if !tc.bearer {
+				setupAuth(t)
+			}
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+				}
+				if gotBearer := req.Header.Get("Authorization") == "Bearer "+token; gotBearer != tc.bearer {
+					t.Fatal("request used the wrong credential source")
+				}
+				response := jsonHTTPResponse(http.StatusUnauthorized, `{"errors":[{"code":"NOT_AUTHORIZED","title":"Authentication credentials are missing or invalid.","detail":"Provide a properly configured and signed bearer token."}]}`)
+				response.Request = req
+				return response, nil
+			}))
+
+			var code int
+			stdout, stderr := captureOutput(t, func() {
+				code = cmd.Run([]string{"apps", "list", "--output", "json"}, "1.2.3")
+			})
+			if token != "" && strings.Contains(stdout+stderr, token) {
+				t.Fatal("command output exposed the bearer token")
+			}
+			if code != cmd.ExitAuth || stdout != "" || !strings.Contains(stderr, "Authentication credentials are missing or invalid.: Provide a properly configured and signed bearer token.") {
+				t.Fatalf("exit = %d, stdout = %q, stderr = %q, want provider error with auth exit and no stdout", code, stdout, stderr)
+			}
+			if !strings.Contains(stderr, tc.wantHint) || (tc.bearer && strings.Contains(stderr, "asc auth status")) {
+				t.Fatalf("stderr = %q, want hint %q for the credential source", stderr, tc.wantHint)
+			}
+		})
+	}
+}
+
 func TestBearerTokenRejectsSelectionsItCannotHonorBeforeAnyRequest(t *testing.T) {
 	tests := []struct {
 		name    string
