@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -137,6 +138,59 @@ func TestPrepareBuildUploadCreatesUploadAndFileReservation(t *testing.T) {
 	}
 	if fileResp.Data.ID != "file-456" {
 		t.Fatalf("expected file ID file-456, got %q", fileResp.Data.ID)
+	}
+}
+
+func TestPrepareBuildUploadRecoversLostFileReservationResponse(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "app.ipa")
+	if err := os.WriteFile(path, []byte("payload"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name      string
+		fileName  string
+		recovered bool
+	}{
+		{name: "matching file", fileName: "app.ipa", recovered: true},
+		{name: "different file", fileName: "other.ipa"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requests := []string{}
+			client := newBuildUploadsTestClient(t, func(req *http.Request) (*http.Response, error) {
+				call := req.Method + " " + req.URL.Path
+				requests = append(requests, call)
+				switch call {
+				case "POST /v1/buildUploads":
+					return buildUploadsJSONStatusResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-123"}}`)
+				case "POST /v1/buildUploadFiles":
+					resp, _ := buildUploadsJSONStatusResponse(http.StatusCreated, "")
+					resp.Body = io.NopCloser(iotest.ErrReader(io.ErrUnexpectedEOF))
+					return resp, nil
+				case "GET /v1/buildUploads/upload-123/buildUploadFiles":
+					return buildUploadsJSONStatusResponse(http.StatusOK, fmt.Sprintf(`{"data":[{"type":"buildUploadFiles","id":"file-456","attributes":{"fileName":%q,"fileSize":7,"uti":"com.apple.ipa","assetType":"ASSET","assetDeliveryState":{"state":"AWAITING_UPLOAD"},"uploadOperations":[{"method":"PUT","url":"https://upload.example/reserved","length":7,"offset":0}]}}],"links":{}}`, tc.fileName))
+				default:
+					return nil, fmt.Errorf("unexpected request: %s", call)
+				}
+			})
+
+			upload, file, err := PrepareBuildUpload(context.Background(), client, "app-123", fileInfo, "1.2.3", "42", asc.PlatformIOS, asc.UTIIPA)
+			if !tc.recovered {
+				if !errors.Is(err, io.ErrUnexpectedEOF) || !strings.Contains(err.Error(), `build upload "upload-123"`) || upload != nil || file != nil {
+					t.Fatalf("upload=%v file=%v err=%v, want the original error and upload ID", upload, file, err)
+				}
+			} else if err != nil || upload == nil || upload.Data.ID != "upload-123" || file == nil || file.Data.ID != "file-456" || len(file.Data.Attributes.UploadOperations) != 1 {
+				t.Fatalf("upload=%+v file=%+v err=%v, want original upload and recovered file reservation", upload, file, err)
+			}
+			want := []string{"POST /v1/buildUploads", "POST /v1/buildUploadFiles", "GET /v1/buildUploads/upload-123/buildUploadFiles"}
+			if !slices.Equal(requests, want) {
+				t.Fatalf("requests = %v, want %v", requests, want)
+			}
+		})
 	}
 }
 

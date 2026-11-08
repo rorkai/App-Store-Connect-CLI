@@ -985,7 +985,7 @@ func (c *Client) UpdateBuildUploadFile(ctx context.Context, id string, req Build
 
 	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/buildUploadFiles/%s", id), body)
 	if err != nil {
-		if isResponseBodyReadError(err) {
+		if IsResponseBodyReadError(err) {
 			return nil, newBuildUploadFileCommitResponseError(err)
 		}
 		return nil, err
