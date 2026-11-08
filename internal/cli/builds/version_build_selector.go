@@ -130,7 +130,7 @@ func (s *VersionBuildSelector) Resolve(ctx context.Context, client *asc.Client, 
 		if err != nil {
 			return "", s.waitError(waitCtx, err, "a matching build to appear")
 		}
-		if err := requireAppStoreBuildAudience(buildResp); err != nil {
+		if err := shared.RequireAppStoreBuildAudience(buildResp); err != nil {
 			return "", err
 		}
 		reportSelectedVersionBuild(buildResp, selector)
@@ -146,7 +146,7 @@ func (s *VersionBuildSelector) Resolve(ctx context.Context, client *asc.Client, 
 	if err != nil {
 		return "", s.waitError(waitCtx, err, fmt.Sprintf("build %s to finish processing", buildID))
 	}
-	if err := requireAppStoreBuildAudience(buildResp); err != nil {
+	if err := shared.RequireAppStoreBuildAudience(buildResp); err != nil {
 		return "", err
 	}
 	return buildID, nil
@@ -178,15 +178,8 @@ func reportSelectedVersionBuild(buildResp *asc.BuildResponse, selector appBuildW
 	)
 }
 
-func requireAppStoreBuildAudience(buildResp *asc.BuildResponse) error {
-	if strings.EqualFold(strings.TrimSpace(string(buildResp.Data.Attributes.BuildAudienceType)), string(asc.BuildAudienceTypeInternalOnly)) {
-		return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("build %s (%s) is INTERNAL_ONLY and cannot be attached to an App Store version", buildResp.Data.Attributes.Version, buildResp.Data.ID)), shared.DiagnosticStateNotReady, "--build-id")
-	}
-	return nil
-}
-
 func requireValidBuild(buildResp *asc.BuildResponse) error {
-	if err := requireAppStoreBuildAudience(buildResp); err != nil {
+	if err := shared.RequireAppStoreBuildAudience(buildResp); err != nil {
 		return err
 	}
 	state := strings.ToUpper(strings.TrimSpace(buildResp.Data.Attributes.ProcessingState))

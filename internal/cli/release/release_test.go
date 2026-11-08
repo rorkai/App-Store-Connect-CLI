@@ -122,6 +122,8 @@ func releaseBuildAppLinkageResponse(req *http.Request) (*http.Response, bool) {
 	switch req.URL.Path {
 	case "/v1/builds/BUILD_123/relationships/app":
 		body = `{"data":{"type":"apps","id":"APP_123"}}`
+	case "/v1/builds/BUILD_123":
+		body = `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"42","buildAudienceType":"APP_STORE_ELIGIBLE"}}}`
 	case "/v1/builds/BUILD_123/preReleaseVersion":
 		body = `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"2.4.0","platform":"IOS"}}}`
 	default:
