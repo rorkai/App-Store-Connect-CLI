@@ -727,31 +727,27 @@ func findExistingReviewSubmissionItem(
 	if err != nil {
 		return nil, false, err
 	}
-	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+	var found *asc.ReviewSubmissionItemResponse
+	itemFound := errors.New("review submission item found")
+	err = asc.PaginateEach(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return client.GetReviewSubmissionItemsStrict(ctx, submissionID, asc.WithReviewSubmissionItemsNextURL(nextURL))
+	}, func(page asc.PaginatedResponse) error {
+		items := page.(*asc.ReviewSubmissionItemsResponse)
+		for _, candidate := range items.Data {
+			// A REMOVED item is historical and no longer attached.
+			if strings.EqualFold(strings.TrimSpace(candidate.Attributes.State), "REMOVED") {
+				continue
+			}
+			if reviewSubmissionItemLinkedID(candidate, itemType) == itemID {
+				// The collection item is the only available representation.
+				found = &asc.ReviewSubmissionItemResponse{Data: candidate}
+				return itemFound
+			}
+		}
+		return nil
 	})
-	if err != nil {
-		return nil, false, err
+	if errors.Is(err, itemFound) {
+		return found, true, nil
 	}
-	items, ok := allPages.(*asc.ReviewSubmissionItemsResponse)
-	if !ok {
-		return nil, false, fmt.Errorf("unexpected review submission items response type: %T", allPages)
-	}
-	for _, candidate := range items.Data {
-		// A REMOVED item is historical: the resource is detached from the
-		// submission, so it is not proof the requested item is present. The
-		// same exclusion is applied in background_assets_submit.go when it
-		// decides which versions are already attached.
-		if strings.EqualFold(strings.TrimSpace(candidate.Attributes.State), "REMOVED") {
-			continue
-		}
-		if reviewSubmissionItemLinkedID(candidate, itemType) == itemID {
-			// Apple exposes no GET /v1/reviewSubmissionItems/{id} (only POST,
-			// PATCH and DELETE), so the collection item is the only
-			// representation available and the single-resource envelope has to
-			// be built from it. The resource object itself is Apple's, verbatim.
-			return &asc.ReviewSubmissionItemResponse{Data: candidate}, true, nil
-		}
-	}
-	return nil, false, nil
+	return nil, false, err
 }
