@@ -2,6 +2,7 @@ package cmdtest
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"io"
@@ -154,13 +155,15 @@ func TestAuthTokenAcceptsPrivateKeyFlattenedBySecretStore(t *testing.T) {
 	begin, body, end := lines[0], strings.Join(lines[1:len(lines)-1], ""), lines[len(lines)-1]
 
 	tests := []struct {
-		name  string
-		value string
+		name    string
+		value   string
+		encoded string
 	}{
 		{name: "everything on one line", value: begin + body + end},
 		{name: "spaces for newlines", value: strings.Join(lines, " ")},
 		{name: "literal newlines around one line", value: begin + `\n` + body + `\n` + end},
 		{name: "body without markers", value: body},
+		{name: "base64", encoded: base64.StdEncoding.EncodeToString(data)},
 	}
 
 	for _, test := range tests {
@@ -169,10 +172,20 @@ func TestAuthTokenAcceptsPrivateKeyFlattenedBySecretStore(t *testing.T) {
 			t.Setenv("ASC_KEY_ID", "ENVKEY")
 			t.Setenv("ASC_ISSUER_ID", "12345678-abcd-1234-abcd-123456789012")
 			t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-			t.Setenv("ASC_PRIVATE_KEY_B64", "")
+			t.Setenv("ASC_PRIVATE_KEY_B64", test.encoded)
 			t.Setenv("ASC_PRIVATE_KEY", test.value)
 
-			stdout, stderr, err := runRootCommand(t, []string{"auth", "token", "--confirm"})
+			root := RootCommand("1.2.3")
+			if err := root.Parse([]string{"auth", "token", "--confirm"}); err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			var err error
+			stdout, stderr := captureOutput(t, func() {
+				// Inline API signing must work without a writable temporary directory.
+				t.Setenv("TMPDIR", keyPath)
+				t.Setenv("TMP", keyPath)
+				err = root.Run(context.Background())
+			})
 			if err != nil {
 				t.Fatalf("auth token error: %v (stderr %q)", err, stderr)
 			}
