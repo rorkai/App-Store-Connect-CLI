@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -26,7 +27,7 @@ func AnalyticsSalesCommand() *ffcli.Command {
 	version := fs.String("version", "", "Report format version allowed for the selected type, subtype, and frequency")
 	output := fs.String("output", "", "Output file path (default: sales_report_{date|latest}_{type}.tsv.gz)")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .tsv")
-	allowMissing := fs.Bool("allow-missing", false, "Return available=false instead of failing when no report exists for the requested date")
+	allowMissing := fs.Bool("allow-missing", false, "Return available=false when Apple says the report is unavailable or the period had no sales")
 	outputFlags := shared.BindMetadataOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -169,5 +170,7 @@ func isMissingSalesReportError(err error) bool {
 		return false
 	}
 
-	return strings.Contains(strings.ToLower(apiErr.Detail), "no sales for the date specified")
+	detail := strings.ToLower(strings.TrimSpace(apiErr.Detail))
+	return strings.Contains(detail, "no sales for the date specified") ||
+		(apiErr.StatusCode == http.StatusNotFound && strings.HasPrefix(detail, "report is not available yet."))
 }

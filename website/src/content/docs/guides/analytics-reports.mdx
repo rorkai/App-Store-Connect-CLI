@@ -259,50 +259,48 @@ name: Daily Reports
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # 9 AM UTC daily
+    - cron: '0 17 * * *'  # After 8 a.m. Pacific Time year-round
   workflow_dispatch:
 
 jobs:
   download_reports:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       
       - name: Install asc CLI
         run: |
           curl -fsSL https://raw.githubusercontent.com/rorkai/App-Store-Connect-CLI/main/install.sh | bash
       
-      - name: Configure credentials
+      - name: Download daily sales report
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
           ASC_VENDOR_NUMBER: ${{ secrets.ASC_VENDOR_NUMBER }}
         run: |
-          echo "Credentials configured"
-      
-      - name: Download daily sales report
-        run: |
-          YESTERDAY=$(date -d "yesterday" +%Y-%m-%d)
+          YESTERDAY=$(TZ=America/Los_Angeles date -d "yesterday" +%Y-%m-%d)
           asc analytics sales \
             --vendor "$ASC_VENDOR_NUMBER" \
             --type SALES \
             --subtype SUMMARY \
             --frequency DAILY \
             --date "$YESTERDAY" \
-            --output "./sales-$YESTERDAY.txt"
+            --allow-missing \
+            --output "./sales-$YESTERDAY.tsv.gz"
       
       - name: Upload reports as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: sales-reports
-          path: ./sales-*.txt
+          path: ./sales-*.tsv.gz
+          if-no-files-found: ignore
           retention-days: 30
       
       - name: Send to analytics platform (optional)
         run: |
           # Parse and send to your analytics/BI platform
-          # Example: curl -X POST https://your-analytics.com/api/ingest -d @sales-*.txt
+          # Check that a report was downloaded before sending it.
 ```
 
 ## Report Data Processing
@@ -366,13 +364,14 @@ export ASC_VENDOR_NUMBER="YOUR_VENDOR_NUMBER"
 
 ### "Report not available for date"
 
-**Problem**: Report for the requested date doesn't exist yet.
+Apple generally makes reports available by 8 a.m. Pacific Time on the scheduled day.
 
-**Solution**:
+* Daily reports are available the following day.
+* Weekly reports are available on Mondays.
+* Monthly reports are available five days after month-end.
+* Yearly reports are available six days after year-end.
 
-* Daily reports are available \~24 hours after the date
-* Weekly reports are available on Sundays for the previous week
-* Monthly reports are available \~14 days after month end
+Some reports require qualifying activity. Use `--allow-missing` when polling for a report that may be unavailable. The command returns `available: false` and creates no report file. See [Apple's report availability and retention rules](https://developer.apple.com/help/app-store-connect/reference/reporting/sales-and-trends-reports-availability).
 
 ### "Analytics request pending"
 
