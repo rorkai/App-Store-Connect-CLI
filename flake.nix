@@ -22,6 +22,9 @@
           ];
           # The repository runs the Go suite separately from packaging.
           doCheck = false;
+          postInstall = ''
+            mv "$out/bin/App-Store-Connect-CLI" "$out/bin/asc"
+          '';
           meta.mainProgram = "asc";
         };
       });
