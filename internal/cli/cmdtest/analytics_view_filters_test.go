@@ -225,9 +225,14 @@ func TestAnalyticsViewAcceptsPrefixedInstanceAndPreservesSegmentBehavior(t *test
 					{"type":"analyticsReportInstances","id":"ignored-instance","attributes":{"processingDate":"2024-01-19"}},
 					{"type":"analyticsReportInstances","id":"` + instanceID + `","attributes":{"reportDate":"2024-01-19","processingDate":"2024-01-20","granularity":"DAILY","version":"1.0"}}
 				],
-				"links":{}
+				"links":{"next":"https://api.appstoreconnect.apple.com/v1/analyticsReports/report-1/instances?cursor=unused"}
 			}`), nil
 		case 3:
+			if req.URL.Query().Get("cursor") == "unused" {
+				resp := analyticsViewJSONResponse(`{"errors":[{"code":"NOT_FOUND"}]}`)
+				resp.StatusCode = http.StatusNotFound
+				return resp, nil
+			}
 			if req.URL.Path != "/v1/analyticsReportInstances/"+instanceID+"/segments" || req.URL.RawQuery != "limit=200" {
 				t.Fatalf("unexpected segments request: %s", req.URL.String())
 			}
