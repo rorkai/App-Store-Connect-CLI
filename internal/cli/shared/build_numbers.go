@@ -724,19 +724,7 @@ func findMostRecentlyUploadedBuild(ctx context.Context, client *asc.Client, appI
 	}
 	consumePage(firstPage)
 
-	if latest == nil {
-		return nil, nil
-	}
-
-	links := firstPage.GetLinks()
-	if links == nil || links.Next == "" {
-		return &asc.BuildResponse{
-			Data:  *latest,
-			Links: latestLinks,
-		}, nil
-	}
-
-	nextURL := links.Next
+	nextURL := firstPage.Links.Next
 	pagesScanned := 1
 	anomalyDetected := false
 	seenProbeURLs := map[string]struct{}{}
@@ -756,13 +744,14 @@ func findMostRecentlyUploadedBuild(ctx context.Context, client *asc.Client, appI
 			if ctxErr := ctx.Err(); errors.Is(ctxErr, context.Canceled) || errors.Is(ctxErr, context.DeadlineExceeded) {
 				return nil, fmt.Errorf("failed to paginate builds: page %d: %w", pagesScanned+1, ctxErr)
 			}
-			if anomalyDetected {
+			if latest == nil || anomalyDetected {
 				return nil, fmt.Errorf("failed to paginate builds: page %d: %w", pagesScanned+1, err)
 			}
 			break
 		}
 		pagesScanned++
 
+		hadCandidate := latest != nil
 		pageHadNewer := consumePage(nextPage)
 		pageLinks := nextPage.GetLinks()
 		if pageLinks != nil && pageLinks.Next != "" {
@@ -771,7 +760,8 @@ func findMostRecentlyUploadedBuild(ctx context.Context, client *asc.Client, appI
 			}
 		}
 
-		if !anomalyDetected {
+		// An empty page gives no evidence about ordering.
+		if !anomalyDetected && hadCandidate && len(nextPage.Data) > 0 {
 			if !pageHadNewer {
 				break
 			}
@@ -786,6 +776,10 @@ func findMostRecentlyUploadedBuild(ctx context.Context, client *asc.Client, appI
 	}
 	if nextURL != "" && pagesScanned >= buildsLatestScanPageLimit {
 		return nil, fmt.Errorf("failed to paginate builds: reached scan cap of %d pages with additional pages remaining", buildsLatestScanPageLimit)
+	}
+
+	if latest == nil {
+		return nil, nil
 	}
 
 	return &asc.BuildResponse{
