@@ -1511,6 +1511,40 @@ func TestXcodeExportReportsTimeout(t *testing.T) {
 	}
 }
 
+func TestXcodeExportWaitRequiresCredentialsBeforeDirectUpload(t *testing.T) {
+	restore := overrideXcodeCommandTestHooks(t)
+	defer restore()
+
+	isDirectUploadExportOptionsFn = func(string) bool { return true }
+	wantErr := errors.New("polling credentials unavailable")
+	getASCClientFn = func() (*asc.Client, error) { return nil, wantErr }
+	uploadStarted := false
+	runExport = func(context.Context, localxcode.ExportOptions) (*localxcode.ExportResult, error) {
+		uploadStarted = true
+		return &localxcode.ExportResult{
+			BundleID:    "com.example.demo",
+			Version:     "1.2.3",
+			BuildNumber: "42",
+		}, nil
+	}
+
+	cmd := XcodeExportCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{
+		"--archive-path", "Demo.xcarchive",
+		"--export-options", "ExportOptions.plist",
+		"--wait",
+	}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+	if err := cmd.Exec(context.Background(), nil); !errors.Is(err, wantErr) {
+		t.Fatalf("expected polling credential error, got %v", err)
+	}
+	if uploadStarted {
+		t.Fatal("direct upload started without polling credentials")
+	}
+}
+
 func TestXcodeExportWaitPollsForUploadedBuild(t *testing.T) {
 	restore := overrideXcodeCommandTestHooks(t)
 	defer restore()

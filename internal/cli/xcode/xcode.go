@@ -388,6 +388,14 @@ Examples:
 				return shared.UsageError("--wait requires ExportOptions.plist with destination=upload")
 			}
 
+			var client *asc.Client
+			if *wait {
+				client, err = getASCClientFn()
+				if err != nil {
+					return fmt.Errorf("xcode export: %w", err)
+				}
+			}
+
 			exportCtx := ctx
 			var exportCancel context.CancelFunc
 			if *timeout > 0 {
@@ -432,10 +440,6 @@ Examples:
 				}
 				if strings.TrimSpace(result.Version) == "" || strings.TrimSpace(result.BuildNumber) == "" {
 					return fmt.Errorf("xcode export: exported archive is missing version/build metadata required for --wait")
-				}
-				client, err := getASCClientFn()
-				if err != nil {
-					return fmt.Errorf("xcode export: %w", err)
 				}
 				waitCtx, cancel := shared.ContextWithTimeoutDuration(ctx, resolveXcodeExportWaitTimeoutFn())
 				defer cancel()
