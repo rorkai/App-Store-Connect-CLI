@@ -692,14 +692,16 @@ be combined with skip, which would leave the build unattached.`,
 						updateAttrs.ReviewType = &normalizedReviewType
 					}
 					if updateAttrs.Copyright != nil || updateAttrs.ReleaseType != nil || updateAttrs.EarliestReleaseDate != nil || updateAttrs.ReviewType != nil {
-						updated, updateErr := client.UpdateAppStoreVersion(requestCtx, existing.Data.ID, updateAttrs)
+						updated, updateErr := client.UpdateAppStoreVersionWithBuild(requestCtx, existing.Data.ID, buildIDValue, updateAttrs)
 						if updateErr != nil {
+							if buildIDValue != "" {
+								return fmt.Errorf("versions create: update existing version %s with build %s: %w", existing.Data.ID, buildIDValue, updateErr)
+							}
 							return fmt.Errorf("versions create: update existing version %s: %w", existing.Data.ID, updateErr)
 						}
 						resp = updated
 						action = asc.IdempotentWriteActionUpdated
-					}
-					if buildIDValue != "" {
+					} else if buildIDValue != "" {
 						if attachErr := client.AttachBuildToVersion(requestCtx, existing.Data.ID, buildIDValue); attachErr != nil {
 							return fmt.Errorf("versions create: attach build %s to existing version %s: %w", buildIDValue, existing.Data.ID, attachErr)
 						}
