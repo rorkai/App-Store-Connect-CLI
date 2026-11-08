@@ -346,6 +346,7 @@ type envCredentials struct {
 	keyID    string
 	issuerID string
 	keyPath  string
+	keyPEM   string
 	keyType  string
 	complete bool
 }
@@ -431,21 +432,21 @@ func resolveEnvCredentialsWithPrivateKey(includePrivateKey bool) (envCredentials
 	keyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
 	issuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
 	keyType := config.NormalizeCredentialKeyType(os.Getenv(keyTypeEnvVar))
-	hasKeyPathEnv := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "" ||
+	hasKeyMaterial := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "" ||
 		strings.TrimSpace(os.Getenv(privateKeyEnvVar)) != "" ||
 		strings.TrimSpace(os.Getenv(privateKeyBase64EnvVar)) != ""
 
-	if keyID == "" && issuerID == "" && !hasKeyPathEnv && strings.TrimSpace(os.Getenv(keyTypeEnvVar)) == "" {
+	if keyID == "" && issuerID == "" && !hasKeyMaterial && strings.TrimSpace(os.Getenv(keyTypeEnvVar)) == "" {
 		return envCredentials{}, nil
 	}
 	if !config.IsValidCredentialKeyType(keyType) {
 		return envCredentials{}, fmt.Errorf("%s must be one of: team, individual, enterprise", keyTypeEnvVar)
 	}
 
-	keyPath := ""
+	var keyPath, keyPEM string
 	if includePrivateKey {
 		var err error
-		keyPath, err = resolvePrivateKeyPath()
+		keyPath, keyPEM, err = resolveEnvKeyMaterial()
 		if err != nil {
 			return envCredentials{}, err
 		}
@@ -455,10 +456,11 @@ func resolveEnvCredentialsWithPrivateKey(includePrivateKey bool) (envCredentials
 		keyID:    keyID,
 		issuerID: issuerID,
 		keyPath:  keyPath,
+		keyPEM:   keyPEM,
 		keyType:  normalizedResolvedKeyType(keyType),
 	}
 	creds.complete = keyID != "" &&
-		keyPath != "" &&
+		(keyPath != "" || keyPEM != "") &&
 		(issuerID != "" || config.IsIndividualCredentialKeyType(keyType))
 	return creds, nil
 }
@@ -485,19 +487,18 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 	// Environment resolution errors are surfaced below, only when stored
 	// credentials leave gaps, matching the previous behavior.
 	if profile == "" && !auth.ShouldBypassKeychain() {
-		if _, complete := resolveCompleteEnvCredentialMetadata(); complete {
-			if resolved, envErr := resolveEnvCredentials(); envErr == nil {
-				issuerID := resolved.issuerID
-				if config.IsIndividualCredentialKeyType(resolved.keyType) {
-					issuerID = ""
-				}
-				return resolvedCredentials{
-					keyID:    resolved.keyID,
-					issuerID: issuerID,
-					keyPath:  resolved.keyPath,
-					keyType:  normalizedResolvedKeyType(resolved.keyType),
-				}, nil
+		if resolved, envErr := resolveEnvCredentials(); envErr == nil && resolved.complete {
+			issuerID := resolved.issuerID
+			if config.IsIndividualCredentialKeyType(resolved.keyType) {
+				issuerID = ""
 			}
+			return resolvedCredentials{
+				keyID:    resolved.keyID,
+				issuerID: issuerID,
+				keyPath:  resolved.keyPath,
+				keyPEM:   resolved.keyPEM,
+				keyType:  normalizedResolvedKeyType(resolved.keyType),
+			}, nil
 		}
 	}
 
@@ -548,8 +549,8 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 		if actualKeyType == "" && envCreds.keyType != "" {
 			actualKeyType = envCreds.keyType
 		}
-		if actualKeyPath == "" && actualKeyPEM == "" && envCreds.keyPath != "" {
-			actualKeyPath = envCreds.keyPath
+		if needsPrivateKey && (envCreds.keyPath != "" || envCreds.keyPEM != "") {
+			actualKeyPath, actualKeyPEM = envCreds.keyPath, envCreds.keyPEM
 			sources.keyMaterial = "env"
 		}
 	}
@@ -632,33 +633,17 @@ func resolveCredentialsMetadataForProfile(profileOverride string) (ResolvedAuthC
 }
 
 func resolveCompleteEnvCredentialMetadata() (ResolvedAuthCredentials, bool) {
-	keyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
-	issuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
-	keyType := config.NormalizeCredentialKeyType(os.Getenv(keyTypeEnvVar))
-	if !config.IsValidCredentialKeyType(keyType) {
+	resolved, err := resolveEnvCredentials()
+	if err != nil || !resolved.complete {
 		return ResolvedAuthCredentials{}, false
 	}
-
-	hasValidKeyMaterial := false
-	switch {
-	case strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "":
-		hasValidKeyMaterial = true
-	case strings.TrimSpace(os.Getenv(privateKeyBase64EnvVar)) != "":
-		_, err := decodeBase64Secret(os.Getenv(privateKeyBase64EnvVar))
-		hasValidKeyMaterial = err == nil
-	case strings.TrimSpace(os.Getenv(privateKeyEnvVar)) != "":
-		hasValidKeyMaterial = true
-	}
-	if keyID == "" || !hasValidKeyMaterial || (issuerID == "" && !config.IsIndividualCredentialKeyType(keyType)) {
-		return ResolvedAuthCredentials{}, false
-	}
-	if config.IsIndividualCredentialKeyType(keyType) {
-		issuerID = ""
+	if config.IsIndividualCredentialKeyType(resolved.keyType) {
+		resolved.issuerID = ""
 	}
 	return ResolvedAuthCredentials{
-		KeyID:    keyID,
-		IssuerID: issuerID,
-		KeyType:  normalizedResolvedKeyType(keyType),
+		KeyID:    resolved.keyID,
+		IssuerID: resolved.issuerID,
+		KeyType:  resolved.keyType,
 	}, true
 }
 
@@ -668,14 +653,6 @@ func resolveCompleteEnvCredentialMetadata() (ResolvedAuthCredentials, bool) {
 func HasCompleteEnvironmentCredentials() bool {
 	_, complete := resolveCompleteEnvCredentialMetadata()
 	return complete
-}
-
-// CanResolveCompleteEnvironmentCredentials reports whether complete environment
-// credentials can be selected by the no-profile, no-bypass fast path. Inline
-// key material is materialized the same way it is during credential resolution.
-func CanResolveCompleteEnvironmentCredentials() bool {
-	resolved, err := resolveEnvCredentials()
-	return err == nil && resolved.complete
 }
 
 func resolveStoredCredentialsMetadataFallback(profile string) (ResolvedAuthCredentials, error) {
@@ -1004,9 +981,9 @@ func newASCClientFromResolvedCredentials(resolved resolvedCredentials, timeout t
 		err    error
 	)
 	switch {
-	case strings.TrimSpace(resolved.keyPEM) != "" && timeout > 0:
+	case resolved.keyPEM != "" && timeout > 0:
 		client, err = asc.NewClientFromPEMWithTimeout(resolved.keyID, resolved.issuerID, resolved.keyPEM, timeout)
-	case strings.TrimSpace(resolved.keyPEM) != "":
+	case resolved.keyPEM != "":
 		client, err = asc.NewClientFromPEM(resolved.keyID, resolved.issuerID, resolved.keyPEM)
 	case timeout > 0:
 		client, err = asc.NewClientWithTimeout(resolved.keyID, resolved.issuerID, resolved.keyPath, timeout)
@@ -1140,31 +1117,18 @@ func checkIgnoredEnvCredentialIDs(storedKeyID, storedIssuerID, storedSource stri
 	return nil
 }
 
-func resolvePrivateKeyPath() (string, error) {
+func resolveEnvKeyMaterial() (path, keyPEM string, err error) {
 	if path := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")); path != "" {
-		return path, nil
+		return path, "", nil
 	}
 	if value := strings.TrimSpace(os.Getenv(privateKeyBase64EnvVar)); value != "" {
-		compact := strings.Join(strings.Fields(value), "")
-		cacheKey := tempPrivateKeyCacheKey("b64", compact)
-		if path := cachedTempPrivateKeyPath(cacheKey); path != "" {
-			return path, nil
-		}
 		decoded, err := decodeBase64Secret(value)
 		if err != nil {
-			return "", fmt.Errorf("%s: %w", privateKeyBase64EnvVar, err)
+			return "", "", fmt.Errorf("%s: %w", privateKeyBase64EnvVar, err)
 		}
-		return writeTempPrivateKey(decoded, cacheKey)
+		return "", string(decoded), nil
 	}
-	if value := strings.TrimSpace(os.Getenv(privateKeyEnvVar)); value != "" {
-		normalized := normalizePrivateKeyValue(value)
-		cacheKey := tempPrivateKeyCacheKey("raw", normalized)
-		if path := cachedTempPrivateKeyPath(cacheKey); path != "" {
-			return path, nil
-		}
-		return writeTempPrivateKey([]byte(normalized), cacheKey)
-	}
-	return "", nil
+	return "", normalizePrivateKeyValue(os.Getenv(privateKeyEnvVar)), nil
 }
 
 func tempPrivateKeyCacheKey(kind, value string) string {

@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -890,151 +891,50 @@ func TestProgressEnabled_EnabledWhenTTYAndNotDisabled(t *testing.T) {
 	}
 }
 
-func TestResolvePrivateKeyPathPrefersPath(t *testing.T) {
-	resetPrivateKeyTemp(t)
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
-	t.Setenv("ASC_PRIVATE_KEY_B64", base64.StdEncoding.EncodeToString([]byte("ignored")))
-	t.Setenv("ASC_PRIVATE_KEY", "ignored")
-
-	path, err := resolvePrivateKeyPath()
-	if err != nil {
-		t.Fatalf("resolvePrivateKeyPath() error: %v", err)
-	}
-	if path != "/tmp/AuthKey.p8" {
-		t.Fatalf("expected path /tmp/AuthKey.p8, got %q", path)
-	}
-}
-
-func TestResolvePrivateKeyPathFromBase64(t *testing.T) {
-	resetPrivateKeyTemp(t)
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY", "")
-
-	encoded := base64.StdEncoding.EncodeToString([]byte("key-data"))
-	t.Setenv("ASC_PRIVATE_KEY_B64", encoded)
-
-	path, err := resolvePrivateKeyPath()
-	if err != nil {
-		t.Fatalf("resolvePrivateKeyPath() error: %v", err)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile() error: %v", err)
-	}
-	if string(data) != "key-data" {
-		t.Fatalf("expected key data %q, got %q", "key-data", string(data))
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("Stat() error: %v", err)
-	}
-	if info.Mode().Perm()&0o077 != 0 {
-		t.Fatalf("expected 0600 permissions, got %v", info.Mode().Perm())
-	}
-}
-
-func TestResolvePrivateKeyPathFromRawValue(t *testing.T) {
-	resetPrivateKeyTemp(t)
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY_B64", "")
-
-	t.Setenv("ASC_PRIVATE_KEY", "line1\nline2\\nline3")
-	path, err := resolvePrivateKeyPath()
-	if err != nil {
-		t.Fatalf("resolvePrivateKeyPath() error: %v", err)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile() error: %v", err)
-	}
-	if string(data) != "line1\nline2\nline3" {
-		t.Fatalf("expected newline expansion, got %q", string(data))
-	}
-}
-
-func TestResolvePrivateKeyPathRefreshesWhenRawValueChanges(t *testing.T) {
-	resetPrivateKeyTemp(t)
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY_B64", "")
-
-	t.Setenv("ASC_PRIVATE_KEY", "account-a-key")
-	firstPath, err := resolvePrivateKeyPath()
-	if err != nil {
-		t.Fatalf("resolvePrivateKeyPath() first call error: %v", err)
-	}
-	firstData, err := os.ReadFile(firstPath)
-	if err != nil {
-		t.Fatalf("ReadFile(firstPath) error: %v", err)
-	}
-	if string(firstData) != "account-a-key" {
-		t.Fatalf("expected first key data %q, got %q", "account-a-key", string(firstData))
-	}
-
-	t.Setenv("ASC_PRIVATE_KEY", "account-b-key")
-	secondPath, err := resolvePrivateKeyPath()
-	if err != nil {
-		t.Fatalf("resolvePrivateKeyPath() second call error: %v", err)
-	}
-	secondData, err := os.ReadFile(secondPath)
-	if err != nil {
-		t.Fatalf("ReadFile(secondPath) error: %v", err)
-	}
-	if string(secondData) != "account-b-key" {
-		t.Fatalf("expected updated key data %q, got %q", "account-b-key", string(secondData))
-	}
-}
-
-func TestResolvePrivateKeyPathRefreshesWhenBase64ValueChanges(t *testing.T) {
-	resetPrivateKeyTemp(t)
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY", "")
-
-	t.Setenv("ASC_PRIVATE_KEY_B64", base64.StdEncoding.EncodeToString([]byte("account-a-key")))
-	firstPath, err := resolvePrivateKeyPath()
-	if err != nil {
-		t.Fatalf("resolvePrivateKeyPath() first call error: %v", err)
-	}
-	firstData, err := os.ReadFile(firstPath)
-	if err != nil {
-		t.Fatalf("ReadFile(firstPath) error: %v", err)
-	}
-	if string(firstData) != "account-a-key" {
-		t.Fatalf("expected first key data %q, got %q", "account-a-key", string(firstData))
-	}
-
-	t.Setenv("ASC_PRIVATE_KEY_B64", base64.StdEncoding.EncodeToString([]byte("account-b-key")))
-	secondPath, err := resolvePrivateKeyPath()
-	if err != nil {
-		t.Fatalf("resolvePrivateKeyPath() second call error: %v", err)
-	}
-	secondData, err := os.ReadFile(secondPath)
-	if err != nil {
-		t.Fatalf("ReadFile(secondPath) error: %v", err)
-	}
-	if string(secondData) != "account-b-key" {
-		t.Fatalf("expected updated key data %q, got %q", "account-b-key", string(secondData))
+func TestResolveEnvKeyMaterial(t *testing.T) {
+	for _, tc := range []struct {
+		name, path, raw, encoded, wantPath, wantPEM, wantErr string
+	}{
+		{name: "path takes precedence", path: "/tmp/AuthKey.p8", raw: "ignored", encoded: "invalid", wantPath: "/tmp/AuthKey.p8"},
+		{name: "base64 takes precedence", raw: "ignored", encoded: base64.StdEncoding.EncodeToString([]byte("key-data")), wantPEM: "key-data"},
+		{name: "inline newlines are expanded", raw: "line1\nline2\\nline3", wantPEM: "line1\nline2\nline3"},
+		{name: "invalid base64 does not fall back", raw: "ignored", encoded: "not-base64", wantErr: "ASC_PRIVATE_KEY_B64:"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("ASC_PRIVATE_KEY_PATH", tc.path)
+			t.Setenv("ASC_PRIVATE_KEY", tc.raw)
+			t.Setenv("ASC_PRIVATE_KEY_B64", tc.encoded)
+			path, keyPEM, err := resolveEnvKeyMaterial()
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected %q error, got %v", tc.wantErr, err)
+				}
+				return
+			}
+			if err != nil || path != tc.wantPath || keyPEM != tc.wantPEM {
+				t.Fatalf("unexpected path or key material: path=%q err=%v", path, err)
+			}
+		})
 	}
 }
 
 func TestCleanupTempPrivateKeysRemovesFile(t *testing.T) {
 	resetPrivateKeyTemp(t)
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY", "")
-
-	encoded := base64.StdEncoding.EncodeToString([]byte("key-data"))
-	t.Setenv("ASC_PRIVATE_KEY_B64", encoded)
-
-	path, err := resolvePrivateKeyPath()
+	path, err := AltoolPrivateKeyPath(ResolvedAuthCredentials{KeyPEM: "key-data"})
 	if err != nil {
-		t.Fatalf("resolvePrivateKeyPath() error: %v", err)
+		t.Fatalf("AltoolPrivateKeyPath() error: %v", err)
 	}
-	if _, err := os.Stat(path); err != nil {
+	info, err := os.Stat(path)
+	if err != nil {
 		t.Fatalf("expected temp key file to exist, got %v", err)
+	}
+	if info.Mode().Perm()&0o077 != 0 && runtime.GOOS != "windows" {
+		t.Fatalf("expected 0600 permissions, got %v", info.Mode().Perm())
 	}
 
 	CleanupTempPrivateKeys()
 
-	if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("expected temp key file to be removed, got %v", err)
 	}
 	if privateKeyTempPath != "" {
@@ -1080,17 +980,6 @@ func TestFinalizeTempPrivateKeyRemovesFileOnWriteFailure(t *testing.T) {
 	}
 	if _, err := os.Stat(temp.Name()); err == nil || !os.IsNotExist(err) {
 		t.Fatalf("expected temp key file to be removed after failure, got %v", err)
-	}
-}
-
-func TestResolvePrivateKeyPathInvalidBase64(t *testing.T) {
-	resetPrivateKeyTemp(t)
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY", "")
-	t.Setenv("ASC_PRIVATE_KEY_B64", "not-base64")
-
-	if _, err := resolvePrivateKeyPath(); err == nil {
-		t.Fatal("expected error for invalid base64")
 	}
 }
 

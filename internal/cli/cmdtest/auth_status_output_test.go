@@ -240,7 +240,7 @@ func TestAuthStatusDoesNotMarkInvalidBase64EnvironmentActive(t *testing.T) {
 	}
 }
 
-func TestAuthStatusDoesNotMarkUnmaterializableInlineEnvironmentActive(t *testing.T) {
+func TestAuthStatusMarksInlineEnvironmentActiveWithoutTempDirectory(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("TMPDIR does not control os.TempDir on Windows")
 	}
@@ -277,7 +277,13 @@ func TestAuthStatusDoesNotMarkUnmaterializableInlineEnvironmentActive(t *testing
 	t.Setenv("ASC_ISSUER_ID", "12345678-abcd-1234-abcd-123456789012")
 	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
 	t.Setenv("ASC_PRIVATE_KEY", "")
-	t.Setenv("ASC_PRIVATE_KEY_B64", base64.StdEncoding.EncodeToString([]byte("inline-key-"+tempDir)))
+	keyPath := filepath.Join(tempDir, "AuthKey.p8")
+	writeECDSAPEM(t, keyPath)
+	key, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ASC_PRIVATE_KEY_B64", base64.StdEncoding.EncodeToString(key))
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
@@ -298,8 +304,8 @@ func TestAuthStatusDoesNotMarkUnmaterializableInlineEnvironmentActive(t *testing
 	if !payload.EnvironmentCredentialsComplete {
 		t.Fatalf("expected syntactically complete environment credentials, got %+v", payload)
 	}
-	if payload.EnvironmentNote != "" {
-		t.Fatalf("unmaterializable inline key must not be reported as active: %+v", payload)
+	if !strings.Contains(payload.EnvironmentNote, "stored credential lookup is skipped") {
+		t.Fatalf("inline environment key should be active without a temp directory: %+v", payload)
 	}
 
 	tableOutput, tableStderr := captureOutput(t, func() {
@@ -310,8 +316,8 @@ func TestAuthStatusDoesNotMarkUnmaterializableInlineEnvironmentActive(t *testing
 	if code != cmd.ExitSuccess || tableStderr != "" {
 		t.Fatalf("table status: exit=%d stderr=%q", code, tableStderr)
 	}
-	if !strings.Contains(tableOutput, "Run 'asc auth login'") {
-		t.Fatalf("expected inactive environment source to retain login guidance: %q", tableOutput)
+	if !strings.Contains(tableOutput, "No stored credentials found.") || strings.Contains(tableOutput, "Run 'asc auth login'") {
+		t.Fatalf("expected active inline credentials without login guidance: %q", tableOutput)
 	}
 }
 

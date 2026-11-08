@@ -1210,12 +1210,8 @@ Examples:
 				strings.TrimSpace(os.Getenv(shared.PrivateKeyBase64EnvVar)) != ""
 			envProvided := envKeyID != "" || envIssuerID != "" || hasKeyEnv || envKeyTypeRaw != ""
 			envComplete := shared.HasCompleteEnvironmentCredentials()
-			envUsable := envComplete
-			if profile == "" && !bypassKeychain && envComplete {
-				envUsable = shared.CanResolveCompleteEnvironmentCredentials()
-			}
-			environmentNote := authStatusEnvironmentNote(profile, bypassKeychain, envProvided, envUsable, envKeyTypeValid)
-			activeEnvironmentSource := profile == "" && !bypassKeychain && envUsable && envKeyTypeValid
+			environmentNote := authStatusEnvironmentNote(profile, bypassKeychain, envProvided, envComplete, envKeyTypeValid)
+			activeEnvironmentSource := profile == "" && !bypassKeychain && envComplete && envKeyTypeValid
 
 			validationFailures := 0
 			var validationDiagnostic shared.Diagnostic
@@ -1602,7 +1598,7 @@ Examples:
 }
 
 func loadCredentialKey(cred shared.ResolvedAuthCredentials) (*ecdsa.PrivateKey, error) {
-	if pemValue := strings.TrimSpace(cred.KeyPEM); pemValue != "" {
+	if pemValue := cred.KeyPEM; pemValue != "" {
 		privateKey, err := authsvc.LoadPrivateKeyFromPEM([]byte(pemValue))
 		if err != nil {
 			return nil, shared.WithPrivateKeyDiagnostic(err, err)
