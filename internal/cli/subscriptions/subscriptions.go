@@ -513,9 +513,6 @@ Examples:
 			if id != "" && appFlag != "" {
 				return shared.UsageError("--group-id and --app are mutually exclusive")
 			}
-			if appFlag != "" && nextURL != "" {
-				return shared.UsageError("--next cannot be combined with --app; use --group-id with the group-scoped next URL")
-			}
 			if err := validateNextFlagConflicts(
 				nextURL,
 				flagConflict{"--app", flagWasProvided(fs, "app")},
@@ -1125,7 +1122,7 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
 				return flag.ErrHelp
 			}
-			if err := validateNextExclusiveFlags(fs, *next, "price-point-id", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
+			if err := validateNextExclusiveFlags(fs, *next, "subscription-id", "app", "price-point-id", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
 				return err
 			}
 			if *resolved {

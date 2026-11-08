@@ -282,6 +282,7 @@ func TestBuildsListRejectsQueryFlagsCombinedWithNext(t *testing.T) {
 		flag string
 		args []string
 	}{
+		{name: "app scope", flag: "--app", args: []string{"--app", "987654321"}},
 		{name: "beta review state", flag: "--beta-review-state", args: []string{"--beta-review-state", "APPROVED"}},
 		{name: "include", flag: "--include", args: []string{"--include", "betaGroups"}},
 		{name: "sort", flag: "--sort", args: []string{"--sort", "version"}},

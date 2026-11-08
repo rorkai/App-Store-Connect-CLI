@@ -308,13 +308,17 @@ func TestSubscriptionsPricingPricesListRejectsQueryControlsWithNextOrResolved(t 
 	}
 
 	for _, mode := range modes {
-		for _, flagName := range []string{"price-point-id", "fields", "territory-fields", "price-point-fields", "include"} {
+		flags := []string{"price-point-id", "fields", "territory-fields", "price-point-fields", "include"}
+		if mode.flag == "--next" {
+			flags = append(flags, "subscription-id", "app")
+		}
+		for _, flagName := range flags {
 			t.Run(mode.flag+" with "+flagName, func(t *testing.T) {
 				captured := subscriptionPricesListQuerySurfaceStub(t)
 				args := append([]string{"subscriptions", "pricing", "prices", "list"}, mode.args...)
 				_, stderr, err := runSubscriptionPricesListQuerySurface(t, append(args, "--"+flagName, "value")...)
 				if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
+					t.Fatalf("exit code = %d, want %d (err=%v, requests=%d, path=%q)", got, rootcmd.ExitUsage, err, captured.calls, captured.path)
 				}
 				if want := mode.flag + " cannot be combined with --" + flagName; !strings.Contains(stderr, want) {
 					t.Fatalf("expected %q, got %q", want, stderr)
