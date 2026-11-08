@@ -186,13 +186,15 @@ func TestReviewItemsAddIfExistsSkipReturnsExistingItem(t *testing.T) {
 		switch {
 		case req.Method == http.MethodPost && req.Path == "/v1/reviewSubmissionItems":
 			return jsonResponse(http.StatusConflict, reviewItemExists409)
+		case req.Method == http.MethodGet && req.Path == "/v1/reviewSubmissions/submission-1/items" && strings.Contains(req.Query, "cursor=unused"):
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Unused page no longer available"}]}`)
 		case req.Method == http.MethodGet && req.Path == "/v1/reviewSubmissions/submission-1/items":
 			// include= is what materializes the relationship; fields= alone
 			// returns items with links only.
 			if !strings.Contains(req.Query, "include=appStoreVersion") {
 				t.Fatalf("read-back query = %q, want include=appStoreVersion", req.Query)
 			}
-			return jsonResponse(http.StatusOK, existingReviewItems)
+			return jsonResponse(http.StatusOK, strings.Replace(existingReviewItems, `"links":{"self"`, `"links":{"next":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-1/items?cursor=unused","self"`, 1))
 		default:
 			t.Fatalf("unexpected request %s %s", req.Method, req.Path)
 			return nil, nil
