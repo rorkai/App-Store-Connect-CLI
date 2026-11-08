@@ -292,7 +292,7 @@ func TestAuthDoctorJSONPrefillsVersionFromXcodeProject(t *testing.T) {
 		if !sliceContains(report.Migration.SuggestedCommands, `asc builds upload --app "123456789" --ipa app.ipa --version "3.2.1" --build-number "BUILD_NUMBER" --wait`) {
 			t.Fatalf("expected upload guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
 		}
-		if !sliceContains(report.Migration.SuggestedCommands, `asc builds info --app "123456789" --build-number "BUILD_NUMBER" --version "3.2.1"`) {
+		if !sliceContains(report.Migration.SuggestedCommands, `asc builds info --build-id "UPLOADED_BUILD_ID"`) {
 			t.Fatalf("expected build lookup guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
 		}
 		if !sliceContains(report.Migration.SuggestedCommands, `asc versions create --app "123456789" --version "3.2.1"`) {
