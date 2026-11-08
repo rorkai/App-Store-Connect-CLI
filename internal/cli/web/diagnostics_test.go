@@ -244,3 +244,35 @@ func captureWebDiagnosticStderr(t *testing.T, fn func()) string {
 	}
 	return strings.ReplaceAll(string(data), "\r\n", "\n")
 }
+
+func TestWebCommandsRejectNegativeProviderIDBeforeResolvingSession(t *testing.T) {
+	for _, name := range []string{"auth login", "privacy pull"} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("ASC_WEB_2FA_METHOD", "")
+			t.Setenv("ASC_WEB_2FA_PHONE_ID", "")
+			var resolutions int
+			t.Cleanup(SetResolveWebSession(func(context.Context, string, string, string) (*webcore.AuthSession, string, error) {
+				resolutions++
+				return nil, "", errors.New("session resolution was reached")
+			}))
+			var err error
+			stderr := captureWebDiagnosticStderr(t, func() {
+				if name == "auth login" {
+					err = WebAuthLoginCommand().ParseAndRun(context.Background(), []string{"--provider-id=-1"})
+				} else {
+					err = WebPrivacyPullCommand().ParseAndRun(context.Background(), []string{"--app", "123456789", "--provider-id=-1"})
+				}
+			})
+			if resolutions != 0 {
+				t.Errorf("session resolver called %d times, want none", resolutions)
+			}
+			if !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, "--provider-id must be non-negative") {
+				t.Errorf("err=%v stderr=%q, want invalid provider ID usage error", err, stderr)
+			}
+			diagnostic, _ := shared.DiagnosticFromError(err)
+			if diagnostic.Code != shared.DiagnosticInvalidInput || diagnostic.Parameter != "--provider-id" {
+				t.Errorf("diagnostic = %+v, want invalid_input for --provider-id", diagnostic)
+			}
+		})
+	}
+}
