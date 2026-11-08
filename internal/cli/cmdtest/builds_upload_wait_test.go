@@ -429,6 +429,15 @@ func TestBuildsUploadTestNotesFailurePreservesDiscoveredBuildRecoveryContext(t *
 }
 
 func TestBuildsUploadPostCommitVerificationUsesFreshTimeoutWindow(t *testing.T) {
+	testBuildsUploadFreshTimeoutWindow(t, []string{"--verify-timeout", "250ms"}, "Verifying initial App Store Connect processing for up to 250ms...", false)
+}
+
+func TestBuildsUploadWaitUsesFreshTimeoutWindow(t *testing.T) {
+	testBuildsUploadFreshTimeoutWindow(t, []string{"--wait"}, "Waiting for build 42 (1.0.0) to appear in App Store Connect...", true)
+}
+
+func testBuildsUploadFreshTimeoutWindow(t *testing.T, flags []string, wantProgress string, wait bool) {
+	t.Helper()
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_TIMEOUT", "250ms")
@@ -467,6 +476,8 @@ func TestBuildsUploadPostCommitVerificationUsesFreshTimeoutWindow(t *testing.T) 
 			}, nil
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/buildUploadFiles/file-1":
 			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"uploaded":true}}}`)
+		case wait && req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/buildUploads/upload-1":
 			buildUploadChecks++
 			return jsonResponse(http.StatusOK, `{
@@ -497,15 +508,14 @@ func TestBuildsUploadPostCommitVerificationUsesFreshTimeoutWindow(t *testing.T) 
 
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
+		if err := root.Parse(append([]string{
 			"builds", "upload",
 			"--app", "123456789",
 			"--ipa", ipaPath,
 			"--version", "1.0.0",
 			"--build-number", "42",
 			"--poll-interval", "1ms",
-			"--verify-timeout", "250ms",
-		}); err != nil {
+		}, flags...)); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
@@ -514,11 +524,11 @@ func TestBuildsUploadPostCommitVerificationUsesFreshTimeoutWindow(t *testing.T) 
 	if runErr != nil {
 		t.Fatalf("expected builds upload to succeed, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "Verifying initial App Store Connect processing for up to 250ms...") {
-		t.Fatalf("expected verification progress output, got %q", stderr)
+	if !strings.Contains(stderr, wantProgress) {
+		t.Fatalf("expected %q in progress output, got %q", wantProgress, stderr)
 	}
-	if !strings.Contains(stdout, `"uploadId":"upload-1"`) {
-		t.Fatalf("expected JSON output with upload ID, got %q", stdout)
+	if !strings.Contains(stdout, `"uploadId":"upload-1"`) || !strings.Contains(stdout, `"buildId":"build-1"`) {
+		t.Fatalf("expected JSON output with upload and build IDs, got %q", stdout)
 	}
 	if buildUploadChecks == 0 {
 		t.Fatal("expected build upload verification check")
