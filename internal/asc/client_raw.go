@@ -21,8 +21,24 @@ var ErrRawPaginationNotCollection = errors.New("--paginate requires a collection
 // timeout, and error-parsing behavior; the caller owns method, path, and
 // payload validation.
 func (c *Client) RawRequest(ctx context.Context, method, path string, body []byte) ([]byte, error) {
+	return c.RawRequestWithQuery(ctx, method, path, nil, body)
+}
+
+// RawRequestWithQuery takes caller-validated query parameters separately
+// from the path, so they cannot be confused with an escaped resource ID.
+func (c *Client) RawRequestWithQuery(ctx context.Context, method, path string, query url.Values, body []byte) ([]byte, error) {
+	if err := validateMutatingRequestTarget(method, path); err != nil {
+		return nil, err
+	}
 	if err := validateRawRequestTarget(path); err != nil {
 		return nil, err
+	}
+
+	if len(query) > 0 {
+		if strings.ContainsRune(path, '?') {
+			return nil, errors.New("API request path already contains a query string")
+		}
+		path += "?" + query.Encode()
 	}
 
 	var reader io.Reader

@@ -162,16 +162,15 @@ func generateJWTForAudience(keyID, issuerID string, privateKey *ecdsa.PrivateKey
 // Mutating requests are throttled and retried only when App Store Connect
 // rejects them with 429; see isRateLimitRejection.
 func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
-	return c.doWithHTTPClient(ctx, method, path, body, c.httpClient)
-}
-
-// doWithHTTPClient preserves the shared request/retry behavior while allowing
-// narrowly scoped callers to override only the HTTP client's redirect policy.
-func (c *Client) doWithHTTPClient(ctx context.Context, method, path string, body io.Reader, httpClient *http.Client) ([]byte, error) {
 	if err := validateMutatingRequestTarget(method, path); err != nil {
 		return nil, err
 	}
+	return c.doWithHTTPClient(ctx, method, path, body, c.httpClient)
+}
 
+// doWithHTTPClient shares retry and rate-limit behavior after callers
+// validate the request target.
+func (c *Client) doWithHTTPClient(ctx context.Context, method, path string, body io.Reader, httpClient *http.Client) ([]byte, error) {
 	request, err := c.replayableRequestWithHTTPClient(method, path, body, httpClient)
 	if err != nil {
 		return nil, err

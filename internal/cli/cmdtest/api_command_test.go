@@ -102,6 +102,11 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 			wantErr: "api: --query is only supported for GET requests",
 		},
 		{
+			name:    "undocumented inline mutation query",
+			args:    []string{"api", "DELETE", "/v1/betaGroups/123?limit=1", "--confirm"},
+			wantErr: "api: PATH query parameters must be documented for this operation",
+		},
+		{
 			name:    "body on GET",
 			args:    []string{"api", "GET", "/v1/apps", "--body", `{"data":{}}`},
 			wantErr: "api: --body is only supported for POST, PATCH, and DELETE requests",
@@ -460,6 +465,36 @@ func TestAPIPostSendsBodyWithConfirm(t *testing.T) {
 	}
 	if gotContentType != "application/json" {
 		t.Fatalf("content type = %q, want application/json", gotContentType)
+	}
+}
+
+func TestAPIPostPreservesDocumentedMutationURLQuery(t *testing.T) {
+	setupAuth(t)
+	const path = "/v1/appAssetLibraryPlacementOrderingRequests"
+	const requestBody = `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","attributes":{"placementGroup":"IPHONE_65"},"relationships":{"orderedPlacements":{"data":[{"type":"appAssetLibraryPlacements","id":"placement-1"}]},"appStoreVersionLocalization":{"data":{"type":"appStoreVersionLocalizations","id":"locale-1"}}}}}`
+	const responseBody = `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","id":"request-1"},"included":[{"type":"appAssetLibraryPlacements","id":"placement-1"}]}`
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPost || req.URL.RequestURI() != path+"?include=orderedPlacements" {
+			t.Errorf("request = %s %s, want POST %s?include=orderedPlacements", req.Method, req.URL.RequestURI(), path)
+		}
+		data, err := io.ReadAll(req.Body)
+		if err != nil || string(data) != requestBody {
+			t.Errorf("request body = %q, error = %v, want %q", data, err, requestBody)
+		}
+		return &http.Response{
+			StatusCode: http.StatusCreated,
+			Body:       io.NopCloser(strings.NewReader(responseBody)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	}))
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = rootcmd.Run([]string{"api", "POST", path + "?include=orderedPlacements", "--confirm", "--body", requestBody}, "1.2.3")
+	})
+	if code != rootcmd.ExitSuccess || stdout != responseBody+"\n" || stderr != "" {
+		t.Fatalf("exit = %d, stdout = %q, stderr = %q, want success and Apple's envelope", code, stdout, stderr)
 	}
 }
 
