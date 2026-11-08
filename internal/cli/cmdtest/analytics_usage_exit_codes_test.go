@@ -24,6 +24,7 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		appEnv  string
 	}{
 		{
 			name:    "requests limit above maximum",
@@ -53,7 +54,13 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "requests app differs from cursor",
 			args:    []string{"analytics", "requests", "--app", "123456789", "--next", "https://api.appstoreconnect.apple.com/v1/apps/6759231657/analyticsReportRequests?limit=1"},
-			wantErr: "analytics requests: --app must match the app in --next",
+			wantErr: "analytics requests: the selected app must match the app in --next",
+		},
+		{
+			name:    "requests environment app differs from cursor",
+			args:    []string{"analytics", "requests", "--next", "https://api.appstoreconnect.apple.com/v1/apps/6759231657/analyticsReportRequests?limit=1"},
+			wantErr: "analytics requests: the selected app must match the app in --next",
+			appEnv:  "123456789",
 		},
 		{
 			name:    "requests invalid request id",
@@ -154,6 +161,9 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			if test.appEnv != "" {
+				t.Setenv("ASC_APP_ID", test.appEnv)
+			}
 			stdout, stderr, runErr := runCommand(t, test.args)
 
 			if runErr == nil {

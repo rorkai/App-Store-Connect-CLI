@@ -123,7 +123,8 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
 				return shared.UsageError("analytics requests: --limit must be between 1 and 200")
 			}
-			if err := validateAnalyticsRequestsCursor(*next, *appID); err != nil {
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if err := validateAnalyticsRequestsCursor(*next, resolvedAppID); err != nil {
 				return shared.UsageErrorf("analytics requests: %v", err)
 			}
 			if strings.TrimSpace(*requestID) != "" {
@@ -147,7 +148,6 @@ Examples:
 				return shared.UsageError("--access-type cannot be used with --next")
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" && strings.TrimSpace(*requestID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
@@ -227,7 +227,7 @@ func validateAnalyticsRequestsCursor(next, appID string) error {
 		return errors.New("--next must point to an app's analytics report requests")
 	}
 	if appID = strings.TrimSpace(appID); appID != "" && appID != cursorAppID {
-		return errors.New("--app must match the app in --next")
+		return errors.New("the selected app must match the app in --next")
 	}
 	return nil
 }
