@@ -43,7 +43,7 @@ Apple stopped generating new `INSTALLS` reports on November 4, 2026. Historical 
 * **Monthly**: `YYYY-MM` or `YYYY-MM-DD`
 * **Yearly**: `YYYY` or `YYYY-MM-DD`
 
-For `DAILY` reports, omit `--date` to download the latest available report. `--date` is required for `WEEKLY`, `MONTHLY`, and `YEARLY` reports.
+For `DAILY` reports, omitting `--date` lets Apple select the report period. Apple can return an unavailable report response before it publishes that period. Pass an explicit `--date` to select a different period. `--date` is required for `WEEKLY`, `MONTHLY`, and `YEARLY` reports.
 For monthly and yearly reports, the CLI reduces a full date to its containing month or year. It always sends Apple's live `YYYY-MM` monthly or `YYYY` yearly period identifier on the wire.
 
 The CLI validates the complete type, subtype, frequency, and version combination before authentication. This prevents Apple from receiving combinations that its [Sales Reports endpoint](https://developer.apple.com/documentation/appstoreconnectapi/get-v1-salesreports) explicitly rejects. `SUBSCRIPTION` defaults to the live-verified `1_4`; the CLI also accepts Apple's documented `1_3` for that tuple.
@@ -54,7 +54,7 @@ The CLI validates the complete type, subtype, frequency, and version combination
 * `--version` - Report format version allowed for the selected type, subtype, and frequency
 * `--output` - Custom output path (default: `sales_report_{date|latest}_{type}.tsv.gz`)
 * `--decompress` - Decompress to `.tsv` format
-* `--allow-missing` - Return successful metadata with `available: false` instead of creating a file when no report exists for the requested date. Without this flag, the API error remains unchanged.
+* `--allow-missing` - Return successful metadata with `available: false` instead of creating a file when Apple says the report is unavailable or the period had no sales. Without this flag, the API error remains unchanged.
 
 **Examples:**
 
@@ -77,7 +77,7 @@ asc analytics sales \
   --allow-missing \
   --output-format json
 
-# Latest subscriber report with decompression
+# Subscriber report using Apple's default daily period, with decompression
 asc analytics sales \
   --vendor "12345678" \
   --type SUBSCRIBER \

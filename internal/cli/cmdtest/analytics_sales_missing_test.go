@@ -18,7 +18,17 @@ import (
 )
 
 func TestAnalyticsSalesAllowMissingReturnsStructuredResultWithoutFile(t *testing.T) {
-	requestCount := setMissingSalesReportTestClient(t)
+	t.Run("no sales", func(t *testing.T) {
+		assertSalesReportUnavailable(t, "There were no sales for the date specified.")
+	})
+	t.Run("not published yet", func(t *testing.T) {
+		assertSalesReportUnavailable(t, "Report is not available yet. Daily reports for the Americas are available by 5 am Pacific Time.")
+	})
+}
+
+func assertSalesReportUnavailable(t *testing.T, detail string) {
+	t.Helper()
+	requestCount := setSalesReportNotFoundTestClient(t, detail)
 
 	outputPath := filepath.Join(t.TempDir(), "missing.tsv.gz")
 	root := RootCommand("1.2.3")
