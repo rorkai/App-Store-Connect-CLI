@@ -1793,6 +1793,9 @@ func hasProviderSelection(selection webcore.ProviderSelection) bool {
 }
 
 func callResolveSessionForProviderSelection(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string, selection webcore.ProviderSelection) (*webcore.AuthSession, string, error) {
+	if selection.ProviderID < 0 {
+		return nil, "", shared.WithDiagnostic(shared.UsageError("--provider-id must be non-negative"), shared.DiagnosticInvalidInput, "--provider-id")
+	}
 	if !hasProviderSelection(selection) {
 		return callResolveSessionFn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
 	}
