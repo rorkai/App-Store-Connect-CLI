@@ -46,11 +46,17 @@ type AppStoreVersionUpdateAttributes struct {
 	Downloadable *bool `json:"downloadable,omitempty"`
 }
 
+// AppStoreVersionUpdateRelationships describes relationships for app store version update requests.
+type AppStoreVersionUpdateRelationships struct {
+	Build *Relationship `json:"build,omitempty"`
+}
+
 // AppStoreVersionUpdateData is the data portion of an app store version update request.
 type AppStoreVersionUpdateData struct {
-	Type       ResourceType                    `json:"type"`
-	ID         string                          `json:"id"`
-	Attributes AppStoreVersionUpdateAttributes `json:"attributes"`
+	Type          ResourceType                        `json:"type"`
+	ID            string                              `json:"id"`
+	Attributes    AppStoreVersionUpdateAttributes     `json:"attributes"`
+	Relationships *AppStoreVersionUpdateRelationships `json:"relationships,omitempty"`
 }
 
 // AppStoreVersionUpdateRequest is a request to update an app store version.
@@ -305,12 +311,23 @@ func (c *Client) CreateAppStoreVersionWithBuild(ctx context.Context, appID, buil
 
 // UpdateAppStoreVersion updates an existing app store version.
 func (c *Client) UpdateAppStoreVersion(ctx context.Context, versionID string, attrs AppStoreVersionUpdateAttributes) (*AppStoreVersionResponse, error) {
+	return c.UpdateAppStoreVersionWithBuild(ctx, versionID, "", attrs)
+}
+
+// UpdateAppStoreVersionWithBuild updates version attributes and optionally
+// attaches a build in the same request.
+func (c *Client) UpdateAppStoreVersionWithBuild(ctx context.Context, versionID, buildID string, attrs AppStoreVersionUpdateAttributes) (*AppStoreVersionResponse, error) {
 	payload := AppStoreVersionUpdateRequest{
 		Data: AppStoreVersionUpdateData{
 			Type:       ResourceTypeAppStoreVersions,
 			ID:         strings.TrimSpace(versionID),
 			Attributes: attrs,
 		},
+	}
+	if buildID = strings.TrimSpace(buildID); buildID != "" {
+		payload.Data.Relationships = &AppStoreVersionUpdateRelationships{
+			Build: &Relationship{Data: ResourceData{Type: ResourceTypeBuilds, ID: buildID}},
+		}
 	}
 
 	body, err := BuildRequestBody(payload)
