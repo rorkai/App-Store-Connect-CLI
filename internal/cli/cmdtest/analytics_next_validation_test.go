@@ -18,7 +18,12 @@ func TestAnalyticsPaginateFromNext(t *testing.T) {
 	runPaginateFromNextCases(t, []paginateFromNextCase{
 		{
 			args:     []string{"analytics", "requests"},
-			firstURL: "https://api.appstoreconnect.apple.com/v1/analyticsReportRequests?cursor=AQ&limit=200",
+			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/123456789/analyticsReportRequests?cursor=AQ&limit=200",
+			dataType: "analyticsReportRequests",
+		},
+		{
+			args:     []string{"analytics", "requests", "--app", "123456789"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/123456789/analyticsReportRequests?cursor=AQ&limit=200",
 			dataType: "analyticsReportRequests",
 		},
 		{
