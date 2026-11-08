@@ -840,6 +840,57 @@ func TestSubmitCancelCommand_ByVersionIDExplicitAppMismatchFailsFast(t *testing.
 	}
 }
 
+func TestSubmitCancelCommand_ByVersionIDRequiresExplicitAppOwnership(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{"forbidden", http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden"}]}`},
+		{"missing linkage", http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-123"}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupSubmitAuth(t)
+			previous := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = previous })
+			var requests []string
+			http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				request := req.Method + " " + req.URL.Path
+				requests = append(requests, req.Method+" "+req.URL.RequestURI())
+				switch request {
+				case "GET /v1/appStoreVersions/version-123":
+					return submitJSONResponse(tc.status, tc.body)
+				case "GET /v1/apps/app-expected/reviewSubmissions":
+					return submitJSONResponse(http.StatusOK, `{"data":[]}`)
+				case "GET /v1/appStoreVersions/version-123/appStoreVersionSubmission":
+					return submitJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-submission-123"}}`)
+				case "PATCH /v1/reviewSubmissions/legacy-submission-123":
+					return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+				case "DELETE /v1/appStoreVersionSubmissions/legacy-submission-123":
+					return submitJSONResponse(http.StatusNoContent, "")
+				default:
+					return nil, fmt.Errorf("unexpected request %s", request)
+				}
+			})
+			cmd := SubmitCancelCommand()
+			if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--app", "app-expected", "--confirm", "--output", "json"}); err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			stdout, err := captureSubmitCommandOutput(t, func() error { return cmd.Exec(context.Background(), nil) })
+			if err == nil || !strings.Contains(err.Error(), `could not verify app "app-expected" owns version "version-123"`) || stdout != "" {
+				t.Errorf("expected ownership failure with no receipt, stdout=%q err=%v", stdout, err)
+			}
+			want := []string{
+				"GET /v1/appStoreVersions/version-123?include=app",
+				"GET /v1/apps/app-expected/reviewSubmissions?include=appStoreVersionForReview&limit=200",
+			}
+			if !reflect.DeepEqual(requests, want) {
+				t.Errorf("requests = %v, want %v", requests, want)
+			}
+		})
+	}
+}
+
 func TestSubmitCancelCommand_ByVersionIDModernLookupTimeoutRefreshesLegacyFallbackContext(t *testing.T) {
 	setupSubmitAuth(t)
 	t.Setenv("ASC_TIMEOUT", "40ms")
@@ -882,7 +933,7 @@ func TestSubmitCancelCommand_ByVersionIDModernLookupTimeoutRefreshesLegacyFallba
 
 	cmd := SubmitCancelCommand()
 	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--confirm", "--output", "json"}); err != nil {
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--app", "app-1", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
