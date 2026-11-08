@@ -352,3 +352,40 @@ func TestStatusJSONIncludesNextCommands(t *testing.T) {
 		t.Fatalf("nextCommands = %+v, want %+v", payload.Summary.NextCommands, want)
 	}
 }
+
+func TestStatusSuggestsReviewSubmissionOnlyForEligibleBuildAudience(t *testing.T) {
+	for _, audience := range []string{"APP_STORE_ELIGIBLE", "INTERNAL_ONLY"} {
+		t.Run(audience, func(t *testing.T) {
+			setupStatusUntilTest(t)
+			builds := strings.Replace(statusUntilBuildsBody("VALID", ""), `"processingState":"VALID"`, `"processingState":"VALID","buildAudienceType":"`+audience+`"`, 1)
+			installStatusUntilTransport(t, map[string][]string{
+				"/v1/builds":                          {builds},
+				"/v1/apps/123456789/appStoreVersions": {statusUntilVersionsBody("PREPARE_FOR_SUBMISSION")},
+			})
+
+			stdout, stderr, code := runStatusUntil(t, "--include", "builds,appstore", "--output", "json")
+			if code != cmd.ExitSuccess {
+				t.Fatalf("exit = %d, want 0; stderr=%q", code, stderr)
+			}
+			var payload struct {
+				Summary struct {
+					NextCommands []asc.StatusNextCommand `json:"nextCommands"`
+				} `json:"summary"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("decode status: %v", err)
+			}
+			want := []asc.StatusNextCommand{{Command: "asc validate --app 123456789 --version-id ver-1", Reason: "Check App Store submission readiness."}}
+			if audience == "APP_STORE_ELIGIBLE" {
+				want = append(want, asc.StatusNextCommand{
+					Command: "asc review submit --app 123456789 --version-id ver-1 --build-id build-9 --confirm",
+					Reason:  "Attach the latest build and submit the version for App Review.",
+					Mutates: true,
+				})
+			}
+			if !slices.Equal(payload.Summary.NextCommands, want) {
+				t.Fatalf("nextCommands = %+v, want %+v", payload.Summary.NextCommands, want)
+			}
+		})
+	}
+}
