@@ -549,6 +549,16 @@ func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testin
 }
 
 func TestReconcilePendingScreenshotWaitsForCompletedAssetChecksum(t *testing.T) {
+	t.Run("already settled", func(t *testing.T) {
+		assertPendingScreenshotSettles(t, 1)
+	})
+	t.Run("checksum still pending", func(t *testing.T) {
+		assertPendingScreenshotSettles(t, 2)
+	})
+}
+
+func assertPendingScreenshotSettles(t *testing.T, wantCalls int) {
+	t.Helper()
 	workDir := t.TempDir()
 	filePath := writeAssetsTestPNG(t, workDir, "01-home.png")
 	checksum, err := computeFileChecksum(filePath)
@@ -562,7 +572,12 @@ func TestReconcilePendingScreenshotWaitsForCompletedAssetChecksum(t *testing.T) 
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
 		detailCalls++
-		if detailCalls == 1 {
+		if detailCalls > wantCalls {
+			w.Header().Set("Retry-After", "999")
+			writeAssetsTestJSON(w, http.StatusTooManyRequests, `{"errors":[{"code":"RATE_LIMIT_EXCEEDED","detail":"unnecessary detail request"}]}`)
+			return
+		}
+		if detailCalls < wantCalls {
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
 			return
 		}
@@ -588,8 +603,8 @@ func TestReconcilePendingScreenshotWaitsForCompletedAssetChecksum(t *testing.T) 
 	if result.AssetID != "pending-1" || result.State != "COMPLETE" {
 		t.Fatalf("unexpected completed result: %#v", result)
 	}
-	if detailCalls != 2 {
-		t.Fatalf("expected checksum settlement detail request, got %d calls", detailCalls)
+	if detailCalls != wantCalls {
+		t.Fatalf("detail calls = %d, want %d", detailCalls, wantCalls)
 	}
 }
 

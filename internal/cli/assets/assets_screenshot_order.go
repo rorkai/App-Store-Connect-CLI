@@ -151,6 +151,9 @@ func reconcilePendingScreenshotAsset(ctx context.Context, client *asc.Client, pe
 		if err := validatePendingScreenshotChecksum(sourceRootPath, pending); err != nil {
 			return asc.AssetUploadResultItem{}, pending, false, err
 		}
+		if strings.TrimSpace(remote.Data.Attributes.SourceFileChecksum) != "" {
+			return completedPendingScreenshotResult(pending), screenshotPendingAsset{}, false, nil
+		}
 		return waitForPendingScreenshotDelivery(ctx, client, pending)
 	case "FAILED":
 		if err := client.DeleteAppScreenshot(ctx, pending.AssetID); err != nil {
