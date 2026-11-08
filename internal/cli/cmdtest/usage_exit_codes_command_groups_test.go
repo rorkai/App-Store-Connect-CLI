@@ -383,6 +383,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "builds uploads list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "builds uploads list owner with next",
+			args:    []string{"builds", "uploads", "list", "--app", "APP_A", "--next", "https://api.appstoreconnect.apple.com/v1/apps/APP_B/buildUploads?cursor=next"},
+			wantErr: "builds uploads list: --next cannot be combined with --app",
+		},
+		{
 			name:    "localizations download limit",
 			args:    []string{"localizations", "download", "--limit", "201"},
 			wantErr: "localizations download: --limit must be between 1 and 200",
