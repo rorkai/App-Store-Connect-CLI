@@ -93,6 +93,8 @@ type APIError struct {
 	// account-level state that no API key permission can satisfy. It is
 	// appended to Error() so the guidance travels with the error itself.
 	Remediation string
+
+	bearerTokenRejected bool
 }
 
 // requiredAgreementRemediation explains a 403 that no key permission can fix.
@@ -271,6 +273,8 @@ func formatAssociatedErrors(values map[string][]APIAssociatedError) string {
 
 func (e *APIError) Is(target error) bool {
 	switch target {
+	case ErrInvalidBearerToken:
+		return e.bearerTokenRejected
 	case ErrNotFound:
 		return strings.EqualFold(e.Code, "NOT_FOUND") || e.StatusCode == 404
 	case ErrUnauthorized:

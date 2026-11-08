@@ -452,7 +452,7 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader
 			}
 		}
 
-		if err := ParseErrorWithStatus(respBody, resp.StatusCode); err != nil {
+		if err := c.parseAuthenticatedResponseError(respBody, resp); err != nil {
 			if isIntermittentBuildUploadsNotFound(method, path, err) {
 				// No Retry-After accompanies the flake; the shared exponential
 				// backoff (1s/2s/4s by default) and retry budget apply.
@@ -874,7 +874,7 @@ func (c *Client) doStream(ctx context.Context, path string, accept string) (*htt
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		if err := ParseErrorWithStatus(respBody, resp.StatusCode); err != nil {
+		if err := c.parseAuthenticatedResponseError(respBody, resp); err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("API request failed with status %d", resp.StatusCode)
@@ -920,6 +920,21 @@ func BuildRequestBody(data any) (io.Reader, error) {
 		return nil, fmt.Errorf("failed to encode request: %w", err)
 	}
 	return &buf, nil
+}
+
+func (c *Client) parseAuthenticatedResponseError(body []byte, resp *http.Response) error {
+	err := ParseErrorWithStatus(body, resp.StatusCode)
+	if resp.StatusCode != http.StatusUnauthorized || c.bearerToken == "" {
+		return err
+	}
+	// A redirect can drop the Authorization header before the final response.
+	if resp.Request != nil && resp.Request.Header.Get("Authorization") != "Bearer "+c.bearerToken {
+		return err
+	}
+	if apiErr, ok := errors.AsType[*APIError](err); ok {
+		apiErr.bearerTokenRejected = true
+	}
+	return err
 }
 
 // ParseError parses an error response (status code unknown)
