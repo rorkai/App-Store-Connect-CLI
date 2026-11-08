@@ -418,6 +418,16 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "localizations list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "performance diagnostics rejects unrelated cursor",
+			args:    []string{"performance", "diagnostics", "list", "--build-id", "build-a", "--next", "https://api.appstoreconnect.apple.com/v1/apps/6759231657/appInfos?limit=1"},
+			wantErr: "performance diagnostics list: --next must point to a build's diagnostic signatures",
+		},
+		{
+			name:    "performance diagnostics rejects a cursor for another build",
+			args:    []string{"performance", "diagnostics", "list", "--build-id", "build-a", "--next", "https://api.appstoreconnect.apple.com/v1/builds/build-b/diagnosticSignatures?cursor=AQ"},
+			wantErr: "performance diagnostics list: --build-id must match the build in --next",
+		},
+		{
 			name:    "performance diagnostics list limit",
 			args:    []string{"performance", "diagnostics", "list", "--build-id", "B", "--limit", "201"},
 			wantErr: "performance diagnostics list: --limit must be between 1 and 200",
