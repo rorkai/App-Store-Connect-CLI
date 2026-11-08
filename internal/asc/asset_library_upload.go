@@ -25,6 +25,11 @@ type assetLibraryImageUploadResponse struct {
 	} `json:"data"`
 }
 
+func (r assetLibraryImageUploadResponse) ready() bool {
+	attrs := r.Data.Attributes
+	return attrs.State == "PREPARE_FOR_SUBMISSION" && attrs.ImageAsset != nil && attrs.ImageAsset.Width > 0 && attrs.ImageAsset.Height > 0
+}
+
 // UploadAssetLibraryImage reserves, uploads, commits, and waits for an image.
 // A partial result retains the reserved ID when a later operation fails.
 // The caller validates the image and owns the overall upload timeout.
@@ -117,11 +122,22 @@ func (c *Client) UploadAssetLibraryImageWithCategory(ctx context.Context, librar
 		return result, err
 	}
 	nextStage("commit")
-	if _, err := request("PATCH", path, body); err != nil {
+	raw, err = request("PATCH", path, body)
+	if err != nil {
 		return result, fmt.Errorf("commit image %s: %w", result.ImageID, err)
 	}
 	result.Uploaded = true
 	nextStage("processing")
+	var committed assetLibraryImageUploadResponse
+	if json.Unmarshal(raw, &committed) == nil &&
+		committed.Data.ID == result.ImageID && committed.Data.Type == "appAssetLibraryImages" &&
+		committed.ready() && strings.TrimSpace(committed.Data.Attributes.SpecID) != "" {
+		attrs := committed.Data.Attributes
+		result.State, result.SpecID = attrs.State, attrs.SpecID
+		result.Width, result.Height = attrs.ImageAsset.Width, attrs.ImageAsset.Height
+		result.Ready = true
+		return result, nil
+	}
 	_, err = PollMediaUntil(ctx, func(context.Context) (struct{}, bool, error) {
 		raw, err := request("GET", path, nil)
 		if err != nil {
@@ -142,7 +158,7 @@ func (c *Client) UploadAssetLibraryImageWithCategory(ctx context.Context, librar
 		if attrs.ImageAsset != nil {
 			result.Width, result.Height = attrs.ImageAsset.Width, attrs.ImageAsset.Height
 		}
-		result.Ready = attrs.State == "PREPARE_FOR_SUBMISSION" && attrs.ImageAsset != nil && attrs.ImageAsset.Width > 0 && attrs.ImageAsset.Height > 0
+		result.Ready = current.ready()
 		if !result.Ready {
 			stage.emit("started", nil)
 		}

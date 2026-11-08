@@ -15,7 +15,7 @@ import (
 )
 
 func TestAssetLibraryImageProgress(t *testing.T) {
-	for _, outcome := range []string{"ready", "failed", "canceled"} {
+	for _, outcome := range []string{"ready", "failed", "canceled", "ready-on-commit"} {
 		t.Run(outcome, func(t *testing.T) {
 			setFastAssetUploadRetries(t, "1")
 			t.Cleanup(SetMediaPollIntervalsForTest(time.Nanosecond, time.Nanosecond))
@@ -36,9 +36,18 @@ func TestAssetLibraryImageProgress(t *testing.T) {
 					}
 					w.WriteHeader(204)
 				case "PATCH":
+					if outcome == "ready-on-commit" {
+						fmt.Fprint(w, `{"data":{"id":"secret-image","type":"appAssetLibraryImages","attributes":{"state":"PREPARE_FOR_SUBMISSION","specId":"fixture-spec","imageAsset":{"width":10,"height":20}}}}`)
+						return
+					}
 					fmt.Fprint(w, `{"data":{"id":"secret-image"}}`)
 				case "GET":
 					polls++
+					if outcome == "ready-on-commit" {
+						w.WriteHeader(http.StatusNotFound)
+						fmt.Fprint(w, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Resource not found"}]}`)
+						return
+					}
 					state := "PROCESSING"
 					asset := ""
 					if polls > 1 {
@@ -76,10 +85,11 @@ func TestAssetLibraryImageProgress(t *testing.T) {
 			file := createTempAssetFile(t, []byte("abc"))
 			defer file.Close()
 			result, err := client.UploadAssetLibraryImage(ctx, "secret-library", "secret-name.png", file, 3, nil)
-			if (err == nil) != (outcome == "ready") {
+			ready := outcome == "ready" || outcome == "ready-on-commit"
+			if (err == nil) != ready {
 				t.Fatalf("outcome %s error %v", outcome, err)
 			}
-			if !result.Uploaded || result.Ready != (outcome == "ready") {
+			if !result.Uploaded || result.Ready != ready {
 				t.Fatalf("incorrect uploaded/ready: %+v", result)
 			}
 			if len(result.Diagnostics) != 4 {
@@ -111,7 +121,12 @@ func TestAssetLibraryImageProgress(t *testing.T) {
 					sawWait = true
 				}
 			}
-			if !sawRetry || !sawWait {
+			if outcome == "ready-on-commit" {
+				if polls != 0 || result.SpecID != "fixture-spec" || result.Width != 10 || result.Height != 20 {
+					t.Fatalf("ready commit issued %d reads or lost processed image metadata: %+v", polls, result)
+				}
+			}
+			if !sawRetry || (outcome != "ready-on-commit" && !sawWait) {
 				t.Fatalf("missing retry/wait events: %+v", events)
 			}
 			encoded, _ := json.Marshal(events)
