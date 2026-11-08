@@ -398,6 +398,16 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "localizations download: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "localizations update app info rejects version",
+			args:    []string{"localizations", "update", "--type", "app-info", "--app", "app-a", "--version", "version-b", "--locale", "en-US", "--subtitle", "New"},
+			wantErr: "--version requires --type version",
+		},
+		{
+			name:    "localizations update version rejects app info",
+			args:    []string{"localizations", "update", "--version", "version-a", "--app-info", "info-b", "--locale", "en-US", "--description", "New"},
+			wantErr: "--app-info requires --type app-info",
+		},
+		{
 			name:    "localizations list limit",
 			args:    []string{"localizations", "list", "--limit", "201"},
 			wantErr: "localizations list: --limit must be between 1 and 200",

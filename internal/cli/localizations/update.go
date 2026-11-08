@@ -112,6 +112,12 @@ At least one field flag must be provided.`,
 			if normalizedType == shared.LocalizationTypeAppInfo && flagProvided(fs, "platform") {
 				return shared.UsageError("--platform requires --type version")
 			}
+			if normalizedType == shared.LocalizationTypeAppInfo && flagProvided(fs, "version") {
+				return shared.UsageError("--version requires --type version")
+			}
+			if normalizedType == shared.LocalizationTypeVersion && flagProvided(fs, "app-info") {
+				return shared.UsageError("--app-info requires --type app-info")
+			}
 			if err := validateClearFlags(fs, normalizedType); err != nil {
 				return err
 			}
