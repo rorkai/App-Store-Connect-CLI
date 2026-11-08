@@ -589,7 +589,7 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 			add(fmt.Sprintf(`asc publish appstore --app %q --ipa app.ipa --version %q --submit --confirm`, values.appID, values.versionString))
 		} else {
 			add(fmt.Sprintf(`asc builds upload --app %q --ipa app.ipa --version %q --build-number "BUILD_NUMBER" --wait`, values.appID, values.versionString))
-			add(fmt.Sprintf(`asc builds info --app %q --build-number "BUILD_NUMBER" --version %q`, values.appID, values.versionString))
+			add(fmt.Sprintf(`asc builds info --build-id %q`, uploadedBuildIDPlaceholder))
 			if !hasResolvedVersionID {
 				add(fmt.Sprintf(`asc versions create --app %q --version %q`, values.appID, values.versionString))
 			}
