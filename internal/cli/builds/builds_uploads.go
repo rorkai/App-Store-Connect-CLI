@@ -79,7 +79,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("builds uploads list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "builds uploads list", "cf-bundle-short-version", "cf-bundle-version", "platform", "state", "sort"); err != nil {
+			if err := shared.RejectNextFlagConflicts(fs, *next, "builds uploads list", "app", "cf-bundle-short-version", "cf-bundle-version", "platform", "state", "sort"); err != nil {
 				return err
 			}
 			if err := shared.ValidateSort(*sort, "cfBundleVersion", "-cfBundleVersion", "uploadedDate", "-uploadedDate"); err != nil {
