@@ -123,13 +123,35 @@ func (c *Client) UploadAssetLibraryImageWithCategory(ctx context.Context, librar
 	}
 	nextStage("commit")
 	raw, err = request("PATCH", path, body)
+	var commitErr error
 	if err != nil {
-		return result, fmt.Errorf("commit image %s: %w", result.ImageID, err)
+		commitErr = fmt.Errorf("commit image %s: %w", result.ImageID, err)
+		if !isResponseBodyReadError(err) || ctx.Err() != nil {
+			return result, commitErr
+		}
+		// Apple returned success but the response body was lost. Confirm
+		// the reserved image's state before treating the upload as committed.
+		raw, err = request("GET", path, nil)
+		if err != nil {
+			return result, commitErr
+		}
+	}
+	var committed assetLibraryImageUploadResponse
+	decodeErr = json.Unmarshal(raw, &committed)
+	if commitErr != nil {
+		if decodeErr != nil || committed.Data.ID != result.ImageID || committed.Data.Type != "appAssetLibraryImages" {
+			return result, commitErr
+		}
+		switch committed.Data.Attributes.State {
+		case "UPLOAD_COMPLETE", "COMPLETE", "PREPARE_FOR_SUBMISSION":
+			result.State = committed.Data.Attributes.State
+		default:
+			return result, commitErr
+		}
 	}
 	result.Uploaded = true
 	nextStage("processing")
-	var committed assetLibraryImageUploadResponse
-	if json.Unmarshal(raw, &committed) == nil &&
+	if decodeErr == nil &&
 		committed.Data.ID == result.ImageID && committed.Data.Type == "appAssetLibraryImages" &&
 		committed.ready() && strings.TrimSpace(committed.Data.Attributes.SpecID) != "" {
 		attrs := committed.Data.Attributes
