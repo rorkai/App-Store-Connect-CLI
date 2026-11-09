@@ -1040,7 +1040,12 @@ updates:
     directory: \"/\"
     schedule:
       interval: \"weekly\"
-""", "Dependabot must monitor root Go modules and GitHub Actions weekly"
+
+  - package-ecosystem: \"nix\"
+    directory: \"/\"
+    schedule:
+      interval: \"weekly\"
+""", "Dependabot must monitor root Go modules, GitHub Actions, and Nix flake inputs weekly"
 
     assert_security_target_contract()
     assert_nix_cache_contract()
