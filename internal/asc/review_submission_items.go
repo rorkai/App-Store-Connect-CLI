@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -336,6 +337,20 @@ type ReviewSubmissionItemDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
+// ReviewSubmissionItemsCursorSubmissionID extracts the owner of a review item continuation.
+func ReviewSubmissionItemsCursorSubmissionID(next string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(next))
+	if err != nil {
+		return "", err
+	}
+	path, hasPrefix := strings.CutPrefix(parsed.Path, "/v1/reviewSubmissions/")
+	id, hasSuffix := strings.CutSuffix(path, "/items")
+	if _, err := ValidateResourcePathSegment(id); !hasPrefix || !hasSuffix || err != nil {
+		return "", fmt.Errorf("pagination URL must point to a review submission's items")
+	}
+	return id, nil
+}
+
 // GetReviewSubmissionItems retrieves items for a review submission.
 func (c *Client) GetReviewSubmissionItems(ctx context.Context, submissionID string, opts ...ReviewSubmissionItemsOption) (*ReviewSubmissionItemsResponse, error) {
 	return c.getReviewSubmissionItems(ctx, submissionID, false, opts...)
@@ -354,14 +369,21 @@ func (c *Client) getReviewSubmissionItems(ctx context.Context, submissionID stri
 		opt(query)
 	}
 
+	submissionID = strings.TrimSpace(submissionID)
 	var path string
 	if query.nextURL != "" {
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("reviewSubmissionItems: %w", err)
 		}
+		cursorSubmissionID, err := ReviewSubmissionItemsCursorSubmissionID(query.nextURL)
+		if err != nil {
+			return nil, fmt.Errorf("reviewSubmissionItems: %w", err)
+		}
+		if submissionID != "" && submissionID != cursorSubmissionID {
+			return nil, fmt.Errorf("reviewSubmissionItems: pagination URL points to another review submission")
+		}
 		path = query.nextURL
 	} else {
-		submissionID = strings.TrimSpace(submissionID)
 		if submissionID == "" {
 			return nil, fmt.Errorf("submissionID is required")
 		}

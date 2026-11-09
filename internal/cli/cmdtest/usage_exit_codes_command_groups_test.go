@@ -558,6 +558,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "review items list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "review items rejects a cursor for another resource",
+			args:    []string{"review", "items", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps/6759231657/appInfos?limit=1"},
+			wantErr: "review items list: pagination URL must point to a review submission's items",
+		},
+		{
 			name:    "review items-list next",
 			args:    []string{"review", "items-list", "--submission", "SUBMISSION_ID", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "review items-list: --next must be an App Store Connect URL",
