@@ -15,6 +15,15 @@
 A fast, lightweight, and scriptable CLI for the App Store Connect API.
 Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, IDE, or CI/CD pipeline.
 
+<p align="center">
+  <a href="https://rork.com/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/images/rork-logo-dark.svg">
+      <img src="docs/images/rork-logo.svg" alt="Rork" width="120">
+    </picture>
+  </a>
+</p>
+
 ## Table of Contents
 
 - [asc skills](#asc-skills)
