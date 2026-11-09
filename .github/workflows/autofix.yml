@@ -60,7 +60,7 @@ jobs:
       - name: Restore Nix store
         uses: nix-community/cache-nix-action/restore@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.sum') }}
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.mod', 'go.sum') }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
 
       # vendorHash depends only on the Go module files and the Nix inputs, so

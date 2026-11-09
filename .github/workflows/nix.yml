@@ -38,10 +38,6 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    permissions:
-      contents: read
-      # cache-nix-action deletes superseded store caches on main.
-      actions: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -64,18 +60,15 @@ jobs:
       # Before saving, garbage collection trims a store above 4 GB. The
       # build's result link roots the package, and keep-outputs plus
       # keep-derivations keep its toolchain and Go modules alive with it.
-      # Each save on main also purges older stores for the same OS.
+      # A separate main-only job purges older stores without giving builds a
+      # token that can delete Actions caches.
       - name: Cache Nix store
         uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.sum') }}
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.mod', 'go.sum') }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
           save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           gc-max-store-size: 4G
-          purge: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          purge-prefixes: nix-${{ runner.os }}-
-          purge-created: 0
-          purge-primary-key: never
 
       # Formatting and evaluation do not depend on the runner's platform, so
       # only Linux runs them.
@@ -92,3 +85,41 @@ jobs:
             run: |
               nix build .#default
               nix run .#default -- --version
+
+  purge-cache:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: nix
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    strategy:
+      matrix:
+        cache-os: [Linux, macOS]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Purge superseded Nix caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CACHE_PREFIX: nix-${{ matrix.cache-os }}-
+          CURRENT_KEY: nix-${{ matrix.cache-os }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.mod', 'go.sum') }}
+        run: |
+          # An older build can finish last. Only the current main tip may purge.
+          main_tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          [ "$main_tip" = "$GITHUB_SHA" ] || exit 0
+          caches=$(gh api --method GET --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/caches" \
+            -f ref=refs/heads/main -f key="$CACHE_PREFIX" -f per_page=100)
+          # If saving failed, retain the fallback. Never delete a newer run's cache.
+          ids=$(jq -r --arg key "$CURRENT_KEY" '
+            [.[].actions_caches[]] as $all |
+            ([$all[] | select(.key == $key)] | max_by(.created_at)) as $current |
+            if $current == null then empty else
+              $all[] | select(.key != $key and .created_at < $current.created_at) | .id
+            end' <<< "$caches")
+          while IFS= read -r id; do
+            [ -z "$id" ] && continue
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/caches/$id"
+          done <<< "$ids"
