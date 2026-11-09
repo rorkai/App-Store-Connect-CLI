@@ -45,13 +45,9 @@ func interpolateStepOutputs(input string, outputs map[string]map[string]string, 
 		stepName := input[match[2]:match[3]]
 		outputName := input[match[4]:match[5]]
 
-		stepOutputs, ok := outputs[stepName]
+		value, ok := outputs[stepName][outputName]
 		if !ok {
-			return "", fmt.Errorf("unknown step output %q", "steps."+stepName+"."+outputName)
-		}
-		value, ok := stepOutputs[outputName]
-		if !ok {
-			return "", fmt.Errorf("unknown step output %q", "steps."+stepName+"."+outputName)
+			return "", markError(fmt.Errorf("unknown step output %q", "steps."+stepName+"."+outputName), ErrStepOutputUnavailable)
 		}
 
 		b.WriteString(input[last:match[0]])

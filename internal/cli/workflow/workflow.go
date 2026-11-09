@@ -466,13 +466,14 @@ func classifyWorkflowLoadError(err error) error {
 }
 
 // classifyWorkflowRunError marks expected workflow run failures: a user
-// command that failed or exceeded its step timeout, an unknown or private
-// workflow name, and a --resume run that does not exist or cannot be resumed.
+// command that failed or exceeded its step timeout, an unavailable step output,
+// an unknown or private workflow name, and a --resume run that does not exist or
+// cannot be resumed.
 // Cancellations already match their context errors. The message and exit code
 // are unchanged.
 func classifyWorkflowRunError(err error) error {
 	switch {
-	case errors.Is(err, wf.ErrCommandFailed):
+	case errors.Is(err, wf.ErrCommandFailed), errors.Is(err, wf.ErrStepOutputUnavailable):
 		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticDependencyFailed, "")
 	case errors.Is(err, wf.ErrUnknownWorkflow):
 		return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticResourceNotFound, "")
