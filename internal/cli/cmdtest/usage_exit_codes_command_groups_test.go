@@ -413,6 +413,16 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "--app-info requires --type app-info",
 		},
 		{
+			name:    "localizations list app info rejects version",
+			args:    []string{"localizations", "list", "--type", "app-info", "--app", "app-a", "--version", "version-b"},
+			wantErr: "--version requires --type version",
+		},
+		{
+			name:    "localizations list version rejects app info",
+			args:    []string{"localizations", "list", "--version", "version-a", "--app-info", "info-b"},
+			wantErr: "--app-info requires --type app-info",
+		},
+		{
 			name:    "localizations list limit",
 			args:    []string{"localizations", "list", "--limit", "201"},
 			wantErr: "localizations list: --limit must be between 1 and 200",
