@@ -905,7 +905,39 @@ def assert_ci_workload_caches() -> None:
         assert "cache-hit" not in shards, f"{path}: cache restoration must never skip tests"
 
 
+def assert_vendor_hash_cleanup() -> None:
+    # Exercise the actual flake app body without fetching a Nix toolchain.
+    module = (ROOT / "nix/update-vendor-hash.nix").read_text()
+    script = textwrap.dedent(module.split("text = ''\n", 1)[1].split("\n            '';", 1)[0])
+    script = script.replace("${lib.fakeHash}", "sha256-" + "A" * 43 + "=")
+    original = '  vendorHash = "sha256-original=";\n'
+    updated = '  vendorHash = "sha256-updated=";\n'
+    cases = [
+        ("success", "echo 'got: sha256-updated=' >&2; exit 1", 0, updated),
+        ("failure", "echo 'fetch failed' >&2; exit 1", 1, original),
+        *[(sig, f'kill -{sig} "$PPID"; exit 1', code, original)
+          for sig, code in (("TERM", 143), ("INT", 130), ("HUP", 129))],
+    ]
+    for name, build, code, expected in cases:
+        with tempfile.TemporaryDirectory(prefix="asc-vendor-hash-") as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "--quiet", directory], check=True)
+            package = root / "package.nix"
+            package.write_text(original)
+            nix = root / "nix"
+            nix.write_text("#!/bin/sh\n" + build + "\n")
+            nix.chmod(0o755)
+            env = dict(os.environ, PATH=directory + os.pathsep + os.environ["PATH"])
+            result = subprocess.run(
+                ["bash", "-euo", "pipefail", "-c", script],
+                cwd=root, env=env, capture_output=True, text=True,
+            )
+            assert package.read_text() == expected, f"{name}: vendorHash was not preserved correctly"
+            assert result.returncode == code, f"{name}: {result.returncode}: {result.stderr}"
+
+
 def main() -> None:
+    assert_vendor_hash_cleanup()
     assert_ci_workload_caches()
     assert_lint_analysis_cache()
     assert_test_result_cache_disabled()
