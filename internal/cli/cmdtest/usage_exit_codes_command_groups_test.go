@@ -38,6 +38,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "accessibility list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "apps list next for builds",
+			args:    []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps/app-1/builds?cursor=AQ"},
+			wantErr: "apps: --next must point to /v1/apps",
+		},
+		{
 			name:    "app-clips advanced-experiences list limit",
 			args:    []string{"app-clips", "advanced-experiences", "list", "--limit", "201"},
 			wantErr: "app-clips advanced-experiences list: --limit must be between 1 and 200",
