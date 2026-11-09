@@ -1,79 +1,46 @@
 {
   description = "App Store Connect CLI";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
+  };
 
   outputs =
-    { self, nixpkgs }:
-    let
-      inherit (nixpkgs) lib;
+    inputs@{ self, flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = import ./nix/systems.nix;
 
-      forAllSystems = lib.genAttrs (import ./nix/systems.nix);
+      imports = [ ./nix/update-vendor-hash.nix ];
 
-      packages = forAllSystems (
-        system:
-        let
-          asc = nixpkgs.legacyPackages.${system}.callPackage ./package.nix {
-            version = "dev-${self.shortRev or "dirty"}";
-            commit = self.shortRev or self.dirtyShortRev or "unknown";
-            date =
-              let
-                d = self.lastModifiedDate;
-                part = start: len: builtins.substring start len d;
-              in
-              "${part 0 4}-${part 4 2}-${part 6 2}T${part 8 2}:${part 10 2}:${part 12 2}Z";
+      perSystem =
+        { config, pkgs, ... }:
+        {
+          packages = {
+            asc = pkgs.callPackage ./package.nix {
+              version = "dev-${self.shortRev or "dirty"}";
+              commit = self.shortRev or self.dirtyShortRev or "unknown";
+              date =
+                let
+                  d = self.lastModifiedDate;
+                  part = start: len: builtins.substring start len d;
+                in
+                "${part 0 4}-${part 4 2}-${part 6 2}T${part 8 2}:${part 10 2}:${part 12 2}Z";
+            };
+            default = config.packages.asc;
           };
-        in
-        {
-          inherit asc;
-          default = asc;
-        }
-      );
-    in
-    {
-      inherit packages;
 
-      apps = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          update-vendor-hash = {
-            type = "app";
-            program = lib.getExe (
-              pkgs.writeShellApplication {
-                name = "update-vendor-hash";
-                runtimeInputs = [
-                  pkgs.git
-                  pkgs.gnugrep
-                  pkgs.gnused
-                ];
-                text = builtins.readFile ./nix/update-vendor-hash.sh;
-              }
-            );
-            meta.description = "Refresh vendorHash in package.nix from go.mod and go.sum";
-          };
-        }
-      );
+          formatter = pkgs.nixfmt-tree;
 
-      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-tree);
+          checks.build = config.packages.asc;
 
-      checks = forAllSystems (system: {
-        build = packages.${system}.asc;
-      });
-
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          default = pkgs.mkShell {
-            inputsFrom = [ packages.${system}.asc ];
+          devShells.default = pkgs.mkShell {
+            inputsFrom = [ config.packages.asc ];
             packages = [ pkgs.python3 ];
           };
-        }
-      );
+        };
     };
 }
