@@ -355,13 +355,17 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 	if limit != 0 && (limit < 1 || limit > 200) {
 		return shared.UsageErrorf("apps: --limit must be between 1 and 200")
 	}
+	next = strings.TrimSpace(next)
 	if err := shared.ValidateNextURL(next); err != nil {
 		return shared.UsageErrorf("apps: %v", err)
 	}
 	if err := shared.ValidateSort(sort, "name", "-name", "bundleId", "-bundleId", "sku", "-sku"); err != nil {
 		return shared.UsageErrorf("apps: %v", err)
 	}
-	if strings.TrimSpace(next) != "" {
+	if next != "" {
+		if parsed, err := url.Parse(next); err != nil || parsed.Path != "/v1/apps" {
+			return shared.UsageError("apps: --next must point to /v1/apps")
+		}
 		if flagName, ok := appFlagWasProvided(
 			fs,
 			"bundle-id", "name", "sku", "version-state", "review-submission-state", "sort", "limit",
