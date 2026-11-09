@@ -567,16 +567,7 @@ func uploadScreenshotAssetFromFile(ctx context.Context, client *asc.Client, setI
 	}
 	pending.State = "UPLOADED"
 
-	updated, err := client.UpdateAppScreenshot(ctx, created.Data.ID, true, checksum.Hash)
-	if err != nil {
-		return asc.AssetUploadResultItem{}, pending, err
-	}
-	pending.State = "UPLOAD_COMPLETE"
-	if updated.Data.Attributes.AssetDeliveryState != nil && strings.TrimSpace(updated.Data.Attributes.AssetDeliveryState.State) != "" {
-		pending.State = strings.ToUpper(strings.TrimSpace(updated.Data.Attributes.AssetDeliveryState.State))
-	}
-
-	state, err := waitForScreenshotDelivery(ctx, client, created.Data.ID)
+	state, err := commitAndWaitForScreenshotDelivery(ctx, client, pending)
 	if strings.TrimSpace(state) != "" {
 		pending.State = strings.ToUpper(strings.TrimSpace(state))
 	}
@@ -607,6 +598,44 @@ func validateOpenedScreenshotFileFormat(filePath string, file *os.File) error {
 		return err
 	}
 	return nil
+}
+
+func commitAndWaitForScreenshotDelivery(ctx context.Context, client *asc.Client, pending screenshotPendingAsset) (string, error) {
+	updated, err := client.UpdateAppScreenshot(ctx, pending.AssetID, true, pending.Checksum)
+	if err != nil {
+		if !asc.IsResponseBodyReadError(err) || ctx.Err() != nil {
+			return "", err
+		}
+		// Apple accepted the commit, but the response body was lost. Verify
+		// the reserved asset with a read instead of replaying the mutation.
+		remote, readErr := client.GetAppScreenshot(ctx, pending.AssetID)
+		if readErr != nil || remote.Data.ID != pending.AssetID || remote.Data.Type != asc.ResourceTypeAppScreenshots {
+			return "", err
+		}
+		delivery := remote.Data.Attributes.AssetDeliveryState
+		checksum := strings.TrimSpace(remote.Data.Attributes.SourceFileChecksum)
+		if delivery == nil || (checksum != "" && !strings.EqualFold(checksum, pending.Checksum)) {
+			return "", err
+		}
+		state := strings.ToUpper(strings.TrimSpace(delivery.State))
+		if state != "UPLOAD_COMPLETE" && state != "COMPLETE" {
+			return "", err
+		}
+		if screenshotNoWaitFromContext(ctx) || (state == "COMPLETE" && checksum != "") {
+			return state, nil
+		}
+		updated = remote
+	}
+
+	state := "UPLOAD_COMPLETE"
+	if delivery := updated.Data.Attributes.AssetDeliveryState; delivery != nil && strings.TrimSpace(delivery.State) != "" {
+		state = strings.ToUpper(strings.TrimSpace(delivery.State))
+	}
+	settledState, err := waitForScreenshotDelivery(ctx, client, pending.AssetID)
+	if strings.TrimSpace(settledState) != "" {
+		return settledState, err
+	}
+	return state, err
 }
 
 func waitForScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (string, error) {

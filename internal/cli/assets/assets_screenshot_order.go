@@ -171,15 +171,8 @@ func reconcilePendingScreenshotAsset(ctx context.Context, client *asc.Client, pe
 			if err := validatePendingScreenshotChecksum(sourceRootPath, pending); err != nil {
 				return asc.AssetUploadResultItem{}, pending, false, err
 			}
-			updated, err := client.UpdateAppScreenshot(ctx, pending.AssetID, true, pending.Checksum)
-			if err != nil {
-				return asc.AssetUploadResultItem{}, pending, false, err
-			}
-			pending.State = "UPLOAD_COMPLETE"
-			if updated.Data.Attributes.AssetDeliveryState != nil && strings.TrimSpace(updated.Data.Attributes.AssetDeliveryState.State) != "" {
-				pending.State = strings.ToUpper(strings.TrimSpace(updated.Data.Attributes.AssetDeliveryState.State))
-			}
-			return waitForPendingScreenshotDelivery(ctx, client, pending)
+			state, err := commitAndWaitForScreenshotDelivery(ctx, client, pending)
+			return finishPendingScreenshotDelivery(ctx, pending, state, err)
 		}
 
 		if err := client.DeleteAppScreenshot(ctx, pending.AssetID); err != nil {
@@ -205,6 +198,10 @@ func validatePendingScreenshotChecksum(sourceRootPath string, pending screenshot
 
 func waitForPendingScreenshotDelivery(ctx context.Context, client *asc.Client, pending screenshotPendingAsset) (asc.AssetUploadResultItem, screenshotPendingAsset, bool, error) {
 	state, err := waitForScreenshotDelivery(ctx, client, pending.AssetID)
+	return finishPendingScreenshotDelivery(ctx, pending, state, err)
+}
+
+func finishPendingScreenshotDelivery(ctx context.Context, pending screenshotPendingAsset, state string, err error) (asc.AssetUploadResultItem, screenshotPendingAsset, bool, error) {
 	if strings.TrimSpace(state) != "" {
 		pending.State = strings.ToUpper(strings.TrimSpace(state))
 	}
