@@ -603,10 +603,10 @@ func validateOpenedScreenshotFileFormat(filePath string, file *os.File) error {
 func commitAndWaitForScreenshotDelivery(ctx context.Context, client *asc.Client, pending screenshotPendingAsset, verifyChecksum bool) (string, error) {
 	updated, err := client.UpdateAppScreenshot(ctx, pending.AssetID, true, pending.Checksum)
 	if err != nil {
-		if !asc.IsResponseBodyReadError(err) || ctx.Err() != nil {
+		if !asc.IsScreenshotCommitResponseError(err) || ctx.Err() != nil {
 			return "", err
 		}
-		// Apple accepted the commit, but the response body was lost. Verify
+		// The commit returned success without a usable receipt. Verify
 		// the reserved asset with a read instead of replaying the mutation.
 		remote, readErr := client.GetAppScreenshot(ctx, pending.AssetID)
 		if readErr != nil || remote.Data.ID != pending.AssetID || remote.Data.Type != asc.ResourceTypeAppScreenshots {

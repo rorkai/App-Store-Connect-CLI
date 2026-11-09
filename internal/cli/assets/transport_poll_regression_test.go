@@ -71,10 +71,15 @@ func TestScreenshotUploadRecoversLostCommitResponse(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name, id, state, checksum    string
+		commitBody                   string
+		commitStatus                 int
 		noWait, resume               bool
 		readableCommit, lateMismatch bool
 		wantState                    string
 	}{
+		{name: "malformed success receipt", id: "screenshot-1", state: "COMPLETE", checksum: checksum, commitStatus: http.StatusOK, commitBody: "{", wantState: "COMPLETE"},
+		{name: "empty success receipt", id: "screenshot-1", state: "COMPLETE", checksum: checksum, commitStatus: http.StatusNoContent, wantState: "COMPLETE"},
+		{name: "rejected commit", commitStatus: http.StatusConflict, commitBody: `{"errors":[{"code":"STATE_ERROR","title":"Commit rejected"}]}`},
 		{name: "confirmed", id: "screenshot-1", state: "COMPLETE", checksum: checksum, wantState: "COMPLETE"},
 		{name: "no wait", id: "screenshot-1", state: "UPLOAD_COMPLETE", noWait: true, wantState: "UPLOAD_COMPLETE"},
 		{name: "resume", id: "screenshot-1", state: "COMPLETE", checksum: checksum, resume: true, wantState: "COMPLETE"},
@@ -94,6 +99,9 @@ func TestScreenshotUploadRecoversLostCommitResponse(t *testing.T) {
 				case "PUT /upload":
 					return assetsJSONResponse(http.StatusOK, "{}")
 				case "PATCH /v1/appScreenshots/screenshot-1":
+					if tc.commitStatus != 0 {
+						return assetsJSONResponse(tc.commitStatus, tc.commitBody)
+					}
 					if tc.readableCommit {
 						return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"screenshot-1","attributes":{"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`)
 					}
@@ -135,7 +143,12 @@ func TestScreenshotUploadRecoversLostCommitResponse(t *testing.T) {
 			} else {
 				result, pending, err = uploadScreenshotAsset(ctx, client, "set-1", root, path)
 			}
-			if tc.lateMismatch {
+			if tc.commitStatus == http.StatusConflict {
+				wantMethods = []string{http.MethodPost, http.MethodPut, http.MethodPatch}
+				if !errors.Is(err, asc.ErrConflict) || pending.AssetID != "screenshot-1" || pending.State != "UPLOADED" {
+					t.Fatalf("pending=%+v err=%v, want API conflict and resumable upload", pending, err)
+				}
+			} else if tc.lateMismatch {
 				if !tc.readableCommit {
 					wantMethods = append(wantMethods, http.MethodGet)
 				}
