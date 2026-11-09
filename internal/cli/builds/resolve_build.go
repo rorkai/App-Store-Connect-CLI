@@ -25,11 +25,9 @@ type ResolveBuildOptions struct {
 
 const buildNumberRequiresPlatformMessage = "--platform is required with --build-number (IOS, MAC_OS, TV_OS, VISION_OS)"
 
-// resolveBuildSinceMaxPages is a final backstop for a provider that keeps
-// returning unique next links without making progress. Build-number queries
-// are expected to be narrow, so this allows a large valid result set while
-// guaranteeing that --since cannot run until its context expires.
-const resolveBuildSinceMaxPages = 1000
+// resolveBuildSelectionMaxPages bounds build-number scans when the provider
+// keeps returning unique continuation links without making progress.
+const resolveBuildSelectionMaxPages = 1000
 
 type buildNumberSelectionOptions struct {
 	AppID                 string
@@ -180,7 +178,7 @@ func resolveBuildByNumberSelection(
 	if version != "" {
 		var preReleaseVersionIDs []string
 		if opts.Since != nil {
-			preReleaseVersionIDs, err = shared.FindPreReleaseVersionIDsWithMaxPages(ctx, client, resolvedAppID, version, platform, resolveBuildSinceMaxPages)
+			preReleaseVersionIDs, err = shared.FindPreReleaseVersionIDsWithMaxPages(ctx, client, resolvedAppID, version, platform, resolveBuildSelectionMaxPages)
 		} else {
 			preReleaseVersionIDs, err = shared.FindPreReleaseVersionIDs(ctx, client, resolvedAppID, version, platform)
 		}
@@ -212,9 +210,27 @@ func resolveBuildByNumberSelection(
 		)
 	}
 
-	buildsResp, err := client.GetBuilds(ctx, resolvedAppID, buildOpts...)
-	if err != nil {
-		return nil, err
+	var buildsResp *asc.BuildsResponse
+	seenNext := make(map[string]struct{})
+	for page := 1; ; page++ {
+		buildsResp, err = client.GetBuilds(ctx, resolvedAppID, buildOpts...)
+		if err != nil {
+			return nil, err
+		}
+
+		nextURL := strings.TrimSpace(buildsResp.Links.Next)
+		if len(buildsResp.Data) > 0 || nextURL == "" {
+			break
+		}
+		if page >= resolveBuildSelectionMaxPages {
+			return nil, fmt.Errorf("failed to paginate builds: exceeded the %d-page safety limit; narrow the build-number query", resolveBuildSelectionMaxPages)
+		}
+		nextIdentity := asc.PaginationURLIdentity(nextURL)
+		if _, seen := seenNext[nextIdentity]; seen {
+			return nil, fmt.Errorf("failed to paginate builds: %w: %s", asc.ErrRepeatedPaginationURL, nextURL)
+		}
+		seenNext[nextIdentity] = struct{}{}
+		buildOpts = []asc.BuildsOption{asc.WithBuildsNextURL(nextURL)}
 	}
 	if len(buildsResp.Data) == 0 {
 		if allowEmpty {
@@ -244,10 +260,10 @@ func resolveBuildByNumberSelectionSince(
 	seenNext := make(map[string]struct{})
 
 	for page := 1; ; page++ {
-		if page > resolveBuildSinceMaxPages {
+		if page > resolveBuildSelectionMaxPages {
 			return nil, fmt.Errorf(
 				"failed to paginate builds: exceeded the %d-page safety limit; narrow the build-number query",
-				resolveBuildSinceMaxPages,
+				resolveBuildSelectionMaxPages,
 			)
 		}
 
