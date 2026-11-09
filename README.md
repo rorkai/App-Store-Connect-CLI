@@ -78,6 +78,18 @@ Until it appears in `winget search asc`, Windows users can download the
 release binaries directly from the
 [GitHub releases page](https://github.com/rorkai/App-Store-Connect-CLI/releases/latest).
 
+With Nix:
+
+```bash
+# Run without installing
+nix run github:rorkai/App-Store-Connect-CLI -- --version
+
+# Install into your profile
+nix profile install github:rorkai/App-Store-Connect-CLI
+```
+
+The flake builds the latest source on `main`.
+
 For source builds and contributor setup, see [CONTRIBUTING.md](CONTRIBUTING.md).
 Released binaries are self-contained and do not require a Go installation;
 source builds use the toolchain version declared by `go.mod`.

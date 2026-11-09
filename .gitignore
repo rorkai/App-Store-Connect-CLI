@@ -52,3 +52,7 @@ worktrees/
 # Python bytecode (scripts/ helpers compile these when run)
 __pycache__/
 *.pyc
+
+# Nix build output
+result
+result-*
