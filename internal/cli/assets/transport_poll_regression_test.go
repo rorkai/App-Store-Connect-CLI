@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 	"testing/iotest"
 	"testing/synctest"
@@ -69,13 +70,16 @@ func TestScreenshotUploadRecoversLostCommitResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
-		name, id, state, checksum string
-		noWait, resume            bool
-		wantState                 string
+		name, id, state, checksum    string
+		noWait, resume               bool
+		readableCommit, lateMismatch bool
+		wantState                    string
 	}{
 		{name: "confirmed", id: "screenshot-1", state: "COMPLETE", checksum: checksum, wantState: "COMPLETE"},
 		{name: "no wait", id: "screenshot-1", state: "UPLOAD_COMPLETE", noWait: true, wantState: "UPLOAD_COMPLETE"},
 		{name: "resume", id: "screenshot-1", state: "COMPLETE", checksum: checksum, resume: true, wantState: "COMPLETE"},
+		{name: "different checksum after recovery", id: "screenshot-1", state: "UPLOAD_COMPLETE", lateMismatch: true},
+		{name: "different checksum after resume commit", id: "screenshot-1", state: "COMPLETE", resume: true, readableCommit: true, lateMismatch: true},
 		{name: "different checksum", id: "screenshot-1", state: "COMPLETE", checksum: "different"},
 		{name: "different asset", id: "screenshot-2", state: "COMPLETE", checksum: checksum},
 		{name: "not committed", id: "screenshot-1", state: "AWAITING_UPLOAD", checksum: checksum},
@@ -90,6 +94,9 @@ func TestScreenshotUploadRecoversLostCommitResponse(t *testing.T) {
 				case "PUT /upload":
 					return assetsJSONResponse(http.StatusOK, "{}")
 				case "PATCH /v1/appScreenshots/screenshot-1":
+					if tc.readableCommit {
+						return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"screenshot-1","attributes":{"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`)
+					}
 					resp, _ := assetsJSONResponse(http.StatusOK, "")
 					resp.Body = io.NopCloser(iotest.ErrReader(io.ErrUnexpectedEOF))
 					return resp, nil
@@ -97,7 +104,11 @@ func TestScreenshotUploadRecoversLostCommitResponse(t *testing.T) {
 					if tc.resume && len(methods) == 1 {
 						return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"screenshot-1","attributes":{"assetDeliveryState":{"state":"AWAITING_UPLOAD"}}}}`)
 					}
-					return assetsJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":%q,"attributes":{"sourceFileChecksum":%q,"assetDeliveryState":{"state":%q}}}}`, tc.id, tc.checksum, tc.state))
+					state, remoteChecksum := tc.state, tc.checksum
+					if tc.lateMismatch && (tc.readableCommit || len(methods) == 5) {
+						state, remoteChecksum = "COMPLETE", "0123456789abcdef0123456789abcdef"
+					}
+					return assetsJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":%q,"attributes":{"sourceFileChecksum":%q,"assetDeliveryState":{"state":%q}}}}`, tc.id, remoteChecksum, state))
 				default:
 					return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 				}
@@ -124,7 +135,15 @@ func TestScreenshotUploadRecoversLostCommitResponse(t *testing.T) {
 			} else {
 				result, pending, err = uploadScreenshotAsset(ctx, client, "set-1", root, path)
 			}
-			if tc.wantState != "" {
+			if tc.lateMismatch {
+				if !tc.readableCommit {
+					wantMethods = append(wantMethods, http.MethodGet)
+				}
+				if err == nil || !strings.Contains(err.Error(), "pending screenshot source checksum does not match") ||
+					pending.AssetID != "screenshot-1" || pending.Checksum != checksum || result.AssetID != "" {
+					t.Fatalf("result=%+v pending=%+v err=%v, want checksum mismatch and resumable upload", result, pending, err)
+				}
+			} else if tc.wantState != "" {
 				if err != nil || pending.AssetID != "" || result.AssetID != "screenshot-1" || result.State != tc.wantState {
 					t.Fatalf("result=%+v pending=%+v err=%v, want completed upload", result, pending, err)
 				}
