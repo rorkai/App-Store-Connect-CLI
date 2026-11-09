@@ -45,7 +45,10 @@ def assert_nix_cache_contract() -> None:
             caches = [
                 {"id": 1, "key": "old", "created_at": "2026-01-01T00:00:00Z"},
                 {"id": 3, "key": "newer", "created_at": "2026-01-03T00:00:00Z"},
+                {"id": 4, "key": "current", "created_at": "2026-01-01T00:00:00Z"},
             ]
+            if not has_current:
+                caches = [cache for cache in caches if cache["key"] != "current"]
             if has_current:
                 caches.append({"id": 2, "key": "current", "created_at": "2026-01-02T00:00:00Z"})
             (root / "caches.json").write_text(json.dumps([{"actions_caches": caches}]))
@@ -58,7 +61,7 @@ def assert_nix_cache_contract() -> None:
             subprocess.run(["bash", "-euo", "pipefail", "-c", script], cwd=root, env=env, check=True)
             deletions = root / "deletions"
             actual = deletions.read_text() if deletions.exists() else ""
-            expected = "api --method DELETE repos/owner/repo/actions/caches/1\n" if has_current and is_latest else ""
+            expected = "".join(f"api --method DELETE repos/owner/repo/actions/caches/{cache_id}\n" for cache_id in (1, 4)) if has_current and is_latest else ""
             assert actual == expected, "purge must keep the current/newer caches and retain fallback after a failed save"
 
 

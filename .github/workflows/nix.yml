@@ -117,7 +117,7 @@ jobs:
             [.[].actions_caches[]] as $all |
             ([$all[] | select(.key == $key)] | max_by(.created_at)) as $current |
             if $current == null then empty else
-              $all[] | select(.key != $key and .created_at < $current.created_at) | .id
+              $all[] | select(.id != $current.id and .created_at < $current.created_at) | .id
             end' <<< "$caches")
           while IFS= read -r id; do
             [ -z "$id" ] && continue
