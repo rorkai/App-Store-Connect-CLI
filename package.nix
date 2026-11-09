@@ -7,6 +7,7 @@
   versionCheckHook,
   version ? "dev",
   commit ? "unknown",
+  date ? "unknown",
 }:
 buildGo127Module {
   pname = "asc";
@@ -40,6 +41,7 @@ buildGo127Module {
     "-w"
     "-X main.version=${version}"
     "-X main.commit=${commit}"
+    "-X main.date=${date}"
   ];
 
   # With subPackages = [ "." ] only the root package's tests would run, and

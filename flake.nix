@@ -15,7 +15,13 @@
         let
           asc = nixpkgs.legacyPackages.${system}.callPackage ./package.nix {
             version = "dev-${self.shortRev or "dirty"}";
-            commit = self.rev or "unknown";
+            commit = self.shortRev or self.dirtyShortRev or "unknown";
+            date =
+              let
+                d = self.lastModifiedDate;
+                part = start: len: builtins.substring start len d;
+              in
+              "${part 0 4}-${part 4 2}-${part 6 2}T${part 8 2}:${part 10 2}:${part 12 2}Z";
           };
         in
         {
