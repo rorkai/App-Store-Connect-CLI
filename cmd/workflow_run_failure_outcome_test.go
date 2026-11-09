@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,14 @@ import (
 
 func TestRunWorkflowRunFailuresAreClassified(t *testing.T) {
 	const twoWorkflows = `{"workflows":{"fail":{"steps":["echo hi","false"]},"slow":{"steps":[{"run":"sleep 5","timeout":"100ms"}]}}}`
+	const skippedOutputWorkflow = `{"workflows":{
+		"main":{"env":{"ENABLE_PRODUCER":"false"},"steps":[
+			{"name":"producer","if":"ENABLE_PRODUCER","run":"exit 99","outputs":{"ID":"$.id"}},
+			{"name":"consumer",%s}
+		]},
+		"child":{"steps":["exit 98"]}
+	}}`
+	const skippedOutputStderr = "Error: workflow: main step 2: unknown step output \"steps.producer.ID\"\n"
 
 	tests := []struct {
 		name           string
@@ -51,6 +60,24 @@ func TestRunWorkflowRunFailuresAreClassified(t *testing.T) {
 			file:           `{"workflows":{"out":{"steps":[{"name":"s","run":"echo notjson","outputs":{"X":"$.x"}}]}}}`,
 			args:           []string{"out"},
 			wantStderr:     "Error: workflow: out step 1: extract outputs: parse command stdout as JSON:",
+			wantResult:     true,
+			wantOutcome:    telemetry.OutcomeExpectedNegative,
+			wantDiagnostic: shared.DiagnosticDependencyFailed,
+		},
+		{
+			name:           "skipped step output referenced by run",
+			file:           fmt.Sprintf(skippedOutputWorkflow, `"run":"printf %s ${steps.producer.ID}"`),
+			args:           []string{"main"},
+			wantStderr:     skippedOutputStderr,
+			wantResult:     true,
+			wantOutcome:    telemetry.OutcomeExpectedNegative,
+			wantDiagnostic: shared.DiagnosticDependencyFailed,
+		},
+		{
+			name:           "skipped step output referenced by with",
+			file:           fmt.Sprintf(skippedOutputWorkflow, `"workflow":"child","with":{"ID":"${steps.producer.ID}"}`),
+			args:           []string{"main"},
+			wantStderr:     skippedOutputStderr,
 			wantResult:     true,
 			wantOutcome:    telemetry.OutcomeExpectedNegative,
 			wantDiagnostic: shared.DiagnosticDependencyFailed,

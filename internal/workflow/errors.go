@@ -19,6 +19,9 @@ var (
 	// did not succeed, including a step that exceeded its workflow-defined
 	// timeout or whose declared outputs were invalid.
 	ErrCommandFailed = errors.New("workflow command failed")
+	// ErrStepOutputUnavailable indicates an interpolation whose producer did not
+	// provide the referenced output during this run.
+	ErrStepOutputUnavailable = errors.New("workflow step output unavailable")
 )
 
 // markedError keeps err's message while also matching kind with errors.Is.
