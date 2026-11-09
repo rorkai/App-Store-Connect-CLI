@@ -123,6 +123,12 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("localizations list: %w", err)
 			}
+			if normalizedType == shared.LocalizationTypeAppInfo && flagProvided(fs, "version") {
+				return shared.UsageError("--version requires --type version")
+			}
+			if normalizedType == shared.LocalizationTypeVersion && flagProvided(fs, "app-info") {
+				return shared.UsageError("--app-info requires --type app-info")
+			}
 			appInfoFieldsProvided := false
 			includeProvided := false
 			platformProvided := false
