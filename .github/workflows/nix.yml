@@ -31,23 +31,11 @@ concurrency:
 
 jobs:
   nix:
-    name: nix ${{ matrix.name }}
+    name: nix (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: fmt
-            os: ubuntu-latest
-            run: nix fmt -- --ci
-          - name: eval
-            os: ubuntu-latest
-            run: nix flake check --all-systems --no-build
-          - name: build (Linux)
-            os: ubuntu-latest
-            run: nix build .#default && nix run .#default -- --version
-          - name: build (macOS)
-            os: macos-latest
-            run: nix build .#default && nix run .#default -- --version
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -70,9 +58,22 @@ jobs:
       - name: Cache Nix store
         uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
         with:
-          primary-key: nix-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.sum') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-${{ matrix.name }}-
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.sum') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
           save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
-      - name: ${{ matrix.name }}
-        run: ${{ matrix.run }}
+      # Formatting and evaluation do not depend on the runner's platform, so
+      # only Linux runs them.
+      - parallel:
+          - name: Check Nix formatting
+            if: runner.os == 'Linux'
+            run: nix fmt -- --ci
+
+          - name: Evaluate the flake for every system
+            if: runner.os == 'Linux'
+            run: nix flake check --all-systems --no-build
+
+          - name: Build and run the package
+            run: |
+              nix build .#default
+              nix run .#default -- --version
