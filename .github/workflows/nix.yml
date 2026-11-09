@@ -1,0 +1,65 @@
+name: Nix flake
+
+# `nix run` catches packages that evaluate and build but fail at exec time.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.nix"
+      - "flake.lock"
+      - "go.mod"
+      - "go.sum"
+      - "*.go"
+      - ".github/workflows/nix.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**.nix"
+      - "flake.lock"
+      - "go.mod"
+      - "go.sum"
+      - "*.go"
+      - ".github/workflows/nix.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  nix:
+    name: nix (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # access-tokens keeps GitHub tarball fetches off the anonymous rate limit.
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+        with:
+          github_access_token: ${{ github.token }}
+          nix_conf: |
+            access-tokens = github.com=${{ github.token }}
+            max-jobs = auto
+
+      - name: Check Nix formatting
+        run: nix fmt -- --ci
+
+      - name: Evaluate the flake for every system
+        run: nix flake check --all-systems --no-build
+
+      - name: Build the package
+        run: nix build .#default
+
+      - name: Run the package
+        run: nix run .#default -- --version
