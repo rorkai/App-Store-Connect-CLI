@@ -128,7 +128,14 @@ Examples:
 				return err
 			}
 			opts = append(opts, asc.WithIncludedFields[asc.ReviewSubmissionItemsOption](included))
-			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*next) == "" {
+			submissionValue := strings.TrimSpace(*submissionID)
+			if strings.TrimSpace(*next) != "" {
+				submissionValue, err = asc.ReviewSubmissionItemsCursorSubmissionID(*next)
+				if err != nil {
+					return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("%s: %v", errorPrefix, err)), shared.DiagnosticInvalidInput, "--next")
+				}
+			}
+			if submissionValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission is required")
 				return shared.MissingRequiredUsageError("--submission")
 			}
@@ -146,10 +153,10 @@ Examples:
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
-						return client.GetReviewSubmissionItems(ctx, strings.TrimSpace(*submissionID), paginateOpts...)
+						return client.GetReviewSubmissionItems(ctx, submissionValue, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetReviewSubmissionItems(ctx, strings.TrimSpace(*submissionID), asc.WithReviewSubmissionItemsNextURL(nextURL))
+						return client.GetReviewSubmissionItems(ctx, submissionValue, asc.WithReviewSubmissionItemsNextURL(nextURL))
 					},
 				)
 				if err != nil {
@@ -159,7 +166,7 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetReviewSubmissionItems(requestCtx, strings.TrimSpace(*submissionID), opts...)
+			resp, err := client.GetReviewSubmissionItems(requestCtx, submissionValue, opts...)
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}

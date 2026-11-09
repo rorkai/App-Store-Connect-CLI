@@ -827,6 +827,18 @@ func TestGetReviewSubmissionItems(t *testing.T) {
 	}
 }
 
+func TestGetReviewSubmissionItemsStrictRejectsCursorForDifferentSubmission(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		t.Fatalf("unexpected request to %s", req.URL.Path)
+	}, reviewSubmissionsJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-2/items"}}`))
+
+	_, err := client.GetReviewSubmissionItemsStrict(context.Background(), "submission-1",
+		WithReviewSubmissionItemsNextURL("https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-2/items?cursor=next"))
+	if err == nil || !strings.Contains(err.Error(), "pagination URL points to another review submission") {
+		t.Fatalf("error = %v, want submission mismatch", err)
+	}
+}
+
 func TestReviewSubmissionItemResponsesRejectTopLevelErrors(t *testing.T) {
 	tests := []struct {
 		name string
