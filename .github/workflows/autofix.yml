@@ -1,0 +1,98 @@
+# autofix-ci/action requires this exact workflow name.
+name: autofix.ci
+
+on:
+  # No branch filter: stacked pull requests target other pull request branches.
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autofix-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Read Go tool versions
+        id: go-tool-versions
+        run: |
+          versions="$(sed -n -E 's/^(GOFUMPT|GOLANGCI_LINT)_VERSION \?= (v[0-9][^ ]*)$/\2/p' Makefile | paste -sd- -)"
+          case "$versions" in
+            v*-v*) ;;
+            *) echo "unable to read tool versions from Makefile" >&2; exit 1 ;;
+          esac
+          printf 'key=%s-%s\n' "$(go env GOVERSION)" "$versions" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Go tools
+        id: go-tools-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/go/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-go-tools-${{ steps.go-tool-versions.outputs.key }}
+
+      - name: Install Go tools
+        if: steps.go-tools-cache.outputs.cache-hit != 'true'
+        run: make tools
+
+      # access-tokens keeps GitHub tarball fetches off the anonymous rate limit.
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+        with:
+          github_access_token: ${{ github.token }}
+          nix_conf: |
+            access-tokens = github.com=${{ github.token }}
+            max-jobs = auto
+
+      - name: Restore Nix store
+        uses: nix-community/cache-nix-action/restore@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.sum') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+
+      # vendorHash depends only on the Go module files and the Nix inputs, so
+      # other pull requests skip the module fetch.
+      - name: Detect Nix-relevant changes
+        id: nix-changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --name-only |
+            grep -Eq '^(go\.mod|go\.sum|flake\.lock)$|\.nix$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - parallel:
+          - name: Format Go sources
+            run: PATH="$(go env GOPATH)/bin:$PATH" make format
+
+          - name: Update vendorHash and format Nix files
+            env:
+              NIX_CHANGED: ${{ steps.nix-changes.outputs.changed }}
+            run: |
+              if [ "$NIX_CHANGED" = true ]; then
+                nix run .#update-vendor-hash
+              fi
+              nix fmt
+
+      - name: Push fixes with autofix.ci
+        uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a # v1.3.4
+        with:
+          fail-fast: false
+          commit-message: "chore: format and update the Nix vendorHash"
