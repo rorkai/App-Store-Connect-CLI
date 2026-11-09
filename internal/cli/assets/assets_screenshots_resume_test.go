@@ -466,6 +466,10 @@ func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testin
 	workDir := t.TempDir()
 	filePath := writeAssetsTestPNG(t, workDir, "01-home.png")
 	fileSizeBytes := fileSize(t, filePath)
+	checksum, checksumErr := computeFileChecksum(filePath)
+	if checksumErr != nil {
+		t.Fatal(checksumErr)
+	}
 	artifactPath := filepath.Join(workDir, "resume-artifact.json")
 
 	createCount := 0
@@ -494,7 +498,7 @@ func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testin
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/pending-1":
 			if committed {
-				writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":"settled","assetDeliveryState":{"state":"COMPLETE"}}}}`)
+				writeAssetsTestJSON(w, http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":%q,"assetDeliveryState":{"state":"COMPLETE"}}}}`, checksum))
 				return
 			}
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"assetDeliveryState":{"state":"AWAITING_UPLOAD"}}}}`)
@@ -581,7 +585,7 @@ func assertPendingScreenshotSettles(t *testing.T, wantCalls int) {
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
 			return
 		}
-		writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":"settled","assetDeliveryState":{"state":"COMPLETE"}}}}`)
+		writeAssetsTestJSON(w, http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":%q,"assetDeliveryState":{"state":"COMPLETE"}}}}`, strings.ToUpper(checksum)))
 	}))
 
 	result, pending, retry, err := reconcilePendingScreenshotAsset(context.Background(), client, screenshotPendingAsset{
@@ -608,7 +612,23 @@ func assertPendingScreenshotSettles(t *testing.T, wantCalls int) {
 	}
 }
 
-func TestResumeAppScreenshotUploadRejectsChangedFileForCompletedReservation(t *testing.T) {
+func TestResumeAppScreenshotUploadRejectsChecksumMismatchForCompletedReservation(t *testing.T) {
+	for _, tc := range []struct {
+		name, wantError              string
+		changeLocal, checksumPending bool
+	}{
+		{name: "changed local file", wantError: "pending screenshot file changed after upload", changeLocal: true},
+		{name: "different remote checksum", wantError: "pending screenshot source checksum does not match"},
+		{name: "different remote checksum after settlement", wantError: "pending screenshot source checksum does not match", checksumPending: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assertScreenshotResumeRejectsChecksumMismatch(t, tc.changeLocal, tc.checksumPending, tc.wantError)
+		})
+	}
+}
+
+func assertScreenshotResumeRejectsChecksumMismatch(t *testing.T, changeLocal, checksumPending bool, wantError string) {
+	t.Helper()
 	workDir := t.TempDir()
 	filePath := writeAssetsTestPNG(t, workDir, "01-home.png")
 	checksum, err := computeFileChecksum(filePath)
@@ -632,13 +652,21 @@ func TestResumeAppScreenshotUploadRejectsChangedFileForCompletedReservation(t *t
 	if err != nil {
 		t.Fatalf("persistScreenshotUploadFailureArtifact() error: %v", err)
 	}
-	writeAssetsTestPNGWithSize(t, workDir, filepath.Base(filePath), 9, 8)
-
+	if changeLocal {
+		writeAssetsTestPNGWithSize(t, workDir, filepath.Base(filePath), 9, 8)
+	}
+	const otherChecksum = "0123456789abcdef0123456789abcdef"
+	detailReads := 0
 	orderPatched := false
 	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/pending-1":
-			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":"settled","assetDeliveryState":{"state":"COMPLETE"}}}}`)
+			detailReads++
+			remoteChecksum := otherChecksum
+			if checksumPending && detailReads == 1 {
+				remoteChecksum = ""
+			}
+			writeAssetsTestJSON(w, http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":%q,"assetDeliveryState":{"state":"COMPLETE"}}}}`, remoteChecksum))
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
 			orderPatched = true
 			writeAssetsTestJSON(w, http.StatusNoContent, "")
@@ -649,13 +677,20 @@ func TestResumeAppScreenshotUploadRejectsChangedFileForCompletedReservation(t *t
 
 	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
 	if err == nil {
-		t.Fatal("expected changed-file error")
+		t.Fatal("expected a checksum mismatch to fail resume")
 	}
-	if len(result.Failures) != 1 || !strings.Contains(result.Failures[0].Error, "pending screenshot file changed after upload") {
-		t.Fatalf("expected changed-file failure detail, got %#v", result.Failures)
+	if len(result.Failures) != 1 || !strings.Contains(result.Failures[0].Error, wantError) {
+		t.Fatalf("want failure detail %q, got %#v", wantError, result.Failures)
 	}
 	if orderPatched {
 		t.Fatal("did not expect ordering to be updated for a stale completed reservation")
+	}
+	artifact, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(artifact.PendingAssets) != 1 || artifact.PendingAssets[0].AssetID != "pending-1" || artifact.PendingAssets[0].Checksum != checksum {
+		t.Fatalf("resume discarded pending asset evidence: %+v", artifact.PendingAssets)
 	}
 }
 

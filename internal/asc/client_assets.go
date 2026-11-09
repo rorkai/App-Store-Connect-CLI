@@ -402,7 +402,7 @@ func (c *Client) UpdateAppScreenshot(ctx context.Context, screenshotID string, u
 
 	var response AppScreenshotResponse
 	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+		return nil, &screenshotCommitDecodeError{fmt.Errorf("failed to parse response: %w", err)}
 	}
 
 	return &response, nil

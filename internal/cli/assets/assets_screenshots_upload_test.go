@@ -467,7 +467,7 @@ func TestWaitForScreenshotSettlementReportsCallerCancellation(t *testing.T) {
 		writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"canceled-1","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
 	}))
 
-	_, err := waitForScreenshotSettlement(ctx, client, "canceled-1")
+	_, err := waitForScreenshotSettlement(ctx, client, "canceled-1", "")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("waitForScreenshotSettlement() error = %v, want context.Canceled", err)
 	}
@@ -502,7 +502,7 @@ func TestScreenshotSettlementTimeoutHintMatchesDeadline(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				ctx, cancel := tc.context(context.Background())
 				defer cancel()
-				_, err := waitForScreenshotSettlement(ctx, client, "unsettled-1")
+				_, err := waitForScreenshotSettlement(ctx, client, "unsettled-1", "")
 				if !errors.Is(err, context.DeadlineExceeded) || errfmt.Classify(err).Hint != tc.want {
 					t.Fatalf("settlement error = %v, hint = %q, want deadline and %q", err, errfmt.Classify(err).Hint, tc.want)
 				}

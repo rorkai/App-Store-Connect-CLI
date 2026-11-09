@@ -41,6 +41,17 @@ func IsResponseBodyReadError(err error) bool {
 	return errors.As(err, &readErr)
 }
 
+type screenshotCommitDecodeError struct{ error }
+
+func (e *screenshotCommitDecodeError) Unwrap() error { return e.error }
+
+// IsScreenshotCommitResponseError reports whether a successful screenshot
+// commit response could not be read or decoded.
+func IsScreenshotCommitResponseError(err error) bool {
+	var decodeErr *screenshotCommitDecodeError
+	return IsResponseBodyReadError(err) || errors.As(err, &decodeErr)
+}
+
 type buildUploadFileCommitResponseError struct {
 	err error
 }
