@@ -1,7 +1,8 @@
 {
   lib,
+  pkgs,
   stdenv,
-  buildGo127Module,
+  buildGoModule,
   pkg-config,
   libfido2,
   versionCheckHook,
@@ -9,7 +10,21 @@
   commit ? "unknown",
   date ? "unknown",
 }:
-buildGo127Module {
+let
+  goModVersion =
+    let
+      lines = lib.splitString "\n" (builtins.readFile ./go.mod);
+      goLine = lib.findFirst (lib.hasPrefix "go ") (throw "go.mod has no go directive") lines;
+    in
+    lib.removePrefix "go " goLine;
+  goAttr = "go_" + lib.replaceStrings [ "." ] [ "_" ] (lib.versions.majorMinor goModVersion);
+  go =
+    pkgs.${goAttr}
+      or (throw "nixpkgs has no ${goAttr} for go.mod's Go ${goModVersion}; update flake.lock");
+in
+assert lib.assertMsg (lib.versionAtLeast go.version goModVersion)
+  "nixpkgs provides Go ${go.version}, but go.mod requires ${goModVersion}; update flake.lock";
+(buildGoModule.override { inherit go; }) {
   pname = "asc";
   inherit version;
 

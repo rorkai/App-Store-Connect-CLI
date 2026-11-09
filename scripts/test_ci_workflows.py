@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Protect CI runner, build, artifact, and security-check contracts."""
 
+import json
 import os
 import re
 import shutil
@@ -19,6 +20,49 @@ WEBSITE_WORKFLOW = ROOT / ".github/workflows/website-checks.yml"
 GOVULNCHECK_WORKFLOW = ROOT / ".github/workflows/govulncheck.yml"
 DEPENDABOT_CONFIG = ROOT / ".github/dependabot.yml"
 MAKEFILE = ROOT / "Makefile"
+
+
+def assert_nix_cache_contract() -> None:
+    workflow = (ROOT / ".github/workflows/nix.yml").read_text()
+    for name in ("nix.yml", "autofix.yml"):
+        content = (ROOT / ".github/workflows" / name).read_text()
+        keys = re.findall(r"^\s+primary-key: (.*)", content, re.MULTILINE)
+        assert keys, f"{name}: missing Nix cache key"
+        for key in keys:
+            inputs = re.search(r"hashFiles\((.*?)\)", key)
+            assert inputs and "'go.mod'" in inputs.group(1), f"{name}: Go upgrades must invalidate the Nix cache"
+    build = job_block(workflow, "nix")
+    assert "actions: write" not in build, "PR-controlled Nix builds must not receive Actions write permission"
+    purge = job_block(workflow, "purge-cache")
+    assert "if: github.event_name == 'push' && github.ref == 'refs/heads/main'" in purge
+    assert "needs: nix" in purge, "purge only after the new cache has been saved"
+    assert "actions: write" in purge
+    assert "nix build" not in purge and "nix run" not in purge, "privileged cleanup must not execute build output"
+    script = textwrap.dedent(purge.split("run: |\n", 1)[1])
+    for has_current, is_latest in ((False, True), (True, True), (True, False)):
+        with tempfile.TemporaryDirectory(prefix="asc-nix-cache-") as directory:
+            root = Path(directory)
+            caches = [
+                {"id": 1, "key": "old", "created_at": "2026-01-01T00:00:00Z"},
+                {"id": 3, "key": "newer", "created_at": "2026-01-03T00:00:00Z"},
+                {"id": 4, "key": "current", "created_at": "2026-01-01T00:00:00Z"},
+            ]
+            if not has_current:
+                caches = [cache for cache in caches if cache["key"] != "current"]
+            if has_current:
+                caches.append({"id": 2, "key": "current", "created_at": "2026-01-02T00:00:00Z"})
+            (root / "caches.json").write_text(json.dumps([{"actions_caches": caches}]))
+            gh = root / "gh"
+            gh.write_text('#!/bin/sh\ncase "$*" in *git/ref/heads/main*) echo main-tip ;; *GET*) cat caches.json ;; *) printf "%s\\n" "$*" >> deletions ;; esac\n')
+            gh.chmod(0o755)
+            env = dict(os.environ, PATH=directory + os.pathsep + os.environ["PATH"],
+                       CURRENT_KEY="current", CACHE_PREFIX="nix-Linux-", GITHUB_REPOSITORY="owner/repo",
+                       GITHUB_SHA="main-tip" if is_latest else "old-tip")
+            subprocess.run(["bash", "-euo", "pipefail", "-c", script], cwd=root, env=env, check=True)
+            deletions = root / "deletions"
+            actual = deletions.read_text() if deletions.exists() else ""
+            expected = "".join(f"api --method DELETE repos/owner/repo/actions/caches/{cache_id}\n" for cache_id in (1, 4)) if has_current and is_latest else ""
+            assert actual == expected, "purge must keep the current/newer caches and retain fallback after a failed save"
 
 
 def assert_lint_timeout_budget() -> None:
@@ -999,6 +1043,7 @@ updates:
 """, "Dependabot must monitor root Go modules and GitHub Actions weekly"
 
     assert_security_target_contract()
+    assert_nix_cache_contract()
 
     print("CI workflow contracts passed")
 

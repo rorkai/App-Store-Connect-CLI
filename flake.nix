@@ -2,7 +2,7 @@
   description = "App Store Connect CLI";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
@@ -37,10 +37,22 @@
 
           checks.build = config.packages.asc;
 
-          devShells.default = pkgs.mkShell {
-            inputsFrom = [ config.packages.asc ];
-            packages = [ pkgs.python3 ];
-          };
+          devShells.default =
+            let
+              # Tools built with an older Go cannot analyse code that uses
+              # go.mod's newer language version.
+              inherit (config.packages.asc) go;
+              buildGoModule = pkgs.buildGoModule.override { inherit go; };
+            in
+            pkgs.mkShell {
+              inputsFrom = [ config.packages.asc ];
+              packages = [
+                pkgs.python3
+                pkgs.gopls
+                (pkgs.gotools.override { inherit go buildGoModule; })
+                (pkgs.go-tools.override { inherit buildGoModule; })
+              ];
+            };
         };
     };
 }
