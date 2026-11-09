@@ -1265,11 +1265,11 @@ func TestResolveBuildByNumberSelectionSinceStopsAtPageSafetyLimit(t *testing.T) 
 		context.Background(), client, "123456789", "42", "", "IOS",
 		[]asc.BuildsOption{asc.WithBuildsVersion("42")}, &since, false,
 	)
-	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("%d-page safety limit", resolveBuildSinceMaxPages)) {
+	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("%d-page safety limit", resolveBuildSelectionMaxPages)) {
 		t.Fatalf("expected page safety limit error, got %v", err)
 	}
-	if calls != resolveBuildSinceMaxPages {
-		t.Fatalf("requests = %d, want %d before page-limit rejection", calls, resolveBuildSinceMaxPages)
+	if calls != resolveBuildSelectionMaxPages {
+		t.Fatalf("requests = %d, want %d before page-limit rejection", calls, resolveBuildSelectionMaxPages)
 	}
 }
 
@@ -1299,10 +1299,64 @@ func TestResolveBuildByNumberSelectionSinceBoundsPreReleaseVersionPagination(t *
 		},
 		false,
 	)
-	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("%d-page safety limit", resolveBuildSinceMaxPages)) {
+	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("%d-page safety limit", resolveBuildSelectionMaxPages)) {
 		t.Fatalf("expected pre-release pagination safety-limit error, got %v", err)
 	}
-	if preReleaseCalls != resolveBuildSinceMaxPages {
-		t.Fatalf("pre-release requests = %d, want %d before page-limit rejection", preReleaseCalls, resolveBuildSinceMaxPages)
+	if preReleaseCalls != resolveBuildSelectionMaxPages {
+		t.Fatalf("pre-release requests = %d, want %d before page-limit rejection", preReleaseCalls, resolveBuildSelectionMaxPages)
+	}
+}
+
+func TestResolveBuildByNumberSelectionFollowsEmptyPages(t *testing.T) {
+	const (
+		next          = "https://api.appstoreconnect.apple.com/v1/builds?cursor=NEXT"
+		emptyWithNext = `{"data":[],"links":{"next":"` + next + `"}}`
+		found         = `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42"}}]`
+	)
+	for _, tc := range []struct {
+		name       string
+		nextStatus int
+		nextBody   string
+		wantErr    string
+	}{
+		{name: "match after empty page", nextStatus: http.StatusOK, nextBody: found + `}`},
+		{name: "match with more pages stays ambiguous", nextStatus: http.StatusOK, nextBody: found + `,"links":{"next":"https://api.appstoreconnect.apple.com/v1/builds?cursor=UNREAD"}}`, wantErr: "listed builds are a sample"},
+		{name: "loop", nextStatus: http.StatusOK, nextBody: emptyWithNext, wantErr: "repeated pagination URL"},
+		{name: "continuation failed", nextStatus: http.StatusBadRequest, nextBody: `{"errors":[{"code":"BAD_REQUEST","detail":"continuation failed"}]}`, wantErr: "continuation failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+				calls++
+				switch calls {
+				case 1:
+					if req.URL.Query().Get("filter[version]") != "42" || req.URL.Query().Get("filter[preReleaseVersion.platform]") != "IOS" {
+						t.Fatalf("missing exact selector on %s", req.URL)
+					}
+					return buildsWaitJSONResponse(http.StatusOK, emptyWithNext)
+				case 2:
+					if req.URL.String() != next {
+						t.Fatalf("continuation = %s, want %s", req.URL, next)
+					}
+					return buildsWaitJSONResponse(tc.nextStatus, tc.nextBody)
+				default:
+					t.Fatalf("unexpected request %s", req.URL)
+					return nil, nil
+				}
+			})
+			got, err := resolveBuildByNumberSelection(context.Background(), client, buildNumberSelectionOptions{
+				AppID: "123456789", BuildNumber: "42", Platform: "IOS",
+			}, false)
+			if tc.wantErr != "" {
+				if got != nil || err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("got build=%v, error=%v, want %q", got, err, tc.wantErr)
+				}
+			} else if err != nil || got == nil || got.Data.ID != "build-42" {
+				t.Fatalf("got build=%v, error=%v, want build-42", got, err)
+			}
+			if calls != 2 {
+				t.Fatalf("requests = %d, want 2", calls)
+			}
+		})
 	}
 }
