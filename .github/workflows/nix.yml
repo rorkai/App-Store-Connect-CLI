@@ -38,6 +38,10 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    permissions:
+      contents: read
+      # cache-nix-action deletes superseded store caches on main.
+      actions: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -51,16 +55,27 @@ jobs:
           nix_conf: |
             access-tokens = github.com=${{ github.token }}
             max-jobs = auto
+            keep-derivations = true
+            keep-outputs = true
 
       # The key covers everything the store holds (toolchain, Nixpkgs, Go
       # modules), so a hit skips re-downloading them. Only main saves, so
       # pull request code never writes a store that later runs restore.
+      # Before saving, garbage collection trims a store above 4 GB. The
+      # build's result link roots the package, and keep-outputs plus
+      # keep-derivations keep its toolchain and Go modules alive with it.
+      # Each save on main also purges older stores for the same OS.
       - name: Cache Nix store
         uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
         with:
           primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.sum') }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
           save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          gc-max-store-size: 4G
+          purge: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 0
+          purge-primary-key: never
 
       # Formatting and evaluation do not depend on the runner's platform, so
       # only Linux runs them.
