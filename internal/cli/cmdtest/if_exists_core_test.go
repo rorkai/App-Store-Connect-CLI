@@ -162,6 +162,13 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 			wantRequests: []string{reviewItemsPost},
 		},
 		{
+			name:         "review items-add skip preserves unrelated relationship rejection",
+			args:         with(reviewItemArgs, "--if-exists", "skip"),
+			replies:      map[string]ifExistsReply{reviewItemsPost: {http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID.NOT_ALLOWED","title":"This relationship cannot be changed."}]}`}},
+			wantErr:      "This relationship cannot be changed.",
+			wantRequests: []string{reviewItemsPost},
+		},
+		{
 			name: "review items-add skip ignores a REMOVED item",
 			args: with(reviewItemArgs, "--if-exists", "skip"),
 			replies: map[string]ifExistsReply{
