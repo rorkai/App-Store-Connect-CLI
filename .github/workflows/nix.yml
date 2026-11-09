@@ -2,8 +2,8 @@ name: Nix flake
 
 # `nix run` catches packages that evaluate and build but fail at exec time.
 on:
+  # No branch filter: stacked pull requests target other pull request branches.
   pull_request:
-    branches: [main]
     paths:
       - "**.nix"
       - "flake.lock"

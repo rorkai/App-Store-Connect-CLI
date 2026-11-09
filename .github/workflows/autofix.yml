@@ -2,8 +2,8 @@
 name: autofix.ci
 
 on:
+  # No branch filter: stacked pull requests target other pull request branches.
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
