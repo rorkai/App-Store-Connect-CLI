@@ -9,7 +9,7 @@ on:
       - "flake.lock"
       - "go.mod"
       - "go.sum"
-      - "*.go"
+      - "**.go"
       - ".github/workflows/nix.yml"
   push:
     branches: [main]
@@ -18,7 +18,7 @@ on:
       - "flake.lock"
       - "go.mod"
       - "go.sum"
-      - "*.go"
+      - "**.go"
       - ".github/workflows/nix.yml"
   workflow_dispatch:
 
