@@ -31,11 +31,23 @@ concurrency:
 
 jobs:
   nix:
-    name: nix (${{ matrix.os }})
+    name: nix ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - name: fmt
+            os: ubuntu-latest
+            run: nix fmt -- --ci
+          - name: eval
+            os: ubuntu-latest
+            run: nix flake check --all-systems --no-build
+          - name: build (Linux)
+            os: ubuntu-latest
+            run: nix build .#default && nix run .#default -- --version
+          - name: build (macOS)
+            os: macos-latest
+            run: nix build .#default && nix run .#default -- --version
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -52,14 +64,15 @@ jobs:
             access-tokens = github.com=${{ github.token }}
             max-jobs = auto
 
-      - name: Check Nix formatting
-        run: nix fmt -- --ci
+      # The key covers everything the store holds (toolchain, Nixpkgs, Go
+      # modules), so a hit skips re-downloading them. Only main saves, so
+      # pull request code never writes a store that later runs restore.
+      - name: Cache Nix store
+        uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+        with:
+          primary-key: nix-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.sum') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-${{ matrix.name }}-
+          save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
-      - name: Evaluate the flake for every system
-        run: nix flake check --all-systems --no-build
-
-      - name: Build the package
-        run: nix build .#default
-
-      - name: Run the package
-        run: nix run .#default -- --version
+      - name: ${{ matrix.name }}
+        run: ${{ matrix.run }}
