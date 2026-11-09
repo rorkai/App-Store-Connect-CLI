@@ -358,7 +358,11 @@ Examples:
 			itemValue := strings.TrimSpace(*itemID)
 			resp, err := client.CreateReviewSubmissionItem(requestCtx, submissionValue, normalizedType, itemValue)
 			if err != nil {
-				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, reviewItemsAddExistsCodes, func() (*asc.ReviewSubmissionItemResponse, bool, error) {
+				codes := reviewItemsAddExistsCodes
+				if isReviewItemAlreadyAddedConflict(err, normalizedType, itemValue) {
+					codes = []string{reviewItemAlreadyAddedCode}
+				}
+				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, codes, func() (*asc.ReviewSubmissionItemResponse, bool, error) {
 					return findExistingReviewSubmissionItem(requestCtx, client, submissionValue, normalizedType, itemValue)
 				})
 				if resolveErr != nil {
@@ -601,6 +605,19 @@ var reviewItemsAddExistsCodes = []string{
 	"ENTITY_ERROR.RELATIONSHIP.INVALID",
 	"ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS",
 	"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE",
+}
+
+const reviewItemAlreadyAddedCode = "ENTITY_ERROR.RELATIONSHIP.INVALID.NOT_ALLOWED"
+
+func isReviewItemAlreadyAddedConflict(err error, itemType asc.ReviewSubmissionItemType, itemID string) bool {
+	apiErr, ok := errors.AsType[*asc.APIError](err)
+	if !ok || apiErr.Code != reviewItemAlreadyAddedCode {
+		return false
+	}
+	// Apple uses this code for other relationship failures too. Require its
+	// specific duplicate message before attempting the existing-item read-back.
+	message := fmt.Sprintf("%s with id %s was already added to this reviewSubmission.", reviewSubmissionItemRelationshipName(itemType), itemID)
+	return strings.TrimSpace(apiErr.Title) == message || strings.TrimSpace(apiErr.Detail) == message
 }
 
 // reviewSubmissionItemRelationshipName maps an item type to the relationship

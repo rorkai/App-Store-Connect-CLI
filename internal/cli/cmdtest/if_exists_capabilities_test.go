@@ -213,3 +213,27 @@ func TestReviewItemsAddIfExistsSkipReturnsExistingItem(t *testing.T) {
 		t.Fatalf("stderr = %q, want the already-exists diagnostic", stderr)
 	}
 }
+
+func TestReviewItemsAddIfExistsSkipRecoversAppleAlreadyAddedConflict(t *testing.T) {
+	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
+		"review", "items", "add", "--submission", "submission-1",
+		"--item-type", "subscriptionVersions", "--item-id", "version-1",
+		"--if-exists", "skip", "--output", "json",
+	}, func(req ifExistsRequest) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.Path == "/v1/reviewSubmissionItems":
+			return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID.NOT_ALLOWED","title":"subscriptionVersion with id version-1 was already added to this reviewSubmission.","source":{"pointer":"/data/relationships/subscriptionVersion"}}]}`)
+		case req.Method == http.MethodGet && req.Path == "/v1/reviewSubmissions/submission-1/items":
+			if !strings.Contains(req.Query, "include=subscriptionVersion") {
+				t.Fatalf("read-back query = %q, want include=subscriptionVersion", req.Query)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissionItems","id":"item-1","attributes":{"state":"READY_FOR_REVIEW"},"relationships":{"subscriptionVersion":{"data":{"type":"subscriptionVersions","id":"version-1"}}}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-1/items"}}`)
+		default:
+			t.Fatalf("unexpected request %s %s", req.Method, req.Path)
+			return nil, nil
+		}
+	})
+	if runErr != nil || len(seen) != 2 || !strings.Contains(stdout, `"id":"item-1"`) || !strings.Contains(stderr, "left unchanged") {
+		t.Fatalf("requests=%+v stdout=%q stderr=%q error=%v, want the existing item after one read-back", seen, stdout, stderr, runErr)
+	}
+}
