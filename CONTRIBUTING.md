@@ -34,6 +34,11 @@ make format  # gofumpt (requires gofumpt; install with make tools)
 After a Go toolchain upgrade, rerun `make tools` to rebuild the pinned formatter
 and linter with the version selected by `go.mod`.
 
+With Nix flakes, `nix develop` provides Go, Python, and on macOS the libfido2
+build inputs. When `go.mod` or `go.sum` changes, update `vendorHash` in
+`package.nix`: set it to `lib.fakeHash`, run `nix build`, and copy the hash Nix
+reports.
+
 ## Integration Tests (Opt-in)
 
 Integration tests hit the real App Store Connect API and are skipped by default.

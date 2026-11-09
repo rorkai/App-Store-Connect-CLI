@@ -78,11 +78,18 @@ Until it appears in `winget search asc`, Windows users can download the
 release binaries directly from the
 [GitHub releases page](https://github.com/rorkai/App-Store-Connect-CLI/releases/latest).
 
-With Nix flakes enabled on x86-64 or ARM64 Linux, run `asc` directly from the repository:
+With Nix flakes enabled on Linux or macOS (x86-64 or ARM64), build `asc` from
+source with the repository's flake (see `flake.nix` and `package.nix`):
 
 ```bash
-nix run github:rorkai/App-Store-Connect-CLI -- version
+# Run without installing
+nix run github:rorkai/App-Store-Connect-CLI -- --version
+
+# Install into your profile
+nix profile install github:rorkai/App-Store-Connect-CLI
 ```
+
+The flake builds the latest source on `main`.
 
 For source builds and contributor setup, see [CONTRIBUTING.md](CONTRIBUTING.md).
 Released binaries are self-contained and do not require a Go installation;
