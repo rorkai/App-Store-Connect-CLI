@@ -33,6 +33,30 @@
     {
       inherit packages;
 
+      apps = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          update-vendor-hash = {
+            type = "app";
+            program = lib.getExe (
+              pkgs.writeShellApplication {
+                name = "update-vendor-hash";
+                runtimeInputs = [
+                  pkgs.git
+                  pkgs.gnugrep
+                  pkgs.gnused
+                ];
+                text = builtins.readFile ./nix/update-vendor-hash.sh;
+              }
+            );
+            meta.description = "Refresh vendorHash in package.nix from go.mod and go.sum";
+          };
+        }
+      );
+
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-tree);
 
       checks = forAllSystems (system: {

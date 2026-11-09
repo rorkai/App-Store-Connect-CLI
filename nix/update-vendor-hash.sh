@@ -1,6 +1,4 @@
-#!/bin/sh
 # Recompute vendorHash in package.nix from go.mod and go.sum.
-set -eu
 
 root=$(git rev-parse --show-toplevel)
 file="$root/package.nix"

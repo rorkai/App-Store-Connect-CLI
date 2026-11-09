@@ -87,7 +87,7 @@ jobs:
               NIX_CHANGED: ${{ steps.nix-changes.outputs.changed }}
             run: |
               if [ "$NIX_CHANGED" = true ]; then
-                scripts/update_nix_vendor_hash.sh
+                nix run .#update-vendor-hash
               fi
               nix fmt
 

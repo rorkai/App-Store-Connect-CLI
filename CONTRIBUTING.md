@@ -36,7 +36,7 @@ and linter with the version selected by `go.mod`.
 
 With Nix flakes, `nix develop` provides Go, Python, and on macOS the libfido2
 build inputs. When `go.mod` or `go.sum` changes, run
-`scripts/update_nix_vendor_hash.sh` to refresh `vendorHash` in `package.nix`.
+`nix run .#update-vendor-hash` to refresh `vendorHash` in `package.nix`.
 
 The `autofix.ci` workflow applies `make format`, `nix fmt`, and the
 `vendorHash` refresh to every pull request and pushes any resulting changes
