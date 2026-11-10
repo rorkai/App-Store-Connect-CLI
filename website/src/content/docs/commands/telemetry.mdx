@@ -19,6 +19,8 @@ Telemetry is enabled by default for every runtime. It remains enabled in CI,
 Rork sandboxes, Rork GitHub workflows, and explicitly ephemeral environments;
 events from those disposable runtimes omit the durable local install ID. Use
 `asc telemetry disable`, `ASC_TELEMETRY_DISABLED`, or `DO_NOT_TRACK` to opt out.
+A source build without a release version, such as `go build` or `go run`, sends
+nothing unless `ASC_TELEMETRY_ENDPOINT` is set.
 
 The CLI payload does **not** include raw arguments, stderr, error messages, flag
 values, Apple account identifiers, team IDs, issuer IDs, key IDs, app IDs,

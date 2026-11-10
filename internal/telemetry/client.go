@@ -79,6 +79,12 @@ func EmitWithContext(
 		debugf("telemetry send failed: %v", err)
 		return
 	}
+	// Release channels stamp main.version; an unstamped `go build` or `go run`
+	// is a source checkout and must not report to the production collector.
+	if release, _, _ := strings.Cut(ev.ASCVersion, " "); release == "dev" && strings.TrimSpace(os.Getenv(endpointEnvVar)) == "" {
+		debugf("telemetry skipped for unstamped build; set %s to send", endpointEnvVar)
+		return
+	}
 
 	store, err := defaultSpoolStore()
 	if err != nil {
