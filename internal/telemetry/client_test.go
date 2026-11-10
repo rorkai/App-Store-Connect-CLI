@@ -153,6 +153,33 @@ func TestEmitCapturesEndpointOverrideInSpool(t *testing.T) {
 	}
 }
 
+func TestEmitSkipsDefaultEndpointForUnstampedBuild(t *testing.T) {
+	const unstampedVersion = "dev (commit: unknown, date: unknown)"
+	tests := []struct {
+		name        string
+		endpoint    string
+		wantRecords int
+	}{
+		{name: "default endpoint", endpoint: "", wantRecords: 0},
+		{name: "endpoint override", endpoint: "https://override.example.test/events", wantRecords: 1},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clearContextEnv(t)
+			setTelemetryTestHome(t)
+			t.Setenv("ASC_TELEMETRY_DISABLED", "")
+			t.Setenv("DO_NOT_TRACK", "")
+			t.Setenv(endpointEnvVar, test.endpoint)
+			stubMaintenanceWorkerStart(t, func() error { return nil })
+
+			Emit("asc workflow run", unstampedVersion, time.Millisecond, 0)
+			if records := readDefaultSpool(t); len(records) != test.wantRecords {
+				t.Fatalf("spool records = %d, want %d", len(records), test.wantRecords)
+			}
+		})
+	}
+}
+
 func TestEmitDoesNotSpoolCredentialBearingEndpoint(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)
