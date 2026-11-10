@@ -50,8 +50,9 @@ asc screenshots sizes --all
 <Steps>
   <Step title="Prepare screenshot files">
     Export RGB PNG or JPEG images without alpha channels or transparency.
-    Screenshot and Asset Library image uploads reject PNG alpha channels and
-    transparency before reserving an upload. Even an alpha channel whose pixels
+    `asc screenshots validate` reports PNG alpha channels and transparency as
+    `alpha_channel` errors, and screenshot and Asset Library image uploads
+    reject them before reserving an upload. Even an alpha channel whose pixels
     are all opaque must be removed when exporting.
 
     Organize screenshots by device type:

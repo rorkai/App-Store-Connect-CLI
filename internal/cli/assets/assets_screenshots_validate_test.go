@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
@@ -333,6 +334,7 @@ func writeAssetsScreenshotValidatePNG(t *testing.T, dir, name string, width, hei
 
 	path := filepath.Join(dir, name)
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	draw.Draw(img, img.Bounds(), image.Opaque, image.Point{}, draw.Src)
 	img.SetRGBA(0, 0, marker)
 
 	file, err := os.Create(path)
@@ -392,6 +394,7 @@ func writeAssetsScreenshotValidatePNG64(t *testing.T, dir, name string, width, h
 
 	path := filepath.Join(dir, name)
 	img := image.NewNRGBA64(image.Rect(0, 0, width, height))
+	draw.Draw(img, img.Bounds(), image.Opaque, image.Point{}, draw.Src)
 	img.SetNRGBA64(0, 0, marker)
 
 	file, err := os.Create(path)

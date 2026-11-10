@@ -2,6 +2,7 @@ package assets
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 const (
@@ -70,7 +72,8 @@ func AssetsScreenshotsValidateCommand() *ffcli.Command {
 This preflight mirrors upload file ordering and reports common local problems
 before any App Store Connect mutation happens, including hidden files,
 unreadable assets, unsupported dimensions, images whose encoded format
-contradicts their file extension, and duplicate decoded pixels.
+contradicts their file extension, PNG alpha channels or transparency, and
+duplicate decoded pixels.
 
 Examples:
   asc screenshots validate --path "./screenshots" --device-type "IPHONE_65"
@@ -220,6 +223,11 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 			})
 		}
 
+		if issue, found := screenshotAlphaIssue(filePath, fileName); found {
+			hasError = true
+			appendScreenshotValidateIssue(result, issue)
+		}
+
 		if err := asc.ValidateScreenshotDimensionsForSize(filePath, dimensions.Width, dimensions.Height, apiDisplayType); err != nil {
 			hasError = true
 			appendScreenshotValidateIssue(result, screenshotValidateIssue{
@@ -252,6 +260,36 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 	}
 
 	return result, nil
+}
+
+// screenshotAlphaIssue runs the same alpha check that screenshot uploads run
+// before reserving an asset, so a folder that validates also uploads.
+func screenshotAlphaIssue(filePath, fileName string) (screenshotValidateIssue, bool) {
+	issue := screenshotValidateIssue{
+		Code:        "read_failure",
+		Severity:    screenshotValidateSeverityError,
+		FilePath:    filePath,
+		FileName:    fileName,
+		Remediation: "Replace this file with a valid PNG or JPEG screenshot.",
+	}
+	file, err := rootfs.OpenFile(filePath)
+	if err != nil {
+		issue.Message = err.Error()
+		return issue, true
+	}
+	_, err = asc.ReadAppStoreImageFormatFrom(file)
+	if closeErr := file.Close(); err == nil && closeErr != nil {
+		err = closeErr
+	}
+	if err == nil {
+		return screenshotValidateIssue{}, false
+	}
+	issue.Message = fmt.Sprintf("%q: %v", filePath, err)
+	if errors.Is(err, asc.ErrAppStoreImageAlpha) {
+		issue.Code = "alpha_channel"
+		issue.Remediation = "Flatten this image onto an opaque background and re-export it as an RGB PNG or a JPEG without an alpha channel; App Store Connect rejects an alpha channel even when every pixel is opaque."
+	}
+	return issue, true
 }
 
 // screenshotFormatMismatchRemediation keeps the structured advice in step with

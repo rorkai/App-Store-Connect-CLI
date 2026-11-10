@@ -259,6 +259,9 @@ func writeScreenshotValidatePNG(t *testing.T, path string, width, height int, ma
 	t.Helper()
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for i := 3; i < len(img.Pix); i += 4 {
+		img.Pix[i] = 255
+	}
 	img.SetRGBA(0, 0, marker)
 
 	file, err := os.Create(path)
