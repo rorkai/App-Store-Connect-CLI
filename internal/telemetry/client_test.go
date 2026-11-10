@@ -162,6 +162,7 @@ func TestEmitSkipsDefaultEndpointForUnstampedBuild(t *testing.T) {
 	}{
 		{name: "default endpoint", endpoint: "", wantRecords: 0},
 		{name: "endpoint override", endpoint: "https://override.example.test/events", wantRecords: 1},
+		{name: "explicit default endpoint", endpoint: DefaultEndpoint, wantRecords: 1},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
