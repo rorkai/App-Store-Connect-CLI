@@ -801,6 +801,12 @@ localization resource ID, shown in the ID column of:
   asc localizations list --app "APP_ID" --version "1.2.3" --locale "en-US"
 It is not the locale code such as en-US.
 
+Before reserving anything, including with --dry-run, screenshot-set uploads run
+the same local checks as asc screenshots validate and stop on any error. Files
+are uploaded only when every file passes. Without --no-wait the command exits
+zero only when every file is COMPLETE in App Store Connect or skipped; otherwise
+it exits non-zero, prints the receipt, and writes a failure artifact for --resume.
+
 --replace deletes every existing screenshot in each target set before uploading
 and therefore requires --confirm. Use --replace --dry-run to preview the
 deletions without --confirm.

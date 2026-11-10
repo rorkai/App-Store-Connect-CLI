@@ -143,7 +143,6 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 	if err != nil {
 		return nil, err
 	}
-	result.TotalFiles = len(paths)
 	if len(paths) == 0 {
 		appendScreenshotValidateIssue(result, screenshotValidateIssue{
 			Code:        "no_files",
@@ -153,7 +152,15 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 		})
 		return result, nil
 	}
+	checkScreenshotFiles(result, paths, apiDisplayType)
+	return result, nil
+}
 
+// checkScreenshotFiles runs every local screenshot check on paths in upload
+// order and records the outcome in result. Uploads run it too, so validate
+// and upload accept and reject the same files.
+func checkScreenshotFiles(result *screenshotValidateResult, paths []string, apiDisplayType string) {
+	result.TotalFiles = len(paths)
 	seenPixelDigests := make(map[screenshotPixelDigest][]string, len(paths))
 	for index, filePath := range paths {
 		fileName := filepath.Base(filePath)
@@ -193,6 +200,16 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 			continue
 		}
 
+		if issue, found := screenshotImageFormatIssue(filePath, fileName); found {
+			hasError = true
+			appendScreenshotValidateIssue(result, issue)
+			if issue.Code != "alpha_channel" {
+				fileResult.Status = screenshotValidateSeverityError
+				result.Files = append(result.Files, fileResult)
+				continue
+			}
+		}
+
 		dimensions, format, err := asc.ReadImageDimensionsAndFormat(filePath)
 		if err != nil {
 			hasError = true
@@ -221,11 +238,6 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 				Message:     err.Error(),
 				Remediation: screenshotFormatMismatchRemediation(filePath, format),
 			})
-		}
-
-		if issue, found := screenshotAlphaIssue(filePath, fileName); found {
-			hasError = true
-			appendScreenshotValidateIssue(result, issue)
 		}
 
 		if err := asc.ValidateScreenshotDimensionsForSize(filePath, dimensions.Width, dimensions.Height, apiDisplayType); err != nil {
@@ -258,13 +270,37 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 		}
 		result.Files = append(result.Files, fileResult)
 	}
-
-	return result, nil
 }
 
-// screenshotAlphaIssue runs the same alpha check that screenshot uploads run
-// before reserving an asset, so a folder that validates also uploads.
-func screenshotAlphaIssue(filePath, fileName string) (screenshotValidateIssue, bool) {
+// screenshotFilesError turns the error issues from checkScreenshotFiles into
+// the error an upload returns before reserving anything.
+func screenshotFilesError(result *screenshotValidateResult) error {
+	messages := make([]string, 0, result.ErrorCount)
+	var diagnostic shared.DiagnosticCode
+	for _, issue := range result.Issues {
+		if issue.Severity != screenshotValidateSeverityError {
+			continue
+		}
+		messages = append(messages, issue.Message)
+		if diagnostic == "" {
+			diagnostic = shared.DiagnosticFileInvalidFormat
+			if issue.Code == "dimension_mismatch" {
+				diagnostic = shared.DiagnosticInvalidInput
+			}
+		}
+	}
+	if len(messages) == 0 {
+		return nil
+	}
+	if len(messages) == 1 {
+		return markMediaInput(errors.New(messages[0]), diagnostic)
+	}
+	return markMediaInput(fmt.Errorf("%d screenshot problems; run asc screenshots validate for the full report:\n  %s", len(messages), strings.Join(messages, "\n  ")), diagnostic)
+}
+
+// screenshotImageFormatIssue runs the encoded-format and alpha check that
+// screenshot uploads repeat on the opened file just before reserving an asset.
+func screenshotImageFormatIssue(filePath, fileName string) (screenshotValidateIssue, bool) {
 	issue := screenshotValidateIssue{
 		Code:        "read_failure",
 		Severity:    screenshotValidateSeverityError,

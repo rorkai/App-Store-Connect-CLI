@@ -53,7 +53,8 @@ asc screenshots sizes --all
     `asc screenshots validate` reports PNG alpha channels and transparency as
     `alpha_channel` errors, and screenshot and Asset Library image uploads
     reject them before reserving an upload. Even an alpha channel whose pixels
-    are all opaque must be removed when exporting.
+    are all opaque must be removed when exporting. `asc screenshots upload`
+    runs every `asc screenshots validate` check before it reserves anything.
 
     Organize screenshots by device type:
 
