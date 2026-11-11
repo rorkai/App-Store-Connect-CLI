@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"encoding/json"
 	"fmt"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/png"
@@ -544,6 +545,9 @@ func writeCmdtestScreenshotPNG(t *testing.T, dir, name string) string {
 			img.Set(x, y, color.RGBA{R: 10, G: 20, B: 30, A: 255})
 		}
 	}
+	// Distinct names get distinct pixels: uploads reject duplicate screenshots.
+	sum := crc32.ChecksumIEEE([]byte(name))
+	img.Set(0, 0, color.RGBA{R: byte(sum), G: byte(sum >> 8), B: byte(sum >> 16), A: 255})
 	if err := png.Encode(file, img); err != nil {
 		t.Fatalf("encode png: %v", err)
 	}

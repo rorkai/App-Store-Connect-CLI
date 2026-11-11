@@ -2,9 +2,14 @@ package asc
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 )
+
+// ErrAppStoreImageAlpha reports a PNG that stores an alpha channel or
+// transparency, which App Store screenshots and creative images must not have.
+var ErrAppStoreImageAlpha = errors.New("image has an alpha channel or transparency; re-export it as RGB PNG or JPEG without alpha")
 
 // ReadAppStoreImageFormatFrom checks the encoded format and PNG alpha metadata
 // for screenshot and creative-image uploads. It does not decode pixel buffers.
@@ -52,11 +57,11 @@ func ReadAppStoreImageFormatFrom(source io.ReadSeeker) (string, error) {
 				return "", err
 			}
 			if ihdr[9] == 4 || ihdr[9] == 6 {
-				return "", fmt.Errorf("image has an alpha channel or transparency; re-export it as RGB PNG or JPEG without alpha")
+				return "", ErrAppStoreImageAlpha
 			}
 			length = 0
 		case "tRNS":
-			return "", fmt.Errorf("image has an alpha channel or transparency; re-export it as RGB PNG or JPEG without alpha")
+			return "", ErrAppStoreImageAlpha
 		case "IDAT", "IEND":
 			return format, nil
 		}

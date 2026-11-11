@@ -9,6 +9,7 @@ import (
 	"image/color"
 	"image/png"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -259,6 +260,9 @@ func writeScreenshotValidatePNG(t *testing.T, path string, width, height int, ma
 	t.Helper()
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for i := 3; i < len(img.Pix); i += 4 {
+		img.Pix[i] = 255
+	}
 	img.SetRGBA(0, 0, marker)
 
 	file, err := os.Create(path)
@@ -353,5 +357,34 @@ func TestAssetsScreenshotsValidatePreservesRawPathSemanticsForFileWithTrailingSe
 	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestScreenshotsUploadRunsValidateChecksBeforeNetwork(t *testing.T) {
+	setupAuth(t)
+	dir := t.TempDir()
+	marker := color.RGBA{R: 10, G: 20, B: 30, A: 255}
+	writeScreenshotValidatePNG(t, filepath.Join(dir, "01-original.png"), 312, 390, marker, png.BestSpeed)
+	writeScreenshotValidatePNG(t, filepath.Join(dir, "02-duplicate.png"), 312, 390, marker, png.BestCompression)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	calls := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		return statusJSONResponse(`{"data":[],"links":{}}`), nil
+	})
+
+	_, stderr, err := runRootCommand(t, []string{
+		"screenshots", "upload",
+		"--version-localization", "LOC",
+		"--path", dir,
+		"--device-type", "APP_WATCH_SERIES_3",
+	})
+	if err == nil || !strings.Contains(err.Error(), `screenshot "02-duplicate.png" has decoded pixels identical to "01-original.png"`) {
+		t.Fatalf("expected the duplicate-pixel validate error, got %v; stderr=%s", err, stderr)
+	}
+	if calls != 0 {
+		t.Fatalf("made %d network calls before rejecting the folder", calls)
 	}
 }

@@ -1226,9 +1226,9 @@ func writeTwoSlotScreenshotReviewArtifacts(t *testing.T, sameGroup bool) (string
 	imagePaths := make([]string, 0, len(slots))
 	entries := make([]map[string]any, 0, len(slots))
 	approved := make([]string, 0, len(slots))
-	for _, slot := range slots {
+	for index, slot := range slots {
 		imagePath := filepath.Join(reviewDir, slot.id+".png")
-		if err := os.WriteFile(imagePath, pngBytes(t, slot.width, slot.height), 0o600); err != nil {
+		if err := os.WriteFile(imagePath, markedPNGBytes(t, slot.width, slot.height, byte(index)), 0o600); err != nil {
 			t.Fatalf("write screenshot image: %v", err)
 		}
 		imagePaths = append(imagePaths, imagePath)
@@ -1355,11 +1355,19 @@ func screenshotMatchesDisplayType(width, height int, displayType string) bool {
 
 func pngBytes(t *testing.T, width, height int) []byte {
 	t.Helper()
+	return markedPNGBytes(t, width, height, 0)
+}
+
+// markedPNGBytes encodes an opaque image whose first pixel is marker, so
+// screenshots in one upload stay distinct.
+func markedPNGBytes(t *testing.T, width, height int, marker byte) []byte {
+	t.Helper()
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	for i := 3; i < len(img.Pix); i += 4 {
 		img.Pix[i] = 255
 	}
+	img.Pix[0] = marker
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {
 		t.Fatalf("encode png: %v", err)

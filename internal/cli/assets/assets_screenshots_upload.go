@@ -31,24 +31,9 @@ func normalizeScreenshotDisplayType(input string) (string, error) {
 }
 
 func validateScreenshotDimensions(files []string, displayType string) error {
-	for _, filePath := range files {
-		file, err := rootfs.OpenFile(filePath)
-		if err != nil {
-			return markMediaInput(err, shared.DiagnosticFileInvalidFormat)
-		}
-		_, alphaErr := asc.ReadAppStoreImageFormatFrom(file)
-		closeErr := file.Close()
-		if alphaErr != nil {
-			return markMediaInput(fmt.Errorf("%q: %w", filePath, alphaErr), shared.DiagnosticFileInvalidFormat)
-		}
-		if closeErr != nil {
-			return closeErr
-		}
-		if err := asc.ValidateScreenshotDimensions(filePath, displayType); err != nil {
-			return markMediaInput(err, shared.DiagnosticInvalidInput)
-		}
-	}
-	return nil
+	result := &screenshotValidateResult{}
+	checkScreenshotFiles(result, files, displayType)
+	return screenshotFilesError(result)
 }
 
 func uploadScreenshots(ctx context.Context, client *asc.Client, localizationID, displayType string, files []string, skipExisting, replace, dryRun bool) (asc.AppScreenshotUploadResult, error) {

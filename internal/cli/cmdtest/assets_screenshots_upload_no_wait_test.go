@@ -14,11 +14,13 @@ import (
 )
 
 // --no-wait must check each committed screenshot exactly once instead of
-// polling until processing finishes. Unconfirmed commits and failed deliveries
-// must be reported as errors with a resumable artifact.
-func TestRunScreenshotsUploadNoWaitChecksEachFileOnce(t *testing.T) {
+// polling until processing finishes. Unconfirmed commits and failed deliveries,
+// with or without --no-wait, must exit non-zero with the JSON receipt and a
+// resumable artifact.
+func TestRunScreenshotsUploadChecksDeliveryState(t *testing.T) {
 	tests := []struct {
 		name             string
+		wait             bool
 		state            string
 		wantCode         int
 		wantState        string
@@ -30,6 +32,7 @@ func TestRunScreenshotsUploadNoWaitChecksEachFileOnce(t *testing.T) {
 		{name: "awaiting", state: "AWAITING_UPLOAD", wantCode: cmd.ExitError, wantStderr: `upload commit not confirmed: delivery state "AWAITING_UPLOAD"`, wantPendingState: "UPLOAD_COMPLETE"},
 		{name: "missing state", wantCode: cmd.ExitError, wantStderr: "upload commit not confirmed: missing delivery state", wantPendingState: "UPLOAD_COMPLETE"},
 		{name: "failed", state: "FAILED", wantCode: cmd.ExitError, wantStderr: "delivery failed: IMAGE_INCORRECT_DIMENSIONS", wantPendingState: "FAILED"},
+		{name: "wait failed", wait: true, state: "FAILED", wantCode: cmd.ExitError, wantStderr: "delivery failed: IMAGE_INCORRECT_DIMENSIONS", wantPendingState: "FAILED"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -89,16 +92,19 @@ func TestRunScreenshotsUploadNoWaitChecksEachFileOnce(t *testing.T) {
 			}
 			t.Cleanup(func() { _ = os.Chdir(previousDir) })
 
+			args := []string{
+				"screenshots", "upload",
+				"--version-localization", "LOC_123",
+				"--path", file,
+				"--device-type", "IPHONE_65",
+				"--output", "json",
+			}
+			if !test.wait {
+				args = append(args, "--no-wait")
+			}
 			var code int
 			stdout, stderr := captureOutput(t, func() {
-				code = cmd.Run([]string{
-					"screenshots", "upload",
-					"--version-localization", "LOC_123",
-					"--path", file,
-					"--device-type", "IPHONE_65",
-					"--no-wait",
-					"--output", "json",
-				}, "1.2.3")
+				code = cmd.Run(args, "1.2.3")
 			})
 			if code != test.wantCode {
 				t.Fatalf("exit code = %d, want %d; stderr = %q", code, test.wantCode, stderr)
