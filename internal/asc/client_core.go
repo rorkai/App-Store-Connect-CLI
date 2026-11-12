@@ -214,7 +214,7 @@ func loadConfig() *config.Config {
 	}
 
 	cfg, err := loadConfigFn()
-	if err != nil {
+	if err != nil && !errors.Is(err, config.ErrNotFound) {
 		return nil
 	}
 	cachedConfig = cfg
