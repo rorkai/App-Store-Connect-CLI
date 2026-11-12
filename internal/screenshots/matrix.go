@@ -309,10 +309,6 @@ type matrixOutputRoots struct {
 
 var matrixTemporarySequence atomic.Uint64
 
-// This seam lets focused tests model bounded per-artifact verification and is
-// intentionally nil in production.
-var matrixRawVerificationBeforeArtifactForTest func()
-
 // matrixRawVerificationContextForTest observes each fresh per-artifact raw
 // verification context without adding timing dependencies to tests.
 var matrixRawVerificationContextForTest func(context.Context)
@@ -610,12 +606,6 @@ var matrixPrivateAttemptOperationForTest func(stage, path string) error
 // private parent so tests can replace its directory entry while an early
 // construction failure is being injected.
 var matrixPrivateAttemptParentCreatedForTest func(string)
-
-// matrixPrivateAttemptOutputBeforeRootForTest runs after the writable child
-// output directory exists but before its rooted handle is opened. It is kept
-// narrow so tests can model a replacement in the same construction window as
-// the production identity check.
-var matrixPrivateAttemptOutputBeforeRootForTest func(string)
 
 var errMatrixPrivateAttemptCleanupUncertain = errors.New("private matrix attempt cleanup uncertain")
 
@@ -1240,9 +1230,6 @@ func openMatrixPrivateAttemptOutputRoot(attempt *matrixPrivateAttemptRoot) (root
 	}
 	attempt.outputCreator = outputCreator
 	outputPath := filepath.Join(attempt.path, "output")
-	if matrixPrivateAttemptOutputBeforeRootForTest != nil {
-		matrixPrivateAttemptOutputBeforeRootForTest(outputPath)
-	}
 	anchored, err := attempt.pinned.OpenRoot("output")
 	if err != nil {
 		return rootfs.Root{}, err
@@ -3334,9 +3321,6 @@ func revalidateMatrixRawPathsWithRoot(ctx context.Context, result *MatrixResult,
 			}
 			if matrixRawVerificationContextForTest != nil {
 				matrixRawVerificationContextForTest(artifactCtx)
-			}
-			if matrixRawVerificationBeforeArtifactForTest != nil {
-				matrixRawVerificationBeforeArtifactForTest()
 			}
 			current, err := inspectMatrixArtifactWithContext(artifactCtx, rawRoot, rawRootPath, path)
 			if cancelArtifact != nil {
