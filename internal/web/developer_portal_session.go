@@ -30,8 +30,11 @@ type developerPortalTeam struct {
 }
 
 type developerPortalTeamsResponse struct {
-	Teams []developerPortalTeam `json:"teams"`
-	Data  struct {
+	ResultCode   *int                  `json:"resultCode"`
+	ResultString string                `json:"resultString"`
+	UserString   string                `json:"userString"`
+	Teams        []developerPortalTeam `json:"teams"`
+	Data         struct {
 		Teams []developerPortalTeam `json:"teams"`
 	} `json:"data"`
 }
@@ -149,6 +152,13 @@ func (c *Client) fetchDeveloperPortalTeams(ctx context.Context) ([]developerPort
 	var payload developerPortalTeamsResponse
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, fmt.Errorf("failed to parse Developer Portal teams response: %w", err)
+	}
+	if payload.ResultCode != nil && *payload.ResultCode != 0 {
+		message := strings.TrimSpace(payload.UserString)
+		if message == "" {
+			message = strings.TrimSpace(payload.ResultString)
+		}
+		return nil, fmt.Errorf("developer portal teams request failed (resultCode %d): %s", *payload.ResultCode, message)
 	}
 	if len(payload.Teams) == 0 {
 		return payload.Data.Teams, nil

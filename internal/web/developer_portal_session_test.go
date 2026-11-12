@@ -404,3 +404,17 @@ func TestListDeveloperPortalTeamsReturnsEveryTeamWithoutSelecting(t *testing.T) 
 		})
 	}
 }
+
+func TestListDeveloperPortalTeamsRejectsResultCodeFailure(t *testing.T) {
+	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+		return developerPortalTestResponse(http.StatusOK, `{"resultCode":1100,"resultString":"Your session has expired.","userString":"Your session has expired. Please log in."}`, nil), nil
+	})
+
+	result, err := client.ListDeveloperPortalTeams(context.Background())
+	if err == nil {
+		t.Fatalf("ListDeveloperPortalTeams() = %+v, want resultCode error", result)
+	}
+	if !strings.Contains(err.Error(), "resultCode 1100") || !strings.Contains(err.Error(), "Your session has expired. Please log in.") {
+		t.Fatalf("error = %q, want resultCode and Apple's message", err)
+	}
+}
