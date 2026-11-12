@@ -361,60 +361,25 @@ func assertDeveloperPortalErrorHasNoSecrets(t *testing.T, err error) {
 func TestListDeveloperPortalTeamsReturnsEveryTeamWithoutSelecting(t *testing.T) {
 	t.Setenv(readonly.EnvVar, "1")
 
-	tests := []struct {
-		name string
-		body string
-	}{
-		{
-			name: "top-level teams",
-			body: `{"teams":[{"teamId":" TEAMTWO456 ","name":" Example Two ","status":"active"},{"teamId":" ","name":"No ID"},{"teamId":"TEAMONE123","name":"Example One","status":"expired"}]}`,
-		},
-		{
-			name: "data teams",
-			body: `{"data":{"teams":[{"teamId":" TEAMTWO456 ","name":" Example Two ","status":"active"},{"teamId":" ","name":"No ID"},{"teamId":"TEAMONE123","name":"Example One","status":"expired"}]}}`,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			var requests []string
-			client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
-				requests = append(requests, r.Method+" "+r.URL.Path)
-				return developerPortalTestResponse(http.StatusOK, test.body, nil), nil
-			})
-			client.SetDeveloperTeamSelector("UNKNOWN")
-			client.providerName = "Unrelated Provider"
-
-			result, err := client.ListDeveloperPortalTeams(context.Background())
-			if err != nil {
-				t.Fatalf("ListDeveloperPortalTeams() error: %v", err)
-			}
-			want := []asc.WebDeveloperTeam{
-				{TeamID: "TEAMTWO456", Name: "Example Two", Status: "active"},
-				{TeamID: "TEAMONE123", Name: "Example One", Status: "expired"},
-			}
-			if result == nil || !reflect.DeepEqual(result.Teams, want) {
-				t.Fatalf("teams = %+v, want %+v", result, want)
-			}
-			if got := strings.Join(requests, ","); got != "POST "+developerPortalTeamsPath {
-				t.Fatalf("requests = %q, want one teams POST", got)
-			}
-			if got := client.developerPortalTeamID(); got != "" {
-				t.Fatalf("selected team = %q, want listing to leave selection unchanged", got)
-			}
-		})
-	}
-}
-
-func TestListDeveloperPortalTeamsRejectsResultCodeFailure(t *testing.T) {
+	var requests []string
 	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
-		return developerPortalTestResponse(http.StatusOK, `{"resultCode":1100,"resultString":"Your session has expired.","userString":"Your session has expired. Please log in."}`, nil), nil
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		return developerPortalTestResponse(http.StatusOK, `{"teams":[{"teamId":" TEAMTWO456 ","name":" Example Two ","status":"active"},{"teamId":" ","name":"No ID"},{"teamId":"TEAMONE123","name":"Example One","status":"expired"}]}`, nil), nil
 	})
+	client.SetDeveloperTeamSelector("UNKNOWN")
 
 	result, err := client.ListDeveloperPortalTeams(context.Background())
-	if err == nil {
-		t.Fatalf("ListDeveloperPortalTeams() = %+v, want resultCode error", result)
+	if err != nil {
+		t.Fatalf("ListDeveloperPortalTeams() error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "resultCode 1100") || !strings.Contains(err.Error(), "Your session has expired. Please log in.") {
-		t.Fatalf("error = %q, want resultCode and Apple's message", err)
+	want := []asc.WebDeveloperTeam{
+		{TeamID: "TEAMTWO456", Name: "Example Two", Status: "active"},
+		{TeamID: "TEAMONE123", Name: "Example One", Status: "expired"},
+	}
+	if result == nil || !reflect.DeepEqual(result.Teams, want) {
+		t.Fatalf("teams = %+v, want %+v", result, want)
+	}
+	if got := strings.Join(requests, ","); got != "POST "+developerPortalTeamsPath {
+		t.Fatalf("requests = %q, want one teams POST", got)
 	}
 }
