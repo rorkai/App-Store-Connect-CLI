@@ -131,7 +131,6 @@ func ExecuteUploadOperationsFromFile(ctx context.Context, file *os.File, operati
 
 	uploadOpts := UploadOptions{
 		Concurrency: DefaultUploadConcurrency,
-		Client:      newUploadClient(),
 		RetryOpts:   ResolveRetryOptions(),
 	}
 	for _, opt := range opts {
