@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
@@ -339,14 +340,24 @@ func TestReadFastlaneMetadata_SkipsSpecialDirectories(t *testing.T) {
 		t.Fatalf("failed to create dir: %v", err)
 	}
 
+	// A locale with App Clip files and its own store metadata still receives the defaults.
+	if err := os.MkdirAll(filepath.Join(dir, "de-DE", "app_clip"), 0o755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "de-DE", "name.txt"), []byte("German Name"), 0o644); err != nil {
+		t.Fatalf("failed to write locale name: %v", err)
+	}
+
 	locs, err := readFastlaneMetadata(dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	sort.Slice(locs, func(i, j int) bool { return locs[i].Locale < locs[j].Locale })
 
-	if len(locs) != 1 {
-		t.Fatalf("expected 1 localization (special dirs skipped), got %d: %#v", len(locs), locs)
+	if len(locs) != 2 || locs[0].Locale != "de-DE" || locs[0].Description != "Default description" {
+		t.Fatalf("expected de-DE with the default description and en-US, got %#v", locs)
 	}
+	locs = locs[1:]
 
 	if locs[0].Locale != "en-US" {
 		t.Errorf("expected locale 'en-US', got %q", locs[0].Locale)
@@ -365,10 +376,11 @@ func TestReadFastlaneMetadata_SkipsSpecialDirectories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(appInfo) != 1 || appInfo[0].Locale != "en-US" || appInfo[0].Name != "Default Name" {
-		t.Fatalf("expected only en-US with the default name, got %#v", appInfo)
+	sort.Slice(appInfo, func(i, j int) bool { return appInfo[i].Locale < appInfo[j].Locale })
+	if len(appInfo) != 2 || appInfo[0].Name != "German Name" || appInfo[1].Locale != "en-US" || appInfo[1].Name != "Default Name" {
+		t.Fatalf("expected de-DE with its own name and en-US with the default name, got %#v", appInfo)
 	}
-	if got, want := appInfoLocalizationFiles(appInfo[0]), []string{"../default/name.txt"}; !reflect.DeepEqual(got, want) {
+	if got, want := appInfoLocalizationFiles(appInfo[1]), []string{"../default/name.txt"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("appInfoLocalizationFiles() = %#v, want %#v", got, want)
 	}
 }

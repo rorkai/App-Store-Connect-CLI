@@ -1297,7 +1297,7 @@ func readFastlaneMetadataFromLocaleDirs(metadataDir string, localeDirs []fastlan
 				hasVersionFile = true
 			}
 		}
-		if names["app_clip"] && !hasVersionFile {
+		if names["app_clip"] && !hasVersionFile && (len(loc.defaultFiles) == 0 || isAppClipOnlyLocaleDir(names)) {
 			continue
 		}
 		localizations = append(localizations, loc)
