@@ -305,61 +305,42 @@ func openLegacyKeyringForOS(goos string, open func(keyring.Config) (keyring.Keyr
 
 // ValidateKeyFile validates that the private key file exists and is valid
 func ValidateKeyFile(path string) error {
-	return validateKeyFileForOS(path, runtime.GOOS)
+	_, err := loadValidatedPrivateKeyForOS(path, runtime.GOOS)
+	return err
 }
 
-func validateKeyFileForOS(path, goos string) error {
+// LoadValidatedPrivateKey checks the key file's permissions and parses the
+// key from the same open file.
+func LoadValidatedPrivateKey(path string) (*ecdsa.PrivateKey, error) {
+	return loadValidatedPrivateKeyForOS(path, runtime.GOOS)
+}
+
+func loadValidatedPrivateKeyForOS(path, goos string) (*ecdsa.PrivateKey, error) {
 	if info, err := os.Lstat(path); err == nil && info.IsDir() {
-		return newPrivateKeyError(PrivateKeyInvalidFormat, errors.New("private key path is a directory"))
+		return nil, newPrivateKeyError(PrivateKeyInvalidFormat, errors.New("private key path is a directory"))
 	}
 	file, err := rootfs.OpenFile(path)
 	if err != nil {
-		return privateKeyOpenError(path, "failed to open key file", err)
+		return nil, privateKeyOpenError(path, "failed to open key file", err)
 	}
 	defer file.Close()
 
 	info, err := file.Stat()
 	if err != nil {
-		return newPrivateKeyError(privateKeyAccessErrorKind(err), fmt.Errorf("failed to stat key file: %w", err))
+		return nil, newPrivateKeyError(privateKeyAccessErrorKind(err), fmt.Errorf("failed to stat key file: %w", err))
 	}
 	if filePermissionsTooPermissiveForOS(info.Mode(), goos) {
 		if command, safe := FilePermissionRemediationCommand(path); safe {
-			return newPrivateKeyError(PrivateKeyPermissionsInsecure, fmt.Errorf("private key file is too permissive; run: %s", command))
+			return nil, newPrivateKeyError(PrivateKeyPermissionsInsecure, fmt.Errorf("private key file is too permissive; run: %s", command))
 		}
-		return newPrivateKeyError(PrivateKeyPermissionsInsecure, errors.New("private key file is too permissive; use auth login --fix-permissions or auth doctor --fix --confirm"))
+		return nil, newPrivateKeyError(PrivateKeyPermissionsInsecure, errors.New("private key file is too permissive; use auth login --fix-permissions or auth doctor --fix --confirm"))
 	}
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return newPrivateKeyError(privateKeyAccessErrorKind(err), fmt.Errorf("failed to read key file: %w", err))
+		return nil, newPrivateKeyError(privateKeyAccessErrorKind(err), fmt.Errorf("failed to read key file: %w", err))
 	}
-
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return newPrivateKeyError(PrivateKeyInvalidFormat, errors.New("invalid PEM data"))
-	}
-
-	var privateKey *ecdsa.PrivateKey
-	if key, err := x509.ParsePKCS8PrivateKey(block.Bytes); err == nil {
-		var ok bool
-		privateKey, ok = key.(*ecdsa.PrivateKey)
-		if !ok {
-			return newPrivateKeyError(PrivateKeyUnsupportedAlgorithm, errors.New("private key is not ECDSA"))
-		}
-	} else {
-		privateKey, err = x509.ParseECPrivateKey(block.Bytes)
-		if err != nil {
-			if _, rsaErr := x509.ParsePKCS1PrivateKey(block.Bytes); rsaErr == nil {
-				return newPrivateKeyError(PrivateKeyUnsupportedAlgorithm, errors.New("private key is not ECDSA"))
-			}
-			return newPrivateKeyError(PrivateKeyInvalidFormat, fmt.Errorf("invalid private key format: %w", err))
-		}
-	}
-	if privateKey.Curve != elliptic.P256() {
-		return newPrivateKeyError(PrivateKeyUnsupportedAlgorithm, errors.New("private key must use the P-256 curve"))
-	}
-
-	return nil
+	return LoadPrivateKeyFromPEM(data)
 }
 
 // LoadPrivateKey loads the private key from the file
@@ -405,7 +386,7 @@ func LoadPrivateKeyFromPEM(data []byte) (*ecdsa.PrivateKey, error) {
 		if _, rsaErr := x509.ParsePKCS1PrivateKey(block.Bytes); rsaErr == nil {
 			return nil, newPrivateKeyError(PrivateKeyUnsupportedAlgorithm, errors.New("private key is not ECDSA"))
 		}
-		return nil, newPrivateKeyError(PrivateKeyInvalidFormat, fmt.Errorf("invalid private key: %w", err))
+		return nil, newPrivateKeyError(PrivateKeyInvalidFormat, fmt.Errorf("invalid private key format: %w", err))
 	}
 	if ecdsaKey.Curve != elliptic.P256() {
 		return nil, newPrivateKeyError(PrivateKeyUnsupportedAlgorithm, errors.New("private key must use the P-256 curve"))

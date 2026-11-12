@@ -729,13 +729,9 @@ func newDefaultHTTPClient(timeout time.Duration) *http.Client {
 }
 
 func newClientWithHTTPClient(keyID, issuerID, privateKeyPath string, httpClient *http.Client) (*Client, error) {
-	if err := auth.ValidateKeyFile(privateKeyPath); err != nil {
-		return nil, fmt.Errorf("invalid private key: %w", err)
-	}
-
-	key, err := auth.LoadPrivateKey(privateKeyPath)
+	key, err := auth.LoadValidatedPrivateKey(privateKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load private key: %w", err)
+		return nil, fmt.Errorf("invalid private key: %w", err)
 	}
 
 	return newClientWithPrivateKey(keyID, issuerID, key, httpClient), nil
