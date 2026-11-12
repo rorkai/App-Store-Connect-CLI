@@ -217,7 +217,7 @@ func TestGenerateManualExportOptionsRejectsMacOSReleaseTesting(t *testing.T) {
 	}
 }
 
-func TestReadArchiveExportInfoSupportsMacOSArchive(t *testing.T) {
+func TestReadMacArchiveExportInfoReadsEveryExecutableBundle(t *testing.T) {
 	archivePath := writeMacExportOptionsTestArchive(t)
 	binDir := t.TempDir()
 	codesignPath := filepath.Join(binDir, "codesign")
@@ -239,10 +239,11 @@ func TestReadArchiveExportInfoSupportsMacOSArchive(t *testing.T) {
 	}
 	t.Cleanup(func() { macCodesignCommandContextFn = originalCodesignCommand })
 
-	info, err := readArchiveExportInfo(archivePath)
+	macArchive, err := readMacArchiveExportInfo(t.Context(), archivePath)
 	if err != nil {
-		t.Fatalf("readArchiveExportInfo() error: %v", err)
+		t.Fatalf("readMacArchiveExportInfo() error: %v", err)
 	}
+	info := macArchive.ArchiveInfo
 	if info.AppBundleID != "com.example.demo" {
 		t.Fatalf("app bundle ID = %q", info.AppBundleID)
 	}

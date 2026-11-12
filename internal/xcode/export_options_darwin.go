@@ -159,14 +159,6 @@ func manualExportOptionsResolutionError(bundleIDs []string, method, teamID, reso
 }
 
 func readArchiveExportInfo(archivePath string) (exportoptionsgenerator.ArchiveInfo, error) {
-	platform, err := InferArchivePlatform(archivePath)
-	if err == nil && platform == "MAC_OS" {
-		macArchive, macErr := readMacArchiveExportInfo(context.Background(), archivePath)
-		if macErr != nil {
-			return exportoptionsgenerator.ArchiveInfo{}, macErr
-		}
-		return macArchive.ArchiveInfo, nil
-	}
 	archive, err := xcarchive.NewIosArchive(archivePath)
 	if err != nil {
 		return exportoptionsgenerator.ArchiveInfo{}, fmt.Errorf("read iOS archive: %w", err)
