@@ -94,7 +94,7 @@ password-protected .p12 when no active certificate exists. It requires
 encoding (PBES2 with AES-256-CBC and an HMAC-SHA-256 MAC) by default. Some
 importers reject it with an error that looks like a wrong password;
 --p12-encoding legacy writes 3DES with a SHA-1 MAC instead. The legacy
-algorithms are weak, so protect that file by other means.
+algorithms are weak; use them only when an importer requires it.
 
 --match-extensions also fetches a profile for every registered bundle ID that
 extends --bundle-id with a dotted suffix (com.example.app.widget,

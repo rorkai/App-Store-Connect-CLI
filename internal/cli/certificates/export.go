@@ -80,8 +80,8 @@ func CertificatesExportCommand() *ffcli.Command {
 			"The identity uses the modern encoding (PBES2 with AES-256-CBC and an\n" +
 			"HMAC-SHA-256 MAC) by default. Some importers reject it with an error that\n" +
 			"looks like a wrong password; --p12-encoding legacy writes 3DES with a SHA-1\n" +
-			"MAC instead. The legacy algorithms are weak, so protect that file by other\n" +
-			"means.\n\n" +
+			"MAC instead. The legacy algorithms are weak; use them only when an importer\n" +
+			"requires it.\n\n" +
 			"Examples:\n" +
 			"  asc certificates export --certificate \"./push/push.cer\" --private-key \"./push/push.key\" --password-file \"./secrets/push.p12.password\" --p12-out \"./push/push.p12\"\n" +
 			"  asc certificates export --certificate \"./push/push.cer\" --private-key \"./push/push.key\" --csr \"./push/push.csr\" --password-file \"./secrets/push.p12.password\" --p12-out \"./push/push.p12\" --output json\n" +
