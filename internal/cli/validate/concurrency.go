@@ -81,6 +81,9 @@ func runReadinessTasks(ctx context.Context, tasks ...readinessTask) error {
 	}
 
 	wg.Wait()
+	if firstErr == nil {
+		return ctx.Err()
+	}
 	return firstErr
 }
 

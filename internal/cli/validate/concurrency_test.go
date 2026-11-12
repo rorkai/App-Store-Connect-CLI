@@ -2,6 +2,7 @@ package validate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -354,5 +355,34 @@ func TestBuildReadinessReport_SharedGateCapsNestedSubscriptionRequests(t *testin
 				t.Fatalf("maximum in-flight requests = %d, want exactly %d across nested tasks", got, readinessConcurrencyLimit)
 			}
 		})
+	}
+}
+
+func TestRunReadinessTasks_ReturnsParentCancellationWhenQueuedTasksAreSkipped(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	release := make(chan struct{})
+	started := make(chan struct{}, readinessConcurrencyLimit+1)
+	tasks := make([]readinessTask, 0, readinessConcurrencyLimit+1)
+	for range readinessConcurrencyLimit + 1 {
+		tasks = append(tasks, func(context.Context) error {
+			started <- struct{}{}
+			<-release
+			return nil
+		})
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- runReadinessTasks(ctx, tasks...) }()
+
+	for range readinessConcurrencyLimit {
+		<-started
+	}
+	cancel()
+	close(release)
+
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("runReadinessTasks() error = %v, want context.Canceled", err)
 	}
 }
