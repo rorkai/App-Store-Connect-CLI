@@ -78,10 +78,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("pre-release-versions relationships view: --limit must be between 1 and 200")
+				return shared.UsageErrorCtx(ctx, "pre-release-versions relationships view: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("pre-release-versions relationships view: %w", err)
+				return shared.UsageErrorfCtx(ctx, "pre-release-versions relationships view: %v", err)
 			}
 
 			relationshipType := strings.TrimSpace(*relType)

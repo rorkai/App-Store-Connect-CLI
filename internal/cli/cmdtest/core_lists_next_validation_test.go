@@ -14,9 +14,6 @@ import (
 type invalidNextURLCase struct {
 	args    []string // command args without --next
 	wantErr string   // diagnostic prefix, e.g. "builds icons list: --next"
-	// runtimeError marks commands that report the bad URL as a runtime
-	// failure (empty stderr) instead of a usage error.
-	runtimeError bool
 }
 
 // runInvalidNextURLCases runs each command with an http:// and a malformed
@@ -63,12 +60,6 @@ func runInvalidNextURLCases(t *testing.T, cases []invalidNextURLCase) {
 				}
 				if stdout != "" {
 					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if tc.runtimeError {
-					if stderr != "" {
-						t.Fatalf("expected empty stderr, got %q", stderr)
-					}
-					return
 				}
 				if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitUsage)
@@ -154,7 +145,7 @@ func runPaginateFromNextCases(t *testing.T, cases []paginateFromNextCase) {
 
 func TestCoreListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"certificates", "list"}, wantErr: "certificates list: --next", runtimeError: true},
+		{args: []string{"certificates", "list"}, wantErr: "certificates list: --next"},
 		{args: []string{"nominations", "list", "--status", "DRAFT"}, wantErr: "nominations list: --next"},
 		{args: []string{"accessibility", "list"}, wantErr: "accessibility list: --next"},
 		{args: []string{"actors", "list"}, wantErr: "actors list: --next"},

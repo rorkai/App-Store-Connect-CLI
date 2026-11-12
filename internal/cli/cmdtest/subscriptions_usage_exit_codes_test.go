@@ -114,6 +114,41 @@ func TestSubscriptionsInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "subscriptions offers offer-codes one-time-codes list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "offers win-back list subscription-id s limit 201",
+			args:    []string{"subscriptions", "offers", "win-back", "list", "--subscription-id", "s", "--limit", "201"},
+			wantErr: "subscriptions offers win-back list: --limit must be between 1 and 200",
+		},
+		{
+			name:    "offers win-back list subscription-id s next non apple url",
+			args:    []string{"subscriptions", "offers", "win-back", "list", "--subscription-id", "s", "--next", "http://example.com/x"},
+			wantErr: "subscriptions offers win-back list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "offers win-back list subscription-id s prices-limit 51",
+			args:    []string{"subscriptions", "offers", "win-back", "list", "--subscription-id", "s", "--prices-limit", "51"},
+			wantErr: "subscriptions offers win-back list: --prices-limit must be between 1 and 50",
+		},
+		{
+			name:    "offers win-back prices id o limit 201",
+			args:    []string{"subscriptions", "offers", "win-back", "prices", "--id", "o", "--limit", "201"},
+			wantErr: "subscriptions offers win-back prices: --limit must be between 1 and 200",
+		},
+		{
+			name:    "offers win-back prices id o next non apple url",
+			args:    []string{"subscriptions", "offers", "win-back", "prices", "--id", "o", "--next", "http://example.com/x"},
+			wantErr: "subscriptions offers win-back prices: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "offers win-back links subscription-id s limit 201",
+			args:    []string{"subscriptions", "offers", "win-back", "links", "--subscription-id", "s", "--limit", "201"},
+			wantErr: "subscriptions offers win-back links: --limit must be between 1 and 200",
+		},
+		{
+			name:    "offers win-back links subscription-id s next non apple url",
+			args:    []string{"subscriptions", "offers", "win-back", "links", "--subscription-id", "s", "--next", "http://example.com/x"},
+			wantErr: "subscriptions offers win-back links: --next must be an App Store Connect URL",
+		},
+		{
 			name:    "offers offer-codes one-time-codes update missing batch id",
 			args:    []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--active", "false"},
 			wantErr: "--batch-id is required",

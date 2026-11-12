@@ -169,6 +169,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			wantErr: "categories subcategories: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "certificates list limit",
+			args:    []string{"certificates", "list", "--limit", "201"},
+			wantErr: "certificates list: --limit must be between 1 and 200",
+		},
+		{
 			name:    "iap promoted-purchases list next",
 			args:    []string{"iap", "promoted-purchases", "list", "--app", "123456789", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "iap promoted-purchases list: --next must be an App Store Connect URL",

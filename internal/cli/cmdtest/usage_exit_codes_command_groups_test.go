@@ -328,6 +328,16 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "build-localizations list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "builds expire-all keep-latest negative",
+			args:    []string{"builds", "expire-all", "--app", "A", "--keep-latest", "-1", "--dry-run"},
+			wantErr: "builds expire-all: --keep-latest must be greater than or equal to 0",
+		},
+		{
+			name:    "builds expire-all older-than invalid",
+			args:    []string{"builds", "expire-all", "--app", "A", "--older-than", "soon", "--dry-run"},
+			wantErr: "builds expire-all: --older-than must be a duration like 90d, 2w, or 3m",
+		},
+		{
 			name:    "builds icons list limit",
 			args:    []string{"builds", "icons", "list", "--limit", "201"},
 			wantErr: "builds icons list: --limit must be between 1 and 200",

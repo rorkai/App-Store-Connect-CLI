@@ -82,7 +82,7 @@ Examples:
 				return shared.MissingRequiredUsageError("")
 			}
 			if *keepLatest < 0 {
-				return fmt.Errorf("builds expire-all: --keep-latest must be greater than or equal to 0")
+				return shared.UsageError("builds expire-all: --keep-latest must be greater than or equal to 0")
 			}
 			if !*dryRun && !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to expire builds")
@@ -94,7 +94,7 @@ Examples:
 			if olderThanValue != "" {
 				threshold, err := parseOlderThanThreshold(olderThanValue, now)
 				if err != nil {
-					return fmt.Errorf("builds expire-all: %w", err)
+					return shared.UsageErrorf("builds expire-all: %v", err)
 				}
 				olderThanThreshold = threshold
 			}

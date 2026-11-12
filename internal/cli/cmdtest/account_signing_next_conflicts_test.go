@@ -63,29 +63,23 @@ func TestAccountSigningListsRejectNextQueryFlagsBeforeAuth(t *testing.T) {
 
 func TestAccountSigningListsValidateNextBeforeQueryConflicts(t *testing.T) {
 	const invalidNext = "http://api.appstoreconnect.apple.com/v1/resources?cursor=next"
-	// wantCode is ExitUsage for the groups whose pre-request validation
-	// already routes through shared.UsageError. `certificates` still wraps
-	// its --next validation in fmt.Errorf and therefore still exits
-	// ExitError; pinning that here keeps the remaining gap visible until the
-	// certificates group is migrated. The --next diagnostic must come first
-	// either way.
+	// The --next diagnostic must come first.
 	tests := []struct {
-		name     string
-		args     []string
-		wantCode int
+		name string
+		args []string
 	}{
-		{name: "certificates", args: []string{"certificates", "list", "--next", invalidNext, "--limit", "201"}, wantCode: rootcmd.ExitError},
-		{name: "users", args: []string{"users", "list", "--next", invalidNext, "--limit", "201"}, wantCode: rootcmd.ExitUsage},
-		{name: "actors", args: []string{"actors", "list", "--next", invalidNext, "--limit", "201"}, wantCode: rootcmd.ExitUsage},
-		{name: "pass type ids", args: []string{"pass-type-ids", "list", "--next", invalidNext, "--limit", "201"}, wantCode: rootcmd.ExitUsage},
-		{name: "merchant ids", args: []string{"merchant-ids", "list", "--next", invalidNext, "--limit", "201"}, wantCode: rootcmd.ExitUsage},
+		{name: "certificates", args: []string{"certificates", "list", "--next", invalidNext, "--limit", "201"}},
+		{name: "users", args: []string{"users", "list", "--next", invalidNext, "--limit", "201"}},
+		{name: "actors", args: []string{"actors", "list", "--next", invalidNext, "--limit", "201"}},
+		{name: "pass type ids", args: []string{"pass-type-ids", "list", "--next", invalidNext, "--limit", "201"}},
+		{name: "merchant ids", args: []string{"merchant-ids", "list", "--next", invalidNext, "--limit", "201"}},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(test.args, "1.2.3"); code != test.wantCode {
-					t.Fatalf("exit code = %d, want %d", code, test.wantCode)
+				if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitUsage {
+					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
 				}
 			})
 			if stdout != "" {
