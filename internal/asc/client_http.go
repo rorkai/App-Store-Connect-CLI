@@ -193,16 +193,16 @@ func (c *Client) doWithHTTPClient(ctx context.Context, method, path string, body
 // separate app read proves that the parent exists. Apple returns the same 404
 // shape for a transient build-upload propagation failure and a permanently
 // invalid app ID, so status and error detail alone cannot classify it safely.
-func (c *Client) doAppBuildUploadsRead(ctx context.Context, appID, path string) ([]byte, error) {
+func (c *Client) doAppBuildUploadsRead(ctx context.Context, path string) ([]byte, error) {
 	request, err := c.replayableRequest(http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// The request path, not the caller's original appID, determines whether
-	// this is an app-scoped endpoint. A top-level continuation URL must keep
-	// the normal detail-based classification for missing upload resources.
-	appID = appIDFromBuildUploadsPath(path)
+	// The request path determines whether this is an app-scoped endpoint. A
+	// top-level continuation URL must keep the normal detail-based
+	// classification for missing upload resources.
+	appID := appIDFromBuildUploadsPath(path)
 	retryOpts := ResolveRetryOptions()
 	appVerified := false
 	return withRetry(ctx, func() ([]byte, error) {
