@@ -268,6 +268,11 @@ func ExecuteReconcileApply(ctx context.Context, options ReconcileApplyOptions) (
 	return view, nil
 }
 
+// VerifyReconcileCompletion revalidates an exact completed receipt without mutation.
+func VerifyReconcileCompletion(ctx context.Context, options ReconcileApplyOptions) (ReconcileReceiptView, error) {
+	return verifyReconcileCompletionAdapter(ctx, options, "", nil)
+}
+
 // VerifyReconcileCompletionFromEvidence verifies remote completion using an
 // immutable archive snapshot and exact protected run-local receipt/profile
 // copies. It does not depend on the nested generated receipt/profile paths.
