@@ -139,7 +139,7 @@ func TestApplyWritePlansRejectsSymlink(t *testing.T) {
 	}
 }
 
-func TestReadAppInfoLocalizationFileRejectsSymlink(t *testing.T) {
+func TestReadVersionLocalizationFileRejectsSymlink(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.json")
 	if err := os.WriteFile(target, []byte(`{"name":"target"}`), 0o644); err != nil {
@@ -151,7 +151,7 @@ func TestReadAppInfoLocalizationFileRejectsSymlink(t *testing.T) {
 		t.Skipf("symlink not supported: %v", err)
 	}
 
-	_, err := ReadAppInfoLocalizationFile(link)
+	_, err := ReadVersionLocalizationFile(link)
 	if err == nil {
 		t.Fatal("expected symlink read rejection")
 	}
