@@ -352,12 +352,6 @@ func submitReadinessMissingFieldSortKey(field string) int {
 	}
 }
 
-// SubmitIncompleteLocaleWarning returns a user-facing warning when a locale is
-// missing submit-required metadata fields.
-func SubmitIncompleteLocaleWarning(locale string, attrs asc.AppStoreVersionLocalizationAttributes) string {
-	return SubmitIncompleteLocaleWarningWithOptions(locale, attrs, SubmitReadinessOptions{})
-}
-
 // SubmitIncompleteLocaleWarningWithOptions returns a user-facing warning when a
 // locale is missing submit-required metadata fields under the provided rules.
 func SubmitIncompleteLocaleWarningWithOptions(locale string, attrs asc.AppStoreVersionLocalizationAttributes, opts SubmitReadinessOptions) string {

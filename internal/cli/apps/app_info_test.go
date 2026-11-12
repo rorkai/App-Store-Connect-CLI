@@ -153,7 +153,7 @@ func TestResolveAppStoreVersionForAppInfoRejectsPartialResults(t *testing.T) {
 
 func TestWarnAppInfoSetSubmitIncompleteLocaleMentionsCanonicalPublishFlow(t *testing.T) {
 	stderr := captureAppsCreateOutput(t, func() {
-		warnAppInfoSetSubmitIncompleteLocale("en-US", asc.AppStoreVersionLocalizationAttributes{})
+		warnAppInfoSetSubmitIncompleteLocale("en-US", asc.AppStoreVersionLocalizationAttributes{}, shared.SubmitReadinessOptions{})
 	})
 
 	if !strings.Contains(stderr, "`asc publish appstore --submit`") {
