@@ -2,10 +2,13 @@ package xcode
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 // syntheticXCProj is hand-written, not Xcode output. Its shape follows Apple's
@@ -326,15 +329,6 @@ func TestXCProjRefusesWithoutChangingFiles(t *testing.T) {
 			},
 			wantErr: "no build-settings",
 		},
-		{
-			name:     "signing plan",
-			contents: syntheticXCProj,
-			run: func(_ context.Context, project string) error {
-				_, err := BuildSigningPlan(SigningPlanOptions{ProjectPath: project, ProfilePaths: []string{"unused.mobileprovision"}, PlanPath: filepath.Join(filepath.Dir(project), "plan.json")})
-				return err
-			},
-			wantErr: "signing does not support",
-		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			project, path := writeXCProjProject(t, test.contents)
@@ -389,5 +383,119 @@ func TestXCProjViewNeverRunsAgvtool(t *testing.T) {
 	_, err := GetVersionScoped(t.Context(), GetVersionOptions{ProjectDir: project, BuildSettingsLookup: BuildSettingsLookupNever})
 	if err == nil || !strings.Contains(err.Error(), "--xcodebuild-settings-lookup never") {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+const signingXCProj = `{
+  "default-configuration": "Release",
+  "configurations": ["Debug", "Release"],
+  "files": [],
+  "targets": [
+    {
+      "name": "App",
+      "id": "AAAAAAAAAAAAAAAAAAAAAAAA",
+      "product-type": "application",
+      "build-settings": {
+        "CODE_SIGN_STYLE": "Automatic",
+        "DEVELOPMENT_TEAM[config=Debug]": "TEAMDEBUG1",
+        "DEVELOPMENT_TEAM[config=Release]": "TEAMOLD123",
+        "PRODUCT_BUNDLE_IDENTIFIER": "com.example.app",
+      },
+    },
+  ],
+  "build-settings": {
+    "SDKROOT": "iphoneos",
+  },
+}
+`
+
+func TestXCProjSigningPlanAndApply(t *testing.T) {
+	requireStrictSigningPlatform(t)
+	for _, test := range []struct {
+		name        string
+		contents    string
+		settings    string
+		wantBlocker string
+		replace     [][2]string
+	}{
+		{
+			name:     "per-configuration signing settings",
+			contents: signingXCProj,
+			settings: `{"CODE_SIGN_STYLE": "manual", "DEVELOPMENT_TEAM": "ABCDE12345", "PROVISIONING_PROFILE_SPECIFIER": "App Store Profile"}`,
+			replace: [][2]string{
+				{`"CODE_SIGN_STYLE": "Automatic",`, "\"CODE_SIGN_STYLE[config=Debug]\": \"Automatic\",\n        \"CODE_SIGN_STYLE[config=Release]\": \"Manual\","},
+				{`"DEVELOPMENT_TEAM[config=Release]": "TEAMOLD123"`, `"DEVELOPMENT_TEAM[config=Release]": "ABCDE12345"`},
+				{`"PRODUCT_BUNDLE_IDENTIFIER": "com.example.app",`, "\"PRODUCT_BUNDLE_IDENTIFIER\": \"com.example.app\",\n        \"PROVISIONING_PROFILE_SPECIFIER[config=Release]\": \"App Store Profile\","},
+			},
+		},
+		{
+			name:        "unsupported removal blocks the plan",
+			contents:    strings.Replace(signingXCProj, `"PRODUCT_BUNDLE_IDENTIFIER": "com.example.app",`, `"PRODUCT_BUNDLE_IDENTIFIER": "com.example.app", "PROVISIONING_PROFILE_SPECIFIER": "Old",`, 1),
+			settings:    `{"PROVISIONING_PROFILE_SPECIFIER": null}`,
+			wantBlocker: "removing build setting",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			contents := test.contents
+			project, path := writeXCProjProject(t, contents)
+			root := t.TempDir()
+			settingsPath := filepath.Join(root, "settings.json")
+			writeSigningSettingsTestFile(t, settingsPath, `{"schemaVersion": 1, "targets": [{"name": "App", "configurations": [{"name": "Release", "settings": `+test.settings+`}]}]}`)
+			plan, err := BuildSigningPlan(SigningPlanOptions{ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state")})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.wantBlocker != "" {
+				if plan.Ready || !strings.Contains(strings.Join(plan.Blockers, "\n"), test.wantBlocker) {
+					t.Fatalf("ready = %v, blockers = %v, want a blocker containing %q", plan.Ready, plan.Blockers, test.wantBlocker)
+				}
+				if got := mustReadVersionTestFile(t, path); got != contents {
+					t.Fatalf("project.xcproj changed:\n%s", got)
+				}
+				return
+			}
+			if !plan.Ready {
+				t.Fatalf("blockers = %v", plan.Blockers)
+			}
+			for _, change := range plan.Changes {
+				if change.Source != "xcproj" || change.Path != path {
+					t.Fatalf("change = %+v", change)
+				}
+			}
+			if err := WriteSigningPlanArtifact(plan, false); err != nil {
+				t.Fatal(err)
+			}
+			result, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := contents
+			for _, replacement := range test.replace {
+				if !strings.Contains(want, replacement[0]) {
+					t.Fatalf("fixture has no %q", replacement[0])
+				}
+				want = strings.Replace(want, replacement[0], replacement[1], 1)
+			}
+			if got := mustReadVersionTestFile(t, path); got != want {
+				t.Fatalf("project.xcproj =\n%s\nwant\n%s", got, want)
+			}
+			if len(result.Files) != 1 || result.Files[0].Path != path || result.Files[0].Source != "xcproj" {
+				t.Fatalf("receipt files = %+v", result.Files)
+			}
+		})
+	}
+}
+
+func TestXCProjSigningRejectsSymlinkedProjectFile(t *testing.T) {
+	project, path := writeXCProjProject(t, signingXCProj)
+	moved := filepath.Join(filepath.Dir(project), "elsewhere.xcproj")
+	if err := os.Rename(path, moved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(moved, path); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := openSigningStructuredVersionProject(project); !errors.Is(err, rootfs.ErrSymlink) {
+		t.Fatalf("error = %v, want a symlink refusal", err)
 	}
 }

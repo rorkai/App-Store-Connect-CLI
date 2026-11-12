@@ -32,14 +32,19 @@ func TestXcodeCommandsWithJSONProject(t *testing.T) {
 	for _, test := range []struct {
 		name        string
 		args        []string
+		settings    string
 		wantStdout  string
-		wantErr     string
 		wantChanged bool
 	}{
 		{name: "view", args: []string{"xcode", "version", "view"}, wantStdout: `"version":"1.2.3"`},
 		{name: "edit", args: []string{"xcode", "version", "edit", "--version", "2.0.0"}, wantStdout: `"source":"xcproj"`, wantChanged: true},
 		{name: "bump", args: []string{"xcode", "version", "bump", "--type", "build"}, wantStdout: `"newBuild":"43"`, wantChanged: true},
-		{name: "signing plan", args: []string{"xcode", "signing", "plan", "--profile", "unused.mobileprovision"}, wantErr: "does not support the JSON project format"},
+		{
+			name:       "signing plan",
+			args:       []string{"xcode", "signing", "plan"},
+			settings:   `{"schemaVersion": 1, "targets": [{"name": "App", "configurations": [{"name": "Release", "settings": {"CODE_SIGN_STYLE": "manual"}}]}]}`,
+			wantStdout: `"source":"xcproj"`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			rootDir := t.TempDir()
@@ -54,6 +59,13 @@ func TestXcodeCommandsWithJSONProject(t *testing.T) {
 				t.Fatal(err)
 			}
 			args := append(append([]string(nil), test.args...), "--project", project, "--output", "json")
+			if test.settings != "" {
+				settingsPath := filepath.Join(rootDir, "settings.json")
+				if err := os.WriteFile(settingsPath, []byte(test.settings), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				args = append(args, "--settings-file", settingsPath, "--state-dir", filepath.Join(rootDir, "state"))
+			}
 			command := RootCommand("test")
 			var runErr error
 			stdout, _ := captureOutput(t, func() {
@@ -62,17 +74,11 @@ func TestXcodeCommandsWithJSONProject(t *testing.T) {
 				}
 				runErr = command.Run(context.Background())
 			})
-			if test.wantErr != "" {
-				if runErr == nil || !strings.Contains(runErr.Error(), test.wantErr) {
-					t.Fatalf("error = %v, want %q", runErr, test.wantErr)
-				}
-			} else {
-				if runErr != nil {
-					t.Fatal(runErr)
-				}
-				if !json.Valid([]byte(stdout)) || !strings.Contains(stdout, test.wantStdout) {
-					t.Fatalf("stdout = %s, want %s", stdout, test.wantStdout)
-				}
+			if runErr != nil {
+				t.Fatal(runErr)
+			}
+			if !json.Valid([]byte(stdout)) || !strings.Contains(stdout, test.wantStdout) {
+				t.Fatalf("stdout = %s, want %s", stdout, test.wantStdout)
 			}
 			got, err := os.ReadFile(path)
 			if err != nil {

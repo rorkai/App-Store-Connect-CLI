@@ -184,16 +184,17 @@ func openStructuredVersionProjectWithPolicy(projectInput string, signingSafety b
 	if err != nil {
 		return nil, err
 	}
+	projectFileName := pbxprojFileName
 	if usesXCProj {
-		if signingSafety {
-			return nil, errXCProjSigningUnsupported
-		}
-		return openXCProjStructuredProject(projectPath)
+		projectFileName = xcprojFileName
 	}
 	if signingSafety {
-		if err := validateStructuredVersionProjectPath(projectPath); err != nil {
+		if err := validateStructuredVersionProjectPath(projectPath, projectFileName); err != nil {
 			return nil, err
 		}
+	}
+	if usesXCProj {
+		return openXCProjStructuredProject(projectPath)
 	}
 	parsed, err := xcodeproj.Open(projectPath)
 	if err != nil {
@@ -224,12 +225,12 @@ func openStructuredVersionProjectWithPolicy(projectInput string, signingSafety b
 }
 
 // validateStructuredVersionProjectPath performs the signing-only rooted
-// no-follow checks before the plist parser opens project.pbxproj. The parser
-// accepts ordinary filesystem paths and would otherwise follow an explicitly
-// selected .xcodeproj or project.pbxproj symlink before signing's later
+// no-follow checks before the parser opens the project definition file. The
+// parser accepts ordinary filesystem paths and would otherwise follow an explicitly
+// selected .xcodeproj or project file symlink before signing's later
 // mutation preflight had a chance to reject it. Stable version commands retain
 // their historical selected-path symlink behavior through openStructuredVersionProject.
-func validateStructuredVersionProjectPath(projectPath string) error {
+func validateStructuredVersionProjectPath(projectPath, projectFileName string) error {
 	absolute, err := filepath.Abs(projectPath)
 	if err != nil {
 		return fmt.Errorf("resolve Xcode project path: %w", err)
@@ -243,9 +244,9 @@ func validateStructuredVersionProjectPath(projectPath string) error {
 	if err := root.CheckContained(absolute); err != nil {
 		return fmt.Errorf("refusing to parse Xcode project %s: %w", absolute, err)
 	}
-	pbxprojPath := filepath.Join(absolute, pbxprojFileName)
-	if err := root.CheckContained(pbxprojPath); err != nil {
-		return fmt.Errorf("refusing to parse Xcode project file %s: %w", pbxprojPath, err)
+	projectFilePath := filepath.Join(absolute, projectFileName)
+	if err := root.CheckContained(projectFilePath); err != nil {
+		return fmt.Errorf("refusing to parse Xcode project file %s: %w", projectFilePath, err)
 	}
 	return nil
 }

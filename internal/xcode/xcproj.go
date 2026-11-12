@@ -30,7 +30,6 @@ const (
 )
 
 var (
-	errXCProjSigningUnsupported = fmt.Errorf("asc xcode signing does not support the JSON project format (%s) yet; no files were changed", xcprojFileName)
 	errXCProjAgvtoolUnsupported = fmt.Errorf("agvtool cannot read or edit the JSON project format (%s); define MARKETING_VERSION and CURRENT_PROJECT_VERSION in the project or referenced xcconfig files", xcprojFileName)
 	xcprojConfigCondition       = regexp.MustCompile(`\[config=([^\],]*)\]`)
 )

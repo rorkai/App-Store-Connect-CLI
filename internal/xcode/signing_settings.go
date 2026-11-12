@@ -684,7 +684,7 @@ func buildSigningPlan(opts SigningPlanOptions) (*signingPlanBuild, error) {
 		}
 		files[key] = SigningPlanFile{Path: path, SHA256: digest, Source: source}
 	}
-	addFile(project.projectFilePath, "pbxproj")
+	addFile(project.projectFilePath, project.projectSource)
 	if settingsPath != "" {
 		addFile(settingsPath, "settings")
 	}
@@ -1976,7 +1976,7 @@ func buildSigningPlanOperations(
 			continue
 		}
 		operations = append(operations, signingPlanOperation{
-			SigningSettingChange: signingChange(candidate, project.projectFilePath, "pbxproj"),
+			SigningSettingChange: signingChange(candidate, project.projectFilePath, project.projectSource),
 			configuration:        candidate.configuration,
 		})
 	}
@@ -2005,7 +2005,7 @@ func stageSigningPlan(
 		}
 	}
 	for _, operation := range operations {
-		if operation.Source != "pbxproj" {
+		if operation.Source != project.projectSource {
 			continue
 		}
 		if operation.configuration == nil {
@@ -2019,6 +2019,12 @@ func stageSigningPlan(
 		stagedOperation.configuration = configuration
 		if err := applySigningPBXOperation(stagedOperation); err != nil {
 			return nil, nil, err
+		}
+	}
+
+	if stagedProject.xcproj != nil {
+		if _, err := stagedProject.editXCProjBuildSettings(stagedProject.xcproj.data); err != nil {
+			return nil, nil, fmt.Errorf("edit %s: %w", xcprojFileName, err)
 		}
 	}
 
@@ -4629,7 +4635,7 @@ func prepareSigningOperations(built *signingPlanBuild) (*preparedSigningOperatio
 	}
 	pbxprojChanged := false
 	for _, operation := range built.operations {
-		if operation.Source != "pbxproj" {
+		if operation.Source != project.projectSource {
 			continue
 		}
 		if err := applySigningPBXOperation(operation); err != nil {
