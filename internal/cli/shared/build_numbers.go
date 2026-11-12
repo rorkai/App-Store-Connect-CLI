@@ -618,10 +618,9 @@ func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client
 // "1.2" and "1.2.0" as the same version but only exposes the format that was
 // uploaded first through filter[version], so a lookup that finds nothing under
 // the requested format has to retry the equivalent one before concluding the
-// version does not exist. App Store Connect also stores numeric segments
-// without leading zeros ("1.03.0" as "1.3.0"), so the stripped spelling and its
-// trailing ".0" counterpart follow the requested ones. Versions that are not
-// purely numeric are returned unchanged.
+// version does not exist. A zero-padded request is also tried without leading
+// zeros, because padded uploads have been observed to be queryable only in the
+// unpadded form. Versions that are not purely numeric are returned unchanged.
 func versionQueryVariants(version string) []string {
 	trimmed := strings.TrimSpace(version)
 	if trimmed == "" {
