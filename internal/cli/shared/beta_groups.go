@@ -54,14 +54,24 @@ type AddBuildBetaGroupsResult struct {
 	NotificationAction             asc.BuildBetaGroupsNotificationAction
 }
 
-// ResolveBetaGroups lists an app's beta groups and resolves the provided IDs or names.
-func ResolveBetaGroups(ctx context.Context, client betaGroupsClient, appID string, groups []string, opts ResolveBetaGroupsOptions) ([]ResolvedBetaGroup, error) {
+// ResolveBetaGroups lists an app's beta groups and resolves a raw --group
+// value. A value that exactly matches one group ID or name is used as-is, even
+// when it contains commas; otherwise the value is treated as a comma-separated
+// list of group names or IDs.
+func ResolveBetaGroups(ctx context.Context, client betaGroupsClient, appID, rawGroups string, opts ResolveBetaGroupsOptions) ([]ResolvedBetaGroup, error) {
+	groups := SplitCSV(rawGroups)
 	page, err := client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsLimit(200))
 	if err == nil && !betaGroupPageContainsAllIDs(page, groups) {
 		page, err = paginateBetaGroups(ctx, client, appID, page)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to list beta groups: %w", err)
+	}
+	if len(groups) > 1 {
+		resolved, err := ResolveBetaGroupsFromList([]string{strings.TrimSpace(rawGroups)}, page, opts)
+		if diagnostic, ok := DiagnosticFromError(err); !ok || diagnostic.Code != DiagnosticResourceNotFound {
+			return resolved, err
+		}
 	}
 	return ResolveBetaGroupsFromList(groups, page, opts)
 }

@@ -94,7 +94,7 @@ sending that request.`,
 				return fmt.Errorf("builds add-groups: %w", err)
 			}
 
-			resolvedGroups, err := resolveBuildBetaGroups(requestCtx, client, buildID, groupInputs, *skipInternal)
+			resolvedGroups, err := resolveBuildBetaGroups(requestCtx, client, buildID, groups.String(), *skipInternal)
 			if err != nil {
 				return fmt.Errorf("builds add-groups: %w", err)
 			}
@@ -163,7 +163,7 @@ sending that request.`,
 
 type resolvedBuildBetaGroup = shared.ResolvedBetaGroup
 
-func resolveBuildBetaGroups(ctx context.Context, client *asc.Client, buildID string, groups []string, skipInternal bool) ([]resolvedBuildBetaGroup, error) {
+func resolveBuildBetaGroups(ctx context.Context, client *asc.Client, buildID, groups string, skipInternal bool) ([]resolvedBuildBetaGroup, error) {
 	buildApp, err := client.GetBuildApp(ctx, buildID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve app for build %q: %w", buildID, err)

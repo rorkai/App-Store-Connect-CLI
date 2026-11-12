@@ -312,7 +312,7 @@ Examples:
 			var resolvedGroups []shared.ResolvedBetaGroup
 			if !*uploadOnly {
 				groupLookupCtx := preflightCtx
-				resolvedGroups, err = resolvePublishBetaGroups(groupLookupCtx, client, resolvedPublishAppID, parsedGroupIDs)
+				resolvedGroups, err = resolvePublishBetaGroups(groupLookupCtx, client, resolvedPublishAppID, *groupIDs)
 				if err != nil {
 					return fmt.Errorf("publish testflight: %w", err)
 				}
