@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -540,7 +541,8 @@ func validateCiArtifactDownloadURL(downloadURL string) error {
 	}
 	parsedURL, err := url.Parse(downloadURL)
 	if err != nil {
-		return fmt.Errorf("invalid download URL: %w", err)
+		// url.Error repeats the whole URL, so the cause is dropped.
+		return errors.New("invalid download URL")
 	}
 	if parsedURL.Scheme != "https" {
 		return fmt.Errorf("rejected download URL with insecure scheme %q (expected https)", parsedURL.Scheme)
