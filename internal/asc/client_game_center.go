@@ -238,7 +238,7 @@ func (c *Client) CreateGameCenterLeaderboard(ctx context.Context, gcDetailID str
 			Attributes: attrs,
 			Relationships: &GameCenterLeaderboardRelationships{
 				GameCenterDetail:          gameCenterDetailRelationship(gcDetailID),
-				GameCenterLeaderboardSets: buildToManyRelationship(ResourceTypeGameCenterLeaderboardSets, setIDs),
+				GameCenterLeaderboardSets: buildRelationshipList(ResourceTypeGameCenterLeaderboardSets, setIDs),
 			},
 		},
 	}
@@ -367,7 +367,7 @@ func (c *Client) CreateGameCenterLeaderboardSet(ctx context.Context, gcDetailID 
 			Attributes: attrs,
 			Relationships: &GameCenterLeaderboardSetRelationships{
 				GameCenterDetail:       gameCenterDetailRelationship(gcDetailID),
-				GameCenterLeaderboards: buildToManyRelationship(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
+				GameCenterLeaderboards: buildRelationshipList(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
 			},
 		},
 	}
@@ -1798,7 +1798,7 @@ func (c *Client) CreateGameCenterLeaderboardV2(ctx context.Context, gcDetailID s
 	const initialVersionID = "${lbVer1}"
 
 	relationships := &GameCenterLeaderboardV2Relationships{
-		GameCenterLeaderboardSets: buildToManyRelationship(ResourceTypeGameCenterLeaderboardSets, setIDs),
+		GameCenterLeaderboardSets: buildRelationshipList(ResourceTypeGameCenterLeaderboardSets, setIDs),
 		Versions: &RelationshipList{Data: []ResourceData{{
 			Type: ResourceTypeGameCenterLeaderboardVersions,
 			ID:   initialVersionID,
