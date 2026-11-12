@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/ecdsa"
-	cryptorand "crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -28,7 +27,6 @@ import (
 	signingpkg "github.com/rudrankriyam/App-Store-Connect-CLI/internal/signing"
 	"go.mozilla.org/pkcs7"
 	"howett.net/plist"
-	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
 type signingIdentity struct {
@@ -193,7 +191,7 @@ func normalizeSigningIdentity(identity *signingIdentity, password string) ([]byt
 	if !publicKeysEqual(identity.PrivateKey, identity.Certificate.PublicKey) {
 		return nil, fmt.Errorf("private key does not match signing certificate")
 	}
-	encoded, err := modernpkcs12.Modern2023.WithRand(cryptorand.Reader).Encode(identity.PrivateKey, identity.Certificate, nil, password)
+	encoded, err := shared.EncodePKCS12Identity(shared.PKCS12EncodingModern, identity.PrivateKey, identity.Certificate, password)
 	if err != nil {
 		return nil, fmt.Errorf("normalize signing identity: %w", err)
 	}

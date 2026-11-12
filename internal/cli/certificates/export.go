@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
-	cryptorand "crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -27,7 +26,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
-	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
 const maxCertificateExportFileSize int64 = 32 << 20
@@ -46,6 +44,7 @@ type certificateExportOptions struct {
 	CSRPath         string
 	PasswordPath    string
 	P12Out          string
+	P12Encoding     shared.PKCS12Encoding
 	Force           bool
 }
 
@@ -62,13 +61,14 @@ func CertificatesExportCommand() *ffcli.Command {
 	csrPath := fs.String("csr", "", "Optional CSR path to verify against the certificate and private key")
 	passwordPath := fs.String("password-file", "", "Protected file containing the PKCS#12 password")
 	p12Out := fs.String("p12-out", "", "Destination path for the password-protected PKCS#12 identity")
+	p12Encoding := fs.String("p12-encoding", string(shared.PKCS12EncodingModern), shared.PKCS12EncodingFlagUsage)
 	force := fs.Bool("force", false, "Replace an existing PKCS#12 identity")
 	confirm := fs.Bool("confirm", false, "Confirm replacement when --force is set")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "export",
-		ShortUsage: "asc certificates export --certificate ./push/push.cer --private-key ./push/push.key --password-file ./push/password --p12-out ./push/push.p12 [--csr ./push/push.csr] [--force --confirm]",
+		ShortUsage: "asc certificates export --certificate ./push/push.cer --private-key ./push/push.key --password-file ./push/password --p12-out ./push/push.p12 [--csr ./push/push.csr] [--p12-encoding legacy] [--force --confirm]",
 		ShortHelp:  "Package a certificate and private key as a protected PKCS#12 identity.",
 		LongHelp: "Package an Apple-issued certificate and its matching private key as a\n" +
 			"password-protected PKCS#12 identity. This command is local-only: obtain the\n" +
@@ -77,10 +77,16 @@ func CertificatesExportCommand() *ffcli.Command {
 			"and optionally verifies the original CSR. It never prints key material or\n" +
 			"writes binary PKCS#12 data to stdout. Replacing an existing output requires\n" +
 			"both --force and --confirm.\n\n" +
+			"The identity uses the modern encoding (PBES2 with AES-256-CBC and an\n" +
+			"HMAC-SHA-256 MAC) by default. Some importers reject it with an error that\n" +
+			"looks like a wrong password; --p12-encoding legacy writes 3DES with a SHA-1\n" +
+			"MAC instead. The legacy algorithms are weak, so protect that file by other\n" +
+			"means.\n\n" +
 			"Examples:\n" +
 			"  asc certificates export --certificate \"./push/push.cer\" --private-key \"./push/push.key\" --password-file \"./secrets/push.p12.password\" --p12-out \"./push/push.p12\"\n" +
 			"  asc certificates export --certificate \"./push/push.cer\" --private-key \"./push/push.key\" --csr \"./push/push.csr\" --password-file \"./secrets/push.p12.password\" --p12-out \"./push/push.p12\" --output json\n" +
-			"  asc certificates export --certificate \"./push/push.cer\" --private-key \"./push/push.key\" --password-file \"./secrets/push.p12.password\" --p12-out \"./push/push.p12\" --force --confirm",
+			"  asc certificates export --certificate \"./push/push.cer\" --private-key \"./push/push.key\" --password-file \"./secrets/push.p12.password\" --p12-out \"./push/push.p12\" --force --confirm\n" +
+			"  asc certificates export --certificate \"./push/push.cer\" --private-key \"./push/push.key\" --password-file \"./secrets/push.p12.password\" --p12-out \"./push/push.p12\" --p12-encoding legacy",
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -122,6 +128,10 @@ func CertificatesExportCommand() *ffcli.Command {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
 			}
+			encoding, err := shared.ParsePKCS12Encoding(*p12Encoding)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 			if *confirm && !*force {
 				return shared.UsageError("--confirm requires --force")
 			}
@@ -136,6 +146,7 @@ func CertificatesExportCommand() *ffcli.Command {
 				CSRPath:         *csrPath,
 				PasswordPath:    passwordValue,
 				P12Out:          p12Value,
+				P12Encoding:     encoding,
 				Force:           *force,
 			})
 			if err != nil {
@@ -253,7 +264,7 @@ func runCertificateExport(_ context.Context, opts certificateExportOptions) (*as
 		return nil, fmt.Errorf("password file contains an empty password")
 	}
 
-	p12Data, err := modernpkcs12.Modern2023.WithRand(cryptorand.Reader).Encode(privateKey, certificate, nil, string(password))
+	p12Data, err := shared.EncodePKCS12Identity(opts.P12Encoding, privateKey, certificate, string(password))
 	if err != nil {
 		return nil, fmt.Errorf("encode PKCS#12 identity: %w", err)
 	}

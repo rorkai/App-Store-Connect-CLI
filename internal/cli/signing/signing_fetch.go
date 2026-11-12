@@ -69,6 +69,7 @@ func SigningFetchCommand() *ffcli.Command {
 	keyOut := fs.String("key-out", "", "Private key output path (default: <output>/<type>.key)")
 	csrOut := fs.String("csr-out", "", "CSR output path (default: <output>/<type>.csr)")
 	p12Out := fs.String("p12-out", "", "PKCS#12 output path (default: <output>/<type>.p12)")
+	p12Encoding := fs.String("p12-encoding", string(shared.PKCS12EncodingModern), shared.PKCS12EncodingFlagUsage+" (requires --create-missing-certificate)")
 	force := fs.Bool("force", false, "Replace existing key, CSR, and p12 output files")
 	output := shared.BindOutputFlagsWith(fs, "format", shared.DefaultOutputFormat(), "Output format for metadata: json, table, markdown")
 
@@ -89,7 +90,11 @@ specified configuration. Devices are only applied to profiles this command
 creates, so --device without --create-missing is rejected with a usage error.
 --create-missing-certificate also creates a key, CSR, certificate, and
 password-protected .p12 when no active certificate exists. It requires
---create-missing and --identity-password-file.
+--create-missing and --identity-password-file. The .p12 uses the modern
+encoding (PBES2 with AES-256-CBC and an HMAC-SHA-256 MAC) by default. Some
+importers reject it with an error that looks like a wrong password;
+--p12-encoding legacy writes 3DES with a SHA-1 MAC instead. The legacy
+algorithms are weak, so protect that file by other means.
 
 --match-extensions also fetches a profile for every registered bundle ID that
 extends --bundle-id with a dotted suffix (com.example.app.widget,
@@ -172,6 +177,19 @@ Examples:
 			if *createMissingCertificate && !*createMissing {
 				fmt.Fprintln(os.Stderr, "Error: --create-missing-certificate requires --create-missing")
 				return shared.UsageError("--create-missing-certificate requires --create-missing")
+			}
+			p12EncodingSet := false
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "p12-encoding" {
+					p12EncodingSet = true
+				}
+			})
+			if p12EncodingSet && !*createMissingCertificate {
+				return shared.UsageError("--p12-encoding requires --create-missing-certificate")
+			}
+			encoding, err := shared.ParsePKCS12Encoding(*p12Encoding)
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 			if *createMissingCertificate && strings.TrimSpace(*identityPasswordFile) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --identity-password-file is required")
@@ -333,12 +351,13 @@ Examples:
 					CreateMissing:            *createMissing,
 					CreateMissingCertificate: *createMissingCertificate,
 					CertificateCreate: signingCertificateCreateRequest{
-						Outputs:  certificateOutputs,
-						KeyPath:  keyPath,
-						CSRPath:  csrPath,
-						P12Path:  p12Path,
-						Password: password,
-						Force:    *force,
+						Outputs:     certificateOutputs,
+						KeyPath:     keyPath,
+						CSRPath:     csrPath,
+						P12Path:     p12Path,
+						P12Encoding: encoding,
+						Password:    password,
+						Force:       *force,
 					},
 					CreatedIdentity: &createdIdentity,
 					Progress:        progress,
