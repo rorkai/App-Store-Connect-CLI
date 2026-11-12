@@ -87,10 +87,6 @@ type FrameRequest struct {
 	FrameColor string         // frame color variant; empty selects the device default
 	ConfigPath string         // optional Koubou YAML config path
 	Canvas     *CanvasOptions // optional text overlays and background
-
-	// Kept for backwards compatibility; ignored in Koubou mode.
-	FrameRoot   string
-	ScreenBleed int
 }
 
 // matrixFrameRootBeforePublishForTest is a narrow test seam for replacing the
