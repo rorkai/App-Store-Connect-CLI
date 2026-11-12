@@ -119,7 +119,7 @@ func TestLocalizationFilePathRejectsTraversal(t *testing.T) {
 func TestApplyWritePlansRejectsSymlink(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.json")
-	if err := os.WriteFile(target, []byte(`{"name":"target"}`), 0o644); err != nil {
+	if err := os.WriteFile(target, []byte(`{"description":"target"}`), 0o644); err != nil {
 		t.Fatalf("write target: %v", err)
 	}
 
@@ -142,7 +142,7 @@ func TestApplyWritePlansRejectsSymlink(t *testing.T) {
 func TestReadVersionLocalizationFileRejectsSymlink(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.json")
-	if err := os.WriteFile(target, []byte(`{"name":"target"}`), 0o644); err != nil {
+	if err := os.WriteFile(target, []byte(`{"description":"target"}`), 0o644); err != nil {
 		t.Fatalf("write target: %v", err)
 	}
 
