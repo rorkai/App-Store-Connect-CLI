@@ -618,9 +618,10 @@ func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client
 // "1.2" and "1.2.0" as the same version but only exposes the format that was
 // uploaded first through filter[version], so a lookup that finds nothing under
 // the requested format has to retry the equivalent one before concluding the
-// version does not exist. Only the trailing ".0" equivalence is inferred;
-// other spellings, including leading-zero variants, are preserved. Versions
-// that are not purely numeric are returned unchanged.
+// version does not exist. App Store Connect also stores numeric segments
+// without leading zeros ("1.03.0" as "1.3.0"), so the stripped spelling and its
+// trailing ".0" counterpart follow the requested ones. Versions that are not
+// purely numeric are returned unchanged.
 func versionQueryVariants(version string) []string {
 	trimmed := strings.TrimSpace(version)
 	if trimmed == "" {
@@ -641,7 +642,8 @@ func versionQueryVariants(version string) []string {
 	}
 
 	segments := strings.Split(trimmed, ".")
-	for _, segment := range segments {
+	stripped := make([]string, len(segments))
+	for i, segment := range segments {
 		if segment == "" {
 			return variants
 		}
@@ -650,14 +652,24 @@ func versionQueryVariants(version string) []string {
 				return variants
 			}
 		}
+		stripped[i] = strings.TrimLeft(segment, "0")
+		if stripped[i] == "" {
+			stripped[i] = "0"
+		}
 	}
 
-	switch {
-	case len(segments) == 2:
-		appendVariant(trimmed + ".0")
-	case len(segments) == 3 && segments[2] == "0":
-		appendVariant(strings.Join(segments[:2], "."))
+	appendTrailingZeroVariant := func(segments []string) {
+		switch {
+		case len(segments) == 2:
+			appendVariant(strings.Join(segments, ".") + ".0")
+		case len(segments) == 3 && segments[2] == "0":
+			appendVariant(strings.Join(segments[:2], "."))
+		}
 	}
+
+	appendTrailingZeroVariant(segments)
+	appendVariant(strings.Join(stripped, "."))
+	appendTrailingZeroVariant(stripped)
 
 	return variants
 }
