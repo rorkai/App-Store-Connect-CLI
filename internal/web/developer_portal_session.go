@@ -29,6 +29,7 @@ type developerPortalTeam struct {
 }
 
 type developerPortalTeamsResponse struct {
+	developerPortalLegacyResponse
 	Teams []developerPortalTeam `json:"teams"`
 	Data  struct {
 		Teams []developerPortalTeam `json:"teams"`
@@ -112,6 +113,11 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	teams := payload.Teams
 	if len(teams) == 0 {
 		teams = payload.Data.Teams
+	}
+	if len(teams) == 0 && payload.ResultCode != nil {
+		if err := validateDeveloperPortalLegacyResponse(payload.developerPortalLegacyResponse); err != nil {
+			return err
+		}
 	}
 	team, err := resolveDeveloperPortalTeam(teams, developerPortalTeamSelection{
 		Selector:         c.currentDeveloperTeamSelector(),
