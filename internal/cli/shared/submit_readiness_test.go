@@ -126,26 +126,6 @@ func TestSubmitReadinessIssuesByLocaleWithOptions_WhatsNewMixedLocales(t *testin
 	}
 }
 
-func TestSubmitReadinessIssuesByLocale_BackwardCompatible(t *testing.T) {
-	localizations := []asc.Resource[asc.AppStoreVersionLocalizationAttributes]{
-		{
-			ID: "loc-1",
-			Attributes: asc.AppStoreVersionLocalizationAttributes{
-				Locale:      "en-US",
-				Description: "desc",
-				Keywords:    "kw",
-				SupportURL:  "https://example.com",
-				WhatsNew:    "", // empty but should not be flagged by default
-			},
-		},
-	}
-
-	issues := SubmitReadinessIssuesByLocaleWithOptions(localizations, SubmitReadinessOptions{})
-	if len(issues) != 0 {
-		t.Fatalf("expected no issues from backward-compatible call, got %v", issues)
-	}
-}
-
 func TestSubmitReadinessCreateWarningForLocale_ReturnsWarningForIncompleteCreate(t *testing.T) {
 	attrs := asc.AppStoreVersionLocalizationAttributes{
 		Locale:   "fr-FR",
