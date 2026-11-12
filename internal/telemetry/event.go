@@ -3,7 +3,6 @@ package telemetry
 import (
 	"encoding/json"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -798,20 +797,5 @@ func durationBucket(d time.Duration) string {
 		return "5s_30s"
 	default:
 		return "gte_30s"
-	}
-}
-
-func RedactedSummary(ev Event) map[string]string {
-	installID := ""
-	if ev.InstallID != nil {
-		installID = *ev.InstallID
-	}
-	return map[string]string{
-		"command_path":      ev.CommandPath,
-		"command_family":    ev.CommandFamily,
-		"runtime_context":   string(ev.RuntimeContext),
-		"invocation_source": string(ev.InvocationSource),
-		"duration_ms":       strconv.FormatUint(uint64(ev.DurationMS), 10),
-		"install_id":        installID,
 	}
 }
