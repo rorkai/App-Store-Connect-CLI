@@ -196,7 +196,7 @@ func resolveDebugValue(value string) debugSettings {
 	}
 	normalized := strings.ToLower(trimmed)
 	switch normalized {
-	case "0", "false", "no":
+	case "0", "f", "false", "no", "n", "off":
 		return debugSettings{}
 	}
 	return debugSettings{

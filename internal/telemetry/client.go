@@ -185,6 +185,9 @@ func debugf(format string, args ...any) {
 }
 
 func debugEnabled() bool {
-	debug := strings.ToLower(strings.TrimSpace(os.Getenv("ASC_DEBUG")))
-	return debug != "" && debug != "0" && debug != "false" && debug != "off"
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("ASC_DEBUG"))) {
+	case "", "0", "f", "false", "no", "n", "off":
+		return false
+	}
+	return true
 }
