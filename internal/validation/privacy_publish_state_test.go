@@ -47,3 +47,9 @@ func TestValidateIncludesPrivacyPublishStateAdvisoryWithoutBlocking(t *testing.T
 		t.Fatalf("expected info advisory to remain non-blocking, got %+v", report.Summary)
 	}
 }
+
+func TestPrivacyPublishStateAdvisorySkipsBlankAppID(t *testing.T) {
+	if advisory := PrivacyPublishStateAdvisory(" \t "); advisory.ID != "" {
+		t.Fatalf("PrivacyPublishStateAdvisory() = %+v, want no advisory for a blank app ID", advisory)
+	}
+}
