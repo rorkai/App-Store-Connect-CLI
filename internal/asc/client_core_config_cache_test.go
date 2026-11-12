@@ -98,7 +98,7 @@ func TestLoadConfigRetriesAfterFailure(t *testing.T) {
 	var calls int32
 	setConfigLoaderForTest(func() (*config.Config, error) {
 		if atomic.AddInt32(&calls, 1) == 1 {
-			return nil, fmt.Errorf("config not found")
+			return nil, fmt.Errorf("permission denied")
 		}
 		return &config.Config{RetryLog: "1"}, nil
 	})

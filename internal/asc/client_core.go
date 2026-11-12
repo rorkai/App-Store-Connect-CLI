@@ -205,6 +205,8 @@ func resolveDebugValue(value string) debugSettings {
 	}
 }
 
+// loadConfig caches the first successful load for the process lifetime,
+// including a missing config file. Tests that change config must reset it.
 func loadConfig() *config.Config {
 	loadConfigMu.Lock()
 	defer loadConfigMu.Unlock()
