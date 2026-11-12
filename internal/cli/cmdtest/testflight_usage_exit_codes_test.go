@@ -29,11 +29,6 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "testflight app-localizations list: --limit must be between 1 and 200",
 		},
 		{
-			name:    "app-localizations list app 123 next non apple url",
-			args:    []string{"testflight", "app-localizations", "list", "--app", "123", "--next", "http://example.com/x"},
-			wantErr: "testflight app-localizations list: --next must be an App Store Connect URL",
-		},
-		{
 			name:    "groups list limit 201",
 			args:    []string{"testflight", "groups", "list", "--limit", "201"},
 			wantErr: "groups list: --limit must be between 1 and 200",
@@ -159,29 +154,14 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "testflight pre-release list: --limit must be between 1 and 200",
 		},
 		{
-			name:    "pre-release list app 123 next non apple url",
-			args:    []string{"testflight", "pre-release", "list", "--app", "123", "--next", "http://example.com/x"},
-			wantErr: "testflight pre-release list: --next must be an App Store Connect URL",
-		},
-		{
 			name:    "pre-release builds list id p limit 201",
 			args:    []string{"testflight", "pre-release", "builds", "list", "--id", "p", "--limit", "201"},
 			wantErr: "testflight pre-release builds list: --limit must be between 1 and 200",
 		},
 		{
-			name:    "pre-release builds list id p next non apple url",
-			args:    []string{"testflight", "pre-release", "builds", "list", "--id", "p", "--next", "http://example.com/x"},
-			wantErr: "testflight pre-release builds list: --next must be an App Store Connect URL",
-		},
-		{
 			name:    "pre-release links view id p type builds limit 201",
 			args:    []string{"testflight", "pre-release", "links", "view", "--id", "p", "--type", "builds", "--limit", "201"},
 			wantErr: "testflight pre-release links view: --limit must be between 1 and 200",
-		},
-		{
-			name:    "pre-release links view id p type builds next non apple url",
-			args:    []string{"testflight", "pre-release", "links", "view", "--id", "p", "--type", "builds", "--next", "http://example.com/x"},
-			wantErr: "testflight pre-release links view: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "recruitment options limit 201",

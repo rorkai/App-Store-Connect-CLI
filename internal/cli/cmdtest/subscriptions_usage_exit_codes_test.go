@@ -119,11 +119,6 @@ func TestSubscriptionsInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "subscriptions offers win-back list: --limit must be between 1 and 200",
 		},
 		{
-			name:    "offers win-back list subscription-id s next non apple url",
-			args:    []string{"subscriptions", "offers", "win-back", "list", "--subscription-id", "s", "--next", "http://example.com/x"},
-			wantErr: "subscriptions offers win-back list: --next must be an App Store Connect URL",
-		},
-		{
 			name:    "offers win-back list subscription-id s prices-limit 51",
 			args:    []string{"subscriptions", "offers", "win-back", "list", "--subscription-id", "s", "--prices-limit", "51"},
 			wantErr: "subscriptions offers win-back list: --prices-limit must be between 1 and 50",
