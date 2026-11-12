@@ -815,11 +815,6 @@ func isAllowedAnalyticsCDNHost(host string) bool {
 	return false
 }
 
-// hasSignedAnalyticsQuery checks for common signed URL query parameters.
-func hasSignedAnalyticsQuery(values url.Values) bool {
-	return hasSignedQuery(values)
-}
-
 func hasSignedQuery(values url.Values) bool {
 	return urlsanitize.HasSignedQuery(values, signedQueryKeys)
 }
@@ -847,7 +842,7 @@ func validateAnalyticsDownloadURL(downloadURL string) error {
 		return nil
 	}
 	if isAllowedAnalyticsCDNHost(host) {
-		if !hasSignedAnalyticsQuery(parsedURL.Query()) {
+		if !hasSignedQuery(parsedURL.Query()) {
 			return fmt.Errorf("rejected analytics download URL from CDN host %q without signed query", parsedURL.Host)
 		}
 		return nil
