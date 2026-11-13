@@ -46,12 +46,12 @@ Examples:
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
-					return fmt.Errorf("sandbox list: %w", err)
+					return shared.UsageErrorf("sandbox list: %v", err)
 				}
 			}
 			normalizedTerritory, err := normalizeSandboxTerritoryFilter(*territory)
 			if err != nil {
-				return fmt.Errorf("sandbox list: %w", err)
+				return shared.UsageErrorf("sandbox list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

@@ -264,6 +264,16 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			wantErr: "nominations view: --supported-territories-limit must be between 1 and 200",
 		},
 		{
+			name:    "nominations list invalid status",
+			args:    []string{"nominations", "list", "--status", "bad"},
+			wantErr: "nominations list: --status must be one of: DRAFT, SUBMITTED, ARCHIVED",
+		},
+		{
+			name:    "nominations view invalid fields",
+			args:    []string{"nominations", "view", "--id", "NOMINATION_ID", "--fields", "bad"},
+			wantErr: "nominations view: --fields must be one of: name, type, description, createdDate, lastModifiedDate, submittedDate, state, publishStartDate, publishEndDate, deviceFamilies, locales, supplementalMaterialsUris, hasInAppEvents, launchInSelectMarketsFirst, notes, preOrderEnabled, relatedApps, createdByActor, lastModifiedByActor, submittedByActor, inAppEvents, supportedTerritories",
+		},
+		{
 			name:    "pass-type-ids certificates list limit",
 			args:    []string{"pass-type-ids", "certificates", "list", "--pass-type-id", "P", "--limit", "201"},
 			wantErr: "pass-type-ids certificates list: --limit must be between 1 and 200",
@@ -347,6 +357,26 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "sandbox list next",
 			args:    []string{"sandbox", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "sandbox list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "sandbox list invalid email",
+			args:    []string{"sandbox", "list", "--email", "bad"},
+			wantErr: "sandbox list: --email must be a valid email address",
+		},
+		{
+			name:    "sandbox view invalid email",
+			args:    []string{"sandbox", "view", "--email", "bad"},
+			wantErr: "sandbox view: --email must be a valid email address",
+		},
+		{
+			name:    "sandbox update invalid renewal rate",
+			args:    []string{"sandbox", "update", "--id", "TESTER_ID", "--subscription-renewal-rate", "bad"},
+			wantErr: "sandbox update: --subscription-renewal-rate must be one of: MONTHLY_RENEWAL_EVERY_FIFTEEN_MINUTES, MONTHLY_RENEWAL_EVERY_FIVE_MINUTES, MONTHLY_RENEWAL_EVERY_ONE_HOUR, MONTHLY_RENEWAL_EVERY_THIRTY_MINUTES, MONTHLY_RENEWAL_EVERY_THREE_MINUTES",
+		},
+		{
+			name:    "sandbox clear-history invalid email",
+			args:    []string{"sandbox", "clear-history", "--email", "bad", "--confirm"},
+			wantErr: "sandbox clear-history: --email must be a valid email address",
 		},
 		{
 			name:    "testflight crashes list limit",
