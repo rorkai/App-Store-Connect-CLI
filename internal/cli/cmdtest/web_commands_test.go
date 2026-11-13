@@ -104,20 +104,6 @@ func TestWebBundleIDCapabilitiesSyncAppClipMissingConfirmFailsBeforeSession(t *t
 	}
 }
 
-func TestWebXcodeCloudWorkflowsListSubcommandIsRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
-	sub := findSubcommand(root, "web", "xcode-cloud", "workflows", "list")
-	if sub == nil {
-		t.Fatalf("expected web xcode-cloud workflows list to be registered")
-	}
-	if sub.FlagSet.Lookup("product-id") == nil {
-		t.Fatal("expected --product-id flag on web xcode-cloud workflows list")
-	}
-	if sub.FlagSet.Lookup("paginate") != nil {
-		t.Fatal("did not expect --paginate on web xcode-cloud workflows list; the CI client does not page")
-	}
-}
-
 func TestWebCommandsUsageErrors(t *testing.T) {
 	runUsageExitCases(t, []usageExitCase{
 		{
@@ -129,6 +115,16 @@ func TestWebCommandsUsageErrors(t *testing.T) {
 			name:    "XcodeCloudWorkflowsListRejectsPositionalArguments",
 			args:    []string{"web", "xcode-cloud", "workflows", "list", "--product-id", "prod-1", "extra"},
 			wantErr: `unexpected argument "extra"`,
+		},
+		{
+			name:    "XcodeCloudWorkflowsListRejectsPaginate",
+			args:    []string{"web", "xcode-cloud", "workflows", "list", "--product-id", "prod-1", "--paginate"},
+			wantErr: "unknown flag `--paginate`",
+		},
+		{
+			name:    "APIKeysLegacyGetIsNotRegistered",
+			args:    []string{"web", "api-keys", "get", "--key-id", "KEY_ID"},
+			wantErr: "Error: unknown command `asc web api-keys get`",
 		},
 		{
 			name:    "AppsCreateMissingRequiredFlags",

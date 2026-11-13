@@ -144,21 +144,6 @@ func TestXcodeCloudDoctorRejectsInvalidFlagsBeforeRequests(t *testing.T) {
 	}
 }
 
-func TestXcodeCloudDoctorHelpRegistersNewSurface(t *testing.T) {
-	root := RootCommand("1.2.3")
-	doctor := findCommand(root, "xcode-cloud", "doctor")
-	if doctor == nil {
-		t.Fatal("xcode-cloud doctor command is not registered")
-	}
-
-	for _, name := range []string{"run-id", "wait", "poll-interval", "timeout", "skip-logs", "save-logs"} {
-		flagValue := doctor.FlagSet.Lookup(name)
-		if flagValue == nil {
-			t.Fatalf("flag --%s is not registered", name)
-		}
-	}
-}
-
 func TestXcodeCloudDoctorSavesLogBundleWithoutOverwriting(t *testing.T) {
 	setupAuth(t)
 

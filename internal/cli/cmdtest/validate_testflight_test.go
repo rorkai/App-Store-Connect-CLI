@@ -152,131 +152,62 @@ func TestValidateTestFlightOutputsJSONAndTable(t *testing.T) {
 	}
 }
 
-func TestValidateTestFlightFailsWhenBetaReviewDetailsMissing(t *testing.T) {
-	fixture := validValidateTestFlightFixture()
-	fixture.betaReviewDetail = ""
-
-	client := newValidateTestFlightClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "testflight", "--app", "app-1", "--build-id", "build-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
+func TestValidateTestFlightFailsWhenFixtureIsIncomplete(t *testing.T) {
+	tests := []struct {
+		name      string
+		mutate    func(*validateTestFlightFixture)
+		wantCheck string
+	}{
+		{
+			name:      "beta review details missing",
+			mutate:    func(f *validateTestFlightFixture) { f.betaReviewDetail = "" },
+			wantCheck: "testflight.review_details.missing",
+		},
+		{
+			name: "whats new missing",
+			mutate: func(f *validateTestFlightFixture) {
+				f.buildLocs = `{"data":[{"type":"betaBuildLocalizations","id":"bbl-1","attributes":{"locale":"en-US","whatsNew":""}}]}`
+			},
+			wantCheck: "testflight.whats_new.missing",
+		},
+		{
+			name:      "build app mismatch",
+			mutate:    func(f *validateTestFlightFixture) { f.buildApp = `{"data":{"type":"apps","id":"app-2"}}` },
+			wantCheck: "testflight.build.app_mismatch",
+		},
 	}
 
-	var report validation.TestFlightReport
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "testflight.review_details.missing" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected testflight.review_details.missing check, got %+v", report.Checks)
-	}
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := validValidateTestFlightFixture()
+			test.mutate(&fixture)
 
-func TestValidateTestFlightFailsWhenWhatsNewMissing(t *testing.T) {
-	fixture := validValidateTestFlightFixture()
-	fixture.buildLocs = `{"data":[{"type":"betaBuildLocalizations","id":"bbl-1","attributes":{"locale":"en-US","whatsNew":""}}]}`
+			client := newValidateTestFlightClient(t, fixture)
+			restore := validate.SetClientFactory(func() (*asc.Client, error) {
+				return client, nil
+			})
+			t.Cleanup(restore)
 
-	client := newValidateTestFlightClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
+			root := RootCommand("1.2.3")
+			var runErr error
+			stdout, _ := captureOutput(t, func() {
+				if err := root.Parse([]string{"validate", "testflight", "--app", "app-1", "--build-id", "build-1"}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
 
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "testflight", "--app", "app-1", "--build-id", "build-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.TestFlightReport
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "testflight.whats_new.missing" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected testflight.whats_new.missing check, got %+v", report.Checks)
-	}
-}
-
-func TestValidateTestFlightFailsWhenBuildAppMismatch(t *testing.T) {
-	fixture := validValidateTestFlightFixture()
-	fixture.buildApp = `{"data":{"type":"apps","id":"app-2"}}`
-
-	client := newValidateTestFlightClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "testflight", "--app", "app-1", "--build-id", "build-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.TestFlightReport
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "testflight.build.app_mismatch" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected testflight.build.app_mismatch check, got %+v", report.Checks)
+			if _, ok := errors.AsType[ReportedError](runErr); !ok {
+				t.Fatalf("expected ReportedError, got %v", runErr)
+			}
+			var report validation.TestFlightReport
+			if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+				t.Fatalf("failed to parse JSON output: %v", err)
+			}
+			check, ok := findCheck(report.Checks, test.wantCheck)
+			if !ok || check.Severity != validation.SeverityError {
+				t.Fatalf("expected blocking %s check, got %+v", test.wantCheck, report.Checks)
+			}
+		})
 	}
 }
