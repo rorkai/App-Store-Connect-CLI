@@ -828,7 +828,8 @@ func validateAnalyticsDownloadURL(downloadURL string) error {
 
 	parsedURL, err := url.Parse(downloadURL)
 	if err != nil {
-		return fmt.Errorf("invalid analytics download URL: %w", err)
+		// url.Error repeats the whole URL, so the cause is dropped.
+		return errors.New("invalid analytics download URL")
 	}
 
 	// Require HTTPS for all analytics downloads

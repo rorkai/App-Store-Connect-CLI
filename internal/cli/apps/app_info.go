@@ -643,7 +643,7 @@ func runAppInfoSetSingleLocale(
 		}
 		return nil
 	}
-	warnAppInfoSetSubmitIncompleteLocale(locale, effectiveAttrs)
+	warnAppInfoSetSubmitIncompleteLocale(locale, effectiveAttrs, submitOpts)
 	return nil
 }
 
@@ -1055,8 +1055,8 @@ func shouldBackfillAppInfoSetField(explicitValue string, targetExists bool, targ
 	return strings.TrimSpace(targetValue) == ""
 }
 
-func warnAppInfoSetSubmitIncompleteLocale(locale string, attrs asc.AppStoreVersionLocalizationAttributes) {
-	warning := shared.SubmitIncompleteLocaleWarning(locale, attrs)
+func warnAppInfoSetSubmitIncompleteLocale(locale string, attrs asc.AppStoreVersionLocalizationAttributes, submitOpts shared.SubmitReadinessOptions) {
+	warning := shared.SubmitIncompleteLocaleWarningWithOptions(locale, attrs, submitOpts)
 	if warning == "" {
 		return
 	}

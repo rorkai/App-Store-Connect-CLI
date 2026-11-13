@@ -25,6 +25,19 @@ func TestDefaultEndpointUsesExistingRorkAPIRoute(t *testing.T) {
 	}
 }
 
+func TestDebugEnabledTreatsFalsyValuesAsDisabled(t *testing.T) {
+	for _, value := range []string{"", "0", "f", "false", "no", "n", "off", "OFF"} {
+		t.Setenv("ASC_DEBUG", value)
+		if debugEnabled() {
+			t.Fatalf("debugEnabled() = true for ASC_DEBUG=%q", value)
+		}
+	}
+	t.Setenv("ASC_DEBUG", "1")
+	if !debugEnabled() {
+		t.Fatal("debugEnabled() = false for ASC_DEBUG=1")
+	}
+}
+
 func TestEmitQueuesEventAndSwallowsWorkerStartErrors(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)

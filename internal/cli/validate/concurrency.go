@@ -81,6 +81,11 @@ func runReadinessTasks(ctx context.Context, tasks ...readinessTask) error {
 	}
 
 	wg.Wait()
+	if firstErr == nil {
+		// Running tasks report a cancelled fetch as "could not verify", so any
+		// parent cancellation leaves the report incomplete.
+		return ctx.Err()
+	}
 	return firstErr
 }
 

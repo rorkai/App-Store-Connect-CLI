@@ -256,6 +256,51 @@ func TestAppInfoSetWarnsWhenLocaleRemainsSubmitIncomplete(t *testing.T) {
 	}
 }
 
+func TestAppInfoSetWarnsWhenUpdatedLocaleMissesWhatsNewOnAppUpdate(t *testing.T) {
+	setupAppInfoSetAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = appInfoSetRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			return appInfoSetJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			return appInfoSetJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"released-version","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"READY_FOR_SALE"}}],"links":{"next":""}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return appInfoSetJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}]}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en":
+			return appInfoSetJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Updated description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"apps", "info", "edit",
+			"--version-id", "version-1",
+			"--locale", "en-US",
+			"--description", "Updated description",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "locale en-US is missing submit-required fields: whatsNew") {
+		t.Fatalf("expected whatsNew warning in stderr, got: %q", stderr)
+	}
+}
+
 func TestAppInfoSetCopyFromLocaleDoesNotOverwriteExistingTargetFields(t *testing.T) {
 	setupAppInfoSetAuth(t)
 

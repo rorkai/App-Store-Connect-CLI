@@ -39,20 +39,24 @@ func TestResolveDebugSettings_EnvTrue(t *testing.T) {
 }
 
 func TestResolveDebugSettings_EnvFalse(t *testing.T) {
-	t.Setenv("ASC_DEBUG", "false")
-	SetDebugOverride(nil)
-	SetDebugHTTPOverride(nil)
-	t.Cleanup(func() {
-		SetDebugOverride(nil)
-		SetDebugHTTPOverride(nil)
-	})
+	for _, value := range []string{"0", "f", "false", "no", "n", "off", "OFF"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("ASC_DEBUG", value)
+			SetDebugOverride(nil)
+			SetDebugHTTPOverride(nil)
+			t.Cleanup(func() {
+				SetDebugOverride(nil)
+				SetDebugHTTPOverride(nil)
+			})
 
-	settings := resolveDebugSettings()
-	if settings.enabled {
-		t.Fatal("expected debug to be disabled for ASC_DEBUG=false")
-	}
-	if settings.verboseHTTP {
-		t.Fatal("expected HTTP debug to be disabled for ASC_DEBUG=false")
+			settings := resolveDebugSettings()
+			if settings.enabled {
+				t.Fatalf("expected debug to be disabled for ASC_DEBUG=%s", value)
+			}
+			if settings.verboseHTTP {
+				t.Fatalf("expected HTTP debug to be disabled for ASC_DEBUG=%s", value)
+			}
+		})
 	}
 }
 

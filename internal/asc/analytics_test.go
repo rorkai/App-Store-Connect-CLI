@@ -597,3 +597,20 @@ func TestDownloadAnalyticsReport_CDNHostWithSignature(t *testing.T) {
 	}
 	_ = download.Body.Close()
 }
+
+func TestDownloadURLParseErrorsOmitSignedQuery(t *testing.T) {
+	const secret = "secret-signature"
+	downloadURL := "https://example.cloudfront.net:bad/report.gz?Signature=" + secret + "&Key-Pair-Id=key"
+	client := newTestClient(t, nil, nil)
+
+	_, analyticsErr := client.DownloadAnalyticsReport(context.Background(), downloadURL)
+	_, artifactErr := client.DownloadCiArtifact(context.Background(), downloadURL)
+	for name, err := range map[string]error{"analytics": analyticsErr, "ci artifact": artifactErr} {
+		if err == nil {
+			t.Fatalf("%s: expected error for unparsable URL, got nil", name)
+		}
+		if strings.Contains(err.Error(), secret) {
+			t.Fatalf("%s: error leaks signed query: %v", name, err)
+		}
+	}
+}
