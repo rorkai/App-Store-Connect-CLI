@@ -555,7 +555,7 @@ func TestPublishTestFlightLocalBuildStopsPropagationRetryForTerminalProcessingSt
 	for _, state := range []string{asc.BuildProcessingStateFailed, asc.BuildProcessingStateInvalid} {
 		t.Run(state, func(t *testing.T) {
 			stubPublishCommandSeams(t)
-			stages := stubPublishArchiveAndExport()
+			stages := stubPublishArchiveAndExportVersionOnly()
 			uploadCalls := stubPublishIPAUpload(asc.BuildProcessingStateProcessing)
 			requestCount := scriptPublishRequests(t,
 				publishListExternalBetaGroups,
@@ -616,7 +616,7 @@ func TestPublishTestFlightLocalBuildStagesRunOnceWhenDistributionRetriesFail(t *
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stubPublishCommandSeams(t)
-			stages := stubPublishArchiveAndExport()
+			stages := stubPublishArchiveAndExportVersionOnly()
 			uploadCalls := stubPublishIPAUpload(asc.BuildProcessingStateValid)
 			addCalls := 0
 			addUploadedBuildBetaGroupsFn = func(context.Context, postUploadBuildDistributionClient, string, []shared.ResolvedBetaGroup, shared.AddBuildBetaGroupsOptions) (*shared.AddBuildBetaGroupsResult, error) {
@@ -1386,6 +1386,24 @@ func stubPublishArchiveAndExport() *publishBuildStages {
 			Version:     "1.2.3",
 			BuildNumber: "42",
 		}, nil
+	}
+	return stages
+}
+
+// stubPublishArchiveAndExportVersionOnly is stubPublishArchiveAndExport with
+// results that carry no bundle ID, scheme or configuration.
+func stubPublishArchiveAndExportVersionOnly() *publishBuildStages {
+	stages := stubPublishArchiveAndExport()
+	archive, export := runPublishArchiveFn, runPublishExportFn
+	runPublishArchiveFn = func(ctx context.Context, opts localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+		result, err := archive(ctx, opts)
+		result.BundleID, result.Scheme, result.Configuration = "", "", ""
+		return result, err
+	}
+	runPublishExportFn = func(ctx context.Context, opts localxcode.ExportOptions) (*localxcode.ExportResult, error) {
+		result, err := export(ctx, opts)
+		result.BundleID = ""
+		return result, err
 	}
 	return stages
 }
