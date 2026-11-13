@@ -679,8 +679,10 @@ var (
 		longOptions(longFlag, "--foreground --preserve-status --verbose", nil))}
 	timeOptions = optionSpec{flags: "ahlpqv", values: "fo", long: longOptions(longValue, "--format --output",
 		longOptions(longFlag, "--append --portability --quiet --verbose", nil))}
-	stdbufOptions = optionSpec{values: "eio", equalsValue: true, long: longOptions(longValue, "--error --input --output", nil),
-		valid: func(_, mode string) bool { return isStdbufMode(mode) }}
+	stdbufOptions = optionSpec{
+		values: "eio", equalsValue: true, long: longOptions(longValue, "--error --input --output", nil),
+		valid: func(_, mode string) bool { return isStdbufMode(mode) },
+	}
 	setsidOptions = optionSpec{flags: "cfw", long: longOptions(longFlag, "--ctty --fork --wait", nil)}
 	ioniceOptions = optionSpec{flags: "t", values: "cn", long: longOptions(longValue, "--class --classdata",
 		map[string]optionKind{"--ignore": longFlag})}
