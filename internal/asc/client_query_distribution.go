@@ -238,24 +238,6 @@ type BackgroundAssetVersionsOption func(*backgroundAssetVersionsQuery)
 // BackgroundAssetUploadFilesOption is a functional option for background asset upload files list endpoints.
 type BackgroundAssetUploadFilesOption func(*backgroundAssetUploadFilesQuery)
 
-// WithMarketplaceWebhooksLimit sets the max number of marketplace webhooks to return.
-func WithMarketplaceWebhooksLimit(limit int) MarketplaceWebhooksOption {
-	return func(q *marketplaceWebhooksQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithMarketplaceWebhooksNextURL uses a next page URL directly.
-func WithMarketplaceWebhooksNextURL(next string) MarketplaceWebhooksOption {
-	return func(q *marketplaceWebhooksQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithMarketplaceWebhooksFields sets fields[marketplaceWebhooks] for webhook responses.
 func WithMarketplaceWebhooksFields(fields []string) MarketplaceWebhooksOption {
 	return func(q *marketplaceWebhooksQuery) {
@@ -263,46 +245,10 @@ func WithMarketplaceWebhooksFields(fields []string) MarketplaceWebhooksOption {
 	}
 }
 
-// WithAlternativeDistributionDomainsLimit sets the max number of domains to return.
-func WithAlternativeDistributionDomainsLimit(limit int) AlternativeDistributionDomainsOption {
-	return func(q *alternativeDistributionDomainsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAlternativeDistributionDomainsNextURL uses a next page URL directly.
-func WithAlternativeDistributionDomainsNextURL(next string) AlternativeDistributionDomainsOption {
-	return func(q *alternativeDistributionDomainsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAlternativeDistributionDomainsFields sets fields[alternativeDistributionDomains].
 func WithAlternativeDistributionDomainsFields(fields []string) AlternativeDistributionDomainsOption {
 	return func(q *alternativeDistributionDomainsQuery) {
 		q.fields = normalizeList(fields)
-	}
-}
-
-// WithAlternativeDistributionKeysLimit sets the max number of keys to return.
-func WithAlternativeDistributionKeysLimit(limit int) AlternativeDistributionKeysOption {
-	return func(q *alternativeDistributionKeysQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAlternativeDistributionKeysNextURL uses a next page URL directly.
-func WithAlternativeDistributionKeysNextURL(next string) AlternativeDistributionKeysOption {
-	return func(q *alternativeDistributionKeysQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -320,42 +266,6 @@ func WithAlternativeDistributionKeysExistsApp(exists bool) AlternativeDistributi
 	}
 }
 
-// WithAlternativeDistributionPackageVersionsLimit sets the max number of package versions to return.
-func WithAlternativeDistributionPackageVersionsLimit(limit int) AlternativeDistributionPackageVersionsOption {
-	return func(q *alternativeDistributionPackageVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAlternativeDistributionPackageVersionsNextURL uses a next page URL directly.
-func WithAlternativeDistributionPackageVersionsNextURL(next string) AlternativeDistributionPackageVersionsOption {
-	return func(q *alternativeDistributionPackageVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAlternativeDistributionPackageVariantsLimit sets the max number of package variants to return.
-func WithAlternativeDistributionPackageVariantsLimit(limit int) AlternativeDistributionPackageVariantsOption {
-	return func(q *alternativeDistributionPackageVariantsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAlternativeDistributionPackageVariantsNextURL uses a next page URL directly.
-func WithAlternativeDistributionPackageVariantsNextURL(next string) AlternativeDistributionPackageVariantsOption {
-	return func(q *alternativeDistributionPackageVariantsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAlternativeDistributionPackageVariantsFields sets fields[alternativeDistributionPackageVariants].
 func WithAlternativeDistributionPackageVariantsFields(fields []string) AlternativeDistributionPackageVariantsOption {
 	return func(q *alternativeDistributionPackageVariantsQuery) {
@@ -363,46 +273,10 @@ func WithAlternativeDistributionPackageVariantsFields(fields []string) Alternati
 	}
 }
 
-// WithAlternativeDistributionPackageDeltasLimit sets the max number of package deltas to return.
-func WithAlternativeDistributionPackageDeltasLimit(limit int) AlternativeDistributionPackageDeltasOption {
-	return func(q *alternativeDistributionPackageDeltasQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAlternativeDistributionPackageDeltasNextURL uses a next page URL directly.
-func WithAlternativeDistributionPackageDeltasNextURL(next string) AlternativeDistributionPackageDeltasOption {
-	return func(q *alternativeDistributionPackageDeltasQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAlternativeDistributionPackageDeltasFields sets fields[alternativeDistributionPackageDeltas].
 func WithAlternativeDistributionPackageDeltasFields(fields []string) AlternativeDistributionPackageDeltasOption {
 	return func(q *alternativeDistributionPackageDeltasQuery) {
 		q.fields = normalizeList(fields)
-	}
-}
-
-// WithWebhooksLimit sets the max number of webhooks to return.
-func WithWebhooksLimit(limit int) WebhooksOption {
-	return func(q *webhooksQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithWebhooksNextURL uses a next page URL directly.
-func WithWebhooksNextURL(next string) WebhooksOption {
-	return func(q *webhooksQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -424,24 +298,6 @@ func WithWebhooksAppFields(fields []string) WebhooksOption {
 func WithWebhooksInclude(include []string) WebhooksOption {
 	return func(q *webhooksQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithWebhookDeliveriesLimit sets the max number of webhook deliveries to return.
-func WithWebhookDeliveriesLimit(limit int) WebhookDeliveriesOption {
-	return func(q *webhookDeliveriesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithWebhookDeliveriesNextURL uses a next page URL directly.
-func WithWebhookDeliveriesNextURL(next string) WebhookDeliveriesOption {
-	return func(q *webhookDeliveriesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -487,24 +343,6 @@ func WithWebhookDeliveriesInclude(include []string) WebhookDeliveriesOption {
 	}
 }
 
-// WithBackgroundAssetsLimit sets the max number of background assets to return.
-func WithBackgroundAssetsLimit(limit int) BackgroundAssetsOption {
-	return func(q *backgroundAssetsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBackgroundAssetsNextURL uses a next page URL directly.
-func WithBackgroundAssetsNextURL(next string) BackgroundAssetsOption {
-	return func(q *backgroundAssetsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithBackgroundAssetsFilterArchived filters background assets by archived state.
 func WithBackgroundAssetsFilterArchived(values []string) BackgroundAssetsOption {
 	return func(q *backgroundAssetsQuery) {
@@ -537,24 +375,6 @@ func WithBackgroundAssetsFilterVersionsPlatforms(values []string) BackgroundAsse
 func WithBackgroundAssetsSort(sort string) BackgroundAssetsOption {
 	return func(q *backgroundAssetsQuery) {
 		q.sort = strings.TrimSpace(sort)
-	}
-}
-
-// WithBackgroundAssetVersionsLimit sets the max number of background asset versions to return.
-func WithBackgroundAssetVersionsLimit(limit int) BackgroundAssetVersionsOption {
-	return func(q *backgroundAssetVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBackgroundAssetVersionsNextURL uses a next page URL directly.
-func WithBackgroundAssetVersionsNextURL(next string) BackgroundAssetVersionsOption {
-	return func(q *backgroundAssetVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -611,42 +431,6 @@ func WithBackgroundAssetVersionsFilterAppStoreState(values []string) BackgroundA
 func WithBackgroundAssetVersionsSort(sort string) BackgroundAssetVersionsOption {
 	return func(q *backgroundAssetVersionsQuery) {
 		q.sort = strings.TrimSpace(sort)
-	}
-}
-
-// WithBackgroundAssetUploadFilesLimit sets the max number of background asset upload files to return.
-func WithBackgroundAssetUploadFilesLimit(limit int) BackgroundAssetUploadFilesOption {
-	return func(q *backgroundAssetUploadFilesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBackgroundAssetUploadFilesNextURL uses a next page URL directly.
-func WithBackgroundAssetUploadFilesNextURL(next string) BackgroundAssetUploadFilesOption {
-	return func(q *backgroundAssetUploadFilesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAndroidToIosAppMappingDetailsLimit sets the max number of mappings to return.
-func WithAndroidToIosAppMappingDetailsLimit(limit int) AndroidToIosAppMappingDetailsOption {
-	return func(q *androidToIosAppMappingDetailsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAndroidToIosAppMappingDetailsNextURL uses a next page URL directly.
-func WithAndroidToIosAppMappingDetailsNextURL(next string) AndroidToIosAppMappingDetailsOption {
-	return func(q *androidToIosAppMappingDetailsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 

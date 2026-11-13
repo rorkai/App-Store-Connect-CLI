@@ -134,7 +134,7 @@ func TestAlternativeDistributionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"alternativeDistributionDomains","id":"domain-1","attributes":{"domain":"example.com","referenceName":"Example"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAlternativeDistributionDomains(ctx, WithAlternativeDistributionDomainsLimit(5))
+				resp, err := c.GetAlternativeDistributionDomains(ctx, Limit[AlternativeDistributionDomainsOption](5))
 				if err != nil {
 					t.Fatalf("GetAlternativeDistributionDomains() error: %v", err)
 				}
@@ -149,7 +149,7 @@ func TestAlternativeDistributionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "10",
 			response: `{"data":[{"type":"alternativeDistributionKeys","id":"key-1","attributes":{"publicKey":"KEY"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAlternativeDistributionKeys(ctx, WithAlternativeDistributionKeysLimit(10))
+				resp, err := c.GetAlternativeDistributionKeys(ctx, Limit[AlternativeDistributionKeysOption](10))
 				if err != nil {
 					t.Fatalf("GetAlternativeDistributionKeys() error: %v", err)
 				}
@@ -164,7 +164,7 @@ func TestAlternativeDistributionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "2",
 			response: `{"data":[{"type":"alternativeDistributionPackageVersions","id":"ver-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAlternativeDistributionPackageVersions(ctx, "pkg-1", WithAlternativeDistributionPackageVersionsLimit(2))
+				resp, err := c.GetAlternativeDistributionPackageVersions(ctx, "pkg-1", Limit[AlternativeDistributionPackageVersionsOption](2))
 				if err != nil {
 					t.Fatalf("GetAlternativeDistributionPackageVersions() error: %v", err)
 				}
@@ -179,7 +179,7 @@ func TestAlternativeDistributionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "4",
 			response: `{"data":[{"type":"alternativeDistributionPackageDeltas","id":"delta-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAlternativeDistributionPackageVersionDeltas(ctx, "ver-1", WithAlternativeDistributionPackageDeltasLimit(4))
+				resp, err := c.GetAlternativeDistributionPackageVersionDeltas(ctx, "ver-1", Limit[AlternativeDistributionPackageDeltasOption](4))
 				if err != nil {
 					t.Fatalf("GetAlternativeDistributionPackageVersionDeltas() error: %v", err)
 				}
@@ -194,7 +194,7 @@ func TestAlternativeDistributionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "6",
 			response: `{"data":[{"type":"alternativeDistributionPackageVariants","id":"variant-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAlternativeDistributionPackageVersionVariants(ctx, "ver-1", WithAlternativeDistributionPackageVariantsLimit(6))
+				resp, err := c.GetAlternativeDistributionPackageVersionVariants(ctx, "ver-1", Limit[AlternativeDistributionPackageVariantsOption](6))
 				if err != nil {
 					t.Fatalf("GetAlternativeDistributionPackageVersionVariants() error: %v", err)
 				}

@@ -36,7 +36,7 @@ func TestGetBackgroundAssets_SendsRequest(t *testing.T) {
 	_, err := client.GetBackgroundAssets(
 		context.Background(),
 		"app-1",
-		WithBackgroundAssetsLimit(5),
+		Limit[BackgroundAssetsOption](5),
 		WithBackgroundAssetsFilterArchived([]string{"true"}),
 		WithBackgroundAssetsFilterAssetPackIdentifier([]string{"pack-1", "pack-2"}),
 		WithBackgroundAssetsFilterVersionsLocale([]string{"en-US", "ja"}),
@@ -155,7 +155,7 @@ func TestGetBackgroundAssetVersions_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetBackgroundAssetVersions(context.Background(), "asset-1", WithBackgroundAssetVersionsLimit(10), WithBackgroundAssetVersionsFilterLocale([]string{"en-US"})); err != nil {
+	if _, err := client.GetBackgroundAssetVersions(context.Background(), "asset-1", Limit[BackgroundAssetVersionsOption](10), WithBackgroundAssetVersionsFilterLocale([]string{"en-US"})); err != nil {
 		t.Fatalf("GetBackgroundAssetVersions() error: %v", err)
 	}
 }
@@ -224,7 +224,7 @@ func TestGetBackgroundAssetUploadFiles_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetBackgroundAssetUploadFiles(context.Background(), "ver-1", WithBackgroundAssetUploadFilesLimit(3)); err != nil {
+	if _, err := client.GetBackgroundAssetUploadFiles(context.Background(), "ver-1", Limit[BackgroundAssetUploadFilesOption](3)); err != nil {
 		t.Fatalf("GetBackgroundAssetUploadFiles() error: %v", err)
 	}
 }

@@ -85,19 +85,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionPackageVersionsOption{
-				asc.WithAlternativeDistributionPackageVersionsLimit(*limit),
-				asc.WithAlternativeDistributionPackageVersionsNextURL(*next),
+				asc.Limit[asc.AlternativeDistributionPackageVersionsOption](*limit),
+				asc.NextURL[asc.AlternativeDistributionPackageVersionsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAlternativeDistributionPackageVersionsLimit(alternativeDistributionMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AlternativeDistributionPackageVersionsOption](alternativeDistributionMaxLimit))
 				firstPage, err := client.GetAlternativeDistributionPackageVersions(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("alternative-distribution packages versions list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAlternativeDistributionPackageVersions(ctx, trimmedID, asc.WithAlternativeDistributionPackageVersionsNextURL(nextURL))
+					return client.GetAlternativeDistributionPackageVersions(ctx, trimmedID, asc.NextURL[asc.AlternativeDistributionPackageVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("alternative-distribution packages versions list: %w", err)
@@ -201,19 +201,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionPackageDeltasOption{
-				asc.WithAlternativeDistributionPackageDeltasLimit(*limit),
-				asc.WithAlternativeDistributionPackageDeltasNextURL(*next),
+				asc.Limit[asc.AlternativeDistributionPackageDeltasOption](*limit),
+				asc.NextURL[asc.AlternativeDistributionPackageDeltasOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAlternativeDistributionPackageDeltasLimit(alternativeDistributionMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AlternativeDistributionPackageDeltasOption](alternativeDistributionMaxLimit))
 				firstPage, err := client.GetAlternativeDistributionPackageVersionDeltas(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("alternative-distribution packages versions deltas: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAlternativeDistributionPackageVersionDeltas(ctx, trimmedID, asc.WithAlternativeDistributionPackageDeltasNextURL(nextURL))
+					return client.GetAlternativeDistributionPackageVersionDeltas(ctx, trimmedID, asc.NextURL[asc.AlternativeDistributionPackageDeltasOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("alternative-distribution packages versions deltas: %w", err)
@@ -275,19 +275,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionPackageVariantsOption{
-				asc.WithAlternativeDistributionPackageVariantsLimit(*limit),
-				asc.WithAlternativeDistributionPackageVariantsNextURL(*next),
+				asc.Limit[asc.AlternativeDistributionPackageVariantsOption](*limit),
+				asc.NextURL[asc.AlternativeDistributionPackageVariantsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAlternativeDistributionPackageVariantsLimit(alternativeDistributionMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AlternativeDistributionPackageVariantsOption](alternativeDistributionMaxLimit))
 				firstPage, err := client.GetAlternativeDistributionPackageVersionVariants(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("alternative-distribution packages versions variants: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAlternativeDistributionPackageVersionVariants(ctx, trimmedID, asc.WithAlternativeDistributionPackageVariantsNextURL(nextURL))
+					return client.GetAlternativeDistributionPackageVersionVariants(ctx, trimmedID, asc.NextURL[asc.AlternativeDistributionPackageVariantsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("alternative-distribution packages versions variants: %w", err)

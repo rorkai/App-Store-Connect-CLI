@@ -101,18 +101,18 @@ Examples:
 			defer cancel()
 
 			opts := []asc.WebhooksOption{
-				asc.WithWebhooksLimit(*limit),
-				asc.WithWebhooksNextURL(*next),
+				asc.Limit[asc.WebhooksOption](*limit),
+				asc.NextURL[asc.WebhooksOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithWebhooksLimit(webhooksMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.WebhooksOption](webhooksMaxLimit))
 				firstPage, err := client.GetAppWebhooks(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("webhooks list: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppWebhooks(ctx, resolvedAppID, asc.WithWebhooksNextURL(nextURL))
+					return client.GetAppWebhooks(ctx, resolvedAppID, asc.NextURL[asc.WebhooksOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("webhooks list: %w", err)
@@ -461,8 +461,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.WebhookDeliveriesOption{
-				asc.WithWebhookDeliveriesLimit(*limit),
-				asc.WithWebhookDeliveriesNextURL(*next),
+				asc.Limit[asc.WebhookDeliveriesOption](*limit),
+				asc.NextURL[asc.WebhookDeliveriesOption](*next),
 			}
 			if strings.TrimSpace(*createdAfter) != "" {
 				values := shared.SplitCSV(*createdAfter)
@@ -486,13 +486,13 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
 					return shared.MissingRequiredUsageError("--webhook-id")
 				}
-				paginateOpts := append(opts, asc.WithWebhookDeliveriesLimit(webhooksMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.WebhookDeliveriesOption](webhooksMaxLimit))
 				firstPage, err := client.GetWebhookDeliveries(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("webhooks deliveries: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetWebhookDeliveries(ctx, trimmedID, asc.WithWebhookDeliveriesNextURL(nextURL))
+					return client.GetWebhookDeliveries(ctx, trimmedID, asc.NextURL[asc.WebhookDeliveriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("webhooks deliveries: %w", err)

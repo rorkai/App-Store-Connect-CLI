@@ -448,7 +448,7 @@ func (r backgroundAssetSubmitResolver) listAssets(ctx context.Context, sel backg
 			filter[strings.TrimSpace(id)] = struct{}{}
 		}
 		opts := []asc.BackgroundAssetsOption{
-			asc.WithBackgroundAssetsLimit(backgroundAssetsMaxLimit),
+			asc.Limit[asc.BackgroundAssetsOption](backgroundAssetsMaxLimit),
 			asc.WithBackgroundAssetsFilterArchived([]string{"false"}),
 		}
 		all, err := fetchAllBackgroundAssets(ctx, r.client, sel.appID, opts...)
@@ -478,7 +478,7 @@ func (r backgroundAssetSubmitResolver) listAssets(ctx context.Context, sel backg
 	}
 
 	opts := []asc.BackgroundAssetsOption{
-		asc.WithBackgroundAssetsLimit(backgroundAssetsMaxLimit),
+		asc.Limit[asc.BackgroundAssetsOption](backgroundAssetsMaxLimit),
 		asc.WithBackgroundAssetsFilterArchived([]string{"false"}),
 	}
 	if len(sel.assetPackIdentifiers) > 0 {
@@ -566,7 +566,7 @@ func fetchAllBackgroundAssets(ctx context.Context, client backgroundAssetSubmitC
 	resp, err := asc.PaginateAll(ctx, first, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := backgroundAssetSubmitRequestContext(ctx)
 		defer pageCancel()
-		return client.GetBackgroundAssets(pageCtx, appID, asc.WithBackgroundAssetsNextURL(nextURL))
+		return client.GetBackgroundAssets(pageCtx, appID, asc.NextURL[asc.BackgroundAssetsOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate background assets: %w", err)
@@ -632,7 +632,7 @@ func fetchAlreadyAttachedBackgroundAssetVersions(ctx context.Context, client bac
 }
 
 func fetchAllBackgroundAssetVersions(ctx context.Context, client backgroundAssetSubmitClient, backgroundAssetID string) ([]ascBackgroundAssetVersionItem, error) {
-	opts := []asc.BackgroundAssetVersionsOption{asc.WithBackgroundAssetVersionsLimit(backgroundAssetsMaxLimit)}
+	opts := []asc.BackgroundAssetVersionsOption{asc.Limit[asc.BackgroundAssetVersionsOption](backgroundAssetsMaxLimit)}
 	firstCtx, firstCancel := backgroundAssetSubmitRequestContext(ctx)
 	first, err := client.GetBackgroundAssetVersions(firstCtx, backgroundAssetID, opts...)
 	firstCancel()
@@ -642,7 +642,7 @@ func fetchAllBackgroundAssetVersions(ctx context.Context, client backgroundAsset
 	resp, err := asc.PaginateAll(ctx, first, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := backgroundAssetSubmitRequestContext(ctx)
 		defer pageCancel()
-		return client.GetBackgroundAssetVersions(pageCtx, backgroundAssetID, asc.WithBackgroundAssetVersionsNextURL(nextURL))
+		return client.GetBackgroundAssetVersions(pageCtx, backgroundAssetID, asc.NextURL[asc.BackgroundAssetVersionsOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate versions: %w", err)
