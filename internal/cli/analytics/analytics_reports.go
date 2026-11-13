@@ -124,19 +124,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(analyticsMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](analyticsMaxLimit))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetAnalyticsReportInstancesRelationships(ctx, id, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetAnalyticsReportInstancesRelationships(ctx, id, asc.WithLinkagesNextURL(nextURL))
+						return client.GetAnalyticsReportInstancesRelationships(ctx, id, asc.NextURL[asc.LinkagesOption](nextURL))
 					},
 				)
 				if err != nil {

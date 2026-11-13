@@ -121,7 +121,7 @@ func TestSubscriptionGroupVersionEndpoints(t *testing.T) {
 			name: "version linkages", method: http.MethodGet, path: "/v1/subscriptionGroups/group-1/relationships/versions", responseCode: http.StatusOK,
 			responseBody: `{"data":[{"type":"subscriptionGroupVersions","id":"version-1"}]}`, query: map[string]string{"limit": "4"},
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionGroupVersionsRelationships(context.Background(), "group-1", WithLinkagesLimit(4))
+				_, err := c.GetSubscriptionGroupVersionsRelationships(context.Background(), "group-1", Limit[LinkagesOption](4))
 				return err
 			},
 		},
@@ -138,7 +138,7 @@ func TestSubscriptionGroupVersionEndpoints(t *testing.T) {
 			name: "localization linkages", method: http.MethodGet, path: "/v1/subscriptionGroupVersions/version-1/relationships/localizations", responseCode: http.StatusOK,
 			responseBody: `{"data":[{"type":"subscriptionGroupLocalizations","id":"loc-1"}]}`, query: map[string]string{"limit": "6"},
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionGroupVersionLocalizationsRelationships(context.Background(), "version-1", WithLinkagesLimit(6))
+				_, err := c.GetSubscriptionGroupVersionLocalizationsRelationships(context.Background(), "version-1", Limit[LinkagesOption](6))
 				return err
 			},
 		},

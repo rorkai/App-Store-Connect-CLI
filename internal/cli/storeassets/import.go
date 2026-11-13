@@ -486,7 +486,7 @@ func preparePreviews(ctx context.Context, c *asc.Client, p *ImportPlan) (*Import
 
 func previewOrder(ctx context.Context, c *asc.Client, setID string) ([]string, error) {
 	first, err := request(ctx, func(ctx context.Context) (*asc.LinkagesResponse, error) {
-		return c.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.WithLinkagesLimit(200))
+		return c.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.Limit[asc.LinkagesOption](200))
 	})
 	if err != nil {
 		return nil, err
@@ -494,7 +494,7 @@ func previewOrder(ctx context.Context, c *asc.Client, setID string) ([]string, e
 	var ids []string
 	err = asc.PaginateEach(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
 		return request(ctx, func(ctx context.Context) (*asc.LinkagesResponse, error) {
-			return c.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.WithLinkagesNextURL(next))
+			return c.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.NextURL[asc.LinkagesOption](next))
 		})
 	}, func(page asc.PaginatedResponse) error {
 		for _, item := range page.(*asc.LinkagesResponse).Data {

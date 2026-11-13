@@ -348,7 +348,7 @@ func TestGetPassTypeIDCertificatesRelationships_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetPassTypeIDCertificatesRelationships(context.Background(), "p1", WithLinkagesLimit(5)); err != nil {
+	if _, err := client.GetPassTypeIDCertificatesRelationships(context.Background(), "p1", Limit[LinkagesOption](5)); err != nil {
 		t.Fatalf("GetPassTypeIDCertificatesRelationships() error: %v", err)
 	}
 }

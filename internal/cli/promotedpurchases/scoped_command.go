@@ -154,21 +154,21 @@ Examples:
 		defer cancel()
 
 		opts := []asc.PromotedPurchasesOption{
-			asc.WithPromotedPurchasesLimit(limit),
-			asc.WithPromotedPurchasesNextURL(next),
+			asc.Limit[asc.PromotedPurchasesOption](limit),
+			asc.NextURL[asc.PromotedPurchasesOption](next),
 			asc.WithPromotedPurchasesIAPFields(iapFields),
 			asc.WithPromotedPurchasesSubscriptionFields(subscriptionFields),
 		}
 
 		if paginate {
-			paginateOpts := append(opts, asc.WithPromotedPurchasesLimit(200))
+			paginateOpts := append(opts, asc.Limit[asc.PromotedPurchasesOption](200))
 			firstPage, err := client.GetAppPromotedPurchases(requestCtx, appID, paginateOpts...)
 			if err != nil {
 				return fmt.Errorf("%s: failed to fetch: %w", errorPrefix, err)
 			}
 
 			paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetAppPromotedPurchases(ctx, appID, asc.WithPromotedPurchasesNextURL(nextURL))
+				return client.GetAppPromotedPurchases(ctx, appID, asc.NextURL[asc.PromotedPurchasesOption](nextURL))
 			})
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
@@ -628,13 +628,13 @@ func filterPromotedPurchaseIncluded(included json.RawMessage, retainedProducts m
 }
 
 func collectPreservedPromotedPurchaseIDs(ctx context.Context, client *asc.Client, appID string, scopedType promotedPurchaseProductType) ([]string, error) {
-	firstPage, err := client.GetAppPromotedPurchases(ctx, appID, asc.WithPromotedPurchasesLimit(200))
+	firstPage, err := client.GetAppPromotedPurchases(ctx, appID, asc.Limit[asc.PromotedPurchasesOption](200))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch current promoted purchases: %w", err)
 	}
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppPromotedPurchases(ctx, appID, asc.WithPromotedPurchasesNextURL(nextURL))
+		return client.GetAppPromotedPurchases(ctx, appID, asc.NextURL[asc.PromotedPurchasesOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate current promoted purchases: %w", err)

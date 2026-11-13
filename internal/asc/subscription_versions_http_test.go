@@ -44,7 +44,7 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 			name: "subscription versions linkage", path: "/v1/subscriptions/sub-1/relationships/versions", query: map[string]string{"limit": "8"},
 			response: `{"data":[{"type":"subscriptionVersions","id":"ver-1"}],"links":{}}`,
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionVersionsRelationships(ctx, "sub-1", WithLinkagesLimit(8))
+				_, err := c.GetSubscriptionVersionsRelationships(ctx, "sub-1", Limit[LinkagesOption](8))
 				return err
 			},
 		},
@@ -63,7 +63,7 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 			name: "version localizations linkage", path: "/v1/subscriptionVersions/ver-1/relationships/localizations", query: map[string]string{"limit": "10"},
 			response: `{"data":[{"type":"subscriptionLocalizations","id":"loc-1"}],"links":{}}`,
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionVersionLocalizationsRelationships(ctx, "ver-1", WithLinkagesLimit(10))
+				_, err := c.GetSubscriptionVersionLocalizationsRelationships(ctx, "ver-1", Limit[LinkagesOption](10))
 				return err
 			},
 		},
@@ -101,7 +101,7 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 			name: "version plural images linkage", path: "/v1/subscriptionVersions/ver-1/relationships/images", query: map[string]string{"limit": "12"},
 			response: `{"data":[{"type":"subscriptionImages","id":"img-1"}],"links":{}}`,
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionVersionImagesRelationships(ctx, "ver-1", WithLinkagesLimit(12))
+				_, err := c.GetSubscriptionVersionImagesRelationships(ctx, "ver-1", Limit[LinkagesOption](12))
 				return err
 			},
 		},

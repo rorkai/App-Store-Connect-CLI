@@ -192,7 +192,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionOfferCodeOneTimeUseCodes",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, "123", WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next))
+				_, err := c.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, "123", NextURL[SubscriptionOfferCodeOneTimeUseCodesOption](next))
 				return err
 			},
 		},
@@ -368,7 +368,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionWinBackOffers",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/winBackOffers?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionWinBackOffers(ctx, "sub-1", WithWinBackOffersNextURL(next))
+				_, err := c.GetSubscriptionWinBackOffers(ctx, "sub-1", NextURL[WinBackOffersOption](next))
 				return err
 			},
 		},
@@ -538,7 +538,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"territories","id":"USA"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetAppTagTerritoriesRelationships(ctx, "tag-1", WithLinkagesLimit(5)))
+				return discardResult(c.GetAppTagTerritoriesRelationships(ctx, "tag-1", Limit[LinkagesOption](5)))
 			},
 		},
 		{
@@ -547,7 +547,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"appTags","id":"tag-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetAppTagsRelationshipsForApp(ctx, "app-1", WithLinkagesLimit(5)))
+				return discardResult(c.GetAppTagsRelationshipsForApp(ctx, "app-1", Limit[LinkagesOption](5)))
 			},
 		},
 		{
@@ -556,7 +556,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"promotedPurchases","id":"promo-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetAppPromotedPurchases(ctx, "app-1", WithPromotedPurchasesLimit(5)))
+				return discardResult(c.GetAppPromotedPurchases(ctx, "app-1", Limit[PromotedPurchasesOption](5)))
 			},
 		},
 		{
@@ -565,7 +565,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"1","attributes":{"numberOfCodes":5}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, "123", WithSubscriptionOfferCodeOneTimeUseCodesLimit(5)))
+				return discardResult(c.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, "123", Limit[SubscriptionOfferCodeOneTimeUseCodesOption](5)))
 			},
 		},
 		{
@@ -864,7 +864,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetScmRepositoryGitReferencesRelationships(ctx, "repo-1", WithLinkagesLimit(5)))
+				return discardResult(c.GetScmRepositoryGitReferencesRelationships(ctx, "repo-1", Limit[LinkagesOption](5)))
 			},
 		},
 		{
@@ -882,7 +882,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetScmRepositoryPullRequestsRelationships(ctx, "repo-1", WithLinkagesLimit(20)))
+				return discardResult(c.GetScmRepositoryPullRequestsRelationships(ctx, "repo-1", Limit[LinkagesOption](20)))
 			},
 		},
 		{
@@ -1102,7 +1102,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"certificates","id":"c1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetMerchantIDCertificatesRelationships(ctx, "m1", WithLinkagesLimit(5)))
+				return discardResult(c.GetMerchantIDCertificatesRelationships(ctx, "m1", Limit[LinkagesOption](5)))
 			},
 		},
 		{
@@ -1224,7 +1224,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "7"},
 			body:  `{"data":[{"type":"apps","id":"app-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetUserVisibleAppsRelationships(ctx, "user-1", WithLinkagesLimit(7)))
+				return discardResult(c.GetUserVisibleAppsRelationships(ctx, "user-1", Limit[LinkagesOption](7)))
 			},
 		},
 		{
@@ -1424,7 +1424,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"winBackOffers","id":"offer-1"}],"links":{"self":"https://example.com"}}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionWinBackOffers(ctx, "sub-1", WithWinBackOffersLimit(5)))
+				return discardResult(c.GetSubscriptionWinBackOffers(ctx, "sub-1", Limit[WinBackOffersOption](5)))
 			},
 		},
 		{
@@ -1433,7 +1433,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"winBackOfferPrices","id":"price-1"}],"links":{"self":"https://example.com"}}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetWinBackOfferPrices(ctx, "offer-1", WithWinBackOfferPricesLimit(10)))
+				return discardResult(c.GetWinBackOfferPrices(ctx, "offer-1", Limit[WinBackOfferPricesOption](10)))
 			},
 		},
 		{
@@ -1442,7 +1442,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "2"},
 			body:  `{"data":[{"type":"winBackOfferPrices","id":"price-1"}],"links":{"self":"https://example.com"}}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetWinBackOfferPricesRelationships(ctx, "offer-1", WithLinkagesLimit(2)))
+				return discardResult(c.GetWinBackOfferPricesRelationships(ctx, "offer-1", Limit[LinkagesOption](2)))
 			},
 		},
 		{
@@ -1451,7 +1451,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "3"},
 			body:  `{"data":[{"type":"winBackOffers","id":"offer-1"}],"links":{"self":"https://example.com"}}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionWinBackOffersRelationships(ctx, "sub-1", WithLinkagesLimit(3)))
+				return discardResult(c.GetSubscriptionWinBackOffersRelationships(ctx, "sub-1", Limit[LinkagesOption](3)))
 			},
 		},
 		{
@@ -7992,7 +7992,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileCertificatesRelationships(ctx, "p1", WithLinkagesLimit(2))
+				_, err := c.GetProfileCertificatesRelationships(ctx, "p1", Limit[LinkagesOption](2))
 				return err
 			},
 		},
@@ -8012,7 +8012,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileDevicesRelationships(ctx, "p1", WithLinkagesLimit(3))
+				_, err := c.GetProfileDevicesRelationships(ctx, "p1", Limit[LinkagesOption](3))
 				return err
 			},
 		},

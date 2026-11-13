@@ -96,18 +96,18 @@ Examples:
 			}
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetAppEventScreenshotsRelationships(requestCtx, resolvedLocalizationID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-events screenshots links: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventScreenshotsRelationships(ctx, resolvedLocalizationID, asc.WithLinkagesNextURL(nextURL))
+					return client.GetAppEventScreenshotsRelationships(ctx, resolvedLocalizationID, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-events screenshots links: %w", err)

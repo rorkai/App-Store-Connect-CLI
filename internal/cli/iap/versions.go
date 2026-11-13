@@ -489,13 +489,13 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 			if *paginate && firstPageLimit == 0 {
 				firstPageLimit = 200
 			}
-			resp, err := fetchPage(requestCtx, asc.WithLinkagesLimit(firstPageLimit), asc.WithLinkagesNextURL(*next))
+			resp, err := fetchPage(requestCtx, asc.Limit[asc.LinkagesOption](firstPageLimit), asc.NextURL[asc.LinkagesOption](*next))
 			if err != nil {
 				return fmt.Errorf("iap versions links %s: failed to fetch: %w", name, err)
 			}
 			if *paginate {
 				aggregated, err := asc.PaginateAll(requestCtx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return fetchPage(ctx, asc.WithLinkagesNextURL(nextURL))
+					return fetchPage(ctx, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap versions links %s: %w", name, err)

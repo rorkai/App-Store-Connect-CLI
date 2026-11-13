@@ -492,19 +492,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodeOneTimeUseCodesOption{
-				asc.WithSubscriptionOfferCodeOneTimeUseCodesLimit(*limit),
-				asc.WithSubscriptionOfferCodeOneTimeUseCodesNextURL(*next),
+				asc.Limit[asc.SubscriptionOfferCodeOneTimeUseCodesOption](*limit),
+				asc.NextURL[asc.SubscriptionOfferCodeOneTimeUseCodesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionOfferCodeOneTimeUseCodesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.SubscriptionOfferCodeOneTimeUseCodesOption](200))
 				firstPage, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes one-time-codes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, id, asc.WithSubscriptionOfferCodeOneTimeUseCodesNextURL(nextURL))
+					return client.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, id, asc.NextURL[asc.SubscriptionOfferCodeOneTimeUseCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes one-time-codes list: %w", err)

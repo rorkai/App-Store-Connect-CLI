@@ -670,7 +670,7 @@ func fetchSubscriptionPlanAvailabilities(ctx context.Context, client *asc.Client
 	for _, plan := range typed.Data {
 		planID := strings.TrimSpace(plan.ID)
 		territoryResp, fetchErr := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.LinkagesResponse, error) {
-			return client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(requestCtx, planID, asc.WithLinkagesLimit(200))
+			return client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(requestCtx, planID, asc.Limit[asc.LinkagesOption](200))
 		})
 		if fetchErr != nil {
 			if errors.Is(fetchErr, context.Canceled) {
@@ -683,7 +683,7 @@ func fetchSubscriptionPlanAvailabilities(ctx context.Context, client *asc.Client
 		}
 		all, fetchErr := asc.PaginateAll(ctx, territoryResp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 			return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-				return client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(requestCtx, planID, asc.WithLinkagesNextURL(nextURL))
+				return client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(requestCtx, planID, asc.NextURL[asc.LinkagesOption](nextURL))
 			})
 		})
 		if fetchErr != nil {
@@ -748,7 +748,7 @@ func fetchSubscriptionPromotionalOfferCount(ctx context.Context, client *asc.Cli
 
 func fetchSubscriptionWinBackOfferCount(ctx context.Context, client *asc.Client, subscriptionID string) (int, metadataCheckStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.WinBackOffersResponse, error) {
-		return client.GetSubscriptionWinBackOffers(requestCtx, strings.TrimSpace(subscriptionID), asc.WithWinBackOffersLimit(1))
+		return client.GetSubscriptionWinBackOffers(requestCtx, strings.TrimSpace(subscriptionID), asc.Limit[asc.WinBackOffersOption](1))
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) {

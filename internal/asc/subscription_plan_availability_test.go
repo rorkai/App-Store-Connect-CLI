@@ -247,7 +247,7 @@ func TestGetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(t *tes
 	resp, err := client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(
 		context.Background(),
 		"plan-1",
-		WithLinkagesLimit(200),
+		Limit[LinkagesOption](200),
 	)
 	if err != nil {
 		t.Fatalf("GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships() error: %v", err)

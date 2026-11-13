@@ -109,8 +109,8 @@ Examples:
 		ErrorPrefix: "localizations preview-sets links",
 		FetchPage: func(ctx context.Context, client *asc.Client, localizationID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(limit),
-				asc.WithLinkagesNextURL(next),
+				asc.Limit[asc.LinkagesOption](limit),
+				asc.NextURL[asc.LinkagesOption](next),
 			}
 			resp, err := client.GetAppStoreVersionLocalizationPreviewSetsRelationships(ctx, localizationID, opts...)
 			if err != nil {
@@ -298,8 +298,8 @@ Examples:
 		ErrorPrefix: "localizations screenshot-sets links",
 		FetchPage: func(ctx context.Context, client *asc.Client, localizationID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(limit),
-				asc.WithLinkagesNextURL(next),
+				asc.Limit[asc.LinkagesOption](limit),
+				asc.NextURL[asc.LinkagesOption](next),
 			}
 			resp, err := client.GetAppStoreVersionLocalizationScreenshotSetsRelationships(ctx, localizationID, opts...)
 			if err != nil {

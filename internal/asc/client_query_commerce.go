@@ -160,42 +160,6 @@ type PricePointsOption func(*pricePointsQuery)
 // AppPriceSchedulePricesOption is a functional option for app price schedule price endpoints.
 type AppPriceSchedulePricesOption func(*appPriceSchedulePricesQuery)
 
-// WithSubscriptionOfferCodeOneTimeUseCodesLimit sets the max number of offer code batches to return.
-func WithSubscriptionOfferCodeOneTimeUseCodesLimit(limit int) SubscriptionOfferCodeOneTimeUseCodesOption {
-	return func(q *subscriptionOfferCodeOneTimeUseCodesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionOfferCodeOneTimeUseCodesNextURL uses a next page URL directly.
-func WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next string) SubscriptionOfferCodeOneTimeUseCodesOption {
-	return func(q *subscriptionOfferCodeOneTimeUseCodesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithWinBackOffersLimit sets the max number of win-back offers to return.
-func WithWinBackOffersLimit(limit int) WinBackOffersOption {
-	return func(q *winBackOffersQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithWinBackOffersNextURL uses a next page URL directly.
-func WithWinBackOffersNextURL(next string) WinBackOffersOption {
-	return func(q *winBackOffersQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithWinBackOffersFields sets fields[winBackOffers] for win-back offer responses.
 func WithWinBackOffersFields(fields []string) WinBackOffersOption {
 	return func(q *winBackOffersQuery) {
@@ -222,24 +186,6 @@ func WithWinBackOffersPricesLimit(limit int) WinBackOffersOption {
 	return func(q *winBackOffersQuery) {
 		if limit > 0 {
 			q.pricesLimit = limit
-		}
-	}
-}
-
-// WithWinBackOfferPricesLimit sets the max number of win-back offer prices to return.
-func WithWinBackOfferPricesLimit(limit int) WinBackOfferPricesOption {
-	return func(q *winBackOfferPricesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithWinBackOfferPricesNextURL uses a next page URL directly.
-func WithWinBackOfferPricesNextURL(next string) WinBackOfferPricesOption {
-	return func(q *winBackOfferPricesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
@@ -279,24 +225,6 @@ func WithWinBackOfferPricesInclude(include []string) WinBackOfferPricesOption {
 	}
 }
 
-// WithPromotedPurchasesLimit sets the max number of promoted purchases to return.
-func WithPromotedPurchasesLimit(limit int) PromotedPurchasesOption {
-	return func(q *promotedPurchasesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithPromotedPurchasesNextURL uses a next page URL directly.
-func WithPromotedPurchasesNextURL(next string) PromotedPurchasesOption {
-	return func(q *promotedPurchasesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithPromotedPurchasesIAPFields sets fields[inAppPurchases] for included IAPs.
 func WithPromotedPurchasesIAPFields(fields []string) PromotedPurchasesOption {
 	return func(q *promotedPurchasesQuery) { q.iapFields = normalizeUniqueList(fields) }
@@ -312,60 +240,6 @@ func WithPromotedPurchasesInclude(include []string) PromotedPurchasesOption {
 	return func(q *promotedPurchasesQuery) { q.include = normalizeUniqueList(include) }
 }
 
-// WithTerritoryAvailabilitiesLimit sets the max number of territory availabilities to return.
-func WithTerritoryAvailabilitiesLimit(limit int) TerritoryAvailabilitiesOption {
-	return func(q *territoryAvailabilitiesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithTerritoryAvailabilitiesNextURL uses a next page URL directly.
-func WithTerritoryAvailabilitiesNextURL(next string) TerritoryAvailabilitiesOption {
-	return func(q *territoryAvailabilitiesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithLinkagesLimit sets the max number of linkages to return.
-func WithLinkagesLimit(limit int) LinkagesOption {
-	return func(q *linkagesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithLinkagesNextURL uses a next page URL directly.
-func WithLinkagesNextURL(next string) LinkagesOption {
-	return func(q *linkagesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithPricePointsLimit sets the max number of price points to return.
-func WithPricePointsLimit(limit int) PricePointsOption {
-	return func(q *pricePointsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithPricePointsNextURL uses a next page URL directly.
-func WithPricePointsNextURL(next string) PricePointsOption {
-	return func(q *pricePointsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithPricePointsTerritory filters app price points by territory.
 func WithPricePointsTerritory(territory string) PricePointsOption {
 	return func(q *pricePointsQuery) {
@@ -379,24 +253,6 @@ func WithPricePointsTerritory(territory string) PricePointsOption {
 func WithPricePointsInclude(include []string) PricePointsOption {
 	return func(q *pricePointsQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithAppPriceSchedulePricesLimit sets the max number of schedule prices to return.
-func WithAppPriceSchedulePricesLimit(limit int) AppPriceSchedulePricesOption {
-	return func(q *appPriceSchedulePricesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppPriceSchedulePricesNextURL uses a next page URL directly.
-func WithAppPriceSchedulePricesNextURL(next string) AppPriceSchedulePricesOption {
-	return func(q *appPriceSchedulePricesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 

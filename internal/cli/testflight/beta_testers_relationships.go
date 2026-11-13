@@ -125,8 +125,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			// A next-page URL replaces the tester path in the request, so a
@@ -146,7 +146,7 @@ Examples:
 			pageParent.ID = ""
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
@@ -157,7 +157,7 @@ Examples:
 						return page, nil
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						page, err := getBetaTesterRelationshipList(ctx, client, relationshipType, testerValue, asc.WithLinkagesNextURL(nextURL))
+						page, err := getBetaTesterRelationshipList(ctx, client, relationshipType, testerValue, asc.NextURL[asc.LinkagesOption](nextURL))
 						if err != nil {
 							return nil, shared.DescribeRelationshipLookupFailure(err, relationshipType, pageParent)
 						}

@@ -169,13 +169,13 @@ func SubscriptionsVersionLocalizationsLinksCommand() *ffcli.Command {
 			if *paginate && firstPageLimit == 0 {
 				firstPageLimit = 200
 			}
-			resp, err := client.GetSubscriptionVersionLocalizationsRelationships(requestCtx, id, asc.WithLinkagesLimit(firstPageLimit), asc.WithLinkagesNextURL(*next))
+			resp, err := client.GetSubscriptionVersionLocalizationsRelationships(requestCtx, id, asc.Limit[asc.LinkagesOption](firstPageLimit), asc.NextURL[asc.LinkagesOption](*next))
 			if err != nil {
 				return fmt.Errorf("subscriptions versions localizations links: failed to fetch: %w", err)
 			}
 			if *paginate {
 				aggregated, err := asc.PaginateAll(requestCtx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionVersionLocalizationsRelationships(pageCtx, id, asc.WithLinkagesNextURL(nextURL))
+					return client.GetSubscriptionVersionLocalizationsRelationships(pageCtx, id, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions versions localizations links: %w", err)

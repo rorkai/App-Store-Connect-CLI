@@ -1489,8 +1489,8 @@ func TestBuildBuildsQuery_WithPreReleaseVersions(t *testing.T) {
 func TestBuildSubscriptionOfferCodeOneTimeUseCodesQuery(t *testing.T) {
 	query := &subscriptionOfferCodeOneTimeUseCodesQuery{}
 	opts := []SubscriptionOfferCodeOneTimeUseCodesOption{
-		WithSubscriptionOfferCodeOneTimeUseCodesLimit(10),
-		WithSubscriptionOfferCodeOneTimeUseCodesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc"),
+		Limit[SubscriptionOfferCodeOneTimeUseCodesOption](10),
+		NextURL[SubscriptionOfferCodeOneTimeUseCodesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1593,7 +1593,7 @@ func TestBuildSubscriptionAvailabilityTerritoriesQuery(t *testing.T) {
 func TestBuildWinBackOffersQuery(t *testing.T) {
 	query := &winBackOffersQuery{}
 	opts := []WinBackOffersOption{
-		WithWinBackOffersLimit(25),
+		Limit[WinBackOffersOption](25),
 		WithWinBackOffersFields([]string{"referenceName", "offerMode"}),
 		WithWinBackOffersPriceFields([]string{"territory"}),
 		WithWinBackOffersInclude([]string{"prices"}),
@@ -1631,7 +1631,7 @@ func TestBuildWinBackOffersQuery(t *testing.T) {
 func TestBuildWinBackOfferPricesQuery(t *testing.T) {
 	query := &winBackOfferPricesQuery{}
 	opts := []WinBackOfferPricesOption{
-		WithWinBackOfferPricesLimit(15),
+		Limit[WinBackOfferPricesOption](15),
 		WithWinBackOfferPricesTerritoryFilter([]string{"USA", "CAN"}),
 		WithWinBackOfferPricesFields([]string{"territory"}),
 		WithWinBackOfferPricesTerritoryFields([]string{"currency"}),
