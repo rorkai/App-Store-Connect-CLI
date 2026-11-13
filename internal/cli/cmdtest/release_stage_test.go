@@ -3,8 +3,6 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -12,56 +10,19 @@ import (
 	"testing"
 )
 
-func TestReleaseStage_MissingMetadataSource(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"release", "stage",
-			"--app", "APP_123",
-			"--version", "1.2.3",
-			"--build-id", "BUILD_123",
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+func TestReleaseStageUsageErrors(t *testing.T) {
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "MissingMetadataSource",
+			args:    []string{"release", "stage", "--app", "APP_123", "--version", "1.2.3", "--build-id", "BUILD_123", "--dry-run"},
+			wantErr: "exactly one of --metadata-dir or --copy-metadata-from is required",
+		},
+		{
+			name:    "InvalidCopyFieldsValue",
+			args:    []string{"release", "stage", "--app", "APP_123", "--version", "1.2.3", "--build-id", "BUILD_123", "--copy-metadata-from", "1.2.2", "--copy-fields", "description,notAField", "--dry-run"},
+			wantErr: "--copy-fields must be one of",
+		},
 	})
-
-	if !strings.Contains(stderr, "exactly one of --metadata-dir or --copy-metadata-from is required") {
-		t.Fatalf("expected metadata source error, got %q", stderr)
-	}
-}
-
-func TestReleaseStage_InvalidCopyFieldsValue(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"release", "stage",
-			"--app", "APP_123",
-			"--version", "1.2.3",
-			"--build-id", "BUILD_123",
-			"--copy-metadata-from", "1.2.2",
-			"--copy-fields", "description,notAField",
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--copy-fields must be one of") {
-		t.Fatalf("expected invalid copy-fields error, got %q", stderr)
-	}
 }
 
 func TestReleaseStage_DryRunCopyMetadataFromVersion(t *testing.T) {

@@ -29,44 +29,29 @@ func TestWebICloudContainersCreateRunRejectsUnprefixedIdentifier(t *testing.T) {
 	}
 }
 
-func TestWebICloudContainersCreateRunRequiresConfirm(t *testing.T) {
+func TestWebICloudContainersCreateUsageErrors(t *testing.T) {
 	setCmdtestHome(t)
-	t.Setenv("ASC_TELEMETRY_DISABLED", "1")
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{
-			"web", "icloud-containers", "create",
-			"--identifier", "iCloud.com.example.app",
-			"--name", "Example",
-		}, "1.2.3")
-	})
-	if code != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d; stderr = %q", code, rootcmd.ExitUsage, stderr)
-	}
-	if stdout != "" || !strings.Contains(stderr, "--confirm is required") {
-		t.Fatalf("stdout = %q, stderr = %q; want only the --confirm diagnostic", stdout, stderr)
-	}
-}
 
-func TestWebICloudContainersCreateRunRejectsUnsupportedFlags(t *testing.T) {
-	setCmdtestHome(t)
-	t.Setenv("ASC_TELEMETRY_DISABLED", "1")
-	for _, flag := range []string{"--hidden", "--paginate", "--container-id=cloud-1"} {
-		t.Run(flag, func(t *testing.T) {
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run([]string{
-					"web", "icloud-containers", "create",
-					"--identifier", "iCloud.com.example.app",
-					"--name", "Example", "--confirm", flag,
-				}, "1.2.3")
-			})
-			if code != rootcmd.ExitUsage {
-				t.Fatalf("exit code = %d, want %d; stderr = %q", code, rootcmd.ExitUsage, stderr)
-			}
-			if stdout != "" || !strings.Contains(stderr, "unknown flag") {
-				t.Fatalf("stdout = %q, stderr = %q; want only unknown-flag diagnostic", stdout, stderr)
-			}
-		})
-	}
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "requires confirm",
+			args:    []string{"web", "icloud-containers", "create", "--identifier", "iCloud.com.example.app", "--name", "Example"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "rejects hidden",
+			args:    []string{"web", "icloud-containers", "create", "--identifier", "iCloud.com.example.app", "--name", "Example", "--confirm", "--hidden"},
+			wantErr: "unknown flag",
+		},
+		{
+			name:    "rejects paginate",
+			args:    []string{"web", "icloud-containers", "create", "--identifier", "iCloud.com.example.app", "--name", "Example", "--confirm", "--paginate"},
+			wantErr: "unknown flag",
+		},
+		{
+			name:    "rejects container id",
+			args:    []string{"web", "icloud-containers", "create", "--identifier", "iCloud.com.example.app", "--name", "Example", "--confirm", "--container-id=cloud-1"},
+			wantErr: "unknown flag",
+		},
+	})
 }

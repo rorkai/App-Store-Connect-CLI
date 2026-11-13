@@ -17,3 +17,13 @@ func runUsageExitCases(t *testing.T, cases []usageExitCase) {
 		})
 	}
 }
+
+func runExactUsageExitCases(t *testing.T, cases []usageExitCase) {
+	t.Helper()
+
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitCode(t, test.args, test.wantErr)
+		})
+	}
+}

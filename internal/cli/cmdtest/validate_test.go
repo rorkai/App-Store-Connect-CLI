@@ -501,64 +501,21 @@ func TestValidateRejectsExplicitVersionBindingMismatch(t *testing.T) {
 	}
 }
 
-func TestValidateRequiresAppAndVersionSelector(t *testing.T) {
+func TestValidateUsageErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
+	runUsageExitCases(t, []usageExitCase{
 		{
 			name:    "missing app",
 			args:    []string{"validate", "--version-id", "ver-1"},
 			wantErr: "--app is required",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestValidateVersionAndVersionIDMutuallyExclusive(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version", "1.0", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+		{
+			name:    "version and version id mutually exclusive",
+			args:    []string{"validate", "--app", "app-1", "--version", "1.0", "--version-id", "ver-1"},
+			wantErr: "mutually exclusive",
+		},
 	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "mutually exclusive") {
-		t.Fatalf("expected mutually exclusive error, got %q", stderr)
-	}
 }
 
 func TestValidateWarnsCopyrightWithoutLeadingAcquisitionYear(t *testing.T) {

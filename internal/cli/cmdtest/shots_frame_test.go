@@ -21,80 +21,39 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
-func TestShotsFrame_RequiresInput(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"screenshots", "frame"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+func TestShotsFrameUsageErrors(t *testing.T) {
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "RequiresInput",
+			args:    []string{"screenshots", "frame"},
+			wantErr: "--input is required when --config is not set",
+		},
+		{
+			name:    "RejectsInputAndConfigTogether",
+			args:    []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--config", "/tmp/frame.yaml"},
+			wantErr: "use either --input or --config, not both",
+		},
+		{
+			name:    "InvalidDevice",
+			args:    []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--device", "iphone-se"},
+			wantErr: "--device must be one of",
+		},
+		{
+			name:    "CanvasFlagsRejectConfigMode",
+			args:    []string{"screenshots", "frame", "--config", "/tmp/frame.yaml", "--device", "mac", "--title", "Hello"},
+			wantErr: "cannot be used with --config",
+		},
+		{
+			name:    "WatchRequiresConfig",
+			args:    []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--watch"},
+			wantErr: "--watch requires --config",
+		},
+		{
+			name:    "WatchWithoutInputOrConfig",
+			args:    []string{"screenshots", "frame", "--watch"},
+			wantErr: "--input is required when --config is not set",
+		},
 	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--input is required when --config is not set") {
-		t.Fatalf("expected input required error, got %q", stderr)
-	}
-}
-
-func TestShotsFrame_RejectsInputAndConfigTogether(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots",
-			"frame",
-			"--input", "/tmp/raw.png",
-			"--config", "/tmp/frame.yaml",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "use either --input or --config, not both") {
-		t.Fatalf("expected mutual exclusivity error, got %q", stderr)
-	}
-}
-
-func TestShotsFrame_InvalidDevice(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots",
-			"frame",
-			"--input", "/tmp/raw.png",
-			"--device", "iphone-se",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--device must be one of") {
-		t.Fatalf("expected invalid device error, got %q", stderr)
-	}
 }
 
 func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
@@ -828,88 +787,6 @@ func TestShotsFrame_MacDeviceSubtitleOnly(t *testing.T) {
 	}
 	if result.DisplayType != "APP_DESKTOP" {
 		t.Fatalf("expected display type APP_DESKTOP, got %q", result.DisplayType)
-	}
-}
-
-func TestShotsFrame_CanvasFlagsRejectConfigMode(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots",
-			"frame",
-			"--config", "/tmp/frame.yaml",
-			"--device", "mac",
-			"--title", "Hello",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "cannot be used with --config") {
-		t.Fatalf("expected config mode canvas error, got %q", stderr)
-	}
-}
-
-func TestShotsFrame_WatchRequiresConfig(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots",
-			"frame",
-			"--input", "/tmp/raw.png",
-			"--watch",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--watch requires --config") {
-		t.Fatalf("expected watch-requires-config error, got %q", stderr)
-	}
-}
-
-func TestShotsFrame_WatchWithoutInputOrConfig(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots",
-			"frame",
-			"--watch",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	// Should hit the --input required error first (since no --config means no watch gate).
-	if !strings.Contains(stderr, "--input is required") {
-		t.Fatalf("expected input required error, got %q", stderr)
 	}
 }
 

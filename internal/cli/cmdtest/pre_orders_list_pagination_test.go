@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"strings"
@@ -167,61 +165,17 @@ func TestPreOrdersListNext(t *testing.T) {
 	}
 }
 
-func TestPreOrdersListRejectsInvalidLimit(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pre-orders", "list",
-			"--availability", "availability-1",
-			"--limit", "201",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+func TestPreOrdersListUsageErrors(t *testing.T) {
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "RejectsInvalidLimit",
+			args:    []string{"pre-orders", "list", "--availability", "availability-1", "--limit", "201"},
+			wantErr: "Error: pre-orders list: --limit must be between 1 and 200",
+		},
+		{
+			name:    "RejectsInvalidNextURL",
+			args:    []string{"pre-orders", "list", "--next", "http://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?cursor=AQ"},
+			wantErr: "Error: pre-orders list: --next must be an App Store Connect URL",
+		},
 	})
-
-	if runErr == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: pre-orders list: --limit must be between 1 and 200") {
-		t.Fatalf("expected invalid limit usage error, got %q", stderr)
-	}
-}
-
-func TestPreOrdersListRejectsInvalidNextURL(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pre-orders", "list",
-			"--next", "http://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?cursor=AQ",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: pre-orders list: --next must be an App Store Connect URL") {
-		t.Fatalf("expected invalid next url usage error, got %q", stderr)
-	}
 }

@@ -3,69 +3,11 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 )
-
-func TestPricingScheduleCreatePriceValidationError(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "create",
-			"--app", "app-1",
-			"--price", "abc",
-			"--base-territory", "USA",
-			"--start-date", "2026-03-01",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --price must be a number") {
-		t.Fatalf("expected invalid number error, got %q", stderr)
-	}
-}
-
-func TestPricingScheduleCreatePriceValidationFiniteError(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "create",
-			"--app", "app-1",
-			"--price", "NaN",
-			"--base-territory", "USA",
-			"--start-date", "2026-03-01",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --price must be a finite number") {
-		t.Fatalf("expected finite-number error, got %q", stderr)
-	}
-}
 
 func TestPricingScheduleCreateResolvesPriceUsingNumericMatch(t *testing.T) {
 	setupAuth(t)

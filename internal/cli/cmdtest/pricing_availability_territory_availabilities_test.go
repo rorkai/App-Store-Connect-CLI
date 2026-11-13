@@ -167,63 +167,19 @@ func TestPricingAvailabilityTerritoryAvailabilitiesNext(t *testing.T) {
 	}
 }
 
-func TestPricingAvailabilityTerritoryAvailabilitiesRejectsInvalidLimit(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "territory-availabilities",
-			"--availability", "availability-1",
-			"--limit", "201",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+func TestPricingAvailabilityTerritoryAvailabilitiesUsageErrors(t *testing.T) {
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "RejectsInvalidLimit",
+			args:    []string{"pricing", "availability", "territory-availabilities", "--availability", "availability-1", "--limit", "201"},
+			wantErr: "Error: pricing availability territory-availabilities: --limit must be between 1 and 200",
+		},
+		{
+			name:    "RejectsInvalidNextURL",
+			args:    []string{"pricing", "availability", "territory-availabilities", "--next", "http://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?cursor=AQ"},
+			wantErr: "Error: pricing availability territory-availabilities: --next must be an App Store Connect URL",
+		},
 	})
-
-	if runErr == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: pricing availability territory-availabilities: --limit must be between 1 and 200") {
-		t.Fatalf("expected invalid limit usage error, got %q", stderr)
-	}
-}
-
-func TestPricingAvailabilityTerritoryAvailabilitiesRejectsInvalidNextURL(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "territory-availabilities",
-			"--next", "http://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?cursor=AQ",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: pricing availability territory-availabilities: --next must be an App Store Connect URL") {
-		t.Fatalf("expected invalid next url usage error, got %q", stderr)
-	}
 }
 
 func TestPricingAvailabilityTerritoryAvailabilitiesByAppOrAvailability(t *testing.T) {

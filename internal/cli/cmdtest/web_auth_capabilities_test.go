@@ -152,28 +152,19 @@ func TestWebAuthCapabilitiesRunHonorsRootProfileFlag(t *testing.T) {
 	}
 }
 
-func TestWebAuthCapabilitiesRunRejectsInvalidOutput(t *testing.T) {
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"web", "auth", "capabilities", "--output", "yaml"}, "1.0.0")
-		if code != cmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-		}
+func TestWebAuthCapabilitiesUsageErrors(t *testing.T) {
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "rejects invalid output",
+			args:    []string{"web", "auth", "capabilities", "--output", "yaml"},
+			wantErr: `(got "yaml")`,
+		},
+		{
+			name:    "rejects pretty for table",
+			args:    []string{"web", "auth", "capabilities", "--output", "table", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
+		},
 	})
-	if !strings.Contains(stderr, `(got "yaml")`) {
-		t.Fatalf("expected unsupported format error, got %q", stderr)
-	}
-}
-
-func TestWebAuthCapabilitiesRunRejectsPrettyForTable(t *testing.T) {
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"web", "auth", "capabilities", "--output", "table", "--pretty"}, "1.0.0")
-		if code != cmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-		}
-	})
-	if !strings.Contains(stderr, "--pretty is only valid with JSON output") {
-		t.Fatalf("expected pretty validation error, got %q", stderr)
-	}
 }
 
 func TestWebAuthCapabilitiesRunReturnsRuntimeErrorForMissingKey(t *testing.T) {
