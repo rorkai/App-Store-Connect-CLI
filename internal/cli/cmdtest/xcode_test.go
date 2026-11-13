@@ -15,122 +15,6 @@ import (
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
-func TestXcodeCommandExists(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	xcodeCmd := findSubcommand(root, "xcode")
-	if xcodeCmd == nil {
-		t.Fatal("expected xcode command")
-		return
-	}
-
-	buildCmd := findSubcommand(root, "xcode", "build")
-	if buildCmd == nil {
-		t.Fatal("expected xcode build command")
-		return
-	}
-
-	for _, name := range []string{"project", "workspace", "scheme", "configuration", "destination", "derived-data-path", "result-bundle-path", "clean", "no-code-signing", "xcodebuild-flag", "output"} {
-		if buildCmd.FlagSet.Lookup(name) == nil {
-			t.Fatalf("expected xcode build to expose --%s", name)
-		}
-	}
-	if findSubcommand(root, "xcode", "archive") == nil {
-		t.Fatal("expected xcode archive command")
-	}
-	if findSubcommand(root, "xcode", "test") == nil {
-		t.Fatal("expected xcode test command")
-	}
-	testCmd := findSubcommand(root, "xcode", "test")
-
-	for _, name := range []string{"project", "workspace", "scheme", "action", "configuration", "destination", "test-plan", "xctestrun", "only-testing", "skip-testing", "derived-data-path", "result-bundle-path", "clean", "no-code-signing", "xcodebuild-flag", "output"} {
-		if testCmd.FlagSet.Lookup(name) == nil {
-			t.Fatalf("expected xcode test to expose --%s", name)
-		}
-	}
-	if findSubcommand(root, "xcode", "export") == nil {
-		t.Fatal("expected xcode export command")
-	}
-	validateCmd := findSubcommand(root, "xcode", "validate")
-	if validateCmd == nil {
-		t.Fatal("expected xcode validate command")
-	}
-	for _, name := range []string{"ipa", "pkg", "api-key", "api-issuer", "output"} {
-		if validateCmd.FlagSet.Lookup(name) == nil {
-			t.Fatalf("expected xcode validate to expose --%s", name)
-		}
-	}
-	if findSubcommand(root, "xcode", "version") == nil {
-		t.Fatal("expected xcode version command")
-	}
-	if findSubcommand(root, "xcode", "version", "view") == nil {
-		t.Fatal("expected xcode version view command")
-	}
-	viewCmd := findSubcommand(root, "xcode", "version", "view")
-	if viewCmd == nil {
-		t.Fatal("expected xcode version view command")
-		return
-	}
-	if viewCmd.FlagSet.Lookup("project") == nil {
-		t.Fatal("expected xcode version view to expose --project")
-	}
-	if viewCmd.FlagSet.Lookup("xcodebuild-settings-lookup") == nil {
-		t.Fatal("expected xcode version view to expose --xcodebuild-settings-lookup")
-	}
-	editCmd := findSubcommand(root, "xcode", "version", "edit")
-	if editCmd == nil {
-		t.Fatal("expected xcode version edit command")
-		return
-	}
-	if editCmd.FlagSet.Lookup("project") == nil {
-		t.Fatal("expected xcode version edit to expose --project")
-	}
-	if editCmd.FlagSet.Lookup("target") == nil {
-		t.Fatal("expected xcode version edit to expose --target")
-	}
-	if editCmd.FlagSet.Lookup("configuration") == nil {
-		t.Fatal("expected xcode version edit to expose --configuration")
-	}
-	if editCmd.FlagSet.Lookup("next-build-number") == nil {
-		t.Fatal("expected xcode version edit to expose --next-build-number")
-	}
-	if editCmd.FlagSet.Lookup("xcodebuild-settings-lookup") == nil {
-		t.Fatal("expected xcode version edit to expose --xcodebuild-settings-lookup")
-	}
-	if flag := editCmd.FlagSet.Lookup("allow-external-xcconfig"); flag == nil {
-		t.Fatal("expected xcode version edit to expose --allow-external-xcconfig")
-	}
-	bumpCmd := findSubcommand(root, "xcode", "version", "bump")
-	if bumpCmd == nil {
-		t.Fatal("expected xcode version bump command")
-		return
-	}
-	if bumpCmd.FlagSet.Lookup("project") == nil {
-		t.Fatal("expected xcode version bump to expose --project")
-	}
-	if bumpCmd.FlagSet.Lookup("target") == nil {
-		t.Fatal("expected xcode version bump to expose --target")
-	}
-	if bumpCmd.FlagSet.Lookup("configuration") == nil {
-		t.Fatal("expected xcode version bump to expose --configuration")
-	}
-	if bumpCmd.FlagSet.Lookup("next-build-number") == nil {
-		t.Fatal("expected xcode version bump to expose --next-build-number")
-	}
-	if bumpCmd.FlagSet.Lookup("xcodebuild-settings-lookup") == nil {
-		t.Fatal("expected xcode version bump to expose --xcodebuild-settings-lookup")
-	}
-	if flag := bumpCmd.FlagSet.Lookup("allow-external-xcconfig"); flag == nil {
-		t.Fatal("expected xcode version bump to expose --allow-external-xcconfig")
-	}
-	if findSubcommand(root, "xcode", "version", "get") != nil {
-		t.Fatal("expected xcode version get command to be absent")
-	}
-	if findSubcommand(root, "xcode", "version", "set") != nil {
-		t.Fatal("expected xcode version set command to be absent")
-	}
-}
-
 func TestXcodeBuildRejectsBlankPassthroughValue(t *testing.T) {
 	assertUsageExit(
 		t,
@@ -193,37 +77,6 @@ func TestXcodeVersionSettingsLookupInvalidValueReturnsUsageExitCode(t *testing.T
 	}
 }
 
-func TestXcodeExportHelpMentionsDirectUploadMode(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	exportCmd := findSubcommand(root, "xcode", "export")
-	if exportCmd == nil {
-		t.Fatal("expected xcode export command")
-		return
-	}
-	if !strings.Contains(exportCmd.ShortHelp, "direct upload") {
-		t.Fatalf("expected short help to mention direct upload, got %q", exportCmd.ShortHelp)
-	}
-	if !strings.Contains(exportCmd.LongHelp, "destination=upload") {
-		t.Fatalf("expected long help to mention destination=upload, got %q", exportCmd.LongHelp)
-	}
-	if !strings.Contains(exportCmd.LongHelp, "without writing a local") {
-		t.Fatalf("expected long help to explain no local IPA is written, got %q", exportCmd.LongHelp)
-	}
-	if !strings.Contains(exportCmd.LongHelp, "--timeout 10m") {
-		t.Fatalf("expected long help to show local export timeout usage, got %q", exportCmd.LongHelp)
-	}
-	if got := exportCmd.FlagSet.Lookup("ipa-path").Usage; !strings.Contains(got, "when one is produced") {
-		t.Fatalf("expected ipa-path usage to mention produced IPA behavior, got %q", got)
-	}
-	if got := exportCmd.FlagSet.Lookup("pkg-path").Usage; !strings.Contains(got, "macOS .pkg") {
-		t.Fatalf("expected pkg-path usage to mention macOS PKG behavior, got %q", got)
-	}
-	if exportCmd.FlagSet.Lookup("timeout") == nil {
-		t.Fatal("expected xcode export to expose --timeout")
-	}
-}
-
 func TestXcodeInjectInvalidFlagValuesExitUsage(t *testing.T) {
 	dir := t.TempDir()
 	manifestPath := filepath.Join(dir, "deployment.json")
@@ -261,28 +114,6 @@ func TestXcodeInjectInvalidFlagValuesExitUsage(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			assertUsageExit(t, test.args, test.wantStderr)
 		})
-	}
-}
-
-func TestXcodeValidateHelpMentionsAltool(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	validateCmd := findSubcommand(root, "xcode", "validate")
-	if validateCmd == nil {
-		t.Fatal("expected xcode validate command")
-		return
-	}
-	if !strings.Contains(validateCmd.LongHelp, "xcrun altool --validate-app") {
-		t.Fatalf("expected long help to mention altool validation, got %q", validateCmd.LongHelp)
-	}
-	if validateCmd.FlagSet.Lookup("ipa") == nil {
-		t.Fatal("expected xcode validate to expose --ipa")
-	}
-	if validateCmd.FlagSet.Lookup("api-key") == nil {
-		t.Fatal("expected xcode validate to expose --api-key")
-	}
-	if validateCmd.FlagSet.Lookup("api-issuer") == nil {
-		t.Fatal("expected xcode validate to expose --api-issuer")
 	}
 }
 

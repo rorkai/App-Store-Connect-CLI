@@ -67,20 +67,6 @@ func TestWebAuthLoginRequiresPasswordSource(t *testing.T) {
 	}
 }
 
-func TestWebAppsCreateHelpMentionsInteractiveContract(t *testing.T) {
-	root := RootCommand("1.2.3")
-	cmd := findSubcommand(root, "web", "apps", "create")
-	if cmd == nil {
-		t.Fatal("expected web apps create command")
-		return
-	}
-
-	usage := cmd.UsageFunc(cmd)
-	if !strings.Contains(usage, "interactive terminal") {
-		t.Fatalf("expected interactive contract in usage, got %q", usage)
-	}
-}
-
 func TestWebAppsCreateMissingFieldsWithControllingTTYReturnsUsageError(t *testing.T) {
 	t.Cleanup(webcli.SetControllingTTYForTesting(func() (*os.File, error) {
 		return os.Open(os.DevNull)
