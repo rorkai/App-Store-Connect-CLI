@@ -5,9 +5,11 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
+	"maps"
 	"math"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -92,6 +94,13 @@ const (
 	powerShellSecureStringSwitch    = `(?:(?:-AsPlainText|-Force)(?:[ \t]+|[ \t]*:[ \t]*\$?(?:true|false)[ \t]+))`
 	uppercaseSessionEnvironmentName = `(?:[A-Z0-9]+_)+SESSION`
 )
+
+// openSSLSecretOption redacts the values of an option such as -macopt that
+// carries a secret only for some keys.
+type openSSLSecretOption struct {
+	pattern  *lazyRegexp
+	isSecret func(string) bool
+}
 
 type redactionRule struct {
 	pattern     *lazyRegexp
@@ -209,8 +218,12 @@ var (
 		"s_client": "engine ssl_client_engine ssl_config ctlogfile host port connect bind proxy proxy_user proxy_pass unix maxfraglen max_send_frag split_send_frag max_pipelines read_buf cert certform cert_chain key keyform pass verify nameopt CApath CAfile CAstore requestCAfile dane_tlsa_domain dane_tlsa_rrdata psk_identity psk psk_session name sess_out sess_in starttls xmpphost msgfile keymatexport keymatexportlen keylogfile servername serverinfo alpn mtu nextprotoneg early_data use_srtp srpuser srppass srp_strength rand writerand sigalgs client_sigalgs groups curves named_curve cipher ciphersuites min_protocol max_protocol record_padding policy purpose verify_name verify_depth auth_level attime verify_hostname verify_email verify_ip CRL CRLform chainCAfile chainCApath chainCAstore verifyCAfile verifyCApath verifyCAstore xkey xcert xchain xcertform xkeyform provider-path provider provparam propquery",
 		"s_server": "ssl_config engine port accept unix context CAfile CApath CAstore verify Verify nameopt cert cert2 certform cert_chain serverinfo key key2 keyform pass dcert dcertform dcert_chain dkey dkeyform dpass dhparam servername id_prefix keymatexport keymatexportlen CRL CRLform chainCAfile chainCApath chainCAstore verifyCAfile verifyCApath verifyCAstore status_timeout status_url proxy no_proxy status_file msgfile max_pipelines naccept keylogfile mtu read_buf split_send_frag max_send_frag psk_identity psk_hint psk psk_session srpvfile srpuserseed max_early_data recv_max_early_data num_tickets use_srtp nextprotoneg alpn rand writerand sigalgs client_sigalgs groups curves named_curve cipher ciphersuites min_protocol max_protocol record_padding policy purpose verify_name verify_depth auth_level attime verify_hostname verify_email verify_ip xkey xcert xchain xcertform xkeyform provider-path provider provparam propquery",
 	}
-	opensslMACOptionValueStartPattern     = newCommandCredentialFlagValueStartPattern("macopt")
-	opensslKDFOptionValueStartPattern     = newCommandCredentialFlagValueStartPattern("kdfopt")
+	opensslMACKeyOption       = openSSLSecretOption{newCommandCredentialFlagValueStartPattern("macopt"), openSSLOptionValueWithPrefix("key:", "hexkey:")}
+	opensslSecretOptionValues = map[string]openSSLSecretOption{
+		"dgst": opensslMACKeyOption,
+		"mac":  opensslMACKeyOption,
+		"kdf":  {newCommandCredentialFlagValueStartPattern("kdfopt"), openSSLOptionValueWithPrefix("key:", "hexkey:", "secret:", "hexsecret:", "pass:", "hexpass:")},
+	}
 	keytoolCredentialFlagPattern          = newCommandCredentialFlagPatternWithSuffix("(?::(?:env|file))?", "storepass", "keypass", "new", "srcstorepass", "deststorepass", "srckeypass", "destkeypass")
 	jarsignerCredentialFlagPattern        = newCommandCredentialFlagPatternWithSuffix("(?::(?:env|file))?", "storepass", "keypass")
 	dockerLoginCredentialFlagPattern      = newCommandShortCredentialFlagPattern("p")
@@ -253,7 +266,7 @@ var (
 	jsonCredentialName                    = lazyMustCompile(`(?i)^(?:` + structuredCredentialName + `)$`)
 	yamlCredentialNamePattern             = lazyMustCompile(`(?i)^(?:` + yamlCredentialName + `)$`)
 	tomlCredentialName                    = lazyMustCompile(`(?i)^(?:` + sensitivePrefixedName + `)$`)
-	tomlMultilineCredentialStart          = lazyMustCompile(`(?i)(?:^|[^-a-z0-9_])(?:` + sensitivePrefixedName + `\b|` + tomlQuotedSensitiveKey + `)[ \t]*=[ \t]*(?:"""|''')`)
+	tomlMultilineCredentialStart          = lazyMustCompile(`(?i)(?:^|[^-a-z0-9_])(?:` + sensitivePrefixedName + `\b|` + tomlQuotedSensitiveKey + `)[ \t]*=[ \t]*("""|''')`)
 	sensitiveCommandSubstitutionStart     = lazyMustCompile(`(?i)(?:^|\s)(?:` + sensitiveShellFlagToken + `(?:[ \t]+|[ \t]*=[ \t]*)|` + sensitivePrefixedName + `\b[ \t]*[:=][ \t]*)(\$\(|\(|\x60)`)
 	powerShellHereStringCredential        = lazyMustCompile(`(?i)(?:^|\s)(?:` + sensitiveShellFlagToken + `(?:` + shellCommandPathSeparator + `|[ \t]*=[ \t]*)|` + powerShellSensitiveVariable + `[ \t]*=[ \t]*)(@["']\r?\n)`)
 	powerShellCollectionCredential        = lazyMustCompile(`(?i)(?:^|\s)` + powerShellSensitiveVariable + `[ \t]*=[ \t]*(@[({])`)
@@ -277,290 +290,95 @@ var (
 )
 
 var structuredContainerValueRedactionRules = []redactionRule{
-	{
-		pattern:     lazyMustCompile(`(?i)("value"[ \t\r\n]*:[ \t\r\n]*")(?:\\.|[^"\\\r\n])*(")([ \t\r\n]*(?:[,}\]]|\z))`),
-		replacement: `${1}` + redactionMarker + `${2}${3}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(\\"value\\"[ \t\r\n]*:[ \t\r\n]*\\")(?:\\.|[^"\\\r\n])*?(\\")([ \t\r\n]*(?:[,}\]]|\z))`),
-		replacement: `${1}` + redactionMarker + `${2}${3}`,
-	},
+	{lazyMustCompile(`(?i)("value"[ \t\r\n]*:[ \t\r\n]*")(?:\\.|[^"\\\r\n])*(")([ \t\r\n]*(?:[,}\]]|\z))`), `${1}` + redactionMarker + `${2}${3}`},
+	{lazyMustCompile(`(?i)(\\"value\\"[ \t\r\n]*:[ \t\r\n]*\\")(?:\\.|[^"\\\r\n])*?(\\")([ \t\r\n]*(?:[,}\]]|\z))`), `${1}` + redactionMarker + `${2}${3}`},
 }
 
 var registryAuthValueRedactionRules = []redactionRule{
-	{
-		pattern:     lazyMustCompile(`(?i)("auth"[ \t\r\n]*:[ \t\r\n]*")(?:\\.|[^"\\\r\n])*(")`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(\\"auth\\"[ \t\r\n]*:[ \t\r\n]*\\")(?:\\.|[^"\\\r\n])*?(\\")`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
+	{lazyMustCompile(`(?i)("auth"[ \t\r\n]*:[ \t\r\n]*")(?:\\.|[^"\\\r\n])*(")`), `${1}` + redactionMarker + `${2}`},
+	{lazyMustCompile(`(?i)(\\"auth\\"[ \t\r\n]*:[ \t\r\n]*\\")(?:\\.|[^"\\\r\n])*?(\\")`), `${1}` + redactionMarker + `${2}`},
 }
 
 var curlUserCredentialRedactionRules = []redactionRule{
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)((?:-u|--(?:proxy-)?user)\b` + curlOptionValueSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + credentialPairValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)((?:-u|--(?:proxy-)?user)\b[ \t]*=[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + credentialPairValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(-u)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + credentialPairValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
+	{lazyMustCompile(`(?i)(^|\s)((?:-u|--(?:proxy-)?user)\b` + curlOptionValueSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + credentialPairValue + `)`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|\s)((?:-u|--(?:proxy-)?user)\b[ \t]*=[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + credentialPairValue + `)`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|\s)(-u)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + credentialPairValue + `)`), `${1}${2}` + redactionMarker},
 }
 
 var curlCertificateCredentialRedactionRules = []redactionRule{
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(` + curlCertOptionPrefix + `)(")((?:` + escapedQuotedCharacter + `|[^"\\:\r\n])*):(?:` + escapedQuotedCharacter + `|[^"\\])+(")`),
-		replacement: `${1}${2}${3}${4}:` + redactionMarker + `${5}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(` + curlCertOptionPrefix + `)(')((?:` + escapedQuotedCharacter + `|[^'\\:\r\n])*):(?:` + escapedQuotedCharacter + `|[^'\\])+(')`),
-		replacement: `${1}${2}${3}${4}:` + redactionMarker + `${5}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(` + curlCertOptionPrefix + `)(` + curlCertShellPath + `):` + singleLineShellWord),
-		replacement: `${1}${2}${3}:` + redactionMarker,
-	},
+	{lazyMustCompile(`(?i)(^|\s)(` + curlCertOptionPrefix + `)(")((?:` + escapedQuotedCharacter + `|[^"\\:\r\n])*):(?:` + escapedQuotedCharacter + `|[^"\\])+(")`), `${1}${2}${3}${4}:` + redactionMarker + `${5}`},
+	{lazyMustCompile(`(?i)(^|\s)(` + curlCertOptionPrefix + `)(')((?:` + escapedQuotedCharacter + `|[^'\\:\r\n])*):(?:` + escapedQuotedCharacter + `|[^'\\])+(')`), `${1}${2}${3}${4}:` + redactionMarker + `${5}`},
+	{lazyMustCompile(`(?i)(^|\s)(` + curlCertOptionPrefix + `)(` + curlCertShellPath + `):` + singleLineShellWord), `${1}${2}${3}:` + redactionMarker},
 }
 
 var curlArgumentCredentialRedactionRules = []redactionRule{
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(` + curlHeaderOptionPrefix + `)(` + credentialHeaderName + `)[ \t]*:[ \t]*(?:\\(?:\r?\n|[^\r\n])|[^\s;&|<>()])+`),
-		replacement: `${1}${2}${3}:` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)((?:(?-i:-b)|--cookie)\b[ \t]+)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + cookieDataValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)((?:(?-i:-b)|--cookie)\b[ \t]*=[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + cookieDataValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)((?-i:-b))(?:\[REDACTED(?: PRIVATE KEY)?\]|` + cookieDataValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(` + curlFormDataOptionPrefix + `)(")((?:\\.|[^"\\])*?` + sensitivePrefixedName + `\b[ \t]*=[ \t]*)(?:\\.|[^"\\])*(")`),
-		replacement: `${1}${2}${3}${4}` + redactionMarker + `${5}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(` + curlFormDataOptionPrefix + `)(')([^']*?` + sensitivePrefixedName + `\b[ \t]*=[ \t]*)[^']*(')`),
-		replacement: `${1}${2}${3}${4}` + redactionMarker + `${5}`,
-	},
+	{lazyMustCompile(`(?i)(^|\s)(` + curlHeaderOptionPrefix + `)(` + credentialHeaderName + `)[ \t]*:[ \t]*(?:\\(?:\r?\n|[^\r\n])|[^\s;&|<>()])+`), `${1}${2}${3}:` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|\s)((?:(?-i:-b)|--cookie)\b[ \t]+)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + cookieDataValue + `)`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|\s)((?:(?-i:-b)|--cookie)\b[ \t]*=[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + cookieDataValue + `)`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|\s)((?-i:-b))(?:\[REDACTED(?: PRIVATE KEY)?\]|` + cookieDataValue + `)`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|\s)(` + curlFormDataOptionPrefix + `)(")((?:\\.|[^"\\])*?` + sensitivePrefixedName + `\b[ \t]*=[ \t]*)(?:\\.|[^"\\])*(")`), `${1}${2}${3}${4}` + redactionMarker + `${5}`},
+	{lazyMustCompile(`(?i)(^|\s)(` + curlFormDataOptionPrefix + `)(')([^']*?` + sensitivePrefixedName + `\b[ \t]*=[ \t]*)[^']*(')`), `${1}${2}${3}${4}` + redactionMarker + `${5}`},
 }
 
 // Redact complete single-line shell words first so adjacent quoted and
 // unquoted fragments cannot leak, and an unmatched quote in an earlier log
 // line cannot claim a later command's opening quote as its closer.
 var singleLineShellWordRedactionRules = []redactionRule{
-	{
-		pattern:     lazyMustCompile(`(?m)(^|[ \t;&|])(` + uppercaseSessionEnvironmentName + `[ \t]*=[ \t]*)` + singleLineShellWord + `(` + singleLineShellTerminator + `)`),
-		replacement: `${1}${2}` + redactionMarker + `${3}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)(^|[ \t;&|])(` + powerShellSensitiveVariable + `[ \t]*=[ \t]*)(?:&[ \t]+)?(?:[a-z0-9_.-]+\\)?ConvertTo-SecureString[ \t]+(?:` + powerShellSecureStringSwitch + `)*(?:-String(?:[ \t]+|[ \t]*:[ \t]*))?` + fishShellWord + `(` + singleLineShellTerminator + `)`),
-		replacement: `${1}${2}` + redactionMarker + `${3}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)(^|[;&|][ \t]*)([ \t]*set[ \t]+(?:(?:--|-[a-z]+|--[a-z][a-z-]*)[ \t]+)*` + sensitivePrefixedName + `\b[ \t]+)` + fishShellWord + `(?:[ \t]+` + fishShellWord + `)*`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(` + sensitiveOrSecretShellToken + `[ \t]*=[ \t]*)` + fishShellWord + `(` + singleLineShellTerminator + `)`),
-		replacement: `${1}${2}` + redactionMarker + `${3}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|[^-a-z0-9_])(` + sensitivePrefixedName + `\b[ \t]*=[ \t]*)` + singleLineShellWord + `(` + singleLineShellTerminator + `)`),
-		replacement: `${1}${2}` + redactionMarker + `${3}`,
-	},
+	{lazyMustCompile(`(?m)(^|[ \t;&|])(` + uppercaseSessionEnvironmentName + `[ \t]*=[ \t]*)` + singleLineShellWord + `(` + singleLineShellTerminator + `)`), `${1}${2}` + redactionMarker + `${3}`},
+	{lazyMustCompile(`(?im)(^|[ \t;&|])(` + powerShellSensitiveVariable + `[ \t]*=[ \t]*)(?:&[ \t]+)?(?:[a-z0-9_.-]+\\)?ConvertTo-SecureString[ \t]+(?:` + powerShellSecureStringSwitch + `)*(?:-String(?:[ \t]+|[ \t]*:[ \t]*))?` + fishShellWord + `(` + singleLineShellTerminator + `)`), `${1}${2}` + redactionMarker + `${3}`},
+	{lazyMustCompile(`(?im)(^|[;&|][ \t]*)([ \t]*set[ \t]+(?:(?:--|-[a-z]+|--[a-z][a-z-]*)[ \t]+)*` + sensitivePrefixedName + `\b[ \t]+)` + fishShellWord + `(?:[ \t]+` + fishShellWord + `)*`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|\s)(` + sensitiveOrSecretShellToken + `[ \t]*=[ \t]*)` + fishShellWord + `(` + singleLineShellTerminator + `)`), `${1}${2}` + redactionMarker + `${3}`},
+	{lazyMustCompile(`(?i)(^|[^-a-z0-9_])(` + sensitivePrefixedName + `\b[ \t]*=[ \t]*)` + singleLineShellWord + `(` + singleLineShellTerminator + `)`), `${1}${2}` + redactionMarker + `${3}`},
 }
 
 var commandScopedSensitiveFlagRedactionRules = []redactionRule{
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(` + sensitiveShellFlagToken + shellCommandPathSeparator + `)` + fishShellWord + `(` + singleLineShellTerminator + `)`),
-		replacement: `${1}${2}` + redactionMarker + `${3}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(` + sensitiveShellFlagToken + shellCommandPathSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + shellUnquotedValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
+	{lazyMustCompile(`(?i)(^|\s)(` + sensitiveShellFlagToken + shellCommandPathSeparator + `)` + fishShellWord + `(` + singleLineShellTerminator + `)`), `${1}${2}` + redactionMarker + `${3}`},
+	{lazyMustCompile(`(?i)(^|\s)(` + sensitiveShellFlagToken + shellCommandPathSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + shellUnquotedValue + `)`), `${1}${2}` + redactionMarker},
 }
 
 var sensitiveTextRedactionRules = []redactionRule{
-	{
-		pattern:     lazyMustCompile(`(?s)-----BEGIN[ \t]+(?:[A-Z0-9]+[ \t]+)*PRIVATE[ \t]+KEY(?:[ \t]+BLOCK)?-----.*?-----END[ \t]+(?:[A-Z0-9]+[ \t]+)*PRIVATE[ \t]+KEY(?:[ \t]+BLOCK)?-----`),
-		replacement: privateKeyRedactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?s)-----BEGIN[ \t]+(?:[A-Z0-9]+[ \t]+)*PRIVATE[ \t]+KEY(?:[ \t]+BLOCK)?-----.*\z`),
-		replacement: privateKeyRedactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*(?:redirect_)?http_` + cgiCredentialHeaderName + `\b[ \t]*=[ \t]*)[^\r\n]*(\r?)$`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?m)^(` + passwordFileHostField + `:(?:[0-9]+|\*):` + passwordFileField + `:` + passwordFileField + `:)` + passwordFileField + `(\r?)$`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*(?:-[ \t]+)?` + yamlMappingKeyProperties + yamlCredentialName + `[ \t]*:[ \t]*)(?:\[[^\]\r\n]*\]|\{[^}\r\n]*\})`),
-		replacement: `${1}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*(?:-[ \t]+)?` + yamlMappingKeyProperties + `["']` + yamlCredentialName + `["'][ \t]*:[ \t]*)(?:\[[ \t]*[^"'\]\r\n][^\]\r\n]*\]|\{[ \t]*[^"'}\r\n][^}\r\n]*\})`),
-		replacement: `${1}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*` + yamlMappingKeyProperties + `(?:["']?` + yamlCredentialName + `["']?)[ \t]*:[ \t]*)(?:[^"'[{\s\r\n][^\r\n]*)(\r?)$`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(["']` + structuredCredentialName + `["'][ \t\r\n]*:[ \t\r\n]*\[)[ \t\r\n]*(?:"(?:\\.|[^"\\\r\n])*"(?:[ \t\r\n]*,[ \t\r\n]*"(?:\\.|[^"\\\r\n])*")*)[ \t\r\n]*(\])`),
-		replacement: `${1}"` + redactionMarker + `"${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(\\"` + structuredCredentialName + `\\"[ \t\r\n]*:[ \t\r\n]*\[)[ \t\r\n]*(?:\\"(?:\\.|[^"\\\r\n])*?\\"(?:[ \t\r\n]*,[ \t\r\n]*\\"(?:\\.|[^"\\\r\n])*?\\")*)[ \t\r\n]*(\])`),
-		replacement: `${1}\"` + redactionMarker + `\"${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)("securitycode"[ \t\r\n]*:[ \t\r\n]*\{[ \t\r\n]*"code"[ \t\r\n]*:[ \t\r\n]*")(?:\\.|[^"\\\r\n])*(")`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(\\"securitycode\\"[ \t\r\n]*:[ \t\r\n]*\{[ \t\r\n]*\\"code\\"[ \t\r\n]*:[ \t\r\n]*\\")(?:\\.|[^"\\\r\n])*?(\\")`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)("authorization[ \t]*:[ \t]*)(?:` + escapedQuotedCharacter + `|[^"\\])*(")`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)('authorization[ \t]*:[ \t]*)(?:` + escapedQuotedCharacter + `|[^'\\])*(')`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)\bauthorization[ \t]*[:=][ \t]*(?:bearer|basic|token)[ \t]+(?:` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|[^\s,;"']+)` + foldedHeaderContinuation),
-		replacement: "Authorization: " + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)\bauthorization[ \t]*[:=][ \t]*[a-z][a-z0-9_-]*[ \t]+[^\s=,]+[ \t]*=[^\r\n]+` + foldedHeaderContinuation),
-		replacement: "Authorization: " + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)("` + traceCredentialHeader + `[ \t]*:[ \t]*)(?:` + escapedQuotedCharacter + `|[^"\\])*(")`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)('` + traceCredentialHeader + `[ \t]*:[ \t]*)(?:` + escapedQuotedCharacter + `|[^'\\])*(')`),
-		replacement: `${1}` + redactionMarker + `${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)\b(` + credentialHeaderName + `|` + sensitivePrefixedName + `)[ \t]*:\[[^\]\r\n]*\]`),
-		replacement: `${1}:` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*(?:(?:[<>][ \t]*)?` + traceCredentialHeader + `|[<>][ \t]*` + sensitivePrefixedName + `))[ \t]*:[ \t]*[^\r\n]+` + foldedHeaderContinuation),
-		replacement: `${1}: ` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|[\s"'(<>{}\[\],;])((?:cookie|set-cookie)[ \t]*:[ \t]*)(?:` + cookieDataQuoted + `|` + cookieDataUnquoted + `)(?:[ \t]*;[ \t]*` + cookieDataUnquoted + `)*` + foldedHeaderContinuation),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|[\s"'(<>{}\[\],;])((?:` + traceCredentialHeader + `)[ \t]*:[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|[^\s,;"'()<>{}\[\]]+)` + foldedHeaderContinuation),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)\b([a-z][a-z0-9+.-]*://)[^/?#\s@]+@`),
-		replacement: `${1}` + redactionMarker + `@`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|[\s"'=])[^/?#\s@:]+:[^/?#\s@]+@([a-z0-9.-]+:[^\s"'<>]+)`),
-		replacement: `${1}` + redactionMarker + `@${2}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)\b(https://hooks\.slack(?:-gov)?\.com/services/)[^?#\s"'()<>{}\[\],;]+`),
-		replacement: `${1}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)\b(https://(?:(?:canary|ptb)\.)?discord(?:app)?\.com/api(?:/v[0-9]+)?/webhooks/[0-9]+/)[^?#\s"'()<>{}\[\],;]+`),
-		replacement: `${1}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)([?&]` + queryCredentialName + `=)[^&#\s"'<>]+`),
-		replacement: `${1}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*(?:header|proxy-header)` + curlConfigSeparator + `")(` + credentialHeaderName + `|` + sensitivePrefixedName + `)([ \t]*:[ \t]*)(?:\\.|[^"\\\r\n])+(")`),
-		replacement: `${1}${2}${3}` + redactionMarker + `${4}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*(?:header|proxy-header)` + curlConfigSeparator + `)(` + credentialHeaderName + `|` + sensitivePrefixedName + `)([ \t]*:[ \t]*)[^\r\n]+$`),
-		replacement: `${1}${2}${3}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*(?:user|proxy-user)` + curlConfigSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + credentialPairValue + `)`),
-		replacement: `${1}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*(?:oauth2-bearer|proxy-tlspassword|tlspassword)` + curlConfigSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|[^\s#]+)`),
-		replacement: `${1}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*pass` + curlConfigExplicitSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|[^\s#]+)`),
-		replacement: `${1}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^([ \t]*cookie` + curlConfigSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + cookieDataValue + `)`),
-		replacement: `${1}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)^((?:#HttpOnly_)?[^#\t\r\n][^\t\r\n]*\t(?:TRUE|FALSE)\t[^\t\r\n]*\t(?:TRUE|FALSE)\t[0-9]+\t[^\t\r\n]+\t)(?:\[REDACTED(?: PRIVATE KEY)?\]|[^\t\r\n]+)`),
-		replacement: `${1}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(-{1,2}secret\b` + shellCommandPathSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + flagUnquotedValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|\s)(` + sensitiveOrSecretShellToken + `[ \t]*=[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + shellUnquotedValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(\\"` + structuredCredentialName + `\\"[ \t\r\n]*:[ \t\r\n]*\\")(?:\\.|[^"\\\r\n])*?(\\")([ \t\r\n]*(?:[,}\]]|\z))`),
-		replacement: `${1}` + redactionMarker + `${2}${3}`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(["']` + structuredCredentialName + `["'][ \t\r\n]*:[ \t\r\n]*)(?:` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|[^\s,;}\[\]]+)`),
-		replacement: `${1}"` + redactionMarker + `"`,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|[^-a-z0-9_])(` + tomlQuotedSensitiveKey + `[ \t]*=[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + shellUnquotedValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?i)(^|[^-a-z0-9_])(` + sensitivePrefixedName + `\b[ \t]*=[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|(?:(?:bearer|basic|token)[ \t]+)` + shellUnquotedValue + `|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + shellUnquotedValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`(?im)(^[ \t]*|[\[{(,;][ \t]*)(` + yamlMappingKeyProperties + sensitivePrefixedName + `\b[ \t]*:[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|(?:(?:bearer|basic|token)[ \t]+)` + structuredUnquotedValue + `|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + structuredUnquotedValue + `)`),
-		replacement: `${1}${2}` + redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b`),
-		replacement: redactionMarker,
-	},
-	{
-		pattern:     lazyMustCompile(`\b(?:github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|xoxb-[0-9]{10,}-[0-9]{10,}-[A-Za-z0-9]{20,}|xoxp-[A-Za-z0-9-]{20,}|xapp-[0-9]+-[A-Za-z0-9]{10,}(?:-[A-Za-z0-9]{6,})+|npm_[A-Za-z0-9]{36}|glpat-[A-Za-z0-9_-]{20,}|[sr]k_(?:live|test)_[A-Za-z0-9]{16,})\b`),
-		replacement: redactionMarker,
-	},
+	{lazyMustCompile(`(?s)-----BEGIN[ \t]+(?:[A-Z0-9]+[ \t]+)*PRIVATE[ \t]+KEY(?:[ \t]+BLOCK)?-----.*?-----END[ \t]+(?:[A-Z0-9]+[ \t]+)*PRIVATE[ \t]+KEY(?:[ \t]+BLOCK)?-----`), privateKeyRedactionMarker},
+	{lazyMustCompile(`(?s)-----BEGIN[ \t]+(?:[A-Z0-9]+[ \t]+)*PRIVATE[ \t]+KEY(?:[ \t]+BLOCK)?-----.*\z`), privateKeyRedactionMarker},
+	{lazyMustCompile(`(?im)^([ \t]*(?:redirect_)?http_` + cgiCredentialHeaderName + `\b[ \t]*=[ \t]*)[^\r\n]*(\r?)$`), `${1}` + redactionMarker + `${2}`},
+	{lazyMustCompile(`(?m)^(` + passwordFileHostField + `:(?:[0-9]+|\*):` + passwordFileField + `:` + passwordFileField + `:)` + passwordFileField + `(\r?)$`), `${1}` + redactionMarker + `${2}`},
+	{lazyMustCompile(`(?im)^([ \t]*(?:-[ \t]+)?` + yamlMappingKeyProperties + yamlCredentialName + `[ \t]*:[ \t]*)(?:\[[^\]\r\n]*\]|\{[^}\r\n]*\})`), `${1}` + redactionMarker},
+	{lazyMustCompile(`(?im)^([ \t]*(?:-[ \t]+)?` + yamlMappingKeyProperties + `["']` + yamlCredentialName + `["'][ \t]*:[ \t]*)(?:\[[ \t]*[^"'\]\r\n][^\]\r\n]*\]|\{[ \t]*[^"'}\r\n][^}\r\n]*\})`), `${1}` + redactionMarker},
+	{lazyMustCompile(`(?im)^([ \t]*` + yamlMappingKeyProperties + `(?:["']?` + yamlCredentialName + `["']?)[ \t]*:[ \t]*)(?:[^"'[{\s\r\n][^\r\n]*)(\r?)$`), `${1}` + redactionMarker + `${2}`},
+	{lazyMustCompile(`(?i)(["']` + structuredCredentialName + `["'][ \t\r\n]*:[ \t\r\n]*\[)[ \t\r\n]*(?:"(?:\\.|[^"\\\r\n])*"(?:[ \t\r\n]*,[ \t\r\n]*"(?:\\.|[^"\\\r\n])*")*)[ \t\r\n]*(\])`), `${1}"` + redactionMarker + `"${2}`},
+	{lazyMustCompile(`(?i)(\\"` + structuredCredentialName + `\\"[ \t\r\n]*:[ \t\r\n]*\[)[ \t\r\n]*(?:\\"(?:\\.|[^"\\\r\n])*?\\"(?:[ \t\r\n]*,[ \t\r\n]*\\"(?:\\.|[^"\\\r\n])*?\\")*)[ \t\r\n]*(\])`), `${1}\"` + redactionMarker + `\"${2}`},
+	{lazyMustCompile(`(?i)("securitycode"[ \t\r\n]*:[ \t\r\n]*\{[ \t\r\n]*"code"[ \t\r\n]*:[ \t\r\n]*")(?:\\.|[^"\\\r\n])*(")`), `${1}` + redactionMarker + `${2}`},
+	{lazyMustCompile(`(?i)(\\"securitycode\\"[ \t\r\n]*:[ \t\r\n]*\{[ \t\r\n]*\\"code\\"[ \t\r\n]*:[ \t\r\n]*\\")(?:\\.|[^"\\\r\n])*?(\\")`), `${1}` + redactionMarker + `${2}`},
+	{lazyMustCompile(`(?i)("authorization[ \t]*:[ \t]*)(?:` + escapedQuotedCharacter + `|[^"\\])*(")`), `${1}` + redactionMarker + `${2}`},
+	{lazyMustCompile(`(?i)('authorization[ \t]*:[ \t]*)(?:` + escapedQuotedCharacter + `|[^'\\])*(')`), `${1}` + redactionMarker + `${2}`},
+	{lazyMustCompile(`(?i)\bauthorization[ \t]*[:=][ \t]*(?:bearer|basic|token)[ \t]+(?:` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|[^\s,;"']+)` + foldedHeaderContinuation), "Authorization: " + redactionMarker},
+	{lazyMustCompile(`(?i)\bauthorization[ \t]*[:=][ \t]*[a-z][a-z0-9_-]*[ \t]+[^\s=,]+[ \t]*=[^\r\n]+` + foldedHeaderContinuation), "Authorization: " + redactionMarker},
+	{lazyMustCompile(`(?i)("` + traceCredentialHeader + `[ \t]*:[ \t]*)(?:` + escapedQuotedCharacter + `|[^"\\])*(")`), `${1}` + redactionMarker + `${2}`},
+	{lazyMustCompile(`(?i)('` + traceCredentialHeader + `[ \t]*:[ \t]*)(?:` + escapedQuotedCharacter + `|[^'\\])*(')`), `${1}` + redactionMarker + `${2}`},
+	{lazyMustCompile(`(?i)\b(` + credentialHeaderName + `|` + sensitivePrefixedName + `)[ \t]*:\[[^\]\r\n]*\]`), `${1}:` + redactionMarker},
+	{lazyMustCompile(`(?im)^([ \t]*(?:(?:[<>][ \t]*)?` + traceCredentialHeader + `|[<>][ \t]*` + sensitivePrefixedName + `))[ \t]*:[ \t]*[^\r\n]+` + foldedHeaderContinuation), `${1}: ` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|[\s"'(<>{}\[\],;])((?:cookie|set-cookie)[ \t]*:[ \t]*)(?:` + cookieDataQuoted + `|` + cookieDataUnquoted + `)(?:[ \t]*;[ \t]*` + cookieDataUnquoted + `)*` + foldedHeaderContinuation), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|[\s"'(<>{}\[\],;])((?:` + traceCredentialHeader + `)[ \t]*:[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|[^\s,;"'()<>{}\[\]]+)` + foldedHeaderContinuation), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)\b([a-z][a-z0-9+.-]*://)[^/?#\s@]+@`), `${1}` + redactionMarker + `@`},
+	{lazyMustCompile(`(?i)(^|[\s"'=])[^/?#\s@:]+:[^/?#\s@]+@([a-z0-9.-]+:[^\s"'<>]+)`), `${1}` + redactionMarker + `@${2}`},
+	{lazyMustCompile(`(?i)\b(https://hooks\.slack(?:-gov)?\.com/services/)[^?#\s"'()<>{}\[\],;]+`), `${1}` + redactionMarker},
+	{lazyMustCompile(`(?i)\b(https://(?:(?:canary|ptb)\.)?discord(?:app)?\.com/api(?:/v[0-9]+)?/webhooks/[0-9]+/)[^?#\s"'()<>{}\[\],;]+`), `${1}` + redactionMarker},
+	{lazyMustCompile(`(?i)([?&]` + queryCredentialName + `=)[^&#\s"'<>]+`), `${1}` + redactionMarker},
+	{lazyMustCompile(`(?im)^([ \t]*(?:header|proxy-header)` + curlConfigSeparator + `")(` + credentialHeaderName + `|` + sensitivePrefixedName + `)([ \t]*:[ \t]*)(?:\\.|[^"\\\r\n])+(")`), `${1}${2}${3}` + redactionMarker + `${4}`},
+	{lazyMustCompile(`(?im)^([ \t]*(?:header|proxy-header)` + curlConfigSeparator + `)(` + credentialHeaderName + `|` + sensitivePrefixedName + `)([ \t]*:[ \t]*)[^\r\n]+$`), `${1}${2}${3}` + redactionMarker},
+	{lazyMustCompile(`(?im)^([ \t]*(?:user|proxy-user)` + curlConfigSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + credentialPairValue + `)`), `${1}` + redactionMarker},
+	{lazyMustCompile(`(?im)^([ \t]*(?:oauth2-bearer|proxy-tlspassword|tlspassword)` + curlConfigSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|[^\s#]+)`), `${1}` + redactionMarker},
+	{lazyMustCompile(`(?im)^([ \t]*pass` + curlConfigExplicitSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|[^\s#]+)`), `${1}` + redactionMarker},
+	{lazyMustCompile(`(?im)^([ \t]*cookie` + curlConfigSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + cookieDataValue + `)`), `${1}` + redactionMarker},
+	{lazyMustCompile(`(?im)^((?:#HttpOnly_)?[^#\t\r\n][^\t\r\n]*\t(?:TRUE|FALSE)\t[^\t\r\n]*\t(?:TRUE|FALSE)\t[0-9]+\t[^\t\r\n]+\t)(?:\[REDACTED(?: PRIVATE KEY)?\]|[^\t\r\n]+)`), `${1}` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|\s)(-{1,2}secret\b` + shellCommandPathSeparator + `)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + flagUnquotedValue + `)`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|\s)(` + sensitiveOrSecretShellToken + `[ \t]*=[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + shellUnquotedValue + `)`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)(\\"` + structuredCredentialName + `\\"[ \t\r\n]*:[ \t\r\n]*\\")(?:\\.|[^"\\\r\n])*?(\\")([ \t\r\n]*(?:[,}\]]|\z))`), `${1}` + redactionMarker + `${2}${3}`},
+	{lazyMustCompile(`(?i)(["']` + structuredCredentialName + `["'][ \t\r\n]*:[ \t\r\n]*)(?:` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|[^\s,;}\[\]]+)`), `${1}"` + redactionMarker + `"`},
+	{lazyMustCompile(`(?i)(^|[^-a-z0-9_])(` + tomlQuotedSensitiveKey + `[ \t]*=[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + shellUnquotedValue + `)`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?i)(^|[^-a-z0-9_])(` + sensitivePrefixedName + `\b[ \t]*=[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|(?:(?:bearer|basic|token)[ \t]+)` + shellUnquotedValue + `|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + shellUnquotedValue + `)`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`(?im)(^[ \t]*|[\[{(,;][ \t]*)(` + yamlMappingKeyProperties + sensitivePrefixedName + `\b[ \t]*:[ \t]*)(?:\[REDACTED(?: PRIVATE KEY)?\]|(?:(?:bearer|basic|token)[ \t]+)` + structuredUnquotedValue + `|` + escapeAwareQuotedValue + `|` + unterminatedQuotedValue + `|` + structuredUnquotedValue + `)`), `${1}${2}` + redactionMarker},
+	{lazyMustCompile(`\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b`), redactionMarker},
+	{lazyMustCompile(`\b(?:github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|xoxb-[0-9]{10,}-[0-9]{10,}-[A-Za-z0-9]{20,}|xoxp-[A-Za-z0-9-]{20,}|xapp-[0-9]+-[A-Za-z0-9]{10,}(?:-[A-Za-z0-9]{6,})+|npm_[A-Za-z0-9]{36}|glpat-[A-Za-z0-9_-]{20,}|[sr]k_(?:live|test)_[A-Za-z0-9]{16,})\b`), redactionMarker},
 }
 
 func redactSensitiveText(value string) (string, bool) {
@@ -644,6 +462,37 @@ func isBenignTextCommand(command string) bool {
 	return false
 }
 
+// redactionStep redacts one kind of secret. Steps run in order, and each step
+// sees the output of the previous one.
+type redactionStep func(value string, depth int) (string, bool)
+
+func ignoringDepth(redact func(string) (string, bool)) redactionStep {
+	return func(value string, _ int) (string, bool) { return redact(value) }
+}
+
+func applyingRules(rules []redactionRule) redactionStep {
+	return func(value string, _ int) (string, bool) {
+		changed := false
+		for _, rule := range rules {
+			if next := rule.pattern.ReplaceAllString(value, rule.replacement); next != value {
+				value = next
+				changed = true
+			}
+		}
+		return value, changed
+	}
+}
+
+func runRedactionSteps(value string, depth int, changed bool, steps []redactionStep) (string, bool) {
+	for _, step := range steps {
+		if next, stepChanged := step(value, depth); stepChanged {
+			value = next
+			changed = true
+		}
+	}
+	return value, changed
+}
+
 func redactSensitiveTextDepth(value string, depth int) (string, bool) {
 	redacted, changed := boundRedactionInput(value)
 	if depth > maxShellRedactionDepth {
@@ -652,223 +501,67 @@ func redactSensitiveTextDepth(value string, depth int) (string, bool) {
 		}
 		return redactionMarker, true
 	}
-	if next, substitutionChanged := redactShellCommandSubstitutionContents(redacted, depth); substitutionChanged {
-		redacted = next
-		changed = true
-	}
-	if next, subshellChanged := redactShellSubshellGroupContents(redacted, depth); subshellChanged {
-		redacted = next
-		changed = true
-	}
-	if next, envSplitChanged := redactEnvSplitCommandStrings(redacted, depth); envSplitChanged {
-		redacted = next
-		changed = true
-	}
-	if next, shellChanged := redactShellCommandStrings(redacted, depth); shellChanged {
-		redacted = next
-		changed = true
-	}
-	if next, evalChanged := redactEvalCommandStrings(redacted, depth); evalChanged {
-		redacted = next
-		changed = true
-	}
-	if next, launchctlChanged := redactLaunchctlSubmitEmbeddedCommands(redacted, depth); launchctlChanged {
-		redacted = next
-		changed = true
-	}
-	if next, kubernetesChanged := redactKubernetesSecretData(redacted); kubernetesChanged {
-		redacted = next
-		changed = true
-	}
-	if next, powerShellChanged := redactPowerShellHereStringCredentials(redacted); powerShellChanged {
-		redacted = next
-		changed = true
-	}
-	if next, powerShellChanged := redactPowerShellCollectionCredentials(redacted); powerShellChanged {
-		redacted = next
-		changed = true
-	}
-	if next, commandPromptChanged := redactCommandPromptSetAssignments(redacted); commandPromptChanged {
-		redacted = next
-		changed = true
-	}
-	if next, curlConfigChanged := redactCurlConfigCertificatePasswords(redacted); curlConfigChanged {
-		redacted = next
-		changed = true
-	}
-	if next, secretChanged := redactSecretMarkedValues(redacted); secretChanged {
-		redacted = next
-		changed = true
-	}
-	if next, kubectlChanged := redactKubectlSecretLiterals(redacted); kubectlChanged {
-		redacted = next
-		changed = true
-	}
-	if next, securityChanged := redactSecurityCredentialArguments(redacted); securityChanged {
-		redacted = next
-		changed = true
-	}
-	if next, opensslChanged := redactOpenSSLCredentialArguments(redacted); opensslChanged {
-		redacted = next
-		changed = true
-	}
-	if next, keytoolChanged := redactKeytoolCredentialArguments(redacted); keytoolChanged {
-		redacted = next
-		changed = true
-	}
-	if next, jarsignerChanged := redactJarsignerCredentialArguments(redacted); jarsignerChanged {
-		redacted = next
-		changed = true
-	}
-	if next, dockerChanged := redactDockerLoginCredentialArguments(redacted); dockerChanged {
-		redacted = next
-		changed = true
-	}
-	if next, sshpassChanged := redactSSHPassCredentialArguments(redacted); sshpassChanged {
-		redacted = next
-		changed = true
-	}
-	if next, sshKeygenChanged := redactSSHKeygenCredentialArguments(redacted); sshKeygenChanged {
-		redacted = next
-		changed = true
-	}
-	if next, zipChanged := redactZipCredentialArguments(redacted); zipChanged {
-		redacted = next
-		changed = true
-	}
-	if next, unzipChanged := redactUnzipCredentialArguments(redacted); unzipChanged {
-		redacted = next
-		changed = true
-	}
-	if next, redisChanged := redactRedisCLICredentialArguments(redacted); redisChanged {
-		redacted = next
-		changed = true
-	}
-	if next, curlChanged := redactCurlCredentialArguments(redacted); curlChanged {
-		redacted = next
-		changed = true
-	}
-	if next, netrcChanged := redactNetrcPasswords(redacted); netrcChanged {
-		redacted = next
-		changed = true
-	}
-	if next, queryChanged := redactWebAuthCodeQueryValues(redacted); queryChanged {
-		redacted = next
-		changed = true
-	}
-	if next, queryChanged := redactEncodedQueryCredentialValues(redacted); queryChanged {
-		redacted = next
-		changed = true
-	}
-	if next, plistChanged := redactPlistCredentialValues(redacted); plistChanged {
-		redacted = next
-		changed = true
-	}
-	if next, xmlChanged := redactXMLCredentialElements(redacted); xmlChanged {
-		redacted = next
-		changed = true
-	}
-	if next, xmlChanged := redactXMLCredentialAttributes(redacted); xmlChanged {
-		redacted = next
-		changed = true
-	}
+	redacted, changed = runRedactionSteps(redacted, depth, changed, []redactionStep{
+		redactShellCommandSubstitutionContents,
+		redactShellSubshellGroupContents,
+		redactEnvSplitCommandStrings,
+		redactShellCommandStrings,
+		redactEvalCommandStrings,
+		redactLaunchctlSubmitEmbeddedCommands,
+		ignoringDepth(redactKubernetesSecretData),
+		ignoringDepth(redactPowerShellHereStringCredentials),
+		ignoringDepth(redactPowerShellCollectionCredentials),
+		ignoringDepth(redactCommandPromptSetAssignments),
+		ignoringDepth(redactCurlConfigCertificatePasswords),
+		ignoringDepth(redactSecretMarkedValues),
+		ignoringDepth(redactKubectlSecretLiterals),
+		ignoringDepth(redactSecurityCredentialArguments),
+		ignoringDepth(redactOpenSSLCredentialArguments),
+		ignoringDepth(redactNamedCommandArguments("keytool", "", keytoolCredentialFlagPattern)),
+		ignoringDepth(redactNamedCommandArguments("jarsigner", "", jarsignerCredentialFlagPattern)),
+		ignoringDepth(redactDockerLoginCredentialArguments),
+		ignoringDepth(redactShortOptionSecrets(sshpassSecrets)),
+		ignoringDepth(redactShortOptionSecrets(sshKeygenSecrets)),
+		ignoringDepth(redactNamedCommandArguments("zip", "P", zipCredentialFlagPattern)),
+		ignoringDepth(redactNamedCommandArguments("unzip", "P", zipCredentialFlagPattern)),
+		ignoringDepth(redactRedisCLICredentialArguments),
+		ignoringDepth(redactCurlCredentialArguments),
+		ignoringDepth(redactNetrcPasswords),
+		ignoringDepth(redactWebAuthCodeQueryValues),
+		ignoringDepth(redactEncodedQueryCredentialValues),
+		ignoringDepth(redactPlistCredentialValues),
+		ignoringDepth(redactXMLCredentialElements),
+		ignoringDepth(redactXMLCredentialAttributes),
+	})
 	redacted, yamlKeyRestorations := normalizeYAMLEscapedCredentialKeys(redacted)
 	redacted, yamlAliasKeyRestorations := normalizeYAMLAliasCredentialKeys(redacted)
-	if next, tomlValueChanged := redactTOMLCredentialValues(redacted); tomlValueChanged {
-		redacted = next
-		changed = true
-	}
-	if next, tomlChanged := redactTOMLMultilineCredentials(redacted); tomlChanged {
-		redacted = next
-		changed = true
-	}
-	if next, jsonKeyChanged := redactJSONEscapedCredentialValues(redacted); jsonKeyChanged {
-		redacted = next
-		changed = true
-	}
-	if next, jsonContextChanged := redactContextualJSONCredentialValues(redacted); jsonContextChanged {
-		redacted = next
-		changed = true
-	}
-	if next, jsonPairChanged := redactSensitiveJSONNameValuePairs(redacted); jsonPairChanged {
-		redacted = next
-		changed = true
-	}
-	if next, yamlPairChanged := redactSensitiveYAMLNameValuePairs(redacted); yamlPairChanged {
-		redacted = next
-		changed = true
-	}
-	if next, cookieChanged := redactStructuredCookieValues(redacted); cookieChanged {
-		redacted = next
-		changed = true
-	}
-	if next, registryChanged := redactRegistryConfigurationAuthValues(redacted); registryChanged {
-		redacted = next
-		changed = true
-	}
-	if next, headerChanged := redactStructuredUploadHeaderValues(redacted); headerChanged {
-		redacted = next
-		changed = true
-	}
-	if next, objectChanged := redactStructuredCredentialObjects(redacted); objectChanged {
-		redacted = next
-		changed = true
-	}
-	if next, yamlAliasChanged := redactYAMLCredentialAliases(redacted); yamlAliasChanged {
-		redacted = next
-		changed = true
-	}
-	if next, yamlExplicitChanged := redactYAMLExplicitCredentialMappings(redacted); yamlExplicitChanged {
-		redacted = next
-		changed = true
-	}
-	if next, yamlChanged := redactYAMLCredentialBlocks(redacted); yamlChanged {
-		redacted = next
-		changed = true
-	}
-	if next, yamlFlowChanged := redactYAMLFlowCredentials(redacted); yamlFlowChanged {
-		redacted = next
-		changed = true
-	}
-	if next, substitutionChanged := redactSensitiveCommandSubstitutions(redacted); substitutionChanged {
-		redacted = next
-		changed = true
-	}
-	if next, environmentChanged := redactBareEnvironmentDumpCredentials(redacted); environmentChanged {
-		redacted = next
-		changed = true
-	}
+	redacted, changed = runRedactionSteps(redacted, depth, changed, []redactionStep{
+		ignoringDepth(redactTOMLCredentialValues),
+		ignoringDepth(redactTOMLMultilineCredentials),
+		ignoringDepth(redactJSONEscapedCredentialValues),
+		ignoringDepth(redactContextualJSONCredentialValues),
+		ignoringDepth(redactSensitiveJSONNameValuePairs),
+		ignoringDepth(redactSensitiveYAMLNameValuePairs),
+		ignoringDepth(redactStructuredCookieValues),
+		ignoringDepth(redactRegistryConfigurationAuthValues),
+		ignoringDepth(redactStructuredUploadHeaderValues),
+		ignoringDepth(redactStructuredCredentialObjects),
+		ignoringDepth(redactYAMLCredentialAliases),
+		ignoringDepth(redactYAMLExplicitCredentialMappings),
+		ignoringDepth(redactYAMLCredentialBlocks),
+		ignoringDepth(redactYAMLFlowCredentials),
+		ignoringDepth(redactSensitiveCommandSubstitutions),
+		ignoringDepth(redactBareEnvironmentDumpCredentials),
+	})
 	redacted, booleanMarkerProtection := protectBooleanSecretMarkers(redacted)
-	if next, flagChanged := redactCommandScopedSensitiveFlags(redacted); flagChanged {
-		redacted = next
-		changed = true
-	}
-	for _, rule := range singleLineShellWordRedactionRules {
-		next := rule.pattern.ReplaceAllString(redacted, rule.replacement)
-		if next != redacted {
-			changed = true
-			redacted = next
-		}
-	}
-	for _, rule := range sensitiveTextRedactionRules {
-		next := rule.pattern.ReplaceAllString(redacted, rule.replacement)
-		if next != redacted {
-			changed = true
-			redacted = next
-		}
-	}
-	if next, standaloneChanged := redactStandaloneURLSafeCredentials(redacted); standaloneChanged {
-		redacted = next
-		changed = true
-	}
-	if next, authorizationChanged := redactHighConfidenceAuthorizationCredentials(redacted); authorizationChanged {
-		redacted = next
-		changed = true
-	}
-	if next, bearerChanged := redactStandaloneBearerCredentials(redacted); bearerChanged {
-		redacted = next
-		changed = true
-	}
+	redacted, changed = runRedactionSteps(redacted, depth, changed, []redactionStep{
+		ignoringDepth(redactCommandScopedSensitiveFlags),
+		applyingRules(singleLineShellWordRedactionRules),
+		applyingRules(sensitiveTextRedactionRules),
+		ignoringDepth(redactStandaloneURLSafeCredentials),
+		ignoringDepth(redactHighConfidenceAuthorizationCredentials),
+		ignoringDepth(redactStandaloneBearerCredentials),
+	})
 	if booleanMarkerProtection != "" {
 		redacted = strings.ReplaceAll(redacted, booleanMarkerProtection, "")
 	}
@@ -967,7 +660,7 @@ func redactKubernetesSecretYAMLData(value string) (string, bool) {
 						changed = true
 						if blockScalar {
 							blockIndent = indent
-						} else if redactKubernetesYAMLScalarContinuations(lines, line, content, valueStart) {
+						} else if redactYAMLScalarContinuations(lines, line, indent, content, valueStart) {
 							changed = true
 						}
 					}
@@ -1011,10 +704,7 @@ func redactKubernetesSecretYAMLData(value string) (string, bool) {
 			secretActive = true
 		}
 		if strings.EqualFold(key, "kind") {
-			kind := yamlMappingScalar(lines, line, content, valueStart)
-			if strings.HasPrefix(kind, "*") {
-				kind = scalarAnchors[strings.TrimPrefix(kind, "*")]
-			}
+			kind := resolveYAMLAlias(yamlMappingScalar(lines, line, content, valueStart), scalarAnchors)
 			if strings.EqualFold(kind, "Secret") {
 				if !secretActive || keyIndent <= secretIndent {
 					secretIndent = keyIndent
@@ -1138,10 +828,7 @@ func yamlExplicitKindForMapping(lines []string, currentLine, mappingIndent int, 
 		if !ok || yamlKeyIndent(content) != mappingIndent || !strings.EqualFold(key, "kind") {
 			continue
 		}
-		kind := yamlMappingScalar(lines, line, content, valueStart)
-		if strings.HasPrefix(kind, "*") {
-			kind = scalarAnchors[strings.TrimPrefix(kind, "*")]
-		}
+		kind := resolveYAMLAlias(yamlMappingScalar(lines, line, content, valueStart), scalarAnchors)
 		return kind, true
 	}
 	return "", false
@@ -1193,10 +880,7 @@ func yamlMappingAnchorHasSecretKind(lines []string, location yamlAnchorLocation,
 		if keyIndent != childIndent || !strings.EqualFold(key, "kind") {
 			continue
 		}
-		kind := yamlMappingScalar(lines, line, candidate, valueStart)
-		if strings.HasPrefix(kind, "*") {
-			kind = scalarAnchors[strings.TrimPrefix(kind, "*")]
-		}
+		kind := resolveYAMLAlias(yamlMappingScalar(lines, line, candidate, valueStart), scalarAnchors)
 		return strings.EqualFold(kind, "Secret")
 	}
 	return false
@@ -1207,7 +891,28 @@ func yamlFlowMappingHasSecretKind(flow string, scalarAnchors map[string]string) 
 	if len(flow) < 2 || flow[0] != '{' || close < 1 {
 		return false
 	}
-	flow = flow[:close+1]
+	secret := false
+	eachYAMLFlowProperty(flow[:close+1], func(property yamlFlowProperty) bool {
+		if !strings.EqualFold(property.key, "kind") {
+			return true
+		}
+		secret = strings.EqualFold(resolveYAMLAlias(kubernetesYAMLScalar(property.value), scalarAnchors), "Secret")
+		return false
+	})
+	return secret
+}
+
+// yamlFlowProperty is one key: value pair of a YAML flow mapping. value spans
+// flow[start:end] without surrounding whitespace.
+type yamlFlowProperty struct {
+	key        string
+	value      string
+	start, end int
+}
+
+// eachYAMLFlowProperty visits the properties of a {key: value} flow mapping
+// until visit returns false. It reports false for a malformed mapping.
+func eachYAMLFlowProperty(flow string, visit func(yamlFlowProperty) bool) bool {
 	for cursor := 1; cursor < len(flow)-1; {
 		cursor = skipYAMLFlowSpaceAndComments(flow, cursor, len(flow)-1)
 		if cursor >= len(flow)-1 {
@@ -1217,25 +922,45 @@ func yamlFlowMappingHasSecretKind(flow string, scalarAnchors map[string]string) 
 		if colon < 0 {
 			return false
 		}
-		key := decodeYAMLMappingKey(flow[cursor:colon])
 		valueStart := colon + 1
-		for valueStart < len(flow)-1 && (flow[valueStart] == ' ' || flow[valueStart] == '\t' || flow[valueStart] == '\r' || flow[valueStart] == '\n') {
+		for valueStart < len(flow)-1 && isYAMLFlowSpace(flow[valueStart]) {
 			valueStart++
 		}
 		valueEnd := findKubernetesFlowValueEnd(flow, valueStart)
 		if valueEnd < valueStart {
 			return false
 		}
-		if strings.EqualFold(key, "kind") {
-			kind := kubernetesYAMLScalar(flow[valueStart:valueEnd])
-			if strings.HasPrefix(kind, "*") {
-				kind = scalarAnchors[strings.TrimPrefix(kind, "*")]
-			}
-			return strings.EqualFold(kind, "Secret")
+		trimmedEnd := valueEnd
+		for trimmedEnd > valueStart && isYAMLFlowSpace(flow[trimmedEnd-1]) {
+			trimmedEnd--
+		}
+		if !visit(yamlFlowProperty{key: decodeYAMLMappingKey(flow[cursor:colon]), value: flow[valueStart:trimmedEnd], start: valueStart, end: trimmedEnd}) {
+			return true
 		}
 		cursor = valueEnd
 	}
-	return false
+	return true
+}
+
+func parseYAMLFlowMapping(flow string) ([]yamlFlowProperty, bool) {
+	var properties []yamlFlowProperty
+	ok := eachYAMLFlowProperty(flow, func(property yamlFlowProperty) bool {
+		properties = append(properties, property)
+		return true
+	})
+	return properties, ok
+}
+
+func isYAMLFlowSpace(character byte) bool {
+	return character == ' ' || character == '\t' || character == '\r' || character == '\n'
+}
+
+// resolveYAMLAlias returns the scalar an *alias names, or scalar itself.
+func resolveYAMLAlias(scalar string, scalarAnchors map[string]string) string {
+	if alias, ok := strings.CutPrefix(scalar, "*"); ok {
+		return scalarAnchors[alias]
+	}
+	return scalar
 }
 
 func redactKubernetesYAMLAnchorAliases(lines []string, value string, locations map[string]yamlAnchorLocation) {
@@ -1277,18 +1002,20 @@ func redactKubernetesYAMLAnchorDefinition(lines []string, location yamlAnchorLoc
 	if strings.HasPrefix(content[cursor:], redactionMarker) {
 		return
 	}
-	redactKubernetesYAMLScalarContinuations(lines, location.line, content, cursor)
+	redactYAMLScalarContinuations(lines, location.line, leadingIndent(content), content, cursor)
 	lines[location.line] = content[:cursor] + redactionMarker + ending
 }
 
-func redactKubernetesYAMLScalarContinuations(lines []string, line int, content string, valueStart int) bool {
+// redactYAMLScalarContinuations clears the continuation lines of the scalar
+// at content[valueStart:], a multi-line plain scalar indented beyond indent or
+// a quoted scalar that does not close on its first line.
+func redactYAMLScalarContinuations(lines []string, line, indent int, content string, valueStart int) bool {
 	value, _ := trimYAMLNodeProperties(content[valueStart:])
 	value = strings.TrimSpace(value)
 	if value == "" || strings.HasPrefix(value, "[") || strings.HasPrefix(value, "{") {
 		return false
 	}
 
-	indent := leadingIndent(content)
 	quote := byte(0)
 	if value[0] == '\'' || value[0] == '"' {
 		quote = value[0]
@@ -1737,10 +1464,7 @@ func yamlSecretKindFollows(lines []string, start, secretIndent int, anchorLocati
 			return true
 		}
 		if strings.EqualFold(key, "kind") {
-			kind := yamlMappingScalar(lines, line, content, valueStart)
-			if strings.HasPrefix(kind, "*") {
-				kind = scalarAnchors[strings.TrimPrefix(kind, "*")]
-			}
+			kind := resolveYAMLAlias(yamlMappingScalar(lines, line, content, valueStart), scalarAnchors)
 			return strings.EqualFold(kind, "Secret")
 		}
 	}
@@ -1773,76 +1497,28 @@ func redactKubernetesSecretYAMLFlowObject(flow string) (string, bool) {
 	if len(flow) < 2 || flow[0] != '{' || flow[len(flow)-1] != '}' {
 		return flow, false
 	}
-	type property struct {
-		key             string
-		valueStart      int
-		trimmedValueEnd int
-	}
-	var properties []property
-	for cursor := 1; cursor < len(flow)-1; {
-		cursor = skipYAMLFlowSpaceAndComments(flow, cursor, len(flow)-1)
-		if cursor >= len(flow)-1 {
-			break
-		}
-		colon := findKubernetesFlowColon(flow, cursor)
-		if colon < 0 {
-			return flow, false
-		}
-		key := decodeYAMLMappingKey(flow[cursor:colon])
-		valueStart := colon + 1
-		for valueStart < len(flow)-1 && (flow[valueStart] == ' ' || flow[valueStart] == '\t' || flow[valueStart] == '\r' || flow[valueStart] == '\n') {
-			valueStart++
-		}
-		valueEnd := findKubernetesFlowValueEnd(flow, valueStart)
-		if valueEnd < valueStart {
-			return flow, false
-		}
-		trimmedEnd := valueEnd
-		for trimmedEnd > valueStart && (flow[trimmedEnd-1] == ' ' || flow[trimmedEnd-1] == '\t' || flow[trimmedEnd-1] == '\r' || flow[trimmedEnd-1] == '\n') {
-			trimmedEnd--
-		}
-		properties = append(properties, property{key: key, valueStart: valueStart, trimmedValueEnd: trimmedEnd})
-		cursor = valueEnd
-	}
-	secret := false
-	for _, property := range properties {
-		if strings.EqualFold(property.key, "kind") && strings.EqualFold(kubernetesYAMLScalar(flow[property.valueStart:property.trimmedValueEnd]), "Secret") {
-			secret = true
-			break
-		}
-	}
-	if !secret {
+	properties, ok := parseYAMLFlowMapping(flow)
+	if !ok || !slices.ContainsFunc(properties, func(property yamlFlowProperty) bool {
+		return strings.EqualFold(property.key, "kind") && strings.EqualFold(kubernetesYAMLScalar(property.value), "Secret")
+	}) {
 		return flow, false
 	}
-	type replacement struct {
-		start, end int
-		value      string
-	}
-	var replacements []replacement
+	var replacements []textReplacement
 	for _, property := range properties {
-		if !strings.EqualFold(property.key, "data") && !strings.EqualFold(property.key, "stringData") || property.valueStart >= property.trimmedValueEnd {
+		if !strings.EqualFold(property.key, "data") && !strings.EqualFold(property.key, "stringData") || property.value == "" {
 			continue
 		}
-		if flow[property.valueStart] == '{' {
-			child, childChanged := redactKubernetesSecretFlowMap(flow[property.valueStart:property.trimmedValueEnd])
-			if childChanged {
-				replacements = append(replacements, replacement{start: property.valueStart, end: property.trimmedValueEnd, value: child})
+		if property.value[0] == '{' {
+			if child, childChanged := redactKubernetesSecretFlowMap(property.value); childChanged {
+				replacements = append(replacements, textReplacement{property.start, property.end, child})
 			}
 			continue
 		}
-		if flow[property.valueStart:property.trimmedValueEnd] != redactionMarker {
-			replacements = append(replacements, replacement{start: property.valueStart, end: property.trimmedValueEnd, value: redactionMarker})
+		if property.value != redactionMarker {
+			replacements = append(replacements, textReplacement{property.start, property.end, redactionMarker})
 		}
 	}
-	if len(replacements) == 0 {
-		return flow, false
-	}
-	redacted := flow
-	for index := len(replacements) - 1; index >= 0; index-- {
-		replacement := replacements[index]
-		redacted = redacted[:replacement.start] + replacement.value + redacted[replacement.end:]
-	}
-	return redacted, true
+	return applyTextReplacements(flow, replacements), len(replacements) > 0
 }
 
 func skipYAMLFlowSpaceAndComments(value string, start, limit int) int {
@@ -1928,7 +1604,9 @@ func redactKubernetesSecretFlowMap(flow string) (string, bool) {
 	return redacted, true
 }
 
-func findKubernetesFlowColon(value string, start int) int {
+// findYAMLFlowDelimiter returns the index of the first stop byte or closing
+// bracket outside quotes and nested brackets, or -1.
+func findYAMLFlowDelimiter(value string, start int, stop byte) int {
 	depth := 0
 	var quote byte
 	for index := start; index < len(value); index++ {
@@ -1953,10 +1631,10 @@ func findKubernetesFlowColon(value string, start int) int {
 			depth++
 		case ']', '}':
 			if depth == 0 {
-				return -1
+				return index
 			}
 			depth--
-		case ':':
+		case stop:
 			if depth == 0 {
 				return index
 			}
@@ -1965,39 +1643,16 @@ func findKubernetesFlowColon(value string, start int) int {
 	return -1
 }
 
+func findKubernetesFlowColon(value string, start int) int {
+	if colon := findYAMLFlowDelimiter(value, start, ':'); colon >= 0 && value[colon] == ':' {
+		return colon
+	}
+	return -1
+}
+
 func findKubernetesFlowValueEnd(value string, start int) int {
-	depth := 0
-	var quote byte
-	for index := start; index < len(value); index++ {
-		if quote != 0 {
-			if quote == '"' && value[index] == '\\' {
-				index++
-				continue
-			}
-			if quote == '\'' && value[index] == '\'' && index+1 < len(value) && value[index+1] == '\'' {
-				index++
-				continue
-			}
-			if value[index] == quote {
-				quote = 0
-			}
-			continue
-		}
-		switch value[index] {
-		case '"', '\'':
-			quote = value[index]
-		case '[', '{':
-			depth++
-		case ']', '}':
-			if depth == 0 {
-				return index
-			}
-			depth--
-		case ',':
-			if depth == 0 {
-				return index
-			}
-		}
+	if end := findYAMLFlowDelimiter(value, start, ','); end >= 0 {
+		return end
 	}
 	return len(value) - 1
 }
@@ -2232,27 +1887,38 @@ func boundRedactionInput(value string) (string, bool) {
 	return oversizedFieldMarker, true
 }
 
-func redactPowerShellHereStringCredentials(value string) (string, bool) {
+// redactDelimitedValues replaces each value that starts at the first submatch
+// of pattern and ends where end says, or at the end of value when end returns
+// -1.
+func redactDelimitedValues(value string, pattern *lazyRegexp, end func(value string, open int) int) (string, bool) {
 	redacted := value
 	changed := false
 	for searchStart := 0; searchStart < len(redacted); {
-		match := powerShellHereStringCredential.FindStringSubmatchIndex(redacted[searchStart:])
+		match := pattern.FindStringSubmatchIndex(redacted[searchStart:])
 		if match == nil {
 			break
 		}
 
 		open := searchStart + match[2]
-		contentStart := searchStart + match[3]
-		quote := redacted[open+1]
-		end := findPowerShellHereStringEnd(redacted, contentStart, quote)
-		if end < 0 {
-			end = len(redacted)
+		close := end(redacted, open)
+		if close < 0 {
+			close = len(redacted)
 		}
-		redacted = redacted[:open] + redactionMarker + redacted[end:]
+		redacted = redacted[:open] + redactionMarker + redacted[close:]
 		changed = true
 		searchStart = open + len(redactionMarker)
 	}
 	return redacted, changed
+}
+
+func redactPowerShellHereStringCredentials(value string) (string, bool) {
+	return redactDelimitedValues(value, powerShellHereStringCredential, func(value string, open int) int {
+		contentStart := open + len(`@"`) + 1
+		if value[contentStart-1] == '\r' {
+			contentStart++
+		}
+		return findPowerShellHereStringEnd(value, contentStart, value[open+1])
+	})
 }
 
 func findPowerShellHereStringEnd(value string, contentStart int, quote byte) int {
@@ -2275,24 +1941,7 @@ func findPowerShellHereStringEnd(value string, contentStart int, quote byte) int
 }
 
 func redactPowerShellCollectionCredentials(value string) (string, bool) {
-	redacted := value
-	changed := false
-	for searchStart := 0; searchStart < len(redacted); {
-		match := powerShellCollectionCredential.FindStringSubmatchIndex(redacted[searchStart:])
-		if match == nil {
-			break
-		}
-
-		open := searchStart + match[2]
-		end := findPowerShellCollectionEnd(redacted, open)
-		if end < 0 {
-			end = len(redacted)
-		}
-		redacted = redacted[:open] + redactionMarker + redacted[end:]
-		changed = true
-		searchStart = open + len(redactionMarker)
-	}
-	return redacted, changed
+	return redactDelimitedValues(value, powerShellCollectionCredential, findPowerShellCollectionEnd)
 }
 
 func findPowerShellCollectionEnd(value string, open int) int {
@@ -2516,6 +2165,27 @@ func redactNetrcPasswords(value string) (string, bool) {
 }
 
 func redactEncodedQueryCredentialValues(value string) (string, bool) {
+	return redactQueryParameterValues(value, func(_, name string, _, _, _ int) bool {
+		if !strings.Contains(name, "%") {
+			return false
+		}
+		for decodeLayer := 0; decodeLayer < 2; decodeLayer++ {
+			decoded, err := url.QueryUnescape(name)
+			if err != nil {
+				return false
+			}
+			name = decoded
+			if queryCredentialNamePattern.MatchString(name) {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// redactQueryParameterValues redacts each non-empty URL query parameter value
+// that isSecret accepts, given the text, the parameter's raw name and offsets.
+func redactQueryParameterValues(value string, isSecret func(text, name string, nameStart, valueStart, valueEnd int) bool) (string, bool) {
 	redacted := value
 	changed := false
 	for searchStart := 0; searchStart < len(redacted); {
@@ -2525,35 +2195,14 @@ func redactEncodedQueryCredentialValues(value string) (string, bool) {
 		}
 
 		nameStart := searchStart + match[2]
-		nameEnd := searchStart + match[3]
 		valueStart := searchStart + match[1]
+		name := redacted[nameStart : searchStart+match[3]]
 		searchStart = valueStart
-		encodedName := redacted[nameStart:nameEnd]
-		if !strings.Contains(encodedName, "%") {
-			continue
-		}
-		decodedName := encodedName
-		matchedCredentialName := false
-		for decodeLayer := 0; decodeLayer < 2; decodeLayer++ {
-			decoded, err := url.QueryUnescape(decodedName)
-			if err != nil {
-				break
-			}
-			decodedName = decoded
-			if queryCredentialNamePattern.MatchString(decodedName) {
-				matchedCredentialName = true
-				break
-			}
-		}
-		if !matchedCredentialName {
-			continue
-		}
-
 		valueEnd := valueStart
 		for valueEnd < len(redacted) && !isQueryValueTerminator(redacted[valueEnd]) {
 			valueEnd++
 		}
-		if valueEnd == valueStart || redacted[valueStart:valueEnd] == redactionMarker {
+		if valueEnd == valueStart || redacted[valueStart:valueEnd] == redactionMarker || !isSecret(redacted, name, nameStart, valueStart, valueEnd) {
 			continue
 		}
 
@@ -2565,36 +2214,10 @@ func redactEncodedQueryCredentialValues(value string) (string, bool) {
 }
 
 func redactWebAuthCodeQueryValues(value string) (string, bool) {
-	redacted := value
-	changed := false
-	for searchStart := 0; searchStart < len(redacted); {
-		match := queryParameterName.FindStringSubmatchIndex(redacted[searchStart:])
-		if match == nil {
-			break
-		}
-
-		nameStart := searchStart + match[2]
-		nameEnd := searchStart + match[3]
-		valueStart := searchStart + match[1]
-		searchStart = valueStart
-		decodedName, err := url.QueryUnescape(redacted[nameStart:nameEnd])
-		if err != nil || !strings.EqualFold(decodedName, "code") {
-			continue
-		}
-
-		valueEnd := valueStart
-		for valueEnd < len(redacted) && !isQueryValueTerminator(redacted[valueEnd]) {
-			valueEnd++
-		}
-		if valueEnd == valueStart || redacted[valueStart:valueEnd] == redactionMarker || !hasWebAuthQueryContext(redacted, nameStart, redacted[valueStart:valueEnd]) {
-			continue
-		}
-
-		redacted = redacted[:valueStart] + redactionMarker + redacted[valueEnd:]
-		changed = true
-		searchStart = valueStart + len(redactionMarker)
-	}
-	return redacted, changed
+	return redactQueryParameterValues(value, func(text, name string, nameStart, valueStart, valueEnd int) bool {
+		decodedName, err := url.QueryUnescape(name)
+		return err == nil && strings.EqualFold(decodedName, "code") && hasWebAuthQueryContext(text, nameStart, text[valueStart:valueEnd])
+	})
 }
 
 func hasWebAuthQueryContext(value string, parameterStart int, codeValue string) bool {
@@ -3439,24 +3062,18 @@ func findTOMLCompositeEnd(value string, start int) int {
 }
 
 func redactTOMLMultilineCredentials(value string) (string, bool) {
-	redacted := value
-	changed := false
-	for searchStart := 0; searchStart < len(redacted); {
-		match := tomlMultilineCredentialStart.FindStringIndex(redacted[searchStart:])
-		if match == nil {
-			break
-		}
+	return redactDelimitedValues(value, tomlMultilineCredentialStart, func(value string, open int) int {
+		return exclusiveEnd(findTOMLMultilineStringEnd(value, open))
+	})
+}
 
-		open := searchStart + match[1] - 3
-		close := findTOMLMultilineStringEnd(redacted, open)
-		if close < 0 {
-			close = len(redacted) - 1
-		}
-		redacted = redacted[:open] + redactionMarker + redacted[close+1:]
-		changed = true
-		searchStart = open + len(redactionMarker)
+// exclusiveEnd turns the index of a closing delimiter into the end of the
+// text it closes, keeping -1 for a missing delimiter.
+func exclusiveEnd(close int) int {
+	if close < 0 {
+		return -1
 	}
-	return redacted, changed
+	return close + 1
 }
 
 func findTOMLMultilineStringEnd(value string, open int) int {
@@ -3745,10 +3362,7 @@ func redactSensitiveYAMLBlockNameValuePairs(lines []string, scalarAnchors map[st
 		if !ok || !strings.EqualFold(key, "name") {
 			continue
 		}
-		name := yamlMappingScalar(lines, line, content, valueStart)
-		if strings.HasPrefix(name, "*") {
-			name = scalarAnchors[strings.TrimPrefix(name, "*")]
-		}
+		name := resolveYAMLAlias(yamlMappingScalar(lines, line, content, valueStart), scalarAnchors)
 		if !yamlCredentialNamePattern.MatchString(name) {
 			continue
 		}
@@ -3779,42 +3393,12 @@ func redactSensitiveYAMLBlockNameValuePairs(lines []string, scalarAnchors map[st
 			if scalar == "" || scalar == redactionMarker || scalar == privateKeyRedactionMarker {
 				continue
 			}
-			redactSensitiveYAMLValueContinuations(lines, candidate, mappingIndent, valueContent, candidateValueStart)
+			redactYAMLScalarContinuations(lines, candidate, mappingIndent, valueContent, candidateValueStart)
 			lines[candidate] = valueContent[:candidateValueStart] + redactionMarker + ending
 			changed = true
 		}
 	}
 	return changed
-}
-
-func redactSensitiveYAMLValueContinuations(lines []string, line, mappingIndent int, content string, valueStart int) {
-	value, _ := trimYAMLNodeProperties(content[valueStart:])
-	value = strings.TrimSpace(value)
-	if value == "" || strings.HasPrefix(value, "[") || strings.HasPrefix(value, "{") {
-		return
-	}
-
-	quote := byte(0)
-	if value[0] == '\'' || value[0] == '"' {
-		quote = value[0]
-		if yamlQuotedScalarCloses(value[1:], quote) {
-			return
-		}
-	}
-	for nextLine := line + 1; nextLine < len(lines); nextLine++ {
-		nextContent, _ := splitLineEnding(lines[nextLine])
-		trimmed := strings.TrimSpace(nextContent)
-		if quote == 0 && trimmed != "" && leadingIndent(nextContent) <= mappingIndent {
-			break
-		}
-		if quote != 0 && yamlQuotedScalarCloses(nextContent, quote) {
-			lines[nextLine] = ""
-			return
-		}
-		if trimmed != "" {
-			lines[nextLine] = ""
-		}
-	}
 }
 
 func redactSensitiveYAMLFlowNameValuePairs(value string, scalarAnchors map[string]string) (string, bool) {
@@ -3880,73 +3464,33 @@ func redactSensitiveYAMLFlowNameValueObject(object string, scalarAnchors map[str
 	if len(object) < 2 || object[0] != '{' || object[len(object)-1] != '}' {
 		return object, false
 	}
-	type property struct {
-		key             string
-		valueStart      int
-		trimmedValueEnd int
-	}
-	var properties []property
-	for cursor := 1; cursor < len(object)-1; {
-		cursor = skipYAMLFlowSpaceAndComments(object, cursor, len(object)-1)
-		if cursor >= len(object)-1 {
-			break
-		}
-		colon := findKubernetesFlowColon(object, cursor)
-		if colon < 0 {
-			return object, false
-		}
-		key := decodeYAMLMappingKey(object[cursor:colon])
-		valueStart := colon + 1
-		for valueStart < len(object)-1 && strings.ContainsRune(" \t\r\n", rune(object[valueStart])) {
-			valueStart++
-		}
-		valueEnd := findKubernetesFlowValueEnd(object, valueStart)
-		if valueEnd < valueStart {
-			return object, false
-		}
-		trimmedEnd := valueEnd
-		for trimmedEnd > valueStart && strings.ContainsRune(" \t\r\n", rune(object[trimmedEnd-1])) {
-			trimmedEnd--
-		}
-		properties = append(properties, property{key: key, valueStart: valueStart, trimmedValueEnd: trimmedEnd})
-		cursor = valueEnd
-	}
-
-	sensitiveName := false
-	for _, property := range properties {
-		if !strings.EqualFold(property.key, "name") {
-			continue
-		}
-		name := kubernetesYAMLScalar(object[property.valueStart:property.trimmedValueEnd])
-		if strings.HasPrefix(name, "*") {
-			name = scalarAnchors[strings.TrimPrefix(name, "*")]
-		}
-		if yamlCredentialNamePattern.MatchString(name) {
-			sensitiveName = true
-			break
-		}
-	}
-	if !sensitiveName {
+	properties, ok := parseYAMLFlowMapping(object)
+	if !ok || !slices.ContainsFunc(properties, func(property yamlFlowProperty) bool {
+		return strings.EqualFold(property.key, "name") && yamlCredentialNamePattern.MatchString(resolveYAMLAlias(kubernetesYAMLScalar(property.value), scalarAnchors))
+	}) {
 		return object, false
 	}
 
 	redacted := object
 	for index := len(properties) - 1; index >= 0; index-- {
 		property := properties[index]
-		if !strings.EqualFold(property.key, "value") || property.valueStart >= property.trimmedValueEnd {
+		if !strings.EqualFold(property.key, "value") || property.value == "" {
 			continue
 		}
-		replacementStart, replacementEnd := property.valueStart, property.trimmedValueEnd
-		if replacementEnd-replacementStart >= 2 && (object[replacementStart] == '\'' || object[replacementStart] == '"') && object[replacementEnd-1] == object[replacementStart] {
-			replacementStart++
-			replacementEnd--
+		start, end := unquotedYAMLFlowValue(object, property.start, property.end)
+		if object[start:end] != redactionMarker {
+			redacted = redacted[:start] + redactionMarker + redacted[end:]
 		}
-		if object[replacementStart:replacementEnd] == redactionMarker {
-			continue
-		}
-		redacted = redacted[:replacementStart] + redactionMarker + redacted[replacementEnd:]
 	}
 	return redacted, redacted != object
+}
+
+// unquotedYAMLFlowValue returns the span inside the quotes of a quoted value.
+func unquotedYAMLFlowValue(flow string, start, end int) (int, int) {
+	if end-start >= 2 && (flow[start] == '\'' || flow[start] == '"') && flow[end-1] == flow[start] {
+		return start + 1, end - 1
+	}
+	return start, end
 }
 
 func redactJSONValuesInNamedContainer(value string, escapeDepth int, rule contextualJSONContainerRule) (string, bool) {
@@ -4190,48 +3734,47 @@ func redactYAMLCredentialAliases(value string) (string, bool) {
 	lines := strings.SplitAfter(value, "\n")
 	changed := false
 	for line := 0; line < len(lines); line++ {
-		content, ending := splitLineEnding(lines[line])
+		content, _ := splitLineEnding(lines[line])
 		for _, match := range yamlAnchor.FindAllStringSubmatchIndex(content, -1) {
 			if _, sensitive := aliases[content[match[2]:match[3]]]; !sensitive {
 				continue
 			}
-
-			prefix := content[:match[0]]
-			valueIndent, isValue := yamlAnchorValueIndent(prefix)
+			valueIndent, isValue := yamlAnchorValueIndent(content[:match[0]])
 			if !isValue {
 				continue
 			}
-
-			inlineValue := strings.TrimSpace(content[match[1]:])
-			hasInlineValue := inlineValue != "" && !strings.HasPrefix(inlineValue, "#")
-			end := line + 1
-			hasIndentedContent := false
-			for end < len(lines) {
-				child, _ := splitLineEnding(lines[end])
-				if strings.TrimSpace(child) == "" {
-					end++
-					continue
-				}
-				if leadingIndent(child) <= valueIndent {
-					break
-				}
-				hasIndentedContent = true
-				end++
+			var blockChanged bool
+			if lines, blockChanged = redactYAMLValueBlock(lines, line, content[:match[1]]+" ", content[match[1]:], valueIndent); blockChanged {
+				changed = true
+				break
 			}
-			if !hasInlineValue && !hasIndentedContent {
-				continue
-			}
-			if inlineValue == redactionMarker && !hasIndentedContent {
-				continue
-			}
-
-			lines[line] = content[:match[1]] + " " + redactionMarker + ending
-			lines = append(lines[:line+1], lines[end:]...)
-			changed = true
-			break
 		}
 	}
 	return strings.Join(lines, ""), changed
+}
+
+// redactYAMLValueBlock replaces the value inlineValue on lines[line] after
+// prefix, and the following lines indented beyond indent, with the marker.
+func redactYAMLValueBlock(lines []string, line int, prefix, inlineValue string, indent int) ([]string, bool) {
+	inlineValue = strings.TrimSpace(inlineValue)
+	end := line + 1
+	hasIndentedContent := false
+	for ; end < len(lines); end++ {
+		child, _ := splitLineEnding(lines[end])
+		if strings.TrimSpace(child) == "" {
+			continue
+		}
+		if leadingIndent(child) <= indent {
+			break
+		}
+		hasIndentedContent = true
+	}
+	if !hasIndentedContent && (inlineValue == "" || strings.HasPrefix(inlineValue, "#") || inlineValue == redactionMarker) {
+		return lines, false
+	}
+	_, ending := splitLineEnding(lines[line])
+	lines[line] = prefix + redactionMarker + ending
+	return append(lines[:line+1], lines[end:]...), true
 }
 
 func yamlAnchorValueIndent(prefix string) (int, bool) {
@@ -4254,19 +3797,11 @@ func redactYAMLExplicitCredentialMappings(value string) (string, bool) {
 		}
 
 		keyIndent := yamlKeyIndent(key)
-		valueLine := line + 1
-		for valueLine < len(lines) {
-			candidate, _ := splitLineEnding(lines[valueLine])
-			trimmed := strings.TrimSpace(candidate)
-			if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-				break
-			}
-			valueLine++
-		}
+		valueLine := nextYAMLContentLine(lines, line+1)
 		if valueLine >= len(lines) {
 			continue
 		}
-		valueContent, ending := splitLineEnding(lines[valueLine])
+		valueContent, _ := splitLineEnding(lines[valueLine])
 		if leadingIndent(valueContent) != keyIndent {
 			continue
 		}
@@ -4274,36 +3809,25 @@ func redactYAMLExplicitCredentialMappings(value string) (string, bool) {
 		if indicator == "" || indicator[0] != ':' || (len(indicator) > 1 && indicator[1] != ' ' && indicator[1] != '\t' && indicator[1] != '#') {
 			continue
 		}
-
-		inlineValue := strings.TrimSpace(indicator[1:])
-		hasInlineValue := inlineValue != "" && !strings.HasPrefix(inlineValue, "#")
-		end := valueLine + 1
-		hasIndentedContent := false
-		for end < len(lines) {
-			child, _ := splitLineEnding(lines[end])
-			if strings.TrimSpace(child) == "" {
-				end++
-				continue
-			}
-			if leadingIndent(child) <= keyIndent {
-				break
-			}
-			hasIndentedContent = true
-			end++
+		var blockChanged bool
+		if lines, blockChanged = redactYAMLValueBlock(lines, valueLine, valueContent[:keyIndent]+": ", indicator[1:], keyIndent); blockChanged {
+			changed = true
+			line = valueLine
 		}
-		if !hasInlineValue && !hasIndentedContent {
-			continue
-		}
-		if inlineValue == redactionMarker && !hasIndentedContent {
-			continue
-		}
-
-		lines[valueLine] = valueContent[:keyIndent] + ": " + redactionMarker + ending
-		lines = append(lines[:valueLine+1], lines[end:]...)
-		changed = true
-		line = valueLine
 	}
 	return strings.Join(lines, ""), changed
+}
+
+// nextYAMLContentLine returns the first line from start that is neither blank
+// nor a comment, or len(lines).
+func nextYAMLContentLine(lines []string, start int) int {
+	for ; start < len(lines); start++ {
+		trimmed := strings.TrimSpace(lines[start])
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			break
+		}
+	}
+	return start
 }
 
 func redactYAMLCredentialBlocks(value string) (string, bool) {
@@ -4494,24 +4018,21 @@ func protectBooleanSecretMarkers(value string) (string, string) {
 }
 
 func redactStructuredCredentialObjects(value string) (string, bool) {
-	type objectPattern struct {
-		pattern       *lazyRegexp
-		escapedQuotes bool
-		replacement   string
-		array         bool
-	}
-
-	patterns := []objectPattern{
+	patterns := []struct {
+		pattern     *lazyRegexp
+		escapeDepth int
+		replacement string
+		array       bool
+	}{
 		{pattern: rawCredentialObject, replacement: `"` + redactionMarker + `"`},
-		{pattern: escapedCredentialObject, escapedQuotes: true, replacement: `\"` + redactionMarker + `\"`},
+		{pattern: escapedCredentialObject, escapeDepth: 1, replacement: `\"` + redactionMarker + `\"`},
 		{pattern: rawCredentialArray, replacement: `["` + redactionMarker + `"]`, array: true},
-		{pattern: escapedCredentialArray, escapedQuotes: true, replacement: `[\"` + redactionMarker + `\"]`, array: true},
+		{pattern: escapedCredentialArray, escapeDepth: 1, replacement: `[\"` + redactionMarker + `\"]`, array: true},
 	}
 	redacted := value
 	changed := false
 	for _, candidate := range patterns {
-		searchStart := 0
-		for searchStart < len(redacted) {
+		for searchStart := 0; searchStart < len(redacted); {
 			match := candidate.pattern.FindStringIndex(redacted[searchStart:])
 			if match == nil {
 				break
@@ -4522,8 +4043,8 @@ func redactStructuredCredentialObjects(value string) (string, bool) {
 				searchStart = open + 1
 				continue
 			}
-			close := findJSONObjectEnd(redacted, open, candidate.escapedQuotes)
-			if candidate.array && !looksLikeJSONCredentialArray(redacted, open, close, candidate.escapedQuotes) {
+			close := findJSONContainerEndAtDepth(redacted, open, candidate.escapeDepth)
+			if candidate.array && !looksLikeJSONCredentialArray(redacted, open, close, candidate.escapeDepth == 1) {
 				searchStart = open + 1
 				continue
 			}
@@ -4551,18 +4072,6 @@ func looksLikeJSONCredentialArray(value string, open, close int, escapedQuotes b
 		}
 	}
 	return false
-}
-
-func findJSONObjectEnd(value string, open int, escapedQuotes bool) int {
-	return findJSONContainerEnd(value, open, escapedQuotes)
-}
-
-func findJSONContainerEnd(value string, open int, escapedQuotes bool) int {
-	escapeDepth := 0
-	if escapedQuotes {
-		escapeDepth = 1
-	}
-	return findJSONContainerEndAtDepth(value, open, escapeDepth)
 }
 
 func findJSONContainerEndAtDepth(value string, open, escapeDepth int) int {
@@ -4612,14 +4121,6 @@ func findJSONContainerEndAtDepthStrict(value string, open, escapeDepth int) int 
 	return -1
 }
 
-func isJSONStringDelimiter(value string, quote int, escapedQuotes bool) bool {
-	escapeDepth := 0
-	if escapedQuotes {
-		escapeDepth = 1
-	}
-	return isJSONStringDelimiterAtDepth(value, quote, escapeDepth)
-}
-
 func isJSONStringDelimiterAtDepth(value string, quote, escapeDepth int) bool {
 	backslashes := 0
 	for i := quote - 1; i >= 0 && value[i] == '\\'; i-- {
@@ -4631,43 +4132,38 @@ func isJSONStringDelimiterAtDepth(value string, quote, escapeDepth int) bool {
 }
 
 func redactStructuredCookieValues(value string) (string, bool) {
-	if !rawCookieJarPattern.MatchString(value) && !escapedCookieJarPattern.MatchString(value) {
-		return value, false
-	}
+	return redactJSONContainerValues(value, rawCookieJarPattern, escapedCookieJarPattern, structuredContainerValueRedactionRules, true)
+}
 
-	type cookieObjectPattern struct {
-		pattern       *lazyRegexp
-		escapedQuotes bool
-	}
-	patterns := []cookieObjectPattern{
-		{pattern: rawCookieJarPattern},
-		{pattern: escapedCookieJarPattern, escapedQuotes: true},
-	}
+// redactJSONContainerValues applies rules inside each JSON container that raw
+// (plain quotes) or escaped (backslash-escaped quotes) finds, ending with the
+// opening bracket. With truncated, it also redacts a value cut off by the end
+// of the container.
+func redactJSONContainerValues(value string, raw, escaped *lazyRegexp, rules []redactionRule, truncated bool) (string, bool) {
 	redacted := value
 	changed := false
-	for _, candidate := range patterns {
-		searchStart := 0
-		for searchStart < len(redacted) {
-			match := candidate.pattern.FindStringIndex(redacted[searchStart:])
+	for escapeDepth, pattern := range []*lazyRegexp{raw, escaped} {
+		for searchStart := 0; searchStart < len(redacted); {
+			match := pattern.FindStringIndex(redacted[searchStart:])
 			if match == nil {
 				break
 			}
 
 			open := searchStart + match[1] - 1
-			close := findJSONObjectEnd(redacted, open, candidate.escapedQuotes)
-			object := redacted[open : close+1]
-			redactedObject := object
-			for _, rule := range structuredContainerValueRedactionRules {
-				redactedObject = rule.pattern.ReplaceAllString(redactedObject, rule.replacement)
+			close := findJSONContainerEndAtDepth(redacted, open, escapeDepth)
+			container := redacted[open : close+1]
+			redactedContainer := container
+			for _, rule := range rules {
+				redactedContainer = rule.pattern.ReplaceAllString(redactedContainer, rule.replacement)
 			}
-			if next, truncatedChanged := redactTruncatedStructuredValues(redactedObject, candidate.escapedQuotes); truncatedChanged {
-				redactedObject = next
+			if truncated {
+				redactedContainer = redactTruncatedStructuredValue(redactedContainer, escapeDepth)
 			}
-			if redactedObject != object {
-				redacted = redacted[:open] + redactedObject + redacted[close+1:]
+			if redactedContainer != container {
+				redacted = redacted[:open] + redactedContainer + redacted[close+1:]
 				changed = true
 			}
-			searchStart = open + len(redactedObject)
+			searchStart = open + len(redactedContainer)
 		}
 	}
 	return redacted, changed
@@ -4677,111 +4173,42 @@ func redactStructuredCookieValues(value string) (string, bool) {
 // pairs. Scope the generic "auth" key to the auths container so unrelated
 // diagnostic fields with that name remain useful.
 func redactRegistryConfigurationAuthValues(value string) (string, bool) {
-	type authsContainerPattern struct {
-		pattern       *lazyRegexp
-		escapedQuotes bool
-	}
-	patterns := []authsContainerPattern{
-		{pattern: rawRegistryAuthsPattern},
-		{pattern: escapedRegistryAuthsPattern, escapedQuotes: true},
-	}
-
-	redacted := value
-	changed := false
-	for _, candidate := range patterns {
-		for searchStart := 0; searchStart < len(redacted); {
-			match := candidate.pattern.FindStringIndex(redacted[searchStart:])
-			if match == nil {
-				break
-			}
-
-			open := searchStart + match[1] - 1
-			close := findJSONObjectEnd(redacted, open, candidate.escapedQuotes)
-			container := redacted[open : close+1]
-			redactedContainer := container
-			for _, rule := range registryAuthValueRedactionRules {
-				redactedContainer = rule.pattern.ReplaceAllString(redactedContainer, rule.replacement)
-			}
-			if redactedContainer != container {
-				redacted = redacted[:open] + redactedContainer + redacted[close+1:]
-				changed = true
-			}
-			searchStart = open + len(redactedContainer)
-		}
-	}
-	return redacted, changed
+	return redactJSONContainerValues(value, rawRegistryAuthsPattern, escapedRegistryAuthsPattern, registryAuthValueRedactionRules, false)
 }
 
 // Upload-operation request-header values are capabilities regardless of their
 // names, matching asc.RedactUploadOperations while preserving useful metadata.
 func redactStructuredUploadHeaderValues(value string) (string, bool) {
-	type headerContainerPattern struct {
-		pattern       *lazyRegexp
-		escapedQuotes bool
-	}
-	patterns := []headerContainerPattern{
-		{pattern: rawRequestHeaders},
-		{pattern: escapedRequestHeaders, escapedQuotes: true},
-	}
-
-	redacted := value
-	changed := false
-	for _, candidate := range patterns {
-		searchStart := 0
-		for searchStart < len(redacted) {
-			match := candidate.pattern.FindStringIndex(redacted[searchStart:])
-			if match == nil {
-				break
-			}
-
-			open := searchStart + match[1] - 1
-			close := findJSONContainerEnd(redacted, open, candidate.escapedQuotes)
-			container := redacted[open : close+1]
-			redactedContainer := container
-			for _, rule := range structuredContainerValueRedactionRules {
-				redactedContainer = rule.pattern.ReplaceAllString(redactedContainer, rule.replacement)
-			}
-			if next, truncatedChanged := redactTruncatedStructuredValues(redactedContainer, candidate.escapedQuotes); truncatedChanged {
-				redactedContainer = next
-			}
-			if redactedContainer != container {
-				redacted = redacted[:open] + redactedContainer + redacted[close+1:]
-				changed = true
-			}
-			searchStart = open + len(redactedContainer)
-		}
-	}
-	return redacted, changed
+	return redactJSONContainerValues(value, rawRequestHeaders, escapedRequestHeaders, structuredContainerValueRedactionRules, true)
 }
 
-func redactTruncatedStructuredValues(value string, escapedQuotes bool) (string, bool) {
+func redactTruncatedStructuredValue(value string, escapeDepth int) string {
 	pattern := rawStructuredValueStart
-	if escapedQuotes {
+	if escapeDepth == 1 {
 		pattern = escapedValueStart
 	}
 
-	searchStart := 0
-	for searchStart < len(value) {
+	for searchStart := 0; searchStart < len(value); {
 		match := pattern.FindStringIndex(value[searchStart:])
 		if match == nil {
-			return value, false
+			return value
 		}
 
 		openQuote := searchStart + match[1] - 1
 		for quote := openQuote + 1; quote < len(value); quote++ {
-			if value[quote] == '"' && isJSONStringDelimiter(value, quote, escapedQuotes) {
+			if value[quote] == '"' && isJSONStringDelimiterAtDepth(value, quote, escapeDepth) {
 				searchStart = quote + 1
 				break
 			}
 			if quote == len(value)-1 {
-				return value[:openQuote+1] + redactionMarker, true
+				return value[:openQuote+1] + redactionMarker
 			}
 		}
 		if openQuote == len(value)-1 {
-			return value + redactionMarker, true
+			return value + redactionMarker
 		}
 	}
-	return value, false
+	return value
 }
 
 func redactSecretMarkedValues(value string) (string, bool) {
@@ -4797,21 +4224,30 @@ func redactSecretMarkedValues(value string) (string, bool) {
 }
 
 func redactKubectlSecretLiterals(value string) (string, bool) {
+	return redactShellCommands(value, func(command string) (string, bool) {
+		if !isKubectlCreateSecretCommand(command) {
+			return command, false
+		}
+		redacted := kubectlFromLiteralValue.ReplaceAllString(command, `${1}`+redactionMarker)
+		return redacted, redacted != command
+	})
+}
+
+// redactShellCommands applies redact to each command of value. Commands end at
+// a newline or a ;, & or | operator outside quotes and parentheses.
+func redactShellCommands(value string, redact func(command string) (string, bool)) (string, bool) {
 	result := value
 	changed := false
 	for start := 0; start < len(result); {
 		end := findShellCommandEnd(result, start)
 		command := result[start:end]
-		redacted := command
-		if isKubectlCreateSecretCommand(command) {
-			redacted = kubectlFromLiteralValue.ReplaceAllString(command, `${1}`+redactionMarker)
-		}
-		if redacted != command {
-			result = result[:start] + redacted + result[end:]
+		if next, commandChanged := redact(command); commandChanged {
+			result = result[:start] + next + result[end:]
+			command = next
 			changed = true
 		}
 
-		separator := start + len(redacted)
+		separator := start + len(command)
 		if separator >= len(result) {
 			break
 		}
@@ -4821,6 +4257,33 @@ func redactKubectlSecretLiterals(value string) (string, bool) {
 		}
 	}
 	return result, changed
+}
+
+// redactCommandFrom redacts command from its start-th byte, the first byte of
+// the program word, so words before the program are never treated as options.
+func redactCommandFrom(command string, start int, redact func(string) (string, bool)) (string, bool) {
+	redacted, changed := redact(command[start:])
+	return command[:start] + redacted, changed
+}
+
+func shellCommandWords(command string) ([]credentialShellWord, []string) {
+	spans := splitCredentialShellWordSpans(command)
+	words := make([]string, 0, len(spans))
+	for _, span := range spans {
+		words = append(words, span.value)
+	}
+	return spans, words
+}
+
+// credentialCommandIndex returns the index of the first word that runs one of
+// names after only assignments, shell keywords and transparent wrappers, or -1.
+func credentialCommandIndex(words []string, names ...string) int {
+	for index, word := range words {
+		if slices.Contains(names, commandBaseName(word)) && isCredentialCommandPrefix(words[:index]) {
+			return index
+		}
+	}
+	return -1
 }
 
 func newCommandCredentialFlagPatternWithSuffix(suffix string, flags ...string) *lazyRegexp {
@@ -4854,57 +4317,31 @@ func redactOpenSSLCredentialArguments(value string) (string, bool) {
 }
 
 func redactOpenSSLSubcommandCredentialArguments(value string) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
+	return redactShellCommands(value, func(command string) (string, bool) {
 		commandStart, subcommand, ok := openSSLCommand(command)
 		commandSuffix := command[commandStart:]
 		commandChanged := false
 		if pattern := opensslSubcommandCredentialPatterns[subcommand]; ok && pattern != nil {
-			commandSuffix, commandChanged = redactCommandCredentialFlagValues(commandSuffix, pattern)
+			commandSuffix, commandChanged = redactCommandCredentialFlagValuesMatching(commandSuffix, pattern, nil)
 		}
 		if ok {
-			options := append([]string{}, opensslCredentialOptions...)
-			options = append(options, opensslSubcommandCredentialOptions[subcommand]...)
+			options := append(slices.Clone(opensslCredentialOptions), opensslSubcommandCredentialOptions[subcommand]...)
 			var optionChanged bool
 			commandSuffix, optionChanged = redactCommandCredentialOptionValues(commandSuffix, subcommand, options...)
 			commandChanged = commandChanged || optionChanged
 		}
-		if subcommand == "dgst" || subcommand == "mac" {
-			var macChanged bool
-			commandSuffix, macChanged = redactCommandCredentialFlagValuesMatching(commandSuffix, opensslMACOptionValueStartPattern, isOpenSSLMACKeyOption)
-			commandChanged = commandChanged || macChanged
+		if matches, found := opensslSecretOptionValues[subcommand]; found {
+			var optionChanged bool
+			commandSuffix, optionChanged = redactCommandCredentialFlagValuesMatching(commandSuffix, matches.pattern, matches.isSecret)
+			commandChanged = commandChanged || optionChanged
 		}
-		if subcommand == "kdf" {
-			var kdfChanged bool
-			commandSuffix, kdfChanged = redactCommandCredentialFlagValuesMatching(commandSuffix, opensslKDFOptionValueStartPattern, isOpenSSLKDFSecretOption)
-			commandChanged = commandChanged || kdfChanged
-		}
-		if commandChanged {
-			command = command[:commandStart] + commandSuffix
-			result = result[:start] + command + result[end:]
-			changed = true
-		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
+		return command[:commandStart] + commandSuffix, commandChanged
+	})
 }
 
-func redactCommandCredentialFlagValues(command string, pattern *lazyRegexp) (string, bool) {
-	return redactCommandCredentialFlagValuesMatching(command, pattern, func(string) bool { return true })
-}
-
-func redactCommandCredentialFlagValuesMatching(command string, pattern *lazyRegexp, shouldRedact func(string) bool) (string, bool) {
+// redactCommandCredentialFlagValuesMatching redacts the shell word after each
+// match of pattern, or only the words isSecret accepts when it is not nil.
+func redactCommandCredentialFlagValuesMatching(command string, pattern *lazyRegexp, isSecret func(string) bool) (string, bool) {
 	result := command
 	changed := false
 	for searchStart := 0; searchStart < len(result); {
@@ -4918,11 +4355,7 @@ func redactCommandCredentialFlagValuesMatching(command string, pattern *lazyRege
 			searchStart = valueStart
 			continue
 		}
-		if result[valueStart:valueEnd] == redactionMarker {
-			searchStart = valueEnd
-			continue
-		}
-		if !shouldRedact(result[valueStart:valueEnd]) {
+		if result[valueStart:valueEnd] == redactionMarker || isSecret != nil && !isSecret(result[valueStart:valueEnd]) {
 			searchStart = valueEnd
 			continue
 		}
@@ -5108,27 +4541,17 @@ func normalizeCredentialShellOptionToken(raw string) string {
 	return result.String()
 }
 
-func isOpenSSLMACKeyOption(value string) bool {
-	spans := splitCredentialShellWordSpans(value)
-	if len(spans) == 0 {
-		return false
-	}
-	option := strings.ToLower(strings.TrimPrefix(strings.Trim(spans[0].value, `"'`), "$"))
-	return strings.HasPrefix(option, "key:") || strings.HasPrefix(option, "hexkey:")
-}
-
-func isOpenSSLKDFSecretOption(value string) bool {
-	spans := splitCredentialShellWordSpans(value)
-	if len(spans) == 0 {
-		return false
-	}
-	option := strings.ToLower(strings.TrimPrefix(strings.Trim(spans[0].value, `"'`), "$"))
-	for _, name := range []string{"key:", "hexkey:", "secret:", "hexsecret:", "pass:", "hexpass:"} {
-		if strings.HasPrefix(option, name) {
-			return true
+// openSSLOptionValueWithPrefix accepts an option value such as key:SECRET whose
+// first word starts with one of prefixes.
+func openSSLOptionValueWithPrefix(prefixes ...string) func(string) bool {
+	return func(value string) bool {
+		spans := splitCredentialShellWordSpans(value)
+		if len(spans) == 0 {
+			return false
 		}
+		option := strings.ToLower(strings.TrimPrefix(strings.Trim(spans[0].value, `"'`), "$"))
+		return slices.ContainsFunc(prefixes, func(prefix string) bool { return strings.HasPrefix(option, prefix) })
 	}
-	return false
 }
 
 func openSSLCommand(command string) (int, string, bool) {
@@ -5197,35 +4620,15 @@ func openSSLGlobalOption(option string) (bool, bool) {
 }
 
 func redactOpenSSLPasswdPositionalArguments(value string) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		spans := splitCredentialShellWordSpans(command)
-		words := make([]string, 0, len(spans))
-		for _, span := range spans {
-			words = append(words, span.value)
+	return redactShellCommands(value, func(command string) (string, bool) {
+		spans, words := shellCommandWords(command)
+		passwordIndex, ok := openSSLPasswdPasswordWordIndex(words)
+		if !ok {
+			return command, false
 		}
-
-		if passwordIndex, ok := openSSLPasswdPasswordWordIndex(words); ok {
-			span := spans[passwordIndex]
-			redactionEnd := credentialShellArgumentEnd(command, span)
-			command = command[:span.start] + redactionMarker + command[redactionEnd:]
-			result = result[:start] + command + result[end:]
-			changed = true
-		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
+		span := spans[passwordIndex]
+		return command[:span.start] + redactionMarker + command[credentialShellArgumentEnd(command, span):], true
+	})
 }
 
 func openSSLPasswdPasswordWordIndex(words []string) (int, bool) {
@@ -5336,212 +4739,158 @@ func findCredentialShellWordEnd(value string, start int) int {
 	return len(value)
 }
 
-func redactKeytoolCredentialArguments(value string) (string, bool) {
-	return redactNamedCommandCredentialArguments(value, "keytool", keytoolCredentialFlagPattern)
+// redactNamedCommandArguments redacts the arguments of every command that runs
+// name: first values attached to the short flags in attachedFlags (-pSECRET),
+// then the values pattern matches. Each is a pass over the whole text.
+func redactNamedCommandArguments(name, attachedFlags string, pattern *lazyRegexp) func(string) (string, bool) {
+	return func(value string) (string, bool) {
+		redacted, attachedChanged := value, false
+		if attachedFlags != "" {
+			redacted, attachedChanged = redactNamedCommand(value, name, func(command string) (string, bool) {
+				return redactAttachedShortCredentialArguments(command, attachedFlags)
+			})
+		}
+		redacted, patternChanged := redactNamedCommand(redacted, name, func(command string) (string, bool) {
+			next := pattern.ReplaceAllString(command, `${1}${2}`+redactionMarker)
+			return next, next != command
+		})
+		return redacted, attachedChanged || patternChanged
+	}
 }
 
-func redactJarsignerCredentialArguments(value string) (string, bool) {
-	return redactNamedCommandCredentialArguments(value, "jarsigner", jarsignerCredentialFlagPattern)
+func redactNamedCommand(value, name string, redact func(string) (string, bool)) (string, bool) {
+	return redactShellCommands(value, func(command string) (string, bool) {
+		commandStart, ok := namedCredentialCommandStart(command, name)
+		if !ok {
+			return command, false
+		}
+		return redactCommandFrom(command, commandStart, redact)
+	})
 }
 
-func redactZipCredentialArguments(value string) (string, bool) {
-	redacted, attachedChanged := redactNamedCommandAttachedShortCredentialArguments(value, "zip", "P")
-	redacted, patternChanged := redactNamedCommandCredentialArguments(redacted, "zip", zipCredentialFlagPattern)
-	return redacted, attachedChanged || patternChanged
+// shortOptionSecrets describes a command whose short options can be grouped
+// (-vp SECRET) and which stops reading options at its first operand.
+type shortOptionSecrets struct {
+	names    []string
+	flags    string // options without a value
+	values   string // options with a value, attached or in the next word
+	optional string // options whose value can only be attached
+	secrets  string // value options whose value is a secret
+	// skipValueWords skips the words a value spans when it contains a
+	// command substitution with spaces.
+	skipValueWords bool
 }
 
-func redactUnzipCredentialArguments(value string) (string, bool) {
-	redacted, attachedChanged := redactNamedCommandAttachedShortCredentialArguments(value, "unzip", "P")
-	redacted, patternChanged := redactNamedCommandCredentialArguments(redacted, "unzip", zipCredentialFlagPattern)
-	return redacted, attachedChanged || patternChanged
+var (
+	sshpassSecrets   = shortOptionSecrets{names: []string{"sshpass", "sshpass.exe"}, flags: "v", values: "fdPp", optional: "e", secrets: "p"}
+	sshKeygenSecrets = shortOptionSecrets{names: []string{"ssh-keygen", "ssh-keygen.exe"}, flags: "ABHKLQUXceghiklopquvy", values: "CDEFIMNOPRVYZabfgmnrstwz", secrets: "NP", skipValueWords: true}
+)
+
+func redactShortOptionSecrets(spec shortOptionSecrets) func(string) (string, bool) {
+	return func(value string) (string, bool) {
+		return redactShellCommands(value, func(command string) (string, bool) {
+			spans, words := shellCommandWords(command)
+			commandIndex := credentialCommandIndex(words, spec.names...)
+			if commandIndex < 0 {
+				return command, false
+			}
+			var replacements []textReplacement
+		options:
+			for optionIndex := commandIndex + 1; optionIndex < len(words); optionIndex++ {
+				option := strings.Trim(words[optionIndex], `"'`)
+				if option == "--" || len(option) < 2 || option[0] != '-' || option[1] == '-' {
+					break
+				}
+				for flagIndex := 1; flagIndex < len(option); flagIndex++ {
+					flag := option[flagIndex]
+					switch {
+					case strings.IndexByte(spec.flags, flag) >= 0:
+						continue
+					case strings.IndexByte(spec.optional, flag) >= 0:
+						continue options
+					case strings.IndexByte(spec.values, flag) < 0:
+						break options
+					}
+					attached := flagIndex+1 < len(option)
+					valueIndex := optionIndex
+					if !attached {
+						if optionIndex+1 >= len(words) {
+							break options
+						}
+						valueIndex = optionIndex + 1
+					}
+					valueEnd := credentialShellArgumentEnd(command, spans[valueIndex])
+					if strings.IndexByte(spec.secrets, flag) >= 0 {
+						if attached {
+							valueStart := flagIndex + 1
+							if option[valueStart] == '=' {
+								valueStart++
+							}
+							if option[valueStart:] != redactionMarker {
+								replacements = append(replacements, textReplacement{spans[optionIndex].start, valueEnd, option[:valueStart] + redactionMarker})
+							}
+						} else if strings.Trim(words[valueIndex], `"'`) != redactionMarker {
+							replacements = append(replacements, textReplacement{spans[valueIndex].start, valueEnd, redactionMarker})
+						}
+					}
+					optionIndex = valueIndex
+					for spec.skipValueWords && optionIndex+1 < len(spans) && spans[optionIndex+1].start < valueEnd {
+						optionIndex++
+					}
+					continue options
+				}
+			}
+			return applyTextReplacements(command, replacements), len(replacements) > 0
+		})
+	}
+}
+
+// textReplacement replaces text[start:end]. Replacements are ordered and do not
+// overlap.
+type textReplacement struct {
+	start, end int
+	text       string
+}
+
+func applyTextReplacements(text string, replacements []textReplacement) string {
+	for index := len(replacements) - 1; index >= 0; index-- {
+		replacement := replacements[index]
+		text = text[:replacement.start] + replacement.text + text[replacement.end:]
+	}
+	return text
 }
 
 func redactCurlCredentialArguments(value string) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		if commandStart, ok := namedCredentialCommandStart(command, "curl"); ok {
-			redacted := command[commandStart:]
-			for _, rules := range [][]redactionRule{curlUserCredentialRedactionRules, curlCertificateCredentialRedactionRules, curlArgumentCredentialRedactionRules} {
-				for _, rule := range rules {
-					redacted = rule.pattern.ReplaceAllString(redacted, rule.replacement)
-				}
-			}
-			redacted, _ = redactCompoundCurlHeaderWords(redacted)
-			if redacted != command[commandStart:] {
-				command = command[:commandStart] + redacted
-				result = result[:start] + command + result[end:]
-				changed = true
+	return redactNamedCommand(value, "curl", func(command string) (string, bool) {
+		redacted := command
+		for _, rules := range [][]redactionRule{curlUserCredentialRedactionRules, curlCertificateCredentialRedactionRules, curlArgumentCredentialRedactionRules} {
+			for _, rule := range rules {
+				redacted = rule.pattern.ReplaceAllString(redacted, rule.replacement)
 			}
 		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
+		redacted, _ = redactCompoundCurlHeaderWords(redacted)
+		return redacted, redacted != command
+	})
 }
 
 func redactRedisCLICredentialArguments(value string) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		if commandStart, ok := namedCredentialCommandStart(command, "redis-cli"); ok {
-			redacted, commandChanged := redactCommandCredentialOptionValues(command[commandStart:], "", "a", "pass")
-			if commandChanged {
-				command = command[:commandStart] + redacted
-				result = result[:start] + command + result[end:]
-				changed = true
-			}
-		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
+	return redactNamedCommand(value, "redis-cli", func(command string) (string, bool) {
+		return redactCommandCredentialOptionValues(command, "", "a", "pass")
+	})
 }
 
 func redactDockerLoginCredentialArguments(value string) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		if commandStart, ok := dockerLoginCommandStart(command); ok {
-			redacted, _ := redactAttachedShortCredentialArguments(command[commandStart:], "p")
+	return redactShellCommands(value, func(command string) (string, bool) {
+		commandStart, ok := dockerLoginCommandStart(command)
+		if !ok {
+			return command, false
+		}
+		return redactCommandFrom(command, commandStart, func(command string) (string, bool) {
+			redacted, _ := redactAttachedShortCredentialArguments(command, "p")
 			redacted = dockerLoginCredentialFlagPattern.ReplaceAllString(redacted, `${1}${2}`+redactionMarker)
-			if redacted != command[commandStart:] {
-				command = command[:commandStart] + redacted
-				result = result[:start] + command + result[end:]
-				changed = true
-			}
-		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
-}
-
-func redactSSHPassCredentialArguments(value string) (string, bool) {
-	type replacement struct {
-		start int
-		end   int
-		text  string
-	}
-
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		spans := splitCredentialShellWordSpans(command)
-		words := make([]string, 0, len(spans))
-		for _, span := range spans {
-			words = append(words, span.value)
-		}
-
-		replacements := make([]replacement, 0, 1)
-		for sshpassIndex, word := range words {
-			baseName := commandBaseName(word)
-			if (baseName != "sshpass" && baseName != "sshpass.exe") || !isCredentialCommandPrefix(words[:sshpassIndex]) {
-				continue
-			}
-		options:
-			for optionIndex := sshpassIndex + 1; optionIndex < len(words); optionIndex++ {
-				option := strings.Trim(words[optionIndex], `"'`)
-				if option == "--" || len(option) < 2 || option[0] != '-' || option == "-" {
-					break
-				}
-				if option[1] == '-' {
-					break
-				}
-
-				for flagIndex := 1; flagIndex < len(option); flagIndex++ {
-					flag := option[flagIndex]
-					switch flag {
-					case 'v':
-						continue
-					case 'h', 'V':
-						break options
-					case 'e':
-						if flagIndex+1 < len(option) {
-							continue options
-						}
-					case 'f', 'd', 'P', 'p':
-						attached := flagIndex+1 < len(option)
-						if flag == 'p' {
-							if attached {
-								valueStart := flagIndex + 1
-								if option[valueStart] == '=' {
-									valueStart++
-								}
-								if option[valueStart:] != redactionMarker {
-									prefix := option[:valueStart]
-									replacements = append(replacements, replacement{start: spans[optionIndex].start, end: credentialShellArgumentEnd(command, spans[optionIndex]), text: prefix + redactionMarker})
-								}
-							} else if optionIndex+1 < len(words) {
-								passwordSpan := spans[optionIndex+1]
-								if strings.Trim(words[optionIndex+1], `"'`) != redactionMarker {
-									replacements = append(replacements, replacement{start: passwordSpan.start, end: credentialShellArgumentEnd(command, passwordSpan), text: redactionMarker})
-								}
-							}
-						}
-						if !attached {
-							if optionIndex+1 >= len(words) {
-								break options
-							}
-							optionIndex++
-						}
-						continue options
-					default:
-						break options
-					}
-				}
-			}
-			break
-		}
-
-		for index := len(replacements) - 1; index >= 0; index-- {
-			replacement := replacements[index]
-			command = command[:replacement.start] + replacement.text + command[replacement.end:]
-			changed = true
-		}
-		if len(replacements) > 0 {
-			result = result[:start] + command + result[end:]
-		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
+			return redacted, redacted != command
+		})
+	})
 }
 
 func dockerLoginCommandStart(command string) (int, bool) {
@@ -5562,208 +4911,11 @@ func dockerLoginCommandStart(command string) (int, bool) {
 }
 
 func dockerSubcommand(words []string) (string, bool) {
-	for len(words) > 0 {
-		word := strings.Trim(words[0], `"'`)
-		if word == "--" {
-			words = words[1:]
-			break
-		}
-		if !strings.HasPrefix(word, "-") || word == "-" {
-			return word, true
-		}
-
-		requiresArgument, allowed := dockerGlobalOption(word)
-		if !allowed {
-			return "", false
-		}
-		words = words[1:]
-		if requiresArgument {
-			if len(words) == 0 {
-				return "", false
-			}
-			words = words[1:]
-		}
-	}
-	if len(words) == 0 {
+	words, ok := dockerOptions.consumeOptions(words)
+	if !ok || len(words) == 0 {
 		return "", false
 	}
 	return strings.Trim(words[0], `"'`), true
-}
-
-func dockerGlobalOption(option string) (bool, bool) {
-	if strings.HasPrefix(option, "--") {
-		name, _, attached := strings.Cut(option, "=")
-		switch name {
-		case "--config", "--context", "--host", "--log-level", "--tlscacert", "--tlscert", "--tlskey":
-			return !attached, true
-		case "--debug", "--tls", "--tlsverify":
-			return false, true
-		default:
-			return false, false
-		}
-	}
-	if len(option) < 2 {
-		return false, false
-	}
-	switch option[1] {
-	case 'c', 'H', 'l':
-		return len(option) == 2, true
-	case 'D':
-		return false, len(option) == 2
-	default:
-		return false, false
-	}
-}
-
-func redactSSHKeygenCredentialArguments(value string) (string, bool) {
-	type replacement struct {
-		start int
-		end   int
-		text  string
-	}
-
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		spans := splitCredentialShellWordSpans(command)
-		words := make([]string, 0, len(spans))
-		for _, span := range spans {
-			words = append(words, span.value)
-		}
-
-		replacements := make([]replacement, 0, 2)
-		for commandIndex, word := range words {
-			baseName := commandBaseName(word)
-			if (baseName != "ssh-keygen" && baseName != "ssh-keygen.exe") || !isCredentialCommandPrefix(words[:commandIndex]) {
-				continue
-			}
-		options:
-			for optionIndex := commandIndex + 1; optionIndex < len(words); optionIndex++ {
-				option := strings.Trim(words[optionIndex], `"'`)
-				if option == "--" || len(option) < 2 || option[0] != '-' || option == "-" || option[1] == '-' {
-					break
-				}
-
-				for flagIndex := 1; flagIndex < len(option); flagIndex++ {
-					flag := option[flagIndex]
-					if strings.ContainsRune("ABHKLQUXceghiklopquvy", rune(flag)) {
-						continue
-					}
-					if !strings.ContainsRune("CDEFIMNOPRVYZabfgmnrstwz", rune(flag)) {
-						break options
-					}
-
-					attached := flagIndex+1 < len(option)
-					argumentSpanIndex := optionIndex
-					if !attached {
-						if optionIndex+1 >= len(words) {
-							break options
-						}
-						argumentSpanIndex = optionIndex + 1
-					}
-					argumentEnd := credentialShellArgumentEnd(command, spans[argumentSpanIndex])
-					if flag == 'N' || flag == 'P' {
-						if attached {
-							valueStart := flagIndex + 1
-							if option[valueStart] == '=' {
-								valueStart++
-							}
-							if option[valueStart:] != redactionMarker {
-								prefix := option[:valueStart]
-								replacements = append(replacements, replacement{start: spans[optionIndex].start, end: argumentEnd, text: prefix + redactionMarker})
-							}
-						} else {
-							passphraseSpan := spans[argumentSpanIndex]
-							if strings.Trim(words[argumentSpanIndex], `"'`) != redactionMarker {
-								replacements = append(replacements, replacement{start: passphraseSpan.start, end: argumentEnd, text: redactionMarker})
-							}
-						}
-					}
-					optionIndex = argumentSpanIndex
-					for optionIndex+1 < len(spans) && spans[optionIndex+1].start < argumentEnd {
-						optionIndex++
-					}
-					continue options
-				}
-			}
-			break
-		}
-
-		for index := len(replacements) - 1; index >= 0; index-- {
-			replacement := replacements[index]
-			command = command[:replacement.start] + replacement.text + command[replacement.end:]
-			changed = true
-		}
-		if len(replacements) > 0 {
-			result = result[:start] + command + result[end:]
-		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
-}
-
-func redactNamedCommandCredentialArguments(value, commandName string, pattern *lazyRegexp) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		if commandStart, ok := namedCredentialCommandStart(command, commandName); ok {
-			redacted := pattern.ReplaceAllString(command[commandStart:], `${1}${2}`+redactionMarker)
-			if redacted != command[commandStart:] {
-				command = command[:commandStart] + redacted
-				result = result[:start] + command + result[end:]
-				changed = true
-			}
-		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
-}
-
-func redactNamedCommandAttachedShortCredentialArguments(value, commandName, flags string) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		if commandStart, ok := namedCredentialCommandStart(command, commandName); ok {
-			redacted, commandChanged := redactAttachedShortCredentialArguments(command[commandStart:], flags)
-			if commandChanged {
-				command = command[:commandStart] + redacted
-				result = result[:start] + command + result[end:]
-				changed = true
-			}
-		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
 }
 
 func redactAttachedShortCredentialArguments(command, flags string) (string, bool) {
@@ -5816,33 +4968,18 @@ func namedCredentialCommandStart(command, commandName string) (int, bool) {
 }
 
 func redactSecurityCredentialArguments(value string) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		if commandStart, subcommand, ok := securityCommand(command); ok {
-			if pattern := securityCredentialFlagPatterns[subcommand]; pattern != nil {
-				redacted, _ := redactAttachedShortCredentialArguments(command[commandStart:], securityAttachedCredentialFlags[subcommand])
-				redacted = pattern.ReplaceAllString(redacted, `${1}${2}`+redactionMarker)
-				if redacted != command[commandStart:] {
-					command = command[:commandStart] + redacted
-					result = result[:start] + command + result[end:]
-					changed = true
-				}
-			}
+	return redactShellCommands(value, func(command string) (string, bool) {
+		commandStart, subcommand, ok := securityCommand(command)
+		pattern := securityCredentialFlagPatterns[subcommand]
+		if !ok || pattern == nil {
+			return command, false
 		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
+		return redactCommandFrom(command, commandStart, func(command string) (string, bool) {
+			redacted, _ := redactAttachedShortCredentialArguments(command, securityAttachedCredentialFlags[subcommand])
+			redacted = pattern.ReplaceAllString(redacted, `${1}${2}`+redactionMarker)
+			return redacted, redacted != command
+		})
+	})
 }
 
 func securityCommand(command string) (int, string, bool) {
@@ -6005,155 +5142,201 @@ func consumeCredentialCommandWrapper(words []string) ([]string, bool) {
 	if len(words) == 0 {
 		return nil, false
 	}
-	wrapper := commandBaseName(words[0])
-	if wrapper == "timeout" || wrapper == "gtimeout" {
-		return consumeTimeoutCredentialWrapper(words[1:])
-	}
-	if wrapper == "nohup" {
-		return consumeNohupCredentialWrapper(words[1:])
-	}
-	if wrapper == "exec" {
-		return consumeExecCredentialWrapper(words[1:])
-	}
-	if wrapper == "nice" || wrapper == "gnice" {
-		return consumeNiceCredentialWrapper(words[1:])
-	}
-	if wrapper == "time" || wrapper == "gtime" {
-		return consumeTimeCredentialWrapper(words[1:])
-	}
-	if wrapper == "stdbuf" || wrapper == "gstdbuf" {
-		return consumeStdbufCredentialWrapper(words[1:])
-	}
-	if wrapper == "setsid" {
-		return consumeSetsidCredentialWrapper(words[1:])
-	}
-	if wrapper == "ionice" {
-		return consumeIoniceCredentialWrapper(words[1:])
-	}
-	if wrapper == "caffeinate" {
-		return consumeCaffeinateCredentialWrapper(words[1:])
-	}
-	if wrapper == "arch" {
-		return consumeArchCredentialWrapper(words[1:])
-	}
-	if wrapper == "xcrun" {
-		return consumeXcrunCredentialWrapper(words[1:])
-	}
-	if wrapper == "launchctl" {
-		return consumeLaunchctlCredentialWrapper(words[1:])
-	}
-	if wrapper == "chroot" || wrapper == "gchroot" || wrapper == "chroot.exe" || wrapper == "gchroot.exe" {
-		return consumeChrootCredentialWrapper(words[1:])
-	}
-	if wrapper == "xargs" || wrapper == "gxargs" {
-		return consumeXargsCredentialWrapper(words[1:])
-	}
-	if wrapper == "find" || wrapper == "gfind" {
-		return consumeFindExecCredentialWrapper(words[1:])
-	}
-	if wrapper == "watch" {
-		return consumeWatchCredentialWrapper(words[1:])
-	}
-	if wrapper != "sudo" && wrapper != "doas" && wrapper != "command" && wrapper != "env" {
+	consume, ok := commandWrappers[commandBaseName(words[0])]
+	if !ok {
 		return nil, false
 	}
+	return consume(words[1:])
+}
 
-	words = words[1:]
+// commandWrappers maps programs that run a command given in their arguments to
+// a function that skips the wrapper's own arguments.
+var commandWrappers = map[string]func([]string) ([]string, bool){
+	"sudo":        sudoOptions.consumeOptions,
+	"doas":        doasOptions.consumeOptions,
+	"command":     commandOptions.consumeOptions,
+	"env":         envOptions.consumeOptions,
+	"timeout":     consumeTimeoutWrapper,
+	"gtimeout":    consumeTimeoutWrapper,
+	"nohup":       consumeNohupCredentialWrapper,
+	"exec":        consumeExecCredentialWrapper,
+	"nice":        consumeNiceCredentialWrapper,
+	"gnice":       consumeNiceCredentialWrapper,
+	"time":        timeOptions.consumeOptions,
+	"gtime":       timeOptions.consumeOptions,
+	"stdbuf":      stdbufOptions.consumeOptions,
+	"gstdbuf":     stdbufOptions.consumeOptions,
+	"setsid":      setsidOptions.consumeOptions,
+	"ionice":      ioniceOptions.consumeOptions,
+	"caffeinate":  caffeinateOptions.consumeOptions,
+	"arch":        consumeArchCredentialWrapper,
+	"xcrun":       consumeXcrunCredentialWrapper,
+	"launchctl":   consumeLaunchctlCredentialWrapper,
+	"chroot":      consumeChrootWrapper,
+	"gchroot":     consumeChrootWrapper,
+	"chroot.exe":  consumeChrootWrapper,
+	"gchroot.exe": consumeChrootWrapper,
+	"xargs":       xargsOptions.consumeOptions,
+	"gxargs":      xargsOptions.consumeOptions,
+	"find":        consumeFindExecCredentialWrapper,
+	"gfind":       consumeFindExecCredentialWrapper,
+	"watch":       watchOptions.consumeOptions,
+}
+
+// optionKind says how a long option takes a value.
+type optionKind int
+
+const (
+	longFlag       optionKind = iota // --name; --name=VALUE is rejected
+	longValue                        // --name VALUE, or --name=VALUE with a non-empty value
+	longLooseValue                   // --name VALUE or --name=VALUE
+	longAny                          // --name or --name=VALUE
+	longNonEmpty                     // --name, or --name=VALUE with a non-empty value
+)
+
+// optionSpec describes the options a program accepts before its operands.
+type optionSpec struct {
+	flags    string // short options without a value; they can be grouped
+	alone    string // short options without a value that cannot be grouped
+	optional string // short options whose value can only be attached
+	values   string // short options with a value, attached or in the next word
+	long     map[string]optionKind
+	// equalsValue attaches VALUE rather than =VALUE in -oVALUE and -o=VALUE.
+	equalsValue bool
+	// valid checks the value of each option, named by its letter or --name.
+	valid func(option, value string) bool
+}
+
+func longOptions(kind optionKind, names string, more map[string]optionKind) map[string]optionKind {
+	options := make(map[string]optionKind)
+	for _, name := range strings.Fields(names) {
+		options[name] = kind
+	}
+	maps.Copy(options, more)
+	return options
+}
+
+var (
+	sudoOptions = optionSpec{flags: "AbEHiKknPSs", values: "CDghpRrTtUu", long: longOptions(longLooseValue,
+		"--chdir --close-from --command-timeout --group --host --other-user --prompt --role --type --user",
+		longOptions(longAny, "--askpass --background --non-interactive --preserve-env --remove-timestamp --reset-timestamp --stdin", nil))}
+	doasOptions    = optionSpec{flags: "n", values: "au"}
+	commandOptions = optionSpec{flags: "p"}
+	// env -S is transparent so the command words inside its split string
+	// remain available to the command-scoped redactors.
+	envOptions = optionSpec{flags: "0Siv", values: "CPu", long: longOptions(longLooseValue, "--argv0 --chdir --unset",
+		longOptions(longAny, "--debug --ignore-environment --null --split-string", nil))}
+	timeoutOptions = optionSpec{flags: "fpv", values: "ks", long: longOptions(longValue, "--kill-after --signal",
+		longOptions(longFlag, "--foreground --preserve-status --verbose", nil))}
+	timeOptions = optionSpec{flags: "ahlpqv", values: "fo", long: longOptions(longValue, "--format --output",
+		longOptions(longFlag, "--append --portability --quiet --verbose", nil))}
+	stdbufOptions = optionSpec{values: "eio", equalsValue: true, long: longOptions(longValue, "--error --input --output", nil),
+		valid: func(_, mode string) bool { return isStdbufMode(mode) }}
+	setsidOptions = optionSpec{flags: "cfw", long: longOptions(longFlag, "--ctty --fork --wait", nil)}
+	ioniceOptions = optionSpec{flags: "t", values: "cn", long: longOptions(longValue, "--class --classdata",
+		map[string]optionKind{"--ignore": longFlag})}
+	caffeinateOptions = optionSpec{flags: "dimsu", values: "tw", valid: func(option, value string) bool {
+		switch option {
+		case "t":
+			return isCaffeinateTimeoutArgument(value)
+		case "w":
+			return isCaffeinatePIDArgument(value)
+		}
+		return true
+	}}
+	chrootOptions = optionSpec{flags: "n", values: "Ggu", long: map[string]optionKind{"--groups": longLooseValue, "--userspec": longValue, "--skip-chdir": longFlag}}
+	// GNU xargs -e, -i and -l take an optional attached value, so a
+	// following word is the command.
+	xargsOptions = optionSpec{flags: "0oprtx", optional: "eil", values: "adEIJLnPRSs", long: longOptions(longValue,
+		"--arg-file --delimiter --max-args --max-procs --max-chars --process-slot-var",
+		longOptions(longFlag, "--null --interactive --verbose --no-run-if-empty --exit --open-tty --show-limits",
+			map[string]optionKind{"--eof": longAny, "--replace": longAny, "--max-lines": longNonEmpty}))}
+	// watch -d takes an optional attached cumulative marker.
+	watchOptions = optionSpec{flags: "bcCefgprtwx", optional: "d", values: "nqs", long: longOptions(longValue, "--interval --equexit --shotsdir",
+		longOptions(longFlag, "--beep --color --no-color --errexit --chgexit --exec --precise --no-title --no-rerun --no-wrap",
+			map[string]optionKind{"--differences": longNonEmpty}))}
+	dockerOptions = optionSpec{alone: "D", values: "cHl", long: longOptions(longLooseValue,
+		"--config --context --host --log-level --tlscacert --tlscert --tlskey", longOptions(longAny, "--debug --tls --tlsverify", nil))}
+	kubectlOptions = optionSpec{values: "nsv", long: longOptions(longLooseValue,
+		"--as --as-group --as-uid --cache-dir --certificate-authority --client-certificate --client-key --cluster --context --kubeconfig --namespace --password --profile --profile-output --request-timeout --server --tls-server-name --token --user --username --v --vmodule",
+		longOptions(longAny, "--disable-compression --insecure-skip-tls-verify --match-server-version --warnings-as-errors", nil))}
+	shellOptions = optionSpec{long: longOptions(longValue, "--init-file --rcfile",
+		longOptions(longFlag, "--login --noediting --noprofile --norc --posix --restricted --verbose", nil))}
+)
+
+// option parses one option word. It returns the option's letter or --name, the
+// value attached to it, and whether the value is the next word instead.
+func (spec optionSpec) option(option string) (name, value string, valueFollows, ok bool) {
+	if strings.HasPrefix(option, "--") {
+		name, value, attached := strings.Cut(option, "=")
+		kind, known := spec.long[name]
+		emptyValue := attached && value == ""
+		if !known || kind == longFlag && attached || (kind == longValue || kind == longNonEmpty) && emptyValue {
+			return "", "", false, false
+		}
+		return name, value, !attached && (kind == longValue || kind == longLooseValue), true
+	}
+	for index := 1; index < len(option); index++ {
+		flag := option[index]
+		switch {
+		case strings.IndexByte(spec.flags, flag) >= 0, strings.IndexByte(spec.alone, flag) >= 0 && len(option) == 2:
+			continue
+		case strings.IndexByte(spec.optional, flag) >= 0:
+			return option[index : index+1], option[index+1:], false, true
+		case strings.IndexByte(spec.values, flag) >= 0:
+			value := option[index+1:]
+			if spec.equalsValue {
+				value = strings.TrimPrefix(value, "=")
+			}
+			return option[index : index+1], value, value == "", true
+		}
+		return "", "", false, false
+	}
+	return "", "", false, true
+}
+
+// consumeOptions skips the options before the first operand in words.
+func (spec optionSpec) consumeOptions(words []string) ([]string, bool) {
 	for len(words) > 0 {
 		option := strings.Trim(words[0], `"'`)
 		if option == "--" {
 			return words[1:], true
 		}
-		if len(option) < 2 || option[0] != '-' || option == "-" {
+		if len(option) < 2 || option[0] != '-' {
 			return words, true
 		}
-
-		requiresArgument, allowed := credentialWrapperOption(wrapper, option)
-		if !allowed {
-			return nil, false
-		}
+		name, value, valueFollows, ok := spec.option(option)
 		words = words[1:]
-		if requiresArgument {
+		if ok && valueFollows {
 			if len(words) == 0 {
 				return nil, false
 			}
+			value = strings.Trim(words[0], `"'`)
 			words = words[1:]
+		}
+		if !ok || spec.valid != nil && !spec.valid(name, value) {
+			return nil, false
 		}
 	}
 	return words, true
 }
 
-func consumeXargsCredentialWrapper(words []string) ([]string, bool) {
-	for len(words) > 0 {
-		option := strings.Trim(words[0], `"'`)
-		if option == "--" {
-			return words[1:], true
-		}
-		if len(option) < 2 || option[0] != '-' || option == "-" {
-			return words, true
-		}
-		if option == "--help" || option == "--version" {
-			return nil, false
-		}
-		if strings.HasPrefix(option, "--") {
-			name, value, attached := strings.Cut(option, "=")
-			switch name {
-			case "--eof", "--replace":
-				words = words[1:]
-				continue
-			case "--max-lines":
-				words = words[1:]
-				if attached && value == "" {
-					return nil, false
-				}
-				continue
-			case "--arg-file", "--delimiter", "--max-args", "--max-procs", "--max-chars", "--process-slot-var":
-				words = words[1:]
-				if !attached {
-					if len(words) == 0 {
-						return nil, false
-					}
-					words = words[1:]
-				} else if value == "" {
-					return nil, false
-				}
-				continue
-			case "--null", "--interactive", "--verbose", "--no-run-if-empty", "--exit", "--open-tty", "--show-limits":
-				if attached {
-					return nil, false
-				}
-				words = words[1:]
-				continue
-			default:
-				return nil, false
-			}
-		}
-
-		requiresArgument := false
-		for index := 1; index < len(option); index++ {
-			switch option[index] {
-			case '0', 'o', 'p', 'r', 't', 'x':
-				continue
-			case 'e', 'i', 'l':
-				// GNU xargs treats these compatibility options as having an
-				// optional attached value. A following word is the command.
-				index = len(option)
-			case 'a', 'd', 'E', 'I', 'J', 'L', 'n', 'P', 'R', 'S', 's':
-				requiresArgument = index == len(option)-1
-				index = len(option)
-			default:
-				return nil, false
-			}
-		}
-		words = words[1:]
-		if requiresArgument {
-			if len(words) == 0 {
-				return nil, false
-			}
-			words = words[1:]
-		}
+// consumeTimeoutWrapper skips timeout's options and its duration.
+func consumeTimeoutWrapper(words []string) ([]string, bool) {
+	words, ok := timeoutOptions.consumeOptions(words)
+	if !ok || len(words) == 0 || !isTimeoutDurationWord(strings.Trim(words[0], `"'`)) {
+		return nil, false
 	}
-	return words, true
+	return words[1:], true
+}
+
+// consumeChrootWrapper skips chroot's options and its new root.
+func consumeChrootWrapper(words []string) ([]string, bool) {
+	words, ok := chrootOptions.consumeOptions(words)
+	if !ok || len(words) == 0 || strings.Trim(words[0], `"'`) == "" {
+		return nil, false
+	}
+	return words[1:], true
 }
 
 func consumeFindExecCredentialWrapper(words []string) ([]string, bool) {
@@ -6186,87 +5369,6 @@ func findExpressionArgumentCount(word string) int {
 		return 1
 	}
 	return 0
-}
-
-func consumeWatchCredentialWrapper(words []string) ([]string, bool) {
-	for len(words) > 0 {
-		option := strings.Trim(words[0], `"'`)
-		if option == "--" {
-			return words[1:], true
-		}
-		if len(option) < 2 || option[0] != '-' || option == "-" {
-			return words, true
-		}
-		if strings.HasPrefix(option, "--") {
-			name, value, attached := strings.Cut(option, "=")
-			switch name {
-			case "--interval":
-				words = words[1:]
-				if attached {
-					if value == "" {
-						return nil, false
-					}
-					continue
-				}
-				if len(words) == 0 {
-					return nil, false
-				}
-				words = words[1:]
-				continue
-			case "--differences":
-				if attached && value == "" {
-					return nil, false
-				}
-				words = words[1:]
-				continue
-			case "--equexit", "--shotsdir":
-				words = words[1:]
-				if attached {
-					if value == "" {
-						return nil, false
-					}
-					continue
-				}
-				if len(words) == 0 {
-					return nil, false
-				}
-				words = words[1:]
-				continue
-			case "--beep", "--color", "--no-color", "--errexit", "--chgexit", "--exec", "--precise", "--no-title", "--no-rerun", "--no-wrap":
-				if attached {
-					return nil, false
-				}
-				words = words[1:]
-				continue
-			default:
-				return nil, false
-			}
-		}
-
-		requiresArgument := false
-		for index := 1; index < len(option); index++ {
-			switch option[index] {
-			case 'b', 'c', 'C', 'e', 'f', 'g', 'p', 'r', 't', 'w', 'x':
-				continue
-			case 'd':
-				// The cumulative marker is an optional attached value.
-				index = len(option)
-			case 'n', 'q', 's':
-				requiresArgument = index == len(option)-1
-				index = len(option)
-			default:
-				return nil, false
-			}
-		}
-		words = words[1:]
-		if requiresArgument {
-			if len(words) == 0 {
-				return nil, false
-			}
-			words = words[1:]
-		}
-	}
-	return words, true
 }
 
 func consumeNohupCredentialWrapper(words []string) ([]string, bool) {
@@ -6354,120 +5456,6 @@ func isNiceAdjustment(value string) bool {
 	return err == nil
 }
 
-func consumeTimeCredentialWrapper(words []string) ([]string, bool) {
-	for len(words) > 0 {
-		option := strings.Trim(words[0], `"'`)
-		if option == "--" {
-			return words[1:], true
-		}
-		if strings.HasPrefix(option, "--") {
-			requiresArgument, allowed := timeCredentialWrapperLongOption(option)
-			if !allowed {
-				return nil, false
-			}
-			words = words[1:]
-			if requiresArgument {
-				if len(words) == 0 {
-					return nil, false
-				}
-				words = words[1:]
-			}
-			continue
-		}
-		if len(option) < 2 || option[0] != '-' || option == "-" {
-			return words, true
-		}
-		requiresArgument := false
-		for index := 1; index < len(option); index++ {
-			switch option[index] {
-			case 'a', 'h', 'l', 'p', 'q', 'v':
-				continue
-			case 'f', 'o':
-				requiresArgument = index == len(option)-1
-				index = len(option)
-			default:
-				return nil, false
-			}
-		}
-		words = words[1:]
-		if requiresArgument {
-			if len(words) == 0 {
-				return nil, false
-			}
-			words = words[1:]
-		}
-	}
-	return words, true
-}
-
-func timeCredentialWrapperLongOption(option string) (bool, bool) {
-	name, value, attached := strings.Cut(option, "=")
-	switch name {
-	case "--format", "--output":
-		return !attached, !attached || value != ""
-	case "--append", "--portability", "--quiet", "--verbose":
-		return false, !attached
-	default:
-		return false, false
-	}
-}
-
-func consumeStdbufCredentialWrapper(words []string) ([]string, bool) {
-	for len(words) > 0 {
-		option := strings.Trim(words[0], `"'`)
-		if option == "--" {
-			return words[1:], true
-		}
-		if strings.HasPrefix(option, "--") {
-			requiresArgument, mode, allowed := stdbufCredentialWrapperLongOption(option)
-			if !allowed {
-				return nil, false
-			}
-			words = words[1:]
-			if requiresArgument {
-				if len(words) == 0 {
-					return nil, false
-				}
-				mode = strings.Trim(words[0], `"'`)
-				words = words[1:]
-			}
-			if !isStdbufMode(mode) {
-				return nil, false
-			}
-			continue
-		}
-		if len(option) < 2 || option[0] != '-' || option == "-" {
-			return words, true
-		}
-		if option[1] != 'e' && option[1] != 'i' && option[1] != 'o' {
-			return nil, false
-		}
-		mode := strings.TrimPrefix(option[2:], "=")
-		words = words[1:]
-		if mode == "" {
-			if len(words) == 0 {
-				return nil, false
-			}
-			mode = strings.Trim(words[0], `"'`)
-			words = words[1:]
-		}
-		if !isStdbufMode(mode) {
-			return nil, false
-		}
-	}
-	return words, true
-}
-
-func stdbufCredentialWrapperLongOption(option string) (bool, string, bool) {
-	name, value, attached := strings.Cut(option, "=")
-	switch name {
-	case "--error", "--input", "--output":
-		return !attached, value, !attached || value != ""
-	default:
-		return false, "", false
-	}
-}
-
 func isStdbufMode(value string) bool {
 	if value == "0" || value == "L" || value == "B" {
 		return true
@@ -6481,140 +5469,6 @@ func isStdbufMode(value string) bool {
 	}
 	_, err := strconv.ParseUint(value, 10, 64)
 	return err == nil
-}
-
-func consumeSetsidCredentialWrapper(words []string) ([]string, bool) {
-	for len(words) > 0 {
-		option := strings.Trim(words[0], `"'`)
-		if option == "--" {
-			return words[1:], true
-		}
-		if len(option) < 2 || option[0] != '-' || option == "-" {
-			return words, true
-		}
-		if strings.HasPrefix(option, "--") {
-			switch option {
-			case "--ctty", "--fork", "--wait":
-				words = words[1:]
-				continue
-			default:
-				return nil, false
-			}
-		}
-		for _, flag := range option[1:] {
-			if !strings.ContainsRune("cfw", flag) {
-				return nil, false
-			}
-		}
-		words = words[1:]
-	}
-	return words, true
-}
-
-func consumeIoniceCredentialWrapper(words []string) ([]string, bool) {
-	for len(words) > 0 {
-		option := strings.Trim(words[0], `"'`)
-		if option == "--" {
-			return words[1:], true
-		}
-		if len(option) < 2 || option[0] != '-' || option == "-" {
-			return words, true
-		}
-		if strings.HasPrefix(option, "--") {
-			name, value, attached := strings.Cut(option, "=")
-			switch name {
-			case "--class", "--classdata":
-				words = words[1:]
-				if attached {
-					if value == "" {
-						return nil, false
-					}
-					continue
-				}
-				if len(words) == 0 {
-					return nil, false
-				}
-				words = words[1:]
-				continue
-			case "--ignore":
-				if attached {
-					return nil, false
-				}
-				words = words[1:]
-				continue
-			case "--pid", "--pgid", "--uid", "--help", "--version":
-				return nil, false
-			default:
-				return nil, false
-			}
-		}
-
-		requiresArgument := false
-		for index := 1; index < len(option); index++ {
-			switch option[index] {
-			case 't':
-				continue
-			case 'c', 'n':
-				requiresArgument = index == len(option)-1
-				index = len(option)
-			case 'p', 'P', 'u', 'h', 'V':
-				return nil, false
-			default:
-				return nil, false
-			}
-		}
-		words = words[1:]
-		if requiresArgument {
-			if len(words) == 0 {
-				return nil, false
-			}
-			words = words[1:]
-		}
-	}
-	return words, true
-}
-
-func consumeCaffeinateCredentialWrapper(words []string) ([]string, bool) {
-	for len(words) > 0 {
-		option := strings.Trim(words[0], `"'`)
-		if option == "--" {
-			return words[1:], true
-		}
-		if len(option) < 2 || option[0] != '-' || option == "-" {
-			return words, true
-		}
-		argumentFlag := byte(0)
-		argument := ""
-		for index := 1; index < len(option); index++ {
-			switch option[index] {
-			case 'd', 'i', 'm', 's', 'u':
-				continue
-			case 't', 'w':
-				argumentFlag = option[index]
-				argument = option[index+1:]
-				index = len(option)
-			default:
-				return nil, false
-			}
-		}
-		words = words[1:]
-		if argumentFlag != 0 {
-			if argument == "" {
-				if len(words) == 0 {
-					return nil, false
-				}
-				argument = strings.Trim(words[0], `"'`)
-				words = words[1:]
-			}
-			if argumentFlag == 't' && !isCaffeinateTimeoutArgument(argument) {
-				return nil, false
-			}
-			if argumentFlag == 'w' && !isCaffeinatePIDArgument(argument) {
-				return nil, false
-			}
-		}
-	}
-	return words, true
 }
 
 func isCaffeinateTimeoutArgument(value string) bool {
@@ -6777,211 +5631,12 @@ func consumeLaunchctlSubmitCredentialWrapper(words []string) ([]string, bool) {
 	return nil, false
 }
 
-func consumeChrootCredentialWrapper(words []string) ([]string, bool) {
-	for len(words) > 0 {
-		option := strings.Trim(words[0], `"'`)
-		if option == "--" {
-			words = words[1:]
-			break
-		}
-		if len(option) < 2 || option[0] != '-' || option == "-" {
-			break
-		}
-		if option[1] == '-' {
-			name, value, attached := strings.Cut(option, "=")
-			switch name {
-			case "--groups":
-				if attached {
-					words = words[1:]
-					continue
-				}
-				if len(words) < 2 {
-					return nil, false
-				}
-				words = words[2:]
-			case "--userspec":
-				if attached {
-					if value == "" {
-						return nil, false
-					}
-					words = words[1:]
-					continue
-				}
-				if len(words) < 2 {
-					return nil, false
-				}
-				words = words[2:]
-			case "--skip-chdir":
-				if attached {
-					return nil, false
-				}
-				words = words[1:]
-			case "--help", "--version":
-				return nil, false
-			default:
-				return nil, false
-			}
-			continue
-		}
-
-		requiresArgument := false
-		for index := 1; index < len(option); index++ {
-			switch option[index] {
-			case 'n':
-				continue
-			case 'G', 'g', 'u':
-				requiresArgument = index == len(option)-1
-				index = len(option)
-			default:
-				return nil, false
-			}
-		}
-		words = words[1:]
-		if requiresArgument {
-			if len(words) == 0 {
-				return nil, false
-			}
-			words = words[1:]
-		}
-	}
-	if len(words) == 0 || strings.Trim(words[0], `"'`) == "" {
-		return nil, false
-	}
-	return words[1:], true
-}
-
-func consumeTimeoutCredentialWrapper(words []string) ([]string, bool) {
-	for len(words) > 0 {
-		option := strings.Trim(words[0], `"'`)
-		if option == "--" {
-			words = words[1:]
-			break
-		}
-		if len(option) < 2 || option[0] != '-' || option == "-" {
-			break
-		}
-
-		requiresArgument, allowed := timeoutCredentialWrapperOption(option)
-		if !allowed {
-			return nil, false
-		}
-		words = words[1:]
-		if requiresArgument {
-			if len(words) == 0 {
-				return nil, false
-			}
-			words = words[1:]
-		}
-	}
-	if len(words) == 0 || !isTimeoutDurationWord(strings.Trim(words[0], `"'`)) {
-		return nil, false
-	}
-	return words[1:], true
-}
-
 func isTimeoutDurationWord(value string) bool {
 	if len(value) > 1 && strings.ContainsRune("smhdSMHD", rune(value[len(value)-1])) {
 		value = value[:len(value)-1]
 	}
 	duration, err := strconv.ParseFloat(value, 64)
 	return err == nil && duration >= 0 && !math.IsNaN(duration)
-}
-
-func timeoutCredentialWrapperOption(option string) (bool, bool) {
-	if strings.HasPrefix(option, "--") {
-		name, value, attached := strings.Cut(option, "=")
-		switch name {
-		case "--kill-after", "--signal":
-			return !attached, !attached || value != ""
-		case "--foreground", "--preserve-status", "--verbose":
-			return false, !attached
-		default:
-			return false, false
-		}
-	}
-	if len(option) < 2 {
-		return false, false
-	}
-	for index := 1; index < len(option); index++ {
-		switch option[index] {
-		case 'f', 'p', 'v':
-			continue
-		case 'k', 's':
-			return index == len(option)-1, true
-		default:
-			return false, false
-		}
-	}
-	return false, true
-}
-
-func credentialWrapperOption(wrapper, option string) (bool, bool) {
-	if strings.HasPrefix(option, "--") {
-		name, _, attached := strings.Cut(option, "=")
-		requiresArgument, allowed := credentialWrapperLongOption(wrapper, name)
-		return requiresArgument && !attached, allowed
-	}
-
-	requiresArgument := false
-	for index := 1; index < len(option); index++ {
-		requiresValue, allowed := credentialWrapperShortOption(wrapper, option[index])
-		if !allowed {
-			return false, false
-		}
-		if requiresValue {
-			requiresArgument = index == len(option)-1
-			break
-		}
-	}
-	return requiresArgument, true
-}
-
-func credentialWrapperShortOption(wrapper string, option byte) (bool, bool) {
-	switch wrapper {
-	case "sudo":
-		if strings.ContainsRune("CDghpRrTtUu", rune(option)) {
-			return true, true
-		}
-		return false, strings.ContainsRune("AbEHiKknPSs", rune(option))
-	case "doas":
-		if option == 'a' || option == 'u' {
-			return true, true
-		}
-		return false, option == 'n'
-	case "command":
-		return false, option == 'p'
-	case "env":
-		if option == 'C' || option == 'P' || option == 'u' {
-			return true, true
-		}
-		// Treat -S as transparent here so the command words inside its split
-		// string remain available to the command-scoped redactors.
-		return false, option == '0' || option == 'S' || option == 'i' || option == 'v'
-	default:
-		return false, false
-	}
-}
-
-func credentialWrapperLongOption(wrapper, option string) (bool, bool) {
-	switch wrapper {
-	case "sudo":
-		switch option {
-		case "--chdir", "--close-from", "--command-timeout", "--group", "--host", "--other-user", "--prompt", "--role", "--type", "--user":
-			return true, true
-		case "--askpass", "--background", "--non-interactive", "--preserve-env", "--remove-timestamp", "--reset-timestamp", "--stdin":
-			return false, true
-		}
-	case "doas", "command":
-		return false, false
-	case "env":
-		switch option {
-		case "--argv0", "--chdir", "--unset":
-			return true, true
-		case "--debug", "--ignore-environment", "--null", "--split-string":
-			return false, true
-		}
-	}
-	return false, false
 }
 
 func commandBaseName(word string) string {
@@ -7048,7 +5703,7 @@ func credentialCommandWords(command string) []string {
 			if len(word) < 2 || word[0] != '-' || word == "-" {
 				break
 			}
-			requiresArgument, allowed := credentialWrapperOption("env", word)
+			_, _, requiresArgument, allowed := envOptions.option(word)
 			if !allowed {
 				break
 			}
@@ -7461,39 +6116,20 @@ func isShellBacktickSubstitutionStart(value string, index int) bool {
 }
 
 func redactEnvSplitCommandStrings(value string, depth int) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
+	return redactShellCommands(value, func(command string) (string, bool) {
 		contentStart, contentEnd, ok := envSplitCommandStringSpan(command)
-		if ok {
-			inner := command[contentStart:contentEnd]
-			redacted, innerChanged := redactSensitiveTextDepth(inner, depth+1)
-			if !innerChanged && strings.Contains(inner, `\`) {
-				decoded := decodeEnvSplitStringForRedaction(inner)
-				_, innerChanged = redactSensitiveTextDepth(decoded, depth+1)
-				if innerChanged {
-					redacted = redactionMarker
-				}
-			}
-			if innerChanged {
-				command = command[:contentStart] + redacted + command[contentEnd:]
-				result = result[:start] + command + result[end:]
-				changed = true
+		if !ok {
+			return command, false
+		}
+		inner := command[contentStart:contentEnd]
+		redacted, innerChanged := redactSensitiveTextDepth(inner, depth+1)
+		if !innerChanged && strings.Contains(inner, `\`) {
+			if _, innerChanged = redactSensitiveTextDepth(decodeEnvSplitStringForRedaction(inner), depth+1); innerChanged {
+				redacted = redactionMarker
 			}
 		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
+		return command[:contentStart] + redacted + command[contentEnd:], innerChanged
+	})
 }
 
 func envSplitCommandStringSpan(command string) (int, int, bool) {
@@ -7535,7 +6171,7 @@ func envSplitCommandStringSpan(command string) (int, int, bool) {
 			if len(option) < 2 || option[0] != '-' || option == "-" {
 				break
 			}
-			requiresArgument, allowed := credentialWrapperOption("env", option)
+			_, _, requiresArgument, allowed := envOptions.option(option)
 			if !allowed {
 				break
 			}
@@ -7587,32 +6223,14 @@ func decodeEnvSplitStringForRedaction(value string) string {
 }
 
 func redactShellCommandStrings(value string, depth int) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
+	return redactShellCommands(value, func(command string) (string, bool) {
 		contentStart, contentEnd, ok := shellCommandStringSpan(command)
-		if ok {
-			inner := command[contentStart:contentEnd]
-			redacted, innerChanged := redactSensitiveTextDepth(inner, depth+1)
-			if innerChanged {
-				command = command[:contentStart] + redacted + command[contentEnd:]
-				result = result[:start] + command + result[end:]
-				changed = true
-			}
+		if !ok {
+			return command, false
 		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
+		redacted, changed := redactSensitiveTextDepth(command[contentStart:contentEnd], depth+1)
+		return command[:contentStart] + redacted + command[contentEnd:], changed
+	})
 }
 
 // eval is a shell builtin whose arguments are joined and executed as a new
@@ -7620,58 +6238,21 @@ func redactShellCommandStrings(value string, depth int) (string, bool) {
 // quote-aware substitution pass intentionally leaves it untouched. Redact
 // each eval argument recursively while preserving its quoting and spacing.
 func redactEvalCommandStrings(value string, depth int) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		spans := splitCredentialShellWordSpans(command)
-		words := make([]string, 0, len(spans))
-		for _, span := range spans {
-			words = append(words, span.value)
+	return redactShellCommands(value, func(command string) (string, bool) {
+		spans, words := shellCommandWords(command)
+		evalIndex := credentialCommandIndex(words, "eval")
+		if evalIndex < 0 {
+			return command, false
 		}
-		var replacements []struct {
-			start int
-			end   int
-			text  string
-		}
-		for index, word := range words {
-			if commandBaseName(word) != "eval" || !isCredentialCommandPrefix(words[:index]) {
-				continue
+		var replacements []textReplacement
+		for _, span := range spans[evalIndex+1:] {
+			inner := command[span.contentStart:span.contentEnd]
+			if redacted, changed := redactSensitiveTextDepth(inner, depth+1); changed && redacted != inner {
+				replacements = append(replacements, textReplacement{span.contentStart, span.contentEnd, redacted})
 			}
-			for argumentIndex := index + 1; argumentIndex < len(spans); argumentIndex++ {
-				span := spans[argumentIndex]
-				inner := command[span.contentStart:span.contentEnd]
-				redacted, argumentChanged := redactSensitiveTextDepth(inner, depth+1)
-				if argumentChanged && redacted != inner {
-					replacements = append(replacements, struct {
-						start int
-						end   int
-						text  string
-					}{start: span.contentStart, end: span.contentEnd, text: redacted})
-				}
-			}
-			break
 		}
-		for index := len(replacements) - 1; index >= 0; index-- {
-			replacement := replacements[index]
-			command = command[:replacement.start] + replacement.text + command[replacement.end:]
-			changed = true
-		}
-		if len(replacements) > 0 {
-			result = result[:start] + command + result[end:]
-		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
+		return applyTextReplacements(command, replacements), len(replacements) > 0
+	})
 }
 
 // launchctl submit -p supplies the executable separately from the argv passed
@@ -7682,28 +6263,9 @@ func redactEvalCommandStrings(value string, depth int) (string, bool) {
 // the executable and its arguments, then splice only the argument suffix back
 // into the original text so formatting and argv[0] remain unchanged.
 func redactLaunchctlSubmitEmbeddedCommands(value string, depth int) (string, bool) {
-	result := value
-	changed := false
-	for start := 0; start < len(result); {
-		end := findShellCommandEnd(result, start)
-		command := result[start:end]
-		redacted, commandChanged := redactLaunchctlSubmitEmbeddedCommand(command, depth)
-		if commandChanged {
-			result = result[:start] + redacted + result[end:]
-			command = redacted
-			changed = true
-		}
-
-		separator := start + len(command)
-		if separator >= len(result) {
-			break
-		}
-		start = separator + 1
-		if result[separator] == '\r' && start < len(result) && result[start] == '\n' {
-			start++
-		}
-	}
-	return result, changed
+	return redactShellCommands(value, func(command string) (string, bool) {
+		return redactLaunchctlSubmitEmbeddedCommand(command, depth)
+	})
 }
 
 func redactLaunchctlSubmitEmbeddedCommand(command string, depth int) (string, bool) {
@@ -7829,7 +6391,7 @@ func shellCommandStringWordIndex(words []string) (int, bool) {
 			return 0, false
 		}
 		if strings.HasPrefix(option, "--") {
-			requiresArgument, allowed := shellCommandStringLongOption(option)
+			_, _, requiresArgument, allowed := shellOptions.option(option)
 			if !allowed {
 				return 0, false
 			}
@@ -7871,18 +6433,6 @@ func shellCommandStringWordIndex(words []string) (int, bool) {
 	return 0, false
 }
 
-func shellCommandStringLongOption(option string) (bool, bool) {
-	name, value, attached := strings.Cut(option, "=")
-	switch name {
-	case "--init-file", "--rcfile":
-		return !attached, !attached || value != ""
-	case "--login", "--noediting", "--noprofile", "--norc", "--posix", "--restricted", "--verbose":
-		return false, !attached
-	default:
-		return false, false
-	}
-}
-
 func isKubectlCreateSecretCommand(command string) bool {
 	words := credentialCommandWords(command)
 	if len(words) < 3 {
@@ -7900,67 +6450,18 @@ func isKubectlCreateSecretCommand(command string) bool {
 			break
 		}
 	}
-	if kubectlIndex < 0 || !isKubectlCommandPrefix(words[:kubectlIndex]) {
+	if kubectlIndex < 0 || !isCredentialCommandPrefix(words[:kubectlIndex]) {
 		return false
 	}
 
 	return isKubectlCreateSecretSubcommand(words[kubectlIndex+1:])
 }
 
-func isKubectlCommandPrefix(words []string) bool {
-	return isCredentialCommandPrefix(words)
-}
-
 func isKubectlCreateSecretSubcommand(words []string) bool {
-	for len(words) > 0 {
-		word := strings.Trim(words[0], `"'`)
-		if word == "--" {
-			words = words[1:]
-			break
-		}
-		if !strings.HasPrefix(word, "-") || word == "-" {
-			break
-		}
-
-		requiresArgument, allowed := kubectlGlobalOption(word)
-		if !allowed {
-			return false
-		}
-		words = words[1:]
-		if requiresArgument {
-			if len(words) == 0 {
-				return false
-			}
-			words = words[1:]
-		}
-	}
-
-	return len(words) >= 2 &&
+	words, ok := kubectlOptions.consumeOptions(words)
+	return ok && len(words) >= 2 &&
 		strings.EqualFold(strings.Trim(words[0], `"'`), "create") &&
 		strings.EqualFold(strings.Trim(words[1], `"'`), "secret")
-}
-
-func kubectlGlobalOption(option string) (bool, bool) {
-	if strings.HasPrefix(option, "--") {
-		name, _, attached := strings.Cut(option, "=")
-		switch name {
-		case "--as", "--as-group", "--as-uid", "--cache-dir", "--certificate-authority", "--client-certificate", "--client-key", "--cluster", "--context", "--kubeconfig", "--namespace", "--password", "--profile", "--profile-output", "--request-timeout", "--server", "--tls-server-name", "--token", "--user", "--username", "--v", "--vmodule":
-			return !attached, true
-		case "--disable-compression", "--insecure-skip-tls-verify", "--match-server-version", "--warnings-as-errors":
-			return false, true
-		default:
-			return false, false
-		}
-	}
-	if len(option) < 2 {
-		return false, false
-	}
-	switch option[1] {
-	case 'n', 's', 'v':
-		return len(option) == 2, true
-	default:
-		return false, false
-	}
 }
 
 func transformXcodeCloudEnvVarSetCommands(value string, transform func(string) (string, bool)) (string, bool) {
@@ -8029,24 +6530,9 @@ func findShellCommandEnd(value string, start int) int {
 }
 
 func redactSensitiveCommandSubstitutions(value string) (string, bool) {
-	redacted := value
-	changed := false
-	for searchStart := 0; searchStart < len(redacted); {
-		match := sensitiveCommandSubstitutionStart.FindStringSubmatchIndex(redacted[searchStart:])
-		if match == nil {
-			break
-		}
-
-		open := searchStart + match[2]
-		close := findShellCommandSubstitutionEnd(redacted, open)
-		if close < 0 {
-			close = len(redacted) - 1
-		}
-		redacted = redacted[:open] + redactionMarker + redacted[close+1:]
-		changed = true
-		searchStart = open + len(redactionMarker)
-	}
-	return redacted, changed
+	return redactDelimitedValues(value, sensitiveCommandSubstitutionStart, func(value string, open int) int {
+		return exclusiveEnd(findShellCommandSubstitutionEnd(value, open))
+	})
 }
 
 func findShellCommandSubstitutionEnd(value string, open int) int {
