@@ -15,7 +15,6 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/install"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
@@ -24,10 +23,7 @@ import (
 
 const unknownFlagErrorPrefix = "flag provided but not defined:"
 
-var (
-	maybeScheduleSkillsUpdateCheck = install.MaybeScheduleSkillsUpdateCheck
-	emitTelemetry                  = telemetry.EmitWithContext
-)
+var emitTelemetry = telemetry.EmitWithContext
 
 // Run executes the CLI using the provided args (not including argv[0]) and version string.
 // It returns the intended process exit code.
@@ -217,10 +213,6 @@ func Run(args []string, versionInfo string) int {
 		fmt.Fprint(os.Stdout, runUsageOutput.String())
 	} else if runUsageOutput.Len() > 0 {
 		fmt.Fprint(os.Stderr, runUsageOutput.String())
-	}
-
-	if !renderGroupHelp && shouldRunSkillsUpdateCheck(commandName, runCtx, runErr) {
-		maybeScheduleSkillsUpdateCheck()
 	}
 
 	// Write JUnit report if requested
@@ -665,14 +657,6 @@ func prepareFlagParsing(command *ffcli.Command, args []string, output *parseOutp
 
 func shouldCancelRunContextAfterError(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
-}
-
-func shouldRunSkillsUpdateCheck(commandName string, runCtx context.Context, runErr error) bool {
-	// The external `skills check` command is not read-only: current releases
-	// route it through the updater and can rewrite globally installed skills.
-	// Keep automatic execution disabled until a reviewed, read-only protocol
-	// exists. Explicit `asc install-skills` remains available.
-	return false
 }
 
 func isVersionOnlyInvocation(args []string) bool {

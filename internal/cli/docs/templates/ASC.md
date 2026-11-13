@@ -238,7 +238,6 @@ Use `asc <command> --help` for subcommands and flags.
 - `ASC_WEB_SESSION_CACHE`, `ASC_WEB_SESSION_CACHE_DIR`, `ASC_WEB_SESSION_CACHE_BACKEND` - Web-session cache controls for web flows
 - `ASC_WEB_SESSION` - Canonical web-session bundle for `--session-from-env` on `web removed-apps list` and `web api-keys list` or `view`; used in memory without persistence
 - `ASC_SPINNER_DISABLED` - Disable interactive stderr spinner
-- `ASC_SKILLS_AUTO_CHECK` - Automatic skills update checks (`true`/`1`/`yes`/`y`/`on` enables, `false`/`0`/`no`/`n`/`off` disables; default enabled)
 
 ## API References (Offline)
 
