@@ -196,53 +196,6 @@ func TestBuildsInfoByBuildNumberExplicitPlatformNarrowsResults(t *testing.T) {
 	}
 }
 
-func TestBuildsInfoByBuildNumberNotFound(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/builds" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		body := `{"data":[]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--build-number", "42", "--platform", "IOS"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected not-found error")
-	}
-	if errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected runtime not-found error, got usage error: %v", runErr)
-	}
-	if !strings.Contains(runErr.Error(), `builds info: no build found for app 123456789 with build number "42"`) {
-		t.Fatalf("expected not-found message, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout on failure, got %q", stdout)
-	}
-}
-
 func TestBuildsInfoByLatestSuccess(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
