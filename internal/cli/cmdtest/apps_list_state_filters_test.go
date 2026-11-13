@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"strings"
@@ -114,77 +112,58 @@ func TestAppsListStateFiltersRejectUnknownValues(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	tests := []struct {
-		name string
-		args []string
-		want string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name: "unknown version state",
-			args: []string{"apps", "list", "--version-state", "READY_FOR_SALE"},
-			want: "--version-state must be one of: ACCEPTED, DEVELOPER_REJECTED, IN_REVIEW, INVALID_BINARY, METADATA_REJECTED, PENDING_APPLE_RELEASE, PENDING_DEVELOPER_RELEASE, PREPARE_FOR_SUBMISSION, PROCESSING_FOR_DISTRIBUTION, READY_FOR_DISTRIBUTION, READY_FOR_REVIEW, REJECTED, REPLACED_WITH_NEW_VERSION, WAITING_FOR_EXPORT_COMPLIANCE, WAITING_FOR_REVIEW",
+			name:    "unknown version state",
+			args:    []string{"apps", "list", "--version-state", "READY_FOR_SALE"},
+			wantErr: "--version-state must be one of: ACCEPTED, DEVELOPER_REJECTED, IN_REVIEW, INVALID_BINARY, METADATA_REJECTED, PENDING_APPLE_RELEASE, PENDING_DEVELOPER_RELEASE, PREPARE_FOR_SUBMISSION, PROCESSING_FOR_DISTRIBUTION, READY_FOR_DISTRIBUTION, READY_FOR_REVIEW, REJECTED, REPLACED_WITH_NEW_VERSION, WAITING_FOR_EXPORT_COMPLIANCE, WAITING_FOR_REVIEW",
 		},
 		{
-			name: "unknown version state among valid ones",
-			args: []string{"apps", "list", "--version-state", "IN_REVIEW,NOPE"},
-			want: "--version-state must be one of: ACCEPTED,",
+			name:    "unknown version state among valid ones",
+			args:    []string{"apps", "list", "--version-state", "IN_REVIEW,NOPE"},
+			wantErr: "--version-state must be one of: ACCEPTED,",
 		},
 		{
-			name: "unknown review submission state",
-			args: []string{"apps", "list", "--review-submission-state", "PREPARE_FOR_SUBMISSION"},
-			want: "--review-submission-state must be one of: READY_FOR_REVIEW, WAITING_FOR_REVIEW, IN_REVIEW, UNRESOLVED_ISSUES, CANCELING, COMPLETING, COMPLETE",
+			name:    "unknown review submission state",
+			args:    []string{"apps", "list", "--review-submission-state", "PREPARE_FOR_SUBMISSION"},
+			wantErr: "--review-submission-state must be one of: READY_FOR_REVIEW, WAITING_FOR_REVIEW, IN_REVIEW, UNRESOLVED_ISSUES, CANCELING, COMPLETING, COMPLETE",
 		},
 		{
-			name: "unknown review submission state on the apps group",
-			args: []string{"apps", "--review-submission-state", "NOPE"},
-			want: "--review-submission-state must be one of: READY_FOR_REVIEW,",
+			name:    "unknown review submission state on the apps group",
+			args:    []string{"apps", "--review-submission-state", "NOPE"},
+			wantErr: "--review-submission-state must be one of: READY_FOR_REVIEW,",
 		},
 		{
-			name: "explicit empty version state",
-			args: []string{"apps", "list", "--version-state", ""},
-			want: "--version-state must not be empty",
+			name:    "explicit empty version state",
+			args:    []string{"apps", "list", "--version-state", ""},
+			wantErr: "--version-state must not be empty",
 		},
 		{
-			name: "whitespace review submission state on the apps group",
-			args: []string{"apps", "--review-submission-state", "   "},
-			want: "--review-submission-state must not be empty",
+			name:    "whitespace review submission state on the apps group",
+			args:    []string{"apps", "--review-submission-state", "   "},
+			wantErr: "--review-submission-state must not be empty",
 		},
 		{
-			name: "leading empty version state",
-			args: []string{"apps", "list", "--version-state", ",IN_REVIEW"},
-			want: "--version-state must not contain empty values",
+			name:    "leading empty version state",
+			args:    []string{"apps", "list", "--version-state", ",IN_REVIEW"},
+			wantErr: "--version-state must not contain empty values",
 		},
 		{
-			name: "repeated comma version state",
-			args: []string{"apps", "list", "--version-state", "IN_REVIEW,,WAITING_FOR_REVIEW"},
-			want: "--version-state must not contain empty values",
+			name:    "repeated comma version state",
+			args:    []string{"apps", "list", "--version-state", "IN_REVIEW,,WAITING_FOR_REVIEW"},
+			wantErr: "--version-state must not contain empty values",
 		},
 		{
-			name: "trailing empty review submission state",
-			args: []string{"apps", "list", "--review-submission-state", "IN_REVIEW,"},
-			want: "--review-submission-state must not contain empty values",
+			name:    "trailing empty review submission state",
+			args:    []string{"apps", "list", "--review-submission-state", "IN_REVIEW,"},
+			wantErr: "--review-submission-state must not contain empty values",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want flag.ErrHelp", err)
-				}
-			})
-			if stdout != "" {
-				t.Fatalf("stdout = %q, want empty", stdout)
-			}
-			if !strings.Contains(stderr, test.want) {
-				t.Fatalf("stderr = %q, want it to contain %q", stderr, test.want)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 // TestAppsListStateFiltersRejectNextCombination proves the filters are never
@@ -195,57 +174,38 @@ func TestAppsListStateFiltersRejectNextCombination(t *testing.T) {
 	next := "https://api.appstoreconnect.apple.com/v1/apps?cursor=next"
 
 	tests := []struct {
-		name string
-		args []string
-		want string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name: "version state",
-			args: []string{"apps", "list", "--next", next, "--version-state", "IN_REVIEW"},
-			want: "--next cannot be combined with --version-state",
+			name:    "version state",
+			args:    []string{"apps", "list", "--next", next, "--version-state", "IN_REVIEW"},
+			wantErr: "--next cannot be combined with --version-state",
 		},
 		{
-			name: "review submission state",
-			args: []string{"apps", "list", "--next", next, "--review-submission-state", "IN_REVIEW"},
-			want: "--next cannot be combined with --review-submission-state",
+			name:    "review submission state",
+			args:    []string{"apps", "list", "--next", next, "--review-submission-state", "IN_REVIEW"},
+			wantErr: "--next cannot be combined with --review-submission-state",
 		},
 		{
-			name: "sort",
-			args: []string{"apps", "list", "--next", next, "--sort", "sku"},
-			want: "--next cannot be combined with --sort",
+			name:    "sort",
+			args:    []string{"apps", "list", "--next", next, "--sort", "sku"},
+			wantErr: "--next cannot be combined with --sort",
 		},
 		{
-			name: "explicit empty sku",
-			args: []string{"apps", "list", "--next", next, "--sku", ""},
-			want: "--next cannot be combined with --sku",
+			name:    "explicit empty sku",
+			args:    []string{"apps", "list", "--next", next, "--sku", ""},
+			wantErr: "--next cannot be combined with --sku",
 		},
 		{
-			name: "explicit zero limit",
-			args: []string{"apps", "--next", next, "--limit", "0"},
-			want: "--next cannot be combined with --limit",
+			name:    "explicit zero limit",
+			args:    []string{"apps", "--next", next, "--limit", "0"},
+			wantErr: "--next cannot be combined with --limit",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want flag.ErrHelp", err)
-				}
-			})
-			if stdout != "" {
-				t.Fatalf("stdout = %q, want empty", stdout)
-			}
-			if !strings.Contains(stderr, test.want) {
-				t.Fatalf("stderr = %q, want it to contain %q", stderr, test.want)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 // TestAppsListStateFiltersExitUsageOnInvalidValue locks the exit code for

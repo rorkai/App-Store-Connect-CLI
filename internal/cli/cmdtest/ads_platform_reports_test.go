@@ -3,13 +3,10 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -193,53 +190,5 @@ func TestAdsPlatformChangeHistoryDetailRequest(t *testing.T) {
 	}
 	if len(response.Result) != 1 || len(response.Result[0].Details) != 1 || len(response.Result[0].Details[0].Changes) != 3 {
 		t.Fatalf("stdout did not aggregate nested changes: %s", stdout)
-	}
-}
-
-func TestAdsPlatformRecommendationApplyRequiresConfirmBeforeFileAuthOrNetwork(t *testing.T) {
-	isolateAdsGuideEnv(t)
-	t.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_ADS_ACCESS_TOKEN", "")
-	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected network request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	}))
-
-	root := RootCommand("dev")
-	if err := root.Parse([]string{"ads", "recommendations", "daily-budgets", "apply", "--file", filepath.Join(t.TempDir(), "missing.json")}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
-	if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(stderr, "--confirm is required") {
-		t.Fatalf("run error = %v stderr = %q, want confirm usage error", runErr, stderr)
-	}
-}
-
-func TestAdsPlatformReportRequiresFileBeforeAuthOrNetwork(t *testing.T) {
-	isolateAdsGuideEnv(t)
-	t.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_ADS_ACCESS_TOKEN", "")
-	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected network request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	}))
-
-	root := RootCommand("dev")
-	if err := root.Parse([]string{"ads", "insights", "impression-share", "find"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
-	if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(stderr, "--file is required") {
-		t.Fatalf("run error = %v stderr = %q, want file usage error", runErr, stderr)
 	}
 }

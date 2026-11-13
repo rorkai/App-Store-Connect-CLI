@@ -37,34 +37,11 @@ func TestMetadataInitValidationErrors(t *testing.T) {
 		{
 			name:    "positional args",
 			args:    []string{"metadata", "init", "--dir", "./metadata", "extra"},
-			wantErr: "metadata init does not accept positional arguments",
+			wantErr: `Error: unexpected argument "extra"`,
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
-
-			if !errors.Is(runErr, flag.ErrHelp) {
-				t.Fatalf("expected ErrHelp, got %v", runErr)
-			}
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestMetadataInitWritesCanonicalTemplates(t *testing.T) {

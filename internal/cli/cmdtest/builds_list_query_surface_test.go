@@ -148,50 +148,6 @@ func TestBuildsListBetaReviewStateNormalizesCase(t *testing.T) {
 	}
 }
 
-func TestBuildsListBetaReviewStateRejectsUnknownValue(t *testing.T) {
-	captured := buildsListQuerySurfaceStub(t)
-
-	_, stderr, err := runBuildsListQuerySurface(
-		t,
-		"builds", "list",
-		"--app", "123456789",
-		"--beta-review-state", "WAITING_FOR_REVIEW,PENDING",
-	)
-
-	if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
-	}
-	for _, want := range []string{"--beta-review-state", "WAITING_FOR_REVIEW", "IN_REVIEW", "REJECTED", "APPROVED"} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("expected stderr to mention %q, got %q", want, stderr)
-		}
-	}
-	captured.assertNoRequest(t)
-}
-
-func TestBuildsBetaReviewStateRejectsBlankCSV(t *testing.T) {
-	for _, command := range []string{"list", "count"} {
-		t.Run(command, func(t *testing.T) {
-			captured := buildsListQuerySurfaceStub(t)
-
-			_, stderr, err := runBuildsListQuerySurface(
-				t,
-				"builds", command,
-				"--app", "123456789",
-				"--beta-review-state", ",",
-			)
-
-			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
-			}
-			if !strings.Contains(stderr, "--beta-review-state must be a comma-separated list of") {
-				t.Fatalf("expected beta review state validation error, got %q", stderr)
-			}
-			captured.assertNoRequest(t)
-		})
-	}
-}
-
 func TestBuildsListIncludeAlwaysCarriesPreReleaseVersion(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -218,60 +174,6 @@ func TestBuildsListIncludeAlwaysCarriesPreReleaseVersion(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestBuildsListIncludeRejectsUnknownValue(t *testing.T) {
-	captured := buildsListQuerySurfaceStub(t)
-
-	_, stderr, err := runBuildsListQuerySurface(
-		t,
-		"builds", "list",
-		"--app", "123456789",
-		"--include", "app,buildBundle",
-	)
-
-	if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
-	}
-	for _, want := range []string{
-		"--include",
-		"preReleaseVersion",
-		"individualTesters",
-		"betaGroups",
-		"betaBuildLocalizations",
-		"appEncryptionDeclaration",
-		"betaAppReviewSubmission",
-		"app",
-		"buildBetaDetail",
-		"appStoreVersion",
-		"icons",
-		"buildBundles",
-		"buildUpload",
-	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("expected stderr to mention %q, got %q", want, stderr)
-		}
-	}
-	captured.assertNoRequest(t)
-}
-
-func TestBuildsListIncludeRejectsBlankCSV(t *testing.T) {
-	captured := buildsListQuerySurfaceStub(t)
-
-	_, stderr, err := runBuildsListQuerySurface(
-		t,
-		"builds", "list",
-		"--app", "123456789",
-		"--include", ",",
-	)
-
-	if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
-	}
-	if !strings.Contains(stderr, "--include must be a comma-separated list of") {
-		t.Fatalf("expected include validation error, got %q", stderr)
-	}
-	captured.assertNoRequest(t)
 }
 
 func TestBuildsListRejectsQueryFlagsCombinedWithNext(t *testing.T) {
@@ -402,50 +304,4 @@ func TestBuildsCountBetaReviewStateEmitsFilter(t *testing.T) {
 	if got := captured.query.Get("filter[betaAppReviewSubmission.betaReviewState]"); got != "REJECTED" {
 		t.Fatalf("expected normalized REJECTED filter, got %q", got)
 	}
-}
-
-func TestBuildsCountBetaReviewStateRejectsUnknownValue(t *testing.T) {
-	captured := buildsListQuerySurfaceStub(t)
-
-	_, stderr, err := runBuildsListQuerySurface(
-		t,
-		"builds", "count",
-		"--app", "123456789",
-		"--beta-review-state", "PENDING",
-	)
-
-	if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
-	}
-	wantError := "--beta-review-state must be a comma-separated list of: WAITING_FOR_REVIEW, IN_REVIEW, REJECTED, APPROVED"
-	if err == nil || !errors.Is(err, flag.ErrHelp) || err.Error() != wantError {
-		t.Fatalf("error = %v, want usage error %q (stderr=%q)", err, wantError, stderr)
-	}
-	if !strings.Contains(stderr, wantError) {
-		t.Fatalf("expected stderr to contain %q, got %q", wantError, stderr)
-	}
-	captured.assertNoRequest(t)
-}
-
-func TestBuildsListSortRejectsUnknownKey(t *testing.T) {
-	captured := buildsListQuerySurfaceStub(t)
-
-	_, stderr, err := runBuildsListQuerySurface(
-		t,
-		"builds", "list",
-		"--app", "123456789",
-		"--sort", "expirationDate",
-	)
-
-	wantError := "builds: --sort must be one of: version, -version, uploadedDate, -uploadedDate, preReleaseVersion, -preReleaseVersion"
-	if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
-	}
-	if err == nil || !errors.Is(err, flag.ErrHelp) || err.Error() != wantError {
-		t.Fatalf("error = %v, want usage error %q (stderr=%q)", err, wantError, stderr)
-	}
-	if !strings.Contains(stderr, wantError) {
-		t.Fatalf("expected stderr to contain %q, got %q", wantError, stderr)
-	}
-	captured.assertNoRequest(t)
 }

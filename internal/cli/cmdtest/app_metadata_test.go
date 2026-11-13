@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"io"
-	"strings"
 	"testing"
 )
 
@@ -32,29 +31,7 @@ func TestLocalizationsSearchKeywordsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestLocalizationsMediaSetsValidationErrors(t *testing.T) {
@@ -95,29 +72,7 @@ func TestLocalizationsMediaSetsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestLocalizationsMediaSetsOutputErrors(t *testing.T) {
@@ -148,29 +103,7 @@ func TestLocalizationsMediaSetsOutputErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !isUsageClassError(err) {
-					t.Fatalf("expected usage-class error, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestVersionsRelationshipsValidationErrors(t *testing.T) {
@@ -201,29 +134,7 @@ func TestVersionsRelationshipsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestVersionsRelatedCommandsValidationErrors(t *testing.T) {
@@ -298,29 +209,7 @@ func TestCategoriesValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAppInfoIncludeValidationErrors(t *testing.T) {
@@ -348,27 +237,5 @@ func TestAppInfoIncludeValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }

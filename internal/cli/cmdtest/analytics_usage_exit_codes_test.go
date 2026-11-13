@@ -157,6 +157,51 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 			args:    []string{"analytics", "segments", "view", "--segment-id", "bad/segment"},
 			wantErr: analyticsReservedSegmentUsageError("analytics segments view", "--segment-id", "bad/segment"),
 		},
+		{
+			name:    "reports get missing report id",
+			args:    []string{"analytics", "reports", "view"},
+			wantErr: "--report-id is required",
+		},
+		{
+			name:    "reports relationships missing report id",
+			args:    []string{"analytics", "reports", "links"},
+			wantErr: "--report-id is required",
+		},
+		{
+			name:    "instances get missing instance id",
+			args:    []string{"analytics", "instances", "view"},
+			wantErr: "--instance-id is required",
+		},
+		{
+			name:    "instances relationships missing instance id",
+			args:    []string{"analytics", "instances", "links"},
+			wantErr: "--instance-id is required",
+		},
+		{
+			name:    "segments get missing segment id",
+			args:    []string{"analytics", "segments", "view"},
+			wantErr: "--segment-id is required",
+		},
+		{
+			name:    "requests delete missing request id",
+			args:    []string{"analytics", "requests", "delete", "--confirm"},
+			wantErr: "--request-id is required",
+		},
+		{
+			name:    "requests delete missing confirm",
+			args:    []string{"analytics", "requests", "delete", "--request-id", "11111111-1111-1111-1111-111111111111"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "request reuse existing missing app",
+			args:    []string{"analytics", "request", "--access-type", "ONGOING", "--reuse-existing"},
+			wantErr: "--app is required (or set ASC_APP_ID)",
+		},
+		{
+			name:    "request reuse existing missing access type",
+			args:    []string{"analytics", "request", "--app", "APP_ID", "--reuse-existing"},
+			wantErr: "--access-type is required",
+		},
 	}
 
 	for _, test := range tests {

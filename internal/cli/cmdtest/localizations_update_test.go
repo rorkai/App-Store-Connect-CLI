@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -43,81 +42,37 @@ func locUpdateJSONResponse(body string) (*http.Response, error) {
 	}, nil
 }
 
-func TestLocalizationsUpdateRequiresLocale(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"localizations", "update", "--version", "ver-1", "--description", "test"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--locale is required") {
-		t.Fatalf("expected locale required error, got: %q", stderr)
-	}
-}
-
-func TestLocalizationsUpdateRequiresAtLeastOneField(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"localizations", "update", "--version", "ver-1", "--locale", "en-US"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "at least one version field") {
-		t.Fatalf("expected field required error, got: %q", stderr)
-	}
-}
-
-func TestLocalizationsUpdateAppInfoRequiresApp(t *testing.T) {
+func TestLocalizationsUpdateValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"localizations", "update", "--type", "app-info", "--locale", "en-US", "--subtitle", "test"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--app is required") {
-		t.Fatalf("expected app required error, got: %q", stderr)
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "missing locale",
+			args:    []string{"localizations", "update", "--version", "ver-1", "--description", "test"},
+			wantErr: "--locale is required",
+		},
+		{
+			name:    "missing version field",
+			args:    []string{"localizations", "update", "--version", "ver-1", "--locale", "en-US"},
+			wantErr: "at least one version field",
+		},
+		{
+			name:    "app-info missing app",
+			args:    []string{"localizations", "update", "--type", "app-info", "--locale", "en-US", "--subtitle", "test"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "version missing version",
+			args:    []string{"localizations", "update", "--locale", "en-US", "--description", "test"},
+			wantErr: "--version is required",
+		},
 	}
-}
 
-func TestLocalizationsUpdateVersionRequiresVersion(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"localizations", "update", "--locale", "en-US", "--description", "test"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--version is required") {
-		t.Fatalf("expected version required error, got: %q", stderr)
-	}
+	runValidationTests(t, tests)
 }
 
 func TestLocalizationsUpdateByResourceIDSkipsDiscovery(t *testing.T) {

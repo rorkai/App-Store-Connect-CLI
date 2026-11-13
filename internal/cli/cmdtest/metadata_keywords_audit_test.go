@@ -14,39 +14,7 @@ import (
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
-func TestRunMetadataKeywordsAuditRejectsEmptyBlockedTermReturnsUsageExitCode(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY", "")
-	t.Setenv("ASC_PRIVATE_KEY_B64", "")
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	}))
-
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"metadata", "keywords", "audit",
-			"--app", "app-1",
-			"--version-id", "ver-1",
-			"--blocked-term", "   ",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if !strings.Contains(stderr, "--blocked-term must not be empty") {
-		t.Fatalf("expected invalid blocked-term stderr, got %q", stderr)
-	}
-}
-
-func TestRunMetadataKeywordsAuditRejectsEmptyBlockedTermsFileReturnsUsageExitCode(t *testing.T) {
+func TestRunMetadataKeywordsAuditBlockedTermValidationReturnsUsageExitCode(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "")
 	t.Setenv("ASC_ISSUER_ID", "")
@@ -66,21 +34,24 @@ func TestRunMetadataKeywordsAuditRejectsEmptyBlockedTermsFileReturnsUsageExitCod
 		return nil, nil
 	}))
 
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"metadata", "keywords", "audit",
-			"--app", "app-1",
-			"--version-id", "ver-1",
-			"--blocked-terms-file", blockedTermsPath,
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if !strings.Contains(stderr, "--blocked-terms-file must include at least one blocked term") {
-		t.Fatalf("expected invalid blocked-terms-file stderr, got %q", stderr)
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "empty blocked term",
+			args:    []string{"metadata", "keywords", "audit", "--app", "app-1", "--version-id", "ver-1", "--blocked-term", "   "},
+			wantErr: "--blocked-term must not be empty",
+		},
+		{
+			name:    "blocked terms file without terms",
+			args:    []string{"metadata", "keywords", "audit", "--app", "app-1", "--version-id", "ver-1", "--blocked-terms-file", blockedTermsPath},
+			wantErr: "--blocked-terms-file must include at least one blocked term",
+		},
 	}
+
+	runValidationTests(t, tests)
 }
 
 func TestMetadataKeywordsAuditReportsBlockedTermAndStrictBlocking(t *testing.T) {

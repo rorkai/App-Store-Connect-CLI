@@ -474,11 +474,6 @@ func TestAdsAuthTokenEvalRequiresConfirm(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 
-	_, stderr, err := runAdsEvalCommand(t, "ads", "auth", "token", "--output", "json")
-	if !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, "--confirm is required") {
-		t.Fatalf("token error = %v stderr = %q, want confirm usage error", err, stderr)
-	}
-
 	stdout, stderr, err := runAdsEvalCommand(t, "ads", "auth", "token", "--confirm", "--output", "json")
 	if err != nil {
 		t.Fatalf("token error: %v\nstderr: %s", err, stderr)

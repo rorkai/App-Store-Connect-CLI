@@ -3,19 +3,33 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
-func TestSubscriptionsIntroductoryOffersImport_MissingRequiredFlagsReturnUsage(t *testing.T) {
+func TestSubscriptionsIntroductoryOffersImport_InvalidInputReturnsUsage(t *testing.T) {
+	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
+		return nil, nil
+	}))
+
+	importArgs := func(body string, extra ...string) []string {
+		args := []string{
+			"subscriptions", "offers", "introductory", "import",
+			"--subscription-id", "SUB_ID",
+			"--input", writeTempIntroOffersCSV(t, body),
+		}
+		if len(extra) == 0 {
+			extra = []string{"--confirm"}
+		}
+		return append(args, extra...)
+	}
 
 	tests := []struct {
 		name    string
@@ -32,50 +46,6 @@ func TestSubscriptionsIntroductoryOffersImport_MissingRequiredFlagsReturnUsage(t
 			args:    []string{"subscriptions", "offers", "introductory", "import", "--subscription-id", "SUB_ID"},
 			wantErr: "Error: --input is required",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsIntroductoryOffersImport_InvalidDefaultDatesReturnUsage(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
 		{
 			name: "invalid start date",
 			args: []string{
@@ -96,50 +66,6 @@ func TestSubscriptionsIntroductoryOffersImport_InvalidDefaultDatesReturnUsage(t 
 			},
 			wantErr: "--end-date must be in YYYY-MM-DD format",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsIntroductoryOffersImport_InvalidDefaultOfferFlagsReturnUsage(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
 		{
 			name: "invalid offer duration",
 			args: []string{
@@ -170,514 +96,84 @@ func TestSubscriptionsIntroductoryOffersImport_InvalidDefaultOfferFlagsReturnUsa
 			},
 			wantErr: "--number-of-periods must be greater than or equal to 0",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsIntroductoryOffersImport_UnknownCSVColumnReturnsUsage(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	csvPath := filepath.Join(t.TempDir(), "offers.csv")
-	if err := os.WriteFile(csvPath, []byte("territory,unknown\nUSA,value\n"), 0o600); err != nil {
-		t.Fatalf("WriteFile() error: %v", err)
-	}
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "offers", "introductory", "import",
-			"--subscription-id", "SUB_ID",
-			"--input", csvPath,
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "unknown CSV column") {
-		t.Fatalf("expected unknown column error, got %q", stderr)
-	}
-}
-
-func TestSubscriptionsIntroductoryOffersImport_UnknownThreeLetterTerritoryReturnsUsage(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	csvPath := filepath.Join(t.TempDir(), "offers.csv")
-	if err := os.WriteFile(csvPath, []byte("territory\nZZZ\n"), 0o600); err != nil {
-		t.Fatalf("WriteFile() error: %v", err)
-	}
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "offers", "introductory", "import",
-			"--subscription-id", "SUB_ID",
-			"--input", csvPath,
-			"--offer-duration", "ONE_WEEK",
-			"--offer-mode", "FREE_TRIAL",
-			"--number-of-periods", "1",
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, `row 1: territory "ZZZ" could not be mapped`) {
-		t.Fatalf("expected territory mapping error, got %q", stderr)
-	}
-}
-
-func TestSubscriptionsIntroductoryOffersImport_InvalidCSVSchemaReturnsUsage(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	tests := []struct {
-		name    string
-		body    string
-		wantErr string
-	}{
+		{
+			name:    "unknown CSV column",
+			args:    importArgs("territory,unknown\nUSA,value\n"),
+			wantErr: "unknown CSV column",
+		},
+		{
+			name:    "unknown three-letter territory",
+			args:    importArgs("territory\nZZZ\n", "--offer-duration", "ONE_WEEK", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1", "--dry-run"),
+			wantErr: `row 1: territory "ZZZ" could not be mapped`,
+		},
 		{
 			name:    "empty file",
-			body:    "",
+			args:    importArgs(""),
 			wantErr: "CSV file is empty",
 		},
 		{
 			name:    "missing territory header",
-			body:    "offer_mode\nFREE_TRIAL\n",
+			args:    importArgs("offer_mode\nFREE_TRIAL\n"),
 			wantErr: `CSV header must include required column "territory"`,
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			csvPath := filepath.Join(t.TempDir(), "offers.csv")
-			if err := os.WriteFile(csvPath, []byte(test.body), 0o600); err != nil {
-				t.Fatalf("WriteFile() error: %v", err)
-			}
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"subscriptions", "offers", "introductory", "import",
-					"--subscription-id", "SUB_ID",
-					"--input", csvPath,
-					"--confirm",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsIntroductoryOffersImport_InvalidRowDatesReturnUsage(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	tests := []struct {
-		name    string
-		body    string
-		wantErr string
-	}{
 		{
 			name:    "invalid row start date",
-			body:    "territory,start_date\nUSA,2026-15-01\n",
+			args:    importArgs("territory,start_date\nUSA,2026-15-01\n"),
 			wantErr: "row 1: --start-date must be in YYYY-MM-DD format",
 		},
 		{
 			name:    "invalid row end date",
-			body:    "territory,end_date\nUSA,2026-04-99\n",
+			args:    importArgs("territory,end_date\nUSA,2026-04-99\n"),
 			wantErr: "row 1: --end-date must be in YYYY-MM-DD format",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			csvPath := filepath.Join(t.TempDir(), "offers.csv")
-			if err := os.WriteFile(csvPath, []byte(test.body), 0o600); err != nil {
-				t.Fatalf("WriteFile() error: %v", err)
-			}
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"subscriptions", "offers", "introductory", "import",
-					"--subscription-id", "SUB_ID",
-					"--input", csvPath,
-					"--confirm",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsIntroductoryOffersImport_InvalidRowOfferEnumsReturnUsage(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	tests := []struct {
-		name    string
-		body    string
-		wantErr string
-	}{
 		{
 			name:    "invalid row offer mode",
-			body:    "territory,offer_mode\nUSA,bad\n",
+			args:    importArgs("territory,offer_mode\nUSA,bad\n"),
 			wantErr: "row 1: --offer-mode must be one of:",
 		},
 		{
 			name:    "invalid row offer duration",
-			body:    "territory,offer_duration\nUSA,bad\n",
+			args:    importArgs("territory,offer_duration\nUSA,bad\n"),
 			wantErr: "row 1: --offer-duration must be one of:",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			csvPath := filepath.Join(t.TempDir(), "offers.csv")
-			if err := os.WriteFile(csvPath, []byte(test.body), 0o600); err != nil {
-				t.Fatalf("WriteFile() error: %v", err)
-			}
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"subscriptions", "offers", "introductory", "import",
-					"--subscription-id", "SUB_ID",
-					"--input", csvPath,
-					"--confirm",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsIntroductoryOffersImport_InvalidRowPeriodsReturnUsage(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	tests := []struct {
-		name    string
-		body    string
-		wantErr string
-	}{
 		{
 			name:    "non integer periods",
-			body:    "territory,number_of_periods\nUSA,abc\n",
+			args:    importArgs("territory,number_of_periods\nUSA,abc\n"),
 			wantErr: "row 1: number_of_periods must be a positive integer",
 		},
 		{
 			name:    "zero periods",
-			body:    "territory,number_of_periods\nUSA,0\n",
+			args:    importArgs("territory,number_of_periods\nUSA,0\n"),
 			wantErr: "row 1: number_of_periods must be a positive integer",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			csvPath := filepath.Join(t.TempDir(), "offers.csv")
-			if err := os.WriteFile(csvPath, []byte(test.body), 0o600); err != nil {
-				t.Fatalf("WriteFile() error: %v", err)
-			}
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"subscriptions", "offers", "introductory", "import",
-					"--subscription-id", "SUB_ID",
-					"--input", csvPath,
-					"--confirm",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsIntroductoryOffersImport_InvalidRowTerritoryReturnsUsage(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	tests := []struct {
-		name    string
-		body    string
-		wantErr string
-	}{
 		{
 			name:    "missing territory",
-			body:    "territory,offer_mode\n,FREE_TRIAL\n",
+			args:    importArgs("territory,offer_mode\n,FREE_TRIAL\n"),
 			wantErr: "row 1: territory is required",
 		},
 		{
 			name:    "unmappable territory",
-			body:    "territory\nAtlantis\n",
+			args:    importArgs("territory\nAtlantis\n"),
 			wantErr: `row 1: territory "Atlantis" could not be mapped to an App Store Connect territory ID`,
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			csvPath := filepath.Join(t.TempDir(), "offers.csv")
-			if err := os.WriteFile(csvPath, []byte(test.body), 0o600); err != nil {
-				t.Fatalf("WriteFile() error: %v", err)
-			}
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"subscriptions", "offers", "introductory", "import",
-					"--subscription-id", "SUB_ID",
-					"--input", csvPath,
-					"--confirm",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsIntroductoryOffersImport_MissingRequiredOfferFieldsReturnUsage(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
 		{
-			name: "missing offer mode after fallback",
-			args: []string{
-				"subscriptions", "offers", "introductory", "import",
-				"--subscription-id", "SUB_ID",
-				"--input", writeTempIntroOffersCSV(t, "territory\nUSA\n"),
-				"--confirm",
-			},
+			name:    "missing offer mode after fallback",
+			args:    importArgs("territory\nUSA\n"),
 			wantErr: "row 1: offer_mode is required",
 		},
 		{
-			name: "missing offer duration after fallback",
-			args: []string{
-				"subscriptions", "offers", "introductory", "import",
-				"--subscription-id", "SUB_ID",
-				"--input", writeTempIntroOffersCSV(t, "territory,offer_mode\nUSA,FREE_TRIAL\n"),
-				"--confirm",
-			},
+			name:    "missing offer duration after fallback",
+			args:    importArgs("territory,offer_mode\nUSA,FREE_TRIAL\n"),
 			wantErr: "row 1: offer_duration is required",
 		},
 		{
-			name: "missing periods after fallback",
-			args: []string{
-				"subscriptions", "offers", "introductory", "import",
-				"--subscription-id", "SUB_ID",
-				"--input", writeTempIntroOffersCSV(t, "territory,offer_mode,offer_duration\nUSA,FREE_TRIAL,ONE_WEEK\n"),
-				"--confirm",
-			},
+			name:    "missing periods after fallback",
+			args:    importArgs("territory,offer_mode,offer_duration\nUSA,FREE_TRIAL,ONE_WEEK\n"),
 			wantErr: "row 1: number_of_periods is required",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func writeTempIntroOffersCSV(t *testing.T, body string) string {

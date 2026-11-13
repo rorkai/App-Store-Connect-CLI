@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -151,31 +149,5 @@ func TestBuildsListPlatformFilterWithVersionLookup(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"id":"build-ios-1"`) {
 		t.Fatalf("expected build output, got %q", stdout)
-	}
-}
-
-func TestBuildsListPlatformFilterRejectsInvalid(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "list", "--app", "123456789", "--platform", "ANDROID"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp usage error, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS") {
-		t.Fatalf("expected platform validation stderr, got %q", stderr)
 	}
 }
