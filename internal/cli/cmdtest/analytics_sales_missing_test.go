@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -152,11 +154,87 @@ func TestAnalyticsSalesAllowMissingDoesNotSwallowUnrelatedNotFound(t *testing.T)
 	}
 }
 
+func TestAnalyticsSalesReportFailureHints(t *testing.T) {
+	const hint = "Hint: Re-running the same request will not help until Apple has a report for it; try an earlier --date, or pass --allow-missing to get available=false instead of an error.\n"
+	tests := []struct {
+		name     string
+		status   int
+		detail   string
+		wantCode int
+		wantHint string
+	}{
+		{
+			name:     "report not available yet",
+			status:   http.StatusNotFound,
+			detail:   "Report is not available yet. Daily reports for the Americas are available by 5 am Pacific Time.",
+			wantCode: cmd.ExitNotFound,
+			wantHint: hint,
+		},
+		{
+			name:     "no sales",
+			status:   http.StatusNotFound,
+			detail:   "There were no sales for the date specified.",
+			wantCode: cmd.ExitNotFound,
+			wantHint: hint,
+		},
+		{
+			name:     "unrelated not found",
+			status:   http.StatusNotFound,
+			detail:   "The requested vendor account was not found.",
+			wantCode: cmd.ExitNotFound,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setSalesReportErrorTestClient(t, test.status, test.detail)
+			outputPath := filepath.Join(t.TempDir(), "report.tsv.gz")
+			args := []string{
+				"analytics", "sales",
+				"--vendor", "12345678",
+				"--type", "SALES",
+				"--subtype", "SUMMARY",
+				"--frequency", "DAILY",
+				"--date", "2026-08-18",
+				"--output", outputPath,
+				"--output-format", "json",
+			}
+
+			var code int
+			stdout, stderr := captureOutput(t, func() {
+				code = cmd.Run(args, "1.2.3")
+			})
+			if code != test.wantCode {
+				t.Fatalf("exit code = %d, want %d; stderr=%q", code, test.wantCode, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if !strings.Contains(stderr, test.detail) {
+				t.Fatalf("stderr = %q, want Apple's detail %q", stderr, test.detail)
+			}
+			if test.wantHint == "" && strings.Contains(stderr, "Hint:") {
+				t.Fatalf("stderr = %q, want no hint", stderr)
+			}
+			if test.wantHint != "" && (!strings.HasSuffix(stderr, test.wantHint) || strings.Count(stderr, "Hint:") != 1) {
+				t.Fatalf("stderr = %q, want one hint line %q", stderr, test.wantHint)
+			}
+			if _, err := os.Stat(outputPath); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("output file stat error = %v, want not-exist", err)
+			}
+		})
+	}
+}
+
 func setMissingSalesReportTestClient(t *testing.T) *int {
 	return setSalesReportNotFoundTestClient(t, "There were no sales for the date specified.")
 }
 
 func setSalesReportNotFoundTestClient(t *testing.T, detail string) *int {
+	t.Helper()
+	return setSalesReportErrorTestClient(t, http.StatusNotFound, detail)
+}
+
+func setSalesReportErrorTestClient(t *testing.T, status int, detail string) *int {
 	t.Helper()
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -168,8 +246,8 @@ func setSalesReportNotFoundTestClient(t *testing.T, detail string) *int {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = io.WriteString(w, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found","detail":"`+detail+`"}]}`)
+		w.WriteHeader(status)
+		_, _ = fmt.Fprintf(w, `{"errors":[{"status":"%d","code":"%s","title":"%s","detail":"%s"}]}`, status, strings.ToUpper(strings.ReplaceAll(http.StatusText(status), " ", "_")), http.StatusText(status), detail)
 	}))
 	t.Cleanup(server.Close)
 	serverURL, err := url.Parse(server.URL)

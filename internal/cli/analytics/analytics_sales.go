@@ -49,7 +49,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			vendorNumber := shared.ResolveVendorNumber(*vendor)
 			if vendorNumber == "" {
-				fmt.Fprintln(os.Stderr, "Error: --vendor is required (or set ASC_VENDOR_NUMBER/ASC_ANALYTICS_VENDOR_NUMBER)")
+				fmt.Fprintln(os.Stderr, "Error: --vendor is required (or set ASC_VENDOR_NUMBER/ASC_ANALYTICS_VENDOR_NUMBER); find it in App Store Connect under Sales and Trends > Reports")
 				return shared.MissingRequiredUsageError("--vendor")
 			}
 			if strings.TrimSpace(*reportType) == "" {
@@ -124,7 +124,11 @@ Examples:
 						Available:     &available,
 					}, *outputFlags.OutputFormat, *outputFlags.Pretty)
 				}
-				return fmt.Errorf("analytics sales: failed to download report: %w", err)
+				err = fmt.Errorf("analytics sales: failed to download report: %w", err)
+				if isMissingSalesReportError(err) {
+					return &shared.HintedError{Err: err, Hint: missingSalesReportHint}
+				}
+				return err
 			}
 			defer download.Body.Close()
 
@@ -159,6 +163,8 @@ Examples:
 		},
 	}
 }
+
+const missingSalesReportHint = "Re-running the same request will not help until Apple has a report for it; try an earlier --date, or pass --allow-missing to get available=false instead of an error."
 
 func isMissingSalesReportError(err error) bool {
 	if !errors.Is(err, asc.ErrNotFound) {
