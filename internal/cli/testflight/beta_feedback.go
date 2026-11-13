@@ -345,7 +345,7 @@ func runCrashLogBySubmissionID(ctx context.Context, submissionID string, output 
 
 	resp, err := client.GetBetaFeedbackCrashSubmissionCrashLog(requestCtx, submissionID)
 	if err != nil {
-		return fmt.Errorf("testflight crashes log: failed to fetch: %w", err)
+		return crashLogFetchError(err)
 	}
 
 	return shared.PrintOutput(resp, *output.Output, *output.Pretty)
