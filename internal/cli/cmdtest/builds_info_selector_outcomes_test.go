@@ -50,93 +50,70 @@ func runBuildsInfoSelector(t *testing.T, transport http.RoundTripper, args ...st
 
 const emptyCollectionBody = `{"data":[],"links":{}}`
 
-func TestRun_BuildsInfoLatestWithNoBuildsReturnsExitNotFound(t *testing.T) {
-	code, stdout, stderr := runBuildsInfoSelector(
-		t,
-		buildsInfoSelectorTransport(t, emptyCollectionBody, emptyCollectionBody),
-		"--app", "123456789", "--latest", "--output", "json",
-	)
+func TestRun_BuildsInfoSelectorNotFoundReturnsExitNotFound(t *testing.T) {
+	preReleaseVersion := `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}],"links":{}}`
+	tests := []struct {
+		name               string
+		preReleaseVersions string
+		args               []string
+		wantStderr         []string
+		waitCommand        string
+	}{
+		{
+			name:               "latest with no builds",
+			preReleaseVersions: emptyCollectionBody,
+			args:               []string{"--app", "123456789", "--latest", "--output", "json"},
+			wantStderr:         []string{"no builds found for app 123456789", "--app"},
+			waitCommand:        "asc builds wait --app 123456789 --latest",
+		},
+		{
+			name:               "latest version without pre-release version",
+			preReleaseVersions: emptyCollectionBody,
+			args:               []string{"--app", "123456789", "--latest", "--version", "1.2.3", "--platform", "IOS", "--output", "json"},
+			wantStderr:         []string{`no pre-release version found for version "1.2.3" on platform IOS`, "--version", "--platform"},
+			waitCommand:        "asc builds wait --app 123456789 --latest --version 1.2.3 --platform IOS",
+		},
+		{
+			name:               "latest version with no matching builds",
+			preReleaseVersions: preReleaseVersion,
+			args:               []string{"--app", "123456789", "--latest", "--version", "1.2.3", "--platform", "IOS", "--output", "json"},
+			wantStderr:         []string{`no builds found for app 123456789 matching --version "1.2.3" and --platform IOS`},
+			waitCommand:        "asc builds wait --app 123456789 --latest --version 1.2.3 --platform IOS",
+		},
+		{
+			name:               "build number with no match",
+			preReleaseVersions: emptyCollectionBody,
+			args:               []string{"--app", "123456789", "--build-number", "42", "--platform", "IOS", "--output", "json"},
+			wantStderr:         []string{`no build found for app 123456789 with build number "42" for platform IOS`, "--build-number"},
+			waitCommand:        "asc builds wait --app 123456789 --build-number 42 --platform IOS",
+		},
+	}
 
-	if code != cmd.ExitNotFound {
-		t.Fatalf("expected exit code %d, got %d (stderr %q)", cmd.ExitNotFound, code, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "no builds found for app 123456789") {
-		t.Fatalf("expected not-found message in stderr, got %q", stderr)
-	}
-	if !strings.Contains(stderr, "--app") {
-		t.Fatalf("expected stderr to name the selector flag to check, got %q", stderr)
-	}
-	assertBuildsWaitHint(t, stderr, "asc builds wait --app 123456789 --latest")
-	if strings.Contains(stderr, "USAGE") {
-		t.Fatalf("expected no usage page for a not-found result, got %q", stderr)
-	}
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			code, stdout, stderr := runBuildsInfoSelector(
+				t,
+				buildsInfoSelectorTransport(t, test.preReleaseVersions, emptyCollectionBody),
+				test.args...,
+			)
 
-func TestRun_BuildsInfoLatestVersionWithoutPreReleaseVersionReturnsExitNotFound(t *testing.T) {
-	code, stdout, stderr := runBuildsInfoSelector(
-		t,
-		buildsInfoSelectorTransport(t, emptyCollectionBody, emptyCollectionBody),
-		"--app", "123456789", "--latest", "--version", "1.2.3", "--platform", "IOS", "--output", "json",
-	)
-
-	if code != cmd.ExitNotFound {
-		t.Fatalf("expected exit code %d, got %d (stderr %q)", cmd.ExitNotFound, code, stderr)
+			if code != cmd.ExitNotFound {
+				t.Fatalf("expected exit code %d, got %d (stderr %q)", cmd.ExitNotFound, code, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			for _, want := range test.wantStderr {
+				if !strings.Contains(stderr, want) {
+					t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+				}
+			}
+			assertBuildsWaitHint(t, stderr, test.waitCommand)
+			if strings.Contains(stderr, "USAGE") {
+				t.Fatalf("expected no usage page for a not-found result, got %q", stderr)
+			}
+		})
 	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, `no pre-release version found for version "1.2.3" on platform IOS`) {
-		t.Fatalf("expected pre-release not-found message in stderr, got %q", stderr)
-	}
-	if !strings.Contains(stderr, "--version") || !strings.Contains(stderr, "--platform") {
-		t.Fatalf("expected stderr to name --version and --platform, got %q", stderr)
-	}
-	assertBuildsWaitHint(t, stderr, "asc builds wait --app 123456789 --latest --version 1.2.3 --platform IOS")
-}
-
-func TestRun_BuildsInfoLatestVersionWithNoMatchingBuildsReturnsExitNotFound(t *testing.T) {
-	preReleaseVersions := `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}],"links":{}}`
-	code, stdout, stderr := runBuildsInfoSelector(
-		t,
-		buildsInfoSelectorTransport(t, preReleaseVersions, emptyCollectionBody),
-		"--app", "123456789", "--latest", "--version", "1.2.3", "--platform", "IOS", "--output", "json",
-	)
-
-	if code != cmd.ExitNotFound {
-		t.Fatalf("expected exit code %d, got %d (stderr %q)", cmd.ExitNotFound, code, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, `no builds found for app 123456789 matching --version "1.2.3" and --platform IOS`) {
-		t.Fatalf("expected filtered not-found message in stderr, got %q", stderr)
-	}
-	assertBuildsWaitHint(t, stderr, "asc builds wait --app 123456789 --latest --version 1.2.3 --platform IOS")
-}
-
-func TestRun_BuildsInfoBuildNumberWithNoMatchReturnsExitNotFound(t *testing.T) {
-	code, stdout, stderr := runBuildsInfoSelector(
-		t,
-		buildsInfoSelectorTransport(t, emptyCollectionBody, emptyCollectionBody),
-		"--app", "123456789", "--build-number", "42", "--platform", "IOS", "--output", "json",
-	)
-
-	if code != cmd.ExitNotFound {
-		t.Fatalf("expected exit code %d, got %d (stderr %q)", cmd.ExitNotFound, code, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, `no build found for app 123456789 with build number "42" for platform IOS`) {
-		t.Fatalf("expected build-number not-found message in stderr, got %q", stderr)
-	}
-	if !strings.Contains(stderr, "--build-number") {
-		t.Fatalf("expected stderr to name --build-number, got %q", stderr)
-	}
-	assertBuildsWaitHint(t, stderr, "asc builds wait --app 123456789 --build-number 42 --platform IOS")
 }
 
 func assertBuildsWaitHint(t *testing.T, stderr, waitCommand string) {

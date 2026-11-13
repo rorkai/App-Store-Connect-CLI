@@ -75,82 +75,83 @@ func runBuildsUploadForBuildID(t *testing.T, extraArgs ...string) (string, strin
 	return stdout, stderr, runErr
 }
 
-func TestBuildsUploadVerifyTimeoutReportsLinkedBuildID(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	installBuildUploadBuildIDTransport(t, "build-1")
+func TestBuildsUploadReportsBuildID(t *testing.T) {
+	tests := []struct {
+		name          string
+		linkedBuildID string
+		args          []string
+		wantStdout    []string
+		rejectStdout  []string
+		wantStderr    []string
+		rejectStderr  []string
+	}{
+		{
+			name:          "verify timeout reports linked build",
+			linkedBuildID: "build-1",
+			args:          []string{"--verify-timeout", "2s", "--output", "json"},
+			wantStdout:    []string{`"uploadId":"upload-1"`, `"buildId":"build-1"`},
+			rejectStderr:  []string{"is not available yet"},
+		},
+		{
+			name:          "verify timeout table shows build",
+			linkedBuildID: "build-1",
+			args:          []string{"--verify-timeout", "2s", "--output", "table"},
+			wantStdout:    []string{"Build ID", "build-1"},
+		},
+		{
+			name:         "verify timeout reports unresolved build on stderr",
+			args:         []string{"--verify-timeout", "20ms", "--output", "json"},
+			wantStdout:   []string{`"uploadId":"upload-1"`},
+			rejectStdout: []string{`"buildId"`},
+			wantStderr: []string{
+				`Build ID for upload upload-1 is not available yet: verification ended before App Store Connect exposed the build; look it up later with: asc builds info --app "123456789" --build-number "42" --version "1.0.0" --platform IOS`,
+			},
+		},
+		{
+			name:          "wait reports build",
+			linkedBuildID: "build-1",
+			args:          []string{"--wait", "--output", "json"},
+			wantStdout:    []string{`"uploadId":"upload-1"`, `"buildId":"build-1"`},
+		},
+		{
+			name:          "default omits build",
+			linkedBuildID: "build-1",
+			args:          []string{"--output", "json"},
+			rejectStdout:  []string{`"buildId"`},
+			rejectStderr:  []string{"is not available yet"},
+		},
+	}
 
-	stdout, stderr, err := runBuildsUploadForBuildID(t, "--verify-timeout", "2s", "--output", "json")
-	if err != nil {
-		t.Fatalf("expected builds upload to succeed, got %v", err)
-	}
-	if !strings.Contains(stdout, `"uploadId":"upload-1"`) || !strings.Contains(stdout, `"buildId":"build-1"`) {
-		t.Fatalf("expected receipt with uploadId and buildId, got %q", stdout)
-	}
-	if strings.Contains(stderr, "is not available yet") {
-		t.Fatalf("did not expect an unresolved build notice, got %q", stderr)
-	}
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			installBuildUploadBuildIDTransport(t, test.linkedBuildID)
 
-func TestBuildsUploadVerifyTimeoutTableShowsBuildID(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	installBuildUploadBuildIDTransport(t, "build-1")
-
-	stdout, _, err := runBuildsUploadForBuildID(t, "--verify-timeout", "2s", "--output", "table")
-	if err != nil {
-		t.Fatalf("expected builds upload to succeed, got %v", err)
-	}
-	if !strings.Contains(stdout, "Build ID") || !strings.Contains(stdout, "build-1") {
-		t.Fatalf("expected table with Build ID column, got %q", stdout)
-	}
-}
-
-func TestBuildsUploadVerifyTimeoutReportsUnresolvedBuildOnStderr(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	installBuildUploadBuildIDTransport(t, "")
-
-	stdout, stderr, err := runBuildsUploadForBuildID(t, "--verify-timeout", "20ms", "--output", "json")
-	if err != nil {
-		t.Fatalf("expected builds upload to succeed, got %v", err)
-	}
-	if strings.Contains(stdout, `"buildId"`) {
-		t.Fatalf("expected no buildId when the build is not linked yet, got %q", stdout)
-	}
-	if !strings.Contains(stdout, `"uploadId":"upload-1"`) {
-		t.Fatalf("expected receipt with uploadId, got %q", stdout)
-	}
-	want := `Build ID for upload upload-1 is not available yet: verification ended before App Store Connect exposed the build; look it up later with: asc builds info --app "123456789" --build-number "42" --version "1.0.0" --platform IOS`
-	if !strings.Contains(stderr, want) {
-		t.Fatalf("expected unresolved build notice %q on stderr, got %q", want, stderr)
-	}
-}
-
-func TestBuildsUploadWaitReportsBuildID(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	installBuildUploadBuildIDTransport(t, "build-1")
-
-	stdout, _, err := runBuildsUploadForBuildID(t, "--wait", "--output", "json")
-	if err != nil {
-		t.Fatalf("expected builds upload --wait to succeed, got %v", err)
-	}
-	if !strings.Contains(stdout, `"uploadId":"upload-1"`) || !strings.Contains(stdout, `"buildId":"build-1"`) {
-		t.Fatalf("expected receipt with uploadId and buildId, got %q", stdout)
-	}
-}
-
-func TestBuildsUploadDefaultOmitsBuildID(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	installBuildUploadBuildIDTransport(t, "build-1")
-
-	stdout, stderr, err := runBuildsUploadForBuildID(t, "--output", "json")
-	if err != nil {
-		t.Fatalf("expected builds upload to succeed, got %v", err)
-	}
-	if strings.Contains(stdout, `"buildId"`) || strings.Contains(stderr, "is not available yet") {
-		t.Fatalf("expected default mode to stay unchanged, got stdout %q stderr %q", stdout, stderr)
+			stdout, stderr, err := runBuildsUploadForBuildID(t, test.args...)
+			if err != nil {
+				t.Fatalf("expected builds upload to succeed, got %v", err)
+			}
+			for _, want := range test.wantStdout {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("expected stdout to contain %q, got %q", want, stdout)
+				}
+			}
+			for _, reject := range test.rejectStdout {
+				if strings.Contains(stdout, reject) {
+					t.Fatalf("expected stdout not to contain %q, got %q", reject, stdout)
+				}
+			}
+			for _, want := range test.wantStderr {
+				if !strings.Contains(stderr, want) {
+					t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+				}
+			}
+			for _, reject := range test.rejectStderr {
+				if strings.Contains(stderr, reject) {
+					t.Fatalf("expected stderr not to contain %q, got %q", reject, stderr)
+				}
+			}
+		})
 	}
 }
