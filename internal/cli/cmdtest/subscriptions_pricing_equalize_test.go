@@ -633,6 +633,7 @@ func TestSubscriptionsPricingEqualize_RetriesInitialPriceAfterNegativeReadback(t
 	basePricePointID := testSubscriptionPricePointID("USA")
 	canPricePointID := testSubscriptionPricePointID("CAN")
 
+	ledger := newSubscriptionPriceLedger()
 	steps := make([]string, 0, 4)
 	patchCount := 0
 	postCount := 0
@@ -658,13 +659,14 @@ func TestSubscriptionsPricingEqualize_RetriesInitialPriceAfterNegativeReadback(t
 			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
 			steps = append(steps, "verify")
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"included":[],"links":{}}`), nil
+			return ledger.response(), nil
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/subscriptions/8000000001":
 			steps = append(steps, "patch")
 			patchCount++
 			if patchCount == 1 {
 				return jsonHTTPResponse(http.StatusGatewayTimeout, `{"errors":[{"status":"504","code":"UNEXPECTED_ERROR","detail":"ambiguous timeout"}]}`), nil
 			}
+			ledger.set("USA", basePricePointID, "")
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001"}}`), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
 			steps = append(steps, "price")
@@ -676,6 +678,7 @@ func TestSubscriptionsPricingEqualize_RetriesInitialPriceAfterNegativeReadback(t
 			if !strings.Contains(string(body), `"id":"CAN"`) {
 				t.Fatalf("expected CAN territory in request body, got %s", string(body))
 			}
+			ledger.record(t, body)
 			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-1"}}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -707,7 +710,7 @@ func TestSubscriptionsPricingEqualize_RetriesInitialPriceAfterNegativeReadback(t
 	if postCount != 1 {
 		t.Fatalf("expected one follow-up POST, got %d", postCount)
 	}
-	if strings.Join(steps, ",") != "availability,pricing-territories,territories,patch,verify,verify,patch,price" {
+	if strings.Join(steps, ",") != "availability,pricing-territories,territories,patch,verify,verify,patch,price,verify" {
 		t.Fatalf("expected availability validation before pricing, got %v", steps)
 	}
 
@@ -736,6 +739,7 @@ func TestSubscriptionsPricingEqualize_StartDateAppliesToInitialAndFollowUpPrices
 	canPricePointID := testSubscriptionPricePointID("CAN")
 	startDate := time.Now().UTC().AddDate(0, 0, 30).Format("2006-01-02")
 
+	ledger := newSubscriptionPriceLedger()
 	patchChecked := false
 	postChecked := false
 
@@ -755,6 +759,8 @@ func TestSubscriptionsPricingEqualize_StartDateAppliesToInitialAndFollowUpPrices
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/relationships/prices":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
+			return ledger.response(), nil
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/subscriptions/8000000001":
 			body, err := io.ReadAll(req.Body)
 			if err != nil {
@@ -768,6 +774,7 @@ func TestSubscriptionsPricingEqualize_StartDateAppliesToInitialAndFollowUpPrices
 				t.Fatalf("expected preserveCurrentPrice on initial price PATCH, got %s", got)
 			}
 			patchChecked = true
+			ledger.set("USA", basePricePointID, startDate)
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001"}}`), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
 			body, err := io.ReadAll(req.Body)
@@ -782,6 +789,7 @@ func TestSubscriptionsPricingEqualize_StartDateAppliesToInitialAndFollowUpPrices
 				t.Fatalf("expected preserveCurrentPrice on follow-up price POST, got %s", got)
 			}
 			postChecked = true
+			ledger.record(t, body)
 			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-1"}}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -841,6 +849,7 @@ func TestSubscriptionsPricingEqualize_AutoSchedulesApprovedSubscriptions(t *test
 		return time.Date(2026, time.October, 1, 0, 30, 0, 0, time.UTC)
 	}))
 	wantStartDate := "2026-10-01"
+	ledger := newSubscriptionPriceLedger()
 	postChecked := false
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -861,6 +870,8 @@ func TestSubscriptionsPricingEqualize_AutoSchedulesApprovedSubscriptions(t *test
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"existing-price"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001":
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"state":"APPROVED"}}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
+			return ledger.response(), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
 			body, err := io.ReadAll(req.Body)
 			if err != nil {
@@ -871,6 +882,7 @@ func TestSubscriptionsPricingEqualize_AutoSchedulesApprovedSubscriptions(t *test
 				t.Fatalf("expected auto startDate %s on price POST, got %s", wantStartDate, got)
 			}
 			postChecked = true
+			ledger.record(t, body)
 			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-created"}}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -997,6 +1009,7 @@ func TestSubscriptionsPricingEqualize_AutoStartDateFalseLeavesExistingPricesImme
 
 	basePricePointID := testSubscriptionPricePointID("USA")
 	canPricePointID := testSubscriptionPricePointID("CAN")
+	ledger := newSubscriptionPriceLedger()
 	postChecked := false
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -1018,6 +1031,8 @@ func TestSubscriptionsPricingEqualize_AutoStartDateFalseLeavesExistingPricesImme
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001":
 			t.Fatalf("did not expect subscription state lookup when --auto-start-date=false")
 			return nil, nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
+			return ledger.response(), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
 			body, err := io.ReadAll(req.Body)
 			if err != nil {
@@ -1028,6 +1043,7 @@ func TestSubscriptionsPricingEqualize_AutoStartDateFalseLeavesExistingPricesImme
 				t.Fatalf("did not expect startDate on price POST, got %s", got)
 			}
 			postChecked = true
+			ledger.record(t, body)
 			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-created"}}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -1267,6 +1283,7 @@ func TestSubscriptionsPricingEqualize_RetriesRetryableTerritoryFailures(t *testi
 	setupAuth(t)
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
+	ledger := newSubscriptionPriceLedger()
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
 		http.DefaultTransport = originalTransport
@@ -1297,7 +1314,7 @@ func TestSubscriptionsPricingEqualize_RetriesRetryableTerritoryFailures(t *testi
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001":
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"state":"READY_TO_SUBMIT"}}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"included":[],"links":{}}`), nil
+			return ledger.response(), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
 			body, err := io.ReadAll(req.Body)
 			if err != nil {
@@ -1306,12 +1323,14 @@ func TestSubscriptionsPricingEqualize_RetriesRetryableTerritoryFailures(t *testi
 			switch {
 			case strings.Contains(string(body), `"id":"USA"`):
 				usaAttempts++
+				ledger.record(t, body)
 				return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-usa"}}`), nil
 			case strings.Contains(string(body), `"id":"CAN"`):
 				canAttempts++
 				if canAttempts == 1 {
 					return jsonHTTPResponse(http.StatusTooManyRequests, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED","title":"Too Many Requests","detail":"retry later"}]}`), nil
 				}
+				ledger.record(t, body)
 				return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-can"}}`), nil
 			default:
 				t.Fatalf("unexpected subscription price body: %s", string(body))
@@ -1371,6 +1390,7 @@ func TestSubscriptionsPricingEqualize_RetriesRetryableFailuresButKeepsNonRetryab
 	setupAuth(t)
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
+	ledger := newSubscriptionPriceLedger()
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
 		http.DefaultTransport = originalTransport
@@ -1402,17 +1422,7 @@ func TestSubscriptionsPricingEqualize_RetriesRetryableFailuresButKeepsNonRetryab
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001":
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"state":"READY_TO_SUBMIT"}}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
-			body := `{
-				"data":[
-					{"type":"subscriptionPrices","id":"price-usa","attributes":{"startDate":"2025-01-01","preserved":false},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"` + basePricePointID + `"}}}}
-				],
-				"included":[
-					{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"0.99","proceeds":"0.70","proceedsYear2":"0.84"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-				],
-				"links":{"next":""}
-			}`
-			return jsonHTTPResponse(http.StatusOK, body), nil
+			return ledger.response(), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
 			body, err := io.ReadAll(req.Body)
 			if err != nil {
@@ -1420,12 +1430,14 @@ func TestSubscriptionsPricingEqualize_RetriesRetryableFailuresButKeepsNonRetryab
 			}
 			switch {
 			case strings.Contains(string(body), `"id":"USA"`):
+				ledger.record(t, body)
 				return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-usa"}}`), nil
 			case strings.Contains(string(body), `"id":"CAN"`):
 				canAttempts++
 				if canAttempts == 1 {
 					return jsonHTTPResponse(http.StatusTooManyRequests, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED","title":"Too Many Requests","detail":"retry later"}]}`), nil
 				}
+				ledger.record(t, body)
 				return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-can"}}`), nil
 			case strings.Contains(string(body), `"id":"MEX"`):
 				mexAttempts++
@@ -1493,6 +1505,7 @@ func TestSubscriptionsPricingEqualize_ReconcilesBeforeRetryingMutation(t *testin
 	setupAuth(t)
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
+	ledger := newSubscriptionPriceLedger()
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
 		http.DefaultTransport = originalTransport
@@ -1524,20 +1537,7 @@ func TestSubscriptionsPricingEqualize_ReconcilesBeforeRetryingMutation(t *testin
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"state":"READY_TO_SUBMIT"}}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
 			verifyReads++
-			body := `{
-				"data":[
-					{"type":"subscriptionPrices","id":"price-usa","attributes":{"startDate":"2025-01-01","preserved":false},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"` + basePricePointID + `"}}}},
-					{"type":"subscriptionPrices","id":"price-can","attributes":{"startDate":"2025-01-01","preserved":false},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"` + canPricePointID + `"}}}}
-				],
-				"included":[
-					{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"0.99","proceeds":"0.70","proceedsYear2":"0.84"}},
-					{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29","proceeds":"0.90","proceedsYear2":"1.05"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}},
-					{"type":"territories","id":"CAN","attributes":{"currency":"CAD"}}
-				],
-				"links":{"next":""}
-			}`
-			return jsonHTTPResponse(http.StatusOK, body), nil
+			return ledger.response(), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
 			body, err := io.ReadAll(req.Body)
 			if err != nil {
@@ -1545,12 +1545,15 @@ func TestSubscriptionsPricingEqualize_ReconcilesBeforeRetryingMutation(t *testin
 			}
 			switch {
 			case strings.Contains(string(body), `"id":"USA"`):
+				ledger.record(t, body)
 				return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-usa"}}`), nil
 			case strings.Contains(string(body), `"id":"CAN"`):
 				canAttempts++
 				if canAttempts > 1 {
 					t.Fatalf("unsafe replay: CAN was already visible during reconciliation")
 				}
+				// The CAN price lands even though Apple answers 429.
+				ledger.set("CAN", canPricePointID, "")
 				return jsonHTTPResponse(http.StatusTooManyRequests, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED","title":"Too Many Requests","detail":"retry later"}]}`), nil
 			default:
 				t.Fatalf("unexpected subscription price body: %s", string(body))
@@ -1584,8 +1587,8 @@ func TestSubscriptionsPricingEqualize_ReconcilesBeforeRetryingMutation(t *testin
 	if canAttempts != 1 {
 		t.Fatalf("expected CAN create not to replay after successful readback, got %d attempts", canAttempts)
 	}
-	if verifyReads != 1 {
-		t.Fatalf("expected one verification read, got %d", verifyReads)
+	if verifyReads != 2 {
+		t.Fatalf("expected one reconciliation read and one final verification read, got %d", verifyReads)
 	}
 
 	var result struct {
@@ -1611,6 +1614,7 @@ func TestSubscriptionsPricingEqualize_ReconcilesInitialPriceFailureBeforeStoppin
 	setupAuth(t)
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
+	ledger := newSubscriptionPriceLedger()
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
 		http.DefaultTransport = originalTransport
@@ -1640,18 +1644,10 @@ func TestSubscriptionsPricingEqualize_ReconcilesInitialPriceFailureBeforeStoppin
 			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
 			verifyReads++
-			body := `{
-				"data":[
-					{"type":"subscriptionPrices","id":"price-usa","attributes":{"startDate":"2025-01-01","preserved":false},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"` + basePricePointID + `"}}}}
-				],
-				"included":[
-					{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"0.99","proceeds":"0.70","proceedsYear2":"0.84"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-				],
-				"links":{"next":""}
-			}`
-			return jsonHTTPResponse(http.StatusOK, body), nil
+			return ledger.response(), nil
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/subscriptions/8000000001":
+			// The initial USA price lands even though Apple answers 429.
+			ledger.set("USA", basePricePointID, "")
 			return jsonHTTPResponse(http.StatusTooManyRequests, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED","title":"Too Many Requests","detail":"retry later"}]}`), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
 			canPosts++
@@ -1662,6 +1658,7 @@ func TestSubscriptionsPricingEqualize_ReconcilesInitialPriceFailureBeforeStoppin
 			if !strings.Contains(string(body), `"id":"CAN"`) {
 				t.Fatalf("expected CAN territory in request body, got %s", string(body))
 			}
+			ledger.record(t, body)
 			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-can"}}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -1687,8 +1684,8 @@ func TestSubscriptionsPricingEqualize_ReconcilesInitialPriceFailureBeforeStoppin
 		}
 	})
 
-	if verifyReads != 1 {
-		t.Fatalf("expected one verification read after initial price failure, got %d", verifyReads)
+	if verifyReads != 2 {
+		t.Fatalf("expected one reconciliation read after initial price failure and one final verification read, got %d", verifyReads)
 	}
 	if canPosts != 1 {
 		t.Fatalf("expected follow-up CAN POST after initial reconciliation, got %d", canPosts)
@@ -1716,6 +1713,7 @@ func TestSubscriptionsPricingEqualize_ReconcilesInitialPriceFailureBeforeStoppin
 func TestSubscriptionsPricingEqualize_ApplyPaginatesAvailabilityTerritories(t *testing.T) {
 	setupAuth(t)
 
+	ledger := newSubscriptionPriceLedger()
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
 		http.DefaultTransport = originalTransport
@@ -1748,7 +1746,14 @@ func TestSubscriptionsPricingEqualize_ApplyPaginatesAvailabilityTerritories(t *t
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"existing-price"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001":
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"state":"READY_TO_SUBMIT"}}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
+			return ledger.response(), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("ReadAll() error: %v", err)
+			}
+			ledger.record(t, body)
 			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-created"}}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -1808,5 +1813,87 @@ func jsonHTTPResponse(status int, body string) *http.Response {
 		StatusCode: status,
 		Body:       io.NopCloser(strings.NewReader(body)),
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
+	}
+}
+
+func TestSubscriptionsPricingEqualize_FailsWhenAcceptedPriceDoesNotApply(t *testing.T) {
+	setupAuth(t)
+
+	basePricePointID := testSubscriptionPricePointID("USA")
+	canPricePointID := testSubscriptionPricePointID("CAN")
+	ledger := newSubscriptionPriceLedger()
+	ledger.set("CAN", "pp-can-old", "")
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"0.99"}}],"links":{}}`
+			return jsonHTTPResponse(http.StatusOK, body), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/"+basePricePointID+"/equalizations":
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29"},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}],"links":{}}`
+			return jsonHTTPResponse(http.StatusOK, body), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/subscriptionAvailability":
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionAvailabilities/avail-1/availableTerritories":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/relationships/prices":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-existing"}],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001":
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"state":"READY_TO_SUBMIT"}}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
+			return ledger.response(), nil
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("ReadAll() error: %v", err)
+			}
+			// Apple accepts CAN but keeps its old price.
+			if strings.Contains(string(body), `"id":"USA"`) {
+				ledger.record(t, body)
+			}
+			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-created"}}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "equalize",
+			"--subscription-id", "8000000001",
+			"--base-price", "0.99",
+			"--confirm",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError for a territory that kept its old price, got %v", runErr)
+	}
+	var result struct {
+		Succeeded int `json:"succeeded"`
+		Failed    int `json:"failed"`
+		Failures  []struct {
+			Territory string `json:"territory"`
+			Error     string `json:"error"`
+		} `json:"failures"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("parse JSON result: %v", err)
+	}
+	if result.Succeeded != 1 || result.Failed != 1 || len(result.Failures) != 1 || result.Failures[0].Territory != "CAN" {
+		t.Fatalf("expected CAN reported as failed, got %+v", result)
+	}
+	if !strings.Contains(result.Failures[0].Error, "resolves to pp-can-old") {
+		t.Fatalf("expected the failure to name the price CAN kept, got %q", result.Failures[0].Error)
 	}
 }
