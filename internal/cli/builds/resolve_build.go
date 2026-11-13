@@ -322,10 +322,11 @@ func resolveBuildByNumberSelectionSince(
 func noBuildFoundForBuildNumber(appID, buildNumber, version, platform string) error {
 	return shared.NewErrorWithCause(
 		fmt.Errorf(
-			"no build found for app %s with build number %q%s; check --build-number, --version, and --platform, or use --build-id",
+			"no build found for app %s with build number %q%s; %s; otherwise check --build-number (CFBundleVersion), --version, and --platform, or use --build-id",
 			appID,
 			buildNumber,
 			describeBuildNumberSelectionFilters(version, platform),
+			shared.BuildLookupNextSteps(appID, version, buildNumber, platform),
 		),
 		asc.ErrNotFound,
 	)
