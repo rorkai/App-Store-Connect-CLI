@@ -5,8 +5,11 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestReviewsRatingsValidationErrors(t *testing.T) {
@@ -129,5 +132,50 @@ func TestReviewsRatingsUsesASCAppID(t *testing.T) {
 	})
 	if strings.Contains(stderr, "--app is required") || !strings.Contains(stderr, "--workers must be at least 1") {
 		t.Fatalf("stderr = %q, want ASC_APP_ID to satisfy --app", stderr)
+	}
+}
+
+func TestReviewsRatingsAppNotInStorefrontExitsNotFound(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantLines []string
+	}{
+		{
+			name: "numeric id single country",
+			args: []string{"reviews", "ratings", "--app", "123"},
+			wantLines: []string{
+				"Error: reviews ratings: app not found: 123",
+				"Hint: the app must be released in the US storefront; pass --country with another storefront or use --all to check every storefront.",
+			},
+		},
+		{
+			name:      "unresolvable bundle id",
+			args:      []string{"reviews", "ratings", "--app", "com.example.missing"},
+			wantLines: []string{"Error: reviews ratings: could not resolve --app; pass a numeric App Store ID, exact bundle ID, or exact app name"},
+		},
+		{
+			name:      "all countries",
+			args:      []string{"reviews", "ratings", "--app", "123", "--all"},
+			wantLines: []string{"Error: reviews ratings: app not found in any country: 123"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return jsonHTTPResponse(http.StatusOK, `{"resultCount":0,"results":[]}`), nil
+			}))
+
+			stdout, stderr := captureOutput(t, func() {
+				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitNotFound {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitNotFound)
+				}
+			})
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			assertStderrLines(t, stderr, test.wantLines...)
+		})
 	}
 }

@@ -270,7 +270,7 @@ func (c *Client) GetAllRatings(
 		if err := preferredRatingsHTTPError(httpFailures); err != nil {
 			return nil, fmt.Errorf("could not determine storefront availability for app %s: %w", appID, err)
 		}
-		return nil, fmt.Errorf("app not found in any country: %s", appID)
+		return nil, &notFoundError{message: "app not found in any country: " + appID}
 	}
 	if len(results) == 0 {
 		return &GlobalRatings{
