@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -33,69 +31,12 @@ func setupAuth(t *testing.T) {
 	t.Setenv("ASC_STRICT_AUTH", "")
 }
 
-func TestGameCenterEnabledVersionsListValidationErrors(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"game-center", "enabled-versions", "list"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+func TestGameCenterEnabledVersionsValidationErrors(t *testing.T) {
+	runGameCenterUsageCases(t, []gameCenterUsageCase{
+		{[]string{"game-center", "enabled-versions", "list"}, "--app is required (or set ASC_APP_ID)"},
+		{[]string{"game-center", "enabled-versions", "compatible-versions"}, "--id is required"},
+		{[]string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--limit", "300"}, "game-center enabled-versions list: --limit must be between 1 and 200"},
 	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --app is required (or set ASC_APP_ID)") {
-		t.Fatalf("expected missing app error, got %q", stderr)
-	}
-}
-
-func TestGameCenterEnabledVersionsCompatibleVersionsValidationErrors(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"game-center", "enabled-versions", "compatible-versions"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --id is required") {
-		t.Fatalf("expected missing id error, got %q", stderr)
-	}
-}
-
-func TestGameCenterEnabledVersionsListLimitValidation(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--limit", "300"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatalf("expected error, got nil")
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
 }
 
 func TestGameCenterEnabledVersionsOutputErrors(t *testing.T) {

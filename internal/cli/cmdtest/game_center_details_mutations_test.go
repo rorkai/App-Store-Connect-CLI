@@ -3,115 +3,21 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 )
 
-func TestGameCenterDetailsCreateValidationErrors(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-
-	tests := []struct {
-		name         string
-		args         []string
-		stderrSubstr string
-	}{
-		{
-			name:         "missing app",
-			args:         []string{"game-center", "details", "create"},
-			stderrSubstr: "Error: --app is required (or set ASC_APP_ID)",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.stderrSubstr) {
-				t.Fatalf("expected stderr to contain %q, got %q", test.stderrSubstr, stderr)
-			}
-		})
-	}
-}
-
-func TestGameCenterDetailsUpdateValidationErrors(t *testing.T) {
-	tests := []struct {
-		name         string
-		args         []string
-		stderrSubstr string
-	}{
-		{
-			name:         "missing id",
-			args:         []string{"game-center", "details", "update", "--game-center-group-id", "GROUP_ID"},
-			stderrSubstr: "Error: --id is required",
-		},
-		{
-			name:         "no update flags",
-			args:         []string{"game-center", "details", "update", "--id", "DETAIL_ID"},
-			stderrSubstr: "Error: at least one update flag is required (--game-center-group-id, --default-leaderboard-id, --default-leaderboard-v2-id, --default-group-leaderboard-id, --default-group-leaderboard-v2-id)",
-		},
-		{
-			// Live: Apple returned 200 for both and kept only the V2 value.
-			name:         "default leaderboard v1 with v2",
-			args:         []string{"game-center", "details", "update", "--id", "DETAIL_ID", "--default-leaderboard-id", "LB_V1", "--default-leaderboard-v2-id", "LB_V2"},
-			stderrSubstr: "Error: --default-leaderboard-id and --default-leaderboard-v2-id set the same default; pass one",
-		},
-		{
-			name:         "default group leaderboard v1 with v2",
-			args:         []string{"game-center", "details", "update", "--id", "DETAIL_ID", "--default-group-leaderboard-id", "GROUP_LB_V1", "--default-group-leaderboard-v2-id", "GROUP_LB_V2"},
-			stderrSubstr: "Error: --default-group-leaderboard-id and --default-group-leaderboard-v2-id set the same default; pass one",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				return nil, nil
-			}))
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.stderrSubstr) {
-				t.Fatalf("expected stderr to contain %q, got %q", test.stderrSubstr, stderr)
-			}
-		})
-	}
+func TestGameCenterDetailsMutationValidationErrors(t *testing.T) {
+	runGameCenterUsageCases(t, []gameCenterUsageCase{
+		{[]string{"game-center", "details", "create"}, "--app is required (or set ASC_APP_ID)"},
+		{[]string{"game-center", "details", "update", "--game-center-group-id", "GROUP_ID"}, "--id is required"},
+		{[]string{"game-center", "details", "update", "--id", "DETAIL_ID"}, "at least one update flag is required (--game-center-group-id, --default-leaderboard-id, --default-leaderboard-v2-id, --default-group-leaderboard-id, --default-group-leaderboard-v2-id)"},
+		{[]string{"game-center", "details", "update", "--id", "DETAIL_ID", "--default-leaderboard-id", "LB_V1", "--default-leaderboard-v2-id", "LB_V2"}, "--default-leaderboard-id and --default-leaderboard-v2-id set the same default; pass one"},
+		{[]string{"game-center", "details", "update", "--id", "DETAIL_ID", "--default-group-leaderboard-id", "GROUP_LB_V1", "--default-group-leaderboard-v2-id", "GROUP_LB_V2"}, "--default-group-leaderboard-id and --default-group-leaderboard-v2-id set the same default; pass one"},
+	})
 }
 
 func TestGameCenterDetailsUpdateSendsOnlyRequestedRelationships(t *testing.T) {
