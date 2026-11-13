@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -613,6 +614,7 @@ func ProfilesDownloadCommand() *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
 	outputPath := fs.String("output", "", "Output .mobileprovision or .provisionprofile file path")
+	overwrite := fs.Bool("overwrite", false, "Replace an existing file at --output")
 	output := shared.BindMetadataOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -623,7 +625,8 @@ func ProfilesDownloadCommand() *ffcli.Command {
 
 Examples:
   asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"
-  asc profiles download --id "PROFILE_ID" --output "./profile.provisionprofile"`,
+  asc profiles download --id "PROFILE_ID" --output "./profile.provisionprofile"
+  asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision" --overwrite`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -636,6 +639,9 @@ Examples:
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --output is required")
 				return shared.MissingRequiredUsageError("--output")
+			}
+			if err := checkProfileDownloadOutput(pathValue, *overwrite); err != nil {
+				return fmt.Errorf("profiles download: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
@@ -653,7 +659,7 @@ Examples:
 
 			content := strings.TrimSpace(resp.Data.Attributes.ProfileContent)
 			if content == "" {
-				return fmt.Errorf("profiles download: profile content is empty")
+				return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("profiles download: profile %q has no downloadable content; check its state with asc profiles view --id %q", idValue, idValue)), shared.DiagnosticStateNotReady, "")
 			}
 
 			decoded, err := decodeProfileContent(content)
@@ -661,7 +667,7 @@ Examples:
 				return fmt.Errorf("profiles download: %w", err)
 			}
 
-			if err := shared.WriteProfileFile(pathValue, decoded); err != nil {
+			if err := writeDownloadedProfile(pathValue, decoded, *overwrite); err != nil {
 				return fmt.Errorf("profiles download: %w", err)
 			}
 
@@ -674,6 +680,49 @@ Examples:
 			return shared.PrintOutput(result, *output.OutputFormat, *output.Pretty)
 		},
 	}
+}
+
+func checkProfileDownloadOutput(path string, overwrite bool) error {
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !overwrite {
+		return profileOutputExistsError(path)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return shared.NewValidationError(fmt.Errorf("refusing to overwrite symlink %q", path))
+	}
+	if !info.Mode().IsRegular() {
+		return shared.NewValidationError(fmt.Errorf("output path %q is not a regular file", path))
+	}
+	return nil
+}
+
+func profileOutputExistsError(path string) error {
+	return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("output file %q already exists; pass --overwrite to replace it", path)), shared.DiagnosticResourceConflict, "--output")
+}
+
+func writeDownloadedProfile(path string, content []byte, overwrite bool) error {
+	if !overwrite {
+		err := shared.WriteProfileFile(path, content)
+		if errors.Is(err, os.ErrExist) {
+			return profileOutputExistsError(path)
+		}
+		return err
+	}
+	perm := os.FileMode(0o644)
+	if info, err := os.Lstat(path); err == nil {
+		perm &= info.Mode().Perm()
+	}
+	_, err := shared.SafeWriteFileNoSymlink(path, perm, true, ".asc-profile-*", ".asc-profile-backup-*", func(file *os.File) (int64, error) {
+		n, err := file.Write(content)
+		return int64(n), err
+	})
+	return err
 }
 
 func decodeProfileContent(content string) ([]byte, error) {
