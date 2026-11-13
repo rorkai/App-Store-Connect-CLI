@@ -205,6 +205,8 @@ func resolveDebugValue(value string) debugSettings {
 	}
 }
 
+// loadConfig caches the first successful load for the process lifetime,
+// including a missing config file. Tests that change config must reset it.
 func loadConfig() *config.Config {
 	loadConfigMu.Lock()
 	defer loadConfigMu.Unlock()
@@ -214,7 +216,7 @@ func loadConfig() *config.Config {
 	}
 
 	cfg, err := loadConfigFn()
-	if err != nil {
+	if err != nil && !errors.Is(err, config.ErrNotFound) {
 		return nil
 	}
 	cachedConfig = cfg
@@ -729,13 +731,9 @@ func newDefaultHTTPClient(timeout time.Duration) *http.Client {
 }
 
 func newClientWithHTTPClient(keyID, issuerID, privateKeyPath string, httpClient *http.Client) (*Client, error) {
-	if err := auth.ValidateKeyFile(privateKeyPath); err != nil {
-		return nil, fmt.Errorf("invalid private key: %w", err)
-	}
-
-	key, err := auth.LoadPrivateKey(privateKeyPath)
+	key, err := auth.LoadValidatedPrivateKey(privateKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load private key: %w", err)
+		return nil, fmt.Errorf("invalid private key: %w", err)
 	}
 
 	return newClientWithPrivateKey(keyID, issuerID, key, httpClient), nil

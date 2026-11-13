@@ -37,7 +37,7 @@ func TestValidateKeyFileForOSWindowsSkipsUnixPermissionCheck(t *testing.T) {
 
 	writeECDSAPEM(t, keyPath, 0o644, true)
 
-	if err := validateKeyFileForOS(keyPath, "windows"); err != nil {
+	if _, err := loadValidatedPrivateKeyForOS(keyPath, "windows"); err != nil {
 		t.Fatalf("expected Windows validation to ignore Unix permission bits, got %v", err)
 	}
 }

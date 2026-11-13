@@ -98,7 +98,7 @@ func TestLoadConfigRetriesAfterFailure(t *testing.T) {
 	var calls int32
 	setConfigLoaderForTest(func() (*config.Config, error) {
 		if atomic.AddInt32(&calls, 1) == 1 {
-			return nil, fmt.Errorf("config not found")
+			return nil, fmt.Errorf("permission denied")
 		}
 		return &config.Config{RetryLog: "1"}, nil
 	})
@@ -114,5 +114,25 @@ func TestLoadConfigRetriesAfterFailure(t *testing.T) {
 
 	if got := atomic.LoadInt32(&calls); got != 2 {
 		t.Fatalf("expected config loader to be retried after failure, got %d calls", got)
+	}
+}
+
+func TestLoadConfigCachesNotFound(t *testing.T) {
+	var calls int32
+	setConfigLoaderForTest(func() (*config.Config, error) {
+		atomic.AddInt32(&calls, 1)
+		return nil, config.ErrNotFound
+	})
+	t.Cleanup(resetConfigCacheForTest)
+
+	if cfg := loadConfig(); cfg != nil {
+		t.Fatalf("loadConfig() = %#v, want nil", cfg)
+	}
+	if cfg := loadConfig(); cfg != nil {
+		t.Fatalf("loadConfig() = %#v, want nil", cfg)
+	}
+
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Fatalf("expected config loader called once when no config exists, got %d", got)
 	}
 }
