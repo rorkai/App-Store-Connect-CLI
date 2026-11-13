@@ -27,7 +27,7 @@ const (
 	requestTimeoutHint = "Increase the request timeout (e.g. set `ASC_TIMEOUT=90s`)."
 	uploadTimeoutHint  = "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=45m`)."
 	systemStatusHint   = "Check Apple's service health with `asc system-status --service \"App Store Connect\"`."
-	bearerTokenHint    = "Set ASC_BEARER_TOKEN to a new token from the service that holds your private key, or unset it to use your configured credentials."
+	bearerTokenHint    = "Set ASC_BEARER_TOKEN to a new token from the service that holds your private key, set ASC_BEARER_TOKEN_COMMAND to a command that prints one, or unset both to use your configured credentials."
 	missingAuthHint    = "Run `asc auth status` to see configured credentials. To add an API key, create one at " + auth.APIKeysURL +
 		" and run `" + auth.LoginCommandExample + "` (or set ASC_KEY_ID/ASC_ISSUER_ID/ASC_PRIVATE_KEY_PATH)."
 	downloadTimeoutHint = "Increase the download timeout, which `ASC_UPLOAD_TIMEOUT` sets (e.g. `ASC_UPLOAD_TIMEOUT=45m`)."
@@ -60,7 +60,7 @@ func Classify(err error) ClassifiedError {
 
 	// The stored-key hint below does not help a caller whose token was signed
 	// elsewhere; only the service that holds the key can mint a new one.
-	if errors.Is(err, asc.ErrBearerTokenExpired) || errors.Is(err, asc.ErrInvalidBearerToken) {
+	if errors.Is(err, asc.ErrBearerTokenExpired) || errors.Is(err, asc.ErrInvalidBearerToken) || errors.Is(err, asc.ErrBearerTokenRenewal) {
 		return ClassifiedError{Message: err.Error(), Hint: bearerTokenHint}
 	}
 
@@ -209,6 +209,8 @@ var conflictNextSteps = map[string]string{
 	"asc localizations update":      "Check the version's state with `asc versions view --version-id VERSION_ID`, or for app-info localizations `asc localizations list --app APP_ID --type app-info --app-info-fields state`.",
 	"asc testflight testers add":    "Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
 	"asc testflight testers invite": "Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
+
+	"asc video-previews set-poster-frame": "Apple accepts a poster frame only after the preview's video finishes processing. Check its `videoDeliveryState` with `asc video-previews list --version-localization VERSION_LOCALIZATION_ID` and retry once it is COMPLETE.",
 }
 
 func FormatStderr(err error) string {

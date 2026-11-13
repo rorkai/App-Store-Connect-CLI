@@ -4,8 +4,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+const crashLogNotFoundHint = "Crash logs are fetched by crash submission ID: list them with `asc testflight crashes list --app APP_ID` and pass one to --submission-id."
+
+func crashLogFetchError(err error) error {
+	err = fmt.Errorf("testflight crashes log: failed to fetch: %w", err)
+	if asc.IsNotFound(err) {
+		return &shared.HintedError{Err: err, Hint: crashLogNotFoundHint}
+	}
+	return err
+}
 
 func runCrashLogByCrashLogID(ctx context.Context, crashLogID string, output shared.OutputFlags) error {
 	client, err := shared.GetASCClient()
@@ -18,7 +29,7 @@ func runCrashLogByCrashLogID(ctx context.Context, crashLogID string, output shar
 
 	resp, err := client.GetBetaCrashLog(requestCtx, crashLogID)
 	if err != nil {
-		return fmt.Errorf("testflight crashes log: failed to fetch: %w", err)
+		return crashLogFetchError(err)
 	}
 
 	return shared.PrintOutput(resp, *output.Output, *output.Pretty)

@@ -182,7 +182,7 @@ func (c *Client) newNotaryRequest(ctx context.Context, method, path string, body
 	if err := validateAPIPath(path); err != nil {
 		return nil, err
 	}
-	if c.bearerToken != "" {
+	if c.bearer != nil {
 		// A notary token has its own scope; only the private key can sign one.
 		return nil, ErrNotaryNeedsPrivateKey
 	}
