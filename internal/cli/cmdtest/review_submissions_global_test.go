@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -333,46 +331,21 @@ func TestReviewSubmissionsListGlobalWithFilters(t *testing.T) {
 	}
 }
 
-func TestReviewSubmissionsListGlobalMissingAppError(t *testing.T) {
+func TestReviewSubmissionsListUsageErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "submissions-list", "--global"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "GlobalMissingAppError",
+			args:    []string{"review", "submissions-list", "--global"},
+			wantErr: "Error: --app is required with --global",
+		},
+		{
+			name:    "MissingSelectorError",
+			args:    []string{"review", "submissions-list"},
+			wantErr: "Error: --app or --global is required",
+		},
 	})
-
-	if !strings.Contains(stderr, "Error: --app is required with --global") {
-		t.Fatalf("expected missing app for global error, got %q", stderr)
-	}
-}
-
-func TestReviewSubmissionsListMissingSelectorError(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "submissions-list"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "Error: --app or --global is required") {
-		t.Fatalf("expected missing selector error, got %q", stderr)
-	}
 }
 
 func TestReviewSubmissionsListScopedStillWorks(t *testing.T) {

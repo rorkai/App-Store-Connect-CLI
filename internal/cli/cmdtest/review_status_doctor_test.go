@@ -48,36 +48,18 @@ func TestReviewStatusAndDoctorValidationErrors(t *testing.T) {
 		{
 			name:    "review status positional args rejected",
 			args:    []string{"review", "status", "--app", "123456789", "1.2.3"},
-			wantErr: "review status does not accept positional arguments",
+			wantErr: `unexpected argument "1.2.3"`,
 		},
 		{
 			name:    "review doctor positional args rejected",
 			args:    []string{"review", "doctor", "--app", "123456789", "1.2.3"},
-			wantErr: "review doctor does not accept positional arguments",
+			wantErr: `unexpected argument "1.2.3"`,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
+			assertUsageExit(t, test.args, test.wantErr)
 		})
 	}
 }

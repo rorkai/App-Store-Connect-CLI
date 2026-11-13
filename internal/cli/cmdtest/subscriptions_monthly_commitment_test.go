@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"strings"
@@ -16,14 +15,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestSubscriptionsPricingMonthlyCommitmentValidationErrors(t *testing.T) {
+func TestSubscriptionsPricingMonthlyCommitmentUsageErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
+	runUsageExitCases(t, []usageExitCase{
 		{
 			name:    "enable missing subscription",
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "enable", "--price", "9.99", "--price-territory", "Norway", "--territories", "Norway"},
@@ -84,73 +79,10 @@ func TestSubscriptionsPricingMonthlyCommitmentValidationErrors(t *testing.T) {
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list", "--subscription-id", "sub-1", "--plan-type", ""},
 			wantErr: "invalid value for --plan-type: cannot be empty",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsPricingMonthlyCommitmentUsageExitCodes(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
 		{
 			name:    "subcommand flag before subcommand returns usage",
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "--subscription-id", "sub-1", "enable", "--price", "9.99", "--price-territory", "Norway", "--territories", "Norway"},
 			wantErr: "Error: unknown flag `--subscription-id` for `asc subscriptions pricing monthly-commitment`",
-		},
-		{
-			name:    "mixed flag order invalid price territory returns usage",
-			args:    []string{"subscriptions", "pricing", "monthly-commitment", "enable", "--territories", "Norway", "--price-territory", "USA", "--subscription-id", "sub-1", "--price", "9.99"},
-			wantErr: "--price-territory cannot be USA for monthly-commitment billing",
-		},
-		{
-			name:    "flag value matching subcommand returns usage when invalid",
-			args:    []string{"subscriptions", "pricing", "monthly-commitment", "disable", "--subscription-id", "sub-1", "--territories", "list"},
-			wantErr: "territory \"list\" could not be mapped",
-		},
-		{
-			name:    "enable missing confirm returns usage",
-			args:    []string{"subscriptions", "pricing", "monthly-commitment", "enable", "--subscription-id", "sub-1", "--price", "9.99", "--price-territory", "Norway", "--territories", "Norway"},
-			wantErr: "--confirm is required to enable monthly-commitment billing",
-		},
-		{
-			name:    "disable missing confirm returns usage",
-			args:    []string{"subscriptions", "pricing", "monthly-commitment", "disable", "--subscription-id", "sub-1", "--territories", "Norway"},
-			wantErr: "--confirm is required to disable monthly-commitment billing",
-		},
-		{
-			name:    "list invalid plan type returns usage",
-			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list", "--subscription-id", "sub-1", "--plan-type", "annual"},
-			wantErr: "--plan-type must be one of: MONTHLY, UPFRONT",
-		},
-		{
-			name:    "list empty plan type returns usage",
-			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list", "--subscription-id", "sub-1", "--plan-type", ""},
-			wantErr: "invalid value for --plan-type: cannot be empty",
 		},
 		{
 			name:    "availability edit invalid billing mode returns usage",
@@ -162,23 +94,7 @@ func TestSubscriptionsPricingMonthlyCommitmentUsageExitCodes(t *testing.T) {
 			args:    []string{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "monthly-commitment", "--available-in-new-territories"},
 			wantErr: "--available-in-new-territories is not supported for MONTHLY plan availability",
 		},
-		{
-			name:    "availability edit monthly commitment requires confirm",
-			args:    []string{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "monthly-commitment"},
-			wantErr: "--confirm is required for monthly-commitment availability changes",
-		},
-		{
-			name:    "availability edit monthly commitment rejects confirm false",
-			args:    []string{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "monthly-commitment", "--confirm=false"},
-			wantErr: "--confirm is required for monthly-commitment availability changes",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
-		})
-	}
+	})
 }
 
 func TestSubscriptionsPricingAvailabilityEditMonthlyCommitmentRequiresConfirmationBeforeClient(t *testing.T) {
@@ -195,23 +111,7 @@ func TestSubscriptionsPricingAvailabilityEditMonthlyCommitmentRequiresConfirmati
 		{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "monthly-commitment", "--confirm", "false"},
 	} {
 		clientRequested = false
-		root := RootCommand("1.2.3")
-		root.FlagSet.SetOutput(io.Discard)
-
-		stdout, stderr := captureOutput(t, func() {
-			if err := root.Parse(args); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
-				t.Fatalf("expected usage error, got %v", err)
-			}
-		})
-		if stdout != "" {
-			t.Fatalf("expected empty stdout, got %q", stdout)
-		}
-		if !strings.Contains(stderr, "--confirm is required for monthly-commitment availability changes") {
-			t.Fatalf("expected missing confirmation diagnostic, got %q", stderr)
-		}
+		assertUsageExit(t, args, "--confirm is required for monthly-commitment availability changes")
 		if clientRequested {
 			t.Fatal("client factory called before confirmation validation")
 		}

@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"strings"
@@ -15,12 +14,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestSubscriptionsPricingEqualizeValidationErrors(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
+func TestSubscriptionsPricingEqualizeUsageErrors(t *testing.T) {
+	setupAuth(t)
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
+		return nil, nil
+	}))
+
+	runUsageExitCases(t, []usageExitCase{
 		{
 			name:    "missing subscription id",
 			args:    []string{"subscriptions", "pricing", "equalize", "--base-price", "3.49"},
@@ -41,141 +42,27 @@ func TestSubscriptionsPricingEqualizeValidationErrors(t *testing.T) {
 			args:    []string{"subscriptions", "pricing", "equalize", "--subscription-id", "8000000001", "--base-price", "3.49", "--start-date", time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02"), "--dry-run"},
 			wantErr: "Error: --start-date must be a future date",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsPricingEqualizeBooleanFlagExitCodes(t *testing.T) {
-	tests := []struct {
-		name       string
-		args       []string
-		wantStderr string
-	}{
 		{
-			name: "invalid auto start date",
-			args: []string{
-				"subscriptions", "pricing", "equalize",
-				"--subscription-id", "8000000001",
-				"--base-price", "3.49",
-				"--dry-run",
-				"--auto-start-date=maybe",
-			},
-			wantStderr: `invalid boolean value "maybe" for -auto-start-date`,
+			name:    "invalid auto start date",
+			args:    []string{"subscriptions", "pricing", "equalize", "--subscription-id", "8000000001", "--base-price", "3.49", "--dry-run", "--auto-start-date=maybe"},
+			wantErr: `invalid boolean value "maybe" for -auto-start-date`,
 		},
 		{
-			name: "invalid preserved",
-			args: []string{
-				"subscriptions", "pricing", "equalize",
-				"--subscription-id", "8000000001",
-				"--base-price", "3.49",
-				"--dry-run",
-				"--preserved=maybe",
-			},
-			wantStderr: `invalid boolean value "maybe" for -preserved`,
+			name:    "invalid preserved",
+			args:    []string{"subscriptions", "pricing", "equalize", "--subscription-id", "8000000001", "--base-price", "3.49", "--dry-run", "--preserved=maybe"},
+			wantErr: `invalid boolean value "maybe" for -preserved`,
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantStderr)
-		})
-	}
-}
-
-func TestSubscriptionsPricingEqualize_RequiresConfirmUnlessDryRun(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+		{
+			name:    "requires confirm unless dry run",
+			args:    []string{"subscriptions", "pricing", "equalize", "--subscription-id", "8000000001", "--base-price", "0.99"},
+			wantErr: "--confirm is required unless --dry-run is set",
+		},
+		{
+			name:    "rejects out of range workers",
+			args:    []string{"subscriptions", "pricing", "equalize", "--subscription-id", "8000000001", "--base-price", "0.99", "--dry-run", "--workers", "0"},
+			wantErr: "Error: --workers must be between 1 and 32",
+		},
 	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "equalize",
-			"--subscription-id", "8000000001",
-			"--base-price", "0.99",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--confirm is required unless --dry-run is set") {
-		t.Fatalf("expected confirm usage error, got %q", stderr)
-	}
-}
-
-func TestSubscriptionsPricingEqualize_RejectsOutOfRangeWorkers(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "equalize",
-			"--subscription-id", "8000000001",
-			"--base-price", "0.99",
-			"--dry-run",
-			"--workers", "0",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
 }
 
 func TestSubscriptionsPricingEqualize_DryRunMatchesBasePriceNumerically(t *testing.T) {

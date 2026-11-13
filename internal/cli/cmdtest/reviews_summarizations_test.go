@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,49 +10,21 @@ import (
 	"testing"
 )
 
-func TestReviewsSummarizationsValidationErrors(t *testing.T) {
+func TestReviewsSummarizationsUsageErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"reviews", "summarizations"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "requires app",
+			args:    []string{"reviews", "summarizations"},
+			wantErr: "Error: --app is required (or set ASC_APP_ID)",
+		},
+		{
+			name:    "requires platform without next",
+			args:    []string{"reviews", "summarizations", "--app", "app-1"},
+			wantErr: "Error: --platform is required",
+		},
 	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-}
-
-func TestReviewsSummarizationsRequiresPlatformWithoutNext(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"reviews", "summarizations", "--app", "app-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --platform is required") {
-		t.Fatalf("expected platform-required error on stderr, got %q", stderr)
-	}
 }
 
 func TestReviewsSummarizationsNextDoesNotRequirePlatform(t *testing.T) {

@@ -16,12 +16,10 @@ import (
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
-func TestReviewsRespondValidationErrors(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
+func TestReviewsUsageErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	runUsageExitCases(t, []usageExitCase{
 		{
 			name:    "reviews respond missing review-id",
 			args:    []string{"reviews", "respond", "--response", "Thanks!"},
@@ -32,31 +30,47 @@ func TestReviewsRespondValidationErrors(t *testing.T) {
 			args:    []string{"reviews", "respond", "--review-id", "REVIEW_123"},
 			wantErr: "--response is required",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+		{
+			name:    "reviews without subcommand missing app",
+			args:    []string{"reviews"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "reviews list missing app",
+			args:    []string{"reviews", "list"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "reviews list invalid response state",
+			args:    []string{"reviews", "list", "--app", "app-1", "--response-state", "maybe"},
+			wantErr: "--response-state must be one of: any, unresponded, unreplied, responded, replied",
+		},
+		{
+			name:    "reviews list invalid response fields",
+			args:    []string{"reviews", "list", "--app", "app-1", "--response-fields", "bogus"},
+			wantErr: "--response-fields must be a comma-separated list of: responseBody,lastModifiedDate,state,review",
+		},
+		{
+			name:    "reviews response view missing id",
+			args:    []string{"reviews", "response", "view"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "reviews response delete missing id",
+			args:    []string{"reviews", "response", "delete", "--confirm"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "reviews response delete missing confirm",
+			args:    []string{"reviews", "response", "delete", "--id", "RESPONSE_123"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "reviews response for-review missing review-id",
+			args:    []string{"reviews", "response", "for-review"},
+			wantErr: "--review-id is required",
+		},
+	})
 }
 
 func writeReviewBatchFile(t *testing.T, body string) string {
@@ -559,6 +573,12 @@ func TestReviewsRespondBatchValidationErrors(t *testing.T) {
 			wantErr: "response is required",
 		},
 		{
+			name:    "invalid response state",
+			args:    []string{"reviews", "respond-batch", "--app", "app-1", "--file", "FILE", "--response-state", "maybe"},
+			body:    `{"replies":[{"response":"Thanks","reviewIds":["review-1"]}]}`,
+			wantErr: "--response-state must be one of: any, unresponded, unreplied, responded, replied",
+		},
+		{
 			name:    "empty review id",
 			args:    []string{"reviews", "respond-batch", "--app", "app-1", "--file", "FILE", "--confirm"},
 			body:    `{"replies":[{"response":"Thanks","reviewIds":[" "]}]}`,
@@ -578,44 +598,8 @@ func TestReviewsRespondBatchValidationErrors(t *testing.T) {
 				}
 			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
-			}
+			assertUsageExit(t, args, test.wantErr)
 		})
-	}
-}
-
-func TestRunReviewsRespondBatchInvalidResponseStateReturnsUsageExit(t *testing.T) {
-	inputPath := writeReviewBatchFile(t, `{"replies":[{"response":"Thanks","reviewIds":["review-1"]}]}`)
-
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--response-state", "maybe"}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--response-state must be one of: any, unresponded, unreplied, responded, replied") {
-		t.Fatalf("expected response-state validation, got %q", stderr)
 	}
 }
 
@@ -701,38 +685,6 @@ func TestReviewsListOnlyUnrespondedMapsToPublishedResponseFilter(t *testing.T) {
 	}
 }
 
-func TestReviewsListRejectsInvalidResponseState(t *testing.T) {
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"reviews", "list", "--app", "app-1", "--response-state", "maybe"}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--response-state must be one of: any, unresponded, unreplied, responded, replied") {
-		t.Fatalf("expected response-state validation, got %q", stderr)
-	}
-}
-
-func TestReviewsListRejectsInvalidResponseFields(t *testing.T) {
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"reviews", "list", "--app", "app-1", "--response-fields", "bogus"}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--response-fields must be a comma-separated list of: responseBody,lastModifiedDate,state,review") {
-		t.Fatalf("expected response-fields validation, got %q", stderr)
-	}
-}
-
 func TestRunReviewsRespondBatchPartialFailureReturnsExitError(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -772,190 +724,6 @@ func TestRunReviewsRespondBatchPartialFailureReturnsExitError(t *testing.T) {
 	failed := findReviewBatchTestResult(t, payload, "review-2")
 	if failed.Status != "failed" || failed.Error == "" {
 		t.Fatalf("unexpected failed result: %+v", failed)
-	}
-}
-
-func TestReviewsResponseViewValidationErrors(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "reviews response view missing id",
-			args:    []string{"reviews", "response", "view"},
-			wantErr: "--id is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestReviewsResponseDeleteValidationErrors(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "reviews response delete missing id",
-			args:    []string{"reviews", "response", "delete", "--confirm"},
-			wantErr: "--id is required",
-		},
-		{
-			name:    "reviews response delete missing confirm",
-			args:    []string{"reviews", "response", "delete", "--id", "RESPONSE_123"},
-			wantErr: "--confirm is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestReviewsResponseForReviewValidationErrors(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "reviews response for-review missing review-id",
-			args:    []string{"reviews", "response", "for-review"},
-			wantErr: "--review-id is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestReviewsListBackwardsCompatibility(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-
-	// Test that reviews without subcommand still requires --app
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"reviews"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--app is required") {
-		t.Fatalf("expected missing app error, got %q", stderr)
-	}
-}
-
-func TestReviewsListSubcommandValidationErrors(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "reviews list missing app",
-			args:    []string{"reviews", "list"},
-			wantErr: "--app is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
 	}
 }
 

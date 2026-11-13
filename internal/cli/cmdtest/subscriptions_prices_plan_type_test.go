@@ -3,11 +3,8 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 )
 
@@ -204,66 +201,6 @@ func TestSubscriptionsPricingPricesListNextPreservesPlanTypeFilter(t *testing.T)
 	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-}
-
-func TestSubscriptionsPricingPricesListPlanTypeValidationErrors(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name: "invalid plan type",
-			args: []string{
-				"subscriptions", "pricing", "prices", "list",
-				"--subscription-id", "8000000001",
-				"--plan-type", "annual",
-			},
-			wantErr: "--plan-type must be one of: MONTHLY, UPFRONT",
-		},
-		{
-			name: "empty plan type",
-			args: []string{
-				"subscriptions", "pricing", "prices", "list",
-				"--subscription-id", "8000000001",
-				"--plan-type", "",
-			},
-			wantErr: "invalid value for --plan-type: cannot be empty",
-		},
-		{
-			name: "empty territory",
-			args: []string{
-				"subscriptions", "pricing", "prices", "list",
-				"--subscription-id", "8000000001",
-				"--territory", "",
-			},
-			wantErr: "invalid value for --territory: cannot be empty",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
 	}
 }
 

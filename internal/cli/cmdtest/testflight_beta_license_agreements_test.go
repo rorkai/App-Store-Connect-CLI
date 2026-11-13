@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -207,82 +205,34 @@ func TestTestFlightBetaLicenseAgreementsUpdateOutput(t *testing.T) {
 	}
 }
 
-func TestTestFlightBetaLicenseAgreementsGetValidationErrors(t *testing.T) {
+func TestTestFlightBetaLicenseAgreementsUsageErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	tests := []struct {
-		name string
-		args []string
-	}{
+	runUsageExitCases(t, []usageExitCase{
 		{
-			name: "missing id and app",
-			args: []string{"testflight", "agreements", "view"},
+			name:    "view missing id and app",
+			args:    []string{"testflight", "agreements", "view"},
+			wantErr: "Error: --id or --app is required",
 		},
 		{
-			name: "id and app both set",
-			args: []string{"testflight", "agreements", "view", "--id", "AGREEMENT_ID", "--app", "APP_ID"},
+			name:    "view id and app both set",
+			args:    []string{"testflight", "agreements", "view", "--id", "AGREEMENT_ID", "--app", "APP_ID"},
+			wantErr: "Error: --id and --app are mutually exclusive",
 		},
 		{
-			name: "app with include",
-			args: []string{"testflight", "agreements", "view", "--app", "APP_ID", "--include", "app"},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, _ := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-		})
-	}
-}
-
-func TestTestFlightBetaLicenseAgreementsUpdateValidationErrors(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{
-			name: "missing id",
-			args: []string{"testflight", "agreements", "edit", "--agreement-text", "Updated"},
+			name:    "view app with include",
+			args:    []string{"testflight", "agreements", "view", "--app", "APP_ID", "--include", "app"},
+			wantErr: "Error: --app-fields and --include are only valid with --id",
 		},
 		{
-			name: "missing agreement text",
-			args: []string{"testflight", "agreements", "edit", "--id", "AGREEMENT_ID"},
+			name:    "edit missing id",
+			args:    []string{"testflight", "agreements", "edit", "--agreement-text", "Updated"},
+			wantErr: "Error: --id is required",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, _ := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-		})
-	}
+		{
+			name:    "edit missing agreement text",
+			args:    []string{"testflight", "agreements", "edit", "--id", "AGREEMENT_ID"},
+			wantErr: "Error: --agreement-text is required",
+		},
+	})
 }
