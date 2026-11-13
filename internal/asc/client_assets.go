@@ -118,50 +118,22 @@ type AppPreviewUpdateRequest struct {
 
 // GetAppScreenshotSets retrieves screenshot sets for a localization.
 func (c *Client) GetAppScreenshotSets(ctx context.Context, localizationID string, opts ...AppScreenshotSetsOption) (*AppScreenshotSetsResponse, error) {
-	query := &appScreenshotSetsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	if query.limitSet && (query.limit < 1 || query.limit > appScreenshotCollectionLimitMax) {
 		return nil, fmt.Errorf("appScreenshotSets: limit must be between 1 and %d", appScreenshotCollectionLimitMax)
 	}
 
-	path := fmt.Sprintf("/v1/appStoreVersionLocalizations/%s/appScreenshotSets", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appScreenshotSets: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppScreenshotSetsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppScreenshotSetsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppScreenshotSetsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersionLocalizations/%s/appScreenshotSets", localizationID),
+		Query:       buildAppScreenshotSetsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appScreenshotSets",
+	})
 }
 
 // GetAppScreenshotSet retrieves a screenshot set by ID.
 func (c *Client) GetAppScreenshotSet(ctx context.Context, setID string) (*AppScreenshotSetResponse, error) {
-	path := fmt.Sprintf("/v1/appScreenshotSets/%s", setID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppScreenshotSetResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppScreenshotSetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appScreenshotSets/%s", setID)})
 }
 
 // CreateAppScreenshotSet creates a screenshot set for a localization.
@@ -209,96 +181,43 @@ func (c *Client) createAppScreenshotSet(ctx context.Context, displayType string,
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appScreenshotSets", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppScreenshotSetResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppScreenshotSetResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appScreenshotSets", Payload: payload})
 }
 
 // DeleteAppScreenshotSet deletes a screenshot set by ID.
 func (c *Client) DeleteAppScreenshotSet(ctx context.Context, setID string) error {
-	path := fmt.Sprintf("/v1/appScreenshotSets/%s", setID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appScreenshotSets/%s", setID), nil)
 }
 
 // GetAppScreenshots retrieves screenshots for a set.
 func (c *Client) GetAppScreenshots(ctx context.Context, setID string, opts ...AppScreenshotsOption) (*AppScreenshotsResponse, error) {
-	query := &appScreenshotsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	if query.limitSet && (query.limit < 1 || query.limit > appScreenshotCollectionLimitMax) {
 		return nil, fmt.Errorf("appScreenshots: limit must be between 1 and %d", appScreenshotCollectionLimitMax)
 	}
 
-	path := fmt.Sprintf("/v1/appScreenshotSets/%s/appScreenshots", setID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appScreenshots: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppScreenshotsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppScreenshotsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppScreenshotsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appScreenshotSets/%s/appScreenshots", setID),
+		Query:       buildAppScreenshotsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appScreenshots",
+	})
 }
 
 // GetAppScreenshotSetAppScreenshotsRelationships retrieves screenshot linkages for a screenshot set.
 func (c *Client) GetAppScreenshotSetAppScreenshotsRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	setID = strings.TrimSpace(setID)
 	if query.nextURL == "" && setID == "" {
 		return nil, fmt.Errorf("setID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", setID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appScreenshotsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", setID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appScreenshotsRelationships",
+	})
 }
 
 // UpdateAppScreenshotSetAppScreenshotsRelationship replaces the screenshots on a screenshot set.
@@ -313,30 +232,12 @@ func (c *Client) UpdateAppScreenshotSetAppScreenshotsRelationship(ctx context.Co
 		data = []RelationshipData{}
 	}
 	payload := RelationshipRequest{Data: data}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", setID)
-	_, err = c.do(ctx, "PATCH", path, body)
-	return err
+	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", setID), payload)
 }
 
 // GetAppScreenshot retrieves a screenshot by ID.
 func (c *Client) GetAppScreenshot(ctx context.Context, screenshotID string) (*AppScreenshotResponse, error) {
-	path := fmt.Sprintf("/v1/appScreenshots/%s", screenshotID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppScreenshotResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppScreenshotResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appScreenshots/%s", screenshotID)})
 }
 
 // CreateAppScreenshot creates a screenshot reservation.
@@ -359,22 +260,7 @@ func (c *Client) CreateAppScreenshot(ctx context.Context, setID string, fileName
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appScreenshots", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppScreenshotResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppScreenshotResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appScreenshots", Payload: payload})
 }
 
 // UpdateAppScreenshot updates a screenshot (used to commit upload).
@@ -410,41 +296,17 @@ func (c *Client) UpdateAppScreenshot(ctx context.Context, screenshotID string, u
 
 // DeleteAppScreenshot deletes a screenshot by ID.
 func (c *Client) DeleteAppScreenshot(ctx context.Context, screenshotID string) error {
-	path := fmt.Sprintf("/v1/appScreenshots/%s", screenshotID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appScreenshots/%s", screenshotID), nil)
 }
 
 // GetAppPreviewSets retrieves preview sets for a localization.
 func (c *Client) GetAppPreviewSets(ctx context.Context, localizationID string) (*AppPreviewSetsResponse, error) {
-	path := fmt.Sprintf("/v1/appStoreVersionLocalizations/%s/appPreviewSets", localizationID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPreviewSetsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPreviewSetsResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionLocalizations/%s/appPreviewSets", localizationID)})
 }
 
 // GetAppPreviewSet retrieves a preview set by ID.
 func (c *Client) GetAppPreviewSet(ctx context.Context, setID string) (*AppPreviewSetResponse, error) {
-	path := fmt.Sprintf("/v1/appPreviewSets/%s", setID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPreviewSetResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPreviewSetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appPreviewSets/%s", setID)})
 }
 
 // CreateAppPreviewSet creates a preview set for a localization.
@@ -492,29 +354,12 @@ func (c *Client) createAppPreviewSet(ctx context.Context, previewType string, re
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appPreviewSets", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPreviewSetResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppPreviewSetResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appPreviewSets", Payload: payload})
 }
 
 // DeleteAppPreviewSet deletes a preview set by ID.
 func (c *Client) DeleteAppPreviewSet(ctx context.Context, setID string) error {
-	path := fmt.Sprintf("/v1/appPreviewSets/%s", setID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appPreviewSets/%s", setID), nil)
 }
 
 type appPreviewsQuery struct {
@@ -535,64 +380,28 @@ func WithAppPreviewsNextURL(next string) AppPreviewsOption {
 
 // GetAppPreviews retrieves previews for a set.
 func (c *Client) GetAppPreviews(ctx context.Context, setID string, opts ...AppPreviewsOption) (*AppPreviewsResponse, error) {
-	query := &appPreviewsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/appPreviewSets/%s/appPreviews", setID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPreviews: %w", err)
-		}
-		path = query.nextURL
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPreviewsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppPreviewsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appPreviewSets/%s/appPreviews", setID),
+		Next:        query.nextURL,
+		NextContext: "appPreviews",
+	})
 }
 
 // GetAppPreviewSetAppPreviewsRelationships retrieves preview linkages for a preview set.
 func (c *Client) GetAppPreviewSetAppPreviewsRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	setID = strings.TrimSpace(setID)
 	if query.nextURL == "" && setID == "" {
 		return nil, fmt.Errorf("setID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appPreviewSets/%s/relationships/appPreviews", setID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPreviewsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appPreviewSets/%s/relationships/appPreviews", setID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appPreviewsRelationships",
+	})
 }
 
 // UpdateAppPreviewSetAppPreviewsRelationship replaces the previews on a preview set.
@@ -607,30 +416,12 @@ func (c *Client) UpdateAppPreviewSetAppPreviewsRelationship(ctx context.Context,
 		data = []RelationshipData{}
 	}
 	payload := RelationshipRequest{Data: data}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/appPreviewSets/%s/relationships/appPreviews", setID)
-	_, err = c.do(ctx, "PATCH", path, body)
-	return err
+	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appPreviewSets/%s/relationships/appPreviews", setID), payload)
 }
 
 // GetAppPreview retrieves a preview by ID.
 func (c *Client) GetAppPreview(ctx context.Context, previewID string) (*AppPreviewResponse, error) {
-	path := fmt.Sprintf("/v1/appPreviews/%s", previewID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPreviewResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPreviewResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appPreviews/%s", previewID)})
 }
 
 // CreateAppPreview creates a preview reservation.
@@ -654,22 +445,7 @@ func (c *Client) CreateAppPreview(ctx context.Context, setID string, fileName st
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appPreviews", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPreviewResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appPreviews", Payload: payload})
 }
 
 // UpdateAppPreview updates a preview (used to commit upload).
@@ -685,22 +461,7 @@ func (c *Client) UpdateAppPreview(ctx context.Context, previewID string, uploade
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/appPreviews/%s", previewID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPreviewResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appPreviews/%s", previewID), Payload: payload})
 }
 
 // SetAppPreviewFrameTimeCode sets the poster frame timecode for a preview.
@@ -715,27 +476,10 @@ func (c *Client) SetAppPreviewFrameTimeCode(ctx context.Context, previewID strin
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/appPreviews/%s", previewID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPreviewResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appPreviews/%s", previewID), Payload: payload})
 }
 
 // DeleteAppPreview deletes a preview by ID.
 func (c *Client) DeleteAppPreview(ctx context.Context, previewID string) error {
-	path := fmt.Sprintf("/v1/appPreviews/%s", previewID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appPreviews/%s", previewID), nil)
 }
