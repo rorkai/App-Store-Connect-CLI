@@ -13,6 +13,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
@@ -29,7 +30,8 @@ const (
 	bearerTokenHint    = "Set ASC_BEARER_TOKEN to a new token from the service that holds your private key, or unset it to use your configured credentials."
 	missingAuthHint    = "Run `asc auth status` to see configured credentials. To add an API key, create one at " + auth.APIKeysURL +
 		" and run `" + auth.LoginCommandExample + "` (or set ASC_KEY_ID/ASC_ISSUER_ID/ASC_PRIVATE_KEY_PATH)."
-	networkHint = "Check your network connection and proxy settings (HTTPS_PROXY), then retry."
+	networkHint         = "Check your network connection and proxy settings (HTTPS_PROXY), then retry."
+	symlinkedConfigHint = "Replace the symlink with the real file, or set ASC_CONFIG_PATH to the absolute path of a config file whose path contains no symlinks."
 )
 
 func Classify(err error) ClassifiedError {
@@ -55,6 +57,10 @@ func Classify(err error) ClassifiedError {
 	// elsewhere; only the service that holds the key can mint a new one.
 	if errors.Is(err, asc.ErrBearerTokenExpired) || errors.Is(err, asc.ErrInvalidBearerToken) {
 		return ClassifiedError{Message: err.Error(), Hint: bearerTokenHint}
+	}
+
+	if errors.Is(err, config.ErrSymlinkedConfig) {
+		return ClassifiedError{Message: err.Error(), Hint: symlinkedConfigHint}
 	}
 
 	if errors.Is(err, shared.ErrMissingAuth) {

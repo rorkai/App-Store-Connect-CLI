@@ -17,6 +17,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/suggest"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -847,7 +848,7 @@ func validationFailureContext(analysis invocationAnalysis, err error) telemetry.
 }
 
 func runtimeFailureContext(analysis invocationAnalysis, err error, exitCode int) telemetry.EventContext {
-	if errors.Is(err, flag.ErrHelp) || shared.IsReportedUsageError(err) || errors.Is(err, shared.ErrMissingWebSession) || analysis.shape == telemetry.InvocationShapeUnknownChild {
+	if errors.Is(err, flag.ErrHelp) || shared.IsReportedUsageError(err) || errors.Is(err, shared.ErrMissingWebSession) || errors.Is(err, config.ErrSymlinkedConfig) || analysis.shape == telemetry.InvocationShapeUnknownChild {
 		return validationFailureContext(analysis, err)
 	}
 
