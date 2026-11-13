@@ -286,120 +286,44 @@ func TestXcodeValidateHelpMentionsAltool(t *testing.T) {
 	}
 }
 
-func TestXcodeArchiveRequiresWorkspaceOrProject(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode", "archive", "--scheme", "Demo", "--archive-path", "Demo.xcarchive"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+func TestXcodeUsageErrors(t *testing.T) {
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "ArchiveRequiresWorkspaceOrProject",
+			args:    []string{"xcode", "archive", "--scheme", "Demo", "--archive-path", "Demo.xcarchive"},
+			wantErr: "Error: exactly one of --workspace or --project is required",
+		},
+		{
+			name:    "ArchiveRequiresScheme",
+			args:    []string{"xcode", "archive", "--project", "Demo.xcodeproj", "--archive-path", "Demo.xcarchive"},
+			wantErr: "Error: --scheme is required",
+		},
+		{
+			name:    "ArchiveRequiresArchivePath",
+			args:    []string{"xcode", "archive", "--project", "Demo.xcodeproj", "--scheme", "Demo"},
+			wantErr: "Error: --archive-path is required",
+		},
+		{
+			name:    "ExportRequiresArchivePath",
+			args:    []string{"xcode", "export", "--export-options", "ExportOptions.plist", "--ipa-path", "Demo.ipa"},
+			wantErr: "Error: --archive-path is required",
+		},
+		{
+			name:    "ValidateRequiresArtifact",
+			args:    []string{"xcode", "validate"},
+			wantErr: "Error: --ipa or --pkg is required",
+		},
+		{
+			name:    "ExportRequiresArtifactPath",
+			args:    []string{"xcode", "export", "--archive-path", "Demo.xcarchive", "--export-options", "ExportOptions.plist"},
+			wantErr: "Error: --ipa-path or --pkg-path is required for a local export",
+		},
+		{
+			name:    "ArchiveRejectsWorkspaceAndProjectTogether",
+			args:    []string{"xcode", "archive", "--workspace", "Demo.xcworkspace", "--project", "Demo.xcodeproj", "--scheme", "Demo", "--archive-path", "Demo.xcarchive"},
+			wantErr: "Error: exactly one of --workspace or --project is required",
+		},
 	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: exactly one of --workspace or --project is required") {
-		t.Fatalf("expected workspace/project error, got %q", stderr)
-	}
-}
-
-func TestXcodeArchiveRejectsWorkspaceAndProjectTogether(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"xcode", "archive",
-			"--workspace", "Demo.xcworkspace",
-			"--project", "Demo.xcodeproj",
-			"--scheme", "Demo",
-			"--archive-path", "Demo.xcarchive",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: exactly one of --workspace or --project is required") {
-		t.Fatalf("expected workspace/project error, got %q", stderr)
-	}
-}
-
-func TestXcodeArchiveRequiresScheme(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode", "archive", "--project", "Demo.xcodeproj", "--archive-path", "Demo.xcarchive"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --scheme is required") {
-		t.Fatalf("expected scheme error, got %q", stderr)
-	}
-}
-
-func TestXcodeArchiveRequiresArchivePath(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode", "archive", "--project", "Demo.xcodeproj", "--scheme", "Demo"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --archive-path is required") {
-		t.Fatalf("expected archive-path error, got %q", stderr)
-	}
-}
-
-func TestXcodeExportRequiresArchivePath(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode", "export", "--export-options", "ExportOptions.plist", "--ipa-path", "Demo.ipa"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --archive-path is required") {
-		t.Fatalf("expected archive-path error, got %q", stderr)
-	}
 }
 
 func TestXcodeExportWithoutExportOptionsPreflightsBeforeGeneration(t *testing.T) {
@@ -501,49 +425,5 @@ func TestXcodeExportRejectsInvalidImplicitDestinationAsUsage(t *testing.T) {
 				t.Fatalf("unexpected output: stdout=%q stderr=%q", stdout, stderr)
 			}
 		})
-	}
-}
-
-func TestXcodeValidateRequiresArtifact(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode", "validate"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --ipa or --pkg is required") {
-		t.Fatalf("expected artifact error, got %q", stderr)
-	}
-}
-
-func TestXcodeExportRequiresArtifactPath(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode", "export", "--archive-path", "Demo.xcarchive", "--export-options", "ExportOptions.plist"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --ipa-path or --pkg-path is required for a local export") {
-		t.Fatalf("expected artifact path error, got %q", stderr)
 	}
 }

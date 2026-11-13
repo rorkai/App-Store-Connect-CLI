@@ -12,42 +12,24 @@ import (
 	"testing"
 )
 
-func TestSnitchMissingDescription(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"snitch"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+func TestSnitchUsageErrors(t *testing.T) {
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "MissingDescription",
+			args:    []string{"snitch"},
+			wantErr: "description is required",
+		},
+		{
+			name:    "InvalidSeverity",
+			args:    []string{"snitch", "--severity", "critical", "test issue"},
+			wantErr: "--severity must be one of",
+		},
+		{
+			name:    "RejectsTrailingSnitchFlagsAfterDescription",
+			args:    []string{"snitch", "misordered description", "--confirm"},
+			wantErr: "flags must appear before the description; move --confirm before the description",
+		},
 	})
-
-	if !strings.Contains(stderr, "description is required") {
-		t.Fatalf("expected 'description is required' error, got %q", stderr)
-	}
-}
-
-func TestSnitchInvalidSeverity(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"snitch", "--severity", "critical", "test issue"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--severity must be one of") {
-		t.Fatalf("expected severity validation error, got %q", stderr)
-	}
 }
 
 func TestSnitchDryRunWithValidLabels(t *testing.T) {
@@ -355,28 +337,6 @@ func TestSnitchPreviewWithoutConfirmNoToken(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "preview without confirm") {
 		t.Fatalf("expected full multi-word description, got %q", stderr)
-	}
-}
-
-func TestSnitchRejectsTrailingSnitchFlagsAfterDescription(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"snitch", "misordered description", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "flags must appear before the description") {
-		t.Fatalf("expected ordering validation error, got %q", stderr)
-	}
-	if !strings.Contains(stderr, "--confirm") {
-		t.Fatalf("expected offending flag name in error, got %q", stderr)
 	}
 }
 

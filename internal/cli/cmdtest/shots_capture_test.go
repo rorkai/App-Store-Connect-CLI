@@ -51,25 +51,7 @@ func TestShotsCapture_RequiredFlagErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
-			}
+			assertUsageExit(t, test.args, test.wantErr)
 		})
 	}
 }

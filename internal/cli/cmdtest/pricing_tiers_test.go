@@ -2,33 +2,47 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 )
 
-func TestPricingTiersCommand_MissingApp(t *testing.T) {
+func TestPricingUsageErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"pricing", "tiers"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "PricingTiersCommand_MissingApp",
+			args:    []string{"pricing", "tiers"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "PricingScheduleCreate_TierAndPricePointMutualExclusion",
+			args:    []string{"pricing", "schedule", "create", "--app", "APP", "--price-point", "PP", "--tier", "5", "--base-territory", "USA", "--start-date", "2026-03-01"},
+			wantErr: "mutually exclusive",
+		},
+		{
+			name:    "PricingScheduleCreate_AllThreeMutualExclusion",
+			args:    []string{"pricing", "schedule", "create", "--app", "APP", "--price-point", "PP", "--tier", "5", "--price", "4.99", "--base-territory", "USA", "--start-date", "2026-03-01"},
+			wantErr: "mutually exclusive",
+		},
+		{
+			name:    "PricingScheduleCreate_TierRequiresTerritory",
+			args:    []string{"pricing", "schedule", "create", "--app", "APP", "--tier", "5", "--start-date", "2026-03-01"},
+			wantErr: "--base-territory is required",
+		},
+		{
+			name:    "PricingScheduleCreatePriceValidationError",
+			args:    []string{"pricing", "schedule", "create", "--app", "app-1", "--price", "abc", "--base-territory", "USA", "--start-date", "2026-03-01"},
+			wantErr: "Error: --price must be a number",
+		},
+		{
+			name:    "PricingScheduleCreatePriceValidationFiniteError",
+			args:    []string{"pricing", "schedule", "create", "--app", "app-1", "--price", "NaN", "--base-territory", "USA", "--start-date", "2026-03-01"},
+			wantErr: "Error: --price must be a finite number",
+		},
 	})
-
-	if !strings.Contains(stderr, "--app is required") {
-		t.Fatalf("expected --app required error, got %q", stderr)
-	}
 }
 
 func TestPricingTiersCommand_Success(t *testing.T) {
@@ -202,82 +216,5 @@ func TestPricingScheduleCreate_TierFlag(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"id":"sched-1"`) {
 		t.Fatalf("expected schedule output, got %q", stdout)
-	}
-}
-
-func TestPricingScheduleCreate_TierAndPricePointMutualExclusion(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "create",
-			"--app", "APP",
-			"--price-point", "PP",
-			"--tier", "5",
-			"--base-territory", "USA",
-			"--start-date", "2026-03-01",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "mutually exclusive") {
-		t.Fatalf("expected mutually exclusive error, got %q", stderr)
-	}
-}
-
-func TestPricingScheduleCreate_AllThreeMutualExclusion(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "create",
-			"--app", "APP",
-			"--price-point", "PP",
-			"--tier", "5",
-			"--price", "4.99",
-			"--base-territory", "USA",
-			"--start-date", "2026-03-01",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "mutually exclusive") {
-		t.Fatalf("expected mutually exclusive error, got %q", stderr)
-	}
-}
-
-func TestPricingScheduleCreate_TierRequiresTerritory(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "create",
-			"--app", "APP",
-			"--tier", "5",
-			"--start-date", "2026-03-01",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--base-territory is required") {
-		t.Fatalf("expected base-territory required error, got %q", stderr)
 	}
 }

@@ -65,63 +65,83 @@ func TestWorkflow_ShowsHelp(t *testing.T) {
 	}
 }
 
-func TestWorkflowRun_MissingName(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "workflow name is required") {
-		t.Fatalf("expected 'workflow name is required' in stderr, got %q", stderr)
-	}
-}
-
-func TestWorkflowRun_MissingFile(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", "/nonexistent/workflow.json", "beta"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for missing file")
-		}
-	})
-}
-
-func TestWorkflowRun_InvalidParam(t *testing.T) {
-	dir := t.TempDir()
-	path := writeWorkflowJSON(t, dir, `{
+func TestWorkflowUsageErrors(t *testing.T) {
+	path := writeWorkflowJSON(t, t.TempDir(), `{
 		"workflows": {
 			"beta": {"steps": ["echo hello"]}
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta", "NOCOLON"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp for invalid param, got %v", err)
-		}
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "run missing name",
+			args:    []string{"workflow", "run"},
+			wantErr: "workflow name is required",
+		},
+		{
+			name:    "run invalid param",
+			args:    []string{"workflow", "run", "--file", path, "beta", "NOCOLON"},
+			wantErr: "NOCOLON",
+		},
+		{
+			name:    "run unknown flag after name",
+			args:    []string{"workflow", "run", "--file", path, "beta", "--unknown"},
+			wantErr: "unknown flag",
+		},
+		{
+			name:    "run dry-run flag after name invalid value",
+			args:    []string{"workflow", "run", "--file", path, "beta", "--dry-run=maybe"},
+			wantErr: "invalid value",
+		},
+		{
+			name:    "run file flag after name missing value",
+			args:    []string{"workflow", "run", "--file", path, "beta", "--file", "--dry-run"},
+			wantErr: "--file requires a value",
+		},
+		{
+			name:    "run file flag after name unknown long flag is missing value",
+			args:    []string{"workflow", "run", "--file", path, "beta", "--file", "--unknown"},
+			wantErr: "--file requires a value",
+		},
+		{
+			name:    "run resume flag after name missing value",
+			args:    []string{"workflow", "run", "--file", path, "beta", "--resume"},
+			wantErr: "--resume requires a value",
+		},
+		{
+			name:    "validate unexpected args",
+			args:    []string{"workflow", "validate", "--file", path, "extra"},
+			wantErr: "unexpected argument",
+		},
+		{
+			name:    "list unexpected args",
+			args:    []string{"workflow", "list", "--file", path, "extra"},
+			wantErr: "unexpected argument",
+		},
 	})
+}
 
-	if !strings.Contains(stderr, "NOCOLON") {
-		t.Fatalf("expected error mentioning 'NOCOLON', got %q", stderr)
+func TestWorkflowMissingFileIsRuntimeError(t *testing.T) {
+	const missingPath = "/nonexistent/workflow.json"
+	for _, args := range [][]string{
+		{"workflow", "run", "--file", missingPath, "beta"},
+		{"workflow", "validate", "--file", missingPath},
+		{"workflow", "list", "--file", missingPath},
+	} {
+		t.Run(args[1], func(t *testing.T) {
+			stdout, stderr := captureOutput(t, func() {
+				if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitError {
+					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitError)
+				}
+			})
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			want := "Error: workflow " + args[1] + ": read workflow: open " + missingPath
+			if !strings.HasPrefix(stderr, want) {
+				t.Fatalf("stderr = %q, want prefix %q", stderr, want)
+			}
+		})
 	}
 }
 
@@ -307,110 +327,6 @@ func TestWorkflowRun_DryRun_AllowsInterpolatedWithValues(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "[dry-run] step 1: echo $BUILD_ID") {
 		t.Fatalf("expected child dry-run preview to stay raw, got %q", stderr)
-	}
-}
-
-func TestWorkflowRun_UnknownFlagAfterName(t *testing.T) {
-	dir := t.TempDir()
-	path := writeWorkflowJSON(t, dir, `{
-		"workflows": {
-			"beta": {"steps": ["echo hello"]}
-		}
-	}`)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta", "--unknown"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "unknown flag") {
-		t.Fatalf("expected unknown flag error, got %q", stderr)
-	}
-}
-
-func TestWorkflowRun_DryRunFlagAfterName_InvalidValue(t *testing.T) {
-	dir := t.TempDir()
-	path := writeWorkflowJSON(t, dir, `{
-		"workflows": {
-			"beta": {"steps": ["echo hello"]}
-		}
-	}`)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta", "--dry-run=maybe"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "invalid value") {
-		t.Fatalf("expected invalid value error, got %q", stderr)
-	}
-}
-
-func TestWorkflowRun_FileFlagAfterName_MissingValue(t *testing.T) {
-	dir := t.TempDir()
-	path := writeWorkflowJSON(t, dir, `{
-		"workflows": {
-			"beta": {"steps": ["echo hello"]}
-		}
-	}`)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta", "--file", "--dry-run"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--file requires a value") {
-		t.Fatalf("expected missing file value error, got %q", stderr)
-	}
-}
-
-func TestWorkflowRun_FileFlagAfterName_UnknownLongFlagIsMissingValue(t *testing.T) {
-	dir := t.TempDir()
-	path := writeWorkflowJSON(t, dir, `{
-		"workflows": {
-			"beta": {"steps": ["echo hello"]}
-		}
-	}`)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta", "--file", "--unknown"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--file requires a value") {
-		t.Fatalf("expected missing file value error, got %q", stderr)
 	}
 }
 
@@ -682,47 +598,6 @@ func TestWorkflowValidate_InvalidFile(t *testing.T) {
 	}
 }
 
-func TestWorkflowValidate_MissingFile(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "validate", "--file", "/nonexistent/workflow.json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for missing file")
-		}
-	})
-}
-
-func TestWorkflowValidate_UnexpectedArgs(t *testing.T) {
-	dir := t.TempDir()
-	path := writeWorkflowJSON(t, dir, `{
-		"workflows": {
-			"beta": {"steps": ["echo hello"]}
-		}
-	}`)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "validate", "--file", path, "extra"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "unexpected argument") {
-		t.Fatalf("expected unexpected argument error, got %q", stderr)
-	}
-}
-
 func TestWorkflowList_SingleWorkflow(t *testing.T) {
 	dir := t.TempDir()
 	path := writeWorkflowJSON(t, dir, `{
@@ -862,47 +737,6 @@ func TestWorkflowList_AllIncludesPrivate(t *testing.T) {
 	}
 	if workflows[1]["name"] != "helper" {
 		t.Fatalf("expected second=helper, got %v", workflows[1]["name"])
-	}
-}
-
-func TestWorkflowList_MissingFile(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "list", "--file", "/nonexistent/workflow.json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for missing file")
-		}
-	})
-}
-
-func TestWorkflowList_UnexpectedArgs(t *testing.T) {
-	dir := t.TempDir()
-	path := writeWorkflowJSON(t, dir, `{
-		"workflows": {
-			"beta": {"steps": ["echo hi"]}
-		}
-	}`)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "list", "--file", path, "extra"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "unexpected argument") {
-		t.Fatalf("expected unexpected argument error, got %q", stderr)
 	}
 }
 
@@ -1370,32 +1204,6 @@ func TestWorkflowRun_ResumeReusesOriginalParams(t *testing.T) {
 	}
 	if firstStep["status"] != "resumed" {
 		t.Fatalf("expected first step status resumed, got %v", firstStep["status"])
-	}
-}
-
-func TestWorkflowRun_ResumeFlagAfterName_MissingValue(t *testing.T) {
-	dir := t.TempDir()
-	path := writeWorkflowJSON(t, dir, `{
-		"workflows": {
-			"beta": {"steps": ["echo hello"]}
-		}
-	}`)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta", "--resume"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--resume requires a value") {
-		t.Fatalf("expected missing resume value error, got %q", stderr)
 	}
 }
 

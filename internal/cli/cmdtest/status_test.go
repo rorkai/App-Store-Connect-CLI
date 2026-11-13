@@ -3,8 +3,6 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,27 +11,26 @@ import (
 	"testing"
 )
 
-func TestStatusRequiresAppID(t *testing.T) {
+func TestStatusUsageErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"status"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "RequiresAppID",
+			args:    []string{"status"},
+			wantErr: "Error: --app is required (or set ASC_APP_ID)",
+		},
+		{
+			name:    "RejectsUnknownPlatform",
+			args:    []string{"status", "--app", "app-1", "--platform", "IPAD_OS"},
+			wantErr: "--platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
+		},
+		{
+			name:    "RejectsUnknownIncludeSection",
+			args:    []string{"status", "--app", "app-1", "--include", "builds,unknown"},
+			wantErr: "--include contains unsupported section",
+		},
 	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --app is required (or set ASC_APP_ID)") {
-		t.Fatalf("expected missing app error, got %q", stderr)
-	}
 }
 
 func TestStatusDefaultJSONIncludesAllSections(t *testing.T) {
@@ -999,32 +996,6 @@ func TestStatusPlatformFiltersPlatformScopedSections(t *testing.T) {
 	}
 }
 
-func TestStatusRejectsUnknownPlatform(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"status", "--app", "app-1", "--platform", "IPAD_OS"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp usage error, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS") {
-		t.Fatalf("expected platform validation error in stderr, got %q", stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-}
-
 func TestStatusAppStorePaginatesBeforeChoosingLatestVersion(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -1479,32 +1450,6 @@ func TestStatusIncludeBuildsOnlyFiltersSections(t *testing.T) {
 		if _, ok := payload[key]; ok {
 			t.Fatalf("did not expect %s section in filtered output: %v", key, payload)
 		}
-	}
-}
-
-func TestStatusRejectsUnknownIncludeSection(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"status", "--app", "app-1", "--include", "builds,unknown"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp usage error, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "--include contains unsupported section") {
-		t.Fatalf("expected include validation error in stderr, got %q", stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
 }
 
