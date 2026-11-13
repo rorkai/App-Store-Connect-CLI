@@ -2,65 +2,29 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 // GetUsers retrieves the list of users.
 func (c *Client) GetUsers(ctx context.Context, opts ...UsersOption) (*UsersResponse, error) {
-	query := &usersQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/users"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("users: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildUsersQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response UsersResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[UsersResponse](ctx, c, readRequest{
+		Path:        "/v1/users",
+		Query:       buildUsersQuery(query),
+		Next:        query.nextURL,
+		NextContext: "users",
+	})
 }
 
 // GetUser retrieves a single user by ID.
 func (c *Client) GetUser(ctx context.Context, userID string, opts ...UsersOption) (*UserResponse, error) {
 	userID = strings.TrimSpace(userID)
-	query := &usersQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/users/%s", userID)
-	if queryString := buildUsersQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response UserResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[UserResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/users/%s", userID),
+		Query: buildUsersQuery(query),
+	})
 }
 
 // UpdateUser updates a user by ID.
@@ -101,62 +65,24 @@ func (c *Client) UpdateUser(ctx context.Context, userID string, attrs UserUpdate
 		}
 		payload.Data.Relationships = relationships
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/users/%s", userID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response UserResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[UserResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/users/%s", userID), Payload: payload})
 }
 
 // DeleteUser deletes a user by ID.
 func (c *Client) DeleteUser(ctx context.Context, userID string) error {
 	userID = strings.TrimSpace(userID)
-	path := fmt.Sprintf("/v1/users/%s", userID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/users/%s", userID), nil)
 }
 
 // GetUserInvitations retrieves the list of user invitations.
 func (c *Client) GetUserInvitations(ctx context.Context, opts ...UserInvitationsOption) (*UserInvitationsResponse, error) {
-	query := &userInvitationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/userInvitations"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("userInvitations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildUserInvitationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response UserInvitationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[UserInvitationsResponse](ctx, c, readRequest{
+		Path:        "/v1/userInvitations",
+		Query:       buildUserInvitationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "userInvitations",
+	})
 }
 
 // CreateUserInvitation creates a new user invitation.
@@ -188,113 +114,46 @@ func (c *Client) CreateUserInvitation(ctx context.Context, attrs UserInvitationC
 		}
 		payload.Data.Relationships = relationships
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/userInvitations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response UserInvitationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[UserInvitationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/userInvitations", Payload: payload})
 }
 
 // GetUserInvitation retrieves a user invitation by ID.
 func (c *Client) GetUserInvitation(ctx context.Context, inviteID string) (*UserInvitationResponse, error) {
 	inviteID = strings.TrimSpace(inviteID)
-	path := fmt.Sprintf("/v1/userInvitations/%s", inviteID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response UserInvitationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[UserInvitationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/userInvitations/%s", inviteID)})
 }
 
 // DeleteUserInvitation deletes a user invitation by ID.
 func (c *Client) DeleteUserInvitation(ctx context.Context, inviteID string) error {
 	inviteID = strings.TrimSpace(inviteID)
-	path := fmt.Sprintf("/v1/userInvitations/%s", inviteID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/userInvitations/%s", inviteID), nil)
 }
 
 // GetUserVisibleApps retrieves the visible apps for a user.
 func (c *Client) GetUserVisibleApps(ctx context.Context, userID string, opts ...UserVisibleAppsOption) (*AppsResponse, error) {
 	userID = strings.TrimSpace(userID)
-	query := &userVisibleAppsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/users/%s/visibleApps", userID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("userVisibleApps: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildUserVisibleAppsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/users/%s/visibleApps", userID),
+		Query:       buildUserVisibleAppsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "userVisibleApps",
+	})
 }
 
 // GetUserVisibleAppsRelationships retrieves visible app linkages for a user.
 func (c *Client) GetUserVisibleAppsRelationships(ctx context.Context, userID string, opts ...LinkagesOption) (*UserVisibleAppsLinkagesResponse, error) {
 	userID = strings.TrimSpace(userID)
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	if query.nextURL == "" && userID == "" {
 		return nil, fmt.Errorf("userID is required")
 	}
-
-	path := fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("userVisibleAppsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response UserVisibleAppsLinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[UserVisibleAppsLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "userVisibleAppsRelationships",
+	})
 }
 
 // AddUserVisibleApps adds visible apps to a user.
@@ -316,15 +175,7 @@ func (c *Client) AddUserVisibleApps(ctx context.Context, userID string, appIDs [
 			ID:   id,
 		})
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID)
-	_, err = c.do(ctx, "POST", path, body)
-	return err
+	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID), payload)
 }
 
 // RemoveUserVisibleApps removes visible apps from a user.
@@ -346,13 +197,5 @@ func (c *Client) RemoveUserVisibleApps(ctx context.Context, userID string, appID
 			ID:   id,
 		})
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID)
-	_, err = c.do(ctx, "DELETE", path, body)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID), payload)
 }

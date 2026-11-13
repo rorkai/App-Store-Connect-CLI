@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -233,70 +232,32 @@ type AppStoreVersionExperimentTreatmentLocalizationDeleteResult struct {
 
 // GetAppStoreVersionExperiments retrieves experiments for an app store version (v1).
 func (c *Client) GetAppStoreVersionExperiments(ctx context.Context, versionID string, opts ...AppStoreVersionExperimentsOption) (*AppStoreVersionExperimentsResponse, error) {
-	query := &appStoreVersionExperimentsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
 	if query.nextURL == "" && versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionExperiments", versionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appStoreVersionExperiments: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppStoreVersionExperimentsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionExperimentsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionExperiments", versionID),
+		Query:       buildAppStoreVersionExperimentsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersionExperiments",
+	})
 }
 
 // GetAppStoreVersionExperimentsV2 retrieves experiments for an app (v2).
 func (c *Client) GetAppStoreVersionExperimentsV2(ctx context.Context, appID string, opts ...AppStoreVersionExperimentsV2Option) (*AppStoreVersionExperimentsV2Response, error) {
-	query := &appStoreVersionExperimentsV2Query{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	appID = strings.TrimSpace(appID)
 	if query.nextURL == "" && appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
-	path := fmt.Sprintf("/v1/apps/%s/appStoreVersionExperimentsV2", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appStoreVersionExperimentsV2: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppStoreVersionExperimentsV2Query(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentsV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionExperimentsV2Response](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appStoreVersionExperimentsV2", appID),
+		Query:       buildAppStoreVersionExperimentsV2Query(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersionExperimentsV2",
+	})
 }
 
 // GetAppStoreVersionExperiment retrieves an experiment by ID (v1).
@@ -305,17 +266,7 @@ func (c *Client) GetAppStoreVersionExperiment(ctx context.Context, experimentID 
 	if experimentID == "" {
 		return nil, fmt.Errorf("experimentID is required")
 	}
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionExperimentResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID)})
 }
 
 // GetAppStoreVersionExperimentV2 retrieves an experiment by ID (v2).
@@ -324,17 +275,7 @@ func (c *Client) GetAppStoreVersionExperimentV2(ctx context.Context, experimentI
 	if experimentID == "" {
 		return nil, fmt.Errorf("experimentID is required")
 	}
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionExperimentV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID)})
 }
 
 // CreateAppStoreVersionExperiment creates an experiment (v1).
@@ -362,23 +303,7 @@ func (c *Client) CreateAppStoreVersionExperiment(ctx context.Context, versionID,
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appStoreVersionExperiments", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionExperimentResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionExperiments", Payload: payload})
 }
 
 // CreateAppStoreVersionExperimentV2 creates an experiment (v2).
@@ -406,23 +331,7 @@ func (c *Client) CreateAppStoreVersionExperimentV2(ctx context.Context, appID st
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v2/appStoreVersionExperiments", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionExperimentV2Response](ctx, c, writeRequest{Method: "POST", Path: "/v2/appStoreVersionExperiments", Payload: payload})
 }
 
 // UpdateAppStoreVersionExperiment updates an experiment (v1).
@@ -441,23 +350,7 @@ func (c *Client) UpdateAppStoreVersionExperiment(ctx context.Context, experiment
 	if attrs.Name != nil || attrs.TrafficProportion != nil || attrs.Started != nil {
 		payload.Data.Attributes = &attrs
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionExperimentResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID), Payload: payload})
 }
 
 // UpdateAppStoreVersionExperimentV2 updates an experiment (v2).
@@ -476,23 +369,7 @@ func (c *Client) UpdateAppStoreVersionExperimentV2(ctx context.Context, experime
 	if attrs.Name != nil || attrs.TrafficProportion != nil || attrs.Started != nil {
 		payload.Data.Attributes = &attrs
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionExperimentV2Response](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID), Payload: payload})
 }
 
 // DeleteAppStoreVersionExperiment deletes an experiment (v1).
@@ -501,8 +378,7 @@ func (c *Client) DeleteAppStoreVersionExperiment(ctx context.Context, experiment
 	if experimentID == "" {
 		return fmt.Errorf("experimentID is required")
 	}
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID), nil)
 }
 
 // DeleteAppStoreVersionExperimentV2 deletes an experiment (v2).
@@ -511,76 +387,37 @@ func (c *Client) DeleteAppStoreVersionExperimentV2(ctx context.Context, experime
 	if experimentID == "" {
 		return fmt.Errorf("experimentID is required")
 	}
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID), nil)
 }
 
 // GetAppStoreVersionExperimentTreatments retrieves treatments for an experiment.
 func (c *Client) GetAppStoreVersionExperimentTreatments(ctx context.Context, experimentID string, opts ...AppStoreVersionExperimentTreatmentsOption) (*AppStoreVersionExperimentTreatmentsResponse, error) {
-	query := &appStoreVersionExperimentTreatmentsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	experimentID = strings.TrimSpace(experimentID)
 	if query.nextURL == "" && experimentID == "" {
 		return nil, fmt.Errorf("experimentID is required")
 	}
-	path := fmt.Sprintf("/v1/appStoreVersionExperiments/%s/appStoreVersionExperimentTreatments", experimentID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appStoreVersionExperimentTreatments: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppStoreVersionExperimentTreatmentsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentTreatmentsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionExperimentTreatmentsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersionExperiments/%s/appStoreVersionExperimentTreatments", experimentID),
+		Query:       buildAppStoreVersionExperimentTreatmentsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersionExperimentTreatments",
+	})
 }
 
 // GetAppStoreVersionExperimentTreatmentsV2 retrieves treatments for a v2 experiment.
 func (c *Client) GetAppStoreVersionExperimentTreatmentsV2(ctx context.Context, experimentID string, opts ...AppStoreVersionExperimentTreatmentsOption) (*AppStoreVersionExperimentTreatmentsResponse, error) {
-	query := &appStoreVersionExperimentTreatmentsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	experimentID = strings.TrimSpace(experimentID)
 	if query.nextURL == "" && experimentID == "" {
 		return nil, fmt.Errorf("experimentID is required")
 	}
-	path := fmt.Sprintf("/v2/appStoreVersionExperiments/%s/appStoreVersionExperimentTreatments", experimentID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appStoreVersionExperimentTreatments: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppStoreVersionExperimentTreatmentsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentTreatmentsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionExperimentTreatmentsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v2/appStoreVersionExperiments/%s/appStoreVersionExperimentTreatments", experimentID),
+		Query:       buildAppStoreVersionExperimentTreatmentsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersionExperimentTreatments",
+	})
 }
 
 // GetAppStoreVersionExperimentTreatment retrieves a treatment by ID.
@@ -589,17 +426,7 @@ func (c *Client) GetAppStoreVersionExperimentTreatment(ctx context.Context, trea
 	if treatmentID == "" {
 		return nil, fmt.Errorf("treatmentID is required")
 	}
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentTreatmentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionExperimentTreatmentResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID)})
 }
 
 // CreateAppStoreVersionExperimentTreatment creates a treatment.
@@ -640,23 +467,7 @@ func (c *Client) createAppStoreVersionExperimentTreatment(ctx context.Context, e
 			Relationships: relationships,
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appStoreVersionExperimentTreatments", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentTreatmentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionExperimentTreatmentResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionExperimentTreatments", Payload: payload})
 }
 
 // UpdateAppStoreVersionExperimentTreatment updates a treatment.
@@ -675,23 +486,7 @@ func (c *Client) UpdateAppStoreVersionExperimentTreatment(ctx context.Context, t
 	if attrs.Name != nil || attrs.AppIconName != nil {
 		payload.Data.Attributes = &attrs
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentTreatmentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionExperimentTreatmentResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID), Payload: payload})
 }
 
 // DeleteAppStoreVersionExperimentTreatment deletes a treatment.
@@ -700,42 +495,22 @@ func (c *Client) DeleteAppStoreVersionExperimentTreatment(ctx context.Context, t
 	if treatmentID == "" {
 		return fmt.Errorf("treatmentID is required")
 	}
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID), nil)
 }
 
 // GetAppStoreVersionExperimentTreatmentLocalizations retrieves localizations for a treatment.
 func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizations(ctx context.Context, treatmentID string, opts ...AppStoreVersionExperimentTreatmentLocalizationsOption) (*AppStoreVersionExperimentTreatmentLocalizationsResponse, error) {
-	query := &appStoreVersionExperimentTreatmentLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	treatmentID = strings.TrimSpace(treatmentID)
 	if query.nextURL == "" && treatmentID == "" {
 		return nil, fmt.Errorf("treatmentID is required")
 	}
-	path := fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s/appStoreVersionExperimentTreatmentLocalizations", treatmentID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appStoreVersionExperimentTreatmentLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppStoreVersionExperimentTreatmentLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentTreatmentLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionExperimentTreatmentLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s/appStoreVersionExperimentTreatmentLocalizations", treatmentID),
+		Query:       buildAppStoreVersionExperimentTreatmentLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersionExperimentTreatmentLocalizations",
+	})
 }
 
 // GetAppStoreVersionExperimentTreatmentLocalization retrieves a treatment localization by ID.
@@ -744,17 +519,7 @@ func (c *Client) GetAppStoreVersionExperimentTreatmentLocalization(ctx context.C
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	data, err := c.do(ctx, "GET", localizationReadPath(fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s", localizationID), opts), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentTreatmentLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionExperimentTreatmentLocalizationResponse](ctx, c, readRequest{Path: localizationReadPath(fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s", localizationID), opts)})
 }
 
 // CreateAppStoreVersionExperimentTreatmentLocalization creates a treatment localization.
@@ -782,23 +547,7 @@ func (c *Client) CreateAppStoreVersionExperimentTreatmentLocalization(ctx contex
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appStoreVersionExperimentTreatmentLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionExperimentTreatmentLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionExperimentTreatmentLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionExperimentTreatmentLocalizations", Payload: payload})
 }
 
 // DeleteAppStoreVersionExperimentTreatmentLocalization deletes a treatment localization.
@@ -807,74 +556,35 @@ func (c *Client) DeleteAppStoreVersionExperimentTreatmentLocalization(ctx contex
 	if localizationID == "" {
 		return fmt.Errorf("localizationID is required")
 	}
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s", localizationID), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s", localizationID), nil)
 }
 
 // GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets retrieves preview sets for a treatment localization.
 func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx context.Context, localizationID string, opts ...AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption) (*AppPreviewSetsResponse, error) {
-	query := &appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	localizationID = strings.TrimSpace(localizationID)
 	if query.nextURL == "" && localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	path := fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s/appPreviewSets", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPreviewSets: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPreviewSetsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPreviewSetsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s/appPreviewSets", localizationID),
+		Query:       buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appPreviewSets",
+	})
 }
 
 // GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets retrieves screenshot sets for a treatment localization.
 func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(ctx context.Context, localizationID string, opts ...AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption) (*AppScreenshotSetsResponse, error) {
-	query := &appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	localizationID = strings.TrimSpace(localizationID)
 	if query.nextURL == "" && localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	path := fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s/appScreenshotSets", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appScreenshotSets: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppScreenshotSetsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppScreenshotSetsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s/appScreenshotSets", localizationID),
+		Query:       buildAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appScreenshotSets",
+	})
 }
