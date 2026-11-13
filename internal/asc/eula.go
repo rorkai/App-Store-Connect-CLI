@@ -296,16 +296,3 @@ func (c *Client) GetEndUserLicenseAgreementTerritories(ctx context.Context, id s
 
 	return &response, nil
 }
-
-// GetEndUserLicenseAgreementTerritoriesRelationships retrieves territory linkages for an EULA.
-func (c *Client) GetEndUserLicenseAgreementTerritoriesRelationships(ctx context.Context, id string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(
-		ctx,
-		id,
-		"territories",
-		"id",
-		"/v1/endUserLicenseAgreements/%s/relationships/%s",
-		"endUserLicenseAgreementTerritoriesRelationships",
-		opts...,
-	)
-}

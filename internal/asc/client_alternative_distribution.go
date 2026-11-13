@@ -332,41 +332,6 @@ func (c *Client) GetAlternativeDistributionPackageVersions(ctx context.Context, 
 	return &response, nil
 }
 
-// GetAlternativeDistributionPackageVersionsRelationships retrieves version linkages for a package.
-func (c *Client) GetAlternativeDistributionPackageVersionsRelationships(ctx context.Context, packageID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	packageID = strings.TrimSpace(packageID)
-	if packageID == "" {
-		return nil, fmt.Errorf("packageID is required")
-	}
-
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/alternativeDistributionPackages/%s/relationships/versions", packageID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("alternativeDistributionPackageVersionsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse alternative distribution package version relationships response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetAlternativeDistributionPackageVersion retrieves a package version by ID.
 func (c *Client) GetAlternativeDistributionPackageVersion(ctx context.Context, versionID string) (*AlternativeDistributionPackageVersionResponse, error) {
 	versionID = strings.TrimSpace(versionID)
@@ -423,11 +388,6 @@ func (c *Client) GetAlternativeDistributionPackageVersionVariants(ctx context.Co
 	return &response, nil
 }
 
-// GetAlternativeDistributionPackageVersionVariantsRelationships retrieves variant linkages for a package version.
-func (c *Client) GetAlternativeDistributionPackageVersionVariantsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getAlternativeDistributionPackageVersionLinkages(ctx, versionID, "variants", opts...)
-}
-
 // GetAlternativeDistributionPackageVersionDeltas retrieves deltas for a package version.
 func (c *Client) GetAlternativeDistributionPackageVersionDeltas(ctx context.Context, versionID string, opts ...AlternativeDistributionPackageDeltasOption) (*AlternativeDistributionPackageDeltasResponse, error) {
 	versionID = strings.TrimSpace(versionID)
@@ -458,45 +418,6 @@ func (c *Client) GetAlternativeDistributionPackageVersionDeltas(ctx context.Cont
 	var response AlternativeDistributionPackageDeltasResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse alternative distribution package deltas response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAlternativeDistributionPackageVersionDeltasRelationships retrieves delta linkages for a package version.
-func (c *Client) GetAlternativeDistributionPackageVersionDeltasRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getAlternativeDistributionPackageVersionLinkages(ctx, versionID, "deltas", opts...)
-}
-
-func (c *Client) getAlternativeDistributionPackageVersionLinkages(ctx context.Context, versionID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/alternativeDistributionPackageVersions/%s/relationships/%s", versionID, relationship)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("alternativeDistributionPackageVersionRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse alternative distribution package version relationships response: %w", err)
 	}
 
 	return &response, nil
@@ -560,27 +481,6 @@ func (c *Client) GetAppAlternativeDistributionKey(ctx context.Context, appID str
 	var response AlternativeDistributionKeyResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse alternative distribution key response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppAlternativeDistributionKeyRelationship retrieves an app's alternative distribution key relationship.
-func (c *Client) GetAppAlternativeDistributionKeyRelationship(ctx context.Context, appID string) (*AppAlternativeDistributionKeyLinkageResponse, error) {
-	appID = strings.TrimSpace(appID)
-	if appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/relationships/alternativeDistributionKey", appID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppAlternativeDistributionKeyLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse alternative distribution key relationship response: %w", err)
 	}
 
 	return &response, nil

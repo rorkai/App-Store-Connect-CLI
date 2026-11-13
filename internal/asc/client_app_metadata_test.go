@@ -85,14 +85,6 @@ func TestAppMetadataListEndpoints_UseNextURL(t *testing.T) {
 			},
 		},
 		{
-			name: "GetAppInfoTerritoryAgeRatingsRelationships",
-			next: "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/relationships/territoryAgeRatings?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetAppInfoTerritoryAgeRatingsRelationships(ctx, "", WithLinkagesNextURL(next))
-				return err
-			},
-		},
-		{
 			name: "GetAppInfoTerritoryAgeRatings",
 			next: "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/territoryAgeRatings?cursor=abc",
 			call: func(c *Client, next string) error {

@@ -230,20 +230,6 @@ func TestAnalyticsRelationshipEndpoints_WithLinkagesLimit(t *testing.T) {
 		call     func(*testing.T, *Client)
 	}{
 		{
-			name:     "GetAnalyticsReportRequestReportsRelationships",
-			path:     "/v1/analyticsReportRequests/req-1/relationships/reports",
-			response: `{"data":[{"type":"analyticsReports","id":"report-1"}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAnalyticsReportRequestReportsRelationships(ctx, "req-1", WithLinkagesLimit(10))
-				if err != nil {
-					t.Fatalf("GetAnalyticsReportRequestReportsRelationships() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].ID != "report-1" {
-					t.Fatalf("expected decoded analytics report relationship, got %+v", resp.Data)
-				}
-			},
-		},
-		{
 			name:     "GetAnalyticsReportInstancesRelationships",
 			path:     "/v1/analyticsReports/report-1/relationships/instances",
 			response: `{"data":[{"type":"analyticsReportInstances","id":"inst-1"}]}`,

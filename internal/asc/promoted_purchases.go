@@ -13,9 +13,6 @@ type PromotedPurchasesResponse = Response[PromotedPurchaseAttributes]
 // PromotedPurchaseResponse is the response from promoted purchase detail endpoints.
 type PromotedPurchaseResponse = SingleResponse[PromotedPurchaseAttributes]
 
-// AppPromotedPurchasesLinkagesResponse is the response from app promoted purchase linkages endpoints.
-type AppPromotedPurchasesLinkagesResponse = LinkagesResponse
-
 // PromotedPurchaseCreateAttributes describes attributes for creating a promoted purchase.
 type PromotedPurchaseCreateAttributes struct {
 	VisibleForAllUsers bool  `json:"visibleForAllUsers"`

@@ -24,69 +24,6 @@ func TestIssue622_MetadataRelationshipEndpoints_GET(t *testing.T) {
 		call       func(*Client) error
 	}{
 		{
-			name:     "GetAppClipDefaultExperienceLocalizationsRelationships",
-			wantPath: "/v1/appClipDefaultExperiences/exp-1/relationships/appClipDefaultExperienceLocalizations",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppClipDefaultExperienceLocalizationsRelationships(ctx, "exp-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppCustomProductPageLocalizationPreviewSetsRelationships",
-			wantPath: "/v1/appCustomProductPageLocalizations/loc-1/relationships/appPreviewSets",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppCustomProductPageLocalizationPreviewSetsRelationships(ctx, "loc-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppCustomProductPageLocalizationScreenshotSetsRelationships",
-			wantPath: "/v1/appCustomProductPageLocalizations/loc-1/relationships/appScreenshotSets",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppCustomProductPageLocalizationScreenshotSetsRelationships(ctx, "loc-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppCustomProductPageLocalizationSearchKeywordsRelationships",
-			wantPath: "/v1/appCustomProductPageLocalizations/loc-1/relationships/searchKeywords",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppCustomProductPageLocalizationSearchKeywordsRelationships(ctx, "loc-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppCustomProductPageLocalizationsRelationships",
-			wantPath: "/v1/appCustomProductPageVersions/ver-1/relationships/appCustomProductPageLocalizations",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppCustomProductPageLocalizationsRelationships(ctx, "ver-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppCustomProductPageVersionsRelationships",
-			wantPath: "/v1/appCustomProductPages/page-1/relationships/appCustomProductPageVersions",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppCustomProductPageVersionsRelationships(ctx, "page-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppInfoLocalizationsRelationships",
-			wantPath: "/v1/appInfos/info-1/relationships/appInfoLocalizations",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppInfoLocalizationsRelationships(ctx, "info-1")
-				return err
-			},
-		},
-		{
 			name:     "GetAppPreviewSetAppPreviewsRelationships",
 			wantPath: "/v1/appPreviewSets/set-1/relationships/appPreviews",
 			body:     linkagesOK,
@@ -111,101 +48,11 @@ func TestIssue622_MetadataRelationshipEndpoints_GET(t *testing.T) {
 			},
 		},
 		{
-			name:     "GetAppStoreReviewDetailAttachmentsRelationships",
-			wantPath: "/v1/appStoreReviewDetails/detail-1/relationships/appStoreReviewAttachments",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppStoreReviewDetailAttachmentsRelationships(ctx, "detail-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppStoreVersionExperimentTreatmentLocalizationPreviewSetsRelationships",
-			wantPath: "/v1/appStoreVersionExperimentTreatmentLocalizations/loc-1/relationships/appPreviewSets",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSetsRelationships(ctx, "loc-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsRelationships",
-			wantPath: "/v1/appStoreVersionExperimentTreatmentLocalizations/loc-1/relationships/appScreenshotSets",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsRelationships(ctx, "loc-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppStoreVersionExperimentTreatmentLocalizationsRelationships",
-			wantPath: "/v1/appStoreVersionExperimentTreatments/treat-1/relationships/appStoreVersionExperimentTreatmentLocalizations",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppStoreVersionExperimentTreatmentLocalizationsRelationships(ctx, "treat-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppStoreVersionExperimentTreatmentsRelationships",
-			wantPath: "/v1/appStoreVersionExperiments/exp-1/relationships/appStoreVersionExperimentTreatments",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppStoreVersionExperimentTreatmentsRelationships(ctx, "exp-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppStoreVersionLocalizationsRelationships",
-			wantPath: "/v1/appStoreVersions/ver-1/relationships/appStoreVersionLocalizations",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppStoreVersionLocalizationsRelationships(ctx, "ver-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppStoreVersionPhasedReleaseRelationship",
-			wantPath: "/v1/appStoreVersions/ver-1/relationships/appStoreVersionPhasedRelease",
-			body:     toOneOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppStoreVersionPhasedReleaseRelationship(ctx, "ver-1")
-				return err
-			},
-		},
-		{
 			name:     "GetAppStoreVersionBuildRelationship",
 			wantPath: "/v1/appStoreVersions/ver-1/relationships/build",
 			body:     toOneOK,
 			call: func(client *Client) error {
 				_, err := client.GetAppStoreVersionBuildRelationship(ctx, "ver-1")
-				return err
-			},
-		},
-		{
-			name:     "GetBackgroundAssetUploadFilesRelationships",
-			wantPath: "/v1/backgroundAssetVersions/ver-1/relationships/backgroundAssetUploadFiles",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetBackgroundAssetUploadFilesRelationships(ctx, "ver-1")
-				return err
-			},
-		},
-		{
-			name:     "GetBackgroundAssetVersionsRelationships",
-			wantPath: "/v1/backgroundAssets/asset-1/relationships/versions",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetBackgroundAssetVersionsRelationships(ctx, "asset-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppStoreVersionExperimentTreatmentsV2Relationships",
-			wantPath: "/v2/appStoreVersionExperiments/exp-1/relationships/appStoreVersionExperimentTreatments",
-			body:     linkagesOK,
-			call: func(client *Client) error {
-				_, err := client.GetAppStoreVersionExperimentTreatmentsV2Relationships(ctx, "exp-1")
 				return err
 			},
 		},

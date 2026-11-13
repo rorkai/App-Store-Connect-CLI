@@ -167,41 +167,6 @@ func (c *Client) GetBackgroundAssetVersions(ctx context.Context, backgroundAsset
 	return &response, nil
 }
 
-// GetBackgroundAssetVersionsRelationships retrieves version linkages for a background asset.
-func (c *Client) GetBackgroundAssetVersionsRelationships(ctx context.Context, backgroundAssetID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	backgroundAssetID = strings.TrimSpace(backgroundAssetID)
-	if query.nextURL == "" && backgroundAssetID == "" {
-		return nil, fmt.Errorf("backgroundAssetID is required")
-	}
-
-	path := fmt.Sprintf("/v1/backgroundAssets/%s/relationships/versions", backgroundAssetID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("backgroundAssetVersionsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetBackgroundAssetVersion retrieves a background asset version by ID.
 func (c *Client) GetBackgroundAssetVersion(ctx context.Context, versionID string) (*BackgroundAssetVersionResponse, error) {
 	versionID = strings.TrimSpace(versionID)
@@ -285,41 +250,6 @@ func (c *Client) GetBackgroundAssetUploadFiles(ctx context.Context, versionID st
 	}
 
 	var response BackgroundAssetUploadFilesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetBackgroundAssetUploadFilesRelationships retrieves upload file linkages for a background asset version.
-func (c *Client) GetBackgroundAssetUploadFilesRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	versionID = strings.TrimSpace(versionID)
-	if query.nextURL == "" && versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-
-	path := fmt.Sprintf("/v1/backgroundAssetVersions/%s/relationships/backgroundAssetUploadFiles", versionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("backgroundAssetUploadFilesRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

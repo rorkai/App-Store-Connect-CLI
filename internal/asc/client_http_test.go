@@ -929,26 +929,6 @@ func TestGetAppPromotedPurchases_WithLimit(t *testing.T) {
 	}
 }
 
-func TestGetAppPromotedPurchasesRelationships_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"promotedPurchases","id":"promo-1"}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-1/relationships/promotedPurchases" {
-			t.Fatalf("expected path /v1/apps/app-1/relationships/promotedPurchases, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "5" {
-			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppPromotedPurchasesRelationships(context.Background(), "app-1", WithLinkagesLimit(5)); err != nil {
-		t.Fatalf("GetAppPromotedPurchasesRelationships() error: %v", err)
-	}
-}
-
 func TestSetAppPromotedPurchases_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, "")
 	client := newTestClient(t, func(req *http.Request) {
@@ -11313,23 +11293,6 @@ func TestGetAppEncryptionDeclarationApp(t *testing.T) {
 	}
 }
 
-func TestGetAppEncryptionDeclarationAppRelationship(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEncryptionDeclarations/decl-1/relationships/app" {
-			t.Fatalf("expected path /v1/appEncryptionDeclarations/decl-1/relationships/app, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEncryptionDeclarationAppRelationship(context.Background(), "decl-1"); err != nil {
-		t.Fatalf("GetAppEncryptionDeclarationAppRelationship() error: %v", err)
-	}
-}
-
 func TestGetAppEncryptionDeclarationDocumentForDeclaration(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarationDocuments","id":"doc-1","attributes":{"fileName":"export.pdf"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -11344,23 +11307,6 @@ func TestGetAppEncryptionDeclarationDocumentForDeclaration(t *testing.T) {
 
 	if _, err := client.GetAppEncryptionDeclarationDocumentForDeclaration(context.Background(), "decl-1"); err != nil {
 		t.Fatalf("GetAppEncryptionDeclarationDocumentForDeclaration() error: %v", err)
-	}
-}
-
-func TestGetAppEncryptionDeclarationDocumentRelationship(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarationDocuments","id":"doc-1"}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEncryptionDeclarations/decl-1/relationships/appEncryptionDeclarationDocument" {
-			t.Fatalf("expected path /v1/appEncryptionDeclarations/decl-1/relationships/appEncryptionDeclarationDocument, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEncryptionDeclarationDocumentRelationship(context.Background(), "decl-1"); err != nil {
-		t.Fatalf("GetAppEncryptionDeclarationDocumentRelationship() error: %v", err)
 	}
 }
 

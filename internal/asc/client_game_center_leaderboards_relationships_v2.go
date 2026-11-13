@@ -7,11 +7,6 @@ import (
 	"strings"
 )
 
-// GetGameCenterLeaderboardSetMembersRelationshipsV2 retrieves leaderboard linkages for a v2 leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetMembersRelationshipsV2(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getGameCenterLeaderboardSetLinkagesV2(ctx, setID, "gameCenterLeaderboards", opts...)
-}
-
 // AddGameCenterLeaderboardSetMembersV2 adds leaderboards to a v2 leaderboard set.
 func (c *Client) AddGameCenterLeaderboardSetMembersV2(ctx context.Context, setID string, leaderboardIDs []string) error {
 	payload := RelationshipRequest{
@@ -40,16 +35,6 @@ func (c *Client) RemoveGameCenterLeaderboardSetMembersV2(ctx context.Context, se
 	path := fmt.Sprintf("/v2/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", strings.TrimSpace(setID))
 	_, err = c.do(ctx, http.MethodDelete, path, body)
 	return err
-}
-
-// GetGameCenterLeaderboardSetVersionsRelationships retrieves version linkages for a v2 leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetVersionsRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getGameCenterLeaderboardSetLinkagesV2(ctx, setID, "versions", opts...)
-}
-
-// GetGameCenterLeaderboardVersionsRelationships retrieves version linkages for a v2 leaderboard.
-func (c *Client) GetGameCenterLeaderboardVersionsRelationships(ctx context.Context, leaderboardID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getGameCenterLeaderboardLinkagesV2(ctx, leaderboardID, "versions", opts...)
 }
 
 // UpdateGameCenterLeaderboardActivityRelationshipV2 updates the activity relationship on a v2 leaderboard.
@@ -108,28 +93,4 @@ func (c *Client) UpdateGameCenterLeaderboardChallengeRelationshipV2(ctx context.
 	path := fmt.Sprintf("/v2/gameCenterLeaderboards/%s/relationships/challenge", leaderboardID)
 	_, err = c.do(ctx, http.MethodPatch, path, body)
 	return err
-}
-
-func (c *Client) getGameCenterLeaderboardSetLinkagesV2(ctx context.Context, setID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(
-		ctx,
-		setID,
-		relationship,
-		"setID",
-		"/v2/gameCenterLeaderboardSets/%s/relationships/%s",
-		"gameCenterLeaderboardSetRelationshipsV2",
-		opts...,
-	)
-}
-
-func (c *Client) getGameCenterLeaderboardLinkagesV2(ctx context.Context, leaderboardID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(
-		ctx,
-		leaderboardID,
-		relationship,
-		"leaderboardID",
-		"/v2/gameCenterLeaderboards/%s/relationships/%s",
-		"gameCenterLeaderboardRelationshipsV2",
-		opts...,
-	)
 }
