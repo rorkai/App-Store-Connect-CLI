@@ -13,12 +13,12 @@ import (
 // territory, so each one is set to available. Every selected territory gets a
 // copy of selection under its own TerritoryID.
 func initialTerritoryAvailabilities(ctx context.Context, client *asc.Client, selected []string, allTerritories bool, selection asc.TerritoryAvailabilityCreate) ([]asc.TerritoryAvailabilityCreate, error) {
-	first, err := client.GetTerritories(ctx, asc.WithTerritoriesLimit(200))
+	first, err := client.GetTerritories(ctx, asc.Limit[asc.TerritoriesOption](200))
 	if err != nil {
 		return nil, fmt.Errorf("fetch territories: %w", err)
 	}
 	pages, err := asc.PaginateAll(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
-		return client.GetTerritories(ctx, asc.WithTerritoriesNextURL(next))
+		return client.GetTerritories(ctx, asc.NextURL[asc.TerritoriesOption](next))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("fetch territories: %w", err)

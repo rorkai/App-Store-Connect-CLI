@@ -81,7 +81,7 @@ func fetchVersionReadinessData(ctx context.Context, client *asc.Client, versionI
 	if !localizationsResolved {
 		tasks = append(tasks, func(taskCtx context.Context) error {
 			localizationsResponse, err := doReadinessRequest(taskCtx, func(requestCtx context.Context) (*asc.AppStoreVersionLocalizationsResponse, error) {
-				return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
+				return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 			})
 			if err != nil {
 				return fmt.Errorf("failed to fetch version localizations: %w", err)
@@ -222,7 +222,7 @@ func fetchAppInfoReadinessData(ctx context.Context, client *asc.Client, appID st
 	if !localizationsResolved {
 		tasks = append(tasks, func(taskCtx context.Context) error {
 			localizationsResponse, err := doReadinessRequest(taskCtx, func(requestCtx context.Context) (*asc.AppInfoLocalizationsResponse, error) {
-				return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.WithAppInfoLocalizationsLimit(200))
+				return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.Limit[asc.AppInfoLocalizationsOption](200))
 			})
 			if err != nil {
 				return fmt.Errorf("failed to fetch app info localizations: %w", err)

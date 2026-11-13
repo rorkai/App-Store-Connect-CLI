@@ -63,7 +63,7 @@ Examples:
 			allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
-				return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.WithAppStoreVersionLocalizationPreviewSetsNextURL(nextURL))
+				return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.NextURL[asc.AppStoreVersionLocalizationPreviewSetsOption](nextURL))
 			})
 			if err != nil {
 				return fmt.Errorf("video-previews list: failed to fetch sets: %w", err)
@@ -435,7 +435,7 @@ Examples:
 				allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					requestCtx, cancel := shared.ContextWithTimeout(ctx)
 					defer cancel()
-					return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.WithAppStoreVersionLocalizationPreviewSetsNextURL(nextURL))
+					return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.NextURL[asc.AppStoreVersionLocalizationPreviewSetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("video-previews download: failed to fetch sets: %w", err)

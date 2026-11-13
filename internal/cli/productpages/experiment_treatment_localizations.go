@@ -101,21 +101,21 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationsOption{
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationsLimit(*limit),
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationsNextURL(*next),
+				asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](*limit),
+				asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](*next),
 				asc.WithAppStoreVersionExperimentTreatmentLocalizationsInclude(includeValues),
 				asc.WithAppStoreVersionExperimentTreatmentLocalizationsPlacementsLimit(placementsLimit),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppStoreVersionExperimentTreatmentLocalizationsLimit(productPagesMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](productPagesMaxLimit))
 				firstPage, err := client.GetAppStoreVersionExperimentTreatmentLocalizations(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("experiments treatments localizations list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionExperimentTreatmentLocalizations(ctx, trimmedID, asc.WithAppStoreVersionExperimentTreatmentLocalizationsNextURL(nextURL))
+					return client.GetAppStoreVersionExperimentTreatmentLocalizations(ctx, trimmedID, asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("experiments treatments localizations list: %w", err)

@@ -35,7 +35,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		versions, err := client.GetAppStoreVersions(ctx, appID, WithAppStoreVersionsLimit(50))
+		versions, err := client.GetAppStoreVersions(ctx, appID, Limit[AppStoreVersionsOption](50))
 		if err != nil {
 			t.Fatalf("failed to fetch app store versions: %v", err)
 		}
@@ -51,7 +51,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			t.Skip("no app store version id available")
 		}
 
-		localizations, err := client.GetAppStoreVersionLocalizations(ctx, selected.ID, WithAppStoreVersionLocalizationsLimit(1))
+		localizations, err := client.GetAppStoreVersionLocalizations(ctx, selected.ID, Limit[AppStoreVersionLocalizationsOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch app store version localizations: %v", err)
 		}
@@ -598,7 +598,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		reviews, err := client.GetReviews(ctx, appID, WithLimit(1))
+		reviews, err := client.GetReviews(ctx, appID, Limit[ReviewOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch reviews: %v", err)
 		}
@@ -614,7 +614,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		if reviews.Links.Next != "" {
 			nextCtx, nextCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer nextCancel()
-			nextReviews, err := client.GetReviews(nextCtx, appID, WithNextURL(reviews.Links.Next))
+			nextReviews, err := client.GetReviews(nextCtx, appID, NextURL[ReviewOption](reviews.Links.Next))
 			if err != nil {
 				t.Fatalf("failed to fetch reviews next page: %v", err)
 			}
@@ -637,7 +637,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithRating(first.Rating),
-				WithLimit(5),
+				Limit[ReviewOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered reviews by rating: %v", err)
@@ -660,7 +660,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithTerritory(first.Territory),
-				WithLimit(5),
+				Limit[ReviewOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered reviews by territory: %v", err)
@@ -682,7 +682,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			sortedCtx,
 			appID,
 			WithReviewSort("-createdDate"),
-			WithLimit(5),
+			Limit[ReviewOption](5),
 		)
 		if err != nil {
 			t.Fatalf("failed to fetch sorted reviews: %v", err)

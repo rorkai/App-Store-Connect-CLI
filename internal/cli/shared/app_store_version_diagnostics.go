@@ -175,7 +175,7 @@ func readAppStoreVersionDiagnosticListing(ctx context.Context, client *asc.Clien
 	diagnosticCtx, cancel := context.WithTimeout(ctx, appStoreVersionDiagnosticBudget)
 	defer cancel()
 
-	opts := []asc.AppStoreVersionsOption{asc.WithAppStoreVersionsLimit(appStoreVersionDiagnosticPageLimit)}
+	opts := []asc.AppStoreVersionsOption{asc.Limit[asc.AppStoreVersionsOption](appStoreVersionDiagnosticPageLimit)}
 	if platform != "" {
 		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{platform}))
 	}
@@ -187,7 +187,7 @@ func readAppStoreVersionDiagnosticListing(ctx context.Context, client *asc.Clien
 	// unordered collection can miss the newest or the matching version. Read
 	// every page within the budget, or give up and keep the original error.
 	allPages, err := asc.PaginateAll(diagnosticCtx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersions(pageCtx, appID, asc.WithAppStoreVersionsNextURL(nextURL))
+		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
 	})
 	if err != nil {
 		return appStoreVersionDiagnosticListing{}, false

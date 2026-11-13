@@ -635,7 +635,7 @@ func fetchAllScreenshotVersionLocalizations(
 	requestContext func(context.Context) (context.Context, context.CancelFunc),
 ) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
 	requestCtx, cancel := requestContext(ctx)
-	firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
+	firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	cancel()
 	if err != nil {
 		return nil, err
@@ -646,7 +646,7 @@ func fetchAllScreenshotVersionLocalizations(
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		nextCtx, nextCancel := requestContext(pageCtx)
-		nextPage, nextErr := client.GetAppStoreVersionLocalizations(nextCtx, versionID, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+		nextPage, nextErr := client.GetAppStoreVersionLocalizations(nextCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 		nextCancel()
 		if nextErr != nil {
 			return nil, nextErr

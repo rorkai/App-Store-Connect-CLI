@@ -105,7 +105,7 @@ func fetchLocalizationPreviewSets(ctx context.Context, client *asc.Client, local
 		return client.GetAppStoreVersionLocalizationPreviewSets(
 			requestCtx,
 			localization.ID,
-			asc.WithAppStoreVersionLocalizationPreviewSetsLimit(mediaCollectionPageLimit),
+			asc.Limit[asc.AppStoreVersionLocalizationPreviewSetsOption](mediaCollectionPageLimit),
 			asc.WithAppStoreVersionLocalizationPreviewSetsIncludePreviews(),
 		)
 	})
@@ -114,7 +114,7 @@ func fetchLocalizationPreviewSets(ctx context.Context, client *asc.Client, local
 	}
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.WithAppStoreVersionLocalizationPreviewSetsNextURL(nextURL))
+			return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.NextURL[asc.AppStoreVersionLocalizationPreviewSetsOption](nextURL))
 		})
 	})
 	if err != nil {

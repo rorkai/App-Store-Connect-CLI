@@ -16,7 +16,7 @@ func TestBuildReviewQuery(t *testing.T) {
 	query := buildReviewQuery([]ReviewOption{
 		WithRating(5),
 		WithTerritory("us"),
-		WithLimit(25),
+		Limit[ReviewOption](25),
 		WithReviewSort("-createdDate"),
 		WithPublishedResponseExists(false),
 		WithReviewIncludeResponse(),
@@ -897,7 +897,7 @@ func TestBuildBetaTestersQueryRejectsGroupAndBuild(t *testing.T) {
 func TestBuildAppStoreVersionsQuery(t *testing.T) {
 	query := &appStoreVersionsQuery{}
 	opts := []AppStoreVersionsOption{
-		WithAppStoreVersionsLimit(20),
+		Limit[AppStoreVersionsOption](20),
 		WithAppStoreVersionsPlatforms([]string{"ios", "MAC_OS"}),
 		WithAppStoreVersionsVersionStrings([]string{"1.0.0", "1.1.0"}),
 		WithAppStoreVersionsStates([]string{"ready_for_review"}),
@@ -1083,7 +1083,7 @@ func TestBuildPreReleaseVersionsQuery(t *testing.T) {
 func TestBuildAppStoreVersionLocalizationsQuery(t *testing.T) {
 	query := &appStoreVersionLocalizationsQuery{}
 	opts := []AppStoreVersionLocalizationsOption{
-		WithAppStoreVersionLocalizationsLimit(10),
+		Limit[AppStoreVersionLocalizationsOption](10),
 		WithAppStoreVersionLocalizationLocales([]string{"en-US", "ja"}),
 	}
 	for _, opt := range opts {

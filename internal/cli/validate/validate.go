@@ -310,7 +310,7 @@ func requiredAgreementFallbackReport(opts validateOptions) validation.Report {
 func resolveVersionID(ctx context.Context, client *asc.Client, appID, version, platform string) (string, error) {
 	opts := []asc.AppStoreVersionsOption{
 		asc.WithAppStoreVersionsVersionStrings([]string{version}),
-		asc.WithAppStoreVersionsLimit(20),
+		asc.Limit[asc.AppStoreVersionsOption](20),
 	}
 	if strings.TrimSpace(platform) != "" {
 		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{platform}))

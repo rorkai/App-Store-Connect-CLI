@@ -168,7 +168,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppInfos",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/appInfos?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppInfos(ctx, "app-1", WithAppInfosNextURL(next))
+				_, err := c.GetAppInfos(ctx, "app-1", NextURL[AppInfoOption](next))
 				return err
 			},
 		},
@@ -184,7 +184,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppTagTerritories",
 			next: "https://api.appstoreconnect.apple.com/v1/appTags/tag-1/territories?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppTagTerritories(ctx, "tag-1", WithTerritoriesNextURL(next))
+				_, err := c.GetAppTagTerritories(ctx, "tag-1", NextURL[TerritoriesOption](next))
 				return err
 			},
 		},
@@ -224,7 +224,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppStoreVersions",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/123/appStoreVersions?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppStoreVersions(ctx, "123", WithAppStoreVersionsNextURL(next))
+				_, err := c.GetAppStoreVersions(ctx, "123", NextURL[AppStoreVersionsOption](next))
 				return err
 			},
 		},
@@ -392,7 +392,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "ListReviewSubmissions",
 			next: "https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=def",
 			call: func(c *Client, next string) error {
-				_, err := c.ListReviewSubmissions(ctx, WithReviewSubmissionsNextURL(next))
+				_, err := c.ListReviewSubmissions(ctx, NextURL[ReviewSubmissionsOption](next))
 				return err
 			},
 		},
@@ -528,7 +528,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"tag-1",
 					WithTerritoriesFields([]string{"currency"}),
-					WithTerritoriesLimit(5),
+					Limit[TerritoriesOption](5),
 				))
 			},
 		},
@@ -592,7 +592,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 				return discardResult(c.GetAppStoreVersions(
 					ctx,
 					"123",
-					WithAppStoreVersionsLimit(5),
+					Limit[AppStoreVersionsOption](5),
 					WithAppStoreVersionsPlatforms([]string{"IOS"}),
 					WithAppStoreVersionsVersionStrings([]string{"1.0.0"}),
 					WithAppStoreVersionsStates([]string{"READY_FOR_REVIEW"}),
@@ -693,7 +693,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"version-1",
 					WithAppStoreVersionLocalizationLocales([]string{"en-US"}),
-					WithAppStoreVersionLocalizationsLimit(10),
+					Limit[AppStoreVersionLocalizationsOption](10),
 				))
 			},
 		},
@@ -735,7 +735,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"app-info-1",
 					WithAppInfoLocalizationLocales([]string{"en-US"}),
-					WithAppInfoLocalizationsLimit(5),
+					Limit[AppInfoLocalizationsOption](5),
 				))
 			},
 		},
@@ -1329,7 +1329,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithAppStoreReviewAttachmentsFields([]string{"fileName", "fileSize"}),
 					WithAppStoreReviewAttachmentReviewDetailFields([]string{"contactEmail", "notes"}),
 					WithAppStoreReviewAttachmentsInclude([]string{"appStoreReviewDetail"}),
-					WithAppStoreReviewAttachmentsLimit(5),
+					Limit[AppStoreReviewAttachmentsOption](5),
 				))
 			},
 		},
@@ -5123,7 +5123,7 @@ func TestGetReviews_BuildsQuery(t *testing.T) {
 		WithRating(5),
 		WithTerritory("us"),
 		WithReviewSort("-createdDate"),
-		WithLimit(25),
+		Limit[ReviewOption](25),
 	}
 
 	if _, err := client.GetReviews(context.Background(), "123", opts...); err != nil {
@@ -10471,7 +10471,7 @@ func TestListReviewSubmissionsGlobal_UsesV1ReviewSubmissionsPath(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	resp, err := client.ListReviewSubmissions(context.Background(), WithReviewSubmissionsLimit(10))
+	resp, err := client.ListReviewSubmissions(context.Background(), Limit[ReviewSubmissionsOption](10))
 	if err != nil {
 		t.Fatalf("ListReviewSubmissions() error: %v", err)
 	}

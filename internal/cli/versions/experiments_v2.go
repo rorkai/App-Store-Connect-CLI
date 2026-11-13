@@ -80,19 +80,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentsV2Option{
-				asc.WithAppStoreVersionExperimentsV2Limit(*limit),
-				asc.WithAppStoreVersionExperimentsV2NextURL(*next),
+				asc.Limit[asc.AppStoreVersionExperimentsV2Option](*limit),
+				asc.NextURL[asc.AppStoreVersionExperimentsV2Option](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppStoreVersionExperimentsV2Limit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentsV2Option](200))
 				firstPage, err := client.GetAppStoreVersionExperimentsV2ForVersion(requestCtx, versionValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("versions experiments-v2 list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionExperimentsV2ForVersion(ctx, versionValue, asc.WithAppStoreVersionExperimentsV2NextURL(nextURL))
+					return client.GetAppStoreVersionExperimentsV2ForVersion(ctx, versionValue, asc.NextURL[asc.AppStoreVersionExperimentsV2Option](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("versions experiments-v2 list: %w", err)

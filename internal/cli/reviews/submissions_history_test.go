@@ -381,7 +381,7 @@ func TestFetchReviewSubmissions_PaginateDetectsRepeatedNextURL(t *testing.T) {
 		client,
 		"app-1",
 		[]asc.ReviewSubmissionsOption{
-			asc.WithReviewSubmissionsLimit(200),
+			asc.Limit[asc.ReviewSubmissionsOption](200),
 			asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}),
 		},
 		true,
@@ -442,7 +442,7 @@ func TestFetchReviewSubmissions_PaginateAnnotatesIncludedParseErrorWithPage(t *t
 		client,
 		"app-1",
 		[]asc.ReviewSubmissionsOption{
-			asc.WithReviewSubmissionsLimit(200),
+			asc.Limit[asc.ReviewSubmissionsOption](200),
 			asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}),
 		},
 		true,

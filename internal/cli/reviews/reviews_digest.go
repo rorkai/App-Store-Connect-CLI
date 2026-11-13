@@ -234,7 +234,7 @@ func buildReviewDigest(ctx context.Context, client *asc.Client, appID string, cu
 	firstPage, err := client.GetReviews(ctx, appID,
 		asc.WithReviewSort("-createdDate"),
 		asc.WithReviewIncludeResponse(),
-		asc.WithLimit(200),
+		asc.Limit[asc.ReviewOption](200),
 	)
 	if err != nil {
 		return nil, err
@@ -325,7 +325,7 @@ func buildReviewDigest(ctx context.Context, client *asc.Client, appID string, cu
 		return nil
 	}
 	fetchNext := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetReviews(ctx, appID, asc.WithNextURL(nextURL))
+		return client.GetReviews(ctx, appID, asc.NextURL[asc.ReviewOption](nextURL))
 	}
 	if err := asc.PaginateEach(ctx, firstPage, fetchNext, consume); err != nil && !errors.Is(err, errReviewDigestReachedCursor) {
 		return nil, err
@@ -369,7 +369,7 @@ func collectReviewDigestVersions(ctx context.Context, client *asc.Client, appID 
 	for _, review := range reviews {
 		byID[review.ID] = review
 	}
-	first, err := client.GetAppStoreVersions(ctx, appID, asc.WithAppStoreVersionsLimit(200))
+	first, err := client.GetAppStoreVersions(ctx, appID, asc.Limit[asc.AppStoreVersionsOption](200))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -379,7 +379,7 @@ func collectReviewDigestVersions(ctx context.Context, client *asc.Client, appID 
 			return fmt.Errorf("unexpected versions response type %T", page)
 		}
 		for _, version := range response.Data {
-			firstReviews, err := client.GetAppStoreVersionCustomerReviews(ctx, version.ID, asc.WithReviewSort("-createdDate"), asc.WithLimit(200))
+			firstReviews, err := client.GetAppStoreVersionCustomerReviews(ctx, version.ID, asc.WithReviewSort("-createdDate"), asc.Limit[asc.ReviewOption](200))
 			if err != nil {
 				return fmt.Errorf("version %q: %w", version.ID, err)
 			}
@@ -413,7 +413,7 @@ func collectReviewDigestVersions(ctx context.Context, client *asc.Client, appID 
 				return nil
 			}
 			fetchReviews := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetAppStoreVersionCustomerReviews(ctx, version.ID, asc.WithNextURL(nextURL))
+				return client.GetAppStoreVersionCustomerReviews(ctx, version.ID, asc.NextURL[asc.ReviewOption](nextURL))
 			}
 			pageErr := asc.PaginateEach(ctx, firstReviews, fetchReviews, consumeReviews)
 			if pageErr != nil && !errors.Is(pageErr, errReviewDigestReachedCursor) && !errors.Is(pageErr, errReviewDigestVersionsComplete) {
@@ -430,7 +430,7 @@ func collectReviewDigestVersions(ctx context.Context, client *asc.Client, appID 
 		return nil
 	}
 	fetchVersions := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersions(ctx, appID, asc.WithAppStoreVersionsNextURL(nextURL))
+		return client.GetAppStoreVersions(ctx, appID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
 	}
 	if err := asc.PaginateEach(ctx, first, fetchVersions, consumeVersions); err != nil && !errors.Is(err, errReviewDigestVersionsComplete) {
 		return nil, 0, err

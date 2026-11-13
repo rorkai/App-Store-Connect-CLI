@@ -114,7 +114,7 @@ func listAppStoreVersionsInStates(ctx context.Context, client *asc.Client, appID
 // request uses ctx, so the caller's deadline bounds the whole check.
 func HasAppStoreVersionInStates(ctx context.Context, client *asc.Client, appID, platform string, filter AppStoreVersionStateFilter) (bool, error) {
 	for _, stateOpt := range filter.options() {
-		opts := []asc.AppStoreVersionsOption{stateOpt, asc.WithAppStoreVersionsLimit(1)}
+		opts := []asc.AppStoreVersionsOption{stateOpt, asc.Limit[asc.AppStoreVersionsOption](1)}
 		if trimmed := strings.TrimSpace(platform); trimmed != "" {
 			opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{trimmed}))
 		}
@@ -144,7 +144,7 @@ func (filter AppStoreVersionStateFilter) options() []asc.AppStoreVersionsOption 
 // state option, at 200 versions per page. requestContext derives the context
 // for each request.
 func listAppStoreVersionsWithState(ctx context.Context, client *asc.Client, appID, platform string, stateOpt asc.AppStoreVersionsOption, requestContext requestContextFunc) ([]asc.Resource[asc.AppStoreVersionAttributes], error) {
-	opts := []asc.AppStoreVersionsOption{stateOpt, asc.WithAppStoreVersionsLimit(200)}
+	opts := []asc.AppStoreVersionsOption{stateOpt, asc.Limit[asc.AppStoreVersionsOption](200)}
 	if trimmed := strings.TrimSpace(platform); trimmed != "" {
 		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{trimmed}))
 	}
@@ -160,7 +160,7 @@ func listAppStoreVersionsWithState(ctx context.Context, client *asc.Client, appI
 	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := requestContext(ctx)
 		defer pageCancel()
-		return client.GetAppStoreVersions(pageCtx, appID, asc.WithAppStoreVersionsNextURL(nextURL))
+		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list app store versions: %w", err)

@@ -22,7 +22,7 @@ func ResolveAppStoreVersionIDAndState(ctx context.Context, client *asc.Client, a
 	opts := []asc.AppStoreVersionsOption{
 		asc.WithAppStoreVersionsVersionStrings([]string{version}),
 		asc.WithAppStoreVersionsPlatforms([]string{platform}),
-		asc.WithAppStoreVersionsLimit(10),
+		asc.Limit[asc.AppStoreVersionsOption](10),
 	}
 	resp, err := client.GetAppStoreVersions(ctx, appID, opts...)
 	if err != nil {

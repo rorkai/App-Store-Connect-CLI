@@ -42,7 +42,7 @@ func resolveSearchMetadata(ctx context.Context, appSelector, version, platform, 
 		versionLocalizationCtx,
 		versionID,
 		asc.WithAppStoreVersionLocalizationLocales([]string{locale}),
-		asc.WithAppStoreVersionLocalizationsLimit(2),
+		asc.Limit[asc.AppStoreVersionLocalizationsOption](2),
 	)
 	cancel()
 	if err != nil {
@@ -74,7 +74,7 @@ func resolveSearchMetadata(ctx context.Context, appSelector, version, platform, 
 		appInfoLocalizationCtx,
 		appInfoID,
 		asc.WithAppInfoLocalizationLocales([]string{locale}),
-		asc.WithAppInfoLocalizationsLimit(2),
+		asc.Limit[asc.AppInfoLocalizationsOption](2),
 	)
 	cancel()
 	if err != nil {

@@ -58,8 +58,8 @@ Examples:
 		ErrorPrefix: "localizations preview-sets list",
 		FetchPage: func(ctx context.Context, client *asc.Client, localizationID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.AppStoreVersionLocalizationPreviewSetsOption{
-				asc.WithAppStoreVersionLocalizationPreviewSetsLimit(limit),
-				asc.WithAppStoreVersionLocalizationPreviewSetsNextURL(next),
+				asc.Limit[asc.AppStoreVersionLocalizationPreviewSetsOption](limit),
+				asc.NextURL[asc.AppStoreVersionLocalizationPreviewSetsOption](next),
 			}
 			resp, err := client.GetAppStoreVersionLocalizationPreviewSets(ctx, localizationID, opts...)
 			if err != nil {
@@ -246,8 +246,8 @@ Examples:
 		ErrorPrefix: "localizations screenshot-sets list",
 		FetchPage: func(ctx context.Context, client *asc.Client, localizationID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.AppStoreVersionLocalizationScreenshotSetsOption{
-				asc.WithAppStoreVersionLocalizationScreenshotSetsLimit(limit),
-				asc.WithAppStoreVersionLocalizationScreenshotSetsNextURL(next),
+				asc.Limit[asc.AppStoreVersionLocalizationScreenshotSetsOption](limit),
+				asc.NextURL[asc.AppStoreVersionLocalizationScreenshotSetsOption](next),
 			}
 			if *include != "" {
 				opts = append(opts, asc.WithAppStoreVersionLocalizationScreenshotSetsIncludeScreenshots(), asc.WithIncludedFields[asc.AppStoreVersionLocalizationScreenshotSetsOption](included))

@@ -112,7 +112,7 @@ Examples:
 			}
 
 			listCtx, listCancel := shared.ContextWithTimeout(ctx)
-			existing, err := client.GetAppStoreVersionLocalizations(listCtx, vid, asc.WithAppStoreVersionLocalizationsLimit(200))
+			existing, err := client.GetAppStoreVersionLocalizations(listCtx, vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 			listCancel()
 			if err != nil {
 				return fmt.Errorf("metadata keywords push: failed to fetch localizations: %w", err)

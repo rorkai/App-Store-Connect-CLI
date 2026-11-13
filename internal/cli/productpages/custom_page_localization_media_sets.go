@@ -83,18 +83,18 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppCustomProductPageLocalizationPreviewSetsOption{
-				asc.WithAppCustomProductPageLocalizationPreviewSetsLimit(*limit),
-				asc.WithAppCustomProductPageLocalizationPreviewSetsNextURL(*next),
+				asc.Limit[asc.AppCustomProductPageLocalizationPreviewSetsOption](*limit),
+				asc.NextURL[asc.AppCustomProductPageLocalizationPreviewSetsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppCustomProductPageLocalizationPreviewSetsLimit(productPagesMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AppCustomProductPageLocalizationPreviewSetsOption](productPagesMaxLimit))
 				firstPage, err := client.GetAppCustomProductPageLocalizationPreviewSets(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations preview-sets list: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppCustomProductPageLocalizationPreviewSets(ctx, trimmedID, asc.WithAppCustomProductPageLocalizationPreviewSetsNextURL(nextURL))
+					return client.GetAppCustomProductPageLocalizationPreviewSets(ctx, trimmedID, asc.NextURL[asc.AppCustomProductPageLocalizationPreviewSetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations preview-sets list: %w", err)
@@ -193,8 +193,8 @@ Examples:
 			}
 
 			opts := []asc.AppCustomProductPageLocalizationScreenshotSetsOption{
-				asc.WithAppCustomProductPageLocalizationScreenshotSetsLimit(*limit),
-				asc.WithAppCustomProductPageLocalizationScreenshotSetsNextURL(*next),
+				asc.Limit[asc.AppCustomProductPageLocalizationScreenshotSetsOption](*limit),
+				asc.NextURL[asc.AppCustomProductPageLocalizationScreenshotSetsOption](*next),
 			}
 			if *includeScreenshots {
 				opts = append(opts, asc.WithAppCustomProductPageLocalizationScreenshotSetsIncludeScreenshots())
@@ -205,7 +205,7 @@ Examples:
 				paginateOpts = append(paginateOpts, opts...)
 				paginateOpts = append(
 					paginateOpts,
-					asc.WithAppCustomProductPageLocalizationScreenshotSetsLimit(productPagesMaxLimit),
+					asc.Limit[asc.AppCustomProductPageLocalizationScreenshotSetsOption](productPagesMaxLimit),
 					asc.WithAppCustomProductPageLocalizationScreenshotSetsRequestContext(shared.ContextWithTimeout),
 				)
 				resp, err := client.GetAllAppCustomProductPageLocalizationScreenshotSets(ctx, trimmedID, paginateOpts...)

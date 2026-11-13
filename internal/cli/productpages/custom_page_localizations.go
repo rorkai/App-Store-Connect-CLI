@@ -105,21 +105,21 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppCustomProductPageLocalizationsOption{
-				asc.WithAppCustomProductPageLocalizationsLimit(*limit),
-				asc.WithAppCustomProductPageLocalizationsNextURL(*next),
+				asc.Limit[asc.AppCustomProductPageLocalizationsOption](*limit),
+				asc.NextURL[asc.AppCustomProductPageLocalizationsOption](*next),
 				asc.WithAppCustomProductPageLocalizationsInclude(includeValues),
 				asc.WithAppCustomProductPageLocalizationsPlacementsLimit(placementsLimit),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppCustomProductPageLocalizationsLimit(productPagesMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AppCustomProductPageLocalizationsOption](productPagesMaxLimit))
 				firstPage, err := client.GetAppCustomProductPageLocalizations(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppCustomProductPageLocalizations(ctx, trimmedID, asc.WithAppCustomProductPageLocalizationsNextURL(nextURL))
+					return client.GetAppCustomProductPageLocalizations(ctx, trimmedID, asc.NextURL[asc.AppCustomProductPageLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations list: %w", err)

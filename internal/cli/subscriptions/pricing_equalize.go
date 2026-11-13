@@ -902,7 +902,7 @@ func subscriptionExists(ctx context.Context, client *asc.Client, subID string) (
 
 func fetchPricingTerritories(ctx context.Context, client *asc.Client) ([]string, error) {
 	firstCtx, firstCancel := shared.ContextWithTimeout(ctx)
-	firstPage, err := client.GetTerritories(firstCtx, asc.WithTerritoriesLimit(200))
+	firstPage, err := client.GetTerritories(firstCtx, asc.Limit[asc.TerritoriesOption](200))
 	firstCancel()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch pricing territories: %w", err)
@@ -911,7 +911,7 @@ func fetchPricingTerritories(ctx context.Context, client *asc.Client) ([]string,
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 		defer pageCancel()
-		return client.GetTerritories(pageCtx, asc.WithTerritoriesNextURL(nextURL))
+		return client.GetTerritories(pageCtx, asc.NextURL[asc.TerritoriesOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate pricing territories: %w", err)

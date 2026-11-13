@@ -23,7 +23,7 @@ const (
 func fetchCustomProductPageKeywords(ctx context.Context, client *asc.Client, appID string) ([]validation.CustomProductPageLocalization, error) {
 	appID = strings.TrimSpace(appID)
 	pages, err := fetchAllReadinessPages(ctx, func(requestCtx context.Context, nextURL string) (*asc.AppCustomProductPagesResponse, error) {
-		return client.GetAppCustomProductPages(requestCtx, appID, asc.WithAppCustomProductPagesLimit(200), asc.WithAppCustomProductPagesNextURL(nextURL))
+		return client.GetAppCustomProductPages(requestCtx, appID, asc.Limit[asc.AppCustomProductPagesOption](200), asc.NextURL[asc.AppCustomProductPagesOption](nextURL))
 	})
 	if err != nil || len(pages) == 0 {
 		return nil, err
@@ -35,7 +35,7 @@ func fetchCustomProductPageKeywords(ctx context.Context, client *asc.Client, app
 	for _, page := range pages {
 		tasks = append(tasks, func(taskCtx context.Context) error {
 			versions, err := fetchAllReadinessPages(taskCtx, func(requestCtx context.Context, nextURL string) (*asc.AppCustomProductPageVersionsResponse, error) {
-				return client.GetAppCustomProductPageVersions(requestCtx, page.ID, asc.WithAppCustomProductPageVersionsLimit(200), asc.WithAppCustomProductPageVersionsNextURL(nextURL))
+				return client.GetAppCustomProductPageVersions(requestCtx, page.ID, asc.Limit[asc.AppCustomProductPageVersionsOption](200), asc.NextURL[asc.AppCustomProductPageVersionsOption](nextURL))
 			})
 			if err != nil {
 				return err
@@ -48,9 +48,9 @@ func fetchCustomProductPageKeywords(ctx context.Context, client *asc.Client, app
 					return client.GetAppCustomProductPageLocalizations(
 						requestCtx,
 						version.ID,
-						asc.WithAppCustomProductPageLocalizationsLimit(200),
+						asc.Limit[asc.AppCustomProductPageLocalizationsOption](200),
 						asc.WithAppCustomProductPageLocalizationsSearchKeywords(includedSearchKeywordsLimit),
-						asc.WithAppCustomProductPageLocalizationsNextURL(nextURL),
+						asc.NextURL[asc.AppCustomProductPageLocalizationsOption](nextURL),
 					)
 				})
 				if err != nil {

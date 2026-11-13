@@ -36,7 +36,7 @@ func PlanAppInfoLocalizationUpsert(
 	localizations, err := client.GetAppInfoLocalizations(
 		ctx,
 		resolvedAppInfoID,
-		asc.WithAppInfoLocalizationsLimit(200),
+		asc.Limit[asc.AppInfoLocalizationsOption](200),
 		asc.WithAppInfoLocalizationLocales([]string{locale}),
 	)
 	if err != nil {

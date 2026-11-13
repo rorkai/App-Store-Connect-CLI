@@ -121,19 +121,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.TerritoriesOption{
-				asc.WithTerritoriesLimit(*limit),
-				asc.WithTerritoriesNextURL(*next),
+				asc.Limit[asc.TerritoriesOption](*limit),
+				asc.NextURL[asc.TerritoriesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithTerritoriesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.TerritoriesOption](200))
 				firstPage, err := client.GetTerritories(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pricing territories list: failed to fetch: %w", err)
 				}
 
 				territories, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetTerritories(ctx, asc.WithTerritoriesNextURL(nextURL))
+					return client.GetTerritories(ctx, asc.NextURL[asc.TerritoriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pricing territories list: %w", err)

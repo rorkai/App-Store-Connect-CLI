@@ -110,8 +110,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.EndUserLicenseAgreementTerritoriesOption{
-				asc.WithEndUserLicenseAgreementTerritoriesLimit(*limit),
-				asc.WithEndUserLicenseAgreementTerritoriesNextURL(*next),
+				asc.Limit[asc.EndUserLicenseAgreementTerritoriesOption](*limit),
+				asc.NextURL[asc.EndUserLicenseAgreementTerritoriesOption](*next),
 			}
 
 			if *paginate {
@@ -119,14 +119,14 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --id is required")
 					return shared.MissingRequiredUsageError("--id")
 				}
-				paginateOpts := append(opts, asc.WithEndUserLicenseAgreementTerritoriesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.EndUserLicenseAgreementTerritoriesOption](200))
 				firstPage, err := client.GetEndUserLicenseAgreementTerritories(requestCtx, idValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("agreements territories list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetEndUserLicenseAgreementTerritories(ctx, idValue, asc.WithEndUserLicenseAgreementTerritoriesNextURL(nextURL))
+					return client.GetEndUserLicenseAgreementTerritories(ctx, idValue, asc.NextURL[asc.EndUserLicenseAgreementTerritoriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("agreements territories list: %w", err)

@@ -783,9 +783,9 @@ func fetchReviewBatchReviewInfoWithPageLimit(ctx context.Context, client *asc.Cl
 			err      error
 		)
 		if nextURL != "" {
-			response, err = client.GetReviews(ctx, appID, asc.WithNextURL(nextURL))
+			response, err = client.GetReviews(ctx, appID, asc.NextURL[asc.ReviewOption](nextURL))
 		} else {
-			response, err = client.GetReviews(ctx, appID, asc.WithLimit(200), asc.WithReviewIncludeResponse())
+			response, err = client.GetReviews(ctx, appID, asc.Limit[asc.ReviewOption](200), asc.WithReviewIncludeResponse())
 		}
 		if err != nil {
 			return found, err
