@@ -448,6 +448,23 @@ func TestBuildsAddGroupsDiagnoses422AfterAssignment(t *testing.T) {
 	}
 }
 
+func TestBuildsAddGroups422NamesInternalGroupWithAccessToAllBuilds(t *testing.T) {
+	fixture := &addGroupsDiagnosticsFixture{
+		t:          t,
+		groupsBody: `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"QA","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`,
+		postStatus: http.StatusUnprocessableEntity,
+		postBody:   `{"errors":[{"status":"422","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"Builds cannot be assigned to this internal group.","detail":"Cannot add internal group to a build."}]}`,
+	}
+	_, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
+	if runErr == nil {
+		t.Fatal("expected HTTP 422 failure")
+	}
+	want := `Internal group "QA" (group-1) has access to all builds, so App Store Connect adds builds to it automatically; leave it out of --group or pass --skip-internal`
+	if !strings.Contains(stderr, want) {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+}
+
 func TestBuildsAddGroupsNon422DoesNotReadPostFailureDiagnostics(t *testing.T) {
 	fixture := &addGroupsDiagnosticsFixture{
 		t:          t,
