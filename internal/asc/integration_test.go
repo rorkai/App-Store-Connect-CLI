@@ -836,7 +836,7 @@ func TestIntegrationDevicesReadOnly(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		devices, err := client.GetDevices(ctx, WithDevicesLimit(5))
+		devices, err := client.GetDevices(ctx, Limit[DevicesOption](5))
 		if err != nil {
 			t.Fatalf("failed to fetch devices: %v", err)
 		}
@@ -850,7 +850,7 @@ func TestIntegrationDevicesReadOnly(t *testing.T) {
 		if devices.Links.Next != "" {
 			nextCtx, nextCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer nextCancel()
-			nextDevices, err := client.GetDevices(nextCtx, WithDevicesNextURL(devices.Links.Next))
+			nextDevices, err := client.GetDevices(nextCtx, NextURL[DevicesOption](devices.Links.Next))
 			if err != nil {
 				t.Fatalf("failed to fetch devices next page: %v", err)
 			}
@@ -878,7 +878,7 @@ func TestIntegrationDevicesReadOnly(t *testing.T) {
 		filtered, err := client.GetDevices(
 			filteredCtx,
 			WithDevicesUDIDs([]string{first.Attributes.UDID}),
-			WithDevicesLimit(5),
+			Limit[DevicesOption](5),
 		)
 		if err != nil {
 			t.Fatalf("failed to fetch filtered devices by UDID: %v", err)
@@ -895,7 +895,7 @@ func TestIntegrationDevicesReadOnly(t *testing.T) {
 
 		fieldsCtx, fieldsCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer fieldsCancel()
-		_, err = client.GetDevices(fieldsCtx, WithDevicesFields([]string{"name", "udid", "platform", "status"}), WithDevicesLimit(1))
+		_, err = client.GetDevices(fieldsCtx, WithDevicesFields([]string{"name", "udid", "platform", "status"}), Limit[DevicesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch devices with fields: %v", err)
 		}

@@ -1408,24 +1408,6 @@ func WithUserInvitationVisibleAppsNextURL(next string) UserInvitationVisibleApps
 	}
 }
 
-// WithActorsLimit sets the max number of actors to return.
-func WithActorsLimit(limit int) ActorsOption {
-	return func(q *actorsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithActorsNextURL uses a next page URL directly.
-func WithActorsNextURL(next string) ActorsOption {
-	return func(q *actorsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithActorsIDs filters actors by id(s).
 func WithActorsIDs(ids []string) ActorsOption {
 	return func(q *actorsQuery) {
@@ -1437,15 +1419,6 @@ func WithActorsIDs(ids []string) ActorsOption {
 func WithActorsFields(fields []string) ActorsOption {
 	return func(q *actorsQuery) {
 		q.fields = normalizeList(fields)
-	}
-}
-
-// WithDevicesLimit sets the max number of devices to return.
-func WithDevicesLimit(limit int) DevicesOption {
-	return func(q *devicesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
 	}
 }
 
@@ -1473,15 +1446,6 @@ func WithDevicesFilterStatuses(statuses []string) DevicesOption {
 			return
 		}
 		q.status = strings.Join(normalized, ",")
-	}
-}
-
-// WithDevicesNextURL uses a next page URL directly.
-func WithDevicesNextURL(next string) DevicesOption {
-	return func(q *devicesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 

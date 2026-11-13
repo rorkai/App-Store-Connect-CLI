@@ -91,22 +91,22 @@ Examples:
 
 			opts := []asc.ActorsOption{
 				asc.WithActorsIDs(shared.SplitCSV(*ids)),
-				asc.WithActorsLimit(*limit),
-				asc.WithActorsNextURL(*next),
+				asc.Limit[asc.ActorsOption](*limit),
+				asc.NextURL[asc.ActorsOption](*next),
 			}
 			if len(fieldsValue) > 0 {
 				opts = append(opts, asc.WithActorsFields(fieldsValue))
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithActorsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.ActorsOption](200))
 				firstPage, err := client.GetActors(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("actors list: failed to fetch: %w", err)
 				}
 
 				actors, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetActors(ctx, asc.WithActorsNextURL(nextURL))
+					return client.GetActors(ctx, asc.NextURL[asc.ActorsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("actors list: %w", err)

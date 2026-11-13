@@ -136,8 +136,8 @@ Examples:
 				asc.WithDevicesNames(shared.SplitCSV(*name)),
 				asc.WithDevicesUDIDs(shared.SplitCSV(*udid)),
 				asc.WithDevicesIDs(shared.SplitCSV(*ids)),
-				asc.WithDevicesLimit(*limit),
-				asc.WithDevicesNextURL(*next),
+				asc.Limit[asc.DevicesOption](*limit),
+				asc.NextURL[asc.DevicesOption](*next),
 			}
 			if len(platformValues) > 0 {
 				opts = append(opts, asc.WithDevicesPlatforms(platformValues))
@@ -153,14 +153,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithDevicesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.DevicesOption](200))
 				firstPage, err := client.GetDevices(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("devices list: failed to fetch: %w", err)
 				}
 
 				devices, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetDevices(ctx, asc.WithDevicesNextURL(nextURL))
+					return client.GetDevices(ctx, asc.NextURL[asc.DevicesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("devices list: %w", err)
@@ -465,7 +465,7 @@ func findExistingDeviceByNormalizedUDID(ctx context.Context, client *asc.Client,
 		ctx,
 		asc.WithDevicesPlatforms([]string{platformValue}),
 		asc.WithDevicesFields([]string{"name", "udid", "platform", "status"}),
-		asc.WithDevicesLimit(200),
+		asc.Limit[asc.DevicesOption](200),
 	)
 	if err != nil {
 		return nil, err
@@ -473,7 +473,7 @@ func findExistingDeviceByNormalizedUDID(ctx context.Context, client *asc.Client,
 
 	var found *asc.DeviceResponse
 	err = asc.PaginateEach(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetDevices(ctx, asc.WithDevicesNextURL(nextURL))
+		return client.GetDevices(ctx, asc.NextURL[asc.DevicesOption](nextURL))
 	}, func(page asc.PaginatedResponse) error {
 		devices, ok := page.(*asc.DevicesResponse)
 		if !ok || devices == nil {

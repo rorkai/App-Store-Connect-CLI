@@ -328,7 +328,7 @@ func fetchDevicesByNormalizedUDID(ctx context.Context, client *asc.Client) (map[
 	firstPage, err := client.GetDevices(
 		requestCtx,
 		asc.WithDevicesFields([]string{"name", "udid", "platform", "status"}),
-		asc.WithDevicesLimit(200),
+		asc.Limit[asc.DevicesOption](200),
 	)
 	cancel()
 	if err != nil {
@@ -338,7 +338,7 @@ func fetchDevicesByNormalizedUDID(ctx context.Context, client *asc.Client) (map[
 	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := shared.ContextWithTimeout(ctx)
 		defer cancel()
-		return client.GetDevices(requestCtx, asc.WithDevicesNextURL(nextURL))
+		return client.GetDevices(requestCtx, asc.NextURL[asc.DevicesOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

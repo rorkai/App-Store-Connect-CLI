@@ -15,7 +15,7 @@ func TestBuildDevicesQuery(t *testing.T) {
 		WithDevicesIDs([]string{"device-1"}),
 		WithDevicesSort("-name"),
 		WithDevicesFields([]string{"name", "udid"}),
-		WithDevicesLimit(10),
+		Limit[DevicesOption](10),
 	}
 	for _, opt := range opts {
 		opt(query)

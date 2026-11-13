@@ -360,7 +360,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetDevices",
 			next: "https://api.appstoreconnect.apple.com/v1/devices?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetDevices(ctx, WithDevicesNextURL(next))
+				_, err := c.GetDevices(ctx, NextURL[DevicesOption](next))
 				return err
 			},
 		},
@@ -1287,7 +1287,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithDevicesIDs([]string{"device-1"}),
 					WithDevicesSort("-name"),
 					WithDevicesFields([]string{"name", "udid"}),
-					WithDevicesLimit(5),
+					Limit[DevicesOption](5),
 				))
 			},
 		},
