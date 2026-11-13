@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"strings"
@@ -19,39 +17,16 @@ func TestAppInfoRootsAreRemoved(t *testing.T) {
 		{
 			name:    "app-info root",
 			args:    []string{"app-info", "get"},
-			wantErr: "Unknown command: app-info",
+			wantErr: "Error: unknown command `asc app-info`",
 		},
 		{
 			name:    "app-infos root",
 			args:    []string{"app-infos", "list"},
-			wantErr: "Unknown command: app-infos",
+			wantErr: "Error: unknown command `asc app-infos`",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
-
-			if !errors.Is(runErr, flag.ErrHelp) {
-				t.Fatalf("expected ErrHelp, got %v", runErr)
-			}
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAppsInfoViewIncludeFailsWhenAppInfoIsAmbiguous(t *testing.T) {

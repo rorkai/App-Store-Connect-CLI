@@ -3,8 +3,6 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,14 +13,18 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestNotifySlackValidationErrors(t *testing.T) {
+	const webhook = "https://hooks.slack.com/services/test"
+	const attachmentErr = "Error: --pretext and --success require --payload-json or --payload-file"
+
 	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
+		name      string
+		webhook   string
+		args      []string
+		wantErr   string
+		wantExact bool
 	}{
 		{
 			name:    "missing webhook",
@@ -31,102 +33,40 @@ func TestNotifySlackValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "missing message",
-			args:    []string{"notify", "slack", "--webhook", "https://hooks.slack.com/services/test"},
+			args:    []string{"notify", "slack", "--webhook", webhook},
 			wantErr: "--message is required",
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Setenv("ASC_SLACK_WEBHOOK", "")
-			t.Setenv("ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST", "")
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestNotifySlackInvalidThreadTSReturnsUsageError(t *testing.T) {
-	t.Setenv("ASC_SLACK_WEBHOOK", "https://hooks.slack.com/services/test")
-	t.Setenv("ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST", "")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"notify", "slack", "--message", "hello", "--thread-ts", "not-a-ts"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if errors.Is(err, flag.ErrHelp) || !shared.IsReportedUsageError(err) {
-			t.Fatalf("expected reported usage error without help, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--thread-ts must be in Slack ts format") {
-		t.Fatalf("expected thread-ts validation error, got %q", stderr)
-	}
-}
-
-func TestNotifySlackAttachmentFlagsRequirePayload(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-	}{
 		{
-			name: "pretext without payload",
-			args: []string{"notify", "slack", "--message", "hello", "--pretext", "Release metadata"},
+			name:      "invalid thread ts",
+			webhook:   webhook,
+			args:      []string{"notify", "slack", "--message", "hello", "--thread-ts", "not-a-ts"},
+			wantErr:   "Error: --thread-ts must be in Slack ts format (e.g. 1733977745.12345)",
+			wantExact: true,
 		},
 		{
-			name: "success without payload",
-			args: []string{"notify", "slack", "--message", "hello", "--success=false"},
+			name:      "pretext without payload",
+			webhook:   webhook,
+			args:      []string{"notify", "slack", "--message", "hello", "--pretext", "Release metadata"},
+			wantErr:   attachmentErr,
+			wantExact: true,
+		},
+		{
+			name:      "success without payload",
+			webhook:   webhook,
+			args:      []string{"notify", "slack", "--message", "hello", "--success=false"},
+			wantErr:   attachmentErr,
+			wantExact: true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Setenv("ASC_SLACK_WEBHOOK", "https://hooks.slack.com/services/test")
+			t.Setenv("ASC_SLACK_WEBHOOK", test.webhook)
 			t.Setenv("ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST", "")
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if errors.Is(err, flag.ErrHelp) || !shared.IsReportedUsageError(err) {
-					t.Fatalf("expected reported usage error without help, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, "--pretext and --success require --payload-json or --payload-file") {
-				t.Fatalf("expected attachment flag validation error, got %q", stderr)
+			stderr := assertExitStderr(t, test.args, rootcmd.ExitUsage, test.wantErr)
+			if test.wantExact && stderr != test.wantErr+"\n" {
+				t.Fatalf("stderr = %q, want only %q", stderr, test.wantErr+"\n")
 			}
 		})
 	}

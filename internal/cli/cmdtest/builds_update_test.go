@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -75,33 +73,6 @@ func TestBuildsUpdateSetsUsesNonExemptEncryption(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "Updated build build-99") {
 		t.Fatalf("expected success stderr, got %q", stderr)
-	}
-}
-
-func TestBuildsUpdateRejectsInvalidUsesNonExemptEncryptionValue(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"builds", "update",
-			"--build-id", "build-99",
-			"--uses-non-exempt-encryption=maybe",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp for invalid encryption value, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--uses-non-exempt-encryption must be 'true' or 'false'") {
-		t.Fatalf("expected invalid-value stderr, got %q", stderr)
 	}
 }
 

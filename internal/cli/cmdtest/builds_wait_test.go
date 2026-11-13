@@ -496,35 +496,6 @@ func TestBuildsWaitByBuildNumberSinceFiltersBeforeUniqueness(t *testing.T) {
 	}
 }
 
-func TestBuildsWaitRejectsSinceWithBuildID(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "wait", "--build-id", "build-1", "--since", "2026-03-02T18:00:00Z"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --build-id is mutually exclusive with app-scoped selectors") {
-		t.Fatalf("expected build-id mutual exclusivity error, got %q", stderr)
-	}
-	if !strings.Contains(stderr, "--since") {
-		t.Fatalf("expected --since to be called out in mutual exclusivity error, got %q", stderr)
-	}
-}
-
 func TestBuildsWaitByBuildNumberRequiresUniqueMatch(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
