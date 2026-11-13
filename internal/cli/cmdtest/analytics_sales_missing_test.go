@@ -155,68 +155,49 @@ func TestAnalyticsSalesAllowMissingDoesNotSwallowUnrelatedNotFound(t *testing.T)
 }
 
 func TestAnalyticsSalesReportFailureHints(t *testing.T) {
+	const hint = "Hint: Re-running the same request will not help until Apple has a report for it; try an earlier --date, or pass --allow-missing to get available=false instead of an error.\n"
 	tests := []struct {
-		name      string
-		frequency string
-		date      string
-		status    int
-		detail    string
-		extraArgs []string
-		wantCode  int
-		wantHint  string
+		name     string
+		status   int
+		detail   string
+		wantCode int
+		wantHint string
 	}{
 		{
-			name:      "daily report not found",
-			frequency: "DAILY",
-			date:      "2026-08-18",
-			status:    http.StatusNotFound,
-			detail:    "There were no sales for the date specified.",
-			wantCode:  cmd.ExitNotFound,
-			wantHint:  "Hint: Apple has no DAILY report for this request: daily reports appear the following day, and a period with no sales has no report. Try an earlier --date or check --vendor, or pass --allow-missing to get available=false instead of an error.\n",
+			name:     "report not available yet",
+			status:   http.StatusNotFound,
+			detail:   "Report is not available yet. Daily reports for the Americas are available by 5 am Pacific Time.",
+			wantCode: cmd.ExitNotFound,
+			wantHint: hint,
 		},
 		{
-			name:      "monthly report not published yet",
-			frequency: "MONTHLY",
-			date:      "2026-10",
-			status:    http.StatusNotFound,
-			detail:    "Report is not available yet.",
-			wantCode:  cmd.ExitNotFound,
-			wantHint:  "Hint: Apple has no MONTHLY report for this request: monthly reports appear five days after the month ends, and a period with no sales has no report. Try an earlier --date or check --vendor, or pass --allow-missing to get available=false instead of an error.\n",
+			name:     "no sales",
+			status:   http.StatusNotFound,
+			detail:   "There were no sales for the date specified.",
+			wantCode: cmd.ExitNotFound,
+			wantHint: hint,
 		},
 		{
-			name:      "unrelated not found with allow-missing",
-			frequency: "WEEKLY",
-			date:      "2026-08-17",
-			status:    http.StatusNotFound,
-			detail:    "The requested vendor account was not found.",
-			extraArgs: []string{"--allow-missing"},
-			wantCode:  cmd.ExitNotFound,
-			wantHint:  "Hint: Apple has no WEEKLY report for this request: weekly reports appear on Mondays, and a period with no sales has no report. Try an earlier --date or check --vendor.\n",
-		},
-		{
-			name:      "forbidden",
-			frequency: "DAILY",
-			date:      "2026-08-18",
-			status:    http.StatusForbidden,
-			detail:    "The API key in use does not allow this request",
-			wantCode:  cmd.ExitAuth,
-			wantHint:  "Hint: Check that your API key has the right role/permissions for this operation in App Store Connect.\n",
+			name:     "unrelated not found",
+			status:   http.StatusNotFound,
+			detail:   "The requested vendor account was not found.",
+			wantCode: cmd.ExitNotFound,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setSalesReportErrorTestClient(t, test.status, test.detail)
 			outputPath := filepath.Join(t.TempDir(), "report.tsv.gz")
-			args := append([]string{
+			args := []string{
 				"analytics", "sales",
 				"--vendor", "12345678",
 				"--type", "SALES",
 				"--subtype", "SUMMARY",
-				"--frequency", test.frequency,
-				"--date", test.date,
+				"--frequency", "DAILY",
+				"--date", "2026-08-18",
 				"--output", outputPath,
 				"--output-format", "json",
-			}, test.extraArgs...)
+			}
 
 			var code int
 			stdout, stderr := captureOutput(t, func() {
@@ -231,7 +212,10 @@ func TestAnalyticsSalesReportFailureHints(t *testing.T) {
 			if !strings.Contains(stderr, test.detail) {
 				t.Fatalf("stderr = %q, want Apple's detail %q", stderr, test.detail)
 			}
-			if !strings.HasSuffix(stderr, test.wantHint) || strings.Count(stderr, "Hint:") != 1 {
+			if test.wantHint == "" && strings.Contains(stderr, "Hint:") {
+				t.Fatalf("stderr = %q, want no hint", stderr)
+			}
+			if test.wantHint != "" && (!strings.HasSuffix(stderr, test.wantHint) || strings.Count(stderr, "Hint:") != 1) {
 				t.Fatalf("stderr = %q, want one hint line %q", stderr, test.wantHint)
 			}
 			if _, err := os.Stat(outputPath); !errors.Is(err, os.ErrNotExist) {

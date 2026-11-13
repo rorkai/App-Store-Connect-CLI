@@ -125,8 +125,8 @@ Examples:
 					}, *outputFlags.OutputFormat, *outputFlags.Pretty)
 				}
 				err = fmt.Errorf("analytics sales: failed to download report: %w", err)
-				if asc.IsNotFound(err) {
-					return &shared.HintedError{Err: err, Hint: salesReportNotFoundHint(freq, *allowMissing)}
+				if isMissingSalesReportError(err) {
+					return &shared.HintedError{Err: err, Hint: missingSalesReportHint}
 				}
 				return err
 			}
@@ -164,22 +164,7 @@ Examples:
 	}
 }
 
-// salesReportPublication records when Apple publishes each report frequency,
-// as documented in the analytics reports guide.
-var salesReportPublication = map[asc.SalesReportFrequency]string{
-	asc.SalesReportFrequencyDaily:   "daily reports appear the following day",
-	asc.SalesReportFrequencyWeekly:  "weekly reports appear on Mondays",
-	asc.SalesReportFrequencyMonthly: "monthly reports appear five days after the month ends",
-	asc.SalesReportFrequencyYearly:  "yearly reports appear six days after the year ends",
-}
-
-func salesReportNotFoundHint(freq asc.SalesReportFrequency, allowMissing bool) string {
-	hint := fmt.Sprintf("Apple has no %s report for this request: %s, and a period with no sales has no report. Try an earlier --date or check --vendor", freq, salesReportPublication[freq])
-	if allowMissing {
-		return hint + "."
-	}
-	return hint + ", or pass --allow-missing to get available=false instead of an error."
-}
+const missingSalesReportHint = "Re-running the same request will not help until Apple has a report for it; try an earlier --date, or pass --allow-missing to get available=false instead of an error."
 
 func isMissingSalesReportError(err error) bool {
 	if !errors.Is(err, asc.ErrNotFound) {
