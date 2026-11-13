@@ -737,6 +737,7 @@ func TestReviewSubmitConflictAtFinalSubmitReportsCreatedSubmissionAndHints(t *te
 		"asc submit cancel --id review-sub-1 --confirm",
 		"Hint: Review current age rating: asc age-rating view --app app-1",
 		"Hint: If your app does not use third-party content: asc apps update --id app-1 --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT",
+		"Hint: Check the app's review state and blockers with `asc review status --app APP_ID` and `asc review doctor --app APP_ID`.",
 	} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
