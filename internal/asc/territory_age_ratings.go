@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -22,35 +21,15 @@ type TerritoryAgeRatingsResponse = Response[TerritoryAgeRatingAttributes]
 
 // GetAppInfoTerritoryAgeRatings retrieves territory age ratings for an app info.
 func (c *Client) GetAppInfoTerritoryAgeRatings(ctx context.Context, appInfoID string, opts ...TerritoryAgeRatingsOption) (*TerritoryAgeRatingsResponse, error) {
-	query := &territoryAgeRatingsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	appInfoID = strings.TrimSpace(appInfoID)
 	if query.nextURL == "" && appInfoID == "" {
 		return nil, fmt.Errorf("appInfoID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appInfos/%s/territoryAgeRatings", appInfoID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("territoryAgeRatings: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildTerritoryAgeRatingsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response TerritoryAgeRatingsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[TerritoryAgeRatingsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appInfos/%s/territoryAgeRatings", appInfoID),
+		Query:       buildTerritoryAgeRatingsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "territoryAgeRatings",
+	})
 }
