@@ -377,3 +377,19 @@ func assertUsageExitCode(t *testing.T, args []string, wantErr string) {
 	}
 	assertUsageErrorStderr(t, stderr, wantErr)
 }
+
+type gameCenterUsageCase struct {
+	args    []string
+	wantErr string
+}
+
+func runGameCenterUsageCases(t *testing.T, cases []gameCenterUsageCase) {
+	t.Helper()
+
+	setupUsageExitCodeEnv(t)
+	for _, test := range cases {
+		t.Run(strings.Join(test.args[1:], " "), func(t *testing.T) {
+			assertUsageExitCode(t, test.args, test.wantErr)
+		})
+	}
+}
