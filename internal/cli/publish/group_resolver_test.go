@@ -319,7 +319,7 @@ func TestResolvePublishBetaGroupIDs_SinglePage(t *testing.T) {
 		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
-	resolvedGroups, err := resolvePublishBetaGroups(context.Background(), client, "APP1", []string{"Alpha", "G2"})
+	resolvedGroups, err := resolvePublishBetaGroups(context.Background(), client, "APP1", "Alpha,G2")
 	if err != nil {
 		t.Fatalf("resolvePublishBetaGroups() error = %v", err)
 	}
@@ -349,7 +349,7 @@ func TestResolvePublishBetaGroupIDs_APIError(t *testing.T) {
 		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
-	_, err = resolvePublishBetaGroups(context.Background(), client, "APP1", []string{"Alpha"})
+	_, err = resolvePublishBetaGroups(context.Background(), client, "APP1", "Alpha")
 	if err == nil {
 		t.Fatal("expected error from API failure")
 	}
@@ -375,7 +375,7 @@ func TestResolvePublishBetaGroupIDs_NameNotFound(t *testing.T) {
 		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
-	_, err = resolvePublishBetaGroups(context.Background(), client, "APP1", []string{"NonExistent"})
+	_, err = resolvePublishBetaGroups(context.Background(), client, "APP1", "NonExistent")
 	if err == nil {
 		t.Fatal("expected error for non-existent group name")
 	}
@@ -544,7 +544,7 @@ func TestResolvePublishBetaGroupIDs_PaginatedNameResolution(t *testing.T) {
 	}
 
 	// Resolve a name that only exists on page 2.
-	resolvedGroups, err := resolvePublishBetaGroups(context.Background(), client, "APP1", []string{"External Testers"})
+	resolvedGroups, err := resolvePublishBetaGroups(context.Background(), client, "APP1", "External Testers")
 	if err != nil {
 		t.Fatalf("resolvePublishBetaGroups() error = %v", err)
 	}
