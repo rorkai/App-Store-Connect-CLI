@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -152,37 +151,19 @@ type AppEventVideoClipUpdateRequest struct {
 
 // GetAppEvents retrieves app events for an app.
 func (c *Client) GetAppEvents(ctx context.Context, appID string, opts ...AppEventsOption) (*AppEventsResponse, error) {
-	query := &appEventsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	appID = strings.TrimSpace(appID)
 	if query.nextURL == "" && appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
 
-	path := fmt.Sprintf("/v1/apps/%s/appEvents", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appEvents: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppEventsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appEvents", appID),
+		Query:       buildAppEventsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appEvents",
+	})
 }
 
 // GetAppEvent retrieves an app event by ID.
@@ -191,18 +172,7 @@ func (c *Client) GetAppEvent(ctx context.Context, eventID string) (*AppEventResp
 	if eventID == "" {
 		return nil, fmt.Errorf("eventID is required")
 	}
-	path := fmt.Sprintf("/v1/appEvents/%s", eventID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appEvents/%s", eventID)})
 }
 
 // CreateAppEvent creates an app event.
@@ -227,22 +197,11 @@ func (c *Client) CreateAppEvent(ctx context.Context, appID string, attrs AppEven
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appEvents", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEventResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appEvents",
+		Payload: payload,
+	})
 }
 
 // UpdateAppEvent updates an app event.
@@ -260,23 +219,11 @@ func (c *Client) UpdateAppEvent(ctx context.Context, eventID string, attrs AppEv
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appEvents/%s", eventID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEventResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appEvents/%s", eventID),
+		Payload: payload,
+	})
 }
 
 // DeleteAppEvent deletes an app event.
@@ -285,79 +232,41 @@ func (c *Client) DeleteAppEvent(ctx context.Context, eventID string) error {
 	if eventID == "" {
 		return fmt.Errorf("eventID is required")
 	}
-	path := fmt.Sprintf("/v1/appEvents/%s", eventID)
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appEvents/%s", eventID), nil)
 }
 
 // GetAppEventLocalizations retrieves localizations for an app event.
 func (c *Client) GetAppEventLocalizations(ctx context.Context, eventID string, opts ...AppEventLocalizationsOption) (*AppEventLocalizationsResponse, error) {
-	query := &appEventLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	eventID = strings.TrimSpace(eventID)
 	if query.nextURL == "" && eventID == "" {
 		return nil, fmt.Errorf("eventID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appEvents/%s/localizations", eventID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appEventLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppEventLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appEvents/%s/localizations", eventID),
+		Query:       buildAppEventLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appEventLocalizations",
+	})
 }
 
 // GetAppEventLocalizationsRelationships retrieves localization linkages for an app event.
 func (c *Client) GetAppEventLocalizationsRelationships(ctx context.Context, eventID string, opts ...LinkagesOption) (*AppEventLocalizationsLinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	eventID = strings.TrimSpace(eventID)
 	if query.nextURL == "" && eventID == "" {
 		return nil, fmt.Errorf("eventID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appEvents/%s/relationships/localizations", eventID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appEventLocalizationsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventLocalizationsLinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventLocalizationsLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appEvents/%s/relationships/localizations", eventID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appEventLocalizationsRelationships",
+	})
 }
 
 // GetAppEventLocalization retrieves an app event localization by ID.
@@ -367,17 +276,7 @@ func (c *Client) GetAppEventLocalization(ctx context.Context, localizationID str
 		return nil, fmt.Errorf("localizationID is required")
 	}
 	path := localizationReadPath(fmt.Sprintf("/v1/appEventLocalizations/%s", localizationID), opts)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventLocalizationResponse](ctx, c, readRequest{Path: path})
 }
 
 // CreateAppEventLocalization creates a localization for an app event.
@@ -402,22 +301,11 @@ func (c *Client) CreateAppEventLocalization(ctx context.Context, eventID string,
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appEventLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEventLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appEventLocalizations",
+		Payload: payload,
+	})
 }
 
 // UpdateAppEventLocalization updates an app event localization.
@@ -435,22 +323,11 @@ func (c *Client) UpdateAppEventLocalization(ctx context.Context, localizationID 
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/appEventLocalizations/%s", localizationID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEventLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appEventLocalizations/%s", localizationID),
+		Payload: payload,
+	})
 }
 
 // DeleteAppEventLocalization deletes an app event localization.
@@ -459,79 +336,41 @@ func (c *Client) DeleteAppEventLocalization(ctx context.Context, localizationID 
 	if localizationID == "" {
 		return fmt.Errorf("localizationID is required")
 	}
-	path := fmt.Sprintf("/v1/appEventLocalizations/%s", localizationID)
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appEventLocalizations/%s", localizationID), nil)
 }
 
 // GetAppEventScreenshots retrieves screenshots for an app event localization.
 func (c *Client) GetAppEventScreenshots(ctx context.Context, localizationID string, opts ...AppEventScreenshotsOption) (*AppEventScreenshotsResponse, error) {
-	query := &appEventScreenshotsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	localizationID = strings.TrimSpace(localizationID)
 	if query.nextURL == "" && localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appEventLocalizations/%s/appEventScreenshots", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appEventScreenshots: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppEventScreenshotsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventScreenshotsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventScreenshotsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appEventLocalizations/%s/appEventScreenshots", localizationID),
+		Query:       buildAppEventScreenshotsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appEventScreenshots",
+	})
 }
 
 // GetAppEventScreenshotsRelationships retrieves screenshot linkages for an app event localization.
 func (c *Client) GetAppEventScreenshotsRelationships(ctx context.Context, localizationID string, opts ...LinkagesOption) (*AppEventLocalizationScreenshotsLinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	localizationID = strings.TrimSpace(localizationID)
 	if query.nextURL == "" && localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appEventLocalizations/%s/relationships/appEventScreenshots", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appEventScreenshotsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventLocalizationScreenshotsLinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventLocalizationScreenshotsLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appEventLocalizations/%s/relationships/appEventScreenshots", localizationID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appEventScreenshotsRelationships",
+	})
 }
 
 // GetAppEventScreenshot retrieves an app event screenshot by ID.
@@ -540,18 +379,7 @@ func (c *Client) GetAppEventScreenshot(ctx context.Context, screenshotID string)
 	if screenshotID == "" {
 		return nil, fmt.Errorf("screenshotID is required")
 	}
-	path := fmt.Sprintf("/v1/appEventScreenshots/%s", screenshotID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventScreenshotResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventScreenshotResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appEventScreenshots/%s", screenshotID)})
 }
 
 // CreateAppEventScreenshot creates an app event screenshot reservation.
@@ -580,22 +408,11 @@ func (c *Client) CreateAppEventScreenshot(ctx context.Context, localizationID, f
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appEventScreenshots", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventScreenshotResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEventScreenshotResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appEventScreenshots",
+		Payload: payload,
+	})
 }
 
 // UpdateAppEventScreenshot updates an app event screenshot.
@@ -615,23 +432,11 @@ func (c *Client) UpdateAppEventScreenshot(ctx context.Context, screenshotID stri
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appEventScreenshots/%s", screenshotID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventScreenshotResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEventScreenshotResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appEventScreenshots/%s", screenshotID),
+		Payload: payload,
+	})
 }
 
 // DeleteAppEventScreenshot deletes an app event screenshot.
@@ -640,79 +445,41 @@ func (c *Client) DeleteAppEventScreenshot(ctx context.Context, screenshotID stri
 	if screenshotID == "" {
 		return fmt.Errorf("screenshotID is required")
 	}
-	path := fmt.Sprintf("/v1/appEventScreenshots/%s", screenshotID)
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appEventScreenshots/%s", screenshotID), nil)
 }
 
 // GetAppEventVideoClips retrieves video clips for an app event localization.
 func (c *Client) GetAppEventVideoClips(ctx context.Context, localizationID string, opts ...AppEventVideoClipsOption) (*AppEventVideoClipsResponse, error) {
-	query := &appEventVideoClipsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	localizationID = strings.TrimSpace(localizationID)
 	if query.nextURL == "" && localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appEventLocalizations/%s/appEventVideoClips", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appEventVideoClips: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppEventVideoClipsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventVideoClipsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventVideoClipsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appEventLocalizations/%s/appEventVideoClips", localizationID),
+		Query:       buildAppEventVideoClipsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appEventVideoClips",
+	})
 }
 
 // GetAppEventVideoClipsRelationships retrieves video clip linkages for an app event localization.
 func (c *Client) GetAppEventVideoClipsRelationships(ctx context.Context, localizationID string, opts ...LinkagesOption) (*AppEventLocalizationVideoClipsLinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	localizationID = strings.TrimSpace(localizationID)
 	if query.nextURL == "" && localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appEventLocalizations/%s/relationships/appEventVideoClips", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appEventVideoClipsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventLocalizationVideoClipsLinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventLocalizationVideoClipsLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appEventLocalizations/%s/relationships/appEventVideoClips", localizationID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appEventVideoClipsRelationships",
+	})
 }
 
 // GetAppEventVideoClip retrieves an app event video clip by ID.
@@ -721,18 +488,7 @@ func (c *Client) GetAppEventVideoClip(ctx context.Context, clipID string) (*AppE
 	if clipID == "" {
 		return nil, fmt.Errorf("clipID is required")
 	}
-	path := fmt.Sprintf("/v1/appEventVideoClips/%s", clipID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventVideoClipResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEventVideoClipResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appEventVideoClips/%s", clipID)})
 }
 
 // CreateAppEventVideoClip creates an app event video clip reservation.
@@ -766,22 +522,11 @@ func (c *Client) CreateAppEventVideoClip(ctx context.Context, localizationID, fi
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appEventVideoClips", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventVideoClipResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEventVideoClipResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appEventVideoClips",
+		Payload: payload,
+	})
 }
 
 // UpdateAppEventVideoClip updates an app event video clip.
@@ -799,23 +544,11 @@ func (c *Client) UpdateAppEventVideoClip(ctx context.Context, clipID string, att
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appEventVideoClips/%s", clipID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEventVideoClipResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEventVideoClipResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appEventVideoClips/%s", clipID),
+		Payload: payload,
+	})
 }
 
 // DeleteAppEventVideoClip deletes an app event video clip.
@@ -824,7 +557,5 @@ func (c *Client) DeleteAppEventVideoClip(ctx context.Context, clipID string) err
 	if clipID == "" {
 		return fmt.Errorf("clipID is required")
 	}
-	path := fmt.Sprintf("/v1/appEventVideoClips/%s", clipID)
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appEventVideoClips/%s", clipID), nil)
 }

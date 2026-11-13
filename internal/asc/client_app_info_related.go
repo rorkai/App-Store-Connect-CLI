@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -14,18 +13,7 @@ func (c *Client) GetAppInfoPrimaryCategory(ctx context.Context, appInfoID string
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/primaryCategory", appInfoID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCategoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCategoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appInfos/%s/primaryCategory", appInfoID)})
 }
 
 // GetAppInfoPrimarySubcategoryOne retrieves the primary subcategory one for an app info.
@@ -35,18 +23,7 @@ func (c *Client) GetAppInfoPrimarySubcategoryOne(ctx context.Context, appInfoID 
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/primarySubcategoryOne", appInfoID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCategoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCategoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appInfos/%s/primarySubcategoryOne", appInfoID)})
 }
 
 // GetAppInfoPrimarySubcategoryTwo retrieves the primary subcategory two for an app info.
@@ -56,18 +33,7 @@ func (c *Client) GetAppInfoPrimarySubcategoryTwo(ctx context.Context, appInfoID 
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/primarySubcategoryTwo", appInfoID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCategoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCategoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appInfos/%s/primarySubcategoryTwo", appInfoID)})
 }
 
 // GetAppInfoSecondaryCategory retrieves the secondary category for an app info.
@@ -77,18 +43,7 @@ func (c *Client) GetAppInfoSecondaryCategory(ctx context.Context, appInfoID stri
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/secondaryCategory", appInfoID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCategoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCategoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appInfos/%s/secondaryCategory", appInfoID)})
 }
 
 // GetAppInfoSecondarySubcategoryOne retrieves the secondary subcategory one for an app info.
@@ -98,18 +53,7 @@ func (c *Client) GetAppInfoSecondarySubcategoryOne(ctx context.Context, appInfoI
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/secondarySubcategoryOne", appInfoID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCategoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCategoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appInfos/%s/secondarySubcategoryOne", appInfoID)})
 }
 
 // GetAppInfoSecondarySubcategoryTwo retrieves the secondary subcategory two for an app info.
@@ -119,16 +63,5 @@ func (c *Client) GetAppInfoSecondarySubcategoryTwo(ctx context.Context, appInfoI
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/secondarySubcategoryTwo", appInfoID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCategoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCategoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appInfos/%s/secondarySubcategoryTwo", appInfoID)})
 }
