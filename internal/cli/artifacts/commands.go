@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 
@@ -142,20 +143,23 @@ func runArtifactInfo(ctx context.Context, args []string, config artifactInfoConf
 	if _, err := shared.ValidateOutputFormat(config.Output, config.Pretty); err != nil {
 		return shared.UsageError(err.Error())
 	}
-	unreadable := func(err error) error {
+	unreadable := func(err error, contentCode shared.DiagnosticCode) error {
 		if printErr := shared.PrintOutput(unreadableReceipt(config.Kind, path, config.VerifySignature), config.Output, config.Pretty); printErr != nil {
 			return printErr
 		}
-		return shared.ClassifyLocalFileError(fmt.Errorf("%s: %w", config.Kind, err), "--path", "")
+		return shared.ClassifyLocalFileError(fmt.Errorf("%s: %w", config.Kind, err), "--path", contentCode)
 	}
 	file, err := rootfs.OpenFile(path)
 	if err != nil {
-		return unreadable(err)
+		if errors.Is(err, fs.ErrNotExist) {
+			err = shared.NewErrorWithCause(fmt.Errorf("--path file not found: %q", path), err)
+		}
+		return unreadable(err, shared.DiagnosticInvalidInput)
 	}
 	defer file.Close()
 	info, err := file.Stat()
 	if err != nil {
-		return unreadable(err)
+		return unreadable(err, "")
 	}
 	switch config.Kind {
 	case "ipa-info":
