@@ -80,10 +80,10 @@ func populatePinnedSkillsFixture(t *testing.T, sourceDir string, names []string)
 	}
 }
 
-func runInstallCommand(t *testing.T, args ...string) error {
+func runInstallCommand(t *testing.T) error {
 	t.Helper()
 	cmd := InstallSkillsCommand()
-	if err := cmd.Parse(args); err != nil {
+	if err := cmd.Parse(nil); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	return cmd.Run(context.Background())
