@@ -44,55 +44,6 @@ func TestRunMetadataKeywordsPushInvalidContinueOnErrorReturnsUsageExitCode(t *te
 	}
 }
 
-func TestRunMetadataKeywordsPushRejectsOverLimitKeywordCharactersBeforeAuthResolution(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY", "")
-	t.Setenv("ASC_PRIVATE_KEY_B64", "")
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	inputPath := filepath.Join(t.TempDir(), "keywords.json")
-	if err := os.WriteFile(inputPath, []byte(`{"ja":"`+strings.Repeat("語", 101)+`"}`), 0o600); err != nil {
-		t.Fatalf("WriteFile() error: %v", err)
-	}
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
-
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"metadata", "keywords", "push",
-			"--version-id", "ver-1",
-			"--input", inputPath,
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "keywords exceed 100 characters") {
-		t.Fatalf("expected keyword character-limit error, got %q", stderr)
-	}
-	if requestCount != 0 {
-		t.Fatalf("expected no HTTP requests, got %d", requestCount)
-	}
-}
-
 func TestMetadataKeywordsPushCreatesUpdatesAndWritesFailureArtifact(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")

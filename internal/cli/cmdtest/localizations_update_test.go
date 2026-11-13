@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -212,75 +213,108 @@ func TestLocalizationsUpdate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T
 	}
 }
 
-func TestLocalizationsUpdate_RejectsOverLimitKeywordBytesBeforeRequest(t *testing.T) {
-	setupLocUpdateAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requestCount := 0
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
-
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"localizations", "update",
-			"--version", "ver-1",
-			"--locale", "ja",
-			"--keywords", strings.Repeat("語", 101),
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+func TestKeywordWritersRejectOverLimitKeywordsBeforeAuthResolution(t *testing.T) {
+	overLimit := strings.Repeat("語", 101)
+	trailingSpace := strings.Repeat("a", 100) + " "
+	writeStrings := func(t *testing.T, keywords string) string {
+		t.Helper()
+		dir := t.TempDir()
+		content := "\"description\" = \"日本語説明\";\n\"keywords\" = \"" + keywords + "\";\n"
+		if err := os.WriteFile(filepath.Join(dir, "ja.strings"), []byte(content), 0o644); err != nil {
+			t.Fatalf("write strings file: %v", err)
 		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+		return dir
 	}
-	if !strings.Contains(stderr, "keywords exceed 100 characters") {
-		t.Fatalf("expected keyword character-limit error, got %q", stderr)
+
+	tests := []struct {
+		name string
+		args func(t *testing.T) []string
+	}{
+		{
+			name: "localizations create",
+			args: func(*testing.T) []string {
+				return []string{"localizations", "create", "--version", "version-1", "--locale", "ja", "--keywords", overLimit}
+			},
+		},
+		{
+			name: "localizations update",
+			args: func(*testing.T) []string {
+				return []string{"localizations", "update", "--version", "ver-1", "--locale", "ja", "--keywords", overLimit}
+			},
+		},
+		{
+			name: "localizations update counts trailing space",
+			args: func(*testing.T) []string {
+				return []string{"localizations", "update", "--version", "ver-1", "--locale", "ja", "--keywords", trailingSpace}
+			},
+		},
+		{
+			name: "localizations upload",
+			args: func(t *testing.T) []string {
+				return []string{"localizations", "upload", "--version", "version-1", "--path", writeStrings(t, overLimit)}
+			},
+		},
+		{
+			name: "localizations upload counts trailing space",
+			args: func(t *testing.T) []string {
+				return []string{"localizations", "upload", "--version", "version-1", "--path", writeStrings(t, trailingSpace)}
+			},
+		},
+		{
+			name: "metadata push",
+			args: func(t *testing.T) []string {
+				dir := t.TempDir()
+				versionDir := filepath.Join(dir, "version", "1.2.3")
+				if err := os.MkdirAll(versionDir, 0o755); err != nil {
+					t.Fatalf("mkdir version dir: %v", err)
+				}
+				if err := os.WriteFile(filepath.Join(versionDir, "ja.json"), []byte(`{"keywords":"`+overLimit+`"}`), 0o644); err != nil {
+					t.Fatalf("write version file: %v", err)
+				}
+				return []string{"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--dir", dir}
+			},
+		},
+		{
+			name: "metadata keywords push",
+			args: func(t *testing.T) []string {
+				inputPath := filepath.Join(t.TempDir(), "keywords.json")
+				if err := os.WriteFile(inputPath, []byte(`{"ja":"`+overLimit+`"}`), 0o600); err != nil {
+					t.Fatalf("WriteFile() error: %v", err)
+				}
+				return []string{"metadata", "keywords", "push", "--version-id", "ver-1", "--input", inputPath}
+			},
+		},
 	}
-	if requestCount != 0 {
-		t.Fatalf("expected no HTTP requests, got %d", requestCount)
-	}
-}
 
-func TestLocalizationsUpdate_RejectsRawKeywordCharactersIncludingTrailingSpaceBeforeRequest(t *testing.T) {
-	setupLocUpdateAuth(t)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_KEY_ID", "")
+			t.Setenv("ASC_ISSUER_ID", "")
+			t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+			t.Setenv("ASC_PRIVATE_KEY", "")
+			t.Setenv("ASC_PRIVATE_KEY_B64", "")
+			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+				return nil, nil
+			}))
+			args := test.args(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			stdout, stderr := captureOutput(t, func() {
+				if code := cmd.Run(args, "1.2.3"); code != cmd.ExitUsage {
+					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+				}
+			})
 
-	requestCount := 0
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
-
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"localizations", "update",
-			"--version", "ver-1",
-			"--locale", "ja",
-			"--keywords", strings.Repeat("a", 100) + " ",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "keywords exceed 100 characters") {
-		t.Fatalf("expected keyword character-limit error, got %q", stderr)
-	}
-	if requestCount != 0 {
-		t.Fatalf("expected no HTTP requests, got %d", requestCount)
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "keywords exceed 100 characters") {
+				t.Fatalf("expected keyword character-limit error, got %q", stderr)
+			}
+		})
 	}
 }
 
