@@ -118,12 +118,15 @@ func TestSubscriptionsPricingEqualize_ReconcilesAutoScheduledPriceOnItsStartDate
 			body := `{
 				"data":[
 					{"type":"subscriptionPrices","id":"price-can-old","attributes":{"startDate":"2025-01-01","preserved":false},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-can-old"}}}},
-					{"type":"subscriptionPrices","id":"price-can-new","attributes":{"startDate":"2026-10-01","preserved":false},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"` + canPricePointID + `"}}}}
+					{"type":"subscriptionPrices","id":"price-can-new","attributes":{"startDate":"2026-10-01","preserved":false},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"` + canPricePointID + `"}}}},
+					{"type":"subscriptionPrices","id":"price-usa-new","attributes":{"startDate":"2026-10-01","preserved":false},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"` + basePricePointID + `"}}}}
 				],
 				"included":[
 					{"type":"subscriptionPricePoints","id":"pp-can-old","attributes":{"customerPrice":"0.99","proceeds":"0.70","proceedsYear2":"0.84"}},
 					{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29","proceeds":"0.90","proceedsYear2":"1.05"}},
-					{"type":"territories","id":"CAN","attributes":{"currency":"CAD"}}
+					{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"0.99","proceeds":"0.84","proceedsYear2":"0.84"}},
+					{"type":"territories","id":"CAN","attributes":{"currency":"CAD"}},
+					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
 				],
 				"links":{"next":""}
 			}`
@@ -173,8 +176,8 @@ func TestSubscriptionsPricingEqualize_ReconcilesAutoScheduledPriceOnItsStartDate
 		}
 	})
 
-	if canAttempts != 1 || verifyReads != 1 {
-		t.Fatalf("expected one CAN attempt and one verification read, got attempts=%d reads=%d", canAttempts, verifyReads)
+	if canAttempts != 1 || verifyReads != 2 {
+		t.Fatalf("expected one CAN attempt, one reconciliation read and one final verification read, got attempts=%d reads=%d", canAttempts, verifyReads)
 	}
 	var result struct {
 		StartDate     string `json:"startDate"`
@@ -187,5 +190,124 @@ func TestSubscriptionsPricingEqualize_ReconcilesAutoScheduledPriceOnItsStartDate
 	}
 	if result.StartDate != "2026-10-01" || !result.AutoScheduled || result.Succeeded != 2 || result.Failed != 0 {
 		t.Fatalf("expected the scheduled CAN price to reconcile, got %+v", result)
+	}
+}
+
+func TestSubscriptionsPricingEqualize_AutoScheduleMovesToTheEarliestStartDateAppleAccepts(t *testing.T) {
+	runEqualizeOnEarliestStartDateAppleAccepts(t, false)
+}
+
+// When the base territory already has its price, the too-soon rejection must
+// still move the start date instead of being reconciled away.
+func TestSubscriptionsPricingEqualize_AutoScheduleMovesStartDateWhenBaseAlreadyHasItsPrice(t *testing.T) {
+	runEqualizeOnEarliestStartDateAppleAccepts(t, true)
+}
+
+func runEqualizeOnEarliestStartDateAppleAccepts(t *testing.T, baseAlreadyPriced bool) {
+	t.Helper()
+	setupAuth(t)
+	t.Setenv("ASC_MAX_RETRIES", "0")
+	// 11:01 PST on 2026-11-12: the Pacific next day is 2026-11-13, but App
+	// Store Connect only accepts 2026-11-14 (observed 2026-11-12).
+	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+		return time.Date(2026, time.November, 12, 19, 1, 0, 0, time.UTC)
+	}))
+
+	basePricePointID := testSubscriptionPricePointID("USA")
+	canPricePointID := testSubscriptionPricePointID("CAN")
+	ledger := newSubscriptionPriceLedger()
+	if baseAlreadyPriced {
+		ledger.set("USA", basePricePointID, "")
+	}
+	var posts []string
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"0.99"}}],"links":{}}`
+			return jsonHTTPResponse(http.StatusOK, body), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/"+basePricePointID+"/equalizations":
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29"},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}],"links":{}}`
+			return jsonHTTPResponse(http.StatusOK, body), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/subscriptionAvailability":
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionAvailabilities/avail-1/availableTerritories":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/relationships/prices":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-existing"}],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001":
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"state":"READY_FOR_SALE"}}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
+			return ledger.response(), nil
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("ReadAll() error: %v", err)
+			}
+			var payload struct {
+				Data struct {
+					Attributes struct {
+						StartDate string `json:"startDate"`
+					} `json:"attributes"`
+					Relationships struct {
+						Territory struct {
+							Data struct {
+								ID string `json:"id"`
+							} `json:"data"`
+						} `json:"territory"`
+					} `json:"relationships"`
+				} `json:"data"`
+			}
+			if err := json.Unmarshal(body, &payload); err != nil {
+				t.Fatalf("parse body: %v", err)
+			}
+			posts = append(posts, payload.Data.Relationships.Territory.Data.ID+"@"+payload.Data.Attributes.StartDate)
+			if payload.Data.Attributes.StartDate < "2026-11-14" {
+				return jsonHTTPResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"An attribute value is invalid.","detail":"Invalid startDate=`+payload.Data.Attributes.StartDate+`, must be on or after 2026-11-14","source":{"pointer":"/data/attributes/startDate"}}]}`), nil
+			}
+			ledger.record(t, body)
+			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-created"}}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "equalize",
+			"--subscription-id", "8000000001",
+			"--base-price", "0.99",
+			"--confirm",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if got := strings.Join(posts, ","); got != "USA@2026-11-13,USA@2026-11-14,CAN@2026-11-14" {
+		t.Fatalf("expected one rejected base POST, then every territory on Apple's earliest date, got %s", got)
+	}
+	if !strings.Contains(stderr, "scheduling price changes for 2026-11-14") {
+		t.Fatalf("expected stderr to name the adopted start date, got %q", stderr)
+	}
+	var result struct {
+		StartDate     string `json:"startDate"`
+		AutoScheduled bool   `json:"autoScheduled"`
+		Succeeded     int    `json:"succeeded"`
+		Failed        int    `json:"failed"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("parse JSON result: %v", err)
+	}
+	if result.StartDate != "2026-11-14" || !result.AutoScheduled || result.Succeeded != 2 || result.Failed != 0 {
+		t.Fatalf("expected both territories scheduled for 2026-11-14, got %+v", result)
 	}
 }
