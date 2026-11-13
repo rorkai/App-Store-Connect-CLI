@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -14,32 +13,13 @@ func (c *Client) GetAndroidToIosAppMappingDetails(ctx context.Context, appID str
 		return nil, fmt.Errorf("app ID is required")
 	}
 
-	query := &androidToIosAppMappingDetailsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/androidToIosAppMappingDetails", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("androidToIosAppMappingDetails: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAndroidToIosAppMappingDetailsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AndroidToIosAppMappingDetailsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AndroidToIosAppMappingDetailsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/androidToIosAppMappingDetails", appID),
+		Query:       buildAndroidToIosAppMappingDetailsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "androidToIosAppMappingDetails",
+	})
 }
 
 // GetAndroidToIosAppMappingDetail retrieves a mapping by ID.
@@ -49,27 +29,8 @@ func (c *Client) GetAndroidToIosAppMappingDetail(ctx context.Context, id string,
 		return nil, fmt.Errorf("mapping ID is required")
 	}
 
-	query := &androidToIosAppMappingDetailsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id)
-	if queryString := buildAndroidToIosAppMappingDetailQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AndroidToIosAppMappingDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AndroidToIosAppMappingDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id), Query: buildAndroidToIosAppMappingDetailQuery(query)})
 }
 
 // CreateAndroidToIosAppMappingDetail creates a new mapping.
@@ -94,22 +55,7 @@ func (c *Client) CreateAndroidToIosAppMappingDetail(ctx context.Context, appID s
 		},
 	}
 
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/androidToIosAppMappingDetails", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AndroidToIosAppMappingDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/androidToIosAppMappingDetails", Payload: request})
 }
 
 // UpdateAndroidToIosAppMappingDetail updates an existing mapping.
@@ -127,23 +73,7 @@ func (c *Client) UpdateAndroidToIosAppMappingDetail(ctx context.Context, id stri
 		},
 	}
 
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id)
-	data, err := c.do(ctx, "PATCH", path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AndroidToIosAppMappingDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id), Payload: request})
 }
 
 // DeleteAndroidToIosAppMappingDetail deletes a mapping by ID.
@@ -153,7 +83,5 @@ func (c *Client) DeleteAndroidToIosAppMappingDetail(ctx context.Context, id stri
 		return fmt.Errorf("mapping ID is required")
 	}
 
-	path := fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id), nil)
 }
