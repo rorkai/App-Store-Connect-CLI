@@ -67,10 +67,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("beta-app-localizations list: --limit must be between 1 and 200")
+				return shared.UsageErrorCtx(ctx, "beta-app-localizations list: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("beta-app-localizations list: %w", err)
+				return shared.UsageErrorfCtx(ctx, "beta-app-localizations list: %v", err)
 			}
 			if err := shared.RejectNextFlagConflicts(fs, *next, "testflight app-localizations list", "locale"); err != nil {
 				return err

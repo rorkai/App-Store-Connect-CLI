@@ -92,7 +92,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("certificates list: %w", err)
+				return shared.UsageErrorf("certificates list: %v", err)
 			}
 			if err := shared.RejectNextFlagConflicts(
 				fs,
@@ -132,7 +132,7 @@ Examples:
 				}
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("certificates list: --limit must be between 1 and 200")
+				return shared.UsageError("certificates list: --limit must be between 1 and 200")
 			}
 			sortValue, err := normalizeCertificateSort(*sort)
 			if err != nil {

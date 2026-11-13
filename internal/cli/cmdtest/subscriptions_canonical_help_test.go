@@ -369,9 +369,10 @@ func TestCanonicalWrapperErrorsUseCanonicalPaths(t *testing.T) {
 		usageError bool
 	}{
 		{
-			name:    "subscriptions offers win-back next validation",
-			args:    []string{"subscriptions", "offers", "win-back", "list", "--next", "http://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/winBackOffers?cursor=AQ"},
-			wantErr: "subscriptions offers win-back list: --next must be an App Store Connect URL",
+			name:       "subscriptions offers win-back next validation",
+			args:       []string{"subscriptions", "offers", "win-back", "list", "--next", "http://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/winBackOffers?cursor=AQ"},
+			wantErr:    "subscriptions offers win-back list: --next must be an App Store Connect URL",
+			usageError: true,
 		},
 		{
 			name:       "subscriptions promoted-purchases next validation",

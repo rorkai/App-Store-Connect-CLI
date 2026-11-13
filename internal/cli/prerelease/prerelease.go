@@ -65,10 +65,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("pre-release-versions list: --limit must be between 1 and 200")
+				return shared.UsageErrorCtx(ctx, "pre-release-versions list: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("pre-release-versions list: %w", err)
+				return shared.UsageErrorfCtx(ctx, "pre-release-versions list: %v", err)
 			}
 			if err := shared.RejectNextFlagConflicts(fs, *next, "testflight pre-release list", "platform", "version"); err != nil {
 				return err

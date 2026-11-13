@@ -2,6 +2,8 @@ package cmdtest
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -49,9 +51,10 @@ func TestPreReleaseVersionsListRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected a usage-classified error, got %v", runErr)
 			}
+			assertUsageDiagnosticFirstLine(t, stderr, test.wantErr)
 		})
 	}
 }
@@ -159,9 +162,10 @@ func TestPreReleaseVersionsBuildsListRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected a usage-classified error, got %v", runErr)
 			}
+			assertUsageDiagnosticFirstLine(t, stderr, test.wantErr)
 		})
 	}
 }
@@ -268,9 +272,10 @@ func TestPreReleaseVersionsRelationshipsBuildsRejectsInvalidNextURL(t *testing.T
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected a usage-classified error, got %v", runErr)
 			}
+			assertUsageDiagnosticFirstLine(t, stderr, test.wantErr)
 		})
 	}
 }
