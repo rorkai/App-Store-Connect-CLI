@@ -17,7 +17,7 @@ import (
 
 var customPageMediaClientFactory = shared.GetASCClient
 
-const customPageScreenshotSetsListCommand = "asc product-pages custom-pages localizations screenshot-sets list --include-screenshots --paginate"
+const customPageScreenshotSetsListCommand = "asc product-pages custom-pages localizations screenshot-sets list --localization-id \"LOCALIZATION_ID\" --include-screenshots --paginate"
 
 // CustomPageLocalizationsScreenshotSetsUploadCommand returns the screenshot sets upload subcommand.
 func CustomPageLocalizationsScreenshotSetsUploadCommand() *ffcli.Command {

@@ -17,7 +17,7 @@ import (
 
 var experimentTreatmentLocalizationMediaClientFactory = shared.GetASCClient
 
-const treatmentScreenshotSetsListCommand = "asc product-pages experiments treatments localizations screenshot-sets list --include-screenshots --paginate"
+const treatmentScreenshotSetsListCommand = "asc product-pages experiments treatments localizations screenshot-sets list --localization-id \"LOCALIZATION_ID\" --include-screenshots --paginate"
 
 // ExperimentTreatmentLocalizationPreviewSetsCommand returns the preview sets command group.
 func ExperimentTreatmentLocalizationPreviewSetsCommand() *ffcli.Command {
