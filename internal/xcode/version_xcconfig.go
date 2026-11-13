@@ -359,79 +359,52 @@ func resolveXCConfigInclude(containingPath string, include xcconfigInclude) (str
 	return filepath.Clean(path), nil
 }
 
-func collectXCConfigFiles(root string) ([]string, error) {
-	return collectXCConfigFilesWithReader(root, os.ReadFile, nil)
-}
-
-// collectStableXCConfigFiles walks a stable version command's include graph
-// with per-directory case semantics. Stable commands retain ordinary
-// os.Stat/os.ReadFile behavior (including selected symlinks), but a Windows
-// case-sensitive directory must not collapse two case-distinct include paths
-// into one traversal key.
-func collectStableXCConfigFiles(root string) ([]string, error) {
-	return collectStableXCConfigFilesWithObserver(root, nil)
-}
-
-func collectStableXCConfigFilesWithObserver(root string, onPath func(string)) ([]string, error) {
-	var identify func(string) (os.FileInfo, error)
+// stableXCConfigIdentify returns the identity callback for stable version
+// commands. They keep ordinary os.Stat/os.ReadFile behavior (including selected
+// symlinks), but a case-sensitive directory on a case-insensitive host must not
+// collapse two case-distinct include paths into one traversal key. Identity-aware
+// traversal coalesces case-variant aliases on case-insensitive volumes,
+// including Linux vfat/exfat/ntfs mounts, while case-semantics checks keep
+// genuinely distinct files separate.
+func stableXCConfigIdentify() func(string) (os.FileInfo, error) {
 	if xcconfigUsesIdentityTraversal() {
-		identify = os.Stat
+		return os.Stat
 	}
-	return collectXCConfigFilesWithHooksAndIdentityAndOptionalMissing(root, os.ReadFile, nil, onPath, nil, identify, nil)
+	return nil
 }
 
-// collectXCConfigFilesWithReader walks an xcconfig include graph using the
-// caller's reader and authorization hook. Security-sensitive callers should
-// authorize every path before the reader or existence check touches it.
-func collectXCConfigFilesWithReader(root string, read func(string) ([]byte, error), authorize func(string) error) ([]string, error) {
-	return collectXCConfigFilesWithHooks(root, read, authorize, nil, nil)
-}
-
-// collectXCConfigFilesWithHooks is the instrumentable form of the collector.
-// onPath runs for every normalized root or include target before authorization,
-// stat, or read. onError receives the path responsible for a collection
-// failure. Security-sensitive callers use these hooks to retain lexical
-// provenance even when a path is missing or malformed and therefore never
-// becomes part of the successfully collected file list.
-func collectXCConfigFilesWithHooks(
-	root string,
-	read func(string) ([]byte, error),
-	authorize func(string) error,
-	onPath func(string),
-	onError func(string, error),
-) ([]string, error) {
-	return collectXCConfigFilesWithHooksAndIdentityAndOptionalMissing(root, read, authorize, onPath, onError, nil, nil)
-}
-
-// collectXCConfigFilesWithHooksAndIdentity is the signing-specific collector
-// extension for filesystems whose path spelling semantics can vary by
-// directory. The identity callback runs only after authorization and lets a
-// caller distinguish two case-variant paths that are distinct files without
-// weakening the no-read-before-authorization contract.
-func collectXCConfigFilesWithHooksAndIdentity(
-	root string,
-	read func(string) ([]byte, error),
-	identify func(string) (os.FileInfo, error),
-) ([]string, error) {
-	return collectXCConfigFilesWithHooksAndIdentityAndOptionalMissing(root, read, nil, nil, nil, identify, nil)
-}
-
-// collectXCConfigFilesWithHooksAndIdentityAndOptionalMissing is the
-// instrumentable collector used by signing plan generation. onOptionalMissing
-// receives each lexically resolved optional include whose target is absent.
-// The callback runs after the authorization check and before the missing target
-// is ignored, so callers can persist an absence assertion without granting
-// access to an untrusted path.
-func collectXCConfigFilesWithHooksAndIdentityAndOptionalMissing(
-	root string,
-	read func(string) ([]byte, error),
-	authorize func(string) error,
-	onPath func(string),
-	onError func(string, error),
-	identify func(string) (os.FileInfo, error),
-	onOptionalMissing func(string),
-) ([]string, error) {
-	return collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimit(root, read, authorize, onPath, onError, identify, onOptionalMissing, 0, nil)
+// xcconfigCollectOptions holds the optional hooks and limits for
+// collectXCConfigFiles. A nil read uses os.ReadFile; every other zero value
+// disables its hook or limit.
+type xcconfigCollectOptions struct {
+	read func(string) ([]byte, error)
+	// authorize runs for every path before the reader or existence check
+	// touches it.
+	authorize func(string) error
+	// onPath runs for every normalized root or include target before
+	// authorization, stat, or read, so callers retain lexical provenance even
+	// when a path is missing or malformed.
+	onPath func(string)
+	// onError receives the path responsible for a collection failure.
+	onError func(string, error)
+	// identify runs only after authorization and distinguishes case-variant
+	// paths that are distinct files on filesystems whose path spelling
+	// semantics vary by directory.
+	identify func(string) (os.FileInfo, error)
+	// onOptionalMissing receives each lexically resolved optional include whose
+	// target is absent, after the authorization check and before the missing
+	// target is ignored.
+	onOptionalMissing func(string)
+	maxFiles          int
+	// optionalProbe is consulted only for an optional include encountered after
+	// maxFiles sources have been collected. It must perform a no-follow
+	// existence check after authorization; os.ErrNotExist means the include
+	// remains absent and does not consume the budget, while any other result
+	// fails with a typed limit error.
+	optionalProbe func(string) (os.FileInfo, error)
+	// budget is an optional plan-wide source budget. A nil budget keeps the
+	// per-collection bound.
+	budget *xcconfigSourceBudget
 }
 
 // xcconfigSourceBudget tracks successfully collected source identities across
@@ -560,45 +533,21 @@ func (b *xcconfigSourceBudget) add(path string, info os.FileInfo) bool {
 	return true
 }
 
-// collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimit is the
-// bounded form used by signing-plan generation. optionalProbe is consulted
-// only for an optional include encountered after maxFiles sources have already
-// been collected. It must perform a no-follow existence check after the caller
-// has authorized the path; os.ErrNotExist means the optional include remains
-// absent and does not consume the budget, while any other result is treated as
-// a present or indeterminate source and fails with a typed limit error.
-func collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimit(
-	root string,
-	read func(string) ([]byte, error),
-	authorize func(string) error,
-	onPath func(string),
-	onError func(string, error),
-	identify func(string) (os.FileInfo, error),
-	onOptionalMissing func(string),
-	maxFiles int,
-	optionalProbe func(string) (os.FileInfo, error),
-) ([]string, error) {
-	return collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
-		root, read, authorize, onPath, onError, identify, onOptionalMissing, maxFiles, optionalProbe, nil,
-	)
-}
-
-// collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget is
-// the bounded collector with an optional plan-wide source budget. A nil
-// budget retains the historical per-collection bound used by callers outside
-// signing-plan generation.
-func collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
-	root string,
-	read func(string) ([]byte, error),
-	authorize func(string) error,
-	onPath func(string),
-	onError func(string, error),
-	identify func(string) (os.FileInfo, error),
-	onOptionalMissing func(string),
-	maxFiles int,
-	optionalProbe func(string) (os.FileInfo, error),
-	budget *xcconfigSourceBudget,
-) ([]string, error) {
+// collectXCConfigFiles walks an xcconfig include graph from root and returns
+// every collected source in traversal order.
+func collectXCConfigFiles(root string, options xcconfigCollectOptions) ([]string, error) {
+	read := options.read
+	if read == nil {
+		read = os.ReadFile
+	}
+	authorize := options.authorize
+	onPath := options.onPath
+	onError := options.onError
+	identify := options.identify
+	onOptionalMissing := options.onOptionalMissing
+	maxFiles := options.maxFiles
+	optionalProbe := options.optionalProbe
+	budget := options.budget
 	if budget != nil {
 		if cached, ok := budget.root(root, maxFiles); ok {
 			for _, path := range cached.pathEvents {
@@ -892,52 +841,20 @@ func signingPathCaseEquivalentNormalized(left, right string) bool {
 	return leftKnown && rightKnown && leftInsensitive && rightInsensitive
 }
 
-func resolveXCConfigSetting(root, setting string) (xcconfigResolvedValue, error) {
-	return resolveXCConfigSettingWithBase(root, setting, xcconfigResolvedValue{})
+// xcconfigResolveOptions holds the inputs and hooks for resolveXCConfigSetting
+// and resolveXCConfigSettingState. A nil read uses os.ReadFile and a nil stat
+// uses os.Stat; every other zero value disables its hook.
+type xcconfigResolveOptions struct {
+	base     xcconfigResolvedValue
+	read     func(string) ([]byte, error)
+	stat     func(string) (os.FileInfo, error)
+	identify func(string) (os.FileInfo, error)
+	observe  xcconfigAssignmentObserver
+	lookup   func(string) (string, bool)
 }
 
-func resolveXCConfigSettingWithBase(root, setting string, base xcconfigResolvedValue) (xcconfigResolvedValue, error) {
-	var identify func(string) (os.FileInfo, error)
-	if xcconfigUsesIdentityTraversal() {
-		// Identity-aware traversal coalesces case-variant aliases on
-		// case-insensitive volumes, including Linux vfat/exfat/ntfs mounts.
-		// os.Stat supplies the identity; case-semantics checks keep genuinely
-		// distinct files separate.
-		identify = os.Stat
-	}
-	return resolveXCConfigSettingWithBaseReaderAndIdentity(root, setting, base, os.ReadFile, os.Stat, identify)
-}
-
-func resolveXCConfigSettingWithBaseReader(
-	root, setting string,
-	base xcconfigResolvedValue,
-	read func(string) ([]byte, error),
-	stat func(string) (os.FileInfo, error),
-) (xcconfigResolvedValue, error) {
-	return resolveXCConfigSettingWithBaseReaderAndIdentity(root, setting, base, read, stat, nil)
-}
-
-func resolveXCConfigSettingWithBaseReaderAndIdentity(
-	root, setting string,
-	base xcconfigResolvedValue,
-	read func(string) ([]byte, error),
-	stat func(string) (os.FileInfo, error),
-	identify func(string) (os.FileInfo, error),
-) (xcconfigResolvedValue, error) {
-	return resolveXCConfigSettingWithBaseReaderAndIdentityAndLookup(root, setting, base, read, stat, identify, nil)
-}
-
-func resolveXCConfigSettingWithBaseReaderAndIdentityAndLookup(
-	root, setting string,
-	base xcconfigResolvedValue,
-	read func(string) ([]byte, error),
-	stat func(string) (os.FileInfo, error),
-	identify func(string) (os.FileInfo, error),
-	lookup func(string) (string, bool),
-) (xcconfigResolvedValue, error) {
-	resolved, conditional, err := resolveXCConfigSettingStateWithReaderAndIdentity(
-		root, setting, base, read, stat, identify, nil, lookup,
-	)
+func resolveXCConfigSetting(root, setting string, options xcconfigResolveOptions) (xcconfigResolvedValue, error) {
+	resolved, conditional, err := resolveXCConfigSettingState(root, setting, options)
 	if err != nil {
 		return xcconfigResolvedValue{}, err
 	}
@@ -1000,21 +917,21 @@ func expandXCConfigLookupReferences(value string, lookup func(string) (string, b
 // second include walker or authorization path.
 type xcconfigAssignmentObserver func(path string, assignment xcconfigAssignment)
 
-// resolveXCConfigSettingStateWithReaderAndIdentity exposes the raw traversal
-// state to narrow provenance consumers. Unlike the public resolution wrapper,
-// it does not convert conditional-only or divergent assignments into a
-// resolution error; operational read/parse/include failures still propagate.
-func resolveXCConfigSettingStateWithReaderAndIdentity(
-	root, setting string,
-	base xcconfigResolvedValue,
-	read func(string) ([]byte, error),
-	stat func(string) (os.FileInfo, error),
-	identify func(string) (os.FileInfo, error),
-	observe xcconfigAssignmentObserver,
-	lookup func(string) (string, bool),
-) (xcconfigResolvedValue, bool, error) {
+// resolveXCConfigSettingState exposes the raw traversal state to narrow
+// provenance consumers. Unlike resolveXCConfigSetting, it does not convert
+// conditional-only or divergent assignments into a resolution error;
+// operational read/parse/include failures still propagate.
+func resolveXCConfigSettingState(root, setting string, options xcconfigResolveOptions) (xcconfigResolvedValue, bool, error) {
+	read := options.read
+	if read == nil {
+		read = os.ReadFile
+	}
+	stat := options.stat
+	if stat == nil {
+		stat = os.Stat
+	}
 	return resolveXCConfigSettingRecursiveWithReaderAndIdentity(
-		filepath.Clean(root), setting, make(map[string]bool), new([]xcconfigResolutionPath), base, read, stat, identify, observe, lookup,
+		filepath.Clean(root), setting, make(map[string]bool), new([]xcconfigResolutionPath), options.base, read, stat, options.identify, options.observe, options.lookup,
 	)
 }
 
