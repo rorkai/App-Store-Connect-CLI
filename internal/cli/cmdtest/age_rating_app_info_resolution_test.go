@@ -1,18 +1,18 @@
 package cmdtest
 
 import (
-	"context"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestAgeRatingViewResolvesAppInfoWhileNewVersionIsPrepared(t *testing.T) {
 	tests := []struct {
 		name         string
 		appInfos     string
+		appInfoID    string
 		wantStdout   string
 		wantStderr   string
 		wantErrParts []string
@@ -20,6 +20,7 @@ func TestAgeRatingViewResolvesAppInfoWhileNewVersionIsPrepared(t *testing.T) {
 		{
 			name:       "selects the editable app info",
 			appInfos:   `{"data":[{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_DISTRIBUTION"}},{"type":"appInfos","id":"info-edit","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}],"links":{}}`,
+			appInfoID:  "info-edit",
 			wantStdout: `"id":"decl-info-edit"`,
 			wantStderr: "auto-selected info-edit (PREPARE_FOR_SUBMISSION)",
 		},
@@ -31,6 +32,7 @@ func TestAgeRatingViewResolvesAppInfoWhileNewVersionIsPrepared(t *testing.T) {
 		{
 			name:       "ignores historical app infos",
 			appInfos:   `{"data":[{"type":"appInfos","id":"info-old","attributes":{"state":"REPLACED_WITH_NEW_INFO"}},{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`,
+			appInfoID:  "info-live",
 			wantStdout: `"id":"decl-info-live"`,
 		},
 	}
@@ -38,27 +40,15 @@ func TestAgeRatingViewResolvesAppInfoWhileNewVersionIsPrepared(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				appInfoID := strings.TrimSuffix(strings.TrimPrefix(req.URL.Path, "/v1/appInfos/"), "/ageRatingDeclaration")
-				switch req.URL.Path {
-				case "/v1/apps/app-1/appInfos":
-					return jsonHTTPResponse(http.StatusOK, test.appInfos), nil
-				case "/v1/appInfos/" + appInfoID + "/ageRatingDeclaration":
-					return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-`+appInfoID+`","attributes":{}}}`), nil
-				default:
-					return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-				}
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps/app-1/appInfos", "fields[appInfos]=state", "limit=200"), asctest.JSON(http.StatusOK, test.appInfos))
+			if test.appInfoID != "" {
+				reg.Register(asctest.GET("/v1/appInfos/"+test.appInfoID+"/ageRatingDeclaration"),
+					asctest.JSON(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-`+test.appInfoID+`","attributes":{}}}`))
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"age-rating", "view", "--app", "app-1", "--output", "json"}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runCommand(t, []string{"age-rating", "view", "--app", "app-1", "--output", "json"})
 
 			if len(test.wantErrParts) > 0 {
 				if runErr == nil {
