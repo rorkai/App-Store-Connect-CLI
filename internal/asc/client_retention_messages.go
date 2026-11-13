@@ -128,42 +128,19 @@ func getRetentionMessageRead[T any](c *Client, ctx context.Context, pathFormat, 
 		opt(q)
 	}
 	id = strings.TrimSpace(id)
-	path := fmt.Sprintf(pathFormat, id)
-	if q.nextURL != "" {
-		if err := validateNextURL(q.nextURL); err != nil {
-			return nil, fmt.Errorf("retention messages: %w", err)
-		}
-		path = q.nextURL
-	} else if id == "" {
+	if q.nextURL == "" && id == "" {
 		return nil, fmt.Errorf("resource ID is required")
-	} else if query := q.values.Encode(); query != "" {
-		path += "?" + query
 	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response T
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[T](ctx, c, readRequest{
+		Path:        fmt.Sprintf(pathFormat, id),
+		Query:       q.values.Encode(),
+		Next:        q.nextURL,
+		NextContext: "retention messages",
+	})
 }
 
 func writeRetentionMessageResource[T any](c *Client, ctx context.Context, method, path string, data retentionMessageWriteData) (*T, error) {
-	body, err := BuildRequestBody(retentionMessageWriteRequest{Data: data})
-	if err != nil {
-		return nil, err
-	}
-	response, err := c.do(ctx, method, path, body)
-	if err != nil {
-		return nil, err
-	}
-	var decoded T
-	if err := json.Unmarshal(response, &decoded); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &decoded, nil
+	return sendJSON[T](ctx, c, writeRequest{Method: method, Path: path, Payload: retentionMessageWriteRequest{Data: data}})
 }
 
 func retentionMessageRelationship(resourceType ResourceType, id string) Relationship {
@@ -270,8 +247,7 @@ func (c *Client) DeleteRetentionMessage(ctx context.Context, messageID string) e
 	if err := requireRetentionMessageID("messageID", messageID); err != nil {
 		return err
 	}
-	_, err := c.do(ctx, http.MethodDelete, "/v1/retentionMessages/"+strings.TrimSpace(messageID), nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, "/v1/retentionMessages/"+strings.TrimSpace(messageID), nil)
 }
 
 // CreateRetentionMessageVersion creates a version of a retention message,
@@ -320,8 +296,7 @@ func (c *Client) DeleteRetentionMessageLocalization(ctx context.Context, localiz
 	if err := requireRetentionMessageID("localizationID", localizationID); err != nil {
 		return err
 	}
-	_, err := c.do(ctx, http.MethodDelete, "/v1/retentionMessageLocalizations/"+strings.TrimSpace(localizationID), nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, "/v1/retentionMessageLocalizations/"+strings.TrimSpace(localizationID), nil)
 }
 
 // SetSubscriptionRetentionMessage assigns a retention message to a subscription,
@@ -333,10 +308,5 @@ func (c *Client) SetSubscriptionRetentionMessage(ctx context.Context, subscripti
 	if err := requireRetentionMessageID("messageID", messageID); err != nil {
 		return err
 	}
-	body, err := BuildRequestBody(retentionMessageRelationship(ResourceTypeRetentionMessages, messageID))
-	if err != nil {
-		return err
-	}
-	_, err = c.do(ctx, http.MethodPatch, "/v1/subscriptions/"+strings.TrimSpace(subscriptionID)+"/relationships/retentionMessage", body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, "/v1/subscriptions/"+strings.TrimSpace(subscriptionID)+"/relationships/retentionMessage", retentionMessageRelationship(ResourceTypeRetentionMessages, messageID))
 }
