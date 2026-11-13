@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -97,6 +98,18 @@ func TestRenewableBearerTokenReportsRenewalFailures(t *testing.T) {
 				t.Fatalf("NewClientFromBearerToken() error = %v, want ErrBearerTokenRenewal", err)
 			}
 		})
+	}
+}
+
+// Ctrl-C during a renewal is an interruption, not an authentication failure.
+func TestRenewableBearerTokenReportsInterruptionAsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := NewClientFromBearerToken(ctx, "", func(ctx context.Context) (string, error) {
+		return "", fmt.Errorf("token command interrupted: %w", ctx.Err())
+	}, 0)
+	if !errors.Is(err, context.Canceled) || errors.Is(err, ErrBearerTokenRenewal) {
+		t.Fatalf("NewClientFromBearerToken() error = %v, want context.Canceled without ErrBearerTokenRenewal", err)
 	}
 }
 

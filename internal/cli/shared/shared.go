@@ -961,6 +961,9 @@ func bearerTokenClient(timeout time.Duration) (client *asc.Client, ok bool, err 
 	ctx, stopInterrupt := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopInterrupt()
 	client, err = asc.NewClientFromBearerToken(ctx, token, renew, timeout)
+	if errors.Is(err, context.Canceled) {
+		return nil, true, err
+	}
 	if errors.Is(err, asc.ErrBearerTokenRenewal) {
 		// readBearerTokenFromCommand already names the variable.
 		return nil, true, missingAuthError{msg: err.Error(), cause: err}

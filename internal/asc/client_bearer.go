@@ -84,6 +84,9 @@ func (s *bearerTokenSource) set(token string) error {
 func (s *bearerTokenSource) renewToken(ctx context.Context, now time.Time) error {
 	token, err := s.renew(ctx)
 	if err != nil {
+		if ctx.Err() != nil {
+			return err
+		}
 		return fmt.Errorf("%w: %w", ErrBearerTokenRenewal, err)
 	}
 	if err := s.set(token); err != nil {
