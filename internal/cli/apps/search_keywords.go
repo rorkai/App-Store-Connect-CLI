@@ -286,7 +286,7 @@ Examples:
 
 			locales := shared.SplitCSV(*locale)
 			if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {
-				return fmt.Errorf("apps search-keywords list: %w", err)
+				return shared.UsageErrorf("apps search-keywords list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

@@ -84,7 +84,7 @@ Examples:
 
 			locales := shared.SplitCSV(*locale)
 			if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {
-				return fmt.Errorf("beta-app-localizations list: %w", err)
+				return shared.UsageErrorfCtx(ctx, "beta-app-localizations list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()
@@ -211,7 +211,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--locale")
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-				return fmt.Errorf("beta-app-localizations create: %w", err)
+				return shared.UsageErrorfCtx(ctx, "beta-app-localizations create: %v", err)
 			}
 
 			attrs := asc.BetaAppLocalizationAttributes{

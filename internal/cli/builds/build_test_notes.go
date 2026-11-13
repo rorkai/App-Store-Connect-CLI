@@ -95,7 +95,7 @@ Examples:
 
 			locales := shared.SplitCSV(*locale)
 			if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {
-				return fmt.Errorf("builds test-notes list: %w", err)
+				return shared.UsageErrorf("builds test-notes list: %v", err)
 			}
 			if strings.TrimSpace(*next) == "" {
 				if err := validateResolveBuildOptions(selectors.resolveOptions()); err != nil {
@@ -249,7 +249,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--locale")
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-				return fmt.Errorf("builds test-notes create: %w", err)
+				return shared.UsageErrorf("builds test-notes create: %v", err)
 			}
 			if err := validateResolveBuildOptions(selectors.resolveOptions()); err != nil {
 				return fmt.Errorf("builds test-notes create: %w", err)

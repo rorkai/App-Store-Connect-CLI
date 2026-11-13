@@ -191,7 +191,7 @@ Examples:
 					return shared.UsageError("builds upload: --test-notes is not supported with --dry-run")
 				}
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-					return fmt.Errorf("builds upload: %w", err)
+					return shared.UsageErrorf("builds upload: %v", err)
 				}
 				normalizedNotes, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, testNotesValue)
 				if normalizeErr != nil {
