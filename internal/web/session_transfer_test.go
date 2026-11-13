@@ -895,7 +895,7 @@ func TestImportSessionBundleNoOverwritePreservesSessionWrittenDuringKeychainFall
 	importer := backendSelection{backend: sessionBackendFile, fallbackKeychain: true}
 	writer := backendSelection{backend: sessionBackendKeychain}
 
-	if _, ok, err := readSessionBySelection(importer, key); err != nil || ok {
+	if _, _, ok, err := readSessionBySelection(importer, key); err != nil || ok {
 		t.Fatalf("import preflight = (%v, %v), want an empty cache", ok, err)
 	}
 	if err := persistSessionBySelection(writer, key, webTestPersistedSession(t, "keychain-token", time.Now().UTC())); err != nil {
@@ -930,7 +930,7 @@ func TestImportSessionBundleNoOverwritePreservesSessionWrittenDuringFilePrefligh
 	key := webSessionCacheKey(webTestSessionEmail)
 	selection := backendSelection{backend: sessionBackendFile}
 
-	if _, ok, err := readSessionBySelection(selection, key); err != nil || ok {
+	if _, _, ok, err := readSessionBySelection(selection, key); err != nil || ok {
 		t.Fatalf("import preflight = (%v, %v), want an empty cache", ok, err)
 	}
 	if err := persistSessionBySelection(selection, key, webTestPersistedSession(t, "file-token", time.Now().UTC())); err != nil {
@@ -967,7 +967,7 @@ func TestImportSessionBundleNoOverwritePreservesSessionWrittenDuringFileFallback
 	importer := backendSelection{backend: sessionBackendKeychain, fallbackFile: true}
 	writer := backendSelection{backend: sessionBackendFile}
 
-	if _, ok, err := readSessionBySelection(importer, key); err != nil || ok {
+	if _, _, ok, err := readSessionBySelection(importer, key); err != nil || ok {
 		t.Fatalf("import preflight = (%v, %v), want an empty cache", ok, err)
 	}
 	if err := persistSessionBySelection(writer, key, webTestPersistedSession(t, "file-token", time.Now().UTC())); err != nil {
