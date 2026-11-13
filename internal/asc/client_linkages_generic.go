@@ -2,9 +2,7 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -18,37 +16,20 @@ func getTypedResourceLinkages[T any](
 	nextURLErrorContext string,
 	opts ...LinkagesOption,
 ) (*T, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	resourceID = strings.TrimSpace(resourceID)
 	if query.nextURL == "" && resourceID == "" {
 		return nil, fmt.Errorf("%s is required", resourceIDName)
 	}
 
-	path := fmt.Sprintf(pathFmt, resourceID, relationship)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("%s: %w", nextURLErrorContext, err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response T
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse %s relationship response: %w", relationship, err)
-	}
-
-	return &response, nil
+	return getJSON[T](ctx, c, readRequest{
+		Path:        fmt.Sprintf(pathFmt, resourceID, relationship),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: nextURLErrorContext,
+		ParseErr:    fmt.Sprintf("failed to parse %s relationship response", relationship),
+	})
 }
 
 // getResourceLinkages is a small internal helper for relationship linkages endpoints.
