@@ -2185,6 +2185,32 @@ func TestMigrateImportDryRunSkipsAppClipReviewInformationDir(t *testing.T) {
 	}
 }
 
+func TestMigrateImportDryRunReadsIMessageAndAppleTVScreenshotDirs(t *testing.T) {
+	root := writeMigrateImportMetadata(t, validMigrateAppInfoMetadata())
+	for dir, size := range map[string][2]int{
+		"en-US":          {1290, 2796},
+		"iMessage/en-US": {1290, 2796},
+		"appleTV/en-US":  {3840, 2160},
+	} {
+		localeDir := filepath.Join(root, "screenshots", filepath.FromSlash(dir))
+		if err := os.MkdirAll(localeDir, 0o755); err != nil {
+			t.Fatalf("mkdir screenshots %s: %v", dir, err)
+		}
+		writePNGForMigrate(t, filepath.Join(localeDir, "1.png"), size[0], size[1])
+	}
+
+	result := migrateImportDryRunPlan(t, root)
+
+	var got []string
+	for _, plan := range result.ScreenshotPlan {
+		got = append(got, plan.Locale+" "+plan.DisplayType)
+	}
+	want := []string{"en-US APP_APPLE_TV", "en-US APP_IPHONE_67", "en-US IMESSAGE_APP_IPHONE_67"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("screenshot plan = %v, want %v", got, want)
+	}
+}
+
 func TestMigrateImportDryRunRejectsUnsupportedCreateLocale(t *testing.T) {
 	root := t.TempDir()
 	localeDir := filepath.Join(root, "metadata", "nl")

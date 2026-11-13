@@ -450,6 +450,10 @@ of being uploaded to a guessed slot.
 When a folder holds both `0_home.png` and its framed copy `0_home_framed.png`,
 only the framed copy is uploaded and the raw file is listed under `skipped`.
 
+`screenshots/iMessage/<locale>/` is imported as iMessage screenshots.
+`screenshots/appleTV/<locale>/` is read as one more set of locale directories,
+and a 3840x2160 file inside it is an Apple TV screenshot without the name hint.
+
 ## Partial Imports
 
 `migrate import --confirm` applies version localizations, App Info
