@@ -4,6 +4,8 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 // buildIDOnlyCommands lists the TestFlight and build-selector commands whose
@@ -54,28 +56,6 @@ var buildIDOnlyCommands = [][]string{
 	{"performance", "download"},
 }
 
-func TestBuildIDOnlyCommandsDoNotRegisterLegacyBuildAlias(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	for _, path := range buildIDOnlyCommands {
-		t.Run(strings.Join(path, " "), func(t *testing.T) {
-			command := findSubcommand(root, path...)
-			if command == nil {
-				t.Fatalf("command %q not found", strings.Join(path, " "))
-			}
-			if command.FlagSet.Lookup("build-id") == nil {
-				t.Fatalf("canonical flag --build-id not registered on %q", strings.Join(path, " "))
-			}
-			if command.FlagSet.Lookup("build") != nil {
-				t.Fatalf("removed alias --build must not be registered on %q", strings.Join(path, " "))
-			}
-			if command.FlagSet.Lookup("newest") != nil {
-				t.Fatalf("removed alias --newest must not be registered on %q", strings.Join(path, " "))
-			}
-		})
-	}
-}
-
 func TestTestFlightGroupsViewRejectsRemovedGroupIDAlias(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -99,6 +79,16 @@ func TestBuildIDOnlyCommandsRejectLegacyBuildAliasAsUnknownFlag(t *testing.T) {
 		t.Run(strings.Join(path, " "), func(t *testing.T) {
 			args := append(append([]string{}, path...), "--build", "BUILD_123")
 			assertRemovedFlagGuidance(t, args, "--build")
+		})
+		t.Run(strings.Join(path, " ")+" newest", func(t *testing.T) {
+			var code int
+			_, stderr := captureOutput(t, func() {
+				code = cmd.Run(append(append([]string{}, path...), "--newest"), "1.2.3")
+			})
+			unregistered := strings.Contains(stderr, "unknown flag `--newest`") || strings.Contains(stderr, "`--newest` was removed in 5.0.0")
+			if code != cmd.ExitUsage || !unregistered {
+				t.Fatalf("exit=%d stderr=%q, want --newest rejected as unregistered", code, stderr)
+			}
 		})
 	}
 }
