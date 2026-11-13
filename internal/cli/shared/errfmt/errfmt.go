@@ -82,7 +82,7 @@ func Classify(err error) ClassifiedError {
 			return ClassifiedError{Message: err.Error()}
 		}
 		hint := requestTimeoutHint
-		if isUploadTimeoutError(err) {
+		if errors.Is(err, shared.ErrUploadDeadline) || isUploadTimeoutError(err) {
 			hint = uploadTimeoutHint
 		} else if strings.Contains(err.Error(), "failed to write report") {
 			hint = downloadTimeoutHint

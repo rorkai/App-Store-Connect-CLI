@@ -17,6 +17,7 @@ type assetLibraryImageUploadResponse struct {
 			State            string            `json:"state"`
 			SpecID           string            `json:"specId"`
 			UploadOperations []UploadOperation `json:"uploadOperations"`
+			StateDetails     []ErrorDetail     `json:"stateDetails"`
 			ImageAsset       *struct {
 				Width  int `json:"width"`
 				Height int `json:"height"`
@@ -175,6 +176,15 @@ func (c *Client) UploadAssetLibraryImageWithCategory(ctx context.Context, librar
 		attrs := current.Data.Attributes
 		result.State, result.SpecID = attrs.State, attrs.SpecID
 		if attrs.State == "FAILED" {
+			var codes []string
+			for _, detail := range attrs.StateDetails {
+				if code := strings.TrimSpace(detail.Code); code != "" {
+					codes = append(codes, code)
+				}
+			}
+			if len(codes) > 0 {
+				return struct{}{}, false, fmt.Errorf("%w: %s", errImageProcessingFailed, strings.Join(codes, ", "))
+			}
 			return struct{}{}, false, errImageProcessingFailed
 		}
 		if attrs.ImageAsset != nil {

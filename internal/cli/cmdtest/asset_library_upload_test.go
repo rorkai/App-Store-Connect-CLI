@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 )
 
 func creativeUploadFile(t *testing.T) (string, []byte) {
@@ -130,7 +132,7 @@ func TestAssetLibraryImageUpload(t *testing.T) {
 				case req.Method == "GET" && req.URL.Path == "/v1/appAssetLibraryImages/image":
 					reads++
 					if mode == "processing-failed" {
-						return jsonResponse(200, `{"data":{"type":"appAssetLibraryImages","id":"image","attributes":{"state":"FAILED","imageAsset":null}}}`)
+						return jsonResponse(200, `{"data":{"type":"appAssetLibraryImages","id":"image","attributes":{"state":"FAILED","imageAsset":null,"stateDetails":[{"code":"INVALID_ASSET_FILE_FORMAT","description":"INVALID_ASSET_FILE_FORMAT"}]}}}`)
 					}
 					if mode == "transient-processing" && reads == 1 {
 						return nil, context.DeadlineExceeded
@@ -228,8 +230,16 @@ func TestAssetLibraryImageUpload(t *testing.T) {
 			if mode == "processing-timeout" && (!receipt.Uploaded || receipt.State != "FUTURE_PROCESSING" || !errors.Is(err, context.DeadlineExceeded)) {
 				t.Fatalf("unknown state did not remain pending: receipt=%+v err=%v", receipt, err)
 			}
+			if mode == "processing-timeout" {
+				if hint := errfmt.Classify(err).Hint; hint != "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=45m`)." {
+					t.Fatalf("processing deadline hint = %q", hint)
+				}
+				if !strings.Contains(err.Error(), "may still finish processing") || !strings.Contains(err.Error(), "asc asset-library images view --id image") {
+					t.Fatalf("processing deadline does not explain how to check the upload: %v", err)
+				}
+			}
 			if mode == "processing-failed" {
-				if !receipt.Uploaded || receipt.State != "FAILED" || errors.Is(err, context.DeadlineExceeded) || !strings.Contains(stringError(err), "FAILED") || reads != 1 || uploaded != 2 || calls != 5 {
+				if !receipt.Uploaded || receipt.State != "FAILED" || errors.Is(err, context.DeadlineExceeded) || !strings.Contains(stringError(err), "FAILED: INVALID_ASSET_FILE_FORMAT") || reads != 1 || uploaded != 2 || calls != 5 {
 					t.Fatalf("processing failure did not stop with partial receipt: receipt=%+v err=%v reads=%d calls=%d stderr=%q", receipt, err, reads, calls, stderr)
 				}
 			}
