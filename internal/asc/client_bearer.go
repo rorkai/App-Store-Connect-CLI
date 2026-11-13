@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -39,7 +38,7 @@ const bearerRenewSkew = time.Minute
 // renew, the client calls renew for the next token shortly before the current
 // one expires, and for the first token when token is empty.
 func NewClientFromBearerToken(ctx context.Context, token string, renew BearerTokenRenewer, timeout time.Duration) (*Client, error) {
-	source := &bearerTokenSource{renew: renew}
+	source := newBearerTokenSource(renew)
 	if strings.TrimSpace(token) != "" || renew == nil {
 		if err := source.set(token); err != nil {
 			return nil, err
@@ -61,9 +60,15 @@ func NewClientFromBearerToken(ctx context.Context, token string, renew BearerTok
 type bearerTokenSource struct {
 	renew BearerTokenRenewer
 
-	mu        sync.Mutex
+	// lock is a one-slot semaphore rather than a mutex so a request can stop
+	// waiting for another request's renewal when its context ends.
+	lock      chan struct{}
 	token     string
 	expiresAt time.Time
+}
+
+func newBearerTokenSource(renew BearerTokenRenewer) *bearerTokenSource {
+	return &bearerTokenSource{renew: renew, lock: make(chan struct{}, 1)}
 }
 
 // set accepts a token after checking that it is a JWT with an expiry.
@@ -108,9 +113,16 @@ func (s *bearerTokenSource) renewToken(ctx context.Context, now time.Time) error
 // current returns a token valid at now, renewing it first when it is about to
 // expire. Concurrent requests share one renewal.
 func (s *bearerTokenSource) current(ctx context.Context, now time.Time) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	select {
+	case s.lock <- struct{}{}:
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	defer func() { <-s.lock }()
 	if s.renew != nil && !now.Before(s.expiresAt.Add(-bearerRenewSkew)) {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
 		if err := s.renewToken(ctx, now); err != nil {
 			return "", err
 		}

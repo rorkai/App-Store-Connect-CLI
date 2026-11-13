@@ -113,12 +113,40 @@ func TestRenewableBearerTokenReportsInterruptionAsCancellation(t *testing.T) {
 	}
 }
 
+// A request whose context ends while another request renews the token must
+// return instead of waiting for that renewal.
+func TestRenewableBearerTokenWaitHonorsCancellation(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	source := newBearerTokenSource(func(context.Context) (string, error) {
+		close(started)
+		<-release
+		return signedTestJWT(t, time.Now().Add(2*tokenLifetime)), nil
+	})
+	renewed := make(chan error, 1)
+	go func() {
+		_, err := source.current(context.Background(), time.Now())
+		renewed <- err
+	}()
+	<-started
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := source.current(ctx, time.Now()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("current() while another renewal runs = %v, want context.Canceled", err)
+	}
+	close(release)
+	if err := <-renewed; err != nil {
+		t.Fatalf("first renewal error = %v", err)
+	}
+}
+
 // A slow token command can return a token that was valid when the renewal
 // started but expired by the time it finished.
 func TestRenewableBearerTokenRejectsATokenThatExpiredWhileRenewing(t *testing.T) {
-	source := &bearerTokenSource{renew: func(context.Context) (string, error) {
+	source := newBearerTokenSource(func(context.Context) (string, error) {
 		return signedTestJWT(t, time.Now().Add(-time.Minute)), nil
-	}}
+	})
 	renewalStarted := time.Now().Add(-2 * time.Minute)
 	if token, err := source.current(context.Background(), renewalStarted); !errors.Is(err, ErrBearerTokenRenewal) {
 		t.Fatalf("current() = %q, %v; want ErrBearerTokenRenewal for a token that expired during renewal", token, err)
