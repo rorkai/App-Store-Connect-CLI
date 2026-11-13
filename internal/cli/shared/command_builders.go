@@ -24,8 +24,22 @@ type IDGetCommandConfig struct {
 	// IDType is the API resource type named by the ID flag. When set, the flag
 	// also accepts that resource's self-link and rejects links of other types.
 	IDType string
+	// RequiredDiagnostic reports a missing ID flag with the required-input
+	// diagnostic instead of a plain usage error.
+	RequiredDiagnostic bool
 
 	ErrorPrefix string
+	// FetchErrorPrefix wraps errors returned by Fetch. It defaults to
+	// ErrorPrefix.
+	FetchErrorPrefix string
+
+	// Flags registers command-specific flags and returns their validation,
+	// which runs after the ID check. The returned function may be nil.
+	Flags func(*flag.FlagSet) func() error
+
+	// Deps supplies the client, streams and timeout. It defaults to
+	// DefaultDeps().
+	Deps *Deps
 
 	ContextTimeout func(context.Context) (context.Context, context.CancelFunc)
 	Fetch          func(context.Context, *asc.Client, string) (any, error)
@@ -33,7 +47,8 @@ type IDGetCommandConfig struct {
 
 // BuildIDGetCommand builds a standard "get by ID" command.
 func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
-	fs := flag.NewFlagSet(config.FlagSetName, flag.ExitOnError)
+	d := builderDeps(config.Deps)
+	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	idFlagName := strings.TrimSpace(config.IDFlag)
 	if idFlagName == "" {
@@ -45,12 +60,11 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 	}
 
 	id := bindBuilderIDFlag(fs, idFlagName, config.IDType, idUsage)
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
+	validate := bindBuilderFlags(fs, config.Flags)
 
-	timeout := config.ContextTimeout
-	if timeout == nil {
-		timeout = ContextWithTimeout
-	}
+	timeout := builderTimeout(d, config.ContextTimeout)
+	fetchErrorPrefix := builderFetchErrorPrefix(config.FetchErrorPrefix, config.ErrorPrefix)
 
 	return &ffcli.Command{
 		Name:       config.Name,
@@ -62,10 +76,13 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return UsageErrorf("--%s is required", idFlagName)
+				return missingBuilderFlag(d, config.RequiredDiagnostic, idFlagName)
+			}
+			if err := validate(); err != nil {
+				return err
 			}
 
-			client, err := GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
@@ -75,16 +92,17 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 
 			resp, err := config.Fetch(requestCtx, client, idValue)
 			if err != nil {
-				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+				return fmt.Errorf("%s: %w", fetchErrorPrefix, err)
 			}
 
-			return PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
 // PaginatedListCommandConfig configures a standard list command with
-// --limit/--next/--paginate and a required parent resource ID.
+// --limit/--next/--paginate and, unless TopLevel is set, a required parent
+// resource ID.
 type PaginatedListCommandConfig struct {
 	FlagSetName string
 	Name        string
@@ -97,10 +115,37 @@ type PaginatedListCommandConfig struct {
 	// ParentType is the API resource type named by the parent flag. When set,
 	// the flag also accepts that resource's self-link.
 	ParentType string
+	// TopLevel lists a collection that has no parent: no parent flag is
+	// registered, and FetchPage receives an empty parent ID.
+	TopLevel bool
+	// RequiredDiagnostic reports a missing parent flag with the
+	// required-input diagnostic instead of a plain usage error.
+	RequiredDiagnostic bool
 
 	LimitMax int
+	// PaginateIgnoresLimit makes --paginate request LimitMax items per page
+	// even when --limit is set.
+	PaginateIgnoresLimit bool
+	// NoSpinner makes --paginate fetch without the stderr spinner. The first
+	// page's error is then wrapped with FetchErrorPrefix, later pages' errors
+	// with ErrorPrefix.
+	NoSpinner bool
+
+	// NextConflicts names flags that cannot be combined with --next.
+	NextConflicts []string
+	// Flags registers command-specific flags and returns their validation,
+	// which runs after the --limit, --next and parent checks. The returned
+	// function may be nil.
+	Flags func(*flag.FlagSet) func() error
 
 	ErrorPrefix string
+	// FetchErrorPrefix wraps the error of a single-page request. It defaults
+	// to ErrorPrefix.
+	FetchErrorPrefix string
+
+	// Deps supplies the client, streams and timeout. It defaults to
+	// DefaultDeps().
+	Deps *Deps
 
 	ContextTimeout func(context.Context) (context.Context, context.CancelFunc)
 	FetchPage      func(context.Context, *asc.Client, string, int, string) (asc.PaginatedResponse, error)
@@ -109,7 +154,8 @@ type PaginatedListCommandConfig struct {
 // BuildPaginatedListCommand builds a list command that supports --next and
 // --paginate semantics shared by many resources.
 func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command {
-	fs := flag.NewFlagSet(config.FlagSetName, flag.ExitOnError)
+	d := builderDeps(config.Deps)
+	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	parentFlagName := strings.TrimSpace(config.ParentFlag)
 	if parentFlagName == "" {
@@ -124,16 +170,18 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 		limitMax = 200
 	}
 
-	parentID := bindBuilderIDFlag(fs, parentFlagName, config.ParentType, parentUsage)
+	parentID := new(string)
+	if !config.TopLevel {
+		parentID = bindBuilderIDFlag(fs, parentFlagName, config.ParentType, parentUsage)
+	}
 	limit := fs.Int("limit", 0, fmt.Sprintf("Maximum results per page (1-%d)", limitMax))
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
+	validate := bindBuilderFlags(fs, config.Flags)
 
-	timeout := config.ContextTimeout
-	if timeout == nil {
-		timeout = ContextWithTimeout
-	}
+	timeout := builderTimeout(d, config.ContextTimeout)
+	fetchErrorPrefix := builderFetchErrorPrefix(config.FetchErrorPrefix, config.ErrorPrefix)
 
 	cmd := &ffcli.Command{
 		Name:       config.Name,
@@ -158,13 +206,19 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 		if err := ValidateNextURL(*next); err != nil {
 			return UsageErrorf("%s: %v", usageErrorPrefix(), err)
 		}
-
-		resolvedParentID := strings.TrimSpace(*parentID)
-		if resolvedParentID == "" && strings.TrimSpace(*next) == "" {
-			return UsageErrorf("--%s is required", parentFlagName)
+		if err := RejectNextFlagConflicts(fs, *next, usageErrorPrefix(), config.NextConflicts...); err != nil {
+			return err
 		}
 
-		client, err := GetASCClient()
+		resolvedParentID := strings.TrimSpace(*parentID)
+		if !config.TopLevel && resolvedParentID == "" && strings.TrimSpace(*next) == "" {
+			return missingBuilderFlag(d, config.RequiredDiagnostic, parentFlagName)
+		}
+		if err := validate(); err != nil {
+			return err
+		}
+
+		client, err := d.Client()
 		if err != nil {
 			return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 		}
@@ -174,32 +228,42 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 
 		if *paginate {
 			firstPageLimit := *limit
-			if firstPageLimit == 0 {
+			if firstPageLimit == 0 || config.PaginateIgnoresLimit {
 				firstPageLimit = limitMax
 			}
-
-			resp, err := PaginateWithSpinner(
-				requestCtx,
-				func(ctx context.Context) (asc.PaginatedResponse, error) {
-					return config.FetchPage(ctx, client, resolvedParentID, firstPageLimit, *next)
-				},
-				func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return config.FetchPage(ctx, client, resolvedParentID, 0, nextURL)
-				},
-			)
-			if err != nil {
-				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+			fetchFirst := func(ctx context.Context) (asc.PaginatedResponse, error) {
+				return config.FetchPage(ctx, client, resolvedParentID, firstPageLimit, *next)
+			}
+			fetchNext := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				return config.FetchPage(ctx, client, resolvedParentID, 0, nextURL)
 			}
 
-			return PrintOutput(resp, *output.Output, *output.Pretty)
+			var resp asc.PaginatedResponse
+			if config.NoSpinner {
+				firstPage, err := fetchFirst(requestCtx)
+				if err != nil {
+					return fmt.Errorf("%s: %w", fetchErrorPrefix, err)
+				}
+				resp, err = asc.PaginateAll(requestCtx, firstPage, fetchNext)
+				if err != nil {
+					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+				}
+			} else {
+				resp, err = PaginateWithSpinner(requestCtx, fetchFirst, fetchNext)
+				if err != nil {
+					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+				}
+			}
+
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		}
 
 		resp, err := config.FetchPage(requestCtx, client, resolvedParentID, *limit, *next)
 		if err != nil {
-			return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+			return fmt.Errorf("%s: %w", fetchErrorPrefix, err)
 		}
 
-		return PrintOutput(resp, *output.Output, *output.Pretty)
+		return d.PrintOutput(resp, *output.Output, *output.Pretty)
 	}
 
 	return cmd
@@ -387,6 +451,46 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 			return PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func builderDeps(d *Deps) *Deps {
+	if d != nil {
+		return d
+	}
+	return DefaultDeps()
+}
+
+func builderTimeout(d *Deps, timeout func(context.Context) (context.Context, context.CancelFunc)) func(context.Context) (context.Context, context.CancelFunc) {
+	if timeout != nil {
+		return timeout
+	}
+	return d.Timeout
+}
+
+func builderFetchErrorPrefix(fetchErrorPrefix, errorPrefix string) string {
+	if fetchErrorPrefix != "" {
+		return fetchErrorPrefix
+	}
+	return errorPrefix
+}
+
+func bindBuilderFlags(fs *flag.FlagSet, bind func(*flag.FlagSet) func() error) func() error {
+	var validate func() error
+	if bind != nil {
+		validate = bind(fs)
+	}
+	if validate == nil {
+		return func() error { return nil }
+	}
+	return validate
+}
+
+func missingBuilderFlag(d *Deps, diagnostic bool, name string) error {
+	if !diagnostic {
+		return UsageErrorf("--%s is required", name)
+	}
+	fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", name)
+	return MissingRequiredUsageError("--" + name)
 }
 
 // bindBuilderIDFlag registers a builder's ID flag, accepting the resource's
