@@ -92,12 +92,12 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppClipDefaultExperiencesOption{
-				asc.WithAppClipDefaultExperiencesLimit(*limit),
-				asc.WithAppClipDefaultExperiencesNextURL(*next),
+				asc.Limit[asc.AppClipDefaultExperiencesOption](*limit),
+				asc.NextURL[asc.AppClipDefaultExperiencesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppClipDefaultExperiencesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppClipDefaultExperiencesOption](200))
 				firstPage, err := client.GetAppClipDefaultExperiences(requestCtx, appClipValue, paginateOpts...)
 				if err != nil {
 					if asc.IsNotFound(err) {
@@ -108,7 +108,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppClipDefaultExperiences(ctx, appClipValue, asc.WithAppClipDefaultExperiencesNextURL(nextURL))
+					return client.GetAppClipDefaultExperiences(ctx, appClipValue, asc.NextURL[asc.AppClipDefaultExperiencesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-clips default-experiences list: %w", err)

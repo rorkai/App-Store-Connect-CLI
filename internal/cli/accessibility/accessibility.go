@@ -115,19 +115,19 @@ Examples:
 				asc.WithAccessibilityDeclarationsDeviceFamilies(deviceFamilies),
 				asc.WithAccessibilityDeclarationsStates(states),
 				asc.WithAccessibilityDeclarationsFields(fieldsValue),
-				asc.WithAccessibilityDeclarationsLimit(*limit),
-				asc.WithAccessibilityDeclarationsNextURL(*next),
+				asc.Limit[asc.AccessibilityDeclarationsOption](*limit),
+				asc.NextURL[asc.AccessibilityDeclarationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAccessibilityDeclarationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AccessibilityDeclarationsOption](200))
 				firstPage, err := client.GetAccessibilityDeclarations(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("accessibility list: failed to fetch: %w", err)
 				}
 
 				pages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAccessibilityDeclarations(ctx, resolvedAppID, asc.WithAccessibilityDeclarationsNextURL(nextURL))
+					return client.GetAccessibilityDeclarations(ctx, resolvedAppID, asc.NextURL[asc.AccessibilityDeclarationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("accessibility list: %w", err)

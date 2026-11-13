@@ -153,8 +153,8 @@ Examples:
 				asc.WithNominationsTypes(typeValues),
 				asc.WithNominationsStates(statusValues),
 				asc.WithNominationsRelatedApps(shared.SplitCSV(*appIDs)),
-				asc.WithNominationsLimit(*limit),
-				asc.WithNominationsNextURL(*next),
+				asc.Limit[asc.NominationsOption](*limit),
+				asc.NextURL[asc.NominationsOption](*next),
 				asc.WithIncludedFields[asc.NominationsOption](included),
 			}
 			if strings.TrimSpace(*sort) != "" {
@@ -177,14 +177,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithNominationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.NominationsOption](200))
 				firstPage, err := client.GetNominations(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("nominations list: failed to fetch: %w", err)
 				}
 
 				nominations, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetNominations(ctx, asc.WithNominationsNextURL(nextURL))
+					return client.GetNominations(ctx, asc.NextURL[asc.NominationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("nominations list: %w", err)

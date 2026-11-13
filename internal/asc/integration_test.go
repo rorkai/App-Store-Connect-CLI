@@ -705,7 +705,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		builds, err := client.GetBuilds(ctx, appID, WithBuildsLimit(5))
+		builds, err := client.GetBuilds(ctx, appID, Limit[BuildsOption](5))
 		if err != nil {
 			t.Fatalf("failed to fetch builds: %v", err)
 		}
@@ -745,7 +745,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			sortedCtx,
 			appID,
 			WithBuildsSort("-uploadedDate"),
-			WithBuildsLimit(5),
+			Limit[BuildsOption](5),
 		)
 		if err != nil {
 			t.Fatalf("failed to fetch sorted builds: %v", err)

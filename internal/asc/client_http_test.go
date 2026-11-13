@@ -160,7 +160,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetApps",
 			next: "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetApps(ctx, WithAppsLimit(5), WithAppsSort("name"), WithAppsNextURL(next))
+				_, err := c.GetApps(ctx, Limit[AppsOption](5), WithAppsSort("name"), NextURL[AppsOption](next))
 				return err
 			},
 		},
@@ -176,7 +176,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppTags",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/123/appTags?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppTags(ctx, "123", WithAppTagsLimit(5), WithAppTagsNextURL(next))
+				_, err := c.GetAppTags(ctx, "123", Limit[AppTagsOption](5), NextURL[AppTagsOption](next))
 				return err
 			},
 		},
@@ -216,7 +216,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBuilds",
 			next: "https://api.appstoreconnect.apple.com/v1/builds?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBuilds(ctx, "123", WithBuildsLimit(5), WithBuildsSort("uploadedDate"), WithBuildsNextURL(next))
+				_, err := c.GetBuilds(ctx, "123", Limit[BuildsOption](5), WithBuildsSort("uploadedDate"), NextURL[BuildsOption](next))
 				return err
 			},
 		},
@@ -232,7 +232,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetPreReleaseVersions",
 			next: "https://api.appstoreconnect.apple.com/v1/preReleaseVersions?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetPreReleaseVersions(ctx, "123", WithPreReleaseVersionsNextURL(next))
+				_, err := c.GetPreReleaseVersions(ctx, "123", NextURL[PreReleaseVersionsOption](next))
 				return err
 			},
 		},
@@ -471,7 +471,9 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/apps",
 			query: map[string]string{"sort": "-name", "limit": "10"},
 			body:  `{"data":[{"type":"apps","id":"1","attributes":{"name":"Demo","bundleId":"com.example.demo","sku":"SKU1"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetApps(ctx, WithAppsLimit(10), WithAppsSort("-name"))) },
+			call: func(c *Client) error {
+				return discardResult(c.GetApps(ctx, Limit[AppsOption](10), WithAppsSort("-name")))
+			},
 		},
 		{
 			name: "GetApps_WithFilters",
@@ -510,7 +512,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					"123",
 					WithAppTagsVisibleInAppStore([]string{"true"}),
 					WithAppTagsSort("name"),
-					WithAppTagsLimit(5),
+					Limit[AppTagsOption](5),
 					WithAppTagsFields([]string{"name", "visibleInAppStore"}),
 					WithAppTagsInclude([]string{"territories"}),
 					WithAppTagsTerritoryFields([]string{"currency"}),
@@ -574,7 +576,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"filter[app]": "123", "sort": "-uploadedDate", "limit": "5"},
 			body:  `{"data":[{"type":"builds","id":"1","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBuilds(ctx, "123", WithBuildsLimit(5), WithBuildsSort("-uploadedDate")))
+				return discardResult(c.GetBuilds(ctx, "123", Limit[BuildsOption](5), WithBuildsSort("-uploadedDate")))
 			},
 		},
 		{
@@ -777,7 +779,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithBuildUploadsPlatforms([]string{"ios", "mac_os"}),
 					WithBuildUploadsStates([]string{"uploaded", "failed"}),
 					WithBuildUploadsSort("uploadedDate"),
-					WithBuildUploadsLimit(5),
+					Limit[BuildUploadsOption](5),
 				))
 			},
 		},
@@ -787,7 +789,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "15"},
 			body:  `{"data":[{"type":"buildUploadFiles","id":"FILE_123","attributes":{"fileName":"app.ipa","fileSize":1234,"uti":"com.apple.ipa","assetType":"ASSET"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBuildUploadFiles(ctx, "UPLOAD_123", WithBuildUploadFilesLimit(15)))
+				return discardResult(c.GetBuildUploadFiles(ctx, "UPLOAD_123", Limit[BuildUploadFilesOption](15)))
 			},
 		},
 		{
@@ -796,7 +798,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"betaTesters","id":"TESTER_1","attributes":{"email":"tester@example.com"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBuildIndividualTesters(ctx, "BUILD_123", WithBuildIndividualTestersLimit(10)))
+				return discardResult(c.GetBuildIndividualTesters(ctx, "BUILD_123", Limit[BuildIndividualTestersOption](10)))
 			},
 		},
 		{
@@ -1308,7 +1310,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithAccessibilityDeclarationsDeviceFamilies([]string{"iphone", "ipad"}),
 					WithAccessibilityDeclarationsStates([]string{"draft"}),
 					WithAccessibilityDeclarationsFields([]string{"deviceFamily", "state"}),
-					WithAccessibilityDeclarationsLimit(2),
+					Limit[AccessibilityDeclarationsOption](2),
 				))
 			},
 		},
@@ -1354,7 +1356,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithAppEncryptionDeclarationsFields([]string{"appDescription", "exempt"}),
 					WithAppEncryptionDeclarationsDocumentFields([]string{"fileName", "fileSize"}),
 					WithAppEncryptionDeclarationsInclude([]string{"app", "builds"}),
-					WithAppEncryptionDeclarationsLimit(5),
+					Limit[AppEncryptionDeclarationsOption](5),
 					WithAppEncryptionDeclarationsBuildLimit(10),
 				))
 			},
@@ -1380,7 +1382,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithAppEncryptionDeclarationsFields([]string{"appDescription", "exempt"}),
 					WithAppEncryptionDeclarationsDocumentFields([]string{"fileName", "fileSize"}),
 					WithAppEncryptionDeclarationsInclude([]string{"appEncryptionDeclarationDocument"}),
-					WithAppEncryptionDeclarationsLimit(5),
+					Limit[AppEncryptionDeclarationsOption](5),
 					WithAppEncryptionDeclarationsBuildLimit(10),
 				))
 			},
@@ -2754,7 +2756,7 @@ func TestGetBuilds_WithVersionFilter(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	builds, err := client.GetBuilds(context.Background(), "123", WithBuildsVersion("42"), WithBuildsLimit(1))
+	builds, err := client.GetBuilds(context.Background(), "123", WithBuildsVersion("42"), Limit[BuildsOption](1))
 	if err != nil {
 		t.Fatalf("GetBuilds() error: %v", err)
 	}
@@ -2888,7 +2890,7 @@ func TestGetBuilds_WithPreReleaseVersion(t *testing.T) {
 
 	builds, err := client.GetBuilds(
 		context.Background(), "123",
-		WithBuildsLimit(1),
+		Limit[BuildsOption](1),
 		WithBuildsSort("-uploadedDate"),
 		WithBuildsPreReleaseVersion("prv-456"),
 	)
@@ -3067,7 +3069,7 @@ func TestGetPreReleaseVersions_WithFilters(t *testing.T) {
 	result, err := client.GetPreReleaseVersions(
 		context.Background(),
 		"123",
-		WithPreReleaseVersionsLimit(5),
+		Limit[PreReleaseVersionsOption](5),
 		WithPreReleaseVersionsPlatform("ios"),
 		WithPreReleaseVersionsVersion("1.0.0"),
 	)

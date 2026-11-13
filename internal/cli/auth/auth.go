@@ -288,7 +288,7 @@ func doctorMigrationSuggestionResolver() authsvc.MigrationSuggestionResolver {
 			appsResp, err := client.GetApps(
 				requestCtx,
 				asc.WithAppsBundleIDs([]string{appIdentifier}),
-				asc.WithAppsLimit(1),
+				asc.Limit[asc.AppsOption](1),
 			)
 			if err == nil && len(appsResp.Data) > 0 {
 				appID = strings.TrimSpace(appsResp.Data[0].ID)
@@ -314,13 +314,13 @@ func doctorMigrationSuggestionResolver() authsvc.MigrationSuggestionResolver {
 		if needsBuildLookup {
 			buildOpts := []asc.BuildsOption{
 				asc.WithBuildsSort("-uploadedDate"),
-				asc.WithBuildsLimit(1),
+				asc.Limit[asc.BuildsOption](1),
 			}
 			if versionString != "" {
 				preReleaseResp, err := client.GetPreReleaseVersions(
 					requestCtx, appID,
 					asc.WithPreReleaseVersionsVersion(versionString),
-					asc.WithPreReleaseVersionsLimit(1),
+					asc.Limit[asc.PreReleaseVersionsOption](1),
 				)
 				if err == nil && len(preReleaseResp.Data) > 0 {
 					buildOpts = append(buildOpts, asc.WithBuildsPreReleaseVersion(preReleaseResp.Data[0].ID))
@@ -410,7 +410,7 @@ func probeCredential(ctx context.Context, client *asc.Client, keyType string) er
 		_, err := client.GetBundleIDs(ctx, asc.WithBundleIDsLimit(1))
 		return err
 	}
-	_, err := client.GetApps(ctx, asc.WithAppsLimit(1))
+	_, err := client.GetApps(ctx, asc.Limit[asc.AppsOption](1))
 	return err
 }
 

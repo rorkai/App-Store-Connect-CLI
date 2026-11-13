@@ -249,7 +249,7 @@ func TestGetBuildUploadsNextURLOnlyRetriesWhenAppExists(t *testing.T) {
 	response, err := client.GetBuildUploads(
 		context.Background(),
 		"",
-		WithBuildUploadsNextURL("https://api.appstoreconnect.apple.com/v1/apps/6759231657/buildUploads?cursor=page-2"),
+		NextURL[BuildUploadsOption]("https://api.appstoreconnect.apple.com/v1/apps/6759231657/buildUploads?cursor=page-2"),
 	)
 	if err != nil {
 		t.Fatalf("GetBuildUploads() error: %v", err)
@@ -277,7 +277,7 @@ func TestGetBuildUploadsTopLevelNextURLDoesNotVerifyCallerApp(t *testing.T) {
 	_, err := client.GetBuildUploads(
 		context.Background(),
 		"6759231657",
-		WithBuildUploadsNextURL("https://api.appstoreconnect.apple.com/v1/buildUploads/bu-missing"),
+		NextURL[BuildUploadsOption]("https://api.appstoreconnect.apple.com/v1/buildUploads/bu-missing"),
 	)
 	if err == nil {
 		t.Fatal("expected missing-upload error")

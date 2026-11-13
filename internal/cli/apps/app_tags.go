@@ -160,8 +160,8 @@ Examples:
 
 			opts := []asc.AppTagsOption{
 				asc.WithAppTagsVisibleInAppStore(visibleValues),
-				asc.WithAppTagsLimit(*limit),
-				asc.WithAppTagsNextURL(*next),
+				asc.Limit[asc.AppTagsOption](*limit),
+				asc.NextURL[asc.AppTagsOption](*next),
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithAppTagsSort(*sort))
@@ -180,14 +180,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppTagsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppTagsOption](200))
 				firstPage, err := client.GetAppTags(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-tags list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppTags(ctx, resolvedAppID, asc.WithAppTagsNextURL(nextURL))
+					return client.GetAppTags(ctx, resolvedAppID, asc.NextURL[asc.AppTagsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-tags list: %w", err)
@@ -732,7 +732,7 @@ func territoryFieldsList() []string {
 }
 
 func findAppTagByID(ctx context.Context, client *asc.Client, appID, tagID string, opts ...asc.AppTagsOption) (*asc.AppTagResponse, error) {
-	baseOpts := append([]asc.AppTagsOption{asc.WithAppTagsLimit(200)}, opts...)
+	baseOpts := append([]asc.AppTagsOption{asc.Limit[asc.AppTagsOption](200)}, opts...)
 	resp, err := client.GetAppTags(ctx, appID, baseOpts...)
 	if err != nil {
 		return nil, err
@@ -749,7 +749,7 @@ func findAppTagByID(ctx context.Context, client *asc.Client, appID, tagID string
 			break
 		}
 
-		resp, err = client.GetAppTags(ctx, appID, asc.WithAppTagsNextURL(resp.Links.Next))
+		resp, err = client.GetAppTags(ctx, appID, asc.NextURL[asc.AppTagsOption](resp.Links.Next))
 		if err != nil {
 			return nil, err
 		}

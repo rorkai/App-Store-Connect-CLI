@@ -341,24 +341,6 @@ func WithAccessibilityDeclarationsFields(fields []string) AccessibilityDeclarati
 	}
 }
 
-// WithAccessibilityDeclarationsLimit sets the max number of declarations to return.
-func WithAccessibilityDeclarationsLimit(limit int) AccessibilityDeclarationsOption {
-	return func(q *accessibilityDeclarationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAccessibilityDeclarationsNextURL uses a next page URL directly.
-func WithAccessibilityDeclarationsNextURL(next string) AccessibilityDeclarationsOption {
-	return func(q *accessibilityDeclarationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAppEncryptionDeclarationsBuildIDs filters declarations by build IDs.
 func WithAppEncryptionDeclarationsBuildIDs(ids []string) AppEncryptionDeclarationsOption {
 	return func(q *appEncryptionDeclarationsQuery) {
@@ -387,47 +369,11 @@ func WithAppEncryptionDeclarationsInclude(include []string) AppEncryptionDeclara
 	}
 }
 
-// WithAppEncryptionDeclarationsLimit sets the max number of declarations to return.
-func WithAppEncryptionDeclarationsLimit(limit int) AppEncryptionDeclarationsOption {
-	return func(q *appEncryptionDeclarationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 // WithAppEncryptionDeclarationsBuildLimit sets the max number of related builds when included.
 func WithAppEncryptionDeclarationsBuildLimit(limit int) AppEncryptionDeclarationsOption {
 	return func(q *appEncryptionDeclarationsQuery) {
 		if limit > 0 {
 			q.buildLimit = limit
-		}
-	}
-}
-
-// WithAppEncryptionDeclarationsNextURL uses a next page URL directly.
-func WithAppEncryptionDeclarationsNextURL(next string) AppEncryptionDeclarationsOption {
-	return func(q *appEncryptionDeclarationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppsLimit sets the max number of apps to return.
-func WithAppsLimit(limit int) AppsOption {
-	return func(q *appsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppsNextURL uses a next page URL directly.
-func WithAppsNextURL(next string) AppsOption {
-	return func(q *appsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
@@ -513,24 +459,6 @@ func WithAppsInclude(include []string) AppsOption {
 	}
 }
 
-// WithAppSearchKeywordsLimit sets the max number of app keywords to return.
-func WithAppSearchKeywordsLimit(limit int) AppSearchKeywordsOption {
-	return func(q *appSearchKeywordsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppSearchKeywordsNextURL uses a next page URL directly.
-func WithAppSearchKeywordsNextURL(next string) AppSearchKeywordsOption {
-	return func(q *appSearchKeywordsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAppSearchKeywordsPlatforms filters app keywords by platform(s).
 func WithAppSearchKeywordsPlatforms(platforms []string) AppSearchKeywordsOption {
 	return func(q *appSearchKeywordsQuery) {
@@ -545,46 +473,10 @@ func WithAppSearchKeywordsLocales(locales []string) AppSearchKeywordsOption {
 	}
 }
 
-// WithAppClipsLimit sets the max number of App Clips to return.
-func WithAppClipsLimit(limit int) AppClipsOption {
-	return func(q *appClipsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppClipsNextURL uses a next page URL directly.
-func WithAppClipsNextURL(next string) AppClipsOption {
-	return func(q *appClipsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAppClipsBundleIDs filters App Clips by bundle ID(s).
 func WithAppClipsBundleIDs(bundleIDs []string) AppClipsOption {
 	return func(q *appClipsQuery) {
 		q.bundleIDs = normalizeList(bundleIDs)
-	}
-}
-
-// WithAppClipDefaultExperiencesLimit sets the max number of default experiences to return.
-func WithAppClipDefaultExperiencesLimit(limit int) AppClipDefaultExperiencesOption {
-	return func(q *appClipDefaultExperiencesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppClipDefaultExperiencesNextURL uses a next page URL directly.
-func WithAppClipDefaultExperiencesNextURL(next string) AppClipDefaultExperiencesOption {
-	return func(q *appClipDefaultExperiencesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -602,46 +494,10 @@ func WithAppClipDefaultExperienceInclude(include []string) AppClipDefaultExperie
 	}
 }
 
-// WithAppClipDefaultExperienceLocalizationsLimit sets the max number of localizations to return.
-func WithAppClipDefaultExperienceLocalizationsLimit(limit int) AppClipDefaultExperienceLocalizationsOption {
-	return func(q *appClipDefaultExperienceLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppClipDefaultExperienceLocalizationsNextURL uses a next page URL directly.
-func WithAppClipDefaultExperienceLocalizationsNextURL(next string) AppClipDefaultExperienceLocalizationsOption {
-	return func(q *appClipDefaultExperienceLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAppClipDefaultExperienceLocalizationsLocales filters localizations by locale(s).
 func WithAppClipDefaultExperienceLocalizationsLocales(locales []string) AppClipDefaultExperienceLocalizationsOption {
 	return func(q *appClipDefaultExperienceLocalizationsQuery) {
 		q.locales = normalizeList(locales)
-	}
-}
-
-// WithAppClipAdvancedExperiencesLimit sets the max number of advanced experiences to return.
-func WithAppClipAdvancedExperiencesLimit(limit int) AppClipAdvancedExperiencesOption {
-	return func(q *appClipAdvancedExperiencesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppClipAdvancedExperiencesNextURL uses a next page URL directly.
-func WithAppClipAdvancedExperiencesNextURL(next string) AppClipAdvancedExperiencesOption {
-	return func(q *appClipAdvancedExperiencesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -678,24 +534,6 @@ func WithBetaAppClipInvocationLocalizationsLimit(limit int) BetaAppClipInvocatio
 	return func(q *betaAppClipInvocationQuery) {
 		if limit > 0 {
 			q.localizationsLimit = limit
-		}
-	}
-}
-
-// WithAppTagsLimit sets the max number of app tags to return.
-func WithAppTagsLimit(limit int) AppTagsOption {
-	return func(q *appTagsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppTagsNextURL uses a next page URL directly.
-func WithAppTagsNextURL(next string) AppTagsOption {
-	return func(q *appTagsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
@@ -742,24 +580,6 @@ func WithAppTagsTerritoryLimit(limit int) AppTagsOption {
 	return func(q *appTagsQuery) {
 		if limit > 0 {
 			q.territoryLimit = limit
-		}
-	}
-}
-
-// WithNominationsLimit sets the max number of nominations to return.
-func WithNominationsLimit(limit int) NominationsOption {
-	return func(q *nominationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithNominationsNextURL uses a next page URL directly.
-func WithNominationsNextURL(next string) NominationsOption {
-	return func(q *nominationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
@@ -831,24 +651,6 @@ func WithNominationsSupportedTerritoriesLimit(limit int) NominationsOption {
 	return func(q *nominationsQuery) {
 		if limit > 0 {
 			q.supportedTerritoriesLimit = limit
-		}
-	}
-}
-
-// WithBetaAppClipInvocationsLimit sets the max number of App Clip invocations to return.
-func WithBetaAppClipInvocationsLimit(limit int) BetaAppClipInvocationsOption {
-	return func(q *betaAppClipInvocationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaAppClipInvocationsNextURL uses a next page URL directly.
-func WithBetaAppClipInvocationsNextURL(next string) BetaAppClipInvocationsOption {
-	return func(q *betaAppClipInvocationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }

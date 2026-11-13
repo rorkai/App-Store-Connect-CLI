@@ -145,8 +145,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.PreReleaseVersionBuildsOption{
-				asc.WithPreReleaseVersionBuildsLimit(*limit),
-				asc.WithPreReleaseVersionBuildsNextURL(*next),
+				asc.Limit[asc.PreReleaseVersionBuildsOption](*limit),
+				asc.NextURL[asc.PreReleaseVersionBuildsOption](*next),
 			}
 
 			if *paginate {
@@ -154,13 +154,13 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --id is required")
 					return shared.MissingRequiredUsageError("--id")
 				}
-				paginateOpts := append(opts, asc.WithPreReleaseVersionBuildsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.PreReleaseVersionBuildsOption](200))
 				firstPage, err := client.GetPreReleaseVersionBuilds(requestCtx, idValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pre-release-versions builds list: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetPreReleaseVersionBuilds(ctx, idValue, asc.WithPreReleaseVersionBuildsNextURL(nextURL))
+					return client.GetPreReleaseVersionBuilds(ctx, idValue, asc.NextURL[asc.PreReleaseVersionBuildsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pre-release-versions builds list: %w", err)

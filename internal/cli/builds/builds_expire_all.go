@@ -266,7 +266,7 @@ func fetchBuildExpireAllCandidates(
 	filterOpts []asc.BuildsOption,
 ) ([]asc.Resource[asc.BuildAttributes], error) {
 	opts := append([]asc.BuildsOption{
-		asc.WithBuildsLimit(200),
+		asc.Limit[asc.BuildsOption](200),
 		asc.WithBuildsSort("-uploadedDate"),
 	}, filterOpts...)
 
@@ -280,7 +280,7 @@ func fetchBuildExpireAllCandidates(
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := shared.ContextWithTimeout(ctx)
 		defer cancel()
-		return client.GetBuilds(requestCtx, appID, asc.WithBuildsNextURL(nextURL))
+		return client.GetBuilds(requestCtx, appID, asc.NextURL[asc.BuildsOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("builds expire-all: %w", err)

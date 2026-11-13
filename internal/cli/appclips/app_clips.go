@@ -99,13 +99,13 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppClipsOption{
-				asc.WithAppClipsLimit(*limit),
-				asc.WithAppClipsNextURL(*next),
+				asc.Limit[asc.AppClipsOption](*limit),
+				asc.NextURL[asc.AppClipsOption](*next),
 				asc.WithAppClipsBundleIDs(shared.SplitCSV(*bundleID)),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppClipsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppClipsOption](200))
 				firstPage, err := client.GetAppClips(requestCtx, appValue, paginateOpts...)
 				if err != nil {
 					if asc.IsNotFound(err) {
@@ -116,7 +116,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppClips(ctx, appValue, asc.WithAppClipsNextURL(nextURL))
+					return client.GetAppClips(ctx, appValue, asc.NextURL[asc.AppClipsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-clips list: %w", err)

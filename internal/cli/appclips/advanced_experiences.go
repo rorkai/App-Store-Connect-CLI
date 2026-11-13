@@ -157,15 +157,15 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppClipAdvancedExperiencesOption{
-				asc.WithAppClipAdvancedExperiencesLimit(*limit),
-				asc.WithAppClipAdvancedExperiencesNextURL(*next),
+				asc.Limit[asc.AppClipAdvancedExperiencesOption](*limit),
+				asc.NextURL[asc.AppClipAdvancedExperiencesOption](*next),
 				asc.WithAppClipAdvancedExperiencesActions(actionValues),
 				asc.WithAppClipAdvancedExperiencesStatuses(shared.SplitCSVUpper(*status)),
 				asc.WithAppClipAdvancedExperiencesPlaceStatuses(shared.SplitCSVUpper(*placeStatus)),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppClipAdvancedExperiencesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppClipAdvancedExperiencesOption](200))
 				firstPage, err := client.GetAppClipAdvancedExperiences(requestCtx, appClipValue, paginateOpts...)
 				if err != nil {
 					if asc.IsNotFound(err) {
@@ -176,7 +176,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppClipAdvancedExperiences(ctx, appClipValue, asc.WithAppClipAdvancedExperiencesNextURL(nextURL))
+					return client.GetAppClipAdvancedExperiences(ctx, appClipValue, asc.NextURL[asc.AppClipAdvancedExperiencesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-clips advanced-experiences list: %w", err)

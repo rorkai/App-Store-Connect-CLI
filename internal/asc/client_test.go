@@ -344,7 +344,7 @@ func TestBuildBetaGroupsQueryAddsIncludedRelationshipsToSparseFields(t *testing.
 func TestBuildAppTagsQuery(t *testing.T) {
 	query := &appTagsQuery{}
 	opts := []AppTagsOption{
-		WithAppTagsLimit(25),
+		Limit[AppTagsOption](25),
 		WithAppTagsVisibleInAppStore([]string{"true", " false "}),
 		WithAppTagsSort("-name"),
 		WithAppTagsFields([]string{"name", "visibleInAppStore"}),
@@ -386,7 +386,7 @@ func TestBuildAppTagsQuery(t *testing.T) {
 func TestBuildNominationsQuery(t *testing.T) {
 	query := &nominationsQuery{}
 	opts := []NominationsOption{
-		WithNominationsLimit(50),
+		Limit[NominationsOption](50),
 		WithNominationsTypes([]string{"app_launch", "NEW_CONTENT"}),
 		WithNominationsStates([]string{"draft", "submitted"}),
 		WithNominationsRelatedApps([]string{"app-1", " app-2 "}),
@@ -739,7 +739,7 @@ func TestBuildAccessibilityDeclarationsQuery(t *testing.T) {
 		WithAccessibilityDeclarationsDeviceFamilies([]string{"iphone", " ipad "}),
 		WithAccessibilityDeclarationsStates([]string{"draft", "published"}),
 		WithAccessibilityDeclarationsFields([]string{"deviceFamily", "state"}),
-		WithAccessibilityDeclarationsLimit(5),
+		Limit[AccessibilityDeclarationsOption](5),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -771,7 +771,7 @@ func TestBuildAppEncryptionDeclarationsQuery(t *testing.T) {
 		WithAppEncryptionDeclarationsFields([]string{"appDescription", "exempt"}),
 		WithAppEncryptionDeclarationsDocumentFields([]string{"fileName", "fileSize"}),
 		WithAppEncryptionDeclarationsInclude([]string{"app", "builds"}),
-		WithAppEncryptionDeclarationsLimit(5),
+		Limit[AppEncryptionDeclarationsOption](5),
 		WithAppEncryptionDeclarationsBuildLimit(10),
 	}
 	for _, opt := range opts {
@@ -1054,7 +1054,7 @@ func TestBuildAppInfoQueryAddsIncludedRelationshipsToSparseFields(t *testing.T) 
 func TestBuildPreReleaseVersionsQuery(t *testing.T) {
 	query := &preReleaseVersionsQuery{}
 	opts := []PreReleaseVersionsOption{
-		WithPreReleaseVersionsLimit(15),
+		Limit[PreReleaseVersionsOption](15),
 		WithPreReleaseVersionsPlatform(" ios, MAC_OS "),
 		WithPreReleaseVersionsVersion("1.0.0, 1.1.0"),
 	}
@@ -1162,7 +1162,7 @@ func TestBuildBuildUploadsQuery(t *testing.T) {
 		WithBuildUploadsPlatforms([]string{"ios", "MAC_OS"}),
 		WithBuildUploadsStates([]string{"processing"}),
 		WithBuildUploadsSort("-uploadedDate"),
-		WithBuildUploadsLimit(15),
+		Limit[BuildUploadsOption](15),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1387,8 +1387,8 @@ func TestParseErrorWithStatus_AssociatedErrorsMalformedDoesNotBreakBaseError(t *
 func TestBuildAppsQuery(t *testing.T) {
 	query := &appsQuery{}
 	opts := []AppsOption{
-		WithAppsLimit(10),
-		WithAppsNextURL("https://api.appstoreconnect.apple.com/v1/apps?cursor=abc123"),
+		Limit[AppsOption](10),
+		NextURL[AppsOption]("https://api.appstoreconnect.apple.com/v1/apps?cursor=abc123"),
 		WithAppsSort("-name"),
 		WithAppsBundleIDs([]string{"com.example.app", " ", "com.example.other"}),
 		WithAppsNames([]string{"Demo", " "}),
@@ -1421,8 +1421,8 @@ func TestBuildAppsQuery(t *testing.T) {
 func TestBuildBuildsQuery(t *testing.T) {
 	query := &buildsQuery{}
 	opts := []BuildsOption{
-		WithBuildsLimit(25),
-		WithBuildsNextURL("https://api.appstoreconnect.apple.com/v1/apps/123/builds?cursor=abc"),
+		Limit[BuildsOption](25),
+		NextURL[BuildsOption]("https://api.appstoreconnect.apple.com/v1/apps/123/builds?cursor=abc"),
 		WithBuildsSort("-uploadedDate"),
 		WithBuildsVersion("42"),
 		WithBuildsPreReleaseVersionVersion("2.4.0"),

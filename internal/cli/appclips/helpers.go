@@ -187,7 +187,7 @@ func resolveAppClipID(ctx context.Context, client *asc.Client, appID string, app
 		return "", fmt.Errorf("--app is required with --bundle-id")
 	}
 
-	resp, err := client.GetAppClips(ctx, appID, asc.WithAppClipsBundleIDs([]string{bundle}), asc.WithAppClipsLimit(200))
+	resp, err := client.GetAppClips(ctx, appID, asc.WithAppClipsBundleIDs([]string{bundle}), asc.Limit[asc.AppClipsOption](200))
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve app clip ID: %w", err)
 	}

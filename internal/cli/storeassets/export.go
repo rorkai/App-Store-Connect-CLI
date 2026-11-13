@@ -256,7 +256,7 @@ func pagesResponse[T any](ctx context.Context, fetch func(context.Context, strin
 
 func clipLocalizations(ctx context.Context, c *asc.Client, id string) ([]asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes], error) {
 	return pages(ctx, func(ctx context.Context, next string) (*asc.AppClipDefaultExperienceLocalizationsResponse, error) {
-		return c.GetAppClipDefaultExperienceLocalizations(ctx, id, asc.WithAppClipDefaultExperienceLocalizationsNextURL(next))
+		return c.GetAppClipDefaultExperienceLocalizations(ctx, id, asc.NextURL[asc.AppClipDefaultExperienceLocalizationsOption](next))
 	})
 }
 

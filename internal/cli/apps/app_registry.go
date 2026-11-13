@@ -159,10 +159,10 @@ func appsRegistryPull(ctx context.Context, opts appsRegistryPullOptions) error {
 	response, err := shared.PaginateWithSpinner(
 		requestCtx,
 		func(ctx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetApps(ctx, asc.WithAppsLimit(200), asc.WithAppsSort("name"))
+			return client.GetApps(ctx, asc.Limit[asc.AppsOption](200), asc.WithAppsSort("name"))
 		},
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
+			return client.GetApps(ctx, asc.NextURL[asc.AppsOption](nextURL))
 		},
 	)
 	if err != nil {

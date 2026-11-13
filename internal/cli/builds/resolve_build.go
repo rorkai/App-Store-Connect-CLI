@@ -170,7 +170,7 @@ func resolveBuildByNumberSelection(
 	buildOpts := []asc.BuildsOption{
 		asc.WithBuildsBuildNumber(buildNumber),
 		asc.WithBuildsSort("-uploadedDate"),
-		asc.WithBuildsLimit(200),
+		asc.Limit[asc.BuildsOption](200),
 	}
 	if len(opts.ProcessingStateValues) > 0 {
 		buildOpts = append(buildOpts, asc.WithBuildsProcessingStates(opts.ProcessingStateValues))
@@ -230,7 +230,7 @@ func resolveBuildByNumberSelection(
 			return nil, fmt.Errorf("failed to paginate builds: %w: %s", asc.ErrRepeatedPaginationURL, nextURL)
 		}
 		seenNext[nextIdentity] = struct{}{}
-		buildOpts = []asc.BuildsOption{asc.WithBuildsNextURL(nextURL)}
+		buildOpts = []asc.BuildsOption{asc.NextURL[asc.BuildsOption](nextURL)}
 	}
 	if len(buildsResp.Data) == 0 {
 		if allowEmpty {
@@ -312,7 +312,7 @@ func resolveBuildByNumberSelectionSince(
 			}
 			return &asc.BuildResponse{Data: *selected}, nil
 		}
-		pageOpts = []asc.BuildsOption{asc.WithBuildsNextURL(nextURL)}
+		pageOpts = []asc.BuildsOption{asc.NextURL[asc.BuildsOption](nextURL)}
 	}
 }
 
