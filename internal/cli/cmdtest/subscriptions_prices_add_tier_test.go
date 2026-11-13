@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -38,29 +37,29 @@ func subscriptionPriceListFixture(pricePointID, territoryID, attrs string) strin
 	)
 }
 
-func TestSubscriptionsPricesAdd_TierAndPricePointMutualExclusion(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "prices", "set",
-			"--subscription-id", "8000000003",
-			"--price-point", "PP",
-			"--tier", "5",
-			"--territory", "USA",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+func TestSubscriptionsPricesAddUsageErrors(t *testing.T) {
+	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "TierAndPricePointMutualExclusion",
+			args:    []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "8000000003", "--price-point", "PP", "--tier", "5", "--territory", "USA"},
+			wantErr: "mutually exclusive",
+		},
+		{
+			name:    "TierRequiresTerritory",
+			args:    []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "8000000003", "--tier", "5"},
+			wantErr: "--territory is required",
+		},
+		{
+			name:    "InvalidPriceValue",
+			args:    []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "8000000003", "--price", "abc", "--territory", "USA"},
+			wantErr: "--price must be a number",
+		},
+		{
+			name:    "NegativeTier",
+			args:    []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "8000000003", "--tier", "-1", "--territory", "USA"},
+			wantErr: "--tier must be a positive integer",
+		},
 	})
-
-	if !strings.Contains(stderr, "mutually exclusive") {
-		t.Fatalf("expected mutually exclusive error, got %q", stderr)
-	}
 }
 
 func TestSubscriptionsPricesAdd_TierUsesSubscriptionPricePoints(t *testing.T) {
@@ -649,77 +648,6 @@ func TestSubscriptionsPricesAdd_ForceRejectsInvalidBoolean(t *testing.T) {
 		"--price-point", "PP_ID",
 		"--force=maybe",
 	}, `invalid boolean value "maybe" for -force`)
-}
-
-func TestSubscriptionsPricesAdd_TierRequiresTerritory(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "prices", "set",
-			"--subscription-id", "8000000003",
-			"--tier", "5",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--territory is required") {
-		t.Fatalf("expected --territory required error, got %q", stderr)
-	}
-}
-
-func TestSubscriptionsPricesAdd_InvalidPriceValue(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "prices", "set",
-			"--subscription-id", "8000000003",
-			"--price", "abc",
-			"--territory", "USA",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--price must be a number") {
-		t.Fatalf("expected invalid --price error, got %q", stderr)
-	}
-}
-
-func TestSubscriptionsPricesAdd_NegativeTier(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "prices", "set",
-			"--subscription-id", "8000000003",
-			"--tier", "-1",
-			"--territory", "USA",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--tier must be a positive integer") {
-		t.Fatalf("expected invalid --tier error, got %q", stderr)
-	}
 }
 
 func TestSubscriptionsPricesAddRefreshesContextAfterTierResolution(t *testing.T) {
