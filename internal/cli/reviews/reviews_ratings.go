@@ -2,6 +2,7 @@ package reviews
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
 )
 
@@ -158,7 +160,7 @@ func resolveRatingsAppID(ctx context.Context, client *itunes.Client, app string,
 		return resolved, nil
 	}
 
-	return "", fmt.Errorf("could not resolve --app; pass a numeric App Store ID, exact bundle ID, or exact app name")
+	return "", shared.NewErrorWithCause(errors.New("could not resolve --app; pass a numeric App Store ID, exact bundle ID, or exact app name"), asc.ErrNotFound)
 }
 
 func looksLikeRatingsBundleID(app string) bool {
@@ -184,7 +186,13 @@ func uniqueExactRatingsAppMatch(results []itunes.SearchResult, app string, value
 func executeSingleRatings(ctx context.Context, client *itunes.Client, appID, country, output string, pretty bool) error {
 	ratings, err := client.GetRatings(ctx, appID, country)
 	if err != nil {
-		return fmt.Errorf("reviews ratings: %w", err)
+		err = fmt.Errorf("reviews ratings: %w", err)
+		if !errors.Is(err, asc.ErrNotFound) {
+			return err
+		}
+		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
+		fmt.Fprintf(os.Stderr, "Hint: the app must be released in the %s storefront; pass --country with another storefront or use --all to check every storefront.\n", strings.ToUpper(strings.TrimSpace(country)))
+		return shared.NewStderrReportedError(err)
 	}
 	return shared.PrintOutputWithRenderers(
 		ratings,

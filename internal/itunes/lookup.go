@@ -187,7 +187,7 @@ func (c *Client) LookupApp(ctx context.Context, appID string, opts LookupOptions
 		app, ok = apps[canonicalAppID]
 	}
 	if !ok {
-		return nil, fmt.Errorf("app not found: %s", appID)
+		return nil, &notFoundError{message: "app not found: " + appID}
 	}
 	return &app, nil
 }
