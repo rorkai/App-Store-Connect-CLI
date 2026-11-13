@@ -2166,6 +2166,25 @@ func TestMigrateImportDryRunReportsMissingScreenshotsDirAsSkipped(t *testing.T) 
 	}
 }
 
+func TestMigrateImportDryRunSkipsAppClipReviewInformationDir(t *testing.T) {
+	root := writeMigrateImportMetadata(t, validMigrateAppInfoMetadata())
+	clipReviewDir := filepath.Join(root, "metadata", "app_clip_review_information")
+	if err := os.MkdirAll(clipReviewDir, 0o755); err != nil {
+		t.Fatalf("mkdir App Clip review information: %v", err)
+	}
+	writeFile(t, filepath.Join(clipReviewDir, "invocation_urls.txt"), "https://example.com/clip")
+
+	result := migrateImportDryRunPlan(t, root, "--skip-screenshots")
+
+	if !slices.Equal(result.Locales, []string{"en-US", "ja"}) {
+		t.Fatalf("locales = %v, want only the locale directories", result.Locales)
+	}
+	want := migrate.SkippedItem{Path: clipReviewDir, Reason: "App Clip review information is not imported; set invocation URLs with asc app-clips review-details"}
+	if !slices.Contains(result.Skipped, want) {
+		t.Fatalf("skipped = %+v, want %+v", result.Skipped, want)
+	}
+}
+
 func TestMigrateImportDryRunRejectsUnsupportedCreateLocale(t *testing.T) {
 	root := t.TempDir()
 	localeDir := filepath.Join(root, "metadata", "nl")

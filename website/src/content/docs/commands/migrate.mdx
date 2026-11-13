@@ -517,7 +517,8 @@ The import command reports directories and files it did not read. Directory
 names that are not locales, symlinked entries, unsupported screenshot files, a
 missing conventional directory, configuration keys that import does not apply,
 and anything a Deliverfile or flag turned off all appear here (`metadata/review_information` and `metadata/default` are read
-as part of the import and are not reported):
+as part of the import and are not reported). `metadata/app_clip_review_information`
+is reported too; set invocation URLs with `asc app-clips review-details`:
 
 ```json
 {
