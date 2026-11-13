@@ -121,7 +121,7 @@ Examples:
 
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)
 			if err != nil {
-				return fmt.Errorf("localizations list: %w", err)
+				return shared.UsageErrorf("localizations list: %v", err)
 			}
 			if normalizedType == shared.LocalizationTypeAppInfo && flagProvided(fs, "version") {
 				return shared.UsageError("--version requires --type version")
@@ -438,7 +438,7 @@ Examples:
 
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)
 			if err != nil {
-				return fmt.Errorf("localizations download: %w", err)
+				return shared.UsageErrorf("localizations download: %v", err)
 			}
 
 			locales := shared.SplitCSV(*locale)
@@ -599,7 +599,7 @@ Examples:
 
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)
 			if err != nil {
-				return fmt.Errorf("localizations upload: %w", err)
+				return shared.UsageErrorf("localizations upload: %v", err)
 			}
 
 			locales := shared.SplitCSV(*locale)

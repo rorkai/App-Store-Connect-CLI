@@ -103,7 +103,7 @@ At least one field flag must be provided.`,
 			}
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)
 			if err != nil {
-				return fmt.Errorf("localizations update: %w", err)
+				return shared.UsageErrorf("localizations update: %v", err)
 			}
 			if flagProvided(fs, "platform") && strings.TrimSpace(*platform) == "" {
 				return shared.UsageError("--platform must not be empty")

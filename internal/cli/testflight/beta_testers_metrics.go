@@ -63,7 +63,7 @@ Examples:
 				testerValue = aliasValue
 			} else if aliasValue != "" && aliasValue != testerValue {
 				return shared.WithDiagnostic(
-					shared.NewValidationError(fmt.Errorf("testflight beta-testers metrics: --tester-id and --id must match")),
+					shared.UsageErrorCtx(ctx, "testflight beta-testers metrics: --tester-id and --id must match"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)

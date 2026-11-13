@@ -195,7 +195,7 @@ func (f *ReviewFilterFlags) ReviewOptions() ([]asc.ReviewOption, error) {
 		return nil, shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--review-territory")
 	}
 	if err := shared.ValidateSort(f.Sort, reviewSorts...); err != nil {
-		return nil, shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticInvalidInput, "--sort")
+		return nil, shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--sort")
 	}
 	responseState, err := normalizeReviewResponseState(f.ResponseState)
 	if err != nil {

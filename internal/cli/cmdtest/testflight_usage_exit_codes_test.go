@@ -154,6 +154,11 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "testflight pre-release list: --limit must be between 1 and 200",
 		},
 		{
+			name:    "pre-release list app 123 platform BAD",
+			args:    []string{"testflight", "pre-release", "list", "--app", "123", "--platform", "BAD"},
+			wantErr: "testflight pre-release list: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
+		},
+		{
 			name:    "pre-release builds list id p limit 201",
 			args:    []string{"testflight", "pre-release", "builds", "list", "--id", "p", "--limit", "201"},
 			wantErr: "testflight pre-release builds list: --limit must be between 1 and 200",

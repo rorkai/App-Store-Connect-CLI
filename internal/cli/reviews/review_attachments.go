@@ -59,15 +59,15 @@ Examples:
 
 			fieldsValue, err := normalizeReviewAttachmentFields(*fields)
 			if err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("review attachments-list: %w", err)), shared.DiagnosticInvalidInput, "--fields")
+				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--fields")
 			}
 			detailFieldsValue, err := normalizeReviewDetailFields(*detailFields)
 			if err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("review attachments-list: %w", err)), shared.DiagnosticInvalidInput, "--detail-fields")
+				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--detail-fields")
 			}
 			includeValue, err := normalizeReviewAttachmentInclude(*include)
 			if err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("review attachments-list: %w", err)), shared.DiagnosticInvalidInput, "--include")
+				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--include")
 			}
 
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
@@ -171,15 +171,15 @@ Examples:
 
 			fieldsValue, err := normalizeReviewAttachmentFields(*fields)
 			if err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("review attachments-get: %w", err)), shared.DiagnosticInvalidInput, "--fields")
+				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-get: %v", err), shared.DiagnosticInvalidInput, "--fields")
 			}
 			detailFieldsValue, err := normalizeReviewDetailFields(*detailFields)
 			if err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("review attachments-get: %w", err)), shared.DiagnosticInvalidInput, "--detail-fields")
+				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-get: %v", err), shared.DiagnosticInvalidInput, "--detail-fields")
 			}
 			includeValue, err := normalizeReviewAttachmentInclude(*include)
 			if err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("review attachments-get: %w", err)), shared.DiagnosticInvalidInput, "--include")
+				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-get: %v", err), shared.DiagnosticInvalidInput, "--include")
 			}
 
 			client, err := shared.GetASCClient()

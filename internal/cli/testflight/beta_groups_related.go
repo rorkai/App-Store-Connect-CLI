@@ -59,7 +59,7 @@ Examples:
 				groupValue = aliasValue
 			} else if aliasValue != "" && aliasValue != groupValue {
 				return shared.WithDiagnostic(
-					shared.NewValidationError(fmt.Errorf("testflight beta-groups app view: --group-id and --id must match")),
+					shared.UsageErrorCtx(ctx, "testflight beta-groups app view: --group-id and --id must match"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)
@@ -135,7 +135,7 @@ Examples:
 				groupValue = aliasValue
 			} else if aliasValue != "" && aliasValue != groupValue {
 				return shared.WithDiagnostic(
-					shared.NewValidationError(fmt.Errorf("testflight beta-groups beta-recruitment-criteria view: --group-id and --id must match")),
+					shared.UsageErrorCtx(ctx, "testflight beta-groups beta-recruitment-criteria view: --group-id and --id must match"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)
@@ -211,7 +211,7 @@ Examples:
 				groupValue = aliasValue
 			} else if aliasValue != "" && aliasValue != groupValue {
 				return shared.WithDiagnostic(
-					shared.NewValidationError(fmt.Errorf("testflight beta-groups beta-recruitment-criterion-compatible-build-check view: --group-id and --id must match")),
+					shared.UsageErrorCtx(ctx, "testflight beta-groups beta-recruitment-criterion-compatible-build-check view: --group-id and --id must match"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)
