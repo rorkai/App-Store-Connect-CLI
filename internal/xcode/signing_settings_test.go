@@ -26,36 +26,17 @@ func requireStrictSigningPlatform(t *testing.T) {
 func TestBuildAndApplySigningPlanForDirectSettings(t *testing.T) {
 	requireStrictSigningPlatform(t)
 	project := writeStructuredVersionProject(t, true)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	stateDir := filepath.Join(root, "state")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{
-			"name": "App",
-			"configurations": [{
-				"name": "Debug",
-				"settings": {
-					"CODE_SIGN_STYLE": "manual",
-					"DEVELOPMENT_TEAM": "ABCDE12345",
-					"CODE_SIGN_IDENTITY": "Apple Development",
-					"PROVISIONING_PROFILE": "01234567-89ab-cdef-0123-456789abcdef",
-					"PRODUCT_BUNDLE_IDENTIFIER": "com.example.demo"
-				}
-			}]
-		}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{
+		"CODE_SIGN_STYLE": "manual",
+		"DEVELOPMENT_TEAM": "ABCDE12345",
+		"CODE_SIGN_IDENTITY": "Apple Development",
+		"PROVISIONING_PROFILE": "01234567-89ab-cdef-0123-456789abcdef",
+		"PRODUCT_BUNDLE_IDENTIFIER": "com.example.demo"
+	}`))
 
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
 	before := mustReadVersionTestFile(t, pbxprojPath)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath:      project,
-		SettingsFilePath: settingsPath,
-		StateDir:         stateDir,
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
@@ -71,13 +52,7 @@ func TestBuildAndApplySigningPlanForDirectSettings(t *testing.T) {
 		t.Fatal("planning changed the project")
 	}
 
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	result, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
+	result := applySigningTestPlan(t, plan)
 	if len(result.ChangedFiles) != 1 || result.ChangedFiles[0] != pbxprojPath {
 		t.Fatalf("unexpected changed files: %#v", result.ChangedFiles)
 	}
@@ -148,22 +123,12 @@ func TestBuildSigningPlanRejectsOversizedXCConfig(t *testing.T) {
 	if err := os.WriteFile(sharedPath, []byte(padding+original), 0o640); err != nil {
 		t.Fatalf("WriteFile(large Shared.xcconfig) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
 	// An internal xcconfig that cannot be fully read is not merely a blocker:
 	// unread assignments may name an artifact path, so the plan is refused
 	// outright rather than serialized in a blocked state.
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), signingIncompleteInternalXCConfigMessage) {
-		t.Fatalf("BuildSigningPlan() error = %v, want incomplete internal xcconfig rejection", err)
-	}
+	plan := requireSigningPlanRefused(t, fixture.planOptions("state"), signingIncompleteInternalXCConfigMessage)
 	if plan != nil {
 		t.Fatalf("BuildSigningPlan() = %#v, want no plan for an unreadable internal xcconfig", plan)
 	}
@@ -200,13 +165,8 @@ func TestBuildSigningPlanRejectsOversizedUnselectedXCConfigBeforeArtifactPublica
 	}
 	attachSigningWidgetXCConfig(t, project, fmt.Sprintf("#include \"%s\"\n", graphRoot))
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	stateDir := filepath.Join(root, "state")
+	fixture := newSigningSettingsFixture(t, project)
+	stateDir := filepath.Join(fixture.root, "state")
 	if err := os.MkdirAll(stateDir, 0o700); err != nil {
 		t.Fatalf("MkdirAll(state) error = %v", err)
 	}
@@ -217,7 +177,7 @@ func TestBuildSigningPlanRejectsOversizedUnselectedXCConfigBeforeArtifactPublica
 	}
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
 		PlanPath: planPath, StateDir: stateDir,
 	})
 	if err == nil || !isXCConfigSourceGraphLimitError(err) || !strings.Contains(err.Error(), "more than 4096 files") {
@@ -269,13 +229,8 @@ func TestBuildSigningPlanSharesXCConfigBudgetAcrossConfigurationRoots(t *testing
 	attachSigningAppXCConfig(t, project, "#include \"AppGraph/Graph-0000.xcconfig\"\n")
 	attachSigningWidgetXCConfig(t, project, "#include \"WidgetGraph/Graph-0000.xcconfig\"\n")
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	stateDir := filepath.Join(root, "state")
+	fixture := newSigningSettingsFixture(t, project)
+	stateDir := filepath.Join(fixture.root, "state")
 	if err := os.MkdirAll(stateDir, 0o700); err != nil {
 		t.Fatalf("MkdirAll(state) error = %v", err)
 	}
@@ -286,7 +241,7 @@ func TestBuildSigningPlanSharesXCConfigBudgetAcrossConfigurationRoots(t *testing
 	}
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
 		PlanPath: planPath, StateDir: stateDir,
 	})
 	if err == nil || !isXCConfigSourceGraphLimitError(err) || !strings.Contains(err.Error(), "more than 4096 files") {
@@ -302,21 +257,8 @@ func TestBuildSigningPlanSharesXCConfigBudgetAcrossConfigurationRoots(t *testing
 
 func TestSigningApplyDoesNotUseStablePortableWriteFallback(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	before := mustReadVersionTestFile(t, filepath.Join(project, "project.pbxproj"))
 	originalWriter := atomicWriteVersionFileFn
 	atomicWriteVersionFileFn = func(preparedVersionWrite, []byte) (*rootfs.FileIdentity, error) {
@@ -324,7 +266,7 @@ func TestSigningApplyDoesNotUseStablePortableWriteFallback(t *testing.T) {
 	}
 	t.Cleanup(func() { atomicWriteVersionFileFn = originalWriter })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
+	_, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
 	if err == nil || !errors.Is(err, secureopen.ErrRenameNoReplaceUnsupported) {
 		t.Fatalf("ApplySigningPlan() error = %v, want signing transaction refusal", err)
 	}
@@ -338,48 +280,23 @@ func TestSigningApplyUnsupportedOnWindowsLeavesProjectUntouched(t *testing.T) {
 		t.Skip("strict signing apply is unsupported only on Windows")
 	}
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	before := mustReadVersionTestFile(t, pbxprojPath)
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
+	untouched := snapshotSigningFiles(t, pbxprojPath, plan.ReceiptPath)
+	_, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
 	if !errors.Is(err, rootfs.ErrFileIdentityMutationUnsupported) {
 		t.Fatalf("ApplySigningPlan() error = %v, want ErrFileIdentityMutationUnsupported", err)
 	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); after != before {
-		t.Fatal("unsupported signing apply modified the project")
-	}
-	if _, statErr := os.Lstat(plan.ReceiptPath); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("receipt after unsupported signing apply = %v, want absent", statErr)
-	}
+	untouched.requireUnchanged(t)
 }
 
 func TestSigningPlanWritesCompletedNoOpReceipt(t *testing.T) {
 	requireStrictSigningPlatform(t)
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	firstPlan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "first"),
-	})
+	fixture := newSigningSettingsFixture(t, project)
+	firstPlan, err := BuildSigningPlan(fixture.planOptions("first"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan(first) error = %v", err)
 	}
@@ -390,9 +307,7 @@ func TestSigningPlanWritesCompletedNoOpReceipt(t *testing.T) {
 		t.Fatalf("ApplySigningPlan(first) error = %v", err)
 	}
 
-	noOpPlan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "no-op"),
-	})
+	noOpPlan, err := BuildSigningPlan(fixture.planOptions("no-op"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan(no-op) error = %v", err)
 	}
@@ -420,56 +335,20 @@ func TestSigningPlanWritesCompletedNoOpReceipt(t *testing.T) {
 
 func TestSigningApplyRefusesExistingReceiptBeforeMutation(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	const existingReceipt = "existing receipt must remain unchanged\n"
 	if err := os.WriteFile(plan.ReceiptPath, []byte(existingReceipt), 0o600); err != nil {
 		t.Fatalf("WriteFile(receipt) error = %v", err)
 	}
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	beforeProject := mustReadVersionTestFile(t, pbxprojPath)
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err == nil || !strings.Contains(err.Error(), "already exists") {
-		t.Fatalf("ApplySigningPlan() error = %v, want existing-receipt rejection", err)
-	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); after != beforeProject {
-		t.Fatal("existing receipt rejection mutated the project")
-	}
-	if after := mustReadVersionTestFile(t, plan.ReceiptPath); after != existingReceipt {
-		t.Fatalf("existing receipt changed: %q", after)
-	}
+	requireSigningApplyRefused(t, SigningApplyOptions{PlanPath: plan.PlanPath}, "already exists", pbxprojPath, plan.ReceiptPath)
 }
 
 func TestSigningApplyKeepsCompletedReceiptWhenRetainedCloseFails(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 
 	injected := errors.New("injected retained close failure")
 	originalClose := closeVersionWritesFn
@@ -494,14 +373,7 @@ func TestSigningApplyKeepsCompletedReceiptWhenRetainedCloseFails(t *testing.T) {
 }
 
 func TestSigningPathLexicallyContainedUsesLinuxVolumeSemantics(t *testing.T) {
-	previousOS := runtimeGOOS
-	previousFn := signingCaseInsensitiveVolumeFn
-	runtimeGOOS = "linux"
-	signingCaseInsensitiveVolumeFn = func(string) (bool, bool) { return true, true }
-	t.Cleanup(func() {
-		runtimeGOOS = previousOS
-		signingCaseInsensitiveVolumeFn = previousFn
-	})
+	setSigningTestPlatform(t, "linux", func(string) (bool, bool) { return true, true })
 
 	root := "/mnt/vfat/Project"
 	variantPath := "/mnt/vfat/project/Config.xcconfig"
@@ -520,14 +392,7 @@ func TestSigningPathLexicallyContainedUsesLinuxVolumeSemantics(t *testing.T) {
 }
 
 func TestSigningArtifactLexicalPathEqualUsesVolumeSeamOnLinux(t *testing.T) {
-	previousOS := runtimeGOOS
-	previousFn := signingCaseInsensitiveVolumeFn
-	runtimeGOOS = "linux"
-	signingCaseInsensitiveVolumeFn = func(string) (bool, bool) { return true, true }
-	t.Cleanup(func() {
-		runtimeGOOS = previousOS
-		signingCaseInsensitiveVolumeFn = previousFn
-	})
+	setSigningTestPlatform(t, "linux", func(string) (bool, bool) { return true, true })
 	if !signingArtifactLexicalPathEqual("/mnt/vfat/plan.json", "/mnt/vfat/PLAN.json") {
 		t.Fatal("linux case-insensitive volume did not treat PLAN.json as an artifact alias")
 	}
@@ -556,23 +421,9 @@ func TestWriteSigningPlanArtifactRejectsSymlinkParent(t *testing.T) {
 func TestSigningApplyRollsBackProjectWhenReceiptFinalizationFails(t *testing.T) {
 	requireStrictSigningPlatform(t)
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	beforeProject := mustReadVersionTestFile(t, pbxprojPath)
 	beforeInfo, err := os.Stat(pbxprojPath)
 	if err != nil {
 		t.Fatalf("Stat(project) error = %v", err)
@@ -587,13 +438,12 @@ func TestSigningApplyRollsBackProjectWhenReceiptFinalizationFails(t *testing.T) 
 	}
 	t.Cleanup(func() { atomicCreateVersionFileFn = originalCreator })
 
+	untouched := snapshotSigningFiles(t, pbxprojPath)
 	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
 	if !errors.Is(err, injectedErr) {
 		t.Fatalf("ApplySigningPlan() error = %v, want injected receipt failure", err)
 	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); after != beforeProject {
-		t.Fatal("receipt finalization failure left project changes behind")
-	}
+	untouched.requireUnchanged(t)
 	afterInfo, err := os.Stat(pbxprojPath)
 	if err != nil {
 		t.Fatalf("Stat(project after rollback) error = %v", err)
@@ -611,33 +461,19 @@ func TestSigningApplyRejectsUntouchedSourceChangeAfterReceiptPublication(t *test
 		t.Skip("strict signing apply fails closed before publication on Windows")
 	}
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	beforeProject := mustReadVersionTestFile(t, pbxprojPath)
 	beforeProjectInfo, err := os.Stat(pbxprojPath)
 	if err != nil {
 		t.Fatalf("Stat(project) error = %v", err)
 	}
-	beforeSettings := mustReadVersionTestFile(t, settingsPath)
-	beforeSettingsInfo, err := os.Stat(settingsPath)
+	beforeSettings := mustReadVersionTestFile(t, fixture.settingsPath)
+	beforeSettingsInfo, err := os.Stat(fixture.settingsPath)
 	if err != nil {
 		t.Fatalf("Stat(settings before replacement) error = %v", err)
 	}
-	replacementPath := filepath.Join(root, "settings-replacement.json")
+	replacementPath := filepath.Join(fixture.root, "settings-replacement.json")
 	var replacementInfo os.FileInfo
 	swapped := false
 	originalCreator := atomicCreateVersionFileFn
@@ -657,20 +493,14 @@ func TestSigningApplyRejectsUntouchedSourceChangeAfterReceiptPublication(t *test
 		if err != nil {
 			t.Fatalf("Stat(racing settings replacement) error = %v", err)
 		}
-		if err := os.Rename(replacementPath, settingsPath); err != nil {
+		if err := os.Rename(replacementPath, fixture.settingsPath); err != nil {
 			t.Fatalf("install racing settings replacement: %v", err)
 		}
 		return identity, nil
 	}
 	t.Cleanup(func() { atomicCreateVersionFileFn = originalCreator })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err == nil || !strings.Contains(err.Error(), "after receipt") {
-		t.Fatalf("ApplySigningPlan() error = %v, want post-publication source rejection", err)
-	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); after != beforeProject {
-		t.Fatal("post-publication source rejection left project changes behind")
-	}
+	requireSigningApplyRefused(t, SigningApplyOptions{PlanPath: plan.PlanPath}, "after receipt", pbxprojPath)
 	afterProjectInfo, err := os.Stat(pbxprojPath)
 	if err != nil {
 		t.Fatalf("Stat(project after rollback) error = %v", err)
@@ -681,10 +511,10 @@ func TestSigningApplyRejectsUntouchedSourceChangeAfterReceiptPublication(t *test
 	if _, statErr := os.Lstat(plan.ReceiptPath); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("receipt after post-publication source drift = %v, want absent", statErr)
 	}
-	if after := mustReadVersionTestFile(t, settingsPath); after != beforeSettings {
+	if after := mustReadVersionTestFile(t, fixture.settingsPath); after != beforeSettings {
 		t.Fatalf("racing settings replacement was changed: %q", after)
 	}
-	settingsInfo, err := os.Stat(settingsPath)
+	settingsInfo, err := os.Stat(fixture.settingsPath)
 	if err != nil {
 		t.Fatalf("Stat(settings replacement) error = %v", err)
 	}
@@ -704,23 +534,9 @@ func TestSigningApplyRejectsCreateOnlySuccessWithoutIdentity(t *testing.T) {
 		t.Skip("strict signing apply fails closed before receipt creation on Windows")
 	}
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	beforeProject := mustReadVersionTestFile(t, pbxprojPath)
 	originalCreator := atomicCreateVersionFileFn
 	atomicCreateVersionFileFn = func(write preparedVersionWrite, data []byte) (*rootfs.FileIdentity, error) {
 		if write.createOnly {
@@ -730,16 +546,7 @@ func TestSigningApplyRejectsCreateOnlySuccessWithoutIdentity(t *testing.T) {
 	}
 	t.Cleanup(func() { atomicCreateVersionFileFn = originalCreator })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err == nil || !strings.Contains(err.Error(), "created identity unavailable") {
-		t.Fatalf("ApplySigningPlan() error = %v, want create-only identity failure", err)
-	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); after != beforeProject {
-		t.Fatal("create-only identity failure left project changes behind")
-	}
-	if _, statErr := os.Lstat(plan.ReceiptPath); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("receipt after create-only identity failure = %v, want absent", statErr)
-	}
+	requireSigningApplyRefused(t, SigningApplyOptions{PlanPath: plan.PlanPath}, "created identity unavailable", pbxprojPath, plan.ReceiptPath)
 }
 
 func TestSigningApplyRejectsReceiptContentChangedAfterPublication(t *testing.T) {
@@ -747,21 +554,8 @@ func TestSigningApplyRejectsReceiptContentChangedAfterPublication(t *testing.T) 
 		t.Skip("strict signing apply fails closed before receipt publication on Windows")
 	}
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
 	const racingReceipt = "racing receipt contents\n"
 	originalCreator := atomicCreateVersionFileFn
@@ -777,7 +571,7 @@ func TestSigningApplyRejectsReceiptContentChangedAfterPublication(t *testing.T) 
 	}
 	t.Cleanup(func() { atomicCreateVersionFileFn = originalCreator })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
+	_, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
 	if err == nil || !strings.Contains(err.Error(), "verify created file") || !strings.Contains(err.Error(), "rollback failed") {
 		t.Fatalf("ApplySigningPlan() error = %v, want receipt-content rejection with safe rollback uncertainty", err)
 	}
@@ -792,23 +586,9 @@ func TestSigningApplyRejectsReceiptContentChangedAfterPublication(t *testing.T) 
 func TestSigningApplyRemovesReceiptWhenPostCreateVerificationFails(t *testing.T) {
 	requireStrictSigningPlatform(t)
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	beforeProject := mustReadVersionTestFile(t, pbxprojPath)
 	injectedErr := errors.New("injected post-create receipt verification failure")
 	originalCreator := atomicCreateVersionFileFn
 	atomicCreateVersionFileFn = func(write preparedVersionWrite, data []byte) (*rootfs.FileIdentity, error) {
@@ -820,16 +600,12 @@ func TestSigningApplyRemovesReceiptWhenPostCreateVerificationFails(t *testing.T)
 	}
 	t.Cleanup(func() { atomicCreateVersionFileFn = originalCreator })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
+	untouched := snapshotSigningFiles(t, pbxprojPath, plan.ReceiptPath)
+	_, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
 	if !errors.Is(err, injectedErr) {
 		t.Fatalf("ApplySigningPlan() error = %v, want post-create verification failure", err)
 	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); after != beforeProject {
-		t.Fatal("post-create verification failure left project changes behind")
-	}
-	if _, err := os.Lstat(plan.ReceiptPath); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("receipt after post-create verification failure = %v, want absent", err)
-	}
+	untouched.requireUnchanged(t)
 }
 
 func TestSigningApplyRollsBackProjectWhenReceiptIdentityObservationFailsAfterPublication(t *testing.T) {
@@ -838,23 +614,9 @@ func TestSigningApplyRollsBackProjectWhenReceiptIdentityObservationFailsAfterPub
 	// verify receipt cleanup plus ordinary project rollback. Supported strict
 	// publication paths retain that identity before later observations begin.
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	beforeProject := mustReadVersionTestFile(t, pbxprojPath)
 	const transientObservationFailure = "injected post-publication identity observation failure"
 	originalCreator := atomicCreateVersionFileFn
 	atomicCreateVersionFileFn = func(write preparedVersionWrite, data []byte) (*rootfs.FileIdentity, error) {
@@ -868,16 +630,7 @@ func TestSigningApplyRollsBackProjectWhenReceiptIdentityObservationFailsAfterPub
 	}
 	t.Cleanup(func() { atomicCreateVersionFileFn = originalCreator })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err == nil || !strings.Contains(err.Error(), transientObservationFailure) {
-		t.Fatalf("ApplySigningPlan() error = %v, want retained-identity observation failure", err)
-	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); after != beforeProject {
-		t.Fatal("receipt identity observation failure left ordinary project changes behind")
-	}
-	if _, statErr := os.Lstat(plan.ReceiptPath); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("receipt after identity observation failure = %v, want absent", statErr)
-	}
+	requireSigningApplyRefused(t, SigningApplyOptions{PlanPath: plan.PlanPath}, transientObservationFailure, pbxprojPath, plan.ReceiptPath)
 }
 
 func TestSigningApplyPreservesReceiptReplacementWhenRollbackIdentityChanges(t *testing.T) {
@@ -885,21 +638,8 @@ func TestSigningApplyPreservesReceiptReplacementWhenRollbackIdentityChanges(t *t
 		t.Skip("strict signing apply fails closed before receipt publication on Windows")
 	}
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
 	injectedErr := errors.New("injected post-create receipt verification failure")
 	originalCreator := atomicCreateVersionFileFn
@@ -936,7 +676,7 @@ func TestSigningApplyPreservesReceiptReplacementWhenRollbackIdentityChanges(t *t
 	}
 	t.Cleanup(func() { atomicCreateVersionFileFn = originalCreator })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
+	_, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
 	if !errors.Is(err, injectedErr) || !strings.Contains(err.Error(), "rollback failed") {
 		t.Fatalf("ApplySigningPlan() error = %v, want post-create failure with rollback uncertainty", err)
 	}
@@ -951,21 +691,8 @@ func TestSigningApplyPreservesReceiptReplacementWhenRollbackIdentityChanges(t *t
 func TestSigningApplyRollsBackProjectWhenReceiptRacesIntoPlace(t *testing.T) {
 	requireStrictSigningPlatform(t)
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
 	beforeProject := mustReadVersionTestFile(t, pbxprojPath)
 	const racingReceipt = "concurrent receipt wins\n"
@@ -980,7 +707,7 @@ func TestSigningApplyRollsBackProjectWhenReceiptRacesIntoPlace(t *testing.T) {
 	}
 	t.Cleanup(func() { atomicCreateVersionFileFn = originalCreator })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
+	_, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
 	if !errors.Is(err, os.ErrExist) {
 		t.Fatalf("ApplySigningPlan() error = %v, want receipt race rejection", err)
 	}
@@ -994,29 +721,13 @@ func TestSigningApplyRollsBackProjectWhenReceiptRacesIntoPlace(t *testing.T) {
 
 func TestSigningPlanRejectsStaleProjectBeforeMutation(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}},
-			{"name":"Release","settings":{"CODE_SIGN_STYLE":"manual"}}
-		]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", signingManualStyle), withSigningConfiguration("Release", signingManualStyle))
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
 	if err := os.WriteFile(pbxprojPath, append([]byte(mustReadVersionTestFile(t, pbxprojPath)), []byte("\n")...), 0o644); err != nil {
 		t.Fatalf("modify project error = %v", err)
 	}
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
+	_, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
 	if err == nil || !strings.Contains(err.Error(), "stale") {
 		t.Fatalf("expected stale-plan error, got %v", err)
 	}
@@ -1028,31 +739,17 @@ func TestSigningPlanRejectsStaleProjectBeforeMutation(t *testing.T) {
 func TestSigningApplyRechecksSourcesBeforeReceipt(t *testing.T) {
 	requireStrictSigningPlatform(t)
 	project := writeStructuredVersionProject(t, false)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	beforeProject := mustReadVersionTestFile(t, pbxprojPath)
 	originalWriter := atomicWriteVersionFileFn
 	mutated := false
 	atomicWriteVersionFileFn = func(write preparedVersionWrite, data []byte) (*rootfs.FileIdentity, error) {
 		info, err := originalWriter(write, data)
 		if err == nil && !write.createOnly && !mutated {
 			mutated = true
-			settings := mustReadVersionTestFile(t, settingsPath)
-			if err := os.WriteFile(settingsPath, []byte(settings+"\n"), 0o600); err != nil {
+			settings := mustReadVersionTestFile(t, fixture.settingsPath)
+			if err := os.WriteFile(fixture.settingsPath, []byte(settings+"\n"), 0o600); err != nil {
 				t.Fatalf("mutate settings after ordinary write: %v", err)
 			}
 		}
@@ -1060,39 +757,15 @@ func TestSigningApplyRechecksSourcesBeforeReceipt(t *testing.T) {
 	}
 	t.Cleanup(func() { atomicWriteVersionFileFn = originalWriter })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err == nil || !strings.Contains(err.Error(), "before receipt") {
-		t.Fatalf("ApplySigningPlan() error = %v, want final source recheck failure", err)
-	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); after != beforeProject {
-		t.Fatal("source recheck failure left project changes behind")
-	}
-	if _, statErr := os.Lstat(plan.ReceiptPath); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("receipt after final source drift = %v, want absent", statErr)
-	}
+	requireSigningApplyRefused(t, SigningApplyOptions{PlanPath: plan.PlanPath}, "before receipt", pbxprojPath, plan.ReceiptPath)
 }
 
 func TestSigningApplyRejectsOptionalIncludeAppearingAfterPreparation(t *testing.T) {
 	project := writeStructuredVersionProject(t, true)
-	appXCConfig := filepath.Join(filepath.Dir(project), "Configs", "App.xcconfig")
-	contents := mustReadVersionTestFile(t, appXCConfig)
-	contents = strings.Replace(contents, `#include "Shared.xcconfig"`, "#include? \"Missing.xcconfig\"\n#include \"Shared.xcconfig\"", 1)
-	if err := os.WriteFile(appXCConfig, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write app xcconfig error = %v", err)
-	}
+	includeMissingOptionalSigningXCConfig(t, project)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.buildPlan(t)
 	if len(plan.MissingOptionalIncludes) != 1 {
 		t.Fatalf("missing optional includes = %#v, want one assertion", plan.MissingOptionalIncludes)
 	}
@@ -1102,7 +775,6 @@ func TestSigningApplyRejectsOptionalIncludeAppearingAfterPreparation(t *testing.
 
 	missingPath := plan.MissingOptionalIncludes[0]
 	projectPath := filepath.Join(project, "project.pbxproj")
-	projectBefore := mustReadVersionTestFile(t, projectPath)
 	originalHook := beforeSigningCommitForTest
 	beforeSigningCommitForTest = func() {
 		beforeSigningCommitForTest = nil
@@ -1112,39 +784,15 @@ func TestSigningApplyRejectsOptionalIncludeAppearingAfterPreparation(t *testing.
 	}
 	t.Cleanup(func() { beforeSigningCommitForTest = originalHook })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err == nil || !strings.Contains(err.Error(), "optional xcconfig include appeared") {
-		t.Fatalf("ApplySigningPlan() error = %v, want late optional-include race rejection", err)
-	}
-	if after := mustReadVersionTestFile(t, projectPath); after != projectBefore {
-		t.Fatal("late optional-include rejection modified the project")
-	}
-	if _, statErr := os.Lstat(plan.ReceiptPath); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("receipt after late optional-include rejection = %v, want absent", statErr)
-	}
+	requireSigningApplyRefused(t, SigningApplyOptions{PlanPath: plan.PlanPath}, "optional xcconfig include appeared", projectPath, plan.ReceiptPath)
 }
 
 func TestSigningApplyRejectsOptionalIncludeAppearingBeforeReceipt(t *testing.T) {
 	project := writeStructuredVersionProject(t, true)
-	appXCConfig := filepath.Join(filepath.Dir(project), "Configs", "App.xcconfig")
-	contents := mustReadVersionTestFile(t, appXCConfig)
-	contents = strings.Replace(contents, `#include "Shared.xcconfig"`, "#include? \"Missing.xcconfig\"\n#include \"Shared.xcconfig\"", 1)
-	if err := os.WriteFile(appXCConfig, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write app xcconfig error = %v", err)
-	}
+	includeMissingOptionalSigningXCConfig(t, project)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.buildPlan(t)
 	if len(plan.MissingOptionalIncludes) != 1 {
 		t.Fatalf("missing optional includes = %#v, want one assertion", plan.MissingOptionalIncludes)
 	}
@@ -1154,7 +802,6 @@ func TestSigningApplyRejectsOptionalIncludeAppearingBeforeReceipt(t *testing.T) 
 
 	missingPath := plan.MissingOptionalIncludes[0]
 	projectPath := filepath.Join(project, "project.pbxproj")
-	projectBefore := mustReadVersionTestFile(t, projectPath)
 	originalWriter := atomicWriteVersionFileFn
 	atomicWriteVersionFileFn = func(write preparedVersionWrite, data []byte) (*rootfs.FileIdentity, error) {
 		identity, err := originalWriter(write, data)
@@ -1167,16 +814,7 @@ func TestSigningApplyRejectsOptionalIncludeAppearingBeforeReceipt(t *testing.T) 
 	}
 	t.Cleanup(func() { atomicWriteVersionFileFn = originalWriter })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err == nil || !strings.Contains(err.Error(), "before receipt") {
-		t.Fatalf("ApplySigningPlan() error = %v, want final optional-include race rejection", err)
-	}
-	if after := mustReadVersionTestFile(t, projectPath); after != projectBefore {
-		t.Fatal("late optional-include rejection left the ordinary project write behind")
-	}
-	if _, statErr := os.Lstat(plan.ReceiptPath); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("receipt after final optional-include rejection = %v, want absent", statErr)
-	}
+	requireSigningApplyRefused(t, SigningApplyOptions{PlanPath: plan.PlanPath}, "before receipt", projectPath, plan.ReceiptPath)
 }
 
 func TestSigningPlanUsesExclusiveXCConfigWhenSelected(t *testing.T) {
@@ -1187,21 +825,8 @@ func TestSigningPlanUsesExclusiveXCConfigWhenSelected(t *testing.T) {
 	if err := os.WriteFile(sharedPath, []byte("CODE_SIGN_STYLE = Automatic\r\n"+shared), 0o644); err != nil {
 		t.Fatalf("write shared xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}},
-			{"name":"Release","settings":{"CODE_SIGN_STYLE":"manual"}}
-		]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", signingManualStyle), withSigningConfiguration("Release", signingManualStyle))
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
@@ -1213,12 +838,7 @@ func TestSigningPlanUsesExclusiveXCConfigWhenSelected(t *testing.T) {
 			t.Fatalf("expected shared xcconfig source, got %#v", change)
 		}
 	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	if _, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath}); err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
+	applySigningTestPlan(t, plan)
 	updated := mustReadVersionTestFile(t, sharedPath)
 	if !strings.Contains(updated, "CODE_SIGN_STYLE = Manual\r\n") {
 		t.Fatalf("shared xcconfig was not updated: %q", updated)
@@ -1233,45 +853,17 @@ func TestSigningPlanRejectsContinuedXCConfigAssignmentBeforeEditing(t *testing.T
 	if err := os.WriteFile(sharedPath, []byte(continued), 0o640); err != nil {
 		t.Fatalf("WriteFile(shared xcconfig) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"CODE_SIGN_IDENTITY":"Apple Distribution"}},
-			{"name":"Release","settings":{"CODE_SIGN_IDENTITY":"Apple Distribution"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"Apple Distribution"}`), withSigningConfiguration("Release", `{"CODE_SIGN_IDENTITY":"Apple Distribution"}`))
 
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "line continuation") {
-		t.Fatalf("BuildSigningPlan() error = %v, want continued-assignment refusal", err)
-	}
-	if after := mustReadVersionTestFile(t, sharedPath); after != continued {
-		t.Fatal("planning a continued assignment modified the xcconfig")
-	}
+	requireSigningPlanRefused(t, fixture.planOptions("state"), "line continuation", sharedPath)
 }
 
 func TestSigningPlanIgnoresUnselectedSigningContinuation(t *testing.T) {
 	project := writeStructuredVersionProject(t, true)
 	widgetPath := attachSigningWidgetXCConfig(t, project, "CODE_SIGN_STYLE = Automatic \\\n+\tcontinued\n")
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("unselected signing continuation blocked plan: %#v", plan.Blockers)
 	}
@@ -1290,24 +882,9 @@ func TestSigningPlanBlocksUnterminatedQuotedSigningValue(t *testing.T) {
 	if err := os.WriteFile(sharedPath, []byte(before), 0o640); err != nil {
 		t.Fatalf("WriteFile(shared xcconfig) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"DEVELOPMENT_TEAM":"ABCDEFGHIJ"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"DEVELOPMENT_TEAM":"ABCDEFGHIJ"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "cannot be safely inventoried") {
-		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want incomplete internal collection to fail closed", plan, err)
-	}
-	if after := mustReadVersionTestFile(t, sharedPath); after != before {
-		t.Fatal("planning a malformed quoted assignment modified the xcconfig")
-	}
+	requireSigningPlanRefused(t, fixture.planOptions("state"), "cannot be safely inventoried", sharedPath)
 }
 
 func TestSigningPlanBlocksUnsafeUnquotedXCConfigValue(t *testing.T) {
@@ -1317,19 +894,9 @@ func TestSigningPlanBlocksUnsafeUnquotedXCConfigValue(t *testing.T) {
 	if err := os.WriteFile(sharedPath, []byte(before), 0o640); err != nil {
 		t.Fatalf("WriteFile(shared xcconfig) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"PROVISIONING_PROFILE_SPECIFIER":"New Profile\\"}},
-			{"name":"Release","settings":{"PROVISIONING_PROFILE_SPECIFIER":"New Profile\\"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"PROVISIONING_PROFILE_SPECIFIER":"New Profile\\"}`), withSigningConfiguration("Release", `{"PROVISIONING_PROFILE_SPECIFIER":"New Profile\\"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want blocked plan", err)
 	}
@@ -1444,18 +1011,9 @@ func TestSigningPlanBlocksAmbiguousProjectNames(t *testing.T) {
 			if err := os.WriteFile(pbxprojPath, []byte(mutated), 0o644); err != nil {
 				t.Fatalf("WriteFile(project) error = %v", err)
 			}
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[
-					{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}
-				]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project)
 
-			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-			})
+			plan, err := BuildSigningPlan(fixture.planOptions("state"))
 			if err != nil {
 				t.Fatalf("BuildSigningPlan() error = %v, want blocked plan", err)
 			}
@@ -1482,16 +1040,9 @@ func TestSigningPlanRejectsDuplicateProjectConfigurationNames(t *testing.T) {
 		t.Fatalf("write project error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	_, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err == nil || !strings.Contains(err.Error(), `project contains multiple configurations named "Debug"`) {
 		t.Fatalf("BuildSigningPlan() error = %v, want duplicate project configuration rejection", err)
 	}
@@ -1502,9 +1053,7 @@ func TestPrepareSigningOperationsUsesWindowsXCConfigIdentity(t *testing.T) {
 	// but the commit below publishes through the strict identity path, which
 	// fails closed before publication on a real Windows host.
 	requireStrictSigningPlatform(t)
-	previousOS := runtimeGOOS
-	runtimeGOOS = "windows"
-	t.Cleanup(func() { runtimeGOOS = previousOS })
+	setSigningTestPlatform(t, "windows", nil)
 
 	projectPath := writeStructuredVersionProject(t, false)
 	configDir := filepath.Join(filepath.Dir(projectPath), "Configs")
@@ -1772,9 +1321,7 @@ func TestSigningXCConfigOperationKeyCoalescesParentSymlinkDirectoryEntry(t *test
 }
 
 func TestResolveSigningSharedCandidatesKeepsProvenWindowsCaseDistinctFilesSeparate(t *testing.T) {
-	previousOS := runtimeGOOS
-	runtimeGOOS = "windows"
-	t.Cleanup(func() { runtimeGOOS = previousOS })
+	setSigningTestPlatform(t, "windows", nil)
 
 	root := t.TempDir()
 	firstPath := filepath.Join(root, "Config.xcconfig")
@@ -1807,13 +1354,7 @@ func TestSigningPathLexicallyContainedAcceptsCaseVariantRootOnInsensitiveVolume(
 	}
 
 	name := filepath.Base(root)
-	variantName := strings.ToUpper(name[:1]) + name[1:]
-	if variantName == name {
-		variantName = strings.ToLower(name[:1]) + name[1:]
-	}
-	if variantName == name {
-		t.Skip("temporary directory name has no case variant")
-	}
+	variantName := signingCaseVariantName(t, name)
 	path := filepath.Join(root, "Config.xcconfig")
 	if err := os.WriteFile(path, []byte("CODE_SIGN_STYLE = Manual\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile(config) error = %v", err)
@@ -1830,24 +1371,11 @@ func TestSigningPathLexicallyContainedAcceptsCaseVariantRootOnInsensitiveVolume(
 }
 
 func TestSigningPathLexicallyContainedRejectsCaseVariantRootOnSensitiveWindowsDirectory(t *testing.T) {
-	previousOS := runtimeGOOS
-	previousCaseSemantics := signingCaseInsensitiveVolumeFn
-	runtimeGOOS = "windows"
-	signingCaseInsensitiveVolumeFn = func(string) (bool, bool) { return false, true }
-	t.Cleanup(func() {
-		runtimeGOOS = previousOS
-		signingCaseInsensitiveVolumeFn = previousCaseSemantics
-	})
+	setSigningTestPlatform(t, "windows", func(string) (bool, bool) { return false, true })
 
 	root := t.TempDir()
 	rootName := filepath.Base(root)
-	variantName := strings.ToUpper(rootName[:1]) + rootName[1:]
-	if variantName == rootName {
-		variantName = strings.ToLower(rootName[:1]) + rootName[1:]
-	}
-	if variantName == rootName {
-		t.Skip("temporary directory name has no case variant")
-	}
+	variantName := signingCaseVariantName(t, rootName)
 	variantPath := filepath.Join(filepath.Dir(root), variantName, "Config.xcconfig")
 	project := &structuredVersionProject{rootDir: root}
 	if signingPathLexicallyContained(project, variantPath) {
@@ -1865,24 +1393,11 @@ func TestSigningPathLexicallyContainedRejectsCaseVariantRootOnSensitiveWindowsDi
 }
 
 func TestValidateSigningXCConfigPathRejectsCaseVariantRootOnSensitiveWindowsDirectory(t *testing.T) {
-	previousOS := runtimeGOOS
-	previousCaseSemantics := signingCaseInsensitiveVolumeFn
-	runtimeGOOS = "windows"
-	signingCaseInsensitiveVolumeFn = func(string) (bool, bool) { return false, true }
-	t.Cleanup(func() {
-		runtimeGOOS = previousOS
-		signingCaseInsensitiveVolumeFn = previousCaseSemantics
-	})
+	setSigningTestPlatform(t, "windows", func(string) (bool, bool) { return false, true })
 
 	root := t.TempDir()
 	rootName := filepath.Base(root)
-	variantName := strings.ToUpper(rootName[:1]) + rootName[1:]
-	if variantName == rootName {
-		variantName = strings.ToLower(rootName[:1]) + rootName[1:]
-	}
-	if variantName == rootName {
-		t.Skip("temporary directory name has no case variant")
-	}
+	variantName := signingCaseVariantName(t, rootName)
 	project := &structuredVersionProject{rootDir: root}
 	path := filepath.Join(filepath.Dir(root), variantName, "Config.xcconfig")
 	if err := validateSigningXCConfigPath(project, path, false); !errors.Is(err, rootfs.ErrEscapesRoot) {
@@ -1911,19 +1426,9 @@ func TestSigningPlanKeepsUnselectedUnresolvedEntitlementsAsUncertainty(t *testin
 		t.Fatalf("WriteFile(project.pbxproj) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "CODE_SIGN_ENTITLEMENTS value cannot be safely inventoried") {
-		t.Fatalf("BuildSigningPlan() error = %v, want fail-closed unbounded entitlement error", err)
-	}
+	plan := requireSigningPlanRefused(t, fixture.planOptions("state"), "CODE_SIGN_ENTITLEMENTS value cannot be safely inventoried")
 	if plan != nil {
 		t.Fatalf("unselected unresolved entitlement produced a plan: %#v", plan)
 	}
@@ -1959,19 +1464,9 @@ func TestSigningPlanIgnoresShadowedUnresolvedXCConfigEntitlements(t *testing.T) 
 			if err := os.WriteFile(entitlementsPath, []byte("<?xml version=\"1.0\"?><plist version=\"1.0\"><dict/></plist>\n"), 0o600); err != nil {
 				t.Fatalf("WriteFile(entitlements) error = %v", err)
 			}
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project)
 
-			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-			})
-			if err != nil {
-				t.Fatalf("BuildSigningPlan() error = %v", err)
-			}
+			plan := fixture.buildPlan(t)
 			if !plan.Ready {
 				t.Fatalf("shadowed entitlement expression blocked plan: %#v", plan.Blockers)
 			}
@@ -2007,127 +1502,57 @@ func TestSigningPlanProtectsUnconditionalEntitlementWhenConditionalResolutionDiv
 		t.Fatalf("WriteFile(Widget.xcconfig) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 	planPath := filepath.Join(projectRoot, "plan.json")
 	const existingPlan = "existing entitlement bytes\n"
 	if err := os.WriteFile(planPath, []byte(existingPlan), 0o600); err != nil {
 		t.Fatalf("WriteFile(plan) error = %v", err)
 	}
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: planPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "aliases project input") {
-		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want unconditional entitlement alias rejection", plan, err)
-	}
-	if got := mustReadVersionTestFile(t, planPath); got != existingPlan {
-		t.Fatalf("unconditional entitlement was overwritten during divergent-resolution planning: %q", got)
-	}
+	requireSigningPlanRefused(t, SigningPlanOptions{
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
+	}, "aliases project input", planPath)
 }
 
-func TestSigningPlanProtectsConditionalInheritedEntitlementPath(t *testing.T) {
-	project := writeStructuredVersionProject(t, false)
-	projectRoot := filepath.Dir(project)
-	composedPath := filepath.Join(projectRoot, "BaseSuffix")
-	const existingEntitlements = "existing entitlement bytes\n"
-	if err := os.WriteFile(composedPath, []byte(existingEntitlements), 0o600); err != nil {
-		t.Fatalf("WriteFile(composed entitlements) error = %v", err)
-	}
-	attachSigningWidgetXCConfig(
-		t, project,
-		"CODE_SIGN_ENTITLEMENTS = Base\n"+
-			"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = $(inherited)Suffix\n",
-	)
+func TestSigningPlanProtectsComposedWidgetEntitlementPath(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		artifact       string
+		widgetXCConfig string
+	}{
+		{
+			name:     "TestSigningPlanProtectsConditionalInheritedEntitlementPath",
+			artifact: "BaseSuffix",
+			widgetXCConfig: "CODE_SIGN_ENTITLEMENTS = Base\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = $(inherited)Suffix\n",
+		},
+		{
+			name:     "TestSigningPlanProtectsConditionalComposedEntitlementAppendPath",
+			artifact: "Base Suffix",
+			widgetXCConfig: "CODE_SIGN_ENTITLEMENTS = Base\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] += Suffix\n",
+		},
+		{
+			name:     "TestSigningPlanProtectsComposedEntitlementAppendPath",
+			artifact: "Base Suffix",
+			widgetXCConfig: "CODE_SIGN_ENTITLEMENTS = Base\n" +
+				"CODE_SIGN_ENTITLEMENTS += Suffix\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = Widget.entitlements\n",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			project := writeStructuredVersionProject(t, false)
+			composedPath := filepath.Join(filepath.Dir(project), test.artifact)
+			if err := os.WriteFile(composedPath, []byte("existing entitlement bytes\n"), 0o600); err != nil {
+				t.Fatalf("WriteFile(composed entitlements) error = %v", err)
+			}
+			attachSigningWidgetXCConfig(t, project, test.widgetXCConfig)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: composedPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "aliases project input") {
-		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want conditional inherited entitlement path rejected as an artifact alias", plan, err)
-	}
-	if got := mustReadVersionTestFile(t, composedPath); got != existingEntitlements {
-		t.Fatalf("composed entitlement input was overwritten during planning: %q", got)
-	}
-}
-
-func TestSigningPlanProtectsConditionalComposedEntitlementAppendPath(t *testing.T) {
-	project := writeStructuredVersionProject(t, false)
-	projectRoot := filepath.Dir(project)
-	composedPath := filepath.Join(projectRoot, "Base Suffix")
-	const existingEntitlements = "existing entitlement bytes\n"
-	if err := os.WriteFile(composedPath, []byte(existingEntitlements), 0o600); err != nil {
-		t.Fatalf("WriteFile(composed entitlements) error = %v", err)
-	}
-	attachSigningWidgetXCConfig(
-		t, project,
-		"CODE_SIGN_ENTITLEMENTS = Base\n"+
-			"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] += Suffix\n",
-	)
-
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: composedPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "aliases project input") {
-		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want conditional composed entitlement append path rejected as an artifact alias", plan, err)
-	}
-	if got := mustReadVersionTestFile(t, composedPath); got != existingEntitlements {
-		t.Fatalf("composed entitlement input was overwritten during planning: %q", got)
-	}
-}
-
-func TestSigningPlanProtectsComposedEntitlementAppendPath(t *testing.T) {
-	project := writeStructuredVersionProject(t, false)
-	projectRoot := filepath.Dir(project)
-	composedPath := filepath.Join(projectRoot, "Base Suffix")
-	const existingEntitlements = "existing entitlement bytes\n"
-	if err := os.WriteFile(composedPath, []byte(existingEntitlements), 0o600); err != nil {
-		t.Fatalf("WriteFile(composed entitlements) error = %v", err)
-	}
-	attachSigningWidgetXCConfig(
-		t, project,
-		"CODE_SIGN_ENTITLEMENTS = Base\n"+
-			"CODE_SIGN_ENTITLEMENTS += Suffix\n"+
-			"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = Widget.entitlements\n",
-	)
-
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: composedPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "aliases project input") {
-		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want composed entitlement append path rejected as an artifact alias", plan, err)
-	}
-	if got := mustReadVersionTestFile(t, composedPath); got != existingEntitlements {
-		t.Fatalf("composed entitlement input was overwritten during planning: %q", got)
+			options := newSigningSettingsFixture(t, project).planOptions("state")
+			options.PlanPath = composedPath
+			requireSigningPlanRefused(t, options, "aliases project input", composedPath)
+		})
 	}
 }
 
@@ -2161,11 +1586,7 @@ func TestSigningPlanSkipsShadowedConditionalAfterProjectEntitlementBase(t *testi
 		t.Fatalf("WriteFile(Widget.xcconfig) error = %v", err)
 	}
 
-	settingsPath := filepath.Join(t.TempDir(), "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 	planPath := filepath.Join(projectRoot, "plan.json")
 	const existingPlan = "existing plan bytes\n"
 	if err := os.WriteFile(planPath, []byte(existingPlan), 0o600); err != nil {
@@ -2173,8 +1594,8 @@ func TestSigningPlanSkipsShadowedConditionalAfterProjectEntitlementBase(t *testi
 	}
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: planPath, StateDir: filepath.Join(t.TempDir(), "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want shadowed conditional to be omitted", err)
@@ -2190,98 +1611,90 @@ func TestSigningPlanSkipsShadowedConditionalAfterProjectEntitlementBase(t *testi
 	}
 }
 
-func TestSigningXCConfigEntitlementCandidatesOmitProvenShadowedAssignments(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "Widget.xcconfig")
-	if err := os.WriteFile(path, []byte(
-		"CODE_SIGN_ENTITLEMENTS = Shadowed.entitlements\n"+
-			"CODE_SIGN_ENTITLEMENTS = Current.entitlements\n"+
-			"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = Conditional.entitlements\n",
-	), 0o640); err != nil {
-		t.Fatalf("WriteFile(Widget.xcconfig) error = %v", err)
-	}
-	project := &structuredVersionProject{rootDir: root}
-	resolver := newSigningSettingResolver(project, map[string][]string{"widget": {path}}, false, nil)
-	configuration := &versionConfiguration{id: "widget"}
-	candidates, _, err := signingXCConfigEntitlementAssignmentCandidates(configuration, []string{path}, resolver, xcconfigResolvedValue{})
-	if err != nil {
-		t.Fatalf("signingXCConfigEntitlementAssignmentCandidates() error = %v", err)
-	}
-	key := normalizeSigningLexicalPath(path)
-	if candidates[key][0] {
-		t.Fatal("assignment shadowed by a later unconditional value remained a candidate")
-	}
-	if !candidates[key][1] || !candidates[key][2] {
-		t.Fatalf("live entitlement assignments = %#v, want current unconditional and conditional values", candidates[key])
-	}
-}
-
-func TestSigningXCConfigEntitlementCandidatesSkipConditionalDefaultAfterDivergentOverride(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "Widget.xcconfig")
-	if err := os.WriteFile(path, []byte(
-		"CODE_SIGN_ENTITLEMENTS = safe.entitlements\n"+"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = other.entitlements\n"+"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] ?= shadowed.entitlements\n",
-	), 0o640); err != nil {
-		t.Fatalf("WriteFile(Widget.xcconfig) error = %v", err)
-	}
-	project := &structuredVersionProject{rootDir: root}
-	resolver := newSigningSettingResolver(project, map[string][]string{"widget": {path}}, false, nil)
-	configuration := &versionConfiguration{id: "widget"}
-	candidates, _, err := signingXCConfigEntitlementAssignmentCandidates(configuration, []string{path}, resolver, xcconfigResolvedValue{})
-	if err != nil {
-		t.Fatalf("signingXCConfigEntitlementAssignmentCandidates() error = %v", err)
-	}
-	key := normalizeSigningLexicalPath(path)
-	if !candidates[key][0] || !candidates[key][1] {
-		t.Fatalf("live entitlement assignments = %#v, want unconditional and divergent conditional values", candidates[key])
-	}
-	if candidates[key][2] {
-		t.Fatal("conditional ?= assignment shadowed by unconditional value remained a candidate")
-	}
-}
-
-func TestSigningXCConfigEntitlementCandidatesKeepConditionalValueBeforeSameSelectorDefault(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "Widget.xcconfig")
-	if err := os.WriteFile(path, []byte(
-		"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = first.entitlements\n"+"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] ?= fallback.entitlements\n",
-	), 0o640); err != nil {
-		t.Fatalf("WriteFile(Widget.xcconfig) error = %v", err)
-	}
-	project := &structuredVersionProject{rootDir: root}
-	resolver := newSigningSettingResolver(project, map[string][]string{"widget": {path}}, false, nil)
-	configuration := &versionConfiguration{id: "widget"}
-	candidates, _, err := signingXCConfigEntitlementAssignmentCandidates(configuration, []string{path}, resolver, xcconfigResolvedValue{})
-	if err != nil {
-		t.Fatalf("signingXCConfigEntitlementAssignmentCandidates() error = %v", err)
-	}
-	key := normalizeSigningLexicalPath(path)
-	if !candidates[key][0] {
-		t.Fatalf("same-selector conditional assignment = %#v, want the earlier value retained", candidates[key])
-	}
-	if candidates[key][1] {
-		t.Fatal("same-selector ?= fallback incorrectly replaced the earlier conditional value")
-	}
-}
-
-func TestSigningXCConfigEntitlementCandidatesKeepSameSelectorInheritedAssignment(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "Widget.xcconfig")
-	if err := os.WriteFile(path, []byte(
-		"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = first.entitlements\n"+"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = $(inherited) appended.entitlements\n",
-	), 0o640); err != nil {
-		t.Fatalf("WriteFile(Widget.xcconfig) error = %v", err)
-	}
-	project := &structuredVersionProject{rootDir: root}
-	resolver := newSigningSettingResolver(project, map[string][]string{"widget": {path}}, false, nil)
-	configuration := &versionConfiguration{id: "widget"}
-	candidates, _, err := signingXCConfigEntitlementAssignmentCandidates(configuration, []string{path}, resolver, xcconfigResolvedValue{})
-	if err != nil {
-		t.Fatalf("signingXCConfigEntitlementAssignmentCandidates() error = %v", err)
-	}
-	key := normalizeSigningLexicalPath(path)
-	if !candidates[key][0] || !candidates[key][1] {
-		t.Fatalf("same-selector inherited assignments = %#v, want both assignments retained", candidates[key])
+func TestSigningXCConfigEntitlementCandidatesInOneFile(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		contents string
+		live     []int
+		shadowed []int
+	}{
+		{
+			name: "TestSigningXCConfigEntitlementCandidatesOmitProvenShadowedAssignments",
+			contents: "CODE_SIGN_ENTITLEMENTS = Shadowed.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS = Current.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = Conditional.entitlements\n",
+			live:     []int{1, 2},
+			shadowed: []int{0},
+		},
+		{
+			name: "TestSigningXCConfigEntitlementCandidatesSkipConditionalDefaultAfterDivergentOverride",
+			contents: "CODE_SIGN_ENTITLEMENTS = safe.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = other.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] ?= shadowed.entitlements\n",
+			live:     []int{0, 1},
+			shadowed: []int{2},
+		},
+		{
+			name: "TestSigningXCConfigEntitlementCandidatesKeepConditionalValueBeforeSameSelectorDefault",
+			contents: "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = first.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] ?= fallback.entitlements\n",
+			live:     []int{0},
+			shadowed: []int{1},
+		},
+		{
+			name: "TestSigningXCConfigEntitlementCandidatesKeepSameSelectorInheritedAssignment",
+			contents: "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = first.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = $(inherited) appended.entitlements\n",
+			live: []int{0, 1},
+		},
+		{
+			name: "TestSigningXCConfigEntitlementCandidatesKeepOnlyFinalRepeatedSelectorAssignment",
+			contents: "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = iphone.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = iphone-final.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*] = macos.entitlements\n",
+			live:     []int{1, 2},
+			shadowed: []int{0},
+		},
+		{
+			name: "TestSigningXCConfigEntitlementCandidatesRespectSelectorSpecificity",
+			contents: "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = iphone.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*][arch=arm64] ?= arm64-default.entitlements\n",
+			live: []int{0, 1},
+		},
+		{
+			name: "TestSigningXCConfigEntitlementCandidatesNormalizeReorderedSelectors",
+			contents: "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*][arch=arm64] = first.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS[arch=arm64][sdk=iphoneos*] = final.entitlements\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*][arch=x86_64] = different.entitlements\n",
+			live:     []int{1, 2},
+			shadowed: []int{0},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, "Widget.xcconfig")
+			if err := os.WriteFile(path, []byte(test.contents), 0o640); err != nil {
+				t.Fatalf("WriteFile(Widget.xcconfig) error = %v", err)
+			}
+			project := &structuredVersionProject{rootDir: root}
+			resolver := newSigningSettingResolver(project, map[string][]string{"widget": {path}}, false, nil)
+			configuration := &versionConfiguration{id: "widget"}
+			candidates, _, err := signingXCConfigEntitlementAssignmentCandidates(configuration, []string{path}, resolver, xcconfigResolvedValue{})
+			if err != nil {
+				t.Fatalf("signingXCConfigEntitlementAssignmentCandidates() error = %v", err)
+			}
+			assignments := candidates[normalizeSigningLexicalPath(path)]
+			for _, index := range test.live {
+				if !assignments[index] {
+					t.Fatalf("assignment %d = %#v, want a live candidate", index, assignments)
+				}
+			}
+			for _, index := range test.shadowed {
+				if assignments[index] {
+					t.Fatalf("assignment %d = %#v, want it shadowed", index, assignments)
+				}
+			}
+		})
 	}
 }
 
@@ -2369,84 +1782,8 @@ func TestSigningXCConfigEntitlementCandidatesReplayRepeatedIncludesInOrder(t *te
 	}
 }
 
-func TestSigningXCConfigEntitlementCandidatesKeepOnlyFinalRepeatedSelectorAssignment(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "Widget.xcconfig")
-	if err := os.WriteFile(path, []byte(
-		"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = iphone.entitlements\n"+"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = iphone-final.entitlements\n"+"CODE_SIGN_ENTITLEMENTS[sdk=macosx*] = macos.entitlements\n",
-	), 0o640); err != nil {
-		t.Fatalf("WriteFile(Widget.xcconfig) error = %v", err)
-	}
-	project := &structuredVersionProject{rootDir: root}
-	resolver := newSigningSettingResolver(project, map[string][]string{"widget": {path}}, false, nil)
-	configuration := &versionConfiguration{id: "widget"}
-	candidates, _, err := signingXCConfigEntitlementAssignmentCandidates(configuration, []string{path}, resolver, xcconfigResolvedValue{})
-	if err != nil {
-		t.Fatalf("signingXCConfigEntitlementAssignmentCandidates() error = %v", err)
-	}
-	key := normalizeSigningLexicalPath(path)
-	if candidates[key][0] {
-		t.Fatal("earlier same-selector assignment remained a candidate")
-	}
-	if !candidates[key][1] || !candidates[key][2] {
-		t.Fatalf("live entitlement assignments = %#v, want final same-selector and different-selector values", candidates[key])
-	}
-}
-
-func TestSigningXCConfigEntitlementCandidatesRespectSelectorSpecificity(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "Widget.xcconfig")
-	if err := os.WriteFile(path, []byte(
-		"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = iphone.entitlements\n"+"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*][arch=arm64] ?= arm64-default.entitlements\n",
-	), 0o640); err != nil {
-		t.Fatalf("WriteFile(Widget.xcconfig) error = %v", err)
-	}
-	project := &structuredVersionProject{rootDir: root}
-	resolver := newSigningSettingResolver(project, map[string][]string{"widget": {path}}, false, nil)
-	configuration := &versionConfiguration{id: "widget"}
-	candidates, _, err := signingXCConfigEntitlementAssignmentCandidates(configuration, []string{path}, resolver, xcconfigResolvedValue{})
-	if err != nil {
-		t.Fatalf("signingXCConfigEntitlementAssignmentCandidates() error = %v", err)
-	}
-	key := normalizeSigningLexicalPath(path)
-	if !candidates[key][0] || !candidates[key][1] {
-		t.Fatalf("selector-specific assignments = %#v, want both conditional values", candidates[key])
-	}
-}
-
-func TestSigningXCConfigEntitlementCandidatesNormalizeReorderedSelectors(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "Widget.xcconfig")
-	if err := os.WriteFile(path, []byte(
-		"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*][arch=arm64] = first.entitlements\n"+"CODE_SIGN_ENTITLEMENTS[arch=arm64][sdk=iphoneos*] = final.entitlements\n"+"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*][arch=x86_64] = different.entitlements\n",
-	), 0o640); err != nil {
-		t.Fatalf("WriteFile(Widget.xcconfig) error = %v", err)
-	}
-	project := &structuredVersionProject{rootDir: root}
-	resolver := newSigningSettingResolver(project, map[string][]string{"widget": {path}}, false, nil)
-	configuration := &versionConfiguration{id: "widget"}
-	candidates, _, err := signingXCConfigEntitlementAssignmentCandidates(configuration, []string{path}, resolver, xcconfigResolvedValue{})
-	if err != nil {
-		t.Fatalf("signingXCConfigEntitlementAssignmentCandidates() error = %v", err)
-	}
-	key := normalizeSigningLexicalPath(path)
-	if candidates[key][0] {
-		t.Fatal("earlier assignment with reordered equivalent selectors remained a candidate")
-	}
-	if !candidates[key][1] || !candidates[key][2] {
-		t.Fatalf("selector candidates = %#v, want final equivalent and genuinely different selectors", candidates[key])
-	}
-}
-
 func TestSigningXCConfigEntitlementCandidatesKeepCaseDistinctPaths(t *testing.T) {
-	previousOS := runtimeGOOS
-	previousCaseSemantics := signingCaseInsensitiveVolumeFn
-	runtimeGOOS = "windows"
-	signingCaseInsensitiveVolumeFn = func(string) (bool, bool) { return false, true }
-	t.Cleanup(func() {
-		runtimeGOOS = previousOS
-		signingCaseInsensitiveVolumeFn = previousCaseSemantics
-	})
+	setSigningTestPlatform(t, "windows", func(string) (bool, bool) { return false, true })
 
 	root := t.TempDir()
 	upperPath := filepath.Join(root, "Widget.xcconfig")
@@ -2664,15 +2001,9 @@ func TestSigningXCConfigEntitlementCandidatesDoNotReadIncludeCollectedForAnother
 func TestSigningPlanRejectsSelectedUnresolvedEntitlements(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"), `CODE_SIGN_ENTITLEMENTS = "$(MISSING_ENTITLEMENTS)";`)
-	settingsPath := filepath.Join(t.TempDir(), "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(t.TempDir(), "state"),
-	})
+	_, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err == nil || !strings.Contains(err.Error(), "unresolved build-setting reference") || !strings.Contains(err.Error(), "CODE_SIGN_ENTITLEMENTS") {
 		t.Fatalf("BuildSigningPlan() error = %v, want selected entitlement resolution failure", err)
 	}
@@ -2759,22 +2090,9 @@ func TestSigningPlanDoesNotAuthorizeSharedXCConfigPerSelectedConfiguration(t *te
 	if err := os.WriteFile(sharedPath, []byte("CODE_SIGN_STYLE = Automatic\r\n"+shared), 0o644); err != nil {
 		t.Fatalf("write shared xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}},
-			{"name":"Release","settings":{"DEVELOPMENT_TEAM":"ABCDE12345"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", signingManualStyle), withSigningConfiguration("Release", `{"DEVELOPMENT_TEAM":"ABCDE12345"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
@@ -2791,79 +2109,45 @@ func TestSigningPlanDoesNotAuthorizeSharedXCConfigPerSelectedConfiguration(t *te
 	}
 }
 
-func TestSigningPlanRejectsReusedConfigurationIDAcrossTargetConsumers(t *testing.T) {
-	project := writeStructuredVersionProject(t, true)
-	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	contents := mustReadVersionTestFile(t, pbxprojPath)
-	const widgetConfigurations = "buildConfigurations = (999999999999999999999995, 999999999999999999999996);"
-	const reusedWidgetConfigurations = "buildConfigurations = (999999999999999999999993, 999999999999999999999996);"
-	if !strings.Contains(contents, widgetConfigurations) {
-		t.Fatal("project fixture is missing Widget configuration list")
-	}
-	contents = strings.Replace(contents, widgetConfigurations, reusedWidgetConfigurations, 1)
-	if err := os.WriteFile(pbxprojPath, []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile(project) error = %v", err)
-	}
-	appXCConfig := filepath.Join(filepath.Dir(project), "Configs", "App.xcconfig")
-	if err := os.WriteFile(appXCConfig, []byte("CODE_SIGN_STYLE = Automatic\n#include \"Shared.xcconfig\"\n"), 0o644); err != nil {
-		t.Fatalf("WriteFile(App.xcconfig) error = %v", err)
-	}
+func TestSigningPlanRejectsReusedConfigurationID(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		configurations string
+		reused         string
+	}{
+		{
+			name:           "TestSigningPlanRejectsReusedConfigurationIDAcrossTargetConsumers",
+			configurations: "buildConfigurations = (999999999999999999999995, 999999999999999999999996);",
+			reused:         "buildConfigurations = (999999999999999999999993, 999999999999999999999996);",
+		},
+		{
+			name:           "TestSigningPlanRejectsReusedConfigurationIDAcrossProjectAndTargetConsumers",
+			configurations: "buildConfigurations = (999999999999999999999991, 999999999999999999999992);",
+			reused:         "buildConfigurations = (999999999999999999999993, 999999999999999999999992);",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			project := writeStructuredVersionProject(t, true)
+			pbxprojPath := filepath.Join(project, "project.pbxproj")
+			contents := mustReadVersionTestFile(t, pbxprojPath)
+			if !strings.Contains(contents, test.configurations) {
+				t.Fatalf("project fixture is missing configuration list %q", test.configurations)
+			}
+			contents = strings.Replace(contents, test.configurations, test.reused, 1)
+			if err := os.WriteFile(pbxprojPath, []byte(contents), 0o644); err != nil {
+				t.Fatalf("WriteFile(project) error = %v", err)
+			}
+			appXCConfig := filepath.Join(filepath.Dir(project), "Configs", "App.xcconfig")
+			if err := os.WriteFile(appXCConfig, []byte("CODE_SIGN_STYLE = Automatic\n#include \"Shared.xcconfig\"\n"), 0o644); err != nil {
+				t.Fatalf("WriteFile(App.xcconfig) error = %v", err)
+			}
 
-	settingsPath := filepath.Join(t.TempDir(), "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	stateDir := filepath.Join(t.TempDir(), "state")
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: stateDir,
-	})
-	if err == nil || !strings.Contains(err.Error(), "reused by multiple project or target consumers") {
-		t.Fatalf("BuildSigningPlan() error = %v, want reused-configuration rejection", err)
-	}
-	if plan != nil {
-		t.Fatalf("BuildSigningPlan() plan = %#v, want no plan on ambiguous configuration identity", plan)
-	}
-	if _, statErr := os.Stat(filepath.Join(stateDir, "plan.json")); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("plan artifact after reused-configuration rejection = %v, want absent", statErr)
-	}
-}
-
-func TestSigningPlanRejectsReusedConfigurationIDAcrossProjectAndTargetConsumers(t *testing.T) {
-	project := writeStructuredVersionProject(t, true)
-	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	contents := mustReadVersionTestFile(t, pbxprojPath)
-	const projectConfigurations = "buildConfigurations = (999999999999999999999991, 999999999999999999999992);"
-	const reusedProjectConfigurations = "buildConfigurations = (999999999999999999999993, 999999999999999999999992);"
-	if !strings.Contains(contents, projectConfigurations) {
-		t.Fatal("project fixture is missing project configuration list")
-	}
-	contents = strings.Replace(contents, projectConfigurations, reusedProjectConfigurations, 1)
-	if err := os.WriteFile(pbxprojPath, []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile(project) error = %v", err)
-	}
-	appXCConfig := filepath.Join(filepath.Dir(project), "Configs", "App.xcconfig")
-	if err := os.WriteFile(appXCConfig, []byte("CODE_SIGN_STYLE = Automatic\n#include \"Shared.xcconfig\"\n"), 0o644); err != nil {
-		t.Fatalf("WriteFile(App.xcconfig) error = %v", err)
-	}
-
-	settingsPath := filepath.Join(t.TempDir(), "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	stateDir := filepath.Join(t.TempDir(), "state")
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: stateDir,
-	})
-	if err == nil || !strings.Contains(err.Error(), "reused by multiple project or target consumers") {
-		t.Fatalf("BuildSigningPlan() error = %v, want reused-configuration rejection", err)
-	}
-	if plan != nil {
-		t.Fatalf("BuildSigningPlan() plan = %#v, want no plan on ambiguous configuration identity", plan)
-	}
-	if _, statErr := os.Stat(filepath.Join(stateDir, "plan.json")); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("plan artifact after reused-configuration rejection = %v, want absent", statErr)
+			fixture := newSigningSettingsFixture(t, project)
+			plan := requireSigningPlanRefused(t, fixture.planOptions("state"), "reused by multiple project or target consumers", filepath.Join(fixture.root, "state", "plan.json"))
+			if plan != nil {
+				t.Fatalf("BuildSigningPlan() plan = %#v, want no plan on ambiguous configuration identity", plan)
+			}
+		})
 	}
 }
 
@@ -2874,22 +2158,9 @@ func TestSigningPlanDoesNotRewriteSharedXCConfigPastNoOpConsumer(t *testing.T) {
 	if err := os.WriteFile(sharedPath, []byte("CODE_SIGN_STYLE = Automatic\r\n"+shared), 0o644); err != nil {
 		t.Fatalf("write shared xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"automatic"}},
-			{"name":"Release","settings":{"CODE_SIGN_STYLE":"manual"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_STYLE":"automatic"}`), withSigningConfiguration("Release", signingManualStyle))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
@@ -2910,28 +2181,12 @@ func TestSigningPlanExternalXCConfigRequiresOptInForPlanAndApply(t *testing.T) {
 	if err := os.WriteFile(externalPath, []byte("CODE_SIGN_STYLE = Automatic\r\n"+shared), 0o640); err != nil {
 		t.Fatalf("write external shared xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}},
-			{"name":"Release","settings":{"CODE_SIGN_STYLE":"manual"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", signingManualStyle), withSigningConfiguration("Release", signingManualStyle))
 
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "blocked"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "unauthorized external xcconfig cannot be safely inventoried without --allow-external-xcconfig") {
-		t.Fatalf("BuildSigningPlan() without opt-in error = %v, want generic unauthorized external failure", err)
-	}
-	if _, statErr := os.Lstat(filepath.Join(root, "blocked", "plan.json")); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("blocked plan artifact after unauthorized external config = %v, want absent", statErr)
-	}
+	requireSigningPlanRefused(t, fixture.planOptions("blocked"), "unauthorized external xcconfig cannot be safely inventoried without --allow-external-xcconfig", filepath.Join(fixture.root, "blocked", "plan.json"))
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "authorized"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath, StateDir: filepath.Join(fixture.root, "authorized"),
 		AllowExternalXCConfig: true,
 	})
 	if err != nil {
@@ -3007,16 +2262,9 @@ func TestSigningPlanRejectsUnauthorizedMalformedExternalXCConfigBeforeReading(t 
 	if err := os.WriteFile(externalPath, []byte("/* unterminated\n"), 0o640); err != nil {
 		t.Fatalf("write malformed external xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	_, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err == nil || !strings.Contains(err.Error(), "unauthorized external xcconfig cannot be safely inventoried without --allow-external-xcconfig") {
 		t.Fatalf("BuildSigningPlan() error = %v, want generic unauthorized external failure without reading source", err)
 	}
@@ -3087,13 +2335,7 @@ func TestSigningPlanRejectsCaseVariantRootOnSensitiveDarwinBeforeArtifactOverwri
 	projectRoot := filepath.Dir(project)
 	rootParent := filepath.Dir(projectRoot)
 	rootName := filepath.Base(rootParent)
-	variantName := strings.ToLower(rootName[:1]) + rootName[1:]
-	if variantName == rootName {
-		variantName = strings.ToUpper(rootName[:1]) + rootName[1:]
-	}
-	if variantName == rootName {
-		t.Skip("temporary directory parent has no case variant")
-	}
+	variantName := signingCaseVariantName(t, rootName)
 	variantRoot := filepath.Join(filepath.Dir(rootParent), variantName, filepath.Base(projectRoot))
 	variantConfig := filepath.Join(variantRoot, "Configs", "App.xcconfig")
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
@@ -3108,13 +2350,8 @@ func TestSigningPlanRejectsCaseVariantRootOnSensitiveDarwinBeforeArtifactOverwri
 		t.Fatalf("WriteFile(project.pbxproj) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	stateDir := filepath.Join(root, "state")
+	fixture := newSigningSettingsFixture(t, project)
+	stateDir := filepath.Join(fixture.root, "state")
 	planPath := filepath.Join(stateDir, "plan.json")
 	const existingPlan = "existing plan bytes\n"
 	if err := os.MkdirAll(stateDir, 0o755); err != nil {
@@ -3123,16 +2360,10 @@ func TestSigningPlanRejectsCaseVariantRootOnSensitiveDarwinBeforeArtifactOverwri
 	if err := os.WriteFile(planPath, []byte(existingPlan), 0o600); err != nil {
 		t.Fatalf("WriteFile(existing plan) error = %v", err)
 	}
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
+	requireSigningPlanRefused(t, SigningPlanOptions{
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
 		PlanPath: planPath, StateDir: stateDir,
-	})
-	if err == nil || !strings.Contains(err.Error(), signingUnauthorizedExternalXCConfigMessage) {
-		t.Fatalf("BuildSigningPlan() error = %v, want case-sensitive external authorization failure", err)
-	}
-	if got := mustReadVersionTestFile(t, planPath); got != existingPlan {
-		t.Fatalf("existing plan changed after case-sensitive external rejection: %q", got)
-	}
+	}, signingUnauthorizedExternalXCConfigMessage, planPath)
 	if identityChecks != 0 || statChecks != 0 || readChecks != 0 || prospectiveExternalChecks != 0 || artifactExternalChecks != 0 {
 		t.Fatalf("case-sensitive external probes = identity:%d stat:%d read:%d prospective:%d artifact:%d, want all zero", identityChecks, statChecks, readChecks, prospectiveExternalChecks, artifactExternalChecks)
 	}
@@ -3147,16 +2378,9 @@ func TestSigningPlanBlocksUnselectedExternalXCConfigWithoutReadingIt(t *testing.
 	if err := os.WriteFile(externalPath, []byte("/* unterminated\n"), 0o640); err != nil {
 		t.Fatalf("write malformed external xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"Widget","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
 
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	_, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err == nil || !strings.Contains(err.Error(), "unauthorized external xcconfig cannot be safely inventoried without --allow-external-xcconfig") {
 		t.Fatalf("BuildSigningPlan() error = %v, want generic unauthorized external failure", err)
 	}
@@ -3177,14 +2401,8 @@ func TestSigningPlanBlocksUnselectedEscapingXCConfigSymlink(t *testing.T) {
 		t.Skipf("symlink unavailable: %v", err)
 	}
 
-	settingsPath := filepath.Join(t.TempDir(), "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"Widget","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(t.TempDir(), "state"),
-	})
+	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
+	_, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err == nil || !strings.Contains(err.Error(), "unauthorized external xcconfig cannot be safely inventoried without --allow-external-xcconfig") {
 		t.Fatalf("BuildSigningPlan() error = %v, want generic unauthorized external failure", err)
 	}
@@ -3193,7 +2411,6 @@ func TestSigningPlanBlocksUnselectedEscapingXCConfigSymlink(t *testing.T) {
 func TestSigningPlanRejectsUnselectedExternalXCConfigArtifactCollision(t *testing.T) {
 	project, externalDir := externalXCConfigProject(t)
 	externalPath := filepath.Join(externalDir, "App.xcconfig")
-	before := mustReadVersionTestFile(t, externalPath)
 	previousReader := signingXCConfigReadFileFn
 	previousStat := signingXCConfigStatFileFn
 	previousProspective := signingResolveProspectivePathFn
@@ -3228,23 +2445,12 @@ func TestSigningPlanRejectsUnselectedExternalXCConfigArtifactCollision(t *testin
 		signingResolveProspectivePathFn = previousProspective
 		signingArtifactPathInfoFn = previousArtifactInfo
 	})
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"Widget","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
 
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, PlanPath: externalPath,
-		StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "protected project input") {
-		t.Fatalf("BuildSigningPlan() error = %v, want protected-input collision", err)
-	}
-	if after := mustReadVersionTestFile(t, externalPath); after != before {
-		t.Fatalf("external config changed after artifact collision: %q", after)
-	}
+	requireSigningPlanRefused(t, SigningPlanOptions{
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath, PlanPath: externalPath,
+		StateDir: filepath.Join(fixture.root, "state"),
+	}, "protected project input", externalPath)
 }
 
 func TestSigningPlanRejectsAllowedUnselectedMalformedExternalArtifactCollision(t *testing.T) {
@@ -3253,24 +2459,12 @@ func TestSigningPlanRejectsAllowedUnselectedMalformedExternalArtifactCollision(t
 	if err := os.WriteFile(externalPath, []byte("/* unterminated\n"), 0o640); err != nil {
 		t.Fatalf("write malformed external xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"Widget","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	before := mustReadVersionTestFile(t, externalPath)
+	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
 
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, PlanPath: externalPath,
-		StateDir: filepath.Join(root, "state"), AllowExternalXCConfig: true,
-	})
-	if err == nil || !strings.Contains(err.Error(), "protected project input") {
-		t.Fatalf("BuildSigningPlan() error = %v, want protected-input collision before artifact inspection", err)
-	}
-	if after := mustReadVersionTestFile(t, externalPath); after != before {
-		t.Fatalf("external malformed config changed after artifact collision: %q", after)
-	}
+	requireSigningPlanRefused(t, SigningPlanOptions{
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath, PlanPath: externalPath,
+		StateDir: filepath.Join(fixture.root, "state"), AllowExternalXCConfig: true,
+	}, "protected project input", externalPath)
 }
 
 func TestSigningPlanRejectsAllowedMissingExternalIncludeArtifactCollision(t *testing.T) {
@@ -3280,23 +2474,12 @@ func TestSigningPlanRejectsAllowedMissingExternalIncludeArtifactCollision(t *tes
 	if err := os.WriteFile(externalPath, []byte("#include \"Missing.xcconfig\"\n"), 0o640); err != nil {
 		t.Fatalf("write external xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"Widget","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
 
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, ReceiptPath: missingInclude,
-		StateDir: filepath.Join(root, "state"), AllowExternalXCConfig: true,
-	})
-	if err == nil || !strings.Contains(err.Error(), "protected project input") {
-		t.Fatalf("BuildSigningPlan() error = %v, want missing-include collision before artifact inspection", err)
-	}
-	if _, statErr := os.Lstat(missingInclude); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("missing include after collision = %v, want absent", statErr)
-	}
+	requireSigningPlanRefused(t, SigningPlanOptions{
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath, ReceiptPath: missingInclude,
+		StateDir: filepath.Join(fixture.root, "state"), AllowExternalXCConfig: true,
+	}, "protected project input", missingInclude)
 }
 
 func TestSigningPlanRejectsBlockedExternalPlanAliasToMissingEntitlements(t *testing.T) {
@@ -3322,24 +2505,13 @@ func TestSigningPlanRejectsBlockedExternalPlanAliasToMissingEntitlements(t *test
 	if err := os.WriteFile(pbxprojPath, []byte(updatedContents), 0o644); err != nil {
 		t.Fatalf("write project error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
+	fixture := newSigningSettingsFixture(t, project)
 	planPath := filepath.Join(filepath.Dir(project), "plan.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
 
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, PlanPath: planPath,
-		StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "aliases project input") {
-		t.Fatalf("BuildSigningPlan() error = %v, want missing-entitlement alias rejection", err)
-	}
-	if _, statErr := os.Lstat(planPath); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("missing entitlement artifact after collision = %v, want absent", statErr)
-	}
+	requireSigningPlanRefused(t, SigningPlanOptions{
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath, PlanPath: planPath,
+		StateDir: filepath.Join(fixture.root, "state"),
+	}, "aliases project input", planPath)
 }
 
 func TestSigningPlanKeepsAllowedExternalCollectionFailureBlockedWithoutOverwrite(t *testing.T) {
@@ -3349,27 +2521,13 @@ func TestSigningPlanKeepsAllowedExternalCollectionFailureBlockedWithoutOverwrite
 	if err := os.WriteFile(externalPath, []byte(before), 0o640); err != nil {
 		t.Fatalf("write malformed external xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	stateDir := filepath.Join(root, "state")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"Widget","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
+	stateDir := filepath.Join(fixture.root, "state")
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: stateDir,
+	requireSigningPlanRefused(t, SigningPlanOptions{
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath, StateDir: stateDir,
 		AllowExternalXCConfig: true,
-	})
-	if err == nil || !strings.Contains(err.Error(), "cannot be safely inventoried") {
-		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want incomplete opted-in collection to fail closed", plan, err)
-	}
-	if _, statErr := os.Lstat(filepath.Join(stateDir, "plan.json")); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("plan artifact after incomplete opted-in collection = %v, want absent", statErr)
-	}
-	if after := mustReadVersionTestFile(t, externalPath); after != before {
-		t.Fatalf("external malformed config changed while refusing publication: %q", after)
-	}
+	}, "cannot be safely inventoried", filepath.Join(stateDir, "plan.json"), externalPath)
 }
 
 func TestSigningPlanContinuesXCConfigProtectionAfterSelectedCollectionFailure(t *testing.T) {
@@ -3385,20 +2543,10 @@ func TestSigningPlanContinuesXCConfigProtectionAfterSelectedCollectionFailure(t 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			project, externalBase, missingInclude := writeSigningMultiConfigFailureProject(t)
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			stateDir := filepath.Join(root, "state")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-
-			opts := SigningPlanOptions{
-				ProjectPath:           project,
-				SettingsFilePath:      settingsPath,
-				StateDir:              stateDir,
-				AllowExternalXCConfig: test.allowExternal,
-			}
+			fixture := newSigningSettingsFixture(t, project)
+			stateDir := filepath.Join(fixture.root, "state")
+			opts := fixture.planOptions("state")
+			opts.AllowExternalXCConfig = test.allowExternal
 			if test.planPath {
 				opts.PlanPath = externalBase
 			}
@@ -3406,16 +2554,7 @@ func TestSigningPlanContinuesXCConfigProtectionAfterSelectedCollectionFailure(t 
 				opts.ReceiptPath = missingInclude
 			}
 
-			_, err := BuildSigningPlan(opts)
-			if err == nil || !strings.Contains(err.Error(), "protected project input") {
-				t.Fatalf("BuildSigningPlan() error = %v, want lexical protected-path collision", err)
-			}
-			if _, statErr := os.Lstat(filepath.Join(stateDir, "plan.json")); !errors.Is(statErr, os.ErrNotExist) {
-				t.Fatalf("plan artifact after collision = %v, want absent", statErr)
-			}
-			if _, statErr := os.Lstat(filepath.Join(stateDir, "receipt.json")); !errors.Is(statErr, os.ErrNotExist) {
-				t.Fatalf("receipt artifact after collision = %v, want absent", statErr)
-			}
+			requireSigningPlanRefused(t, opts, "protected project input", filepath.Join(stateDir, "plan.json"), filepath.Join(stateDir, "receipt.json"))
 			if test.planPath {
 				if got := mustReadVersionTestFile(t, externalBase); !strings.Contains(got, "MissingInclude.xcconfig") {
 					t.Fatalf("external base changed after collision: %q", got)
@@ -3427,25 +2566,10 @@ func TestSigningPlanContinuesXCConfigProtectionAfterSelectedCollectionFailure(t 
 	}
 
 	project, _, _ := writeSigningMultiConfigFailureProject(t)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	stateDir := filepath.Join(root, "state")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath:           project,
-		SettingsFilePath:      settingsPath,
-		StateDir:              stateDir,
-		AllowExternalXCConfig: true,
-	})
-	if err == nil || !strings.Contains(err.Error(), "cannot be safely inventoried") {
-		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want incomplete opted-in collection to fail closed", plan, err)
-	}
-	if _, statErr := os.Lstat(filepath.Join(stateDir, "plan.json")); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("plan artifact after incomplete opted-in collection = %v, want absent", statErr)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	opts := fixture.planOptions("state")
+	opts.AllowExternalXCConfig = true
+	requireSigningPlanRefused(t, opts, "cannot be safely inventoried", filepath.Join(fixture.root, "state", "plan.json"))
 }
 
 func writeSigningMultiConfigFailureProject(t *testing.T) (projectPath, externalBase, missingInclude string) {
@@ -3494,9 +2618,7 @@ func TestSigningApplyUsesMetadataPreservingWrites(t *testing.T) {
 	if err := os.WriteFile(sharedPath, []byte("CODE_SIGN_STYLE = Automatic\r\n"+shared), 0o640); err != nil {
 		t.Fatalf("write shared xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
+	fixture := newSigningSettingsFixture(t, project, withSigningManifest(`{
 		"schemaVersion": 1,
 		"targets": [{"name":"App","configurations":[
 			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}},
@@ -3505,16 +2627,8 @@ func TestSigningApplyUsesMetadataPreservingWrites(t *testing.T) {
 			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}},
 			{"name":"Release","settings":{"CODE_SIGN_STYLE":"manual"}}
 		]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	}`))
+	plan := fixture.writePlan(t)
 
 	originalWriter := atomicWriteVersionFileFn
 	var writes []preparedVersionWrite
@@ -3543,32 +2657,9 @@ func TestSigningApplyPreflightsMetadataPreservationBeforeWrites(t *testing.T) {
 	if err := os.Link(pbxprojPath, aliasPath); err != nil {
 		t.Skipf("hard links unavailable: %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	before := mustReadVersionTestFile(t, pbxprojPath)
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err == nil || !strings.Contains(err.Error(), "multiply linked") {
-		t.Fatalf("ApplySigningPlan() error = %v, want metadata preflight refusal", err)
-	}
-	if after := mustReadVersionTestFile(t, pbxprojPath); after != before {
-		t.Fatal("metadata preflight failure changed project before the transaction")
-	}
-	if _, statErr := os.Lstat(plan.ReceiptPath); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("receipt after metadata preflight failure = %v, want absent", statErr)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
+	requireSigningApplyRefused(t, SigningApplyOptions{PlanPath: plan.PlanPath}, "multiply linked", pbxprojPath, plan.ReceiptPath)
 }
 
 func TestSigningApplyRejectsHardLinkAddedAfterPreparation(t *testing.T) {
@@ -3577,23 +2668,10 @@ func TestSigningApplyRejectsHardLinkAddedAfterPreparation(t *testing.T) {
 	}
 	project := writeStructuredVersionProject(t, false)
 	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.writePlan(t)
 	beforeProject := mustReadVersionTestFile(t, pbxprojPath)
-	aliasPath := filepath.Join(root, "project-alias.pbxproj")
+	aliasPath := filepath.Join(fixture.root, "project-alias.pbxproj")
 	originalHook := beforeSigningCommitForTest
 	beforeSigningCommitForTest = func() {
 		beforeSigningCommitForTest = nil
@@ -3603,7 +2681,7 @@ func TestSigningApplyRejectsHardLinkAddedAfterPreparation(t *testing.T) {
 	}
 	t.Cleanup(func() { beforeSigningCommitForTest = originalHook })
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
+	_, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
 	if err == nil || !strings.Contains(err.Error(), "hard-link state changed") {
 		t.Fatalf("ApplySigningPlan() error = %v, want late hard-link rejection", err)
 	}
@@ -3663,15 +2741,8 @@ func TestSigningPlanAnchorsEntitlementsToProjectRoot(t *testing.T) {
 			project := writeStructuredVersionProject(t, false)
 			projectRoot := filepath.Dir(project)
 			entitlements := test.setup(t, projectRoot)
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_ENTITLEMENTS":"`+entitlements+`"}}]}]
-			}`)
-			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-			})
+			fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_ENTITLEMENTS":"`+entitlements+`"}`))
+			plan, err := BuildSigningPlan(fixture.planOptions("state"))
 			if test.wantError {
 				if err == nil {
 					t.Fatal("BuildSigningPlan() error = nil, want alias-inspection failure")
@@ -3733,18 +2804,17 @@ func TestSigningSettingsManifestIsStrictAndValidatesValues(t *testing.T) {
 
 func TestSigningSettingsManifestRejectsDuplicateNestedJSONKeys(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
-	settingsPath := filepath.Join(t.TempDir(), "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
+	fixture := newSigningSettingsFixture(t, project, withSigningManifest(`{
 		"schemaVersion": 1,
 		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
 			"CODE_SIGN_STYLE":"manual",
 			"CODE_SIGN_STYLE":"automatic"
 		}}]}]
-	}`)
+	}`))
 
 	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		StateDir: filepath.Join(filepath.Dir(settingsPath), "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		StateDir: filepath.Join(filepath.Dir(fixture.settingsPath), "state"),
 	})
 	if err == nil || !IsSigningInputError(err) {
 		t.Fatalf("BuildSigningPlan() error = %v, want duplicate-key signing input classification", err)
@@ -3756,15 +2826,14 @@ func TestSigningSettingsManifestRejectsDuplicateNestedJSONKeys(t *testing.T) {
 
 func TestSigningSettingsManifestRejectsDuplicateTopLevelJSONKeys(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
-	settingsPath := filepath.Join(t.TempDir(), "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
+	fixture := newSigningSettingsFixture(t, project, withSigningManifest(`{
 		"schemaVersion": 1,
 		"schemaVersion": 1,
 		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	}`))
 
 	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
 	})
 	if err == nil || !IsSigningInputError(err) {
 		t.Fatalf("BuildSigningPlan() error = %v, want duplicate-key signing input classification", err)
@@ -3845,22 +2914,9 @@ func TestSigningPlanRetainsInheritedDirectConsumerInSharedConflict(t *testing.T)
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 		`CODE_SIGN_STYLE = "$(inherited)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"automatic"}},
-			{"name":"Release","settings":{"CODE_SIGN_STYLE":"manual"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_STYLE":"automatic"}`), withSigningConfiguration("Release", signingManualStyle))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
@@ -3888,41 +2944,21 @@ func TestSigningPlanMaterializesSharedMutationWhenInheritedNoOpWouldChange(t *te
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 		`PROVISIONING_PROFILE_SPECIFIER = "Prefix $(inherited)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"PROVISIONING_PROFILE_SPECIFIER":"Prefix Base"}},
-			{"name":"Release","settings":{"PROVISIONING_PROFILE_SPECIFIER":"Prefix Base"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"PROVISIONING_PROFILE_SPECIFIER":"Prefix Base"}`), withSigningConfiguration("Release", `{"PROVISIONING_PROFILE_SPECIFIER":"Prefix Base"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
 	if len(plan.Changes) != 1 || plan.Changes[0].Configuration != "Release" || plan.Changes[0].Source != "pbxproj" {
 		t.Fatalf("plan changes = %#v, want one Release target-level materialization", plan.Changes)
 	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	if _, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath}); err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
+	applySigningTestPlan(t, plan)
 	if got := mustReadVersionTestFile(t, sharedPath); got != "PROVISIONING_PROFILE_SPECIFIER = Base\r\n"+sharedBefore {
 		t.Fatalf("shared xcconfig changed during target-level materialization: %q", got)
 	}
 
-	secondPlan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "second-state"),
-	})
+	secondPlan, err := BuildSigningPlan(fixture.planOptions("second-state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan(second) error = %v", err)
 	}
@@ -3941,22 +2977,9 @@ func TestSigningPlanDigestsXCConfigsUsedOnlyForResolution(t *testing.T) {
 		t.Fatalf("write shared xcconfig error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}},
-			{"name":"Release","settings":{"CODE_SIGN_STYLE":"manual"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", signingManualStyle), withSigningConfiguration("Release", signingManualStyle))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
@@ -3979,21 +3002,9 @@ func TestSigningPlanDigestsXCConfigsUsedOnlyForResolution(t *testing.T) {
 func TestSigningPlanRevalidatesUnselectedConsumerInput(t *testing.T) {
 	project := writeStructuredVersionProject(t, true)
 	widgetPath := attachSigningWidgetXCConfig(t, project, "CODE_SIGN_STYLE = Automatic\n")
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
@@ -4014,32 +3025,11 @@ func TestSigningPlanRevalidatesNoOpReferenceAfterDependentChange(t *testing.T) {
 	injectSigningDirectBuildSetting(t, pbxprojPath,
 		`PRODUCT_BUNDLE_IDENTIFIER = com.example.old; CODE_SIGN_IDENTITY = "$(PRODUCT_BUNDLE_IDENTIFIER)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	var identityChange, bundleChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityChange = change
-		case "PRODUCT_BUNDLE_IDENTIFIER":
-			bundleChange = change
-		}
-	}
+	plan := fixture.buildPlan(t)
+	changes := signingChangesBySetting(plan.Changes)
+	identityChange, bundleChange := changes["CODE_SIGN_IDENTITY"], changes["PRODUCT_BUNDLE_IDENTIFIER"]
 	if bundleChange == nil {
 		t.Fatalf("plan omitted dependent bundle-ID change: %#v", plan.Changes)
 	}
@@ -4056,35 +3046,14 @@ func TestSigningPlanReclassifiesNoOpAfterDependentRemoval(t *testing.T) {
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 		`CODE_SIGN_IDENTITY = com.example.old; PROVISIONING_PROFILE_SPECIFIER = "$(CODE_SIGN_IDENTITY)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":null,
-			"PROVISIONING_PROFILE_SPECIFIER":"com.example.old"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":null,"PROVISIONING_PROFILE_SPECIFIER":"com.example.old"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got blockers %#v", plan.Blockers)
 	}
-	var identityRemoval, profileChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityRemoval = change
-		case "PROVISIONING_PROFILE_SPECIFIER":
-			profileChange = change
-		}
-	}
+	changes := signingChangesBySetting(plan.Changes)
+	identityRemoval, profileChange := changes["CODE_SIGN_IDENTITY"], changes["PROVISIONING_PROFILE_SPECIFIER"]
 	if identityRemoval == nil || identityRemoval.Operation != "remove" {
 		t.Fatalf("identity change = %#v, want direct removal", identityRemoval)
 	}
@@ -4092,20 +3061,8 @@ func TestSigningPlanReclassifiesNoOpAfterDependentRemoval(t *testing.T) {
 		t.Fatalf("profile change = %#v, want promoted target-level literal", profileChange)
 	}
 
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	if _, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath}); err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
-	updated, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("reopen project: %v", err)
-	}
-	configuration, err := signingConfigurationFor(updated, "App", "Debug")
-	if err != nil {
-		t.Fatalf("find updated configuration: %v", err)
-	}
+	applySigningTestPlan(t, plan)
+	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	if _, _, err := updated.resolveSetting(configuration, "CODE_SIGN_IDENTITY"); !errors.Is(err, errVersionSettingNotFound) {
 		t.Fatalf("resolved identity error = %v, want setting removal", err)
 	}
@@ -4142,41 +3099,17 @@ func TestSigningPlanDefersRemovalFallbackBlockerUntilNoOpPromotion(t *testing.T)
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 		`CODE_SIGN_IDENTITY = debug-profile;`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":null,
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.old",
-			"PROVISIONING_PROFILE_SPECIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":null,"PRODUCT_BUNDLE_IDENTIFIER":"com.example.old","PROVISIONING_PROFILE_SPECIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected converged ready plan, got blockers %#v", plan.Blockers)
 	}
 	if len(plan.Changes) != 3 {
 		t.Fatalf("plan changes = %#v, want identity removal plus profile and promoted bundle-ID writes", plan.Changes)
 	}
-	var identityRemoval, bundleChange, profileChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityRemoval = change
-		case "PRODUCT_BUNDLE_IDENTIFIER":
-			bundleChange = change
-		case "PROVISIONING_PROFILE_SPECIFIER":
-			profileChange = change
-		}
-	}
+	changes := signingChangesBySetting(plan.Changes)
+	identityRemoval, bundleChange, profileChange := changes["CODE_SIGN_IDENTITY"], changes["PRODUCT_BUNDLE_IDENTIFIER"], changes["PROVISIONING_PROFILE_SPECIFIER"]
 	if identityRemoval == nil || identityRemoval.Operation != "remove" {
 		t.Fatalf("identity change = %#v, want direct removal", identityRemoval)
 	}
@@ -4187,20 +3120,8 @@ func TestSigningPlanDefersRemovalFallbackBlockerUntilNoOpPromotion(t *testing.T)
 		t.Fatalf("profile change = %#v, want requested profile", profileChange)
 	}
 
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	if _, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath}); err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
-	updated, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("reopen project: %v", err)
-	}
-	configuration, err := signingConfigurationFor(updated, "App", "Debug")
-	if err != nil {
-		t.Fatalf("find updated configuration: %v", err)
-	}
+	applySigningTestPlan(t, plan)
+	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	for _, expected := range []struct {
 		setting string
 		value   string
@@ -4227,19 +3148,8 @@ func TestSigningPlanBlocksRemovalWhenSiblingWriteChangesSharedFallback(t *testin
 	}
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 		`PROVISIONING_PROFILE_SPECIFIER = debug-profile;`)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{"PROVISIONING_PROFILE_SPECIFIER":null}},
-			{"name":"Release","settings":{"PROVISIONING_PROFILE_SPECIFIER":"release-profile"}}
-		]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state")})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"PROVISIONING_PROFILE_SPECIFIER":null}`), withSigningConfiguration("Release", `{"PROVISIONING_PROFILE_SPECIFIER":"release-profile"}`))
+	plan := fixture.buildPlan(t)
 	if plan.Ready || !strings.Contains(strings.Join(plan.Blockers, "\n"), "differs from value after removal alone") {
 		t.Fatalf("plan = ready=%t blockers=%#v, want shared fallback collision blocker", plan.Ready, plan.Blockers)
 	}
@@ -4252,10 +3162,8 @@ func TestSigningPlanRemovalOnlyUsesFallbackAfterRemoval(t *testing.T) {
 		t.Fatal(err)
 	}
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"), `PROVISIONING_PROFILE_SPECIFIER = debug-profile;`)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{"schemaVersion":1,"targets":[{"name":"App","configurations":[{"name":"Debug","settings":{"PROVISIONING_PROFILE_SPECIFIER":null}}]}]}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state")})
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"PROVISIONING_PROFILE_SPECIFIER":null}`))
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4316,35 +3224,14 @@ func TestSigningPlanReclassifiesNoOpAfterProjectFallbackDependentChange(t *testi
 	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999993",
 		`CODE_SIGN_IDENTITY = "$(inherited)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
-	var identityChange, bundleChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityChange = change
-		case "PRODUCT_BUNDLE_IDENTIFIER":
-			bundleChange = change
-		}
-	}
+	changes := signingChangesBySetting(plan.Changes)
+	identityChange, bundleChange := changes["CODE_SIGN_IDENTITY"], changes["PRODUCT_BUNDLE_IDENTIFIER"]
 	if bundleChange == nil {
 		t.Fatalf("plan omitted dependent bundle-ID change: %#v", plan.Changes)
 	}
@@ -4354,20 +3241,8 @@ func TestSigningPlanReclassifiesNoOpAfterProjectFallbackDependentChange(t *testi
 	if identityChange.NewValue == nil || *identityChange.NewValue != "com.example.old" {
 		t.Fatalf("identity change = %#v, want requested value", identityChange)
 	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	if _, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath}); err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
-	structured, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("openStructuredVersionProject() error = %v", err)
-	}
-	configuration, err := signingConfigurationFor(structured, "App", "Debug")
-	if err != nil {
-		t.Fatalf("signingConfigurationFor() error = %v", err)
-	}
+	applySigningTestPlan(t, plan)
+	structured, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	resolver := newSigningSettingResolver(structured, nil, false, nil)
 	resolvedIdentity, _, err := resolver.resolveSetting(configuration, "CODE_SIGN_IDENTITY")
 	if err != nil {
@@ -4393,19 +3268,11 @@ func TestSigningPlanSecondPassHashAndStaleDependency(t *testing.T) {
 	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999993",
 		`CODE_SIGN_IDENTITY = "$(inherited)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	stateDir := filepath.Join(root, "state")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
+	stateDir := filepath.Join(fixture.root, "state")
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: stateDir,
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath, StateDir: stateDir,
 	})
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v", err)
@@ -4414,7 +3281,7 @@ func TestSigningPlanSecondPassHashAndStaleDependency(t *testing.T) {
 		t.Fatalf("plan hash = %q, recomputed = %q", plan.PlanHash, signingPlanHash(plan))
 	}
 	repeated, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: stateDir,
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath, StateDir: stateDir,
 	})
 	if err != nil {
 		t.Fatalf("repeated BuildSigningPlan() error = %v", err)
@@ -4450,18 +3317,7 @@ func TestSigningApplyRejectsStaleXCConfigAndManifest(t *testing.T) {
 		if err := os.WriteFile(sharedPath, []byte("CODE_SIGN_STYLE = Automatic\r\n"+shared), 0o640); err != nil {
 			t.Fatalf("WriteFile(shared xcconfig) error = %v", err)
 		}
-		root := t.TempDir()
-		settingsPath := filepath.Join(root, "settings.json")
-		writeSigningSettingsTestFile(t, settingsPath, `{
-			"schemaVersion": 1,
-			"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-		}`)
-		plan, err := BuildSigningPlan(SigningPlanOptions{
-			ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-		})
-		if err != nil {
-			t.Fatalf("BuildSigningPlan() error = %v", err)
-		}
+		plan := newSigningSettingsFixture(t, project).buildPlan(t)
 		if plan.PlanHash == "" || plan.PlanHash != signingPlanHash(plan) {
 			t.Fatalf("plan hash = %q, recomputed = %q", plan.PlanHash, signingPlanHash(plan))
 		}
@@ -4530,33 +3386,17 @@ func TestSigningPlanRevalidatesTransitiveNoOpReferenceAfterDependentChange(t *te
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 		`PRODUCT_BUNDLE_IDENTIFIER = com.example.old; IDENTITY_ALIAS = "$(PRODUCT_BUNDLE_IDENTIFIER)"; CODE_SIGN_IDENTITY = "$(IDENTITY_ALIAS)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	stateDir := filepath.Join(root, "state")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
+	stateDir := filepath.Join(fixture.root, "state")
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: stateDir,
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath, StateDir: stateDir,
 	})
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v", err)
 	}
-	var identityChange, bundleChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityChange = change
-		case "PRODUCT_BUNDLE_IDENTIFIER":
-			bundleChange = change
-		}
-	}
+	changes := signingChangesBySetting(plan.Changes)
+	identityChange, bundleChange := changes["CODE_SIGN_IDENTITY"], changes["PRODUCT_BUNDLE_IDENTIFIER"]
 	if bundleChange == nil {
 		t.Fatalf("plan omitted dependent bundle-ID change: %#v", plan.Changes)
 	}
@@ -4567,25 +3407,12 @@ func TestSigningPlanRevalidatesTransitiveNoOpReferenceAfterDependentChange(t *te
 		t.Fatalf("identity change = %#v, want literal target-level value", identityChange)
 	}
 
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	result, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
+	result := applySigningTestPlan(t, plan)
 	if result == nil || !result.Completed {
 		t.Fatalf("ApplySigningPlan() result = %#v, want completed receipt", result)
 	}
 
-	updated, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("reopen project: %v", err)
-	}
-	configuration, err := signingConfigurationFor(updated, "App", "Debug")
-	if err != nil {
-		t.Fatalf("find updated configuration: %v", err)
-	}
+	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	identity, _, err := newSigningSettingResolver(updated, nil, false, nil).resolveSetting(configuration, "CODE_SIGN_IDENTITY")
 	if err != nil {
 		t.Fatalf("resolve applied identity: %v", err)
@@ -4604,32 +3431,11 @@ func TestSigningPlanRevalidatesNoOpXCConfigReferenceAfterDependentChange(t *test
 		t.Fatalf("WriteFile(shared xcconfig) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	var identityChange, bundleChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityChange = change
-		case "PRODUCT_BUNDLE_IDENTIFIER":
-			bundleChange = change
-		}
-	}
+	plan := fixture.buildPlan(t)
+	changes := signingChangesBySetting(plan.Changes)
+	identityChange, bundleChange := changes["CODE_SIGN_IDENTITY"], changes["PRODUCT_BUNDLE_IDENTIFIER"]
 	if bundleChange == nil {
 		t.Fatalf("plan omitted dependent bundle-ID change: %#v", plan.Changes)
 	}
@@ -4650,46 +3456,19 @@ func TestSigningPlanAppliesPromotedXCConfigNoOpAfterDependentChange(t *testing.T
 		t.Fatalf("WriteFile(shared xcconfig) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"PROVISIONING_PROFILE_SPECIFIER":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"PROVISIONING_PROFILE_SPECIFIER":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
-	var profileChange, bundleChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "PROVISIONING_PROFILE_SPECIFIER":
-			profileChange = change
-		case "PRODUCT_BUNDLE_IDENTIFIER":
-			bundleChange = change
-		}
-	}
+	changes := signingChangesBySetting(plan.Changes)
+	profileChange, bundleChange := changes["PROVISIONING_PROFILE_SPECIFIER"], changes["PRODUCT_BUNDLE_IDENTIFIER"]
 	if profileChange == nil || bundleChange == nil {
 		t.Fatalf("plan omitted dependent signing changes: %#v", plan.Changes)
 	}
 
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	result, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
+	result := applySigningTestPlan(t, plan)
 	if result == nil || !result.Completed {
 		t.Fatalf("ApplySigningPlan() result = %#v, want completed receipt", result)
 	}
@@ -4705,14 +3484,7 @@ func TestSigningPlanAppliesPromotedXCConfigNoOpAfterDependentChange(t *testing.T
 		t.Fatalf("changed files = %#v, want project update", result.ChangedFiles)
 	}
 
-	updated, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("reopen project: %v", err)
-	}
-	configuration, err := signingConfigurationFor(updated, "App", "Debug")
-	if err != nil {
-		t.Fatalf("find updated configuration: %v", err)
-	}
+	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	profile, _, err := updated.resolveSetting(configuration, "PROVISIONING_PROFILE_SPECIFIER")
 	if err != nil {
 		t.Fatalf("resolve applied profile: %v", err)
@@ -4738,32 +3510,11 @@ func TestSigningPlanRevalidatesTransitiveNoOpXCConfigReferenceAfterDependentChan
 		t.Fatalf("WriteFile(shared xcconfig) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	var identityChange, bundleChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityChange = change
-		case "PRODUCT_BUNDLE_IDENTIFIER":
-			bundleChange = change
-		}
-	}
+	plan := fixture.buildPlan(t)
+	changes := signingChangesBySetting(plan.Changes)
+	identityChange, bundleChange := changes["CODE_SIGN_IDENTITY"], changes["PRODUCT_BUNDLE_IDENTIFIER"]
 	if bundleChange == nil {
 		t.Fatalf("plan omitted dependent bundle-ID change: %#v", plan.Changes)
 	}
@@ -4784,23 +3535,9 @@ func TestSigningPlanAppliesMultipleTransitiveXCConfigNoOpsAfterDependentChange(t
 		t.Fatalf("WriteFile(shared xcconfig) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.example.old",
-			"PROVISIONING_PROFILE_SPECIFIER":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.example.old","PROVISIONING_PROFILE_SPECIFIER":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
@@ -4813,20 +3550,8 @@ func TestSigningPlanAppliesMultipleTransitiveXCConfigNoOpsAfterDependentChange(t
 		}
 	}
 
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	if _, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath}); err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
-	updated, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("reopen project: %v", err)
-	}
-	configuration, err := signingConfigurationFor(updated, "App", "Debug")
-	if err != nil {
-		t.Fatalf("find updated configuration: %v", err)
-	}
+	applySigningTestPlan(t, plan)
+	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	for _, expected := range []struct {
 		setting string
 		value   string
@@ -4847,56 +3572,13 @@ func TestSigningPlanAppliesMultipleTransitiveXCConfigNoOpsAfterDependentChange(t
 
 func TestSigningPlanRevalidatesProjectXCConfigFallbackReferenceAfterDependentChange(t *testing.T) {
 	project := writeStructuredVersionProject(t, true)
-	projectRoot := filepath.Dir(project)
-	projectConfigPath := filepath.Join(projectRoot, "Configs", "Project.xcconfig")
-	if err := os.WriteFile(projectConfigPath, []byte("PRODUCT_BUNDLE_IDENTIFIER = com.example.old\r\nIDENTITY_ALIAS = \"$(PRODUCT_BUNDLE_IDENTIFIER)\"\r\nCODE_SIGN_IDENTITY = \"$(IDENTITY_ALIAS)\"\r\n"), 0o640); err != nil {
-		t.Fatalf("WriteFile(project xcconfig) error = %v", err)
-	}
-	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	contents := mustReadVersionTestFile(t, pbxprojPath)
-	fileReference := `
-		BBBBBBBBBBBBBBBBBBBBBBBB /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configs/Project.xcconfig; sourceTree = SOURCE_ROOT; };`
-	marker := "\t\t111111111111111111111111 /* Project object */ = {"
-	if !strings.Contains(contents, marker) {
-		t.Fatal("project fixture is missing project object marker")
-	}
-	contents = strings.Replace(contents, marker, fileReference+"\n"+marker, 1)
-	projectConfiguration := "999999999999999999999991 /* Project Debug */ = {isa = XCBuildConfiguration; buildSettings = {}; name = Debug; };"
-	updatedConfiguration := "999999999999999999999991 /* Project Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = BBBBBBBBBBBBBBBBBBBBBBBB; buildSettings = {}; name = Debug; };"
-	if !strings.Contains(contents, projectConfiguration) {
-		t.Fatal("project fixture is missing project Debug configuration")
-	}
-	contents = strings.Replace(contents, projectConfiguration, updatedConfiguration, 1)
-	if err := os.WriteFile(pbxprojPath, []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile(project.pbxproj) error = %v", err)
-	}
+	attachSigningProjectXCConfig(t, project, "PRODUCT_BUNDLE_IDENTIFIER = com.example.old\r\nIDENTITY_ALIAS = \"$(PRODUCT_BUNDLE_IDENTIFIER)\"\r\nCODE_SIGN_IDENTITY = \"$(IDENTITY_ALIAS)\"\r\n")
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	var identityChange, bundleChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityChange = change
-		case "PRODUCT_BUNDLE_IDENTIFIER":
-			bundleChange = change
-		}
-	}
+	plan := fixture.buildPlan(t)
+	changes := signingChangesBySetting(plan.Changes)
+	identityChange, bundleChange := changes["CODE_SIGN_IDENTITY"], changes["PRODUCT_BUNDLE_IDENTIFIER"]
 	if bundleChange == nil {
 		t.Fatalf("plan omitted project fallback bundle-ID change: %#v", plan.Changes)
 	}
@@ -4919,32 +3601,11 @@ func TestSigningPlanRevalidatesTransitiveNoOpReferenceThroughInheritedAlias(t *t
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 		`IDENTITY_ALIAS = "$(inherited)"; CODE_SIGN_IDENTITY = "$(IDENTITY_ALIAS)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	var identityChange, bundleChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityChange = change
-		case "PRODUCT_BUNDLE_IDENTIFIER":
-			bundleChange = change
-		}
-	}
+	plan := fixture.buildPlan(t)
+	changes := signingChangesBySetting(plan.Changes)
+	identityChange, bundleChange := changes["CODE_SIGN_IDENTITY"], changes["PRODUCT_BUNDLE_IDENTIFIER"]
 	if bundleChange == nil {
 		t.Fatalf("plan omitted dependent bundle-ID change: %#v", plan.Changes)
 	}
@@ -4967,21 +3628,9 @@ func TestSigningPlanKeepsStableInheritedAliasNoOp(t *testing.T) {
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 		`IDENTITY_ALIAS = "$(inherited)"; CODE_SIGN_IDENTITY = "$(IDENTITY_ALIAS)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"Apple Development"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"Apple Development"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if len(plan.Changes) != 0 {
 		t.Fatalf("stable inherited alias produced a spurious change: %#v", plan.Changes)
 	}
@@ -4989,47 +3638,15 @@ func TestSigningPlanKeepsStableInheritedAliasNoOp(t *testing.T) {
 
 func TestSigningPlanTerminatesProjectXCConfigInheritedTraversal(t *testing.T) {
 	project := writeStructuredVersionProject(t, true)
-	projectRoot := filepath.Dir(project)
-	projectConfigPath := filepath.Join(projectRoot, "Configs", "Project.xcconfig")
-	if err := os.WriteFile(projectConfigPath, []byte(
+	attachSigningProjectXCConfig(t, project,
 		"DEVELOPMENT_TEAM = ABCDE12345\n"+
 			"CODE_SIGN_IDENTITY = Apple Development\n"+
 			"CODE_SIGN_IDENTITY = $(inherited) $(DEVELOPMENT_TEAM)\n",
-	), 0o640); err != nil {
-		t.Fatalf("WriteFile(project xcconfig) error = %v", err)
-	}
-	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	contents := mustReadVersionTestFile(t, pbxprojPath)
-	fileReference := `
-		BBBBBBBBBBBBBBBBBBBBBBBB /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configs/Project.xcconfig; sourceTree = SOURCE_ROOT; };`
-	marker := "\t\t111111111111111111111111 /* Project object */ = {"
-	if !strings.Contains(contents, marker) {
-		t.Fatal("project fixture is missing project object marker")
-	}
-	contents = strings.Replace(contents, marker, fileReference+"\n"+marker, 1)
-	projectConfiguration := "999999999999999999999991 /* Project Debug */ = {isa = XCBuildConfiguration; buildSettings = {}; name = Debug; };"
-	updatedConfiguration := "999999999999999999999991 /* Project Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = BBBBBBBBBBBBBBBBBBBBBBBB; buildSettings = {}; name = Debug; };"
-	if !strings.Contains(contents, projectConfiguration) {
-		t.Fatal("project fixture is missing project Debug configuration")
-	}
-	contents = strings.Replace(contents, projectConfiguration, updatedConfiguration, 1)
-	if err := os.WriteFile(pbxprojPath, []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile(project.pbxproj) error = %v", err)
-	}
+	)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"Apple Development ABCDE12345",
-			"DEVELOPMENT_TEAM":"XYZAB67890"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"Apple Development ABCDE12345","DEVELOPMENT_TEAM":"XYZAB67890"}`))
 
-	if _, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	}); err != nil {
+	if _, err := BuildSigningPlan(fixture.planOptions("state")); err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want inherited project xcconfig traversal to terminate", err)
 	}
 }
@@ -5042,33 +3659,17 @@ func TestSigningPlanMaterializesTopLevelInheritedIdentityWhenTeamChanges(t *test
 	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999993",
 		`CODE_SIGN_IDENTITY = "Outer $(inherited)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	stateDir := filepath.Join(root, "state")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"Outer Prefix ABCDE12345",
-			"DEVELOPMENT_TEAM":"XYZAB67890"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"Outer Prefix ABCDE12345","DEVELOPMENT_TEAM":"XYZAB67890"}`))
+	stateDir := filepath.Join(fixture.root, "state")
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: stateDir,
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath, StateDir: stateDir,
 	})
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v", err)
 	}
-	var identityChange, teamChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityChange = change
-		case "DEVELOPMENT_TEAM":
-			teamChange = change
-		}
-	}
+	changes := signingChangesBySetting(plan.Changes)
+	identityChange, teamChange := changes["CODE_SIGN_IDENTITY"], changes["DEVELOPMENT_TEAM"]
 	if teamChange == nil {
 		t.Fatalf("plan omitted team change: %#v", plan.Changes)
 	}
@@ -5079,25 +3680,12 @@ func TestSigningPlanMaterializesTopLevelInheritedIdentityWhenTeamChanges(t *test
 		t.Fatalf("identity change = %#v, want a literal target-level value", identityChange)
 	}
 
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	result, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath})
-	if err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
+	result := applySigningTestPlan(t, plan)
 	if result == nil || !result.Completed {
 		t.Fatalf("ApplySigningPlan() result = %#v, want completed receipt", result)
 	}
 
-	updated, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("reopen project: %v", err)
-	}
-	configuration, err := signingConfigurationFor(updated, "App", "Debug")
-	if err != nil {
-		t.Fatalf("find updated configuration: %v", err)
-	}
+	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	identity, _, err := newSigningSettingResolver(updated, nil, false, nil).resolveSetting(configuration, "CODE_SIGN_IDENTITY")
 	if err != nil {
 		t.Fatalf("resolve applied identity: %v", err)
@@ -5120,32 +3708,11 @@ func TestSigningPlanRevalidatesInheritedNoOpXCConfigReferenceAfterDependentChang
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 		`CODE_SIGN_IDENTITY = "$(inherited)";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.example.old",
-			"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
-	var identityChange, bundleChange *SigningSettingChange
-	for index := range plan.Changes {
-		change := &plan.Changes[index]
-		switch change.Setting {
-		case "CODE_SIGN_IDENTITY":
-			identityChange = change
-		case "PRODUCT_BUNDLE_IDENTIFIER":
-			bundleChange = change
-		}
-	}
+	plan := fixture.buildPlan(t)
+	changes := signingChangesBySetting(plan.Changes)
+	identityChange, bundleChange := changes["CODE_SIGN_IDENTITY"], changes["PRODUCT_BUNDLE_IDENTIFIER"]
 	if bundleChange == nil {
 		t.Fatalf("plan omitted dependent bundle-ID change: %#v", plan.Changes)
 	}
@@ -5167,14 +3734,7 @@ func TestSigningSettingResolverExpandsProjectFallbackInSelectedTargetContext(t *
 		`PRODUCT_BUNDLE_IDENTIFIER = com.project; CODE_SIGN_IDENTITY = "$(PRODUCT_BUNDLE_IDENTIFIER)";`)
 	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999993",
 		`PRODUCT_BUNDLE_IDENTIFIER = com.target;`)
-	structured, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("openStructuredVersionProject() error = %v", err)
-	}
-	configuration, err := signingConfigurationFor(structured, "App", "Debug")
-	if err != nil {
-		t.Fatalf("signingConfigurationFor() error = %v", err)
-	}
+	structured, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	resolved, _, err := newSigningSettingResolver(structured, nil, false, nil).resolveSetting(configuration, "CODE_SIGN_IDENTITY")
 	if err != nil {
 		t.Fatalf("resolveSetting(CODE_SIGN_IDENTITY) error = %v", err)
@@ -5183,21 +3743,9 @@ func TestSigningSettingResolverExpandsProjectFallbackInSelectedTargetContext(t *
 		t.Fatalf("resolveSetting(CODE_SIGN_IDENTITY) = %q, want selected-target expansion", resolved)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"com.project"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"com.project"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	for _, change := range plan.Changes {
 		if change.Setting != "CODE_SIGN_IDENTITY" {
 			continue
@@ -5215,16 +3763,9 @@ func TestSigningSettingResolverExpandsProjectFallbackInSelectedTargetContext(t *
 
 func TestSigningPlanRejectsBuildSettingReferenceModifiers(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
-	structured, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("openStructuredVersionProject() error = %v", err)
-	}
-	configuration, err := signingConfigurationFor(structured, "App", "Debug")
-	if err != nil {
-		t.Fatalf("signingConfigurationFor() error = %v", err)
-	}
+	structured, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	resolver := newSigningSettingResolver(structured, nil, false, nil)
-	_, _, err = resolver.expandSettingReferences(configuration, "$(MARKETING_VERSION:rfc1034identifier)", map[string]bool{})
+	_, _, err := resolver.expandSettingReferences(configuration, "$(MARKETING_VERSION:rfc1034identifier)", map[string]bool{})
 	if err == nil || !strings.Contains(err.Error(), "reference modifier") {
 		t.Fatalf("expandSettingReferences() error = %v, want unsupported modifier", err)
 	}
@@ -5232,14 +3773,7 @@ func TestSigningPlanRejectsBuildSettingReferenceModifiers(t *testing.T) {
 
 func TestSigningSettingResolverRejectsIncompleteBuildSettingReferences(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
-	structured, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("openStructuredVersionProject() error = %v", err)
-	}
-	configuration, err := signingConfigurationFor(structured, "App", "Debug")
-	if err != nil {
-		t.Fatalf("signingConfigurationFor() error = %v", err)
-	}
+	structured, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	configuration.buildSettings["KNOWN_SETTING"] = "resolved"
 	resolver := newSigningSettingResolver(structured, nil, false, nil)
 	tests := []struct {
@@ -5275,18 +3809,9 @@ func TestSigningSettingResolverRejectsIncompleteBuildSettingReferences(t *testin
 func TestSigningPlanBlocksIncompleteBuildSettingReference(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"), `CODE_SIGN_IDENTITY = "$(MISSING";`)
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_IDENTITY":"Apple Development"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_IDENTITY":"Apple Development"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want blocked plan", err)
 	}
@@ -5316,16 +3841,9 @@ func TestSigningPlanDoesNotSwallowProjectFallbackResolutionError(t *testing.T) {
 	if err := os.WriteFile(appXCConfig, []byte("CODE_SIGN_STYLE ?= Automatic\n"+appContents), 0o644); err != nil {
 		t.Fatalf("write app xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want blocked plan", err)
 	}
@@ -5345,16 +3863,9 @@ func TestSigningPlanAllowsOptionalXCConfigAssignmentWithoutProjectFallback(t *te
 	if err := os.WriteFile(appXCConfig, []byte("CODE_SIGN_STYLE ?= Automatic\n"+appContents), 0o644); err != nil {
 		t.Fatalf("write app xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want ready plan", err)
 	}
@@ -5365,23 +3876,11 @@ func TestSigningPlanAllowsOptionalXCConfigAssignmentWithoutProjectFallback(t *te
 
 func TestSigningPlanAllowsDirectlyMissingOptionalXCConfigInclude(t *testing.T) {
 	project := writeStructuredVersionProject(t, true)
-	appXCConfig := filepath.Join(filepath.Dir(project), "Configs", "App.xcconfig")
-	contents := mustReadVersionTestFile(t, appXCConfig)
-	contents = strings.Replace(contents, `#include "Shared.xcconfig"`, "#include? \"Missing.xcconfig\"\n#include \"Shared.xcconfig\"", 1)
-	if err := os.WriteFile(appXCConfig, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write app xcconfig error = %v", err)
-	}
+	appXCConfig := includeMissingOptionalSigningXCConfig(t, project)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want optional missing include to be ignored", err)
 	}
@@ -5445,31 +3944,15 @@ func TestSigningPlanLegacyOptionalIncludeFieldKeepsSchemaOneHashCompatibility(t 
 
 func TestSigningApplyRejectsLegacyPlanOmittingOptionalIncludeAssertion(t *testing.T) {
 	project := writeStructuredVersionProject(t, true)
-	appXCConfig := filepath.Join(filepath.Dir(project), "Configs", "App.xcconfig")
-	contents := mustReadVersionTestFile(t, appXCConfig)
-	contents = strings.Replace(contents, `#include "Shared.xcconfig"`, "#include? \"Missing.xcconfig\"\n#include \"Shared.xcconfig\"", 1)
-	if err := os.WriteFile(appXCConfig, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write app xcconfig error = %v", err)
-	}
+	includeMissingOptionalSigningXCConfig(t, project)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.buildPlan(t)
 	if !plan.Ready || len(plan.MissingOptionalIncludes) != 1 {
 		t.Fatalf("plan = ready=%t missing=%#v blockers=%#v, want ready plan with one absence assertion", plan.Ready, plan.MissingOptionalIncludes, plan.Blockers)
 	}
 
 	projectPath := filepath.Join(project, "project.pbxproj")
-	projectBefore := mustReadVersionTestFile(t, projectPath)
 	legacy := *plan
 	legacy.MissingOptionalIncludes = nil
 	legacy.PlanHash = signingPlanHash(&legacy)
@@ -5477,16 +3960,7 @@ func TestSigningApplyRejectsLegacyPlanOmittingOptionalIncludeAssertion(t *testin
 		t.Fatalf("WriteSigningPlanArtifact(legacy) error = %v", err)
 	}
 
-	_, err = ApplySigningPlan(SigningApplyOptions{PlanPath: legacy.PlanPath})
-	if err == nil || !strings.Contains(err.Error(), "stale") {
-		t.Fatalf("ApplySigningPlan(legacy) error = %v, want stale-plan rejection", err)
-	}
-	if after := mustReadVersionTestFile(t, projectPath); after != projectBefore {
-		t.Fatal("legacy stale-plan rejection modified the project")
-	}
-	if _, statErr := os.Lstat(legacy.ReceiptPath); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("receipt after legacy stale-plan rejection = %v, want absent", statErr)
-	}
+	requireSigningApplyRefused(t, SigningApplyOptions{PlanPath: legacy.PlanPath}, "stale", projectPath, legacy.ReceiptPath)
 }
 
 func TestReadSigningPlanRejectsUnboundedMissingOptionalIncludes(t *testing.T) {
@@ -5594,16 +4068,9 @@ func TestSigningPlanDoesNotSwallowProjectFallbackForAppendingXCConfig(t *testing
 	if err := os.WriteFile(appXCConfig, []byte("CODE_SIGN_STYLE += Automatic\n"+appContents), 0o644); err != nil {
 		t.Fatalf("write app xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want blocked plan", err)
 	}
@@ -5633,16 +4100,9 @@ func TestSigningPlanAllowsDirectXCConfigOverrideWithInvalidProjectFallback(t *te
 	if err := os.WriteFile(appXCConfig, []byte("CODE_SIGN_STYLE = Automatic\n"+appContents), 0o644); err != nil {
 		t.Fatalf("write app xcconfig error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want ready plan", err)
 	}
@@ -5655,43 +4115,10 @@ func TestSigningPlanDigestsProjectLevelXCConfigUsedForResolution(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
 	projectRoot := filepath.Dir(project)
 	projectConfigPath := filepath.Join(projectRoot, "Configs", "Project.xcconfig")
-	if err := os.MkdirAll(filepath.Dir(projectConfigPath), 0o755); err != nil {
-		t.Fatalf("MkdirAll(config) error = %v", err)
-	}
-	if err := os.WriteFile(projectConfigPath, []byte("CODE_SIGN_STYLE = Automatic\n"), 0o640); err != nil {
-		t.Fatalf("WriteFile(config) error = %v", err)
-	}
-	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	contents := mustReadVersionTestFile(t, pbxprojPath)
-	fileReference := `
-		BBBBBBBBBBBBBBBBBBBBBBBB /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configs/Project.xcconfig; sourceTree = SOURCE_ROOT; };`
-	marker := "\t\t111111111111111111111111 /* Project object */ = {"
-	if !strings.Contains(contents, marker) {
-		t.Fatal("project fixture is missing project object marker")
-	}
-	contents = strings.Replace(contents, marker, fileReference+"\n"+marker, 1)
-	projectConfiguration := "999999999999999999999991 /* Project Debug */ = {isa = XCBuildConfiguration; buildSettings = {}; name = Debug; };"
-	updatedConfiguration := "999999999999999999999991 /* Project Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = BBBBBBBBBBBBBBBBBBBBBBBB; buildSettings = {}; name = Debug; };"
-	if !strings.Contains(contents, projectConfiguration) {
-		t.Fatal("project fixture is missing project Debug configuration")
-	}
-	contents = strings.Replace(contents, projectConfiguration, updatedConfiguration, 1)
-	if err := os.WriteFile(pbxprojPath, []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile(project) error = %v", err)
-	}
+	attachSigningProjectXCConfig(t, project, "CODE_SIGN_STYLE = Automatic\n")
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	fixture := newSigningSettingsFixture(t, project)
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got blockers %#v", plan.Blockers)
 	}
@@ -5775,17 +4202,12 @@ func TestSigningPlanProtectsConditionalOnlyEntitlementReference(t *testing.T) {
 		t.Fatalf("WriteFile(project.pbxproj) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
 	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
 		PlanPath: protectedPlanPath,
-		StateDir: filepath.Join(root, "state"), AllowExternalXCConfig: true,
+		StateDir: filepath.Join(fixture.root, "state"), AllowExternalXCConfig: true,
 	})
 	if err == nil || !strings.Contains(err.Error(), "protected project input") {
 		t.Fatalf("BuildSigningPlan() error = %v, want conditional entitlement alias rejection", err)
@@ -5808,23 +4230,12 @@ func TestSigningPlanRejectsIncompleteUnselectedInternalXCConfigBeforeArtifactOve
 		t.Fatalf("WriteFile(entitlement artifact) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: planPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "cannot be safely inventoried") {
-		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want incomplete internal collection to fail closed", plan, err)
-	}
-	if got := mustReadVersionTestFile(t, planPath); got != existingEntitlements {
-		t.Fatalf("unread entitlement input was overwritten during planning: %q", got)
-	}
+	requireSigningPlanRefused(t, SigningPlanOptions{
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
+	}, "cannot be safely inventoried", planPath)
 }
 
 func TestSigningPlanProtectsUnselectedInheritedConditionalSuffix(t *testing.T) {
@@ -5835,56 +4246,28 @@ func TestSigningPlanProtectsUnselectedInheritedConditionalSuffix(t *testing.T) {
 	if err := os.WriteFile(protectedPath, []byte(existingProtected), 0o600); err != nil {
 		t.Fatalf("WriteFile(protected entitlement) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	stateDir := filepath.Join(root, "state")
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
+	fixture := newSigningSettingsFixture(t, project)
+	stateDir := filepath.Join(fixture.root, "state")
+	requireSigningPlanRefused(t, SigningPlanOptions{
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
 		PlanPath: protectedPath, StateDir: stateDir,
-	})
-	if err == nil || !strings.Contains(err.Error(), "protected project input") {
-		t.Fatalf("BuildSigningPlan() error = %v, want inherited suffix alias rejection", err)
-	}
-	if got := mustReadVersionTestFile(t, protectedPath); got != existingProtected {
-		t.Fatalf("protected entitlement changed after alias rejection: %q", got)
-	}
-	if _, statErr := os.Lstat(filepath.Join(stateDir, "plan.json")); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("plan artifact after inherited suffix collision = %v, want absent", statErr)
-	}
+	}, "protected project input", protectedPath, filepath.Join(stateDir, "plan.json"))
 }
 
 func TestSigningPlanRejectsUnselectedUnknownConditionalEntitlementBeforeArtifactOverwrite(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
 	attachSigningWidgetXCConfig(t, project, "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = $(UNKNOWN_ENTITLEMENTS)/Live.entitlements\n")
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	planPath := filepath.Join(root, "plan.json")
-	stateDir := filepath.Join(root, "state")
+	fixture := newSigningSettingsFixture(t, project)
+	planPath := filepath.Join(fixture.root, "plan.json")
+	stateDir := filepath.Join(fixture.root, "state")
 	const existingPlan = "existing plan bytes\n"
 	if err := os.WriteFile(planPath, []byte(existingPlan), 0o600); err != nil {
 		t.Fatalf("WriteFile(existing plan) error = %v", err)
 	}
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
+	requireSigningPlanRefused(t, SigningPlanOptions{
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
 		PlanPath: planPath, StateDir: stateDir,
-	})
-	if err == nil || !strings.Contains(err.Error(), "CODE_SIGN_ENTITLEMENTS value cannot be safely inventoried") {
-		t.Fatalf("BuildSigningPlan() error = %v, want unbounded entitlement failure", err)
-	}
-	if got := mustReadVersionTestFile(t, planPath); got != existingPlan {
-		t.Fatalf("existing plan changed after unbounded entitlement failure: %q", got)
-	}
-	if _, statErr := os.Lstat(filepath.Join(stateDir, "plan.json")); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("state plan artifact after unbounded entitlement failure = %v, want absent", statErr)
-	}
+	}, "CODE_SIGN_ENTITLEMENTS value cannot be safely inventoried", planPath, filepath.Join(stateDir, "plan.json"))
 }
 
 func TestSigningPlanProtectsUnselectedProjectConditionalEntitlementPath(t *testing.T) {
@@ -5909,16 +4292,11 @@ func TestSigningPlanProtectsUnselectedProjectConditionalEntitlementPath(t *testi
 		t.Fatalf("WriteFile(entitlement artifact) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: planPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err == nil || (!strings.Contains(err.Error(), "aliases project input") && !strings.Contains(err.Error(), "protected project input")) {
 		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want project conditional entitlement path rejected as an artifact alias", plan, err)
@@ -5952,16 +4330,11 @@ func TestSigningPlanProtectsUnselectedProjectConditionalEntitlementExpression(t 
 		t.Fatalf("WriteFile(widget entitlement artifact) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: planPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err == nil || (!strings.Contains(err.Error(), "aliases project input") && !strings.Contains(err.Error(), "protected project input")) {
 		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want target-expanded project entitlement expression rejected as an artifact alias", plan, err)
@@ -5991,16 +4364,11 @@ func TestSigningPlanProtectsTargetConditionalInheritedEntitlementComposition(t *
 		t.Fatalf("WriteFile(composed entitlements) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: composedPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: composedPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err == nil || (!strings.Contains(err.Error(), "aliases project input") && !strings.Contains(err.Error(), "protected project input")) {
 		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want same-object inherited composition rejected as an artifact alias", plan, err)
@@ -6046,16 +4414,11 @@ func TestSigningPlanProtectsDivergentInheritedProjectEntitlementSeeds(t *testing
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project)
 
 			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				StateDir: filepath.Join(fixture.root, "state"),
 			}
 			test.configure(&opts, filepath.Join(projectRoot, test.seed))
 			plan, err := BuildSigningPlan(opts)
@@ -6107,16 +4470,11 @@ func TestSigningPlanProtectsDivergentInheritedProjectXCConfigEntitlementSeeds(t 
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project)
 
 			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				StateDir: filepath.Join(fixture.root, "state"),
 			}
 			test.configure(&opts, filepath.Join(projectRoot, test.seed))
 			plan, err := BuildSigningPlan(opts)
@@ -6132,40 +4490,64 @@ func TestSigningPlanProtectsDivergentInheritedProjectXCConfigEntitlementSeeds(t 
 	}
 }
 
-func TestSigningPlanExpandsReferencedProjectXCConfigEntitlementSeedInTargetContext(t *testing.T) {
-	project := writeStructuredVersionProject(t, false)
-	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	attachSigningProjectXCConfig(t, project,
-		"CODE_SIGN_ENTITLEMENTS = Other\n"+
-			"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = $(PRODUCT_NAME)\n")
-	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999993",
-		`CODE_SIGN_ENTITLEMENTS = App.entitlements;`)
-	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999995",
-		`PRODUCT_NAME = Widget; CODE_SIGN_ENTITLEMENTS = "$(inherited)Suffix";`)
-	projectRoot := filepath.Dir(project)
-	if err := os.WriteFile(filepath.Join(projectRoot, "App.entitlements"), []byte("<?xml version=\"1.0\"?><plist version=\"1.0\"><dict/></plist>\n"), 0o600); err != nil {
-		t.Fatalf("WriteFile(App.entitlements) error = %v", err)
-	}
-	protectedPath := filepath.Join(projectRoot, "WidgetSuffix")
-	const existingEntitlements = "existing target-context entitlement seed bytes\n"
-	if err := os.WriteFile(protectedPath, []byte(existingEntitlements), 0o600); err != nil {
-		t.Fatalf("WriteFile(WidgetSuffix) error = %v", err)
-	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: protectedPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "aliases project input") {
-		t.Fatalf("BuildSigningPlan() error = %v, want target-context project xcconfig alias rejection", err)
-	}
-	if got := mustReadVersionTestFile(t, protectedPath); got != existingEntitlements {
-		t.Fatalf("target-context entitlement seed changed during alias validation: %q", got)
+func TestSigningPlanProtectsWidgetEntitlementComposedWithProjectXCConfig(t *testing.T) {
+	type buildSetting struct{ configurationID, assignment string }
+	for _, test := range []struct {
+		name            string
+		projectXCConfig string
+		buildSettings   []buildSetting
+		artifact        string
+	}{
+		{
+			name: "TestSigningPlanExpandsReferencedProjectXCConfigEntitlementSeedInTargetContext",
+			projectXCConfig: "CODE_SIGN_ENTITLEMENTS = Other\n" +
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = $(PRODUCT_NAME)\n",
+			buildSettings: []buildSetting{
+				{"999999999999999999999993", `CODE_SIGN_ENTITLEMENTS = App.entitlements;`},
+				{"999999999999999999999995", `PRODUCT_NAME = Widget; CODE_SIGN_ENTITLEMENTS = "$(inherited)Suffix";`},
+			},
+			artifact: "WidgetSuffix",
+		},
+		{
+			name:            "TestSigningPlanComposesProjectConditionalPBXInheritedEntitlementThroughUnconditional",
+			projectXCConfig: "CODE_SIGN_ENTITLEMENTS = $(PRODUCT_NAME)\n",
+			buildSettings: []buildSetting{
+				{"999999999999999999999991", `CODE_SIGN_ENTITLEMENTS = "$(inherited)Base"; "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = "$(inherited)Device";`},
+				{"999999999999999999999993", `CODE_SIGN_ENTITLEMENTS = App.entitlements;`},
+				{"999999999999999999999995", `PRODUCT_NAME = Widget;`},
+			},
+			artifact: "WidgetBaseDevice",
+		},
+		{
+			name:            "TestSigningPlanComposesConditionalTargetPBXInheritedEntitlementThroughUnconditional",
+			projectXCConfig: "CODE_SIGN_ENTITLEMENTS = $(PRODUCT_NAME)\n",
+			buildSettings: []buildSetting{
+				{"999999999999999999999993", `CODE_SIGN_ENTITLEMENTS = App.entitlements;`},
+				{"999999999999999999999995", `PRODUCT_NAME = Widget; CODE_SIGN_ENTITLEMENTS = "$(inherited)Base"; "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = "$(inherited)Device";`},
+			},
+			artifact: "WidgetBaseDevice",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			project := writeStructuredVersionProject(t, false)
+			pbxprojPath := filepath.Join(project, "project.pbxproj")
+			attachSigningProjectXCConfig(t, project, test.projectXCConfig)
+			for _, setting := range test.buildSettings {
+				injectSigningBuildSetting(t, pbxprojPath, setting.configurationID, setting.assignment)
+			}
+			projectRoot := filepath.Dir(project)
+			if err := os.WriteFile(filepath.Join(projectRoot, "App.entitlements"), []byte("<?xml version=\"1.0\"?><plist version=\"1.0\"><dict/></plist>\n"), 0o600); err != nil {
+				t.Fatalf("WriteFile(App.entitlements) error = %v", err)
+			}
+			artifactPath := filepath.Join(projectRoot, test.artifact)
+			if err := os.WriteFile(artifactPath, []byte("existing entitlement bytes\n"), 0o600); err != nil {
+				t.Fatalf("WriteFile(%s) error = %v", test.artifact, err)
+			}
+
+			options := newSigningSettingsFixture(t, project).planOptions("state")
+			options.PlanPath = artifactPath
+			requireSigningPlanRefused(t, options, "aliases project input", artifactPath)
+		})
 	}
 }
 
@@ -6190,48 +4572,18 @@ func TestSigningPlanSkipsShadowedProjectXCConfigReferenceForTargetOverride(t *te
 		t.Fatalf("WriteFile(App artifact) error = %v", err)
 	}
 
-	tests := []struct {
-		name      string
-		configure func(*SigningPlanOptions, string)
-	}{
-		{
-			name: "plan path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.PlanPath = path
-			},
-		},
-		{
-			name: "receipt path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.ReceiptPath = path
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
-			}
-			test.configure(&opts, artifactPath)
-			plan, err := BuildSigningPlan(opts)
-			if err != nil {
-				t.Fatalf("BuildSigningPlan() error = %v, want shadowed project xcconfig reference ignored", err)
-			}
-			if plan == nil || !plan.Ready {
-				t.Fatalf("BuildSigningPlan() plan = %#v, want ready plan", plan)
-			}
-			if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
-				t.Fatalf("artifact path changed while validating shadowed project reference: %q", got)
-			}
-		})
-	}
+	runSigningArtifactPathCases(t, project, artifactPath, func(t *testing.T, opts SigningPlanOptions) {
+		plan, err := BuildSigningPlan(opts)
+		if err != nil {
+			t.Fatalf("BuildSigningPlan() error = %v, want shadowed project xcconfig reference ignored", err)
+		}
+		if plan == nil || !plan.Ready {
+			t.Fatalf("BuildSigningPlan() plan = %#v, want ready plan", plan)
+		}
+		if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
+			t.Fatalf("artifact path changed while validating shadowed project reference: %q", got)
+		}
+	})
 }
 
 func TestSigningPlanProtectsProjectXCConfigReferenceForUnshadowedTarget(t *testing.T) {
@@ -6252,45 +4604,9 @@ func TestSigningPlanProtectsProjectXCConfigReferenceForUnshadowedTarget(t *testi
 		t.Fatalf("WriteFile(Widget artifact) error = %v", err)
 	}
 
-	tests := []struct {
-		name      string
-		configure func(*SigningPlanOptions, string)
-	}{
-		{
-			name: "plan path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.PlanPath = path
-			},
-		},
-		{
-			name: "receipt path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.ReceiptPath = path
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
-			}
-			test.configure(&opts, artifactPath)
-			plan, err := BuildSigningPlan(opts)
-			if err == nil || !strings.Contains(err.Error(), "aliases project input") {
-				t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want unshadowed Widget project reference rejection", plan, err)
-			}
-			if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
-				t.Fatalf("unshadowed target artifact changed while validating %s: %q", test.name, got)
-			}
-		})
-	}
+	runSigningArtifactPathCases(t, project, artifactPath, func(t *testing.T, opts SigningPlanOptions) {
+		requireSigningPlanRefused(t, opts, "aliases project input", artifactPath)
+	})
 }
 
 func TestSigningPlanProtectsProjectXCConfigReferenceWhenTargetExpansionFails(t *testing.T) {
@@ -6306,45 +4622,15 @@ func TestSigningPlanProtectsProjectXCConfigReferenceWhenTargetExpansionFails(t *
 		t.Fatalf("WriteFile(Widget) error = %v", err)
 	}
 
-	tests := []struct {
-		name      string
-		configure func(*SigningPlanOptions, string)
-	}{
-		{
-			name: "plan path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.PlanPath = path
-			},
-		},
-		{
-			name: "receipt path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.ReceiptPath = path
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
-			}
-			test.configure(&opts, protectedPath)
-			plan, err := BuildSigningPlan(opts)
-			if err == nil || (!strings.Contains(err.Error(), "aliases project input") && !strings.Contains(err.Error(), "protected project input") && !strings.Contains(err.Error(), "cannot be safely inventoried")) {
-				t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want unresolved Widget input rejected before artifact overwrite", plan, err)
-			}
-			if got := mustReadVersionTestFile(t, protectedPath); got != existingEntitlements {
-				t.Fatalf("unresolved target entitlement was overwritten while validating %s: %q", test.name, got)
-			}
-		})
-	}
+	runSigningArtifactPathCases(t, project, protectedPath, func(t *testing.T, opts SigningPlanOptions) {
+		plan, err := BuildSigningPlan(opts)
+		if err == nil || (!strings.Contains(err.Error(), "aliases project input") && !strings.Contains(err.Error(), "protected project input") && !strings.Contains(err.Error(), "cannot be safely inventoried")) {
+			t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want unresolved Widget input rejected before artifact overwrite", plan, err)
+		}
+		if got := mustReadVersionTestFile(t, protectedPath); got != existingEntitlements {
+			t.Fatalf("unresolved target entitlement was overwritten while validating %s: %q", t.Name(), got)
+		}
+	})
 }
 
 func TestSigningPlanSkipsProjectXCConfigExpressionWhenAllTargetsOverride(t *testing.T) {
@@ -6361,16 +4647,11 @@ func TestSigningPlanSkipsProjectXCConfigExpressionWhenAllTargetsOverride(t *test
 			t.Fatalf("WriteFile(%s) error = %v", name, err)
 		}
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want project xcconfig expression shadowed by all target overrides", err)
@@ -6403,51 +4684,21 @@ func TestSigningPlanComposesProjectXCConfigReferenceThroughInheritedTarget(t *te
 		t.Fatalf("WriteFile(Widget artifact) error = %v", err)
 	}
 
-	tests := []struct {
-		name      string
-		configure func(*SigningPlanOptions, string)
-	}{
-		{
-			name: "plan path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.PlanPath = path
-			},
-		},
-		{
-			name: "receipt path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.ReceiptPath = path
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
-			}
-			test.configure(&opts, artifactPath)
-			plan, err := BuildSigningPlan(opts)
-			if err != nil {
-				t.Fatalf("BuildSigningPlan() error = %v, want uncomposed project reference ignored", err)
-			}
-			if plan == nil || !plan.Ready {
-				t.Fatalf("BuildSigningPlan() plan = %#v, want ready plan", plan)
-			}
-			if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
-				t.Fatalf("valid artifact path changed while validating %s: %q", test.name, got)
-			}
-			if got := mustReadVersionTestFile(t, composedPath); got != existingEntitlements {
-				t.Fatalf("composed entitlement input changed while validating %s: %q", test.name, got)
-			}
-		})
-	}
+	runSigningArtifactPathCases(t, project, artifactPath, func(t *testing.T, opts SigningPlanOptions) {
+		plan, err := BuildSigningPlan(opts)
+		if err != nil {
+			t.Fatalf("BuildSigningPlan() error = %v, want uncomposed project reference ignored", err)
+		}
+		if plan == nil || !plan.Ready {
+			t.Fatalf("BuildSigningPlan() plan = %#v, want ready plan", plan)
+		}
+		if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
+			t.Fatalf("valid artifact path changed while validating %s: %q", t.Name(), got)
+		}
+		if got := mustReadVersionTestFile(t, composedPath); got != existingEntitlements {
+			t.Fatalf("composed entitlement input changed while validating %s: %q", t.Name(), got)
+		}
+	})
 }
 
 func TestSigningPlanComposesProjectXCConfigReferenceThroughInheritedTargetXCConfig(t *testing.T) {
@@ -6474,51 +4725,21 @@ func TestSigningPlanComposesProjectXCConfigReferenceThroughInheritedTargetXCConf
 		t.Fatalf("WriteFile(Widget artifact) error = %v", err)
 	}
 
-	tests := []struct {
-		name      string
-		configure func(*SigningPlanOptions, string)
-	}{
-		{
-			name: "plan path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.PlanPath = path
-			},
-		},
-		{
-			name: "receipt path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.ReceiptPath = path
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
-			}
-			test.configure(&opts, artifactPath)
-			plan, err := BuildSigningPlan(opts)
-			if err != nil {
-				t.Fatalf("BuildSigningPlan() error = %v, want target xcconfig inherited suffix composed", err)
-			}
-			if plan == nil || !plan.Ready {
-				t.Fatalf("BuildSigningPlan() plan = %#v, want ready plan", plan)
-			}
-			if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
-				t.Fatalf("valid artifact changed while validating %s: %q", test.name, got)
-			}
-			if got := mustReadVersionTestFile(t, composedPath); got != existingEntitlements {
-				t.Fatalf("composed entitlement input changed while validating %s: %q", test.name, got)
-			}
-		})
-	}
+	runSigningArtifactPathCases(t, project, artifactPath, func(t *testing.T, opts SigningPlanOptions) {
+		plan, err := BuildSigningPlan(opts)
+		if err != nil {
+			t.Fatalf("BuildSigningPlan() error = %v, want target xcconfig inherited suffix composed", err)
+		}
+		if plan == nil || !plan.Ready {
+			t.Fatalf("BuildSigningPlan() plan = %#v, want ready plan", plan)
+		}
+		if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
+			t.Fatalf("valid artifact changed while validating %s: %q", t.Name(), got)
+		}
+		if got := mustReadVersionTestFile(t, composedPath); got != existingEntitlements {
+			t.Fatalf("composed entitlement input changed while validating %s: %q", t.Name(), got)
+		}
+	})
 }
 
 func TestSigningPlanSkipsShadowedProjectXCConfigWhenProjectPBXEntitlementOverrides(t *testing.T) {
@@ -6539,48 +4760,18 @@ func TestSigningPlanSkipsShadowedProjectXCConfigWhenProjectPBXEntitlementOverrid
 		t.Fatalf("WriteFile(WidgetSuffix artifact) error = %v", err)
 	}
 
-	tests := []struct {
-		name      string
-		configure func(*SigningPlanOptions, string)
-	}{
-		{
-			name: "plan path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.PlanPath = path
-			},
-		},
-		{
-			name: "receipt path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.ReceiptPath = path
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
-			}
-			test.configure(&opts, artifactPath)
-			plan, err := BuildSigningPlan(opts)
-			if err != nil {
-				t.Fatalf("BuildSigningPlan() error = %v, want project PBX entitlement to shadow xcconfig expression", err)
-			}
-			if plan == nil || !plan.Ready {
-				t.Fatalf("BuildSigningPlan() plan = %#v, want ready plan", plan)
-			}
-			if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
-				t.Fatalf("valid artifact changed while validating %s: %q", test.name, got)
-			}
-		})
-	}
+	runSigningArtifactPathCases(t, project, artifactPath, func(t *testing.T, opts SigningPlanOptions) {
+		plan, err := BuildSigningPlan(opts)
+		if err != nil {
+			t.Fatalf("BuildSigningPlan() error = %v, want project PBX entitlement to shadow xcconfig expression", err)
+		}
+		if plan == nil || !plan.Ready {
+			t.Fatalf("BuildSigningPlan() plan = %#v, want ready plan", plan)
+		}
+		if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
+			t.Fatalf("valid artifact changed while validating %s: %q", t.Name(), got)
+		}
+	})
 }
 
 func TestSigningPlanComposesProjectAndTargetInheritedEntitlements(t *testing.T) {
@@ -6618,15 +4809,10 @@ func TestSigningPlanComposesProjectAndTargetInheritedEntitlements(t *testing.T) 
 			if err := os.WriteFile(test.path, []byte(test.existingBytes), 0o600); err != nil {
 				t.Fatalf("WriteFile(%s) error = %v", test.path, err)
 			}
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project)
 			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				PlanPath: test.path, StateDir: filepath.Join(root, "state"),
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				PlanPath: test.path, StateDir: filepath.Join(fixture.root, "state"),
 			})
 			if test.wantAlias {
 				if err == nil || !strings.Contains(err.Error(), "aliases project input") {
@@ -6685,15 +4871,10 @@ func TestSigningPlanDoesNotDoubleComposeProjectXCConfigThroughProjectPBX(t *test
 			if err := os.WriteFile(test.path, []byte(existingArtifact), 0o600); err != nil {
 				t.Fatalf("WriteFile(%s) error = %v", test.path, err)
 			}
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project)
 			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				PlanPath: test.path, StateDir: filepath.Join(root, "state"),
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				PlanPath: test.path, StateDir: filepath.Join(fixture.root, "state"),
 			})
 			if test.wantAlias {
 				if err == nil || !strings.Contains(err.Error(), "aliases project input") {
@@ -6711,43 +4892,6 @@ func TestSigningPlanDoesNotDoubleComposeProjectXCConfigThroughProjectPBX(t *test
 				t.Fatalf("artifact changed while validating project xcconfig composition: %q", got)
 			}
 		})
-	}
-}
-
-func TestSigningPlanComposesProjectConditionalPBXInheritedEntitlementThroughUnconditional(t *testing.T) {
-	project := writeStructuredVersionProject(t, false)
-	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	attachSigningProjectXCConfig(t, project, "CODE_SIGN_ENTITLEMENTS = $(PRODUCT_NAME)\n")
-	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999991",
-		`CODE_SIGN_ENTITLEMENTS = "$(inherited)Base"; "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = "$(inherited)Device";`)
-	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999993",
-		`CODE_SIGN_ENTITLEMENTS = App.entitlements;`)
-	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999995",
-		`PRODUCT_NAME = Widget;`)
-	projectRoot := filepath.Dir(project)
-	if err := os.WriteFile(filepath.Join(projectRoot, "App.entitlements"), []byte("<?xml version=\"1.0\"?><plist version=\"1.0\"><dict/></plist>\n"), 0o600); err != nil {
-		t.Fatalf("WriteFile(App.entitlements) error = %v", err)
-	}
-	composedPath := filepath.Join(projectRoot, "WidgetBaseDevice")
-	const existingEntitlements = "existing project conditional inherited entitlement bytes\n"
-	if err := os.WriteFile(composedPath, []byte(existingEntitlements), 0o600); err != nil {
-		t.Fatalf("WriteFile(WidgetBaseDevice) error = %v", err)
-	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: composedPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "aliases project input") {
-		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want conditional PBX inherited entitlement alias rejection", plan, err)
-	}
-	if got := mustReadVersionTestFile(t, composedPath); got != existingEntitlements {
-		t.Fatalf("conditional inherited entitlement was overwritten during planning: %q", got)
 	}
 }
 
@@ -6819,58 +4963,12 @@ func TestSigningPlanComposesTargetXCConfigAppendThroughProjectSeed(t *testing.T)
 			if err := os.WriteFile(test.path, []byte(existingEntitlements), 0o600); err != nil {
 				t.Fatalf("WriteFile(%s) error = %v", test.path, err)
 			}
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				PlanPath: test.path, StateDir: filepath.Join(root, "state"),
-			})
-			if err == nil || !strings.Contains(err.Error(), "aliases project input") {
-				t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want target xcconfig append alias rejection", plan, err)
-			}
-			if got := mustReadVersionTestFile(t, test.path); got != existingEntitlements {
-				t.Fatalf("target xcconfig append entitlement was overwritten during planning: %q", got)
-			}
+			fixture := newSigningSettingsFixture(t, project)
+			requireSigningPlanRefused(t, SigningPlanOptions{
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				PlanPath: test.path, StateDir: filepath.Join(fixture.root, "state"),
+			}, "aliases project input", test.path)
 		})
-	}
-}
-
-func TestSigningPlanComposesConditionalTargetPBXInheritedEntitlementThroughUnconditional(t *testing.T) {
-	project := writeStructuredVersionProject(t, false)
-	pbxprojPath := filepath.Join(project, "project.pbxproj")
-	attachSigningProjectXCConfig(t, project, "CODE_SIGN_ENTITLEMENTS = $(PRODUCT_NAME)\n")
-	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999993",
-		`CODE_SIGN_ENTITLEMENTS = App.entitlements;`)
-	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999995",
-		`PRODUCT_NAME = Widget; CODE_SIGN_ENTITLEMENTS = "$(inherited)Base"; "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = "$(inherited)Device";`)
-	projectRoot := filepath.Dir(project)
-	if err := os.WriteFile(filepath.Join(projectRoot, "App.entitlements"), []byte("<?xml version=\"1.0\"?><plist version=\"1.0\"><dict/></plist>\n"), 0o600); err != nil {
-		t.Fatalf("WriteFile(App.entitlements) error = %v", err)
-	}
-	artifactPath := filepath.Join(projectRoot, "WidgetBaseDevice")
-	const existingArtifact = "existing conditional target PBX entitlement bytes\n"
-	if err := os.WriteFile(artifactPath, []byte(existingArtifact), 0o600); err != nil {
-		t.Fatalf("WriteFile(WidgetBaseDevice) error = %v", err)
-	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: artifactPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err == nil || !strings.Contains(err.Error(), "aliases project input") {
-		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want conditional target PBX inherited entitlement alias rejection", plan, err)
-	}
-	if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
-		t.Fatalf("conditional target PBX inherited entitlement was overwritten during planning: %q", got)
 	}
 }
 
@@ -6941,48 +5039,18 @@ func TestSigningPlanIgnoresShadowedProjectXCConfigExpression(t *testing.T) {
 		t.Fatalf("WriteFile(Widget artifact) error = %v", err)
 	}
 
-	tests := []struct {
-		name      string
-		configure func(*SigningPlanOptions, string)
-	}{
-		{
-			name: "plan path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.PlanPath = path
-			},
-		},
-		{
-			name: "receipt path",
-			configure: func(opts *SigningPlanOptions, path string) {
-				opts.ReceiptPath = path
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
-			}
-			test.configure(&opts, artifactPath)
-			plan, err := BuildSigningPlan(opts)
-			if err != nil {
-				t.Fatalf("BuildSigningPlan() error = %v, want shadowed project xcconfig expression ignored", err)
-			}
-			if plan == nil || !plan.Ready {
-				t.Fatalf("BuildSigningPlan() plan = %#v, want ready plan", plan)
-			}
-			if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
-				t.Fatalf("valid artifact path changed while validating %s: %q", test.name, got)
-			}
-		})
-	}
+	runSigningArtifactPathCases(t, project, artifactPath, func(t *testing.T, opts SigningPlanOptions) {
+		plan, err := BuildSigningPlan(opts)
+		if err != nil {
+			t.Fatalf("BuildSigningPlan() error = %v, want shadowed project xcconfig expression ignored", err)
+		}
+		if plan == nil || !plan.Ready {
+			t.Fatalf("BuildSigningPlan() plan = %#v, want ready plan", plan)
+		}
+		if got := mustReadVersionTestFile(t, artifactPath); got != existingArtifact {
+			t.Fatalf("valid artifact path changed while validating %s: %q", t.Name(), got)
+		}
+	})
 }
 
 func TestSigningConfigurationXCConfigInheritedEntitlementIsNotUnconditional(t *testing.T) {
@@ -7036,15 +5104,10 @@ func TestSigningPlanTreatsRepeatedTargetXCConfigInheritedAfterLiteralAsLocal(t *
 	if err := os.WriteFile(artifactPath, []byte(existingArtifact), 0o600); err != nil {
 		t.Fatalf("WriteFile(Widget) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: artifactPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: artifactPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want local repeated target xcconfig assignment to shadow project expression", err)
@@ -7085,16 +5148,11 @@ func TestSigningPlanProtectsReferencedDivergentInheritedProjectEntitlementSeeds(
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project)
 
 			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				StateDir: filepath.Join(fixture.root, "state"),
 			}
 			test.configure(&opts, protectedPath)
 			plan, err := BuildSigningPlan(opts)
@@ -7137,16 +5195,11 @@ func TestSigningPlanProtectsProjectSeedBelowConditionalTargetXCConfig(t *testing
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project)
 
 			opts := SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				StateDir: filepath.Join(root, "state"),
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				StateDir: filepath.Join(fixture.root, "state"),
 			}
 			test.configure(&opts, protectedPath)
 			plan, err := BuildSigningPlan(opts)
@@ -7189,16 +5242,11 @@ func TestSigningPlanDoesNotCrossComposeDivergentProjectEntitlementSeeds(t *testi
 				t.Fatalf("WriteFile(%s) error = %v", test.actualSeed, err)
 			}
 
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project)
 			phantomPath := filepath.Join(projectRoot, "BaseSuffix")
 			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				PlanPath: phantomPath, StateDir: filepath.Join(root, "state"),
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				PlanPath: phantomPath, StateDir: filepath.Join(fixture.root, "state"),
 			})
 			if err != nil {
 				t.Fatalf("BuildSigningPlan() for phantom project seed = plan=%#v, error=%v; want no alias rejection", plan, err)
@@ -7323,16 +5371,11 @@ func TestSigningPlanProtectsIdenticalConditionalInheritedEntitlementComposition(
 
 	for _, name := range composedNames {
 		t.Run(name, func(t *testing.T) {
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project)
 
 			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				PlanPath: filepath.Join(projectRoot, name), StateDir: filepath.Join(root, "state"),
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				PlanPath: filepath.Join(projectRoot, name), StateDir: filepath.Join(fixture.root, "state"),
 			})
 			if err == nil || (!strings.Contains(err.Error(), "aliases project input") && !strings.Contains(err.Error(), "protected project input")) {
 				t.Fatalf("BuildSigningPlan(%s) = plan=%#v, error=%v; want identical conditional composition rejected as an artifact alias", name, plan, err)
@@ -7365,15 +5408,10 @@ func TestSigningPlanProtectsInheritedTargetComposedWithProjectConditional(t *tes
 		t.Fatalf("WriteFile(composed entitlements) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: composedPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: composedPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err == nil || (!strings.Contains(err.Error(), "aliases project input") && !strings.Contains(err.Error(), "protected project input")) {
 		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want inherited target plus project candidate composition rejected", plan, err)
@@ -7403,16 +5441,11 @@ func TestSigningPlanProtectsProjectConditionalInheritedEntitlementComposition(t 
 		t.Fatalf("WriteFile(composed entitlements) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: composedPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: composedPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err == nil || (!strings.Contains(err.Error(), "aliases project input") && !strings.Contains(err.Error(), "protected project input")) {
 		t.Fatalf("BuildSigningPlan() = plan=%#v, error=%v; want project inherited composition rejected as an artifact alias", plan, err)
@@ -7457,15 +5490,8 @@ func TestSigningPlanSkipsProjectEntitlementExpressionsShadowedByTargetXCConfig(t
 		t.Fatalf("WriteFile(Widget.entitlements) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	fixture := newSigningSettingsFixture(t, project)
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want target xcconfig to shadow the project entitlement expression", err)
 	}
@@ -7490,15 +5516,8 @@ func TestSigningPlanSkipsShadowedProjectEntitlementExpressions(t *testing.T) {
 		}
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	fixture := newSigningSettingsFixture(t, project)
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want shadowed project entitlement expression ignored", err)
 	}
@@ -7523,15 +5542,8 @@ func TestSigningPlanResolvesProjectEntitlementsInTargetContext(t *testing.T) {
 		}
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	fixture := newSigningSettingsFixture(t, project)
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want project entitlement resolved in the target context", err)
 	}
@@ -7541,7 +5553,7 @@ func TestSigningPlanResolvesProjectEntitlementsInTargetContext(t *testing.T) {
 
 	protected := filepath.Join(filepath.Dir(project), "App.entitlements")
 	_, err = BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
 		PlanPath: protected, StateDir: filepath.Join(t.TempDir(), "state"),
 	})
 	if err == nil || (!strings.Contains(err.Error(), "aliases project input") && !strings.Contains(err.Error(), "protected project input")) {
@@ -7572,30 +5584,19 @@ func TestSigningPlanRejectsUninventoriableConditionalPBXEntitlements(t *testing.
 		t.Run(test.name, func(t *testing.T) {
 			project := writeStructuredVersionProject(t, false)
 			injectSigningBuildSetting(t, filepath.Join(project, "project.pbxproj"), "999999999999999999999995", test.assignment)
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-			planPath := filepath.Join(root, "plan.json")
+			fixture := newSigningSettingsFixture(t, project)
+			planPath := filepath.Join(fixture.root, "plan.json")
 			const existingPlan = "existing plan bytes\n"
 			if err := os.WriteFile(planPath, []byte(existingPlan), 0o600); err != nil {
 				t.Fatalf("WriteFile(existing plan) error = %v", err)
 			}
 
-			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				PlanPath: planPath, StateDir: filepath.Join(root, "state"),
-			})
-			if err == nil || !strings.Contains(err.Error(), "CODE_SIGN_ENTITLEMENTS value cannot be safely inventoried") {
-				t.Fatalf("BuildSigningPlan() error = %v, want fail-closed unresolved entitlement error", err)
-			}
+			plan := requireSigningPlanRefused(t, SigningPlanOptions{
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
+			}, "CODE_SIGN_ENTITLEMENTS value cannot be safely inventoried", planPath)
 			if plan != nil {
 				t.Fatalf("plan = %#v, want no plan when entitlement aliases cannot be bounded", plan)
-			}
-			if got := mustReadVersionTestFile(t, planPath); got != existingPlan {
-				t.Fatalf("existing plan changed after unbounded conditional entitlement failure: %q", got)
 			}
 		})
 	}
@@ -7625,30 +5626,19 @@ func TestSigningPlanRejectsUninventoriableConditionalXCConfigEntitlements(t *tes
 		t.Run(test.name, func(t *testing.T) {
 			project := writeStructuredVersionProject(t, false)
 			attachSigningWidgetXCConfig(t, project, test.config)
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-			}`)
-			planPath := filepath.Join(root, "plan.json")
+			fixture := newSigningSettingsFixture(t, project)
+			planPath := filepath.Join(fixture.root, "plan.json")
 			const existingPlan = "existing plan bytes\n"
 			if err := os.WriteFile(planPath, []byte(existingPlan), 0o600); err != nil {
 				t.Fatalf("WriteFile(existing plan) error = %v", err)
 			}
 
-			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath,
-				PlanPath: planPath, StateDir: filepath.Join(root, "state"),
-			})
-			if err == nil || !strings.Contains(err.Error(), "CODE_SIGN_ENTITLEMENTS value cannot be safely inventoried") {
-				t.Fatalf("BuildSigningPlan() error = %v, want fail-closed unresolved entitlement error", err)
-			}
+			plan := requireSigningPlanRefused(t, SigningPlanOptions{
+				ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+				PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
+			}, "CODE_SIGN_ENTITLEMENTS value cannot be safely inventoried", planPath)
 			if plan != nil {
 				t.Fatalf("plan = %#v, want no plan when entitlement aliases cannot be bounded", plan)
-			}
-			if got := mustReadVersionTestFile(t, planPath); got != existingPlan {
-				t.Fatalf("existing plan changed after unbounded conditional entitlement failure: %q", got)
 			}
 		})
 	}
@@ -7691,21 +5681,16 @@ func TestSigningPlanRejectsUnauthorizedConditionalEntitlementWithoutReadingIt(t 
 		t.Fatalf("WriteFile(project.pbxproj) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	planPath := filepath.Join(root, "plan.json")
+	fixture := newSigningSettingsFixture(t, project)
+	planPath := filepath.Join(fixture.root, "plan.json")
 	const existingPlan = "existing plan bytes\n"
 	if err := os.WriteFile(planPath, []byte(existingPlan), 0o600); err != nil {
 		t.Fatalf("WriteFile(existing plan) error = %v", err)
 	}
 
 	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: planPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err == nil || !strings.Contains(err.Error(), signingUnauthorizedExternalXCConfigMessage) {
 		t.Fatalf("BuildSigningPlan() error = %v, want generic unauthorized external failure", err)
@@ -7908,15 +5893,8 @@ func TestSigningPlanProtectsResolvedEntitlementsReference(t *testing.T) {
 		t.Fatalf("WriteFile(entitlements) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	fixture := newSigningSettingsFixture(t, project)
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want resolved entitlement reference accepted", err)
 	}
@@ -7927,7 +5905,7 @@ func TestSigningPlanProtectsResolvedEntitlementsReference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("openStructuredVersionProject() error = %v", err)
 	}
-	paths, _, _, err := signingProjectInputPaths(structured, settingsPath, nil, nil, []signingRequest{{
+	paths, _, _, err := signingProjectInputPaths(structured, fixture.settingsPath, nil, nil, []signingRequest{{
 		target: "App", configuration: "Debug",
 		settings: []signingDesiredSetting{{key: "CODE_SIGN_STYLE", value: stringPtr("manual")}},
 	}}, false, nil)
@@ -7963,15 +5941,10 @@ func TestSigningPlanExpandsInheritedDirectEntitlementForProtectedInputs(t *testi
 		t.Fatalf("WriteFile(entitlements) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: entitlementsPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: entitlementsPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err == nil || !strings.Contains(err.Error(), "aliases project input") {
 		t.Fatalf("BuildSigningPlan() error = %v, want inherited direct entitlement alias protection", err)
@@ -7997,15 +5970,10 @@ func TestSigningPlanExpandsInheritedXCConfigEntitlementForProtectedInputs(t *tes
 		t.Fatalf("WriteFile(entitlements) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 	_, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: entitlementsPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: entitlementsPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err == nil || !strings.Contains(err.Error(), "aliases project input") {
 		t.Fatalf("BuildSigningPlan() error = %v, want inherited xcconfig entitlement alias protection", err)
@@ -8023,15 +5991,8 @@ func TestSigningPlanKeepsSuccessfulInheritedDirectEntitlementReady(t *testing.T)
 	if err := os.WriteFile(entitlementsPath, []byte("<?xml version=\"1.0\"?><plist version=\"1.0\"><dict/></plist>\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile(entitlements) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	fixture := newSigningSettingsFixture(t, project)
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want successful inherited expansion", err)
 	}
@@ -8052,15 +6013,8 @@ func TestSigningPlanKeepsSuccessfulInheritedXCConfigEntitlementReady(t *testing.
 	if err := os.WriteFile(sharedPath, []byte("CODE_SIGN_ENTITLEMENTS = \"\"\n"), 0o640); err != nil {
 		t.Fatalf("WriteFile(Shared.xcconfig) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
+	fixture := newSigningSettingsFixture(t, project)
+	plan, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want successful inherited expansion", err)
 	}
@@ -8094,16 +6048,11 @@ func TestSigningPlanDoesNotInventDoubleComposedXCConfigEntitlement(t *testing.T)
 	if err := os.WriteFile(planPath, []byte(existingPlan), 0o600); err != nil {
 		t.Fatalf("WriteFile(plan) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: planPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want non-alias plan path accepted", err)
@@ -8138,16 +6087,11 @@ func TestSigningPlanPreservesResolvedEmptyXCConfigInheritance(t *testing.T) {
 	if err := os.WriteFile(planPath, []byte(existingPlan), 0o600); err != nil {
 		t.Fatalf("WriteFile(plan) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: planPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want non-alias plan path accepted", err)
@@ -8177,16 +6121,11 @@ func TestSigningPlanPreservesSelectorSpecificEmptyXCConfigInheritance(t *testing
 	if err := os.WriteFile(planPath, []byte(existingPlan), 0o600); err != nil {
 		t.Fatalf("WriteFile(plan) error = %v", err)
 	}
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"CODE_SIGN_STYLE":"manual"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project)
 
 	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath,
-		PlanPath: planPath, StateDir: filepath.Join(root, "state"),
+		ProjectPath: project, SettingsFilePath: fixture.settingsPath,
+		PlanPath: planPath, StateDir: filepath.Join(fixture.root, "state"),
 	})
 	if err != nil {
 		t.Fatalf("BuildSigningPlan() error = %v, want non-alias plan path accepted", err)
@@ -8255,28 +6194,9 @@ func TestSigningPlanConvergesAfterApplyingPromotedDependentNoOp(t *testing.T) {
 		t.Fatalf("WriteFile(shared xcconfig) error = %v", err)
 	}
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[
-			{"name":"Debug","settings":{
-				"PROVISIONING_PROFILE_SPECIFIER":"com.example.old",
-				"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-			}},
-			{"name":"Release","settings":{
-				"PROVISIONING_PROFILE_SPECIFIER":"com.example.old",
-				"PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"
-			}}
-		]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"PROVISIONING_PROFILE_SPECIFIER":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`), withSigningConfiguration("Release", `{"PROVISIONING_PROFILE_SPECIFIER":"com.example.old","PRODUCT_BUNDLE_IDENTIFIER":"com.example.new"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got %#v", plan.Blockers)
 	}
@@ -8292,16 +6212,9 @@ func TestSigningPlanConvergesAfterApplyingPromotedDependentNoOp(t *testing.T) {
 	if promoted != 2 {
 		t.Fatalf("promoted profile changes = %d, want one per requested configuration: %#v", promoted, plan.Changes)
 	}
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	if _, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath}); err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
+	applySigningTestPlan(t, plan)
 
-	replan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "replan"),
-	})
+	replan, err := BuildSigningPlan(fixture.planOptions("replan"))
 	if err != nil {
 		t.Fatalf("replan BuildSigningPlan() error = %v", err)
 	}
@@ -8375,20 +6288,8 @@ func TestSigningPlanPromotesNoOpThroughStagedEscapedXCConfigValue(t *testing.T) 
 		}
 	}
 
-	if err := WriteSigningPlanArtifact(plan, false); err != nil {
-		t.Fatalf("WriteSigningPlanArtifact() error = %v", err)
-	}
-	if _, err := ApplySigningPlan(SigningApplyOptions{PlanPath: plan.PlanPath}); err != nil {
-		t.Fatalf("ApplySigningPlan() error = %v", err)
-	}
-	updated, err := openStructuredVersionProject(project)
-	if err != nil {
-		t.Fatalf("reopen project: %v", err)
-	}
-	configuration, err := signingConfigurationFor(updated, "App", "Debug")
-	if err != nil {
-		t.Fatalf("find updated configuration: %v", err)
-	}
+	applySigningTestPlan(t, plan)
+	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
 	identity, _, err := updated.resolveSetting(configuration, "CODE_SIGN_IDENTITY")
 	if err != nil {
 		t.Fatalf("resolve applied identity: %v", err)
@@ -8463,22 +6364,9 @@ func TestSigningPlanResolvesImplicitProjectLocationVariables(t *testing.T) {
 			injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 				`CODE_SIGN_ENTITLEMENTS = "`+test.expression+`";`)
 
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-					"DEVELOPMENT_TEAM": "ABCDE12345",
-					"CODE_SIGN_ENTITLEMENTS": "Renamed.entitlements"
-				}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"DEVELOPMENT_TEAM":"ABCDE12345","CODE_SIGN_ENTITLEMENTS":"Renamed.entitlements"}`))
 
-			plan, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-			})
-			if err != nil {
-				t.Fatalf("BuildSigningPlan() error = %v", err)
-			}
+			plan := fixture.buildPlan(t)
 			if !plan.Ready {
 				t.Fatalf("expected ready plan, got blockers %#v", plan.Blockers)
 			}
@@ -8514,22 +6402,9 @@ func TestSigningPlanResolvesImplicitXCConfigEntitlement(t *testing.T) {
 	writeSigningTestEntitlements(t, projectRoot, "App.entitlements")
 	writeSigningTestEntitlements(t, projectRoot, "Renamed.entitlements")
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"DEVELOPMENT_TEAM": "ABCDE12345",
-			"CODE_SIGN_ENTITLEMENTS": "Renamed.entitlements"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"DEVELOPMENT_TEAM":"ABCDE12345","CODE_SIGN_ENTITLEMENTS":"Renamed.entitlements"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got blockers %#v", plan.Blockers)
 	}
@@ -8560,19 +6435,9 @@ func TestSigningPlanFailsClosedForImplicitVariableEscapingProjectRoot(t *testing
 	injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 		`CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/../outside.entitlements";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"DEVELOPMENT_TEAM":"ABCDE12345"}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"DEVELOPMENT_TEAM":"ABCDE12345"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if plan.Ready {
 		t.Fatalf("escaping entitlements path unexpectedly produced a ready plan: %#v", plan)
 	}
@@ -8593,16 +6458,9 @@ func TestSigningPlanFailsClosedForBuildContextVariables(t *testing.T) {
 			injectSigningDirectBuildSetting(t, filepath.Join(project, "project.pbxproj"),
 				`CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/$(`+name+`)/App.entitlements";`)
 
-			root := t.TempDir()
-			settingsPath := filepath.Join(root, "settings.json")
-			writeSigningSettingsTestFile(t, settingsPath, `{
-				"schemaVersion": 1,
-				"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{"DEVELOPMENT_TEAM":"ABCDE12345"}}]}]
-			}`)
+			fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"DEVELOPMENT_TEAM":"ABCDE12345"}`))
 
-			_, err := BuildSigningPlan(SigningPlanOptions{
-				ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-			})
+			_, err := BuildSigningPlan(fixture.planOptions("state"))
 			if err == nil || !strings.Contains(err.Error(), "unresolved build-setting reference "+name) {
 				t.Fatalf("BuildSigningPlan() error = %v, want unresolved reference for %s", err, name)
 			}
@@ -8622,21 +6480,9 @@ func TestSigningPlanKeepsExplicitAssignmentOverImplicitVariable(t *testing.T) {
 	injectSigningDirectBuildSetting(t, pbxprojPath, `CODE_SIGN_ENTITLEMENTS = "$(PROJECT_DIR)/App.entitlements";`)
 	injectSigningDirectBuildSetting(t, pbxprojPath, `PROJECT_DIR = "$(SRCROOT)/Nested";`)
 
-	root := t.TempDir()
-	settingsPath := filepath.Join(root, "settings.json")
-	writeSigningSettingsTestFile(t, settingsPath, `{
-		"schemaVersion": 1,
-		"targets": [{"name":"App","configurations":[{"name":"Debug","settings":{
-			"CODE_SIGN_ENTITLEMENTS": "Renamed.entitlements"
-		}}]}]
-	}`)
+	fixture := newSigningSettingsFixture(t, project, withSigningConfiguration("Debug", `{"CODE_SIGN_ENTITLEMENTS":"Renamed.entitlements"}`))
 
-	plan, err := BuildSigningPlan(SigningPlanOptions{
-		ProjectPath: project, SettingsFilePath: settingsPath, StateDir: filepath.Join(root, "state"),
-	})
-	if err != nil {
-		t.Fatalf("BuildSigningPlan() error = %v", err)
-	}
+	plan := fixture.buildPlan(t)
 	if !plan.Ready {
 		t.Fatalf("expected ready plan, got blockers %#v", plan.Blockers)
 	}
