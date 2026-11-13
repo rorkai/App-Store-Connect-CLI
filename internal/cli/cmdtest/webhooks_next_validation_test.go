@@ -14,12 +14,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestWebhooksListRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"webhooks", "list"},
-		"webhooks list: --next",
-	)
+func TestWebhooksListsRejectsInvalidNextURL(t *testing.T) {
+	runInvalidNextURLCases(t, []invalidNextURLCase{
+		{args: []string{"webhooks", "list"}, wantErr: "webhooks list: --next"},
+	})
 }
 
 func TestWebhooksListRejectsNextQueryFlagConflicts(t *testing.T) {

@@ -12,8 +12,10 @@ import (
 )
 
 type invalidNextURLCase struct {
-	args    []string // command args without --next
-	wantErr string   // diagnostic prefix, e.g. "builds icons list: --next"
+	args        []string // command args without --next
+	wantErr     string   // diagnostic prefix, e.g. "builds icons list: --next"
+	wantWarning string   // stderr line printed before the diagnostic
+	runtimeErr  bool     // reported as a runtime error with empty stderr
 }
 
 // runInvalidNextURLCases runs each command with an http:// and a malformed
@@ -61,8 +63,22 @@ func runInvalidNextURLCases(t *testing.T, cases []invalidNextURLCase) {
 				if stdout != "" {
 					t.Fatalf("expected empty stdout, got %q", stdout)
 				}
+				if tc.runtimeErr {
+					if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitError {
+						t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitError)
+					}
+					assertEmptyStderr(t, stderr)
+					return
+				}
 				if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitUsage)
+				}
+				if tc.wantWarning != "" {
+					warning, rest, _ := strings.Cut(stderr, "\n")
+					if warning != tc.wantWarning {
+						t.Fatalf("stderr first line = %q, want %q", warning, tc.wantWarning)
+					}
+					stderr = rest
 				}
 				assertUsageDiagnosticFirstLine(t, stderr, wantErr)
 			})
@@ -75,6 +91,7 @@ type paginateFromNextCase struct {
 	firstURL   string   // must contain cursor=AQ; page two is served at cursor=BQ
 	dataType   string
 	wantStderr string
+	env        map[string]string
 }
 
 // runPaginateFromNextCases runs each command with --paginate --next firstURL
@@ -87,6 +104,9 @@ func runPaginateFromNextCases(t *testing.T, cases []paginateFromNextCase) {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			for key, value := range tc.env {
+				t.Setenv(key, value)
+			}
 
 			secondURL := strings.Replace(tc.firstURL, "cursor=AQ", "cursor=BQ", 1)
 			if secondURL == tc.firstURL {

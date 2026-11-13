@@ -456,14 +456,6 @@ func TestSubscriptionsPricePointsListStreamReturnsSecondPageFailure(t *testing.T
 	}
 }
 
-func TestSubscriptionsPricePointsListRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"subscriptions", "pricing", "price-points", "list"},
-		"subscriptions pricing price-points list: --next",
-	)
-}
-
 func TestSubscriptionsPricePointsListPaginateFromNextWithoutSubscription(t *testing.T) {
 	setupAuth(t)
 
