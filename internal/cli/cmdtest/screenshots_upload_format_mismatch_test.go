@@ -2,18 +2,16 @@ package cmdtest
 
 import (
 	"encoding/json"
-	"errors"
 	"image"
 	"image/color"
 	"image/jpeg"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestRunScreenshotsUploadRejectsFormatExtensionMismatchBeforeAnyRequest(t *testing.T) {
@@ -105,16 +103,8 @@ func TestRunScreenshotsUploadRejectsFormatExtensionMismatchBeforeAnyRequest(t *t
 
 			args := append(append([]string{"screenshots", "upload"}, test.args(t)...), "--output", "json")
 
-			var requests atomic.Int32
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requests.Add(1)
-				t.Errorf("unexpected request before upload preflight: %s %s", req.Method, req.URL.String())
-				return nil, errors.New("unexpected request")
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
 
 			_, stderr := captureOutput(t, func() {
 				if code := cmd.Run(args, "1.2.3"); code == cmd.ExitSuccess {
@@ -122,7 +112,7 @@ func TestRunScreenshotsUploadRejectsFormatExtensionMismatchBeforeAnyRequest(t *t
 				}
 			})
 
-			if got := requests.Load(); got != 0 {
+			if got := len(reg.Requests()); got != 0 {
 				t.Fatalf("expected zero HTTP requests, got %d", got)
 			}
 			for _, want := range test.wantStderr {
