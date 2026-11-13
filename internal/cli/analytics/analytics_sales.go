@@ -49,7 +49,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			vendorNumber := shared.ResolveVendorNumber(*vendor)
 			if vendorNumber == "" {
-				fmt.Fprintln(os.Stderr, "Error: --vendor is required (or set ASC_VENDOR_NUMBER/ASC_ANALYTICS_VENDOR_NUMBER)")
+				fmt.Fprintln(os.Stderr, "Error: --vendor is required (or set ASC_VENDOR_NUMBER/ASC_ANALYTICS_VENDOR_NUMBER); find it in App Store Connect under Sales and Trends > Reports")
 				return shared.MissingRequiredUsageError("--vendor")
 			}
 			if strings.TrimSpace(*reportType) == "" {
@@ -124,7 +124,11 @@ Examples:
 						Available:     &available,
 					}, *outputFlags.OutputFormat, *outputFlags.Pretty)
 				}
-				return fmt.Errorf("analytics sales: failed to download report: %w", err)
+				err = fmt.Errorf("analytics sales: failed to download report: %w", err)
+				if asc.IsNotFound(err) {
+					return &shared.HintedError{Err: err, Hint: salesReportNotFoundHint(freq, *allowMissing)}
+				}
+				return err
 			}
 			defer download.Body.Close()
 
@@ -158,6 +162,23 @@ Examples:
 			return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 		},
 	}
+}
+
+// salesReportPublication records when Apple publishes each report frequency,
+// as documented in the analytics reports guide.
+var salesReportPublication = map[asc.SalesReportFrequency]string{
+	asc.SalesReportFrequencyDaily:   "daily reports appear the following day",
+	asc.SalesReportFrequencyWeekly:  "weekly reports appear on Mondays",
+	asc.SalesReportFrequencyMonthly: "monthly reports appear five days after the month ends",
+	asc.SalesReportFrequencyYearly:  "yearly reports appear six days after the year ends",
+}
+
+func salesReportNotFoundHint(freq asc.SalesReportFrequency, allowMissing bool) string {
+	hint := fmt.Sprintf("Apple has no %s report for this request: %s, and a period with no sales has no report. Try an earlier --date or check --vendor", freq, salesReportPublication[freq])
+	if allowMissing {
+		return hint + "."
+	}
+	return hint + ", or pass --allow-missing to get available=false instead of an error."
 }
 
 func isMissingSalesReportError(err error) bool {

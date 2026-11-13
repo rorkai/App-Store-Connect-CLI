@@ -290,6 +290,17 @@ func NewErrorWithCause(err, cause error) error {
 	return errorWithCause{err: err, cause: cause}
 }
 
+// HintedError carries a next step that the root error renderer prints on its
+// own line after the message.
+type HintedError struct {
+	Err  error
+	Hint string
+}
+
+func (e *HintedError) Error() string { return e.Err.Error() }
+
+func (e *HintedError) Unwrap() error { return e.Err }
+
 // KeepReadOnlyRefusal returns kept, or err when kept is nil and err is a
 // read-only refusal. Batch commands that summarize per-item failures pass the
 // result to NewErrorWithCause so the summary keeps the read-only exit code.

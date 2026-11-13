@@ -53,6 +53,10 @@ func Classify(err error) ClassifiedError {
 		return ClassifiedError{Message: err.Error(), Hint: missing.Hint}
 	}
 
+	if hinted, ok := errors.AsType[*shared.HintedError](err); ok {
+		return ClassifiedError{Message: err.Error(), Hint: hinted.Hint}
+	}
+
 	// The stored-key hint below does not help a caller whose token was signed
 	// elsewhere; only the service that holds the key can mint a new one.
 	if errors.Is(err, asc.ErrBearerTokenExpired) || errors.Is(err, asc.ErrInvalidBearerToken) {
