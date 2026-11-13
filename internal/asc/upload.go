@@ -288,7 +288,7 @@ func executeUploadOperation(ctx context.Context, file *os.File, task uploadTask,
 				return struct{}{}, parentErr
 			}
 			requestErr := newSanitizedUploadError("upload request", task.op.URL, err)
-			if replaySafe && (errors.Is(err, context.DeadlineExceeded) || isTransientTransportError(err)) {
+			if replaySafe && (errors.Is(err, context.DeadlineExceeded) || isTransientTransportError(err) || isServerClosedIdleConnection(err)) {
 				return struct{}{}, &RetryableError{Err: requestErr}
 			}
 			return struct{}{}, requestErr
@@ -314,6 +314,13 @@ func executeUploadOperation(ctx context.Context, file *os.File, task uploadTask,
 		return fmt.Errorf("upload operation %d: %w", task.index, err)
 	}
 	return nil
+}
+
+// isServerClosedIdleConnection reports net/http's unexported error for a
+// reused keep-alive connection that the server closed while the request body
+// was being sent. net/http cannot replay a streamed upload body itself.
+func isServerClosedIdleConnection(err error) bool {
+	return err != nil && strings.HasSuffix(err.Error(), "http: server closed idle connection")
 }
 
 // uploadStatusError reports a presigned upload request rejected by the upload

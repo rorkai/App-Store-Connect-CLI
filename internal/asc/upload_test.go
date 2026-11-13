@@ -434,6 +434,42 @@ func TestExecuteUploadOperations_RetriesPUTAfterAttemptTimeout(t *testing.T) {
 	}
 }
 
+func TestExecuteUploadOperations_RetriesPUTWhenServerClosedIdleConnection(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "app.ipa")
+	if err := os.WriteFile(filePath, []byte("abc"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	requests := 0
+	client := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		requests++
+		if requests == 1 {
+			// net/http returns this unexported error when a reused keep-alive
+			// connection closes while a request with a body is being sent.
+			return nil, errors.New("http: server closed idle connection")
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Status:     "200 OK",
+			Body:       io.NopCloser(strings.NewReader("")),
+			Header:     make(http.Header),
+		}, nil
+	})}
+
+	err := ExecuteUploadOperations(context.Background(), filePath, []UploadOperation{{
+		Method: http.MethodPut,
+		URL:    "https://example.test/upload",
+		Length: 3,
+	}}, WithUploadHTTPClient(client), withUploadRetryOptions(1))
+	if err != nil {
+		t.Fatalf("ExecuteUploadOperations() error: %v", err)
+	}
+	if requests != 2 {
+		t.Fatalf("expected one retry after the closed idle connection, got %d requests", requests)
+	}
+}
+
 func TestExecuteUploadOperations_RetriesPUTTransientStatuses(t *testing.T) {
 	statuses := []int{
 		http.StatusRequestTimeout,
