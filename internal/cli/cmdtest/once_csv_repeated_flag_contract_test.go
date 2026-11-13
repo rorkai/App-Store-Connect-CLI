@@ -105,24 +105,12 @@ func TestExplicitEmptyCSVFlagKeepsExistingValidation(t *testing.T) {
 	t.Run("empty update flag stays a visited flag", func(t *testing.T) {
 		isolateRepeatedCSVFlagEnv(t)
 
-		stdout, stderr := captureOutput(t, func() {
-			code := rootcmd.Run([]string{
-				"nominations", "update",
-				"--id", "NOMINATION_ID",
-				"--submitted=false",
-				"--locales", "",
-			}, "1.2.3")
-			if code != rootcmd.ExitError {
-				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitError)
-			}
-		})
-
-		if stdout != "" {
-			t.Fatalf("expected empty stdout, got %q", stdout)
-		}
-		if want := "Error: nominations update: --locales is required"; !strings.Contains(stderr, want) {
-			t.Fatalf("stderr = %q, want it to contain %q", stderr, want)
-		}
+		assertUsageExit(t, []string{
+			"nominations", "update",
+			"--id", "NOMINATION_ID",
+			"--submitted=false",
+			"--locales", "",
+		}, "Error: nominations update: --locales is required")
 	})
 }
 

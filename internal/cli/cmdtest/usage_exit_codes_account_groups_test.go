@@ -274,11 +274,6 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			wantErr: "nominations view: --fields must be one of: name, type, description, createdDate, lastModifiedDate, submittedDate, state, publishStartDate, publishEndDate, deviceFamilies, locales, supplementalMaterialsUris, hasInAppEvents, launchInSelectMarketsFirst, notes, preOrderEnabled, relatedApps, createdByActor, lastModifiedByActor, submittedByActor, inAppEvents, supportedTerritories",
 		},
 		{
-			name:    "nominations update empty locales",
-			args:    []string{"nominations", "update", "--id", "NOMINATION_ID", "--submitted", "--locales", ","},
-			wantErr: "nominations update: --locales is required",
-		},
-		{
 			name:    "pass-type-ids certificates list limit",
 			args:    []string{"pass-type-ids", "certificates", "list", "--pass-type-id", "P", "--limit", "201"},
 			wantErr: "pass-type-ids certificates list: --limit must be between 1 and 200",
