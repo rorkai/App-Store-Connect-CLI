@@ -39,7 +39,7 @@ Examples:
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
-					return fmt.Errorf("sandbox view: %w", err)
+					return shared.UsageErrorf("sandbox view: %v", err)
 				}
 			}
 
@@ -97,17 +97,17 @@ Examples:
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
-					return fmt.Errorf("sandbox update: %w", err)
+					return shared.UsageErrorf("sandbox update: %v", err)
 				}
 			}
 
 			normalizedTerritory, err := normalizeSandboxTerritoryFilter(*territory)
 			if err != nil {
-				return fmt.Errorf("sandbox update: %w", err)
+				return shared.UsageErrorf("sandbox update: %v", err)
 			}
 			normalizedRate, err := normalizeSandboxRenewalRate(*subscriptionRenewalRate)
 			if err != nil {
-				return fmt.Errorf("sandbox update: %w", err)
+				return shared.UsageErrorf("sandbox update: %v", err)
 			}
 
 			if !interruptPurchases.IsSet() && normalizedTerritory == "" && normalizedRate == "" {
@@ -189,7 +189,7 @@ Examples:
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
-					return fmt.Errorf("sandbox clear-history: %w", err)
+					return shared.UsageErrorf("sandbox clear-history: %v", err)
 				}
 			}
 

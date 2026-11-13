@@ -694,22 +694,33 @@ func TestImportSessionBundleRestoresExistingSessionWhenLastSessionPointerCannotB
 }
 
 func TestImportSessionBundleOverwritesMalformedKeychainStore(t *testing.T) {
-	kr := withArraySessionKeyring(t)
-	withSessionInfoStub(t)
-	t.Setenv(webSessionCacheEnabledEnv, "1")
-	t.Setenv(webSessionBackendEnv, "keychain")
-	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "unused-file-cache"))
-	if err := kr.Set(keyring.Item{Key: webSessionStoreItem, Data: []byte("{")}); err != nil {
-		t.Fatalf("seed malformed keychain store: %v", err)
-	}
+	for _, tc := range []struct {
+		name    string
+		backend string
+		dir     string
+	}{
+		{name: "keychain backend", backend: "keychain", dir: "unused-file-cache"},
+		{name: "default backend keychain mirror", backend: "", dir: "web-cache"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			kr := withArraySessionKeyring(t)
+			withSessionInfoStub(t)
+			t.Setenv(webSessionCacheEnabledEnv, "1")
+			t.Setenv(webSessionBackendEnv, tc.backend)
+			t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), tc.dir))
+			if err := kr.Set(keyring.Item{Key: webSessionStoreItem, Data: []byte("{")}); err != nil {
+				t.Fatalf("seed malformed keychain store: %v", err)
+			}
 
-	bundle := validTestBundle(time.Now().Add(time.Hour))
-	if _, err := ImportSessionBundleWithOptions(bundle, true); err != nil {
-		t.Fatalf("ImportSessionBundle() error = %v, want overwrite of a malformed keychain store", err)
-	}
-	loaded, ok, err := LoadCachedSession("user@example.com")
-	if err != nil || !ok || loaded == nil {
-		t.Fatalf("LoadCachedSession() = (%v, %v, %v), want the imported session", loaded, ok, err)
+			bundle := validTestBundle(time.Now().Add(time.Hour))
+			if _, err := ImportSessionBundleWithOptions(bundle, true); err != nil {
+				t.Fatalf("ImportSessionBundle() error = %v, want overwrite of a malformed keychain store", err)
+			}
+			loaded, ok, err := LoadCachedSession("user@example.com")
+			if err != nil || !ok || loaded == nil {
+				t.Fatalf("LoadCachedSession() = (%v, %v, %v), want the imported session", loaded, ok, err)
+			}
+		})
 	}
 }
 
@@ -884,7 +895,7 @@ func TestImportSessionBundleNoOverwritePreservesSessionWrittenDuringKeychainFall
 	importer := backendSelection{backend: sessionBackendFile, fallbackKeychain: true}
 	writer := backendSelection{backend: sessionBackendKeychain}
 
-	if _, ok, err := readSessionBySelection(importer, key); err != nil || ok {
+	if _, _, ok, err := readSessionBySelection(importer, key); err != nil || ok {
 		t.Fatalf("import preflight = (%v, %v), want an empty cache", ok, err)
 	}
 	if err := persistSessionBySelection(writer, key, webTestPersistedSession(t, "keychain-token", time.Now().UTC())); err != nil {
@@ -919,7 +930,7 @@ func TestImportSessionBundleNoOverwritePreservesSessionWrittenDuringFilePrefligh
 	key := webSessionCacheKey(webTestSessionEmail)
 	selection := backendSelection{backend: sessionBackendFile}
 
-	if _, ok, err := readSessionBySelection(selection, key); err != nil || ok {
+	if _, _, ok, err := readSessionBySelection(selection, key); err != nil || ok {
 		t.Fatalf("import preflight = (%v, %v), want an empty cache", ok, err)
 	}
 	if err := persistSessionBySelection(selection, key, webTestPersistedSession(t, "file-token", time.Now().UTC())); err != nil {
@@ -956,7 +967,7 @@ func TestImportSessionBundleNoOverwritePreservesSessionWrittenDuringFileFallback
 	importer := backendSelection{backend: sessionBackendKeychain, fallbackFile: true}
 	writer := backendSelection{backend: sessionBackendFile}
 
-	if _, ok, err := readSessionBySelection(importer, key); err != nil || ok {
+	if _, _, ok, err := readSessionBySelection(importer, key); err != nil || ok {
 		t.Fatalf("import preflight = (%v, %v), want an empty cache", ok, err)
 	}
 	if err := persistSessionBySelection(writer, key, webTestPersistedSession(t, "file-token", time.Now().UTC())); err != nil {

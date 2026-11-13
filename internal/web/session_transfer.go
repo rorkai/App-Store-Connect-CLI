@@ -229,9 +229,9 @@ func ExportSessionBundle(username string) (*SessionBundle, bool, error) {
 		err  error
 	)
 	if username == "" {
-		sess, ok, err = readLastSessionBySelection(selection)
+		sess, _, _, ok, err = readLastSessionBySelection(selection)
 	} else {
-		sess, ok, err = readSessionBySelection(selection, webSessionCacheKey(username))
+		sess, _, ok, err = readSessionBySelection(selection, webSessionCacheKey(username))
 	}
 	if err != nil || !ok {
 		return nil, false, err

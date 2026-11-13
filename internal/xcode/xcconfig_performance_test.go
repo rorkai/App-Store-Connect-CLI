@@ -30,7 +30,11 @@ func BenchmarkXCConfigIdentityCollector(b *testing.B) {
 			root := writeBenchmarkXCConfigChain(b, b.TempDir(), count)
 			b.ReportAllocs()
 			for b.Loop() {
-				files, err := collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(root, os.ReadFile, nil, nil, nil, os.Stat, nil, signingPlanMaxFiles, nil, &xcconfigSourceBudget{})
+				files, err := collectXCConfigFiles(root, xcconfigCollectOptions{
+					identify: os.Stat,
+					maxFiles: signingPlanMaxFiles,
+					budget:   &xcconfigSourceBudget{},
+				})
 				if err != nil || len(files) != count {
 					b.Fatalf("collector files=%d error=%v", len(files), err)
 				}
@@ -81,16 +85,19 @@ func TestXCConfigCollectorUnicodeBucketsPreserveCaseAndIdentityChecks(t *testing
 			root := filepath.Join(dir, "Σ.xcconfig")
 			alias := filepath.Join(dir, "ς.xcconfig")
 			reads := 0
-			files, err := collectXCConfigFilesWithHooksAndIdentity(root, func(path string) ([]byte, error) {
-				reads++
-				if path == root {
-					return []byte("#include \"ς.xcconfig\"\n"), nil
-				}
-				if path != alias {
-					t.Fatalf("unexpected path %q", path)
-				}
-				return []byte("CODE_SIGN_STYLE = Manual\n"), nil
-			}, func(string) (os.FileInfo, error) { return identity, nil })
+			files, err := collectXCConfigFiles(root, xcconfigCollectOptions{
+				read: func(path string) ([]byte, error) {
+					reads++
+					if path == root {
+						return []byte("#include \"ς.xcconfig\"\n"), nil
+					}
+					if path != alias {
+						t.Fatalf("unexpected path %q", path)
+					}
+					return []byte("CODE_SIGN_STYLE = Manual\n"), nil
+				},
+				identify: func(string) (os.FileInfo, error) { return identity, nil },
+			})
 			want := 2
 			if insensitive {
 				want = 1

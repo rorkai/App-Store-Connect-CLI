@@ -2,6 +2,8 @@ package asc
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"reflect"
 	"sync"
 )
@@ -347,6 +349,10 @@ func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 // using the provided render function (RenderTable or RenderMarkdown).
 // Falls back to JSON output for unregistered types.
 func renderByRegistry(data any, render func([]string, [][]string)) error {
+	return renderByRegistryTo(os.Stdout, data, render)
+}
+
+func renderByRegistryTo(w io.Writer, data any, render func([]string, [][]string)) error {
 	ensureOutputRegistryPopulated()
 
 	t := reflect.TypeOf(data)
@@ -366,5 +372,5 @@ func renderByRegistry(data any, render func([]string, [][]string)) error {
 		return nil
 	}
 
-	return PrintJSON(data)
+	return PrintJSONTo(w, data)
 }

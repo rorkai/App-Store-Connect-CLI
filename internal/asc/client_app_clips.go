@@ -1055,41 +1055,6 @@ func (c *Client) GetAppClipDefaultExperienceLocalizations(ctx context.Context, e
 	return &response, nil
 }
 
-// GetAppClipDefaultExperienceLocalizationsRelationships retrieves localization linkages for a default experience.
-func (c *Client) GetAppClipDefaultExperienceLocalizationsRelationships(ctx context.Context, experienceID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	experienceID = strings.TrimSpace(experienceID)
-	if query.nextURL == "" && experienceID == "" {
-		return nil, fmt.Errorf("experienceID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/appClipDefaultExperienceLocalizations", experienceID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appClipDefaultExperienceLocalizationsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetAppClipDefaultExperienceLocalization retrieves a localization by ID.
 func (c *Client) GetAppClipDefaultExperienceLocalization(ctx context.Context, localizationID string) (*AppClipDefaultExperienceLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)

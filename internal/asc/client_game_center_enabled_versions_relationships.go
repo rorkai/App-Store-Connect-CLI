@@ -7,11 +7,6 @@ import (
 	"strings"
 )
 
-// GetGameCenterEnabledVersionCompatibleVersionsRelationships retrieves compatible enabled version linkages.
-func (c *Client) GetGameCenterEnabledVersionCompatibleVersionsRelationships(ctx context.Context, enabledVersionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getGameCenterEnabledVersionLinkages(ctx, enabledVersionID, "compatibleVersions", opts...)
-}
-
 // AddGameCenterEnabledVersionCompatibleVersions adds compatible enabled versions.
 func (c *Client) AddGameCenterEnabledVersionCompatibleVersions(ctx context.Context, enabledVersionID string, compatibleIDs []string) error {
 	enabledVersionID = strings.TrimSpace(enabledVersionID)
@@ -26,14 +21,7 @@ func (c *Client) AddGameCenterEnabledVersionCompatibleVersions(ctx context.Conte
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterEnabledVersions, compatibleIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", enabledVersionID)
-	_, err = c.do(ctx, http.MethodPost, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", enabledVersionID), payload)
 }
 
 // RemoveGameCenterEnabledVersionCompatibleVersions removes compatible enabled versions.
@@ -50,14 +38,7 @@ func (c *Client) RemoveGameCenterEnabledVersionCompatibleVersions(ctx context.Co
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterEnabledVersions, compatibleIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", enabledVersionID)
-	_, err = c.do(ctx, http.MethodDelete, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", enabledVersionID), payload)
 }
 
 // UpdateGameCenterEnabledVersionCompatibleVersionsRelationship replaces the compatibleVersions relationship.
@@ -65,24 +46,5 @@ func (c *Client) UpdateGameCenterEnabledVersionCompatibleVersionsRelationship(ct
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterEnabledVersions, compatibleIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", strings.TrimSpace(enabledVersionID))
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
-}
-
-func (c *Client) getGameCenterEnabledVersionLinkages(ctx context.Context, enabledVersionID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(
-		ctx,
-		enabledVersionID,
-		relationship,
-		"enabledVersionID",
-		"/v1/gameCenterEnabledVersions/%s/relationships/%s",
-		"gameCenterEnabledVersionRelationships",
-		opts...,
-	)
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", strings.TrimSpace(enabledVersionID)), payload)
 }

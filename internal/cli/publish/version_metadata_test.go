@@ -63,10 +63,8 @@ func TestLoadPublishVersionMetadataValuesReadsOnlyVersionLocalizationFields(t *t
 func TestApplyPublishVersionMetadataRetainsPartialResultsAndArtifact(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("ASC_MAX_RETRIES", "0")
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	patches := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return publishJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"en-id","attributes":{"locale":"en-US","description":"Old English"}},{"type":"appStoreVersionLocalizations","id":"fr-id","attributes":{"locale":"fr-FR","description":"Old French"}}],"links":{"next":""}}`), nil
@@ -80,7 +78,7 @@ func TestApplyPublishVersionMetadataRetainsPartialResultsAndArtifact(t *testing.
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	results, err := applyPublishVersionMetadata(context.Background(), client, publishVersionMetadataOptions{
@@ -114,14 +112,12 @@ func TestApplyPublishVersionMetadataRetainsPartialResultsAndArtifact(t *testing.
 func TestApplyPublishVersionMetadataPreservesZeroResultInputError(t *testing.T) {
 	workDir := t.TempDir()
 	t.Chdir(workDir)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreVersions/version-1/appStoreVersionLocalizations" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
 		}
 		return publishJSONResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	results, err := applyPublishVersionMetadata(context.Background(), client, publishVersionMetadataOptions{
@@ -146,14 +142,12 @@ func TestApplyPublishVersionMetadataPreservesZeroResultAPIError(t *testing.T) {
 	workDir := t.TempDir()
 	t.Chdir(workDir)
 	t.Setenv("ASC_MAX_RETRIES", "0")
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreVersions/version-1/appStoreVersionLocalizations" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
 		}
 		return publishJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","detail":"snapshot conflict"}]}`), nil
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	results, err := applyPublishVersionMetadata(context.Background(), client, publishVersionMetadataOptions{
@@ -181,10 +175,8 @@ func TestApplyPublishVersionMetadataPreservesZeroResultAPIError(t *testing.T) {
 func TestApplyPublishVersionMetadataUsesFreshDeadlinePerLocale(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "100ms")
 	t.Setenv("ASC_MAX_RETRIES", "0")
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	patches := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return publishJSONResponse(http.StatusOK, `{"data":[
@@ -206,7 +198,7 @@ func TestApplyPublishVersionMetadataUsesFreshDeadlinePerLocale(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
 			return nil, nil
 		}
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	results, err := applyPublishVersionMetadata(context.Background(), client, publishVersionMetadataOptions{

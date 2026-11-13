@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/signal"
@@ -218,6 +219,8 @@ func SetSelectedProfile(value string) {
 func ResetDefaultOutputFormat() {
 	defaultOutputOnce = sync.Once{}
 	defaultOutputValue = ""
+	defaultOutputEnvOnce = sync.Once{}
+	defaultOutputEnvValue = ""
 }
 
 // Bold returns the string wrapped in ANSI bold codes
@@ -1304,24 +1307,28 @@ func resetInvalidStrictAuthWarnings() {
 }
 
 func printOutput(data any, format string, pretty bool) error {
+	return printOutputTo(os.Stdout, os.Stderr, data, format, pretty)
+}
+
+func printOutputTo(out, errOut io.Writer, data any, format string, pretty bool) error {
 	format, err := validateOutputFormat(format, pretty)
 	if err != nil {
 		return err
 	}
 	switch format {
 	case "json":
-		err = printJSONOutput(data, pretty)
+		err = printJSONOutput(out, data, pretty)
 	case "markdown":
-		err = asc.PrintMarkdown(data)
+		err = asc.PrintMarkdownTo(out, data)
 	case "table":
-		err = asc.PrintTable(data)
+		err = asc.PrintTableTo(out, data)
 	default:
 		return outputFormatEnumError("output", format, nil)
 	}
 	if err != nil {
 		return err
 	}
-	warnMorePages(data)
+	warnMorePages(errOut, data)
 	return nil
 }
 
@@ -1332,7 +1339,7 @@ func printOutputWithRenderers(data any, format string, pretty bool, tableRendere
 	}
 	switch format {
 	case "json":
-		err = printJSONOutput(data, pretty)
+		err = printJSONOutput(os.Stdout, data, pretty)
 	case "table":
 		if tableRenderer == nil {
 			return fmt.Errorf("table renderer is required")
@@ -1349,14 +1356,14 @@ func printOutputWithRenderers(data any, format string, pretty bool, tableRendere
 	if err != nil {
 		return err
 	}
-	warnMorePages(data)
+	warnMorePages(os.Stderr, data)
 	return nil
 }
 
 // warnMorePages emits a stderr notice when rendered output is a single page of
 // a larger collection. PaginateAll clears links.next on aggregated results, so
 // a non-empty next link at print time means the output is one unpaginated page.
-func warnMorePages(data any) {
+func warnMorePages(w io.Writer, data any) {
 	page, ok := data.(asc.PaginatedResponse)
 	if !ok {
 		return
@@ -1376,21 +1383,21 @@ func warnMorePages(data any) {
 	if countOK {
 		if withMeta, hasMeta := page.(interface{ GetMeta() json.RawMessage }); hasMeta {
 			if total, totalOK := asc.ParsePagingTotalOK(withMeta.GetMeta()); totalOK {
-				fmt.Fprintf(os.Stderr, "Warning: showing %d of %d results; more pages exist (use --paginate or --next where supported)\n", count, total)
+				fmt.Fprintf(w, "Warning: showing %d of %d results; more pages exist (use --paginate or --next where supported)\n", count, total)
 				return
 			}
 		}
-		fmt.Fprintf(os.Stderr, "Warning: showing %d results; more pages exist (use --paginate or --next where supported)\n", count)
+		fmt.Fprintf(w, "Warning: showing %d results; more pages exist (use --paginate or --next where supported)\n", count)
 		return
 	}
-	fmt.Fprintln(os.Stderr, "Warning: more pages exist (use --paginate or --next where supported)")
+	fmt.Fprintln(w, "Warning: more pages exist (use --paginate or --next where supported)")
 }
 
-func printJSONOutput(data any, pretty bool) error {
+func printJSONOutput(w io.Writer, data any, pretty bool) error {
 	if pretty {
-		return asc.PrintPrettyJSON(data)
+		return asc.PrintPrettyJSONTo(w, data)
 	}
-	return asc.PrintJSON(data)
+	return asc.PrintJSONTo(w, data)
 }
 
 // NormalizeOutputFormat lowercases format and canonicalizes aliases.
@@ -1518,8 +1525,10 @@ func isAppAvailabilityMissing(err error) bool {
 }
 
 var (
-	defaultOutputOnce  sync.Once
-	defaultOutputValue string
+	defaultOutputOnce     sync.Once
+	defaultOutputValue    string
+	defaultOutputEnvOnce  sync.Once
+	defaultOutputEnvValue string
 )
 
 // DefaultOutputFormat returns the default output format for CLI commands.
@@ -1528,28 +1537,42 @@ var (
 // Valid ASC_DEFAULT_OUTPUT values are "json", "table", "markdown", and "md".
 func DefaultOutputFormat() string {
 	defaultOutputOnce.Do(func() {
-		defaultOutputValue = resolveDefaultOutput()
+		defaultOutputValue = defaultOutputFormatFor(isTerminal(int(os.Stdout.Fd())), os.Stderr)
 	})
 	return defaultOutputValue
 }
 
-func resolveDefaultOutput() string {
+func defaultOutputFormatFor(stdoutTTY bool, errOut io.Writer) string {
+	if format := defaultOutputFromEnv(errOut); format != "" {
+		return format
+	}
+	if isCIEnvironment() || !stdoutTTY {
+		return "json"
+	}
+	return "table"
+}
+
+// defaultOutputFromEnv reads ASC_DEFAULT_OUTPUT once, so an invalid value is
+// reported once per process, to the first caller's errOut, however many
+// commands bind --output.
+func defaultOutputFromEnv(errOut io.Writer) string {
+	defaultOutputEnvOnce.Do(func() {
+		defaultOutputEnvValue = resolveDefaultOutputEnv(errOut)
+	})
+	return defaultOutputEnvValue
+}
+
+func resolveDefaultOutputEnv(errOut io.Writer) string {
 	env := strings.TrimSpace(os.Getenv(defaultOutputEnvVar))
 	if env == "" {
-		if isCIEnvironment() {
-			return "json"
-		}
-		if isTerminal(int(os.Stdout.Fd())) {
-			return "table"
-		}
-		return "json"
+		return ""
 	}
 	normalized := strings.ToLower(env)
 	switch normalized {
 	case "json", "table", "markdown", "md":
 		return normalized
 	default:
-		fmt.Fprintf(os.Stderr, "Warning: invalid %s value %q (expected json, table, markdown, or md); using json\n", defaultOutputEnvVar, env)
+		fmt.Fprintf(errOut, "Warning: invalid %s value %q (expected json, table, markdown, or md); using json\n", defaultOutputEnvVar, env)
 		return "json"
 	}
 }

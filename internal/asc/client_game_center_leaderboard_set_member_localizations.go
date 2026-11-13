@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,32 +10,13 @@ import (
 
 // GetGameCenterLeaderboardSetMemberLocalizations retrieves leaderboard set member localizations.
 func (c *Client) GetGameCenterLeaderboardSetMemberLocalizations(ctx context.Context, opts ...GCLeaderboardSetMemberLocalizationsOption) (*GameCenterLeaderboardSetMemberLocalizationsResponse, error) {
-	query := &gcLeaderboardSetMemberLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/gameCenterLeaderboardSetMemberLocalizations"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("game-center-leaderboard-set-member-localizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildGCLeaderboardSetMemberLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterLeaderboardSetMemberLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[GameCenterLeaderboardSetMemberLocalizationsResponse](ctx, c, readRequest{
+		Path:        "/v1/gameCenterLeaderboardSetMemberLocalizations",
+		Query:       buildGCLeaderboardSetMemberLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "game-center-leaderboard-set-member-localizations",
+	})
 }
 
 // GetGameCenterLeaderboardSetMemberLocalization retrieves a leaderboard set member localization by ID.
@@ -144,22 +124,11 @@ func (c *Client) CreateGameCenterLeaderboardSetMemberLocalization(ctx context.Co
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/gameCenterLeaderboardSetMemberLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterLeaderboardSetMemberLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[GameCenterLeaderboardSetMemberLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterLeaderboardSetMemberLocalizations",
+		Payload: payload,
+	})
 }
 
 // UpdateGameCenterLeaderboardSetMemberLocalization updates an existing leaderboard set member localization.
@@ -185,23 +154,11 @@ func (c *Client) UpdateGameCenterLeaderboardSetMemberLocalization(ctx context.Co
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", localizationID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterLeaderboardSetMemberLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[GameCenterLeaderboardSetMemberLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", localizationID),
+		Payload: payload,
+	})
 }
 
 // DeleteGameCenterLeaderboardSetMemberLocalization deletes a leaderboard set member localization.
@@ -210,39 +167,15 @@ func (c *Client) DeleteGameCenterLeaderboardSetMemberLocalization(ctx context.Co
 	if localizationID == "" {
 		return fmt.Errorf("localizationID is required")
 	}
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", localizationID)
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", localizationID), nil)
 }
 
 // GetGameCenterLeaderboardSetMemberLocalizationLeaderboard retrieves the leaderboard for a member localization.
 func (c *Client) GetGameCenterLeaderboardSetMemberLocalizationLeaderboard(ctx context.Context, localizationID string) (*GameCenterLeaderboardResponse, error) {
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s/gameCenterLeaderboard", strings.TrimSpace(localizationID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterLeaderboardResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[GameCenterLeaderboardResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s/gameCenterLeaderboard", strings.TrimSpace(localizationID))})
 }
 
 // GetGameCenterLeaderboardSetMemberLocalizationLeaderboardSet retrieves the leaderboard set for a member localization.
 func (c *Client) GetGameCenterLeaderboardSetMemberLocalizationLeaderboardSet(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetResponse, error) {
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s/gameCenterLeaderboardSet", strings.TrimSpace(localizationID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterLeaderboardSetResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[GameCenterLeaderboardSetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s/gameCenterLeaderboardSet", strings.TrimSpace(localizationID))})
 }

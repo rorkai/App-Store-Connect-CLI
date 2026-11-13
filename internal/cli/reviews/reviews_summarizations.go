@@ -67,12 +67,12 @@ Examples:
 
 			fieldsValue, err := normalizeReviewSummarizationFields(*fields)
 			if err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("reviews summarizations: %w", err)), shared.DiagnosticInvalidInput, "--fields")
+				return shared.WithDiagnostic(shared.UsageErrorf("reviews summarizations: %v", err), shared.DiagnosticInvalidInput, "--fields")
 			}
 
 			platformValues, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platforms))
 			if err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("reviews summarizations: %w", err)), shared.DiagnosticInvalidInput, "--platform")
+				return shared.WithDiagnostic(shared.UsageErrorf("reviews summarizations: %v", err), shared.DiagnosticInvalidInput, "--platform")
 			}
 			if len(platformValues) == 0 && nextValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --platform is required")

@@ -79,33 +79,6 @@ func (c *Client) GetBetaAppReviewDetailApp(ctx context.Context, detailID string)
 	return &response, nil
 }
 
-// BetaAppReviewDetailAppLinkageResponse is the response for beta app review detail app relationships.
-type BetaAppReviewDetailAppLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// GetBetaAppReviewDetailAppRelationship retrieves the app linkage for a beta app review detail.
-func (c *Client) GetBetaAppReviewDetailAppRelationship(ctx context.Context, detailID string) (*BetaAppReviewDetailAppLinkageResponse, error) {
-	detailID = strings.TrimSpace(detailID)
-	if detailID == "" {
-		return nil, fmt.Errorf("detailID is required")
-	}
-
-	path := fmt.Sprintf("/v1/betaAppReviewDetails/%s/relationships/app", detailID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppReviewDetailAppLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // UpdateBetaAppReviewDetail updates beta app review details by ID.
 func (c *Client) UpdateBetaAppReviewDetail(ctx context.Context, detailID string, attrs BetaAppReviewDetailUpdateAttributes) (*BetaAppReviewDetailResponse, error) {
 	detailID = strings.TrimSpace(detailID)
@@ -253,33 +226,6 @@ func (c *Client) GetBetaAppReviewSubmissionBuild(ctx context.Context, submission
 	return &response, nil
 }
 
-// BetaAppReviewSubmissionBuildLinkageResponse is the response for beta app review submission build relationships.
-type BetaAppReviewSubmissionBuildLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// GetBetaAppReviewSubmissionBuildRelationship retrieves the build linkage for a beta app review submission.
-func (c *Client) GetBetaAppReviewSubmissionBuildRelationship(ctx context.Context, submissionID string) (*BetaAppReviewSubmissionBuildLinkageResponse, error) {
-	submissionID = strings.TrimSpace(submissionID)
-	if submissionID == "" {
-		return nil, fmt.Errorf("submissionID is required")
-	}
-
-	path := fmt.Sprintf("/v1/betaAppReviewSubmissions/%s/relationships/build", submissionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppReviewSubmissionBuildLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetBuildBetaDetails retrieves build beta details.
 func (c *Client) GetBuildBetaDetails(ctx context.Context, opts ...BuildBetaDetailsOption) (*BuildBetaDetailsResponse, error) {
 	query := &buildBetaDetailsQuery{}
@@ -345,33 +291,6 @@ func (c *Client) GetBuildBetaDetailBuild(ctx context.Context, detailID string) (
 	}
 
 	var response BuildResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// BuildBetaDetailBuildLinkageResponse is the response for build beta detail build relationships.
-type BuildBetaDetailBuildLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// GetBuildBetaDetailBuildRelationship retrieves the build linkage for a build beta detail.
-func (c *Client) GetBuildBetaDetailBuildRelationship(ctx context.Context, detailID string) (*BuildBetaDetailBuildLinkageResponse, error) {
-	detailID = strings.TrimSpace(detailID)
-	if detailID == "" {
-		return nil, fmt.Errorf("detailID is required")
-	}
-
-	path := fmt.Sprintf("/v1/buildBetaDetails/%s/relationships/build", detailID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildBetaDetailBuildLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

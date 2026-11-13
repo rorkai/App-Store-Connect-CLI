@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -15,7 +14,12 @@ import (
 
 // ActorsCommand returns the actors command with subcommands.
 func ActorsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("actors", flag.ExitOnError)
+	return NewActorsCommand(shared.DefaultDeps())
+}
+
+// NewActorsCommand returns the actors command with subcommands built on d.
+func NewActorsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("actors", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "actors",
@@ -29,8 +33,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ActorsListCommand(),
-			ActorsGetCommand(),
+			newActorsListCommand(d),
+			newActorsViewCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -38,16 +42,16 @@ Examples:
 	}
 }
 
-// ActorsListCommand returns the actors list subcommand.
-func ActorsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newActorsListCommand returns the actors list subcommand built on d.
+func newActorsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	ids := fs.String("id", "", "Actor ID(s), comma-separated")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(actorFieldsList(), ", "))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -72,7 +76,7 @@ Examples:
 				return shared.UsageError("actors list: --limit must be between 1 and 200")
 			}
 			if strings.TrimSpace(*ids) == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id is required")
 				return shared.MissingRequiredUsageError("--id")
 			}
 
@@ -81,12 +85,12 @@ Examples:
 				return shared.UsageErrorf("actors list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("actors list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.ActorsOption{
@@ -112,7 +116,7 @@ Examples:
 					return fmt.Errorf("actors list: %w", err)
 				}
 
-				return shared.PrintOutput(actors, *output.Output, *output.Pretty)
+				return d.PrintOutput(actors, *output.Output, *output.Pretty)
 			}
 
 			actors, err := client.GetActors(requestCtx, opts...)
@@ -120,18 +124,18 @@ Examples:
 				return fmt.Errorf("actors list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(actors, *output.Output, *output.Pretty)
+			return d.PrintOutput(actors, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ActorsGetCommand returns the actors view subcommand.
-func ActorsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+// newActorsViewCommand returns the actors view subcommand built on d.
+func newActorsViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "actors", "Actor ID")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(actorFieldsList(), ", "))
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -147,7 +151,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id is required")
 				return shared.MissingRequiredUsageError("--id")
 			}
 
@@ -156,12 +160,12 @@ Examples:
 				return shared.UsageErrorf("actors view: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("actors view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			actor, err := client.GetActor(requestCtx, idValue, fieldsValue)
@@ -169,7 +173,7 @@ Examples:
 				return fmt.Errorf("actors view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(actor, *output.Output, *output.Pretty)
+			return d.PrintOutput(actor, *output.Output, *output.Pretty)
 		},
 	}
 }

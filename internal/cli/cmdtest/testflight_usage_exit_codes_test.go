@@ -29,6 +29,16 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "testflight app-localizations list: --limit must be between 1 and 200",
 		},
 		{
+			name:    "app-localizations list invalid locale",
+			args:    []string{"testflight", "app-localizations", "list", "--app", "123", "--locale", "!!!bad!!!"},
+			wantErr: `testflight app-localizations list: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
+			name:    "app-localizations create invalid locale",
+			args:    []string{"testflight", "app-localizations", "create", "--app", "123", "--locale", "!!!bad!!!"},
+			wantErr: `testflight app-localizations create: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
 			name:    "groups list limit 201",
 			args:    []string{"testflight", "groups", "list", "--limit", "201"},
 			wantErr: "groups list: --limit must be between 1 and 200",
@@ -152,6 +162,11 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "pre-release list app 123 limit 201",
 			args:    []string{"testflight", "pre-release", "list", "--app", "123", "--limit", "201"},
 			wantErr: "testflight pre-release list: --limit must be between 1 and 200",
+		},
+		{
+			name:    "pre-release list app 123 platform BAD",
+			args:    []string{"testflight", "pre-release", "list", "--app", "123", "--platform", "BAD"},
+			wantErr: "testflight pre-release list: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
 		},
 		{
 			name:    "pre-release builds list id p limit 201",

@@ -421,41 +421,6 @@ func (c *Client) GetAppCustomProductPageVersions(ctx context.Context, pageID str
 	return &response, nil
 }
 
-// GetAppCustomProductPageVersionsRelationships retrieves version linkages for a custom product page.
-func (c *Client) GetAppCustomProductPageVersionsRelationships(ctx context.Context, pageID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	pageID = strings.TrimSpace(pageID)
-	if query.nextURL == "" && pageID == "" {
-		return nil, fmt.Errorf("pageID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appCustomProductPages/%s/relationships/appCustomProductPageVersions", pageID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appCustomProductPageVersionsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetAppCustomProductPageVersion retrieves a custom product page version by ID.
 func (c *Client) GetAppCustomProductPageVersion(ctx context.Context, versionID string) (*AppCustomProductPageVersionResponse, error) {
 	versionID = strings.TrimSpace(versionID)
@@ -578,41 +543,6 @@ func (c *Client) GetAppCustomProductPageLocalizations(ctx context.Context, versi
 	}
 
 	var response AppCustomProductPageLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppCustomProductPageLocalizationsRelationships retrieves localization linkages for a custom product page version.
-func (c *Client) GetAppCustomProductPageLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	versionID = strings.TrimSpace(versionID)
-	if query.nextURL == "" && versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appCustomProductPageVersions/%s/relationships/appCustomProductPageLocalizations", versionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appCustomProductPageLocalizationsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -749,41 +679,6 @@ func (c *Client) GetAppCustomProductPageLocalizationSearchKeywords(ctx context.C
 	return &response, nil
 }
 
-// GetAppCustomProductPageLocalizationSearchKeywordsRelationships retrieves search keyword linkages for a localization.
-func (c *Client) GetAppCustomProductPageLocalizationSearchKeywordsRelationships(ctx context.Context, localizationID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	localizationID = strings.TrimSpace(localizationID)
-	if query.nextURL == "" && localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("searchKeywordsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // AddAppCustomProductPageLocalizationSearchKeywords adds search keywords to a localization.
 func (c *Client) AddAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
 	localizationID = strings.TrimSpace(localizationID)
@@ -879,41 +774,6 @@ func (c *Client) GetAppCustomProductPageLocalizationPreviewSets(ctx context.Cont
 	return &response, nil
 }
 
-// GetAppCustomProductPageLocalizationPreviewSetsRelationships retrieves preview set linkages for a localization.
-func (c *Client) GetAppCustomProductPageLocalizationPreviewSetsRelationships(ctx context.Context, localizationID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	localizationID = strings.TrimSpace(localizationID)
-	if query.nextURL == "" && localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/appPreviewSets", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPreviewSetsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetAppCustomProductPageLocalizationScreenshotSets retrieves screenshot sets for a localization.
 func (c *Client) GetAppCustomProductPageLocalizationScreenshotSets(ctx context.Context, localizationID string, opts ...AppCustomProductPageLocalizationScreenshotSetsOption) (*AppScreenshotSetsResponse, error) {
 	query := &appCustomProductPageLocalizationScreenshotSetsQuery{}
@@ -940,41 +800,6 @@ func (c *Client) GetAppCustomProductPageLocalizationScreenshotSets(ctx context.C
 	}
 
 	var response AppScreenshotSetsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppCustomProductPageLocalizationScreenshotSetsRelationships retrieves screenshot set linkages for a localization.
-func (c *Client) GetAppCustomProductPageLocalizationScreenshotSetsRelationships(ctx context.Context, localizationID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	localizationID = strings.TrimSpace(localizationID)
-	if query.nextURL == "" && localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/appScreenshotSets", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appScreenshotSetsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

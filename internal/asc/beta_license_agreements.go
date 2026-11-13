@@ -58,18 +58,6 @@ type BetaLicenseAgreementUpdateRequest struct {
 	Data BetaLicenseAgreementUpdateData `json:"data"`
 }
 
-// AppBetaLicenseAgreementLinkageResponse is the response for app beta license agreement relationship.
-type AppBetaLicenseAgreementLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// BetaLicenseAgreementAppLinkageResponse is the response for beta license agreement app relationship.
-type BetaLicenseAgreementAppLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
 // GetBetaLicenseAgreements retrieves beta license agreements with optional filters.
 func (c *Client) GetBetaLicenseAgreements(ctx context.Context, opts ...BetaLicenseAgreementsOption) (*BetaLicenseAgreementsResponse, error) {
 	query := &betaLicenseAgreementsQuery{}
@@ -158,27 +146,6 @@ func (c *Client) GetBetaLicenseAgreementForApp(ctx context.Context, appID string
 	return &response, nil
 }
 
-// GetAppBetaLicenseAgreementRelationship retrieves the beta license agreement linkage for an app.
-func (c *Client) GetAppBetaLicenseAgreementRelationship(ctx context.Context, appID string) (*AppBetaLicenseAgreementLinkageResponse, error) {
-	appID = strings.TrimSpace(appID)
-	if appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/relationships/betaLicenseAgreement", appID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppBetaLicenseAgreementLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetBetaLicenseAgreementApp retrieves the app for a beta license agreement.
 func (c *Client) GetBetaLicenseAgreementApp(ctx context.Context, agreementID string, fields []string) (*AppResponse, error) {
 	agreementID = strings.TrimSpace(agreementID)
@@ -200,27 +167,6 @@ func (c *Client) GetBetaLicenseAgreementApp(ctx context.Context, agreementID str
 	}
 
 	var response AppResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetBetaLicenseAgreementAppRelationship retrieves the app linkage for a beta license agreement.
-func (c *Client) GetBetaLicenseAgreementAppRelationship(ctx context.Context, agreementID string) (*BetaLicenseAgreementAppLinkageResponse, error) {
-	agreementID = strings.TrimSpace(agreementID)
-	if agreementID == "" {
-		return nil, fmt.Errorf("agreementID is required")
-	}
-
-	path := fmt.Sprintf("/v1/betaLicenseAgreements/%s/relationships/app", agreementID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaLicenseAgreementAppLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

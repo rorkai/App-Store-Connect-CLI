@@ -10,80 +10,38 @@ import (
 
 // GetTerritories retrieves available territories.
 func (c *Client) GetTerritories(ctx context.Context, opts ...TerritoriesOption) (*TerritoriesResponse, error) {
-	query := &territoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/territories"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("territories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildTerritoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response TerritoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse territories response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[TerritoriesResponse](ctx, c, readRequest{
+		Path:        "/v1/territories",
+		Query:       buildTerritoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "territories",
+		ParseErr:    "failed to parse territories response",
+	})
 }
 
 // GetAppPricePoints retrieves app price points for an app.
 func (c *Client) GetAppPricePoints(ctx context.Context, appID string, opts ...PricePointsOption) (*AppPricePointsV3Response, error) {
-	query := &pricePointsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	appID = strings.TrimSpace(appID)
-	path := fmt.Sprintf("/v1/apps/%s/appPricePoints", appID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPricePoints: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildPricePointsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPricePointsV3Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app price points response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPricePointsV3Response](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appPricePoints", appID),
+		Query:       buildPricePointsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appPricePoints",
+		ParseErr:    "failed to parse app price points response",
+	})
 }
 
 // GetAppPricePoint retrieves a single app price point by ID.
 func (c *Client) GetAppPricePoint(ctx context.Context, pricePointID string) (*AppPricePointsV3Response, error) {
 	pricePointID = strings.TrimSpace(pricePointID)
-	path := fmt.Sprintf("/v3/appPricePoints/%s", pricePointID)
-
-	data, err := c.do(ctx, "GET", path, nil)
+	single, err := getJSON[SingleResponse[AppPricePointV3Attributes]](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v3/appPricePoints/%s", pricePointID),
+		ParseErr: "failed to parse app price point response",
+	})
 	if err != nil {
 		return nil, err
-	}
-
-	var single SingleResponse[AppPricePointV3Attributes]
-	if err := json.Unmarshal(data, &single); err != nil {
-		return nil, fmt.Errorf("failed to parse app price point response: %w", err)
 	}
 
 	response := AppPricePointsV3Response{
@@ -97,89 +55,27 @@ func (c *Client) GetAppPricePoint(ctx context.Context, pricePointID string) (*Ap
 
 // GetAppPricePointEqualizations retrieves equalized price points for a price point.
 func (c *Client) GetAppPricePointEqualizations(ctx context.Context, pricePointID string, opts ...PricePointsOption) (*AppPricePointsV3Response, error) {
-	query := &pricePointsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	pricePointID = strings.TrimSpace(pricePointID)
 	if query.nextURL == "" && pricePointID == "" {
 		return nil, fmt.Errorf("pricePointID is required")
 	}
-	path := fmt.Sprintf("/v3/appPricePoints/%s/equalizations", pricePointID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPricePointEqualizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildPricePointsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPricePointsV3Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app price point equalizations response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppPricePointEqualizationsRelationships retrieves equalization linkages for an app price point.
-func (c *Client) GetAppPricePointEqualizationsRelationships(ctx context.Context, pricePointID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	pricePointID = strings.TrimSpace(pricePointID)
-	if query.nextURL == "" && pricePointID == "" {
-		return nil, fmt.Errorf("pricePointID is required")
-	}
-
-	path := fmt.Sprintf("/v3/appPricePoints/%s/relationships/equalizations", pricePointID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPricePointEqualizationsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPricePointsV3Response](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v3/appPricePoints/%s/equalizations", pricePointID),
+		Query:       buildPricePointsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appPricePointEqualizations",
+		ParseErr:    "failed to parse app price point equalizations response",
+	})
 }
 
 // GetAppPriceSchedule retrieves the app price schedule for an app.
 func (c *Client) GetAppPriceSchedule(ctx context.Context, appID string) (*AppPriceScheduleResponse, error) {
 	appID = strings.TrimSpace(appID)
-	path := fmt.Sprintf("/v1/apps/%s/appPriceSchedule", appID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPriceScheduleResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app price schedule response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPriceScheduleResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/apps/%s/appPriceSchedule", appID),
+		ParseErr: "failed to parse app price schedule response",
+	})
 }
 
 // GetAppPriceScheduleByID retrieves an app price schedule by ID.
@@ -188,19 +84,10 @@ func (c *Client) GetAppPriceScheduleByID(ctx context.Context, scheduleID string)
 	if scheduleID == "" {
 		return nil, fmt.Errorf("scheduleID is required")
 	}
-	path := fmt.Sprintf("/v1/appPriceSchedules/%s", scheduleID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPriceScheduleResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app price schedule response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPriceScheduleResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appPriceSchedules/%s", scheduleID),
+		ParseErr: "failed to parse app price schedule response",
+	})
 }
 
 // CreateAppPriceSchedule creates an app price schedule with manual prices.
@@ -275,225 +162,62 @@ func (c *Client) CreateAppPriceSchedule(ctx context.Context, appID string, attrs
 		Included: included,
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appPriceSchedules", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPriceScheduleResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app price schedule response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppPriceScheduleResponse](ctx, c, writeRequest{
+		Method:   "POST",
+		Path:     "/v1/appPriceSchedules",
+		Payload:  payload,
+		ParseErr: "failed to parse app price schedule response",
+	})
 }
 
 // GetAppPriceScheduleBaseTerritory retrieves the base territory for a schedule.
 func (c *Client) GetAppPriceScheduleBaseTerritory(ctx context.Context, scheduleID string) (*TerritoryResponse, error) {
 	scheduleID = strings.TrimSpace(scheduleID)
-	path := fmt.Sprintf("/v1/appPriceSchedules/%s/baseTerritory", scheduleID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response TerritoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse base territory response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// AppPriceScheduleBaseTerritoryLinkageResponse is the response for base territory relationship endpoints.
-type AppPriceScheduleBaseTerritoryLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// GetAppPriceScheduleBaseTerritoryRelationship retrieves the base territory linkage for a schedule.
-func (c *Client) GetAppPriceScheduleBaseTerritoryRelationship(ctx context.Context, scheduleID string) (*AppPriceScheduleBaseTerritoryLinkageResponse, error) {
-	scheduleID = strings.TrimSpace(scheduleID)
-	if scheduleID == "" {
-		return nil, fmt.Errorf("scheduleID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appPriceSchedules/%s/relationships/baseTerritory", scheduleID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPriceScheduleBaseTerritoryLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[TerritoryResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appPriceSchedules/%s/baseTerritory", scheduleID),
+		ParseErr: "failed to parse base territory response",
+	})
 }
 
 // GetAppPriceScheduleManualPrices retrieves manual prices for a schedule.
 func (c *Client) GetAppPriceScheduleManualPrices(ctx context.Context, scheduleID string, opts ...AppPriceSchedulePricesOption) (*AppPricesResponse, error) {
-	query := &appPriceSchedulePricesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	scheduleID = strings.TrimSpace(scheduleID)
 	if query.nextURL == "" && scheduleID == "" {
 		return nil, fmt.Errorf("scheduleID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appPriceSchedules/%s/manualPrices", scheduleID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPriceScheduleManualPrices: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppPriceSchedulePricesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPricesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse manual prices response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppPriceScheduleManualPricesRelationships retrieves manual price linkages for a schedule.
-func (c *Client) GetAppPriceScheduleManualPricesRelationships(ctx context.Context, scheduleID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	scheduleID = strings.TrimSpace(scheduleID)
-	if query.nextURL == "" && scheduleID == "" {
-		return nil, fmt.Errorf("scheduleID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appPriceSchedules/%s/relationships/manualPrices", scheduleID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPriceScheduleManualPricesRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPricesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appPriceSchedules/%s/manualPrices", scheduleID),
+		Query:       buildAppPriceSchedulePricesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appPriceScheduleManualPrices",
+		ParseErr:    "failed to parse manual prices response",
+	})
 }
 
 // GetAppPriceScheduleAutomaticPrices retrieves automatic prices for a schedule.
 func (c *Client) GetAppPriceScheduleAutomaticPrices(ctx context.Context, scheduleID string, opts ...AppPriceSchedulePricesOption) (*AppPricesResponse, error) {
-	query := &appPriceSchedulePricesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	scheduleID = strings.TrimSpace(scheduleID)
 	if query.nextURL == "" && scheduleID == "" {
 		return nil, fmt.Errorf("scheduleID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appPriceSchedules/%s/automaticPrices", scheduleID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPriceScheduleAutomaticPrices: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppPriceSchedulePricesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPricesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse automatic prices response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppPriceScheduleAutomaticPricesRelationships retrieves automatic price linkages for a schedule.
-func (c *Client) GetAppPriceScheduleAutomaticPricesRelationships(ctx context.Context, scheduleID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	scheduleID = strings.TrimSpace(scheduleID)
-	if query.nextURL == "" && scheduleID == "" {
-		return nil, fmt.Errorf("scheduleID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appPriceSchedules/%s/relationships/automaticPrices", scheduleID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPriceScheduleAutomaticPricesRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPricesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appPriceSchedules/%s/automaticPrices", scheduleID),
+		Query:       buildAppPriceSchedulePricesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appPriceScheduleAutomaticPrices",
+		ParseErr:    "failed to parse automatic prices response",
+	})
 }
 
 // GetAppAvailabilityV2 retrieves app availability for an app.
 func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAvailabilityV2Response, error) {
 	appID = strings.TrimSpace(appID)
-	path := fmt.Sprintf("/v1/apps/%s/appAvailabilityV2", appID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppAvailabilityV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app availability response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppAvailabilityV2Response](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/apps/%s/appAvailabilityV2", appID),
+		ParseErr: "failed to parse app availability response",
+	})
 }
 
 // GetAppAvailabilityV2ByID retrieves app availability by ID.
@@ -502,19 +226,10 @@ func (c *Client) GetAppAvailabilityV2ByID(ctx context.Context, availabilityID st
 	if availabilityID == "" {
 		return nil, fmt.Errorf("availabilityID is required")
 	}
-	path := fmt.Sprintf("/v2/appAvailabilities/%s", availabilityID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppAvailabilityV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app availability response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppAvailabilityV2Response](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v2/appAvailabilities/%s", availabilityID),
+		ParseErr: "failed to parse app availability response",
+	})
 }
 
 // GetTerritoryAvailabilities retrieves territory availabilities for an availability ID.
@@ -548,37 +263,6 @@ func (c *Client) GetTerritoryAvailabilities(ctx context.Context, availabilityID 
 	var response TerritoryAvailabilitiesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse territory availabilities response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppAvailabilityV2TerritoryAvailabilitiesRelationships retrieves territory availability linkages for an app availability.
-func (c *Client) GetAppAvailabilityV2TerritoryAvailabilitiesRelationships(ctx context.Context, availabilityID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v2/appAvailabilities/%s/relationships/territoryAvailabilities", strings.TrimSpace(availabilityID))
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appAvailabilityTerritoryAvailabilitiesRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	return &response, nil
@@ -672,22 +356,12 @@ func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attr
 		}
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v2/appAvailabilities", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppAvailabilityV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app availability response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppAvailabilityV2Response](ctx, c, writeRequest{
+		Method:   "POST",
+		Path:     "/v2/appAvailabilities",
+		Payload:  payload,
+		ParseErr: "failed to parse app availability response",
+	})
 }
 
 // UpdateTerritoryAvailability updates a territory availability.
@@ -793,20 +467,10 @@ func (c *Client) EndAppAvailabilityPreOrders(ctx context.Context, territoryAvail
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/endAppAvailabilityPreOrders", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response EndAppAvailabilityPreOrderResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse end app availability pre-order response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[EndAppAvailabilityPreOrderResponse](ctx, c, writeRequest{
+		Method:   "POST",
+		Path:     "/v1/endAppAvailabilityPreOrders",
+		Payload:  payload,
+		ParseErr: "failed to parse end app availability pre-order response",
+	})
 }

@@ -16,12 +16,32 @@ func TestBuildsInvalidInputFailsBeforeNetwork(t *testing.T) {
 		includeErr         = "Error: --include must be a comma-separated list of: preReleaseVersion, individualTesters, betaGroups, betaBuildLocalizations, appEncryptionDeclaration, betaAppReviewSubmission, app, buildBetaDetail, appStoreVersion, icons, buildBundles, buildUpload"
 	)
 
+	ipaPath := writeBuildUploadIPA(t, "com.example.demo")
+
 	tests := []struct {
 		name     string
 		args     []string
 		wantExit int
 		wantErr  string
 	}{
+		{
+			name:     "test-notes list invalid locale",
+			args:     []string{"builds", "test-notes", "list", "--build-id", "build-1", "--locale", "!!!bad!!!"},
+			wantExit: rootcmd.ExitUsage,
+			wantErr:  `Error: builds test-notes list: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
+			name:     "test-notes create invalid locale",
+			args:     []string{"builds", "test-notes", "create", "--build-id", "build-1", "--locale", "!!!bad!!!", "--whats-new", "test"},
+			wantExit: rootcmd.ExitUsage,
+			wantErr:  `Error: builds test-notes create: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
+			name:     "upload invalid test-notes locale",
+			args:     []string{"builds", "upload", "--app", "123456789", "--ipa", ipaPath, "--version", "1.0.0", "--build-number", "42", "--test-notes", "test", "--locale", "!!!bad!!!"},
+			wantExit: rootcmd.ExitUsage,
+			wantErr:  `Error: builds upload: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
 		{
 			name:     "test-notes update invalid locale",
 			args:     []string{"builds", "test-notes", "update", "--build-id", "build-1", "--locale", "!!!bad!!!", "--whats-new", "test"},

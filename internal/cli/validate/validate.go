@@ -167,7 +167,7 @@ Subscriptions:
 			if strings.TrimSpace(*platform) != "" {
 				value, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 				if err != nil {
-					return shared.WithDiagnostic(fmt.Errorf("validate: %w", err), shared.DiagnosticInvalidInput, "--platform")
+					return shared.WithDiagnostic(shared.UsageErrorf("validate: %v", err), shared.DiagnosticInvalidInput, "--platform")
 				}
 				normalizedPlatform = value
 			}

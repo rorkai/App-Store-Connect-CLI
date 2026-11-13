@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 )
 
 // BuildBundleType represents the type of build bundle.
@@ -219,104 +218,6 @@ func (c *Client) GetBuildBundleBetaAppClipInvocations(ctx context.Context, build
 	}
 
 	var response BetaAppClipInvocationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// BuildBundleAppClipDomainCacheStatusLinkageResponse is the response for App Clip domain cache status relationships.
-type BuildBundleAppClipDomainCacheStatusLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// BuildBundleAppClipDomainDebugStatusLinkageResponse is the response for App Clip domain debug status relationships.
-type BuildBundleAppClipDomainDebugStatusLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// GetBuildBundleAppClipDomainCacheStatusRelationship retrieves the app clip domain cache status linkage for a build bundle.
-func (c *Client) GetBuildBundleAppClipDomainCacheStatusRelationship(ctx context.Context, buildBundleID string) (*BuildBundleAppClipDomainCacheStatusLinkageResponse, error) {
-	buildBundleID = strings.TrimSpace(buildBundleID)
-	if buildBundleID == "" {
-		return nil, fmt.Errorf("buildBundleID is required")
-	}
-
-	path := fmt.Sprintf("/v1/buildBundles/%s/relationships/appClipDomainCacheStatus", buildBundleID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildBundleAppClipDomainCacheStatusLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetBuildBundleAppClipDomainDebugStatusRelationship retrieves the app clip domain debug status linkage for a build bundle.
-func (c *Client) GetBuildBundleAppClipDomainDebugStatusRelationship(ctx context.Context, buildBundleID string) (*BuildBundleAppClipDomainDebugStatusLinkageResponse, error) {
-	buildBundleID = strings.TrimSpace(buildBundleID)
-	if buildBundleID == "" {
-		return nil, fmt.Errorf("buildBundleID is required")
-	}
-
-	path := fmt.Sprintf("/v1/buildBundles/%s/relationships/appClipDomainDebugStatus", buildBundleID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildBundleAppClipDomainDebugStatusLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetBuildBundleBetaAppClipInvocationsRelationships retrieves beta app clip invocation linkages for a build bundle.
-func (c *Client) GetBuildBundleBetaAppClipInvocationsRelationships(ctx context.Context, buildBundleID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getBuildBundleLinkages(ctx, buildBundleID, "betaAppClipInvocations", opts...)
-}
-
-// GetBuildBundleBuildBundleFileSizesRelationships retrieves build bundle file size linkages for a build bundle.
-func (c *Client) GetBuildBundleBuildBundleFileSizesRelationships(ctx context.Context, buildBundleID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getBuildBundleLinkages(ctx, buildBundleID, "buildBundleFileSizes", opts...)
-}
-
-func (c *Client) getBuildBundleLinkages(ctx context.Context, buildBundleID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	buildBundleID = strings.TrimSpace(buildBundleID)
-	if query.nextURL == "" && buildBundleID == "" {
-		return nil, fmt.Errorf("buildBundleID is required")
-	}
-
-	path := fmt.Sprintf("/v1/buildBundles/%s/relationships/%s", buildBundleID, relationship)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("buildBundleRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

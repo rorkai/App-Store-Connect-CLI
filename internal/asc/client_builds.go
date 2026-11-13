@@ -901,41 +901,6 @@ func (c *Client) GetBuildUploadFiles(ctx context.Context, uploadID string, opts 
 	return &response, nil
 }
 
-// GetBuildUploadBuildUploadFilesRelationships retrieves build upload file linkages for a build upload.
-func (c *Client) GetBuildUploadBuildUploadFilesRelationships(ctx context.Context, uploadID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	uploadID = strings.TrimSpace(uploadID)
-	if query.nextURL == "" && uploadID == "" {
-		return nil, fmt.Errorf("uploadID is required")
-	}
-
-	path := fmt.Sprintf("/v1/buildUploads/%s/relationships/buildUploadFiles", uploadID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("buildUploadFilesRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetBuildUploadFile retrieves a build upload file by ID.
 func (c *Client) GetBuildUploadFile(ctx context.Context, id string) (*BuildUploadFileResponse, error) {
 	id = strings.TrimSpace(id)

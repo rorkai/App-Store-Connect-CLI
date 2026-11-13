@@ -32,18 +32,6 @@ type BuildPreReleaseVersionLinkageResponse struct {
 	Links Links        `json:"links"`
 }
 
-// BuildAppEncryptionDeclarationLinkageResponse is the response for build app encryption declaration relationships.
-type BuildAppEncryptionDeclarationLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// BuildBetaAppReviewSubmissionLinkageResponse is the response for build beta app review submission relationships.
-type BuildBetaAppReviewSubmissionLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
 // BuildAppEncryptionDeclarationRelationshipUpdateRequest is a request to update the appEncryptionDeclaration relationship on a build.
 type BuildAppEncryptionDeclarationRelationshipUpdateRequest struct {
 	Data ResourceData `json:"data"`
@@ -65,48 +53,6 @@ func (c *Client) GetBuildAppRelationship(ctx context.Context, buildID string) (*
 	var response BuildAppLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse app relationship response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetBuildAppEncryptionDeclarationRelationship retrieves the app encryption declaration linkage for a build.
-func (c *Client) GetBuildAppEncryptionDeclarationRelationship(ctx context.Context, buildID string) (*BuildAppEncryptionDeclarationLinkageResponse, error) {
-	buildID = strings.TrimSpace(buildID)
-	if buildID == "" {
-		return nil, fmt.Errorf("buildID is required")
-	}
-
-	path := fmt.Sprintf("/v1/builds/%s/relationships/appEncryptionDeclaration", buildID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildAppEncryptionDeclarationLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse appEncryptionDeclaration relationship response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetBuildBetaAppReviewSubmissionRelationship retrieves the beta app review submission linkage for a build.
-func (c *Client) GetBuildBetaAppReviewSubmissionRelationship(ctx context.Context, buildID string) (*BuildBetaAppReviewSubmissionLinkageResponse, error) {
-	buildID = strings.TrimSpace(buildID)
-	if buildID == "" {
-		return nil, fmt.Errorf("buildID is required")
-	}
-
-	path := fmt.Sprintf("/v1/builds/%s/relationships/betaAppReviewSubmission", buildID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildBetaAppReviewSubmissionLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse betaAppReviewSubmission relationship response: %w", err)
 	}
 
 	return &response, nil

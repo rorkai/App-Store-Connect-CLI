@@ -196,29 +196,3 @@ func (c *Client) GetAppInfoSecondarySubcategoryTwoRelationship(ctx context.Conte
 
 	return &response, nil
 }
-
-// GetAppInfoLocalizationsRelationships retrieves localization linkages for an app info.
-func (c *Client) GetAppInfoLocalizationsRelationships(ctx context.Context, appInfoID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(
-		ctx,
-		appInfoID,
-		"appInfoLocalizations",
-		"appInfoID",
-		"/v1/appInfos/%s/relationships/%s",
-		"appInfoLocalizationsRelationships",
-		opts...,
-	)
-}
-
-// GetAppInfoTerritoryAgeRatingsRelationships retrieves territory age rating linkages.
-func (c *Client) GetAppInfoTerritoryAgeRatingsRelationships(ctx context.Context, appInfoID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(
-		ctx,
-		appInfoID,
-		"territoryAgeRatings",
-		"appInfoID",
-		"/v1/appInfos/%s/relationships/%s",
-		"territoryAgeRatingsRelationships",
-		opts...,
-	)
-}

@@ -95,7 +95,7 @@ Examples:
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return fmt.Errorf("builds uploads list: %w", err)
+				return shared.UsageErrorf("builds uploads list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

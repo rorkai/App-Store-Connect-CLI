@@ -144,6 +144,16 @@ func TestSubscriptionsInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "subscriptions offers win-back links: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "offers win-back create invalid duration",
+			args:    []string{"subscriptions", "offers", "win-back", "create", "--subscription-id", "s", "--reference-name", "r", "--offer-id", "o", "--duration", "bad"},
+			wantErr: "subscriptions offers win-back create: --duration must be one of: THREE_DAYS, ONE_WEEK, TWO_WEEKS, ONE_MONTH, TWO_MONTHS, THREE_MONTHS, SIX_MONTHS, ONE_YEAR",
+		},
+		{
+			name:    "offers win-back update negative eligibility-paid-months",
+			args:    []string{"subscriptions", "offers", "win-back", "update", "--id", "o", "--eligibility-paid-months", "-1"},
+			wantErr: "subscriptions offers win-back update: --eligibility-paid-months must be 0 or greater",
+		},
+		{
 			name:    "offers offer-codes one-time-codes update missing batch id",
 			args:    []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "update", "--active", "false"},
 			wantErr: "--batch-id is required",

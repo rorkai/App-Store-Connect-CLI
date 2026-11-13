@@ -118,7 +118,9 @@ func serializeCookieJar(jar http.CookieJar, userEmail string) persistedSession {
 }
 
 func writeSessionToKeychain(key string, sess persistedSession) error {
-	return writeMergedSessionToKeychain(key, sess, nil)
+	return withSessionStoreLock(func() error {
+		return writeSessionToKeychainUnlocked(key, sess, keychainSessionWrite{})
+	})
 }
 
 func persistSessionBySelection(selection backendSelection, key string, sess persistedSession) error {
@@ -540,6 +542,9 @@ func TestTryResumeSessionKeychainBackendFallsBackToFileAndPersistsKeychain(t *te
 	if !ok || resumed == nil {
 		t.Fatal("expected resumed file-backed session")
 	}
+	if resumed.cachedSource != CachedSessionSourceFile {
+		t.Fatalf("cached source = %v, want file", resumed.cachedSource)
+	}
 
 	if _, ok, err := readSessionFromKeychain(key); err != nil {
 		t.Fatalf("readSessionFromKeychain error: %v", err)
@@ -575,6 +580,9 @@ func TestTryResumeLastSessionKeychainBackendFallsBackToFileAndPersistsKeychain(t
 	}
 	if !ok || resumed == nil {
 		t.Fatal("expected resumed last session from file fallback")
+	}
+	if resumed.cachedSource != CachedSessionSourceFile {
+		t.Fatalf("cached source = %v, want file", resumed.cachedSource)
 	}
 
 	if _, ok, err := readSessionFromKeychain(key); err != nil {
@@ -1711,7 +1719,7 @@ func TestTryResumeSessionPersistsRefreshedCookies(t *testing.T) {
 	}
 
 	selection := resolveBackendSelection()
-	stored, ok, err := readSessionBySelection(selection, webSessionCacheKey("user@example.com"))
+	stored, _, ok, err := readSessionBySelection(selection, webSessionCacheKey("user@example.com"))
 	if err != nil {
 		t.Fatalf("readSessionBySelection error: %v", err)
 	}
@@ -2536,7 +2544,7 @@ func TestTryResumeSessionPreservesNormalizedCookieDeadline(t *testing.T) {
 	if resumed, ok, err := TryResumeSession(context.Background(), sess.UserEmail); err != nil || !ok || resumed == nil {
 		t.Fatalf("TryResumeSession() = (%v, %t, %v), want resumed session", resumed, ok, err)
 	}
-	stored, ok, err := readSessionBySelection(resolveBackendSelection(), key)
+	stored, _, ok, err := readSessionBySelection(resolveBackendSelection(), key)
 	if err != nil || !ok {
 		t.Fatalf("readSessionBySelection() = (%t, %v), want stored session", ok, err)
 	}
@@ -2586,7 +2594,7 @@ func TestTryResumeSessionPersistsSameValueCookieRenewalDeadline(t *testing.T) {
 	if resumed, ok, err := TryResumeSession(context.Background(), sess.UserEmail); err != nil || !ok || resumed == nil {
 		t.Fatalf("TryResumeSession() = (%v, %t, %v), want resumed session", resumed, ok, err)
 	}
-	stored, ok, err := readSessionBySelection(resolveBackendSelection(), key)
+	stored, _, ok, err := readSessionBySelection(resolveBackendSelection(), key)
 	if err != nil || !ok {
 		t.Fatalf("readSessionBySelection() = (%t, %v), want stored session", ok, err)
 	}
@@ -2645,7 +2653,7 @@ func TestTryResumeLastSessionPersistsRefreshedCookies(t *testing.T) {
 	}
 
 	selection := resolveBackendSelection()
-	stored, ok, err := readSessionBySelection(selection, webSessionCacheKey("user@example.com"))
+	stored, _, ok, err := readSessionBySelection(selection, webSessionCacheKey("user@example.com"))
 	if err != nil {
 		t.Fatalf("readSessionBySelection error: %v", err)
 	}
@@ -2673,7 +2681,7 @@ func TestReadSessionBySelectionKeychainBackendIgnoresBrokenFileMirror(t *testing
 		t.Fatalf("write malformed file mirror: %v", err)
 	}
 
-	_, ok, err := readSessionBySelection(resolveBackendSelection(), key)
+	_, _, ok, err := readSessionBySelection(resolveBackendSelection(), key)
 	if err != nil {
 		t.Fatalf("expected broken file mirror to be ignored in keychain mode, got %v", err)
 	}
@@ -2696,7 +2704,7 @@ func TestReadLastSessionBySelectionKeychainBackendIgnoresBrokenFileMirror(t *tes
 		t.Fatalf("write malformed last marker: %v", err)
 	}
 
-	_, ok, err := readLastSessionBySelection(resolveBackendSelection())
+	_, _, _, ok, err := readLastSessionBySelection(resolveBackendSelection())
 	if err != nil {
 		t.Fatalf("expected broken last-session mirror to be ignored in keychain mode, got %v", err)
 	}

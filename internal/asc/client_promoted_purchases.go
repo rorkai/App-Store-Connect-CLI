@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -10,64 +9,15 @@ import (
 
 // GetAppPromotedPurchases retrieves promoted purchases for an app.
 func (c *Client) GetAppPromotedPurchases(ctx context.Context, appID string, opts ...PromotedPurchasesOption) (*PromotedPurchasesResponse, error) {
-	query := &promotedPurchasesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	appID = strings.TrimSpace(appID)
-	path := fmt.Sprintf("/v1/apps/%s/promotedPurchases", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("promotedPurchases: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildPromotedPurchasesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response PromotedPurchasesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse promoted purchases response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppPromotedPurchasesRelationships retrieves promoted purchase linkages for an app.
-func (c *Client) GetAppPromotedPurchasesRelationships(ctx context.Context, appID string, opts ...LinkagesOption) (*AppPromotedPurchasesLinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	appID = strings.TrimSpace(appID)
-	path := fmt.Sprintf("/v1/apps/%s/relationships/promotedPurchases", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("promotedPurchasesRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPromotedPurchasesLinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse promoted purchase relationships response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[PromotedPurchasesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/promotedPurchases", appID),
+		Query:       buildPromotedPurchasesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "promotedPurchases",
+		ParseErr:    "failed to parse promoted purchases response",
+	})
 }
 
 // SetAppPromotedPurchases replaces promoted purchases for an app.
@@ -88,38 +38,18 @@ func (c *Client) SetAppPromotedPurchases(ctx context.Context, appID string, prom
 		})
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/relationships/promotedPurchases", appID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/apps/%s/relationships/promotedPurchases", appID), payload)
 }
 
 // GetPromotedPurchase retrieves a promoted purchase by ID.
 func (c *Client) GetPromotedPurchase(ctx context.Context, promotedPurchaseID string, opts ...PromotedPurchaseGetOption) (*PromotedPurchaseResponse, error) {
 	promotedPurchaseID = strings.TrimSpace(promotedPurchaseID)
-	query := &promotedPurchaseGetQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v1/promotedPurchases/%s", promotedPurchaseID)
-	if queryString := buildPromotedPurchaseGetQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response PromotedPurchaseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse promoted purchase response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[PromotedPurchaseResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/promotedPurchases/%s", promotedPurchaseID),
+		Query:    buildPromotedPurchaseGetQuery(query),
+		ParseErr: "failed to parse promoted purchase response",
+	})
 }
 
 // CreatePromotedPurchase creates a new promoted purchase.
@@ -131,22 +61,12 @@ func (c *Client) CreatePromotedPurchase(ctx context.Context, attrs PromotedPurch
 			Relationships: relationships,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/promotedPurchases", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response PromotedPurchaseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse promoted purchase response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[PromotedPurchaseResponse](ctx, c, writeRequest{
+		Method:   http.MethodPost,
+		Path:     "/v1/promotedPurchases",
+		Payload:  payload,
+		ParseErr: "failed to parse promoted purchase response",
+	})
 }
 
 // UpdatePromotedPurchase updates a promoted purchase by ID.
@@ -159,27 +79,15 @@ func (c *Client) UpdatePromotedPurchase(ctx context.Context, promotedPurchaseID 
 			Attributes: &attrs,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/promotedPurchases/%s", promotedPurchaseID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response PromotedPurchaseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse promoted purchase response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[PromotedPurchaseResponse](ctx, c, writeRequest{
+		Method:   http.MethodPatch,
+		Path:     fmt.Sprintf("/v1/promotedPurchases/%s", promotedPurchaseID),
+		Payload:  payload,
+		ParseErr: "failed to parse promoted purchase response",
+	})
 }
 
 // DeletePromotedPurchase deletes a promoted purchase by ID.
 func (c *Client) DeletePromotedPurchase(ctx context.Context, promotedPurchaseID string) error {
-	path := fmt.Sprintf("/v1/promotedPurchases/%s", strings.TrimSpace(promotedPurchaseID))
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/promotedPurchases/%s", strings.TrimSpace(promotedPurchaseID)), nil)
 }

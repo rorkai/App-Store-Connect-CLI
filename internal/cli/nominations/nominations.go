@@ -102,7 +102,7 @@ Examples:
 
 			statusValues, err := normalizeNominationStates(shared.SplitCSVUpper(*status))
 			if err != nil {
-				return fmt.Errorf("nominations list: %w", err)
+				return shared.UsageErrorf("nominations list: %v", err)
 			}
 			if len(statusValues) == 0 && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --status is required")
@@ -111,17 +111,17 @@ Examples:
 
 			typeValues, err := normalizeNominationTypes(shared.SplitCSVUpper(*nomType))
 			if err != nil {
-				return fmt.Errorf("nominations list: %w", err)
+				return shared.UsageErrorf("nominations list: %v", err)
 			}
 
 			fieldsValue, err := normalizeNominationFields(*fields)
 			if err != nil {
-				return fmt.Errorf("nominations list: %w", err)
+				return shared.UsageErrorf("nominations list: %v", err)
 			}
 
 			includeValues, err := normalizeNominationInclude(*include)
 			if err != nil {
-				return fmt.Errorf("nominations list: %w", err)
+				return shared.UsageErrorf("nominations list: %v", err)
 			}
 			included, err := includedFields.Resolve("nominations list", *next, includeValues)
 			if err != nil {
@@ -245,12 +245,12 @@ Examples:
 
 			fieldsValue, err := normalizeNominationFields(*fields)
 			if err != nil {
-				return fmt.Errorf("nominations view: %w", err)
+				return shared.UsageErrorf("nominations view: %v", err)
 			}
 
 			includeValues, err := normalizeNominationInclude(*include)
 			if err != nil {
-				return fmt.Errorf("nominations view: %w", err)
+				return shared.UsageErrorf("nominations view: %v", err)
 			}
 			included, err := includedFields.Resolve("nominations view", "", includeValues)
 			if err != nil {
@@ -590,21 +590,21 @@ Examples:
 						return flag.ErrHelp
 					}
 					if len(deviceFamilyValues) == 0 {
-						return fmt.Errorf("nominations update: --device-families is required")
+						return shared.UsageError("nominations update: --device-families is required")
 					}
 					attrsValue.DeviceFamilies = normalizeNominationDeviceFamilyAttributes(deviceFamilyValues)
 				}
 				if visited["locales"] {
 					localesValue := shared.SplitCSV(locales.String())
 					if len(localesValue) == 0 {
-						return fmt.Errorf("nominations update: --locales is required")
+						return shared.UsageError("nominations update: --locales is required")
 					}
 					attrsValue.Locales = localesValue
 				}
 				if visited["supplemental-materials-uris"] {
 					supplementalValue := shared.SplitCSV(supplementalMaterialsURIs.String())
 					if len(supplementalValue) == 0 {
-						return fmt.Errorf("nominations update: --supplemental-materials-uris is required")
+						return shared.UsageError("nominations update: --supplemental-materials-uris is required")
 					}
 					attrsValue.SupplementalMaterialsURIs = supplementalValue
 				}
@@ -633,21 +633,21 @@ Examples:
 				if visited["app"] {
 					appValues := shared.SplitCSV(appIDs.String())
 					if len(appValues) == 0 {
-						return fmt.Errorf("nominations update: --app is required")
+						return shared.UsageError("nominations update: --app is required")
 					}
 					relationshipValue.RelatedApps = buildNominationRelationshipList(asc.ResourceTypeApps, appValues)
 				}
 				if visited["in-app-events"] {
 					eventValues := shared.SplitCSV(inAppEvents.String())
 					if len(eventValues) == 0 {
-						return fmt.Errorf("nominations update: --in-app-events is required")
+						return shared.UsageError("nominations update: --in-app-events is required")
 					}
 					relationshipValue.InAppEvents = buildNominationRelationshipList(asc.ResourceTypeAppEvents, eventValues)
 				}
 				if visited["supported-territories"] {
 					territoryValues := shared.SplitCSV(supportedTerritories.String())
 					if len(territoryValues) == 0 {
-						return fmt.Errorf("nominations update: --supported-territories is required")
+						return shared.UsageError("nominations update: --supported-territories is required")
 					}
 					relationshipValue.SupportedTerritories = buildNominationRelationshipList(asc.ResourceTypeTerritories, territoryValues)
 				}

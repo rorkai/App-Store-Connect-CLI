@@ -57,9 +57,9 @@ func BenchmarkCollectXCConfigFilesDeepIncludeChain(b *testing.B) {
 		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
 			b.ReportAllocs()
 			for range b.N {
-				files, err := collectXCConfigFilesWithHooksAndIdentity(root, read, identify)
+				files, err := collectXCConfigFiles(root, xcconfigCollectOptions{read: read, identify: identify})
 				if err != nil {
-					b.Fatalf("collectXCConfigFilesWithHooksAndIdentity() error = %v", err)
+					b.Fatalf("collectXCConfigFiles() error = %v", err)
 				}
 				if len(files) != depth {
 					b.Fatalf("files = %d, want %d", len(files), depth)
@@ -75,11 +75,9 @@ func BenchmarkResolveXCConfigSettingDeepIncludeChain(b *testing.B) {
 		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
 			b.ReportAllocs()
 			for range b.N {
-				resolved, _, err := resolveXCConfigSettingStateWithReaderAndIdentity(
-					root, "CODE_SIGN_STYLE", xcconfigResolvedValue{}, read, stat, stat, nil, nil,
-				)
+				resolved, _, err := resolveXCConfigSettingState(root, "CODE_SIGN_STYLE", xcconfigResolveOptions{read: read, stat: stat, identify: stat})
 				if err != nil {
-					b.Fatalf("resolveXCConfigSettingStateWithReaderAndIdentity() error = %v", err)
+					b.Fatalf("resolveXCConfigSettingState() error = %v", err)
 				}
 				if resolved.value != "Manual" {
 					b.Fatalf("resolved value = %q, want Manual", resolved.value)

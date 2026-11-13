@@ -2,58 +2,10 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 )
-
-// GameCenterLeaderboardSetGroupLeaderboardSetLinkageResponse is the response for groupLeaderboardSet relationships.
-type GameCenterLeaderboardSetGroupLeaderboardSetLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// GameCenterLeaderboardGroupLeaderboardLinkageResponse is the response for groupLeaderboard relationships.
-type GameCenterLeaderboardGroupLeaderboardLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// GetGameCenterLeaderboardSetMembersRelationships retrieves leaderboard linkages for a leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetMembersRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getGameCenterLeaderboardSetLinkages(ctx, setID, "gameCenterLeaderboards", opts...)
-}
-
-// GetGameCenterLeaderboardSetGroupLeaderboardSetRelationship retrieves the group leaderboard set linkage for a leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetGroupLeaderboardSetRelationship(ctx context.Context, setID string) (*GameCenterLeaderboardSetGroupLeaderboardSetLinkageResponse, error) {
-	setID = strings.TrimSpace(setID)
-	if setID == "" {
-		return nil, fmt.Errorf("setID is required")
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/groupLeaderboardSet", setID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterLeaderboardSetGroupLeaderboardSetLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse groupLeaderboardSet relationship response: %w", err)
-	}
-	return &response, nil
-}
-
-// GetGameCenterLeaderboardSetLocalizationsRelationships retrieves localization linkages for a leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetLocalizationsRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getGameCenterLeaderboardSetLinkages(ctx, setID, "localizations", opts...)
-}
-
-// GetGameCenterLeaderboardSetReleasesRelationships retrieves release linkages for a leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetReleasesRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getGameCenterLeaderboardSetLinkages(ctx, setID, "releases", opts...)
-}
 
 // AddGameCenterLeaderboardSetMembers adds leaderboards to a leaderboard set.
 func (c *Client) AddGameCenterLeaderboardSetMembers(ctx context.Context, setID string, leaderboardIDs []string) error {
@@ -69,14 +21,7 @@ func (c *Client) AddGameCenterLeaderboardSetMembers(ctx context.Context, setID s
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID)
-	_, err = c.do(ctx, http.MethodPost, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID), payload)
 }
 
 // RemoveGameCenterLeaderboardSetMembers removes leaderboards from a leaderboard set.
@@ -93,14 +38,7 @@ func (c *Client) RemoveGameCenterLeaderboardSetMembers(ctx context.Context, setI
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID)
-	_, err = c.do(ctx, http.MethodDelete, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID), payload)
 }
 
 // UpdateGameCenterLeaderboardSetGroupLeaderboardSetRelationship updates the groupLeaderboardSet relationship on a leaderboard set.
@@ -122,44 +60,7 @@ func (c *Client) UpdateGameCenterLeaderboardSetGroupLeaderboardSetRelationship(c
 			ID:   groupSetID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/groupLeaderboardSet", setID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
-}
-
-// GetGameCenterLeaderboardGroupLeaderboardRelationship retrieves the group leaderboard linkage for a leaderboard.
-func (c *Client) GetGameCenterLeaderboardGroupLeaderboardRelationship(ctx context.Context, leaderboardID string) (*GameCenterLeaderboardGroupLeaderboardLinkageResponse, error) {
-	leaderboardID = strings.TrimSpace(leaderboardID)
-	if leaderboardID == "" {
-		return nil, fmt.Errorf("leaderboardID is required")
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/groupLeaderboard", leaderboardID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterLeaderboardGroupLeaderboardLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse groupLeaderboard relationship response: %w", err)
-	}
-	return &response, nil
-}
-
-// GetGameCenterLeaderboardLocalizationsRelationships retrieves localization linkages for a leaderboard.
-func (c *Client) GetGameCenterLeaderboardLocalizationsRelationships(ctx context.Context, leaderboardID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getGameCenterLeaderboardLinkages(ctx, leaderboardID, "localizations", opts...)
-}
-
-// GetGameCenterLeaderboardReleasesRelationships retrieves release linkages for a leaderboard.
-func (c *Client) GetGameCenterLeaderboardReleasesRelationships(ctx context.Context, leaderboardID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getGameCenterLeaderboardLinkages(ctx, leaderboardID, "releases", opts...)
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/groupLeaderboardSet", setID), payload)
 }
 
 // UpdateGameCenterLeaderboardActivityRelationship updates the activity relationship on a leaderboard.
@@ -181,14 +82,7 @@ func (c *Client) UpdateGameCenterLeaderboardActivityRelationship(ctx context.Con
 			ID:   activityID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/activity", leaderboardID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/activity", leaderboardID), payload)
 }
 
 // UpdateGameCenterLeaderboardChallengeRelationship updates the challenge relationship on a leaderboard.
@@ -210,14 +104,7 @@ func (c *Client) UpdateGameCenterLeaderboardChallengeRelationship(ctx context.Co
 			ID:   challengeID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/challenge", leaderboardID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/challenge", leaderboardID), payload)
 }
 
 // UpdateGameCenterLeaderboardGroupLeaderboardRelationship updates the groupLeaderboard relationship on a leaderboard.
@@ -239,36 +126,5 @@ func (c *Client) UpdateGameCenterLeaderboardGroupLeaderboardRelationship(ctx con
 			ID:   groupLeaderboardID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/groupLeaderboard", leaderboardID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
-}
-
-func (c *Client) getGameCenterLeaderboardSetLinkages(ctx context.Context, setID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(
-		ctx,
-		setID,
-		relationship,
-		"setID",
-		"/v1/gameCenterLeaderboardSets/%s/relationships/%s",
-		"gameCenterLeaderboardSetRelationships",
-		opts...,
-	)
-}
-
-func (c *Client) getGameCenterLeaderboardLinkages(ctx context.Context, leaderboardID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(
-		ctx,
-		leaderboardID,
-		relationship,
-		"leaderboardID",
-		"/v1/gameCenterLeaderboards/%s/relationships/%s",
-		"gameCenterLeaderboardRelationships",
-		opts...,
-	)
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/groupLeaderboard", leaderboardID), payload)
 }

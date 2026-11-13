@@ -82,33 +82,6 @@ func (c *Client) GetBetaFeedbackCrashSubmissionCrashLog(ctx context.Context, sub
 	return &response, nil
 }
 
-// BetaFeedbackCrashSubmissionCrashLogLinkageResponse is the response for crash log relationships.
-type BetaFeedbackCrashSubmissionCrashLogLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// GetBetaFeedbackCrashSubmissionCrashLogRelationship retrieves the crash log linkage for a crash submission.
-func (c *Client) GetBetaFeedbackCrashSubmissionCrashLogRelationship(ctx context.Context, submissionID string) (*BetaFeedbackCrashSubmissionCrashLogLinkageResponse, error) {
-	submissionID = strings.TrimSpace(submissionID)
-	if submissionID == "" {
-		return nil, fmt.Errorf("submissionID is required")
-	}
-
-	path := fmt.Sprintf("/v1/betaFeedbackCrashSubmissions/%s/relationships/crashLog", submissionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaFeedbackCrashSubmissionCrashLogLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetBetaFeedbackScreenshotSubmission retrieves a beta feedback screenshot submission by ID.
 func (c *Client) GetBetaFeedbackScreenshotSubmission(ctx context.Context, submissionID string) (*BetaFeedbackScreenshotSubmissionResponse, error) {
 	submissionID = strings.TrimSpace(submissionID)

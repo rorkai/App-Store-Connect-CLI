@@ -55,7 +55,7 @@ Examples:
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
-				return fmt.Errorf("app-events submit: %w", err)
+				return shared.UsageErrorf("app-events submit: %v", err)
 			}
 
 			client, err := appEventsClientFactory()

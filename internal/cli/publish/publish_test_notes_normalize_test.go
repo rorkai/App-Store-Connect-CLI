@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -17,48 +16,20 @@ import (
 // body carries the normalized text and that the retry payload stores what was
 // submitted, so a retry cannot resubmit the characters Apple rejected.
 func TestPublishTestFlightNormalizesTestNotesAndRecoveryPayload(t *testing.T) {
-	restore := overridePublishCommandTestHooks(t)
-	defer restore()
+	stubPublishCommandSeams(t)
 
 	const (
 		rejectedNotes   = "Cafe\u0301 <b q\u0301"
 		normalizedNotes = "Café b q"
 	)
 
-	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
-	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
-		return "app-123", nil
-	}
-	validatePublishIPAPathFn = func(string) (os.FileInfo, error) {
-		return newPublishTestFileInfo(t)
-	}
-	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
-		return &publishUploadResult{
-			Build: &asc.BuildResponse{Data: asc.Resource[asc.BuildAttributes]{
-				ID: "build-123",
-				Attributes: asc.BuildAttributes{
-					Version:         buildNumber,
-					ProcessingState: asc.BuildProcessingStateProcessing,
-				},
-			}},
-			Version:     version,
-			BuildNumber: buildNumber,
-		}, nil
-	}
+	stubPublishIPAUpload(asc.BuildProcessingStateProcessing)
 	waitForPublishBuildProcessingFn = func(context.Context, *asc.Client, string, time.Duration) (*asc.BuildResponse, error) {
-		return &asc.BuildResponse{Data: asc.Resource[asc.BuildAttributes]{
-			ID: "build-123",
-			Attributes: asc.BuildAttributes{
-				Version:         "42",
-				ProcessingState: asc.BuildProcessingStateValid,
-			},
-		}}, nil
+		return publishUploadOnlyResult("1.2.3", "42", asc.BuildProcessingStateValid).Build, nil
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	payload := ""
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && strings.Contains(req.URL.Path, "betaGroups"):
 			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`)
@@ -79,7 +50,7 @@ func TestPublishTestFlightNormalizesTestNotesAndRecoveryPayload(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	})
+	}))
 
 	cmd := PublishTestFlightCommand()
 	cmd.FlagSet.SetOutput(io.Discard)
