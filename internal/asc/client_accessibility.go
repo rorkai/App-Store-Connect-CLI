@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -10,53 +9,19 @@ import (
 
 // GetAccessibilityDeclarations retrieves accessibility declarations for an app.
 func (c *Client) GetAccessibilityDeclarations(ctx context.Context, appID string, opts ...AccessibilityDeclarationsOption) (*AccessibilityDeclarationsResponse, error) {
-	query := &accessibilityDeclarationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/accessibilityDeclarations", strings.TrimSpace(appID))
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("accessibility-declarations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAccessibilityDeclarationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AccessibilityDeclarationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AccessibilityDeclarationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/accessibilityDeclarations", strings.TrimSpace(appID)),
+		Query:       buildAccessibilityDeclarationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "accessibility-declarations",
+	})
 }
 
 // GetAccessibilityDeclaration retrieves a single accessibility declaration by ID.
 func (c *Client) GetAccessibilityDeclaration(ctx context.Context, declarationID string, fields []string) (*AccessibilityDeclarationResponse, error) {
 	declarationID = strings.TrimSpace(declarationID)
-	path := fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID)
-	if queryString := buildAccessibilityDeclarationsFieldsQuery(fields); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AccessibilityDeclarationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AccessibilityDeclarationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID), Query: buildAccessibilityDeclarationsFieldsQuery(fields)})
 }
 
 // CreateAccessibilityDeclaration creates a new accessibility declaration.
@@ -76,22 +41,7 @@ func (c *Client) CreateAccessibilityDeclaration(ctx context.Context, appID strin
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/accessibilityDeclarations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AccessibilityDeclarationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AccessibilityDeclarationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/accessibilityDeclarations", Payload: payload})
 }
 
 // UpdateAccessibilityDeclaration updates an accessibility declaration by ID.
@@ -107,29 +57,12 @@ func (c *Client) UpdateAccessibilityDeclaration(ctx context.Context, declaration
 		payload.Data.Attributes = &attrs
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AccessibilityDeclarationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AccessibilityDeclarationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID), Payload: payload})
 }
 
 // DeleteAccessibilityDeclaration deletes an accessibility declaration by ID.
 func (c *Client) DeleteAccessibilityDeclaration(ctx context.Context, declarationID string) error {
-	path := fmt.Sprintf("/v1/accessibilityDeclarations/%s", strings.TrimSpace(declarationID))
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/accessibilityDeclarations/%s", strings.TrimSpace(declarationID)), nil)
 }
 
 // HasAccessibilityDeclarationUpdates reports whether any update attributes are set.

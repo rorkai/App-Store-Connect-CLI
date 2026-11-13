@@ -618,37 +618,19 @@ type BetaAppClipInvocationLocalizationDeleteResult struct {
 
 // GetAppClips retrieves App Clips for an app.
 func (c *Client) GetAppClips(ctx context.Context, appID string, opts ...AppClipsOption) (*AppClipsResponse, error) {
-	query := &appClipsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	appID = strings.TrimSpace(appID)
 	if appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
 
-	path := fmt.Sprintf("/v1/apps/%s/appClips", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appClips: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppClipsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appClips", appID),
+		Query:       buildAppClipsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appClips",
+	})
 }
 
 // GetAppClip retrieves an App Clip by ID.
@@ -658,144 +640,62 @@ func (c *Client) GetAppClip(ctx context.Context, appClipID string) (*AppClipResp
 		return nil, fmt.Errorf("appClipID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClips/%s", appClipID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClips/%s", appClipID)})
 }
 
 // GetAppClipDefaultExperiences retrieves default experiences for an App Clip.
 func (c *Client) GetAppClipDefaultExperiences(ctx context.Context, appClipID string, opts ...AppClipDefaultExperiencesOption) (*AppClipDefaultExperiencesResponse, error) {
-	query := &appClipDefaultExperiencesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	appClipID = strings.TrimSpace(appClipID)
 	if appClipID == "" {
 		return nil, fmt.Errorf("appClipID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClips/%s/appClipDefaultExperiences", appClipID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appClipDefaultExperiences: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppClipDefaultExperiencesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperiencesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipDefaultExperiencesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appClips/%s/appClipDefaultExperiences", appClipID),
+		Query:       buildAppClipDefaultExperiencesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appClipDefaultExperiences",
+	})
 }
 
 // GetAppClipDefaultExperiencesRelationships retrieves default experience linkages for an App Clip.
 func (c *Client) GetAppClipDefaultExperiencesRelationships(ctx context.Context, appClipID string, opts ...LinkagesOption) (*AppClipDefaultExperiencesLinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	appClipID = strings.TrimSpace(appClipID)
-	path := fmt.Sprintf("/v1/appClips/%s/relationships/appClipDefaultExperiences", appClipID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appClipDefaultExperiencesRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperiencesLinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipDefaultExperiencesLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appClips/%s/relationships/appClipDefaultExperiences", appClipID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appClipDefaultExperiencesRelationships",
+	})
 }
 
 // GetAppClipAdvancedExperiencesRelationships retrieves advanced experience linkages for an App Clip.
 func (c *Client) GetAppClipAdvancedExperiencesRelationships(ctx context.Context, appClipID string, opts ...LinkagesOption) (*AppClipAdvancedExperiencesLinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	appClipID = strings.TrimSpace(appClipID)
-	path := fmt.Sprintf("/v1/appClips/%s/relationships/appClipAdvancedExperiences", appClipID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appClipAdvancedExperiencesRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAdvancedExperiencesLinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipAdvancedExperiencesLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appClips/%s/relationships/appClipAdvancedExperiences", appClipID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appClipAdvancedExperiencesRelationships",
+	})
 }
 
 // GetAppClipDefaultExperience retrieves a default experience by ID.
 func (c *Client) GetAppClipDefaultExperience(ctx context.Context, experienceID string, opts ...AppClipDefaultExperienceOption) (*AppClipDefaultExperienceResponse, error) {
-	query := &appClipDefaultExperienceQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	experienceID = strings.TrimSpace(experienceID)
 	if experienceID == "" {
 		return nil, fmt.Errorf("experienceID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID)
-	if queryString := buildAppClipDefaultExperienceQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperienceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipDefaultExperienceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID), Query: buildAppClipDefaultExperienceQuery(query)})
 }
 
 // GetAppClipDefaultExperienceReviewDetail retrieves review detail for a default experience.
@@ -805,18 +705,7 @@ func (c *Client) GetAppClipDefaultExperienceReviewDetail(ctx context.Context, ex
 		return nil, fmt.Errorf("experienceID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s/appClipAppStoreReviewDetail", experienceID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAppStoreReviewDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipAppStoreReviewDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s/appClipAppStoreReviewDetail", experienceID)})
 }
 
 // GetAppClipDefaultExperienceReleaseWithAppStoreVersion retrieves the release version for a default experience.
@@ -826,52 +715,19 @@ func (c *Client) GetAppClipDefaultExperienceReleaseWithAppStoreVersion(ctx conte
 		return nil, fmt.Errorf("experienceID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s/releaseWithAppStoreVersion", experienceID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s/releaseWithAppStoreVersion", experienceID)})
 }
 
 // GetAppClipDefaultExperienceReviewDetailRelationship retrieves the review detail linkage for a default experience.
 func (c *Client) GetAppClipDefaultExperienceReviewDetailRelationship(ctx context.Context, experienceID string) (*AppClipDefaultExperienceReviewDetailLinkageResponse, error) {
 	experienceID = strings.TrimSpace(experienceID)
-	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/appClipAppStoreReviewDetail", experienceID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperienceReviewDetailLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipDefaultExperienceReviewDetailLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/appClipAppStoreReviewDetail", experienceID)})
 }
 
 // GetAppClipDefaultExperienceReleaseWithAppStoreVersionRelationship retrieves releaseWithAppStoreVersion linkage.
 func (c *Client) GetAppClipDefaultExperienceReleaseWithAppStoreVersionRelationship(ctx context.Context, experienceID string) (*AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse, error) {
 	experienceID = strings.TrimSpace(experienceID)
-	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/releaseWithAppStoreVersion", experienceID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/releaseWithAppStoreVersion", experienceID)})
 }
 
 // UpdateAppClipDefaultExperienceReleaseWithAppStoreVersionRelationship updates the releaseWithAppStoreVersion relationship.
@@ -891,14 +747,7 @@ func (c *Client) UpdateAppClipDefaultExperienceReleaseWithAppStoreVersionRelatio
 			ID:   versionID,
 		},
 	}
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/releaseWithAppStoreVersion", experienceID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/releaseWithAppStoreVersion", experienceID), request)
 }
 
 // CreateAppClipDefaultExperience creates a default experience for an App Clip.
@@ -943,22 +792,7 @@ func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID s
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appClipDefaultExperiences", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperienceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipDefaultExperiences", Payload: payload})
 }
 
 // UpdateAppClipDefaultExperience updates a default experience.
@@ -990,23 +824,7 @@ func (c *Client) UpdateAppClipDefaultExperience(ctx context.Context, experienceI
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperienceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID), Payload: payload})
 }
 
 // DeleteAppClipDefaultExperience deletes a default experience by ID.
@@ -1015,44 +833,24 @@ func (c *Client) DeleteAppClipDefaultExperience(ctx context.Context, experienceI
 	if experienceID == "" {
 		return fmt.Errorf("experienceID is required")
 	}
-	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID)
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID), nil)
 }
 
 // GetAppClipDefaultExperienceLocalizations retrieves localizations for a default experience.
 func (c *Client) GetAppClipDefaultExperienceLocalizations(ctx context.Context, experienceID string, opts ...AppClipDefaultExperienceLocalizationsOption) (*AppClipDefaultExperienceLocalizationsResponse, error) {
-	query := &appClipDefaultExperienceLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	experienceID = strings.TrimSpace(experienceID)
 	if experienceID == "" {
 		return nil, fmt.Errorf("experienceID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s/appClipDefaultExperienceLocalizations", experienceID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appClipDefaultExperienceLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppClipDefaultExperienceLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperienceLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipDefaultExperienceLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appClipDefaultExperiences/%s/appClipDefaultExperienceLocalizations", experienceID),
+		Query:       buildAppClipDefaultExperienceLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appClipDefaultExperienceLocalizations",
+	})
 }
 
 // GetAppClipDefaultExperienceLocalization retrieves a localization by ID.
@@ -1062,18 +860,7 @@ func (c *Client) GetAppClipDefaultExperienceLocalization(ctx context.Context, lo
 		return nil, fmt.Errorf("localizationID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperienceLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID)})
 }
 
 // GetAppClipDefaultExperienceLocalizationHeaderImage retrieves the header image for a localization.
@@ -1083,35 +870,13 @@ func (c *Client) GetAppClipDefaultExperienceLocalizationHeaderImage(ctx context.
 		return nil, fmt.Errorf("localizationID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s/appClipHeaderImage", localizationID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipHeaderImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipHeaderImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s/appClipHeaderImage", localizationID)})
 }
 
 // GetAppClipDefaultExperienceLocalizationHeaderImageRelationship retrieves header image linkage for a localization.
 func (c *Client) GetAppClipDefaultExperienceLocalizationHeaderImageRelationship(ctx context.Context, localizationID string) (*AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
-	path := fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s/relationships/appClipHeaderImage", localizationID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s/relationships/appClipHeaderImage", localizationID)})
 }
 
 // CreateAppClipDefaultExperienceLocalization creates a localization.
@@ -1136,22 +901,7 @@ func (c *Client) CreateAppClipDefaultExperienceLocalization(ctx context.Context,
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appClipDefaultExperienceLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperienceLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipDefaultExperienceLocalizations", Payload: payload})
 }
 
 // UpdateAppClipDefaultExperienceLocalization updates a localization.
@@ -1169,23 +919,7 @@ func (c *Client) UpdateAppClipDefaultExperienceLocalization(ctx context.Context,
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDefaultExperienceLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID), Payload: payload})
 }
 
 // DeleteAppClipDefaultExperienceLocalization deletes a localization by ID.
@@ -1194,44 +928,24 @@ func (c *Client) DeleteAppClipDefaultExperienceLocalization(ctx context.Context,
 	if localizationID == "" {
 		return fmt.Errorf("localizationID is required")
 	}
-	path := fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID)
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID), nil)
 }
 
 // GetAppClipAdvancedExperiences retrieves advanced experiences for an App Clip.
 func (c *Client) GetAppClipAdvancedExperiences(ctx context.Context, appClipID string, opts ...AppClipAdvancedExperiencesOption) (*AppClipAdvancedExperiencesResponse, error) {
-	query := &appClipAdvancedExperiencesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	appClipID = strings.TrimSpace(appClipID)
 	if appClipID == "" {
 		return nil, fmt.Errorf("appClipID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClips/%s/appClipAdvancedExperiences", appClipID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appClipAdvancedExperiences: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppClipAdvancedExperiencesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAdvancedExperiencesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipAdvancedExperiencesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appClips/%s/appClipAdvancedExperiences", appClipID),
+		Query:       buildAppClipAdvancedExperiencesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appClipAdvancedExperiences",
+	})
 }
 
 // GetAppClipAdvancedExperience retrieves an advanced experience by ID.
@@ -1241,18 +955,7 @@ func (c *Client) GetAppClipAdvancedExperience(ctx context.Context, experienceID 
 		return nil, fmt.Errorf("experienceID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClipAdvancedExperiences/%s", experienceID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAdvancedExperienceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipAdvancedExperienceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipAdvancedExperiences/%s", experienceID)})
 }
 
 // CreateAppClipAdvancedExperience creates an advanced experience.
@@ -1328,22 +1031,7 @@ func (c *Client) CreateAppClipAdvancedExperience(ctx context.Context, appClipID 
 		Included: included,
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appClipAdvancedExperiences", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAdvancedExperienceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipAdvancedExperienceResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipAdvancedExperiences", Payload: payload})
 }
 
 // UpdateAppClipAdvancedExperience updates an advanced experience.
@@ -1407,23 +1095,7 @@ func (c *Client) UpdateAppClipAdvancedExperience(ctx context.Context, experience
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appClipAdvancedExperiences/%s", experienceID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAdvancedExperienceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipAdvancedExperienceResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipAdvancedExperiences/%s", experienceID), Payload: payload})
 }
 
 // DeleteAppClipAdvancedExperience removes an advanced experience by ID.
@@ -1446,18 +1118,7 @@ func (c *Client) GetAppClipAdvancedExperienceImage(ctx context.Context, imageID 
 		return nil, fmt.Errorf("imageID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClipAdvancedExperienceImages/%s", imageID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAdvancedExperienceImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipAdvancedExperienceImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipAdvancedExperienceImages/%s", imageID)})
 }
 
 // CreateAppClipAdvancedExperienceImage reserves an upload slot.
@@ -1469,22 +1130,7 @@ func (c *Client) CreateAppClipAdvancedExperienceImage(ctx context.Context, fileN
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appClipAdvancedExperienceImages", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAdvancedExperienceImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipAdvancedExperienceImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipAdvancedExperienceImages", Payload: payload})
 }
 
 // UpdateAppClipAdvancedExperienceImage commits an upload.
@@ -1505,23 +1151,7 @@ func (c *Client) UpdateAppClipAdvancedExperienceImage(ctx context.Context, image
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appClipAdvancedExperienceImages/%s", imageID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAdvancedExperienceImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipAdvancedExperienceImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipAdvancedExperienceImages/%s", imageID), Payload: payload})
 }
 
 // UploadAppClipAdvancedExperienceImage performs the full upload flow for an image.
@@ -1583,18 +1213,7 @@ func (c *Client) GetAppClipHeaderImage(ctx context.Context, imageID string) (*Ap
 		return nil, fmt.Errorf("imageID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClipHeaderImages/%s", imageID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipHeaderImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipHeaderImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipHeaderImages/%s", imageID)})
 }
 
 // CreateAppClipHeaderImage reserves a header image upload.
@@ -1619,22 +1238,7 @@ func (c *Client) CreateAppClipHeaderImage(ctx context.Context, localizationID st
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appClipHeaderImages", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipHeaderImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipHeaderImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipHeaderImages", Payload: payload})
 }
 
 // UpdateAppClipHeaderImage commits a header image upload.
@@ -1655,23 +1259,7 @@ func (c *Client) UpdateAppClipHeaderImage(ctx context.Context, imageID string, u
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appClipHeaderImages/%s", imageID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipHeaderImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipHeaderImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipHeaderImages/%s", imageID), Payload: payload})
 }
 
 // DeleteAppClipHeaderImage deletes a header image by ID.
@@ -1680,9 +1268,7 @@ func (c *Client) DeleteAppClipHeaderImage(ctx context.Context, imageID string) e
 	if imageID == "" {
 		return fmt.Errorf("imageID is required")
 	}
-	path := fmt.Sprintf("/v1/appClipHeaderImages/%s", imageID)
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appClipHeaderImages/%s", imageID), nil)
 }
 
 // UploadAppClipHeaderImage performs the full upload flow for a header image.
@@ -1745,18 +1331,7 @@ func (c *Client) GetAppClipAppStoreReviewDetail(ctx context.Context, detailID st
 		return nil, fmt.Errorf("detailID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appClipAppStoreReviewDetails/%s", detailID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAppStoreReviewDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipAppStoreReviewDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipAppStoreReviewDetails/%s", detailID)})
 }
 
 // CreateAppClipAppStoreReviewDetail creates review detail for a default experience.
@@ -1781,22 +1356,7 @@ func (c *Client) CreateAppClipAppStoreReviewDetail(ctx context.Context, experien
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appClipAppStoreReviewDetails", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAppStoreReviewDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipAppStoreReviewDetailResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipAppStoreReviewDetails", Payload: payload})
 }
 
 // UpdateAppClipAppStoreReviewDetail updates review detail by ID.
@@ -1814,53 +1374,19 @@ func (c *Client) UpdateAppClipAppStoreReviewDetail(ctx context.Context, detailID
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appClipAppStoreReviewDetails/%s", detailID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipAppStoreReviewDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppClipAppStoreReviewDetailResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipAppStoreReviewDetails/%s", detailID), Payload: payload})
 }
 
 // GetBetaAppClipInvocation retrieves a beta App Clip invocation by ID.
 func (c *Client) GetBetaAppClipInvocation(ctx context.Context, invocationID string, opts ...BetaAppClipInvocationOption) (*BetaAppClipInvocationResponse, error) {
-	query := &betaAppClipInvocationQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	invocationID = strings.TrimSpace(invocationID)
 	if invocationID == "" {
 		return nil, fmt.Errorf("invocationID is required")
 	}
 
-	path := fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID)
-	if queryString := buildBetaAppClipInvocationQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppClipInvocationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaAppClipInvocationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), Query: buildBetaAppClipInvocationQuery(query)})
 }
 
 // CreateBetaAppClipInvocation creates a beta App Clip invocation.
@@ -1933,22 +1459,7 @@ func (c *Client) CreateBetaAppClipInvocation(ctx context.Context, buildBundleID 
 		payload.Included = included
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/betaAppClipInvocations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppClipInvocationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaAppClipInvocationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/betaAppClipInvocations", Payload: payload})
 }
 
 // UpdateBetaAppClipInvocation updates a beta App Clip invocation.
@@ -1966,23 +1477,7 @@ func (c *Client) UpdateBetaAppClipInvocation(ctx context.Context, invocationID s
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppClipInvocationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaAppClipInvocationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), Payload: payload})
 }
 
 // DeleteBetaAppClipInvocation deletes a beta App Clip invocation.
@@ -1991,9 +1486,7 @@ func (c *Client) DeleteBetaAppClipInvocation(ctx context.Context, invocationID s
 	if invocationID == "" {
 		return fmt.Errorf("invocationID is required")
 	}
-	path := fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID)
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), nil)
 }
 
 // GetBetaAppClipInvocationLocalizations retrieves localizations via the invocation include.
@@ -2049,22 +1542,7 @@ func (c *Client) CreateBetaAppClipInvocationLocalization(ctx context.Context, in
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/betaAppClipInvocationLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppClipInvocationLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaAppClipInvocationLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/betaAppClipInvocationLocalizations", Payload: payload})
 }
 
 // UpdateBetaAppClipInvocationLocalization updates a localization.
@@ -2082,23 +1560,7 @@ func (c *Client) UpdateBetaAppClipInvocationLocalization(ctx context.Context, lo
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/betaAppClipInvocationLocalizations/%s", localizationID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppClipInvocationLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaAppClipInvocationLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/betaAppClipInvocationLocalizations/%s", localizationID), Payload: payload})
 }
 
 // DeleteBetaAppClipInvocationLocalization deletes a localization.
@@ -2107,7 +1569,5 @@ func (c *Client) DeleteBetaAppClipInvocationLocalization(ctx context.Context, lo
 	if localizationID == "" {
 		return fmt.Errorf("localizationID is required")
 	}
-	path := fmt.Sprintf("/v1/betaAppClipInvocationLocalizations/%s", localizationID)
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaAppClipInvocationLocalizations/%s", localizationID), nil)
 }
