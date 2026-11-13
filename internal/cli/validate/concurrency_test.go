@@ -394,23 +394,26 @@ func TestRunReadinessTasks_ReturnsParentCancellationWhenQueuedTasksAreSkipped(t 
 	})
 }
 
-func TestRunReadinessTasks_KeepsCompleteResultWhenCancelledAfterAllTasksRan(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func TestRunReadinessTasks_ReturnsParentCancellationWhenRunningTaskSwallowsIt(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	var ran atomic.Int32
-	task := func(context.Context) error {
-		if ran.Add(1) == readinessConcurrencyLimit {
-			cancel()
+		// Like the readiness checks, the task turns its cancelled fetch into a
+		// "could not verify" result and returns nil.
+		task := func(taskCtx context.Context) error {
+			<-taskCtx.Done()
+			return nil
 		}
-		return nil
-	}
-	tasks := make([]readinessTask, readinessConcurrencyLimit)
-	for i := range tasks {
-		tasks[i] = task
-	}
 
-	if err := runReadinessTasks(ctx, tasks...); err != nil {
-		t.Fatalf("runReadinessTasks() error = %v, want nil when every task ran", err)
-	}
+		done := make(chan error, 1)
+		go func() { done <- runReadinessTasks(ctx, task) }()
+
+		synctest.Wait()
+		cancel()
+
+		if err := <-done; !errors.Is(err, context.Canceled) {
+			t.Fatalf("runReadinessTasks() error = %v, want context.Canceled", err)
+		}
+	})
 }

@@ -3,7 +3,6 @@ package validate
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -57,7 +56,6 @@ func runReadinessTasks(ctx context.Context, tasks ...readinessTask) error {
 	var wg sync.WaitGroup
 	var firstErr error
 	var errOnce sync.Once
-	var skipped atomic.Bool
 
 	for _, task := range tasks {
 		if task == nil {
@@ -70,7 +68,6 @@ func runReadinessTasks(ctx context.Context, tasks ...readinessTask) error {
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
 			case <-groupCtx.Done():
-				skipped.Store(true)
 				return
 			}
 
@@ -84,7 +81,9 @@ func runReadinessTasks(ctx context.Context, tasks ...readinessTask) error {
 	}
 
 	wg.Wait()
-	if firstErr == nil && skipped.Load() {
+	if firstErr == nil {
+		// Running tasks report a cancelled fetch as "could not verify", so any
+		// parent cancellation leaves the report incomplete.
 		return ctx.Err()
 	}
 	return firstErr
