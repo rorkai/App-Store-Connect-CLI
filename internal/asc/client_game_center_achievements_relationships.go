@@ -26,14 +26,7 @@ func (c *Client) UpdateGameCenterAchievementActivityRelationship(ctx context.Con
 			ID:   activityID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterAchievements/%s/relationships/activity", achievementID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterAchievements/%s/relationships/activity", achievementID), payload)
 }
 
 // UpdateGameCenterAchievementGroupAchievementRelationship updates the groupAchievement relationship on an achievement.
@@ -55,14 +48,7 @@ func (c *Client) UpdateGameCenterAchievementGroupAchievementRelationship(ctx con
 			ID:   groupAchievementID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterAchievements/%s/relationships/groupAchievement", achievementID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterAchievements/%s/relationships/groupAchievement", achievementID), payload)
 }
 
 // UpdateGameCenterAchievementActivityRelationshipV2 updates the activity relationship on a v2 achievement.
@@ -84,12 +70,5 @@ func (c *Client) UpdateGameCenterAchievementActivityRelationshipV2(ctx context.C
 			ID:   activityID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v2/gameCenterAchievements/%s/relationships/activity", achievementID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v2/gameCenterAchievements/%s/relationships/activity", achievementID), payload)
 }

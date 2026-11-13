@@ -21,14 +21,7 @@ func (c *Client) AddGameCenterLeaderboardSetMembers(ctx context.Context, setID s
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID)
-	_, err = c.do(ctx, http.MethodPost, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID), payload)
 }
 
 // RemoveGameCenterLeaderboardSetMembers removes leaderboards from a leaderboard set.
@@ -45,14 +38,7 @@ func (c *Client) RemoveGameCenterLeaderboardSetMembers(ctx context.Context, setI
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID)
-	_, err = c.do(ctx, http.MethodDelete, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID), payload)
 }
 
 // UpdateGameCenterLeaderboardSetGroupLeaderboardSetRelationship updates the groupLeaderboardSet relationship on a leaderboard set.
@@ -74,14 +60,7 @@ func (c *Client) UpdateGameCenterLeaderboardSetGroupLeaderboardSetRelationship(c
 			ID:   groupSetID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/groupLeaderboardSet", setID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/groupLeaderboardSet", setID), payload)
 }
 
 // UpdateGameCenterLeaderboardActivityRelationship updates the activity relationship on a leaderboard.
@@ -103,14 +82,7 @@ func (c *Client) UpdateGameCenterLeaderboardActivityRelationship(ctx context.Con
 			ID:   activityID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/activity", leaderboardID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/activity", leaderboardID), payload)
 }
 
 // UpdateGameCenterLeaderboardChallengeRelationship updates the challenge relationship on a leaderboard.
@@ -132,14 +104,7 @@ func (c *Client) UpdateGameCenterLeaderboardChallengeRelationship(ctx context.Co
 			ID:   challengeID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/challenge", leaderboardID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/challenge", leaderboardID), payload)
 }
 
 // UpdateGameCenterLeaderboardGroupLeaderboardRelationship updates the groupLeaderboard relationship on a leaderboard.
@@ -161,12 +126,5 @@ func (c *Client) UpdateGameCenterLeaderboardGroupLeaderboardRelationship(ctx con
 			ID:   groupLeaderboardID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/groupLeaderboard", leaderboardID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterLeaderboards/%s/relationships/groupLeaderboard", leaderboardID), payload)
 }
