@@ -183,7 +183,11 @@ The identity password must come from a protected 0600-or-more-restrictive file;
 it is never accepted as a flag value. One trailing LF or CRLF is removed, and
 the remaining password must not be empty. Use `--key-out`, `--csr-out`, or
 `--p12-out` to select different local paths, and `--force` only when replacing
-those three generated identity files is intentional. Each selected parent is
+those three generated identity files is intentional. The `.p12` uses the modern
+encoding by default. Some importers reject it with an error that looks like a
+wrong password; `--p12-encoding legacy` writes 3DES with a SHA-1 MAC instead.
+The legacy algorithms are weak; use them only when an importer requires it.
+Each selected parent is
 retained as a rooted filesystem anchor from preflight through publication, so
 the command refuses symlinked destinations and parent substitutions. It also
 refuses existing profile, certificate, or metadata output paths before creating

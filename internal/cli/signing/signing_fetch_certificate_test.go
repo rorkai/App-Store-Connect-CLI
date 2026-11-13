@@ -1,10 +1,12 @@
 package signing
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -208,6 +210,7 @@ func TestSigningFetchCreatesCertificateThenSkipsOnRerun(t *testing.T) {
 			"--create-missing",
 			"--create-missing-certificate",
 			"--identity-password-file", password,
+			"--p12-encoding", "legacy",
 			"--output", dir,
 			"--format", "json",
 		}); err != nil {
@@ -246,6 +249,13 @@ func TestSigningFetchCreatesCertificateThenSkipsOnRerun(t *testing.T) {
 	}
 	if _, _, err := modernpkcs12.Decode(p12, "secret\n"); err == nil {
 		t.Fatal("generated p12 retained the password file newline")
+	}
+	legacyBagOID, err := asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 12, 1, 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(p12, legacyBagOID) {
+		t.Fatal("--p12-encoding legacy did not write a legacy-encoded p12")
 	}
 	if posted != 1 {
 		t.Fatalf("posted %d certificates", posted)
