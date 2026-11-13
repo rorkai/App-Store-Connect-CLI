@@ -277,15 +277,17 @@ Examples:
 				// Apple's minimum lead time for a scheduled price is undocumented
 				// and can exceed one day, so the base territory goes first and
 				// adopts the earliest start date Apple names when it rejects ours.
+				// The probe reads Apple's raw error: applyEqualizedPrices would
+				// reconcile a rejection away when the base already has its price.
 				baseTarget := allTerritories[0]
-				baseSucceeded, baseFailures := applyEqualizedPrices(ctx, client, subID, allTerritories[:1], 1, priceAttrs, effectiveAt)
+				baseSucceeded, baseFailures := runEqualizePricePass(ctx, client, subID, allTerritories[:1], 1, priceAttrs)
 				if len(baseFailures) > 0 {
 					if earliest, ok := appleEarliestSubscriptionPriceStartDate(baseFailures[0].Err); ok && earliest.After(effectiveAt) {
 						fmt.Fprintf(os.Stderr, "App Store Connect rejected %s as too soon; scheduling price changes for %s\n", priceAttrs.StartDate, earliest.Format(equalizeDateLayout))
 						priceAttrs.StartDate = earliest.Format(equalizeDateLayout)
 						effectiveAt = earliest
-						baseSucceeded, baseFailures = applyEqualizedPrices(ctx, client, subID, allTerritories[:1], 1, priceAttrs, effectiveAt)
 					}
+					baseSucceeded, baseFailures = applyEqualizedPrices(ctx, client, subID, allTerritories[:1], 1, priceAttrs, effectiveAt)
 				}
 				if len(baseFailures) > 0 {
 					failures = append(failures, baseFailures...)

@@ -194,6 +194,17 @@ func TestSubscriptionsPricingEqualize_ReconcilesAutoScheduledPriceOnItsStartDate
 }
 
 func TestSubscriptionsPricingEqualize_AutoScheduleMovesToTheEarliestStartDateAppleAccepts(t *testing.T) {
+	runEqualizeOnEarliestStartDateAppleAccepts(t, false)
+}
+
+// When the base territory already has its price, the too-soon rejection must
+// still move the start date instead of being reconciled away.
+func TestSubscriptionsPricingEqualize_AutoScheduleMovesStartDateWhenBaseAlreadyHasItsPrice(t *testing.T) {
+	runEqualizeOnEarliestStartDateAppleAccepts(t, true)
+}
+
+func runEqualizeOnEarliestStartDateAppleAccepts(t *testing.T, baseAlreadyPriced bool) {
+	t.Helper()
 	setupAuth(t)
 	t.Setenv("ASC_MAX_RETRIES", "0")
 	// 11:01 PST on 2026-11-12: the Pacific next day is 2026-11-13, but App
@@ -205,6 +216,9 @@ func TestSubscriptionsPricingEqualize_AutoScheduleMovesToTheEarliestStartDateApp
 	basePricePointID := testSubscriptionPricePointID("USA")
 	canPricePointID := testSubscriptionPricePointID("CAN")
 	ledger := newSubscriptionPriceLedger()
+	if baseAlreadyPriced {
+		ledger.set("USA", basePricePointID, "")
+	}
 	var posts []string
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
