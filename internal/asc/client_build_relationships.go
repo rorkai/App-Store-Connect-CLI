@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -44,18 +43,7 @@ func (c *Client) GetBuildAppRelationship(ctx context.Context, buildID string) (*
 		return nil, fmt.Errorf("buildID is required")
 	}
 
-	path := fmt.Sprintf("/v1/builds/%s/relationships/app", buildID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildAppLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildAppLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/relationships/app", buildID), ParseErr: "failed to parse app relationship response"})
 }
 
 // UpdateBuildAppEncryptionDeclarationRelationship updates the app encryption declaration relationship on a build.
@@ -75,14 +63,7 @@ func (c *Client) UpdateBuildAppEncryptionDeclarationRelationship(ctx context.Con
 			ID:   declarationID,
 		},
 	}
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/builds/%s/relationships/appEncryptionDeclaration", buildID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/builds/%s/relationships/appEncryptionDeclaration", buildID), request)
 }
 
 // GetBuildAppStoreVersionRelationship retrieves the app store version linkage for a build.
@@ -92,18 +73,7 @@ func (c *Client) GetBuildAppStoreVersionRelationship(ctx context.Context, buildI
 		return nil, fmt.Errorf("buildID is required")
 	}
 
-	path := fmt.Sprintf("/v1/builds/%s/relationships/appStoreVersion", buildID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildAppStoreVersionLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse appStoreVersion relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildAppStoreVersionLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/relationships/appStoreVersion", buildID), ParseErr: "failed to parse appStoreVersion relationship response"})
 }
 
 // GetBuildBetaBuildLocalizationsRelationships retrieves beta build localization linkages for a build.
@@ -118,18 +88,7 @@ func (c *Client) GetBuildBuildBetaDetailRelationship(ctx context.Context, buildI
 		return nil, fmt.Errorf("buildID is required")
 	}
 
-	path := fmt.Sprintf("/v1/builds/%s/relationships/buildBetaDetail", buildID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildBuildBetaDetailLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse buildBetaDetail relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildBuildBetaDetailLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/relationships/buildBetaDetail", buildID), ParseErr: "failed to parse buildBetaDetail relationship response"})
 }
 
 // GetBuildDiagnosticSignaturesRelationships retrieves diagnostic signature linkages for a build.
@@ -149,18 +108,7 @@ func (c *Client) GetBuildPreReleaseVersionRelationship(ctx context.Context, buil
 		return nil, fmt.Errorf("buildID is required")
 	}
 
-	path := fmt.Sprintf("/v1/builds/%s/relationships/preReleaseVersion", buildID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildPreReleaseVersionLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse preReleaseVersion relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildPreReleaseVersionLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/relationships/preReleaseVersion", buildID), ParseErr: "failed to parse preReleaseVersion relationship response"})
 }
 
 // GetBuildIconsRelationships retrieves build icon linkages for a build.
