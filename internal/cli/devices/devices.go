@@ -201,8 +201,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			fieldsValue, err := normalizeDeviceFields(*fields)
@@ -381,8 +380,7 @@ Examples:
 				return err
 			}
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			udidValue := strings.TrimSpace(*udid)
@@ -398,8 +396,7 @@ Examples:
 				udidValue = localUDID
 			}
 			if udidValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --udid is required")
-				return shared.MissingRequiredUsageError("--udid")
+				return shared.RequiredFlag("--udid")
 			}
 
 			platformValue := strings.TrimSpace(*platform)
@@ -407,8 +404,7 @@ Examples:
 				platformValue = "MAC_OS"
 			}
 			if platformValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --platform is required")
-				return shared.MissingRequiredUsageError("--platform")
+				return shared.RequiredFlag("--platform")
 			}
 			if *udidFromSystem && strings.ToUpper(platformValue) != "MAC_OS" {
 				fmt.Fprintln(os.Stderr, "Error: --udid-from-system requires --platform MAC_OS")
@@ -520,8 +516,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			nameValue := strings.TrimSpace(*name)
