@@ -71,12 +71,13 @@ func TestLocalizationsListPaginateFromNext(t *testing.T) {
 	}
 }
 
-func TestLocalizationsPreviewSetsListRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"localizations", "preview-sets", "list"},
-		"localizations preview-sets list: --next",
-	)
+func TestLocalizationsUsageListsRejectsInvalidNextURL(t *testing.T) {
+	runInvalidNextURLCases(t, []invalidNextURLCase{
+		{args: []string{"localizations", "preview-sets", "list"}, wantErr: "localizations preview-sets list: --next"},
+		{args: []string{"localizations", "preview-sets", "links"}, wantErr: "localizations preview-sets links: --next"},
+		{args: []string{"localizations", "screenshot-sets", "list"}, wantErr: "localizations screenshot-sets list: --next"},
+		{args: []string{"localizations", "screenshot-sets", "links"}, wantErr: "localizations screenshot-sets links: --next"},
+	})
 }
 
 func TestLocalizationsPreviewSetsListPaginateFromNextWithoutLocalizationID(t *testing.T) {
@@ -141,14 +142,6 @@ func TestLocalizationsPreviewSetsListPaginateFromNextWithoutLocalizationID(t *te
 	}
 }
 
-func TestLocalizationsPreviewSetsRelationshipsRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"localizations", "preview-sets", "links"},
-		"localizations preview-sets links: --next",
-	)
-}
-
 func TestLocalizationsPreviewSetsRelationshipsPaginateFromNextWithoutLocalizationID(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -211,14 +204,6 @@ func TestLocalizationsPreviewSetsRelationshipsPaginateFromNextWithoutLocalizatio
 	}
 }
 
-func TestLocalizationsScreenshotSetsListRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"localizations", "screenshot-sets", "list"},
-		"localizations screenshot-sets list: --next",
-	)
-}
-
 func TestLocalizationsScreenshotSetsListPaginateFromNextWithoutLocalizationID(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -279,14 +264,6 @@ func TestLocalizationsScreenshotSetsListPaginateFromNextWithoutLocalizationID(t 
 	if !strings.Contains(stdout, `"id":"screenshot-next-1"`) || !strings.Contains(stdout, `"id":"screenshot-next-2"`) {
 		t.Fatalf("expected paginated screenshot sets in output, got %q", stdout)
 	}
-}
-
-func TestLocalizationsScreenshotSetsRelationshipsRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"localizations", "screenshot-sets", "links"},
-		"localizations screenshot-sets links: --next",
-	)
 }
 
 func TestLocalizationsScreenshotSetsRelationshipsPaginateFromNextWithoutLocalizationID(t *testing.T) {

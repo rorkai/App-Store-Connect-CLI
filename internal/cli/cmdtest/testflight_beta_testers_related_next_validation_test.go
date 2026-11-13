@@ -9,12 +9,12 @@ import (
 	"testing"
 )
 
-func TestTestFlightBetaTestersAppsListRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"testflight", "testers", "apps", "list"},
-		"testflight testers apps list: --next",
-	)
+func TestTestFlightBetaTestersRelatedListsRejectsInvalidNextURL(t *testing.T) {
+	runInvalidNextURLCases(t, []invalidNextURLCase{
+		{args: []string{"testflight", "testers", "apps", "list"}, wantErr: "testflight testers apps list: --next"},
+		{args: []string{"testflight", "testers", "groups", "list"}, wantErr: "testflight testers groups list: --next"},
+		{args: []string{"testflight", "testers", "builds", "list"}, wantErr: "testflight testers builds list: --next"},
+	})
 }
 
 func TestTestFlightBetaTestersAppsListPaginateFromNext(t *testing.T) {
@@ -84,14 +84,6 @@ func TestTestFlightBetaTestersAppsListPaginateFromNext(t *testing.T) {
 	}
 }
 
-func TestTestFlightBetaTestersGroupsListRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"testflight", "testers", "groups", "list"},
-		"testflight testers groups list: --next",
-	)
-}
-
 func TestTestFlightBetaTestersGroupsListPaginateFromNext(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -157,14 +149,6 @@ func TestTestFlightBetaTestersGroupsListPaginateFromNext(t *testing.T) {
 	if !strings.Contains(stdout, `"id":"tester-group-1"`) || !strings.Contains(stdout, `"id":"tester-group-2"`) {
 		t.Fatalf("expected paginated beta groups in output, got %q", stdout)
 	}
-}
-
-func TestTestFlightBetaTestersBuildsListRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"testflight", "testers", "builds", "list"},
-		"testflight testers builds list: --next",
-	)
 }
 
 func TestTestFlightBetaTestersBuildsListPaginateFromNext(t *testing.T) {

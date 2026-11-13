@@ -71,12 +71,11 @@ func TestTestFlightBetaLicenseAgreementsListPaginateFromNext(t *testing.T) {
 	}
 }
 
-func TestTestFlightBetaTestersMetricsRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"testflight", "testers", "metrics"},
-		"testflight testers metrics: --next",
-	)
+func TestTestFlightBetaLicenseMetricsListsRejectsInvalidNextURL(t *testing.T) {
+	runInvalidNextURLCases(t, []invalidNextURLCase{
+		{args: []string{"testflight", "testers", "metrics"}, wantErr: "testflight testers metrics: --next"},
+		{args: []string{"testflight", "metrics", "app-testers"}, wantErr: "testflight metrics app-testers: --next"},
+	})
 }
 
 func TestTestFlightBetaTestersMetricsFromNextWithoutTesterOrApp(t *testing.T) {

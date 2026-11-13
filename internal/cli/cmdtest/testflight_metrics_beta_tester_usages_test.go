@@ -179,11 +179,3 @@ func TestTestFlightMetricsAppTestersPaginate(t *testing.T) {
 		t.Fatalf("expected both usages in output, got %q", stdout)
 	}
 }
-
-func TestTestFlightMetricsAppTestersRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"testflight", "metrics", "app-testers"},
-		"testflight metrics app-testers: --next",
-	)
-}

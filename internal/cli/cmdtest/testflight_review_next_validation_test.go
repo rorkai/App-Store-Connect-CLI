@@ -56,12 +56,10 @@ func TestTestFlightReviewGetFromNextWithoutApp(t *testing.T) {
 	}
 }
 
-func TestTestFlightReviewViewRejectsInvalidNextURL(t *testing.T) {
-	runInvalidNextURLUsageErrorCases(
-		t,
-		[]string{"testflight", "review", "view"},
-		"testflight review view: --next",
-	)
+func TestTestFlightReviewListsRejectsInvalidNextURL(t *testing.T) {
+	runInvalidNextURLCases(t, []invalidNextURLCase{
+		{args: []string{"testflight", "review", "view"}, wantErr: "testflight review view: --next"},
+	})
 }
 
 func TestTestFlightReviewViewFromNextWithoutBuild(t *testing.T) {
