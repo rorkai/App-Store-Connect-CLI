@@ -1120,73 +1120,6 @@ func TestValidateSkipsGroupLocalizationProbeForHealthySubscriptions(t *testing.T
 	}
 }
 
-func TestValidateWarnsWhenSubscriptionNeedsAttention(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.subscriptionsByGroup["group-1"] = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"READY_TO_SUBMIT"}}]}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected warning-only validate run, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if report.Summary.Warnings == 0 {
-		t.Fatalf("expected warnings, got %+v", report.Summary)
-	}
-	if !hasCheckWithID(report.Checks, "subscriptions.review_readiness.needs_attention") {
-		t.Fatalf("expected subscriptions.review_readiness.needs_attention, got %+v", report.Checks)
-	}
-}
-
-func TestValidateWarnsWhenSubscriptionDescriptionMissingTermsLink(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.versionLocs = `{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"Subscription description without a legal link","keywords":"keyword","whatsNew":"Notes","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected warning-only validate run, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if !hasCheckWithID(report.Checks, "legal.subscription.terms_of_use_link") {
-		t.Fatalf("expected terms link warning, got %+v", report.Checks)
-	}
-}
-
 func TestValidateAcceptsAppleStandardEULAURLInDescription(t *testing.T) {
 	fixture := validValidateFixture()
 
@@ -1674,46 +1607,6 @@ func TestValidateStrictExitBehavior(t *testing.T) {
 	})
 }
 
-func TestValidateWarnsWhenPrivacyPolicyURLMissing(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.appInfoLocs = `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle"}}]}`
-	// Clear subscriptions so the missing privacyPolicyUrl triggers a warning
-	// (metadata.recommended) instead of an error (legal.required).
-	fixture.subscriptionGroups = `{"data":[]}`
-	fixture.subscriptionsByGroup = nil
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if report.Summary.Errors != 0 {
-		t.Fatalf("expected zero errors, got %+v", report.Summary)
-	}
-	if !hasCheckWithID(report.Checks, "metadata.recommended.privacy_policy_url") {
-		t.Fatalf("expected privacy policy warning, got %+v", report.Checks)
-	}
-}
-
 func TestValidateRequiresPrivacyPolicyTextForTVOSVersion(t *testing.T) {
 	const withoutText = `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy"}}]}`
 	const withText = `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy","privacyPolicyText":"We collect nothing."}}]}`
@@ -1758,41 +1651,6 @@ func TestValidateRequiresPrivacyPolicyTextForTVOSVersion(t *testing.T) {
 				t.Fatalf("privacy policy text check present = %v, want %v; checks: %+v", got, test.want, report.Checks)
 			}
 		})
-	}
-}
-
-func TestValidateFailsForNonEditableVersionState(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.version = `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"WAITING_FOR_REVIEW","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if !hasCheckWithID(report.Checks, "version.state.editable") {
-		t.Fatalf("expected version state check, got %+v", report.Checks)
 	}
 }
 
@@ -1860,97 +1718,6 @@ func TestValidateMixedWarningAndError(t *testing.T) {
 			t.Fatalf("expected ReportedError, got %v", err)
 		}
 	})
-}
-
-func TestValidateFailsWhenNoScreenshotSets(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.screenshotSets = map[string]string{
-		"ver-loc-1": `{"data":[]}`,
-	}
-	fixture.screenshotsBySet = map[string]string{}
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "screenshots.required.any" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected screenshots.required.any check, got %+v", report.Checks)
-	}
-}
-
-func TestValidateFailsWhenScreenshotSetIsEmpty(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.screenshotsBySet = map[string]string{
-		"set-1": `{"data":[]}`,
-	}
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "screenshots.required.set_nonempty" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected screenshots.required.set_nonempty check, got %+v", report.Checks)
-	}
 }
 
 func TestValidateReportsMediaDeliveryPerLocale(t *testing.T) {
@@ -2141,92 +1908,6 @@ func TestValidateReportsUpcomingUploadRequirement(t *testing.T) {
 	}
 }
 
-func TestValidateFailsWhenReviewDetailsMissing(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.reviewDetails = ""
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "review_details.missing" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected review_details.missing check, got %+v", report.Checks)
-	}
-}
-
-func TestValidateFailsWhenReviewDetailsMissingContactEmail(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.reviewDetails = `{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"","contactPhone":"+1 555 010 1234","demoAccountRequired":false}}}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "review_details.missing_field" && check.Field == "contactEmail" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected review_details.missing_field for contactEmail, got %+v", report.Checks)
-	}
-}
-
 func TestValidateFlagsMalformedReviewContactDetails(t *testing.T) {
 	fixture := validValidateFixture()
 	fixture.reviewDetails = `{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"reviewer.example.com","contactPhone":"123","demoAccountRequired":false}}}`
@@ -2338,326 +2019,219 @@ func TestValidateFailsWhenDemoCredentialsMissingAfterOptIn(t *testing.T) {
 	}
 }
 
-func TestValidateFailsWhenPrimaryCategoryMissing(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.primaryCategory = `{"data":null}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "categories.primary_missing" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected categories.primary_missing check, got %+v", report.Checks)
-	}
-}
-
-func TestValidateFailsWhenBuildMissing(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.build = ""
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "build.required.missing" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected build.required.missing check, got %+v", report.Checks)
-	}
-}
-
-func TestValidateFailsWhenBuildMissingWithNullData(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.build = `{"data":null}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "build.required.missing" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected build.required.missing check, got %+v", report.Checks)
-	}
-}
-
-func TestValidateFailsWhenBuildIsProcessing(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.build = `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"PROCESSING","expired":false}}}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "build.invalid.processing_state" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected build.invalid.processing_state check, got %+v", report.Checks)
-	}
-}
-
-func TestValidateFailsWhenContentRightsMissing(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.app = `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
+func TestValidateReportsCheckForFixtureChange(t *testing.T) {
+	const versionPrefix = `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0",`
+	const versionSuffix = `"copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
+	tests := []struct {
+		name         string
+		mutate       func(*validateFixture)
+		wantCheck    string
+		wantField    string
+		wantSeverity validation.Severity
+		wantBlocking bool
+	}{
+		{
+			name: "non-editable version state",
+			mutate: func(f *validateFixture) {
+				f.version = versionPrefix + `"appVersionState":"WAITING_FOR_REVIEW",` + versionSuffix
+			},
+			wantCheck:    "version.state.editable",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name: "no screenshot sets",
+			mutate: func(f *validateFixture) {
+				f.screenshotSets = map[string]string{"ver-loc-1": `{"data":[]}`}
+				f.screenshotsBySet = map[string]string{}
+			},
+			wantCheck:    "screenshots.required.any",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name:         "empty screenshot set",
+			mutate:       func(f *validateFixture) { f.screenshotsBySet = map[string]string{"set-1": `{"data":[]}`} },
+			wantCheck:    "screenshots.required.set_nonempty",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name:         "review details missing",
+			mutate:       func(f *validateFixture) { f.reviewDetails = "" },
+			wantCheck:    "review_details.missing",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name: "review details missing contact email",
+			mutate: func(f *validateFixture) {
+				f.reviewDetails = `{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"","contactPhone":"+1 555 010 1234","demoAccountRequired":false}}}`
+			},
+			wantCheck:    "review_details.missing_field",
+			wantField:    "contactEmail",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name:         "primary category missing",
+			mutate:       func(f *validateFixture) { f.primaryCategory = `{"data":null}` },
+			wantCheck:    "categories.primary_missing",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name:         "build missing",
+			mutate:       func(f *validateFixture) { f.build = "" },
+			wantCheck:    "build.required.missing",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name:         "build missing with null data",
+			mutate:       func(f *validateFixture) { f.build = `{"data":null}` },
+			wantCheck:    "build.required.missing",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name: "content rights missing",
+			mutate: func(f *validateFixture) {
+				f.app = `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`
+			},
+			wantCheck:    "content_rights.missing",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name: "build encryption state missing",
+			mutate: func(f *validateFixture) {
+				f.build = `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false}}}`
+			},
+			wantCheck:    "build.encryption.missing",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name: "non-exempt encryption declaration not approved",
+			mutate: func(f *validateFixture) {
+				f.build = `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false,"usesNonExemptEncryption":true}}}`
+			},
+			wantCheck:    "build.encryption.declaration_missing",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name:         "price schedule missing",
+			mutate:       func(f *validateFixture) { f.priceSchedule = "" },
+			wantCheck:    "pricing.schedule.missing",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name: "app availability missing with non-404 status",
+			mutate: func(f *validateFixture) {
+				f.availabilityV2Status = http.StatusConflict
+				f.availabilityV2 = `{"errors":[{"code":"RESOURCE_DOES_NOT_EXIST","title":"Resource does not exist","detail":"The resource AppAvailabilities does not exist."}]}`
+			},
+			wantCheck:    "availability.missing",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name: "no territories available",
+			mutate: func(f *validateFixture) {
+				f.territories = `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":false}}]}`
+			},
+			wantCheck:    "availability.territories.none",
+			wantSeverity: validation.SeverityError,
+			wantBlocking: true,
+		},
+		{
+			name: "subscription needs attention",
+			mutate: func(f *validateFixture) {
+				f.subscriptionsByGroup["group-1"] = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"READY_TO_SUBMIT"}}]}`
+			},
+			wantCheck:    "subscriptions.review_readiness.needs_attention",
+			wantSeverity: validation.SeverityWarning,
+		},
+		{
+			name: "subscription description missing terms link",
+			mutate: func(f *validateFixture) {
+				f.versionLocs = `{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"Subscription description without a legal link","keywords":"keyword","whatsNew":"Notes","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`
+			},
+			wantCheck:    "legal.subscription.terms_of_use_link",
+			wantSeverity: validation.SeverityWarning,
+		},
+		{
+			name: "privacy policy url missing without subscriptions",
+			mutate: func(f *validateFixture) {
+				f.appInfoLocs = `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle"}}]}`
+				f.subscriptionGroups = `{"data":[]}`
+				f.subscriptionsByGroup = nil
+			},
+			wantCheck:    "metadata.recommended.privacy_policy_url",
+			wantSeverity: validation.SeverityWarning,
+		},
+		{
+			name:         "iap forbidden",
+			mutate:       func(f *validateFixture) { f.iapsStatus = http.StatusForbidden },
+			wantCheck:    "iap.readiness.unverified",
+			wantSeverity: validation.SeverityInfo,
+		},
+		{
+			name:         "iap unauthorized",
+			mutate:       func(f *validateFixture) { f.iapsStatus = http.StatusUnauthorized },
+			wantCheck:    "iap.readiness.unverified",
+			wantSeverity: validation.SeverityInfo,
+		},
+		{
+			name:         "iap rate limited",
+			mutate:       func(f *validateFixture) { f.iapsStatus = http.StatusTooManyRequests },
+			wantCheck:    "iap.readiness.unverified",
+			wantSeverity: validation.SeverityInfo,
+		},
+		{
+			name: "scheduled release date in past",
+			mutate: func(f *validateFixture) {
+				f.version = versionPrefix + `"appVersionState":"PREPARE_FOR_SUBMISSION","releaseType":"SCHEDULED","earliestReleaseDate":"2020-01-01T00:00:00+00:00",` + versionSuffix
+			},
+			wantCheck:    "release.scheduled_date_past",
+			wantSeverity: validation.SeverityWarning,
+		},
+		{
+			name: "manual release",
+			mutate: func(f *validateFixture) {
+				f.version = versionPrefix + `"appVersionState":"PREPARE_FOR_SUBMISSION","releaseType":"MANUAL",` + versionSuffix
+			},
+			wantCheck:    "release.type_manual",
+			wantSeverity: validation.SeverityInfo,
+		},
 	}
 
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if !hasCheckWithID(report.Checks, "content_rights.missing") {
-		t.Fatalf("expected content_rights.missing check, got %+v", report.Checks)
-	}
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := validValidateFixture()
+			test.mutate(&fixture)
 
-func TestValidateFailsWhenBuildEncryptionStateMissing(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.build = `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false}}}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if !hasCheckWithID(report.Checks, "build.encryption.missing") {
-		t.Fatalf("expected build.encryption.missing check, got %+v", report.Checks)
-	}
-}
-
-func TestValidateFailsWhenNonExemptEncryptionDeclarationNotApproved(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.build = `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false,"usesNonExemptEncryption":true}}}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if !hasCheckWithID(report.Checks, "build.encryption.declaration_missing") {
-		t.Fatalf("expected build.encryption.declaration_missing check, got %+v", report.Checks)
-	}
-}
-
-func TestValidateFailsWhenPriceScheduleMissing(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.priceSchedule = ""
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "pricing.schedule.missing" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected pricing.schedule.missing check, got %+v", report.Checks)
+			report, runErr := runValidateReport(t, fixture)
+			if test.wantBlocking {
+				if _, ok := errors.AsType[ReportedError](runErr); !ok {
+					t.Fatalf("expected ReportedError, got %v", runErr)
+				}
+			} else if runErr != nil || report.Summary.Errors != 0 {
+				t.Fatalf("expected non-blocking validate run, got err=%v summary=%+v", runErr, report.Summary)
+			}
+			for _, check := range report.Checks {
+				if check.ID == test.wantCheck && (test.wantField == "" || check.Field == test.wantField) {
+					if check.Severity != test.wantSeverity {
+						t.Fatalf("%s severity = %q, want %q", check.ID, check.Severity, test.wantSeverity)
+					}
+					return
+				}
+			}
+			t.Fatalf("expected %s check (field %q), got %+v", test.wantCheck, test.wantField, report.Checks)
+		})
 	}
 }
 
@@ -2671,12 +2245,15 @@ func runValidateReport(t *testing.T, fixture validateFixture) (validation.Report
 
 	root := RootCommand("1.2.3")
 	var runErr error
-	stdout, _ := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1", "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())
 	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
 
 	var report validation.Report
 	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
@@ -2797,93 +2374,6 @@ func TestValidateDowngradesUnreadableBaseTerritoryPriceToUnverified(t *testing.T
 				t.Fatalf("did not expect a missing-price error for unverifiable pricing, got %+v", report.Checks)
 			}
 		})
-	}
-}
-
-func TestValidateTreatsAppAvailabilityMissingNon404AsMissing(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.availabilityV2Status = http.StatusConflict
-	fixture.availabilityV2 = `{"errors":[{"code":"RESOURCE_DOES_NOT_EXIST","title":"Resource does not exist","detail":"The resource AppAvailabilities does not exist."}]}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "availability.missing" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected availability.missing check, got %+v", report.Checks)
-	}
-}
-
-func TestValidateFailsWhenNoTerritoriesAvailable(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.territories = `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":false}}]}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatalf("expected error")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	found := false
-	for _, check := range report.Checks {
-		if check.ID == "availability.territories.none" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected availability.territories.none check, got %+v", report.Checks)
 	}
 }
 
@@ -3240,111 +2730,6 @@ func TestValidateIncludesIAPChecks(t *testing.T) {
 	}
 }
 
-func TestValidateSkipsIAPGracefullyWhenForbidden(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.iapsStatus = http.StatusForbidden
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected IAP forbidden to be non-blocking, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if !hasCheckWithID(report.Checks, "iap.readiness.unverified") {
-		t.Fatalf("expected iap.readiness.unverified info check, got %+v", report.Checks)
-	}
-	if report.Summary.Errors != 0 {
-		t.Fatalf("expected no blocking errors when IAP is forbidden, got %+v", report.Summary)
-	}
-}
-
-func TestValidateSkipsIAPGracefullyWhenUnauthorized(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.iapsStatus = http.StatusUnauthorized
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected IAP unauthorized to be non-blocking, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if !hasCheckWithID(report.Checks, "iap.readiness.unverified") {
-		t.Fatalf("expected iap.readiness.unverified info check, got %+v", report.Checks)
-	}
-	if report.Summary.Errors != 0 {
-		t.Fatalf("expected no blocking errors when IAP is unauthorized, got %+v", report.Summary)
-	}
-}
-
-func TestValidateSkipsIAPGracefullyWhenRateLimited(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.iapsStatus = http.StatusTooManyRequests
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected IAP rate limiting to be non-blocking, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if !hasCheckWithID(report.Checks, "iap.readiness.unverified") {
-		t.Fatalf("expected iap.readiness.unverified info check, got %+v", report.Checks)
-	}
-	if report.Summary.Errors != 0 {
-		t.Fatalf("expected no blocking errors when IAP is rate limited, got %+v", report.Summary)
-	}
-}
-
 func TestValidateNoIAPChecksWhenAppHasNoIAPs(t *testing.T) {
 	fixture := validValidateFixture()
 	// No IAPs set (default empty)
@@ -3376,70 +2761,6 @@ func TestValidateNoIAPChecksWhenAppHasNoIAPs(t *testing.T) {
 		if strings.HasPrefix(check.ID, "iap.") {
 			t.Fatalf("expected no IAP checks when app has no IAPs, got %+v", check)
 		}
-	}
-}
-
-func TestValidateWarnsScheduledReleaseDateInPast(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.version = `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"PREPARE_FOR_SUBMISSION","releaseType":"SCHEDULED","earliestReleaseDate":"2020-01-01T00:00:00+00:00","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected no blocking errors, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if !hasCheckWithID(report.Checks, "release.scheduled_date_past") {
-		t.Fatalf("expected release.scheduled_date_past warning, got %+v", report.Checks)
-	}
-}
-
-func TestValidateShowsManualReleaseInfo(t *testing.T) {
-	fixture := validValidateFixture()
-	fixture.version = `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"PREPARE_FOR_SUBMISSION","releaseType":"MANUAL","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
-
-	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected no blocking errors, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var report validation.Report
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("failed to parse JSON output: %v", err)
-	}
-	if !hasCheckWithID(report.Checks, "release.type_manual") {
-		t.Fatalf("expected release.type_manual info check, got %+v", report.Checks)
 	}
 }
 
