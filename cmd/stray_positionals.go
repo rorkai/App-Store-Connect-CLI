@@ -135,7 +135,7 @@ func strayPositionalHint(commandName, flagName, operand, goos string) (string, b
 func printStrayPositionalOperands(commandName string, operands []string, flagSet *flag.FlagSet) {
 	fmt.Fprintf(os.Stderr, "Error: %s\n", strayPositionalError(operands))
 	if len(operands) == 1 {
-		if name, ok := shared.PrimaryIDFlagName(flagSet); ok {
+		if name, ok := strayOperandFlagName(commandName, flagSet); ok {
 			if hint, rendered := strayPositionalHint(commandName, name, operands[0], runtime.GOOS); rendered {
 				fmt.Fprintf(os.Stderr, "Did you mean: %s\n", hint)
 			}
@@ -143,4 +143,29 @@ func printStrayPositionalOperands(commandName string, operands []string, flagSet
 	}
 	fmt.Fprintln(os.Stderr, "For help:")
 	fmt.Fprintf(os.Stderr, "  %s --help\n", commandName)
+}
+
+// strayOperandValueFlags names the flag a flag-only command's stray operand
+// belongs to when that flag is not a primary identifier, such as the log path
+// `asc snitch flush` reads.
+var strayOperandValueFlags = map[string]string{
+	"asc snitch flush": "file",
+}
+
+// strayOperandFlagName picks the flag to suggest for a single stray operand:
+// the command's primary identifier flag, or else its reviewed value flag when
+// the command defines it and the caller has not already passed it.
+func strayOperandFlagName(commandName string, flagSet *flag.FlagSet) (string, bool) {
+	if name, ok := shared.PrimaryIDFlagName(flagSet); ok {
+		return name, true
+	}
+	name, ok := strayOperandValueFlags[commandName]
+	if !ok || flagSet == nil || flagSet.Lookup(name) == nil {
+		return "", false
+	}
+	provided := false
+	flagSet.Visit(func(item *flag.Flag) {
+		provided = provided || item.Name == name
+	})
+	return name, !provided
 }
