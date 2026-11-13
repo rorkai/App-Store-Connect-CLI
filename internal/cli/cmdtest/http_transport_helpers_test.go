@@ -4,21 +4,14 @@ import (
 	"net/http"
 	"sync"
 	"testing"
-)
 
-var defaultTransportMu sync.Mutex
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
+)
 
 func installDefaultTransport(t *testing.T, transport http.RoundTripper) {
 	t.Helper()
 
-	defaultTransportMu.Lock()
-	originalTransport := http.DefaultTransport
-	http.DefaultTransport = transport
-
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-		defaultTransportMu.Unlock()
-	})
+	asctest.SwapDefaultTransport(t, transport)
 }
 
 type lockedCounter struct {
