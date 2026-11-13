@@ -143,11 +143,6 @@ func TestAppsPublicValidationErrors(t *testing.T) {
 			wantErr: "unsupported country code",
 		},
 		{
-			name:    "rank rejects positional argument",
-			args:    []string{"apps", "public", "rank", "--app", "123", "--term", "focus", "--platform", "IOS", "extra"},
-			wantErr: "public rank does not accept positional arguments",
-		},
-		{
 			name:    "prices invalid country",
 			args:    []string{"apps", "public", "prices", "--app", "123", "--country", "usa"},
 			wantErr: "unsupported country code",

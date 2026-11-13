@@ -42,19 +42,9 @@ func TestScreenshotsPlanAndApplyValidationErrors(t *testing.T) {
 			wantErr: "--version or --version-id is required",
 		},
 		{
-			name:    "screenshots plan positional args rejected",
-			args:    []string{"screenshots", "plan", "--app", "123456789", "--version", "1.2.3", "extra"},
-			wantErr: "screenshots plan does not accept positional arguments",
-		},
-		{
 			name:    "screenshots apply missing confirm",
 			args:    []string{"screenshots", "apply", "--app", "123456789", "--version", "1.2.3"},
 			wantErr: "--confirm is required to apply screenshot uploads",
-		},
-		{
-			name:    "screenshots apply positional args rejected",
-			args:    []string{"screenshots", "apply", "--app", "123456789", "--version", "1.2.3", "--confirm", "extra"},
-			wantErr: "screenshots apply does not accept positional arguments",
 		},
 	}
 

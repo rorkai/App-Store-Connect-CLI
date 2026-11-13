@@ -310,9 +310,6 @@ Examples:
 				}
 			}
 			if *viaURL {
-				if len(args) > 0 {
-					return shared.UsageError("devices register --via-url does not accept positional arguments")
-				}
 				format, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty)
 				if err != nil {
 					return err

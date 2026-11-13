@@ -80,10 +80,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("metadata validate does not accept positional arguments")
-			}
-
 			dirValue := strings.TrimSpace(*dir)
 			if dirValue == "" {
 				return metadataRequiredInputError("--dir", "--dir is required")

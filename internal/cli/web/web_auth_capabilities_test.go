@@ -16,18 +16,6 @@ import (
 	webref "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web/reference"
 )
 
-func TestWebAuthCapabilitiesRejectsPositionalArgs(t *testing.T) {
-	cmd := WebAuthCapabilitiesCommand()
-	if err := cmd.FlagSet.Parse([]string{"extra"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	err := cmd.Exec(context.Background(), []string{"extra"})
-	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected usage error, got %v", err)
-	}
-}
-
 func TestWrapWebAuthCapabilitiesErrorFormatsLookupFailures(t *testing.T) {
 	err := wrapWebAuthCapabilitiesError("missing", webcore.ErrAPIKeyNotFound)
 	if err == nil || !strings.Contains(err.Error(), "not found in App Store Connect web key lists") {

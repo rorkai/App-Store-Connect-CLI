@@ -93,7 +93,6 @@ func TestSigningKeychainInstallCommandValidatesBeforeExecution(t *testing.T) {
 		{name: "keychain required", args: []string{"--identity", "a", "--identity-password-file", "b", "--keychain-password-file", "c", "--confirm"}, wantErr: "--keychain is required"},
 		{name: "keychain password required", args: []string{"--identity", "a", "--identity-password-file", "b", "--keychain", "c", "--confirm"}, wantErr: "--keychain-password-file is required"},
 		{name: "confirm required", args: []string{"--identity", "a", "--identity-password-file", "b", "--keychain", "c", "--keychain-password-file", "d"}, wantErr: "--confirm is required"},
-		{name: "unexpected argument", args: []string{"--identity", "a", "--identity-password-file", "b", "--keychain", "c", "--keychain-password-file", "d", "--confirm", "extra"}, wantErr: "unexpected argument"},
 		{name: "invalid digest", args: []string{"--identity", "a", "--identity-password-file", "b", "--keychain", "c", "--keychain-password-file", "d", "--expected-certificate-sha256", "short", "--confirm"}, wantErr: "64-character hexadecimal"},
 	}
 

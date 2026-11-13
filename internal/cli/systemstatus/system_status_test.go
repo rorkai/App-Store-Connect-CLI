@@ -167,7 +167,6 @@ func TestSystemStatusCommandRejectsInvalidArguments(t *testing.T) {
 		args []string
 		want string
 	}{
-		{name: "positional", args: []string{"App Store Connect"}, want: "system-status does not accept positional arguments"},
 		{name: "non-positive interval", args: []string{"--watch", "--poll-interval", "0s"}, want: "--poll-interval must be greater than 0"},
 		{name: "negative max polls", args: []string{"--watch", "--max-polls", "-1"}, want: "--max-polls must be greater than or equal to 0"},
 		{name: "max polls without watch", args: []string{"--max-polls", "2"}, want: "--max-polls requires --watch"},

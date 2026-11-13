@@ -36,11 +36,6 @@ func TestMetadataApplyValidationErrors(t *testing.T) {
 			wantErr:     "--dir is required",
 			wantConcise: true,
 		},
-		{
-			name:    "metadata apply positional args rejected",
-			args:    []string{"metadata", "apply", "--app", "123456789", "--version", "1.2.3", "--dir", "./metadata", "extra"},
-			wantErr: "metadata apply does not accept positional arguments",
-		},
 	}
 
 	for _, test := range tests {

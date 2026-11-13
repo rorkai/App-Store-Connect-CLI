@@ -54,10 +54,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("optimize keywords rank does not accept positional arguments")
-			}
-
 			resolvedAppID, err := normalizeKeywordAppID(*appID)
 			if err != nil {
 				return err

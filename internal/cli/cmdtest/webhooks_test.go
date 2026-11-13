@@ -122,11 +122,6 @@ func TestWebhooksValidationErrors(t *testing.T) {
 			wantErr: "--output must be one of: text, json",
 		},
 		{
-			name:    "serve positional args",
-			args:    []string{"webhooks", "serve", "extra"},
-			wantErr: "webhooks serve does not accept positional arguments",
-		},
-		{
 			name:    "serve empty host",
 			args:    []string{"webhooks", "serve", "--host", ""},
 			wantErr: "--host is required",

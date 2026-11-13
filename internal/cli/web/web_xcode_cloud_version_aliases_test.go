@@ -90,12 +90,6 @@ func TestWebVersionAliasesValidateBeforeSession(t *testing.T) {
 	}
 }
 
-func TestWebVersionAliasesRejectPositionalArguments(t *testing.T) {
-	if err := webVersionAliasesList().Exec(context.Background(), []string{"extra"}); err == nil || !strings.Contains(err.Error(), "does not accept positional arguments") {
-		t.Fatalf("error = %v", err)
-	}
-}
-
 func TestWebVersionAliasesRequirePublicProviderID(t *testing.T) {
 	original := resolveSessionFn
 	resolveSessionFn = func(context.Context, string, string, string) (*webcore.AuthSession, string, error) {

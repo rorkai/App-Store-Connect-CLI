@@ -105,10 +105,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web sandbox delete does not accept positional arguments")
-			}
-
 			requestedIDs := shared.SplitUniqueCSV(*ids)
 			if len(requestedIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -294,10 +290,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web sandbox create does not accept positional arguments")
-			}
-
 			firstNameValue, err := normalizeWebSandboxName("--first-name", *firstName)
 			if err != nil {
 				return shared.UsageError(err.Error())

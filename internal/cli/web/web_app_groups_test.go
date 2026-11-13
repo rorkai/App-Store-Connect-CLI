@@ -40,7 +40,6 @@ func TestWebAppGroupsValidationErrors(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
-		{name: "list positional", command: WebAppGroupsListCommand, args: []string{"extra"}, wantErr: "does not accept positional arguments"},
 		{name: "create missing name", command: WebAppGroupsCreateCommand, args: []string{"--identifier", "group.com.example", "--confirm"}, wantErr: "--name is required"},
 		{name: "create invalid identifier", command: WebAppGroupsCreateCommand, args: []string{"--name", "Example", "--identifier", "com.example", "--confirm"}, wantErr: "must start with \"group.\""},
 		{name: "create missing confirm", command: WebAppGroupsCreateCommand, args: []string{"--name", "Example", "--identifier", "group.com.example"}, wantErr: "--confirm is required"},
@@ -50,13 +49,11 @@ func TestWebAppGroupsValidationErrors(t *testing.T) {
 		{name: "unassign missing group", command: WebAppGroupsUnassignCommand, args: []string{"--bundle-id", "bundle-1", "--confirm"}, wantErr: "--group-id is required"},
 		{name: "unassign missing bundle", command: WebAppGroupsUnassignCommand, args: []string{"--group-id", "group-1", "--confirm"}, wantErr: "--bundle-id is required"},
 		{name: "unassign missing confirm", command: WebAppGroupsUnassignCommand, args: []string{"--group-id", "group-1", "--bundle-id", "bundle-1"}, wantErr: "--confirm is required"},
-		{name: "unassign positional", command: WebAppGroupsUnassignCommand, args: []string{"--group-id", "group-1", "--bundle-id", "bundle-1", "--confirm", "extra"}, wantErr: "does not accept positional arguments"},
 		{name: "set missing group", command: WebAppGroupsSetCommand, args: []string{"--bundle-id", "bundle-1", "--confirm"}, wantErr: "at least one --group is required"},
 		{name: "set missing bundle", command: WebAppGroupsSetCommand, args: []string{"--group", "group-1", "--confirm"}, wantErr: "--bundle-id is required"},
 		{name: "set missing confirm", command: WebAppGroupsSetCommand, args: []string{"--group", "group-1", "--bundle-id", "bundle-1"}, wantErr: "--confirm is required"},
 		{name: "delete missing group", command: WebAppGroupsDeleteCommand, args: []string{"--confirm"}, wantErr: "--group-id is required"},
 		{name: "delete missing confirm", command: WebAppGroupsDeleteCommand, args: []string{"--group-id", "group-1"}, wantErr: "--confirm is required"},
-		{name: "delete positional", command: WebAppGroupsDeleteCommand, args: []string{"--group-id", "group-1", "--confirm", "extra"}, wantErr: "does not accept positional arguments"},
 	}
 
 	for _, test := range tests {

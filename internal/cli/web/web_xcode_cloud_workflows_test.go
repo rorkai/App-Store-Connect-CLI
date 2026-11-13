@@ -75,34 +75,6 @@ func TestWorkflowsListMissingProductIDFailsBeforeHTTP(t *testing.T) {
 	}
 }
 
-func TestWorkflowsListRejectsPositionalArguments(t *testing.T) {
-	origResolveSession := resolveSessionFn
-	t.Cleanup(func() { resolveSessionFn = origResolveSession })
-
-	resolveSessionFn = func(
-		ctx context.Context,
-		appleID, password, twoFactorCode string,
-	) (*webcore.AuthSession, string, error) {
-		t.Fatal("resolveSessionFn should not be called for positional arguments")
-		return nil, "", nil
-	}
-
-	cmd := webXcodeCloudWorkflowListCommand()
-	if err := cmd.FlagSet.Parse([]string{"--product-id", "prod-1", "extra", "--bogus"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	_, stderr := captureOutput(t, func() {
-		err := cmd.Exec(context.Background(), cmd.FlagSet.Args())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected flag.ErrHelp, got %v", err)
-		}
-	})
-	if !strings.Contains(stderr, "web xcode-cloud workflows list does not accept positional arguments") {
-		t.Fatalf("expected positional-args error, got %q", stderr)
-	}
-}
-
 func TestWorkflowsListSuccess(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() { resolveSessionFn = origResolveSession })

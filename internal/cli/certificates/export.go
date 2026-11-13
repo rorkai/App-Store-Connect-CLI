@@ -90,10 +90,6 @@ func CertificatesExportCommand() *ffcli.Command {
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("certificates export does not accept positional arguments")
-			}
-
 			certificateValue := *certificatePath
 			if strings.TrimSpace(certificateValue) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --certificate is required")

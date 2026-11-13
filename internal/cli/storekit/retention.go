@@ -68,9 +68,6 @@ func imagesListCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("list", "asc storekit retention-messaging images list --environment ENV [flags]", "List retention images.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		client, _, err := resolveClient(ctx, common)
 		if err != nil {
 			return usageOrWrap("storekit retention-messaging images list", err)
@@ -97,9 +94,6 @@ func imagesUploadCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("upload", "asc storekit retention-messaging images upload --image-id UUID --file IMAGE.png --environment ENV [flags]", "Upload a PNG retention image.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		if err := requireFlag("--image-id", *imageID); err != nil {
 			return err
 		}
@@ -138,9 +132,6 @@ func imagesDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging images delete --image-id UUID --environment ENV --confirm [flags]", "Delete a retention image.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		if !*confirm {
 			return shared.UsageError("--confirm is required")
 		}
@@ -183,9 +174,6 @@ func messagesListCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("list", "asc storekit retention-messaging messages list --environment ENV [flags]", "List retention messages.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		client, _, err := resolveClient(ctx, common)
 		if err != nil {
 			return usageOrWrap("storekit retention-messaging messages list", err)
@@ -211,9 +199,6 @@ func messagesUploadCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("upload", "asc storekit retention-messaging messages upload --message-id UUID --file MESSAGE.json --environment ENV [flags]", "Upload a retention message.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		if err := requireFlag("--message-id", *messageID); err != nil {
 			return err
 		}
@@ -247,9 +232,6 @@ func messagesDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging messages delete --message-id UUID --environment ENV --confirm [flags]", "Delete a retention message.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		if !*confirm {
 			return shared.UsageError("--confirm is required")
 		}
@@ -297,7 +279,7 @@ func defaultViewCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("view", "asc storekit retention-messaging defaults view --product-id ID --locale LOCALE --environment ENV [flags]", "View the default retention message.", fs, func(ctx context.Context, args []string) error {
-		if err := validateDefaultInvocation(args, *productID, *locale); err != nil {
+		if err := validateDefaultInvocation(*productID, *locale); err != nil {
 			return err
 		}
 		client, _, err := resolveClient(ctx, common)
@@ -321,7 +303,7 @@ func defaultSetCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("set", "asc storekit retention-messaging defaults set --product-id ID --locale LOCALE --message-id UUID --environment ENV [flags]", "Set the default retention message.", fs, func(ctx context.Context, args []string) error {
-		if err := validateDefaultInvocation(args, *productID, *locale); err != nil {
+		if err := validateDefaultInvocation(*productID, *locale); err != nil {
 			return err
 		}
 		if err := requireFlag("--message-id", *messageID); err != nil {
@@ -351,13 +333,10 @@ func defaultDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging defaults delete --product-id ID --locale LOCALE --environment ENV --confirm [flags]", "Delete the default retention message.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		if !*confirm {
 			return shared.UsageError("--confirm is required")
 		}
-		if err := validateDefaultInvocation(nil, *productID, *locale); err != nil {
+		if err := validateDefaultInvocation(*productID, *locale); err != nil {
 			return err
 		}
 		client, environment, err := resolveClient(ctx, common)
@@ -394,9 +373,6 @@ func endpointViewCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("view", "asc storekit retention-messaging endpoint view --environment ENV [flags]", "View the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		client, _, err := resolveClient(ctx, common)
 		if err != nil {
 			return usageOrWrap("storekit retention-messaging endpoint view", err)
@@ -417,9 +393,6 @@ func endpointSetCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("set", "asc storekit retention-messaging endpoint set --url HTTPS_URL --environment ENV [flags]", "Set the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		if err := requireFlag("--url", *realtimeURL); err != nil {
 			return err
 		}
@@ -446,9 +419,6 @@ func endpointDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging endpoint delete --environment ENV --confirm [flags]", "Delete the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		if !*confirm {
 			return shared.UsageError("--confirm is required")
 		}
@@ -492,9 +462,6 @@ func performanceStartCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("start", "asc storekit retention-messaging performance start --original-transaction-id ID --environment sandbox [flags]", "Start a sandbox endpoint performance test.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		if err := requireFlag("--original-transaction-id", *originalTransactionID); err != nil {
 			return err
 		}
@@ -533,9 +500,6 @@ func performanceViewCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("view", "asc storekit retention-messaging performance view --request-id ID --environment sandbox [flags]", "View a sandbox performance test result.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		if err := requireFlag("--request-id", *requestID); err != nil {
 			return err
 		}
@@ -564,9 +528,6 @@ func performanceWaitCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("wait", "asc storekit retention-messaging performance wait --request-id ID --environment sandbox [flags]", "Wait for a sandbox performance test to finish.", fs, func(ctx context.Context, args []string) error {
-		if err := shared.RejectPositionalArgs(args); err != nil {
-			return err
-		}
 		if err := requireFlag("--request-id", *requestID); err != nil {
 			return err
 		}
@@ -710,10 +671,7 @@ func readMessage(path string) (storekitapi.Message, error) {
 	return message, nil
 }
 
-func validateDefaultInvocation(args []string, productID, locale string) error {
-	if err := shared.RejectPositionalArgs(args); err != nil {
-		return err
-	}
+func validateDefaultInvocation(productID, locale string) error {
 	if err := requireFlag("--product-id", productID); err != nil {
 		return err
 	}

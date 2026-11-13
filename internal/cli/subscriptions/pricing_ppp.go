@@ -73,9 +73,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("subscriptions pricing ppp does not accept positional arguments")
-			}
 			subID := strings.TrimSpace(*subscriptionID)
 			if subID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")

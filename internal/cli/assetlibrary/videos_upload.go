@@ -85,9 +85,6 @@ Examples:
 		if pollErr != nil {
 			return pollErr
 		}
-		if len(args) > 0 {
-			return shared.UsageErrorf("asset-library videos upload: unexpected argument %q", args[0])
-		}
 		if err := shared.ValidateBoundOutputFlags(fs); err != nil {
 			return shared.UsageErrorf("asset-library videos upload: %v", err)
 		}

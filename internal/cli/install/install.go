@@ -133,9 +133,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				return fmt.Errorf("install skills: unexpected arguments: %s", strings.Join(args, " "))
-			}
 			if err := installSkills(ctx); err != nil {
 				return fmt.Errorf("install skills: %w", err)
 			}

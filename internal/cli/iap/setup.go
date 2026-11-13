@@ -144,10 +144,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("iap setup does not accept positional arguments")
-			}
-
 			referenceNameValue, err := resolveIAPSetupAlias(*referenceName, *refNameAlias, "--reference-name", "--ref-name")
 			if err != nil {
 				return shared.UsageError(err.Error())

@@ -10,8 +10,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"math/big"
 	"net/http"
@@ -363,12 +361,5 @@ func TestCertificatesDeveloperIDCheckTableNamesWhatItCannotSee(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Developer ID Installer") {
 		t.Fatalf("table output must name Installer certificates as not checked: %q", stdout)
-	}
-}
-
-func TestCertificatesDeveloperIDCheckRejectsPositionalArguments(t *testing.T) {
-	command := CertificatesDeveloperIDCheckCommand()
-	if err := command.Exec(context.Background(), []string{"extra"}); !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected a usage error, got %v", err)
 	}
 }

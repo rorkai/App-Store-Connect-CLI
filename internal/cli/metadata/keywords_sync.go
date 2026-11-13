@@ -54,9 +54,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("metadata keywords sync does not accept positional arguments")
-			}
 			resolvedAppID, versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(*appID, *version, *dir, *platform)
 			if err != nil {
 				return fmt.Errorf("metadata keywords sync: %w", err)

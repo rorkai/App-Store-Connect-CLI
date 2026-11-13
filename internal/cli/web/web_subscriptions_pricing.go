@@ -124,9 +124,6 @@ resolution but does not mutate App Store Connect.
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web subscriptions pricing monthly-commitment bootstrap does not accept positional arguments")
-			}
 			id := strings.TrimSpace(*subscriptionID)
 			territoryID := strings.ToUpper(strings.TrimSpace(*territory))
 			upfrontID := strings.TrimSpace(*upfrontPricePointID)
@@ -275,9 +272,6 @@ func WebSubscriptionsPricingAdjustedEqualizationsViewCommand() *ffcli.Command {
 		ShortHelp:  "View a generated MONTHLY subscription price matrix.",
 		FlagSet:    fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web subscriptions pricing adjusted-equalizations view does not accept positional arguments")
-			}
 			id := strings.TrimSpace(*pricePointID)
 			normalizedPlanType := strings.ToUpper(strings.TrimSpace(*planType))
 			if id == "" {

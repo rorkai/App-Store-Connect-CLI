@@ -41,9 +41,6 @@ Example:
   asc distribute plan --archive-path .asc/artifacts/App.xcarchive --config .asc/distribution/config.json --plan .asc/distribution/plan.json --output json`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				return shared.UsageError("distribute plan does not accept positional arguments")
-			}
 			if strings.TrimSpace(*archivePath) == "" {
 				return shared.UsageError("--archive-path is required")
 			}
@@ -94,9 +91,6 @@ Example:
   asc distribute apply --plan .asc/distribution/plan.json --confirm PLAN_HASH --output json`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				return shared.UsageError("distribute apply does not accept positional arguments")
-			}
 			confirmation := strings.TrimSpace(*confirm)
 			if confirmation == "" {
 				return shared.UsageError("--confirm PLAN_HASH is required")
@@ -153,9 +147,6 @@ published object without mutation. --device observes the matching bundle, versio
 and build on a connected device; it does not claim byte identity with the IPA.`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				return shared.UsageError("distribute verify does not accept positional arguments")
-			}
 			if err := validateDistributionRunFlags(*runID, *stateDir, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
@@ -198,9 +189,6 @@ func distributionRunCommand(name, help string, execute distributionRunExecutor) 
 		ShortHelp: "" + help,
 		FlagSet:   fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				return shared.UsageError("distribute " + name + " does not accept positional arguments")
-			}
 			if err := validateDistributionRunFlags(*runID, *stateDir, *output.Output, *output.Pretty); err != nil {
 				return err
 			}

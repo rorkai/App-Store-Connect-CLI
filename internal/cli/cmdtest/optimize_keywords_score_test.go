@@ -83,11 +83,6 @@ func TestOptimizeKeywordsScoreUsageErrors(t *testing.T) {
 			args:    []string{"optimize", "keywords", "score", "--keywords", "focus timer", "--genre", "bad genre"},
 			wantErr: "--genre must be an Apple Ads genre identifier such as PRODUCTIVITY_UTILITIES",
 		},
-		{
-			name:    "positional argument",
-			args:    []string{"optimize", "keywords", "score", "--keywords", "focus timer", "extra"},
-			wantErr: "optimize keywords score does not accept positional arguments",
-		},
 	}
 
 	for _, test := range tests {

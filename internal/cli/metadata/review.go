@@ -116,9 +116,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("metadata plan does not accept positional arguments")
-			}
 			// See the note in push.go: the bound flag defaults to fail, so an
 			// empty value is an explicitly supplied unsupported value.
 			if _, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate); err != nil {
@@ -178,9 +175,6 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			_ = ctx
-			if len(args) > 0 {
-				return shared.UsageError("metadata approve does not accept positional arguments")
-			}
 			approval, err := ExecuteMetadataApprove(MetadataApproveOptions{
 				ReviewDir: *reviewDir,
 				All:       *all,
@@ -222,9 +216,6 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			_ = ctx
-			if len(args) > 0 {
-				return shared.UsageError("metadata status does not accept positional arguments")
-			}
 			status, err := ExecuteMetadataReviewStatus(*reviewDir)
 			if err != nil {
 				return err

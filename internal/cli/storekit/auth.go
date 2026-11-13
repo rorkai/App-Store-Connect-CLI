@@ -68,9 +68,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			cleanName := strings.TrimSpace(*name)
 			cleanKeyID := strings.TrimSpace(*keyID)
 			cleanIssuerID := strings.TrimSpace(*issuerID)
@@ -183,9 +180,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			if flagWasSet(fs, "environment") && !*validate {
 				return shared.UsageError("--environment requires --validate")
 			}
@@ -260,9 +254,6 @@ func authSwitchCommand() *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			cleanName := strings.TrimSpace(*name)
 			if cleanName == "" {
 				return shared.UsageError("--name is required")
@@ -292,9 +283,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			client, environment, err := resolveClient(ctx, common)
 			if err != nil {
 				return usageOrWrap("storekit auth doctor", err)
@@ -327,9 +315,6 @@ func authLogoutCommand() *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			if !*confirm {
 				return shared.UsageError("--confirm is required")
 			}

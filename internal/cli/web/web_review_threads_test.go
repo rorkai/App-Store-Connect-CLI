@@ -316,25 +316,6 @@ func TestWebReviewThreadsRejectsPlainTextWithoutDrafts(t *testing.T) {
 	}
 }
 
-func TestWebReviewThreadsRejectsPositionalArguments(t *testing.T) {
-	cmd := WebReviewThreadsCommand()
-	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	var err error
-	_, _ = captureOutput(t, func() { err = cmd.Exec(context.Background(), []string{"stray"}) })
-	if err == nil {
-		t.Fatal("expected positional arguments to be rejected instead of ignored")
-	}
-	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected a usage error, got %v", err)
-	}
-	if !strings.Contains(err.Error(), "unexpected argument") {
-		t.Fatalf("expected unexpected-argument guidance, got %v", err)
-	}
-}
-
 func TestWebReviewShowReportsAppThreadsMissedBySubmissionFilter(t *testing.T) {
 	stubWebReviewSession(t, map[string]string{
 		"/iris/v1/apps/app-1/reviewSubmissions":                                `{"data": [{"id": "sub-1", "type": "reviewSubmissions", "attributes": {"state": "COMPLETE", "submittedDate": "2026-02-25T00:00:00Z"}}]}`,

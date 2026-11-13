@@ -1,13 +1,8 @@
 package apps
 
 import (
-	"context"
-	"errors"
-	"flag"
 	"strings"
 	"testing"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestAppsCommandRegistersPublished(t *testing.T) {
@@ -32,27 +27,5 @@ func TestAppsPublishedCommandDefaultsToJSON(t *testing.T) {
 	}
 	if output.DefValue != "json" {
 		t.Fatalf("default output = %q, want json", output.DefValue)
-	}
-}
-
-func TestAppsPublishedCommandRejectsPositionalArgumentsBeforeClientCreation(t *testing.T) {
-	originalFactory := appsPublishedClientFactory
-	t.Cleanup(func() { appsPublishedClientFactory = originalFactory })
-
-	clientFactoryCalls := 0
-	appsPublishedClientFactory = func() (*asc.Client, error) {
-		clientFactoryCalls++
-		return nil, errors.New("client factory must not be called")
-	}
-
-	err := AppsPublishedCommand().Exec(context.Background(), []string{"unexpected"})
-	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp, got %v", err)
-	}
-	if err.Error() != "apps published does not accept positional arguments" {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if clientFactoryCalls != 0 {
-		t.Fatalf("client factory calls = %d, want 0", clientFactoryCalls)
 	}
 }

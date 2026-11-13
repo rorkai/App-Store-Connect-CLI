@@ -118,9 +118,6 @@ func buildNodeCommand(node *commandNode, parentPath []string) *ffcli.Command {
 	if node.spec != nil {
 		spec := *node.spec
 		command.Exec = func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
-				return err
-			}
 			return executeEndpoint(ctx, spec, flags)
 		}
 	}

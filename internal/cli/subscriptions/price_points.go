@@ -99,9 +99,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorfCtx(ctx, "subscriptions price-points list: %v", err)
 			}
@@ -447,9 +444,6 @@ Examples:
 	}
 
 	cmd.Exec = func(ctx context.Context, args []string) error {
-		if len(args) > 0 {
-			return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-		}
 		if err := shared.ValidateNextURL(*next); err != nil {
 			return shared.UsageErrorf("%s: %v", usageErrorPrefix(), err)
 		}

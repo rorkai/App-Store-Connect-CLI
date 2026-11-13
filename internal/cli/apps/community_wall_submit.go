@@ -183,10 +183,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: apps wall submit does not accept positional arguments")
-				return flag.ErrHelp
-			}
 			if !*dryRun && !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required unless --dry-run is set")
 				return shared.MissingRequiredUsageError("--confirm")

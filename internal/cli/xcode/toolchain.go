@@ -48,9 +48,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return toolchainUsageError("xcode doctor does not accept positional arguments", "")
-			}
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "developer-dir", "sdk"); emptyFlag != "" {
 				return toolchainUsageError(fmt.Sprintf("--%s must not be empty", emptyFlag), "--"+emptyFlag)
 			}

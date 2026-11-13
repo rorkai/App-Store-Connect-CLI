@@ -100,10 +100,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web agreements status does not accept positional arguments")
-			}
-
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err
 			}
@@ -175,9 +171,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web agreements download does not accept positional arguments")
-			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -346,10 +339,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web agreements accept does not accept positional arguments")
-			}
-
 			resolvedAgreementIDs := uniqueTrimmedStrings(agreementIDs)
 			switch {
 			case len(resolvedAgreementIDs) == 0:

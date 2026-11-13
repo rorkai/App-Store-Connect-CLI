@@ -1322,28 +1322,6 @@ func TestAuthLogoutCommand(t *testing.T) {
 			t.Fatalf("credentials were removed with --confirm=false: %+v", calls)
 		}
 	})
-
-	t.Run("unexpected arguments are rejected before removal", func(t *testing.T) {
-		calls := stubLogoutRemovers(t)
-
-		cmd := AuthLogoutCommand()
-		if err := cmd.FlagSet.Parse([]string{"--all", "--confirm"}); err != nil {
-			t.Fatalf("Parse() error: %v", err)
-		}
-		_, stderr := captureAuthOutput(t, func() {
-			err := cmd.Exec(context.Background(), []string{"unexpected"})
-			if !errors.Is(err, flag.ErrHelp) {
-				t.Fatalf("Exec() error = %v, want flag.ErrHelp", err)
-			}
-		})
-		if !strings.Contains(stderr, "unexpected argument(s): unexpected") {
-			t.Fatalf("expected unexpected-argument error, got %q", stderr)
-		}
-
-		if len(calls.names) != 0 || calls.all != 0 {
-			t.Fatalf("expected no removal, got %+v", calls)
-		}
-	})
 }
 
 func TestAuthExportToConfigCommand(t *testing.T) {
@@ -2071,22 +2049,6 @@ func TestAuthTokenCommand(t *testing.T) {
 			t.Fatalf("expected missing authentication error, got %v", err)
 		}
 	})
-
-	t.Run("unexpected args rejected", func(t *testing.T) {
-		cmd := AuthTokenCommand()
-		if err := cmd.FlagSet.Parse([]string{}); err != nil {
-			t.Fatalf("Parse() error: %v", err)
-		}
-		_, stderr := captureAuthOutput(t, func() {
-			err := cmd.Exec(context.Background(), []string{"extra"})
-			if !errors.Is(err, flag.ErrHelp) {
-				t.Fatalf("expected flag.ErrHelp, got %v", err)
-			}
-		})
-		if !strings.Contains(stderr, "unexpected argument") {
-			t.Fatalf("expected unexpected argument error, got %q", stderr)
-		}
-	})
 }
 
 func TestAuthIssuerIDCommand(t *testing.T) {
@@ -2235,22 +2197,6 @@ func TestAuthIssuerIDCommand(t *testing.T) {
 		}
 		if payload.Profile != "" {
 			t.Fatalf("expected empty profile for env credentials, got %q", payload.Profile)
-		}
-	})
-
-	t.Run("unexpected args rejected", func(t *testing.T) {
-		cmd := AuthIssuerIDCommand()
-		if err := cmd.FlagSet.Parse([]string{}); err != nil {
-			t.Fatalf("Parse() error: %v", err)
-		}
-		_, stderr := captureAuthOutput(t, func() {
-			err := cmd.Exec(context.Background(), []string{"extra"})
-			if !errors.Is(err, flag.ErrHelp) {
-				t.Fatalf("expected flag.ErrHelp, got %v", err)
-			}
-		})
-		if !strings.Contains(stderr, "unexpected argument") {
-			t.Fatalf("expected unexpected argument error, got %q", stderr)
 		}
 	})
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -30,10 +29,6 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			_ = ctx
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: docs list does not accept positional arguments")
-				return flag.ErrHelp
-			}
 			if err := shared.PrintOutputWithRenderers(
 				listGuideSummaries(),
 				*output.Output,

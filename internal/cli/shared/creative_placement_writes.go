@@ -58,9 +58,6 @@ func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *f
 	return &ffcli.Command{
 		Name: operation, ShortHelp: shortHelp, ShortUsage: usage, FlagSet: fs, UsageFunc: DefaultUsageFunc, LongHelp: longHelp,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return UsageErrorf("placements "+operation+": unexpected argument %q", args[0])
-			}
 			if err := ValidateBoundOutputFlags(fs); err != nil {
 				return UsageErrorf("placements "+operation+": %v", err)
 			}
@@ -234,9 +231,6 @@ func creativePlacementDeleteCommand(prefix string) *ffcli.Command {
 		Name: "delete", ShortHelp: "Remove an asset placement without deleting its library media.", ShortUsage: "asc " + prefix + " placements delete (--id ID | --placement-ids ID1,ID2) --confirm", FlagSet: fs, UsageFunc: DefaultUsageFunc,
 		LongHelp: "Remove one placement with --id, or remove --placement-ids sequentially using the public DELETE endpoint. Supply exactly one of these flags and --confirm. Apple does not expose the website batch deletion route through the public API. Multiple deletes are not atomic: processing stops on the first error and prints a partial receipt of deleted IDs and the failed ID before returning failure. Library media remains available for reuse. IDs are authoritative: this command does not validate a placement's localization or type. Inspect placements before retrying an uncertain failure; earlier successful deletes are not rolled back.\n\nExamples:\n  asc " + prefix + " placements delete --id PLACEMENT_ID --confirm\n  asc " + prefix + " placements delete --placement-ids FIRST_ID,SECOND_ID --confirm",
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return UsageErrorf("placements delete: unexpected argument %q", args[0])
-			}
 			if err := ValidateBoundOutputFlags(fs); err != nil {
 				return UsageErrorf("placements delete: %v", err)
 			}

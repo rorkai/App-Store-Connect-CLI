@@ -100,9 +100,6 @@ Examples:
 			if err := shared.RecoverBoolFlagTailArgs(fs, args, availableInNew); err != nil {
 				return err
 			}
-			if len(args) > 0 {
-				return shared.UsageError("subscriptions pricing monthly-commitment enable does not accept positional arguments")
-			}
 			if *availableInNew {
 				return shared.UsageError("--available-in-new-territories is not supported for MONTHLY plan availability")
 			}
@@ -266,9 +263,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("subscriptions pricing monthly-commitment disable does not accept positional arguments")
-			}
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
 				return shared.UsageError("--subscription-id is required")
@@ -350,9 +344,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("subscriptions pricing monthly-commitment list does not accept positional arguments")
-			}
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
 				return shared.UsageError("--subscription-id is required")

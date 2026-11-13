@@ -369,10 +369,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("encryption declarations exempt-declare does not accept positional arguments")
-			}
-
 			visited := map[string]bool{}
 			fs.Visit(func(f *flag.Flag) {
 				visited[f.Name] = true

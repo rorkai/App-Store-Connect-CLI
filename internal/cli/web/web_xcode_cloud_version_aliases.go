@@ -68,9 +68,6 @@ Example:
 		UsageFunc: shared.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web xcode-cloud settings version-aliases list does not accept positional arguments")
-			}
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
@@ -327,9 +324,6 @@ Example:
 		UsageFunc: shared.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web xcode-cloud settings version-aliases view does not accept positional arguments")
-			}
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
@@ -387,9 +381,6 @@ Example:
 		UsageFunc: shared.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web xcode-cloud settings version-aliases create does not accept positional arguments")
-			}
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
@@ -477,9 +468,6 @@ Example:
 		UsageFunc: shared.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web xcode-cloud settings version-aliases update does not accept positional arguments")
-			}
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
@@ -592,9 +580,6 @@ Example:
 		UsageFunc: shared.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web xcode-cloud settings version-aliases delete does not accept positional arguments")
-			}
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")

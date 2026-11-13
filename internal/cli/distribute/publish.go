@@ -113,10 +113,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				fmt.Fprintln(os.Stderr, "Error: distribute publish does not accept positional arguments")
-				return flag.ErrHelp
-			}
 			required := []struct{ name, value string }{
 				{"bundle-dir", *bundleDir}, {"endpoint", *endpoint}, {"region", *region}, {"bucket", *bucket}, {"prefix", *prefix},
 			}

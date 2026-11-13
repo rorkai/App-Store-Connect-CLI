@@ -96,10 +96,9 @@ func TestXcodeBuildPassesTypedAndRawOptionsAndPrintsJSON(t *testing.T) {
 
 func TestXcodeBuildValidationErrorsAreUsageErrors(t *testing.T) {
 	tests := []struct {
-		name       string
-		args       []string
-		positional []string
-		want       string
+		name string
+		args []string
+		want string
 	}{
 		{name: "missing selector", args: []string{"--scheme", "Demo"}, want: "exactly one of --workspace or --project"},
 		{name: "both selectors", args: []string{"--project", "Demo.xcodeproj", "--workspace", "Demo.xcworkspace", "--scheme", "Demo"}, want: "exactly one of --workspace or --project"},
@@ -109,7 +108,6 @@ func TestXcodeBuildValidationErrorsAreUsageErrors(t *testing.T) {
 		{name: "reserved result bundle raw flag", args: []string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--xcodebuild-flag=-resultBundlePath=/tmp/elsewhere.xcresult"}, want: "cannot override asc-managed argument"},
 		{name: "conditional signing override", args: []string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--no-code-signing", "--xcodebuild-flag=CODE_SIGNING_ALLOWED[sdk=iphoneos*]=YES"}, want: `cannot override asc-managed argument "CODE_SIGNING_ALLOWED"`},
 		{name: "action build setting override", args: []string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--xcodebuild-flag=ACTION=archive"}, want: `cannot override asc-managed argument "ACTION"`},
-		{name: "positional", args: []string{"--project", "Demo.xcodeproj", "--scheme", "Demo"}, positional: []string{"build"}, want: "does not accept positional arguments"},
 	}
 
 	for _, test := range tests {
@@ -121,7 +119,7 @@ func TestXcodeBuildValidationErrorsAreUsageErrors(t *testing.T) {
 			}
 			var runErr error
 			stdout, stderr := captureCommandOutput(t, func() error {
-				runErr = cmd.Exec(context.Background(), test.positional)
+				runErr = cmd.Exec(context.Background(), nil)
 				return runErr
 			})
 			if !errors.Is(runErr, flag.ErrHelp) {

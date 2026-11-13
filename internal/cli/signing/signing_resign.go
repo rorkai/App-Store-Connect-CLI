@@ -64,9 +64,6 @@ Example:
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			if len(args) != 0 {
-				return shared.UsageError("signing resign does not accept positional arguments")
-			}
 			if runtime.GOOS != "darwin" {
 				return shared.UsageError("signing resign is supported only on macOS")
 			}

@@ -60,9 +60,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("signing keychain list does not accept positional arguments")
-			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -110,9 +107,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("signing keychain set-partition-list does not accept positional arguments")
-			}
 			options, err := parseSigningKeychainPasswordOptions(*keychainPath, *passwordFile, 0, false, false, *partition, *identitySHA)
 			if err != nil {
 				return err
@@ -139,9 +133,6 @@ func SigningKeychainLockCommand() *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("signing keychain lock does not accept positional arguments")
-			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -180,9 +171,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("signing keychain delete does not accept positional arguments")
-			}
 			if !*confirm {
 				return shared.UsageError("signing keychain delete: --confirm is required")
 			}
@@ -238,9 +226,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageErrorf("signing keychain %s does not accept positional arguments", name)
-			}
 			timeoutSet := false
 			fs.Visit(func(flag *flag.Flag) {
 				if flag.Name == "timeout" {

@@ -33,9 +33,6 @@ func WebSignInKeysListCommand() *ffcli.Command {
 	portalFlags := bindDeveloperPortalFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{Name: "list", ShortUsage: "asc web sign-in-keys list [flags]", ShortHelp: "List Developer Portal authentication keys and download availability.", LongHelp: "Lists up to 1000 authentication keys, including other services, to inspect existing keys before creating one. JSON preserves Apple's response envelope. This does not download private keys.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
-		if len(args) > 0 {
-			return shared.UsageError("web sign-in-keys list does not accept positional arguments")
-		}
 		if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 			return err
 		}
@@ -68,9 +65,6 @@ func WebSignInKeysViewCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 	keyID := fs.String("key-id", "", "Developer Portal authentication key ID")
 	return &ffcli.Command{Name: "view", ShortUsage: "asc web sign-in-keys view --key-id ID [flags]", ShortHelp: "Inspect authentication key services and configured bundle IDs.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
-		if len(args) > 0 {
-			return shared.UsageError("web sign-in-keys view does not accept positional arguments")
-		}
 		if strings.TrimSpace(*keyID) == "" {
 			return shared.UsageError("--key-id is required")
 		}
@@ -145,9 +139,6 @@ func webSignInKeySaveCommand(create bool) *ffcli.Command {
 	}
 	fs.BoolVar(&confirm, "confirm", false, confirmHelp)
 	return &ffcli.Command{Name: operation, ShortUsage: shortUsage, ShortHelp: strings.ToUpper(operation[:1]) + operation[1:] + " a Sign in with Apple key and save its one-time P8 privately.", LongHelp: longHelp, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
-		if len(args) > 0 {
-			return shared.UsageError("web sign-in-keys " + operation + " does not accept positional arguments")
-		}
 		name = strings.TrimSpace(name)
 		bundleID = strings.TrimSpace(bundleID)
 		keyID = strings.TrimSpace(keyID)

@@ -114,22 +114,6 @@ func TestSkillsSourceIsPinnedToImmutableInput(t *testing.T) {
 	}
 }
 
-func TestInstallSkillsRejectsPositionalArgumentsBeforeSideEffects(t *testing.T) {
-	preserveInstallerGlobals(t)
-	lookupExecutable = func(name string) (string, error) {
-		t.Fatalf("positional argument caused executable lookup for %q", name)
-		return "", nil
-	}
-
-	err := runInstallCommand(t, "unexpected")
-	if err == nil {
-		t.Fatal("expected positional argument error")
-	}
-	if !strings.Contains(err.Error(), "unexpected arguments: unexpected") {
-		t.Fatalf("error = %q, want unexpected argument diagnostic", err)
-	}
-}
-
 func TestInstallSkillsCopiesExactPackWithoutNodeAndPreservesUnrelatedData(t *testing.T) {
 	home := installFixture(t, func(paths gitIsolationPaths) error {
 		populatePinnedSkillsFixture(t, paths.sourceDir, expectedSkillNames)

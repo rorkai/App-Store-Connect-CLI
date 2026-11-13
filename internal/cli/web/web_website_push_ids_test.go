@@ -3,8 +3,6 @@ package web
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"strings"
 	"testing"
 
@@ -24,25 +22,6 @@ func TestWebWebsitePushIDsCommandHierarchy(t *testing.T) {
 		if command.Subcommands[index].Name != name {
 			t.Fatalf("subcommand %d = %q, want %q", index, command.Subcommands[index].Name, name)
 		}
-	}
-}
-
-func TestWebWebsitePushIDsListRejectsPositionalArguments(t *testing.T) {
-	command := WebWebsitePushIDsListCommand()
-	if err := command.FlagSet.Parse([]string{"extra"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
-		err := command.Exec(context.Background(), command.FlagSet.Args())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected usage error, got %v", err)
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "web website-push-ids list does not accept positional arguments") {
-		t.Fatalf("stderr %q does not contain positional-argument error", stderr)
 	}
 }
 

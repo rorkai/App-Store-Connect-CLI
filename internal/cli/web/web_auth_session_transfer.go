@@ -87,10 +87,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web auth export does not accept positional arguments")
-			}
-
 			outputPathValue := *outputPath
 			if strings.TrimSpace(outputPathValue) == "" {
 				return shared.UsageError("--output-path is required")
@@ -237,10 +233,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web auth import does not accept positional arguments")
-			}
-
 			filePathValue := *filePath
 			fileFlagProvided := false
 			fs.Visit(func(flagDef *flag.Flag) {

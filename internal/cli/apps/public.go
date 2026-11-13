@@ -102,11 +102,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: public view does not accept positional arguments")
-				return flag.ErrHelp
-			}
-
 			resolvedAppID, err := resolvePublicAppID(*appID)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
@@ -164,10 +159,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: public search does not accept positional arguments")
-				return flag.ErrHelp
-			}
 			termValue := strings.TrimSpace(*term)
 			if termValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --term is required")
@@ -232,11 +223,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: public prices does not accept positional arguments")
-				return flag.ErrHelp
-			}
-
 			resolvedAppID, err := resolvePublicAppID(*appID)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
@@ -303,11 +289,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: public descriptions does not accept positional arguments")
-				return flag.ErrHelp
-			}
-
 			resolvedAppID, err := resolvePublicAppID(*appID)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
@@ -394,11 +375,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: public storefronts list does not accept positional arguments")
-				return flag.ErrHelp
-			}
-
 			storefronts := itunes.ListStorefronts()
 			return shared.PrintOutputWithRenderers(storefronts, *output.Output, *output.Pretty, func() error {
 				return renderPublicStorefrontsTable(storefronts)

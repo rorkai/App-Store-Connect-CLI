@@ -2,8 +2,6 @@ package web
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"strings"
 	"testing"
 
@@ -53,29 +51,5 @@ func TestWebTeamsListPrintsTeamFieldsAsJSON(t *testing.T) {
 	want := `{"teams":[{"teamId":"TEAMONE123","name":"Example One","status":"active"}]}`
 	if got := strings.TrimSpace(stdout); got != want {
 		t.Fatalf("stdout = %s, want %s", got, want)
-	}
-}
-
-func TestWebTeamsListRejectsPositionalArguments(t *testing.T) {
-	stubWebTeamsListDependencies(t)
-	listDeveloperTeamsFn = func(context.Context, *webcore.Client) (*asc.WebDeveloperTeamsResult, error) {
-		t.Fatal("list must not be called")
-		return nil, nil
-	}
-
-	command := WebTeamsListCommand()
-	if err := command.FlagSet.Parse([]string{"extra"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
-		if err := command.Exec(context.Background(), command.FlagSet.Args()); !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected usage error, got %v", err)
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "web teams list does not accept positional arguments") {
-		t.Fatalf("stderr = %q, want positional argument error", stderr)
 	}
 }

@@ -98,11 +98,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: webhooks serve does not accept positional arguments")
-				return flag.ErrHelp
-			}
-
 			bindHost := strings.TrimSpace(*host)
 			if bindHost == "" {
 				fmt.Fprintln(os.Stderr, "Error: --host is required")

@@ -93,10 +93,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web apps medical-device set does not accept positional arguments")
-			}
-
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
 				return shared.UsageError("--app is required (or set ASC_APP_ID)")

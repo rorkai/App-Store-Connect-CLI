@@ -75,10 +75,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("metadata pull does not accept positional arguments")
-			}
-
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				return metadataRequiredInputError("--app", "--app is required (or set ASC_APP_ID)")

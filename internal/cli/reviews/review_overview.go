@@ -102,10 +102,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.WithDiagnostic(shared.UsageError("review status does not accept positional arguments"), shared.DiagnosticInvalidInput, "")
-			}
-
 			resolvedAppID, versionValue, versionIDValue, platformValue, err := resolveReviewOverviewFlags(*appID, *version, *versionID, *platform)
 			if err != nil {
 				return err
@@ -164,10 +160,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.WithDiagnostic(shared.UsageError("review doctor does not accept positional arguments"), shared.DiagnosticInvalidInput, "")
-			}
-
 			resolvedAppID, versionValue, versionIDValue, platformValue, err := resolveReviewOverviewFlags(*appID, *version, *versionID, *platform)
 			if err != nil {
 				return err

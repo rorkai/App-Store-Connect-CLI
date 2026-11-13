@@ -57,9 +57,6 @@ func statusCommand() *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return flag.ErrHelp
-			}
 			normalizedOutput, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "table", "json")
 			if err != nil {
 				return shared.UsageError(err.Error())
@@ -101,9 +98,6 @@ func stateCommand(name, help string, enabled bool) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return flag.ErrHelp
-			}
 			if err := telemetry.SetEnabled(enabled); err != nil {
 				return err
 			}
@@ -126,9 +120,6 @@ func resetIDCommand() *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return flag.ErrHelp
-			}
 			if _, err := telemetry.ResetInstallID(); err != nil {
 				return err
 			}

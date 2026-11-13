@@ -48,9 +48,6 @@ func platformCampaignStatusWorkflowCommand(name, status, shortHelp string) *ffcl
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
-				return err
-			}
 			return executePlatformCampaignStatusWorkflow(ctx, name, status, flags)
 		},
 	}

@@ -33,9 +33,7 @@ func TestWebBundleIDsReadValidationErrors(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
-		{name: "list positional", command: WebBundleIDsListCommand, args: []string{"extra"}, wantErr: "web bundle-ids list does not accept positional arguments"},
 		{name: "view missing bundle id", command: WebBundleIDsViewCommand, args: nil, wantErr: "--bundle-id is required"},
-		{name: "view positional", command: WebBundleIDsViewCommand, args: []string{"--bundle-id", "bundle-1", "extra"}, wantErr: "web bundle-ids view does not accept positional arguments"},
 	}
 
 	for _, tc := range tests {

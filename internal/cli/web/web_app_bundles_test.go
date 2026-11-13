@@ -111,26 +111,22 @@ func TestWebAppBundlesRejectsBadUsage(t *testing.T) {
 		name string
 		cmd  *ffcli.Command
 		args []string
-		pos  []string
 		want string
 	}{
-		{"view needs id", WebAppBundlesViewCommand(), nil, nil, "--id is required"},
-		{"view rejects positional", WebAppBundlesViewCommand(), []string{"--id", "1"}, []string{"extra"}, "does not accept positional"},
-		{"list rejects positional", WebAppBundlesListCommand(), nil, []string{"extra"}, "does not accept positional"},
-		{"eligible rejects positional", WebAppBundlesAppsEligibleCommand(), nil, []string{"extra"}, "does not accept positional"},
-		{"set needs id", WebAppBundlesAppsSetCommand(), []string{"--apps", "1,2", "--confirm"}, nil, "--id is required"},
-		{"set needs apps", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--confirm"}, nil, "--apps is required"},
-		{"set needs confirm", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2"}, nil, "--confirm is required"},
-		{"set rejects duplicates", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2,1", "--confirm"}, nil, "lists app 1 twice"},
-		{"set rejects names", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,two", "--confirm"}, nil, "numeric app IDs"},
-		{"set rejects leading zeros", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,01", "--confirm"}, nil, "numeric app IDs"},
-		{"set rejects an empty entry", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,,2", "--confirm"}, nil, "numeric app IDs"},
-		{"create needs name", WebAppBundlesCreateCommand(), []string{"--sku", "S", "--apps", "1,2", "--confirm"}, nil, "--name is required"},
-		{"create needs sku", WebAppBundlesCreateCommand(), []string{"--name", "N", "--apps", "1,2", "--confirm"}, nil, "--sku is required"},
-		{"create needs confirm", WebAppBundlesCreateCommand(), []string{"--name", "N", "--sku", "S", "--apps", "1,2"}, nil, "--confirm is required"},
-		{"submit needs id", webAppBundleReviewCommand("submit", "", "", submitWebAppBundleFn), []string{"--confirm"}, nil, "--id is required"},
-		{"submit needs confirm", webAppBundleReviewCommand("submit", "", "", submitWebAppBundleFn), []string{"--id", "1"}, nil, "--confirm is required"},
-		{"remove needs confirm", webAppBundleReviewCommand("remove-from-review", "", "", removeWebAppBundleFromReviewFn), []string{"--id", "1"}, nil, "--confirm is required"},
+		{"view needs id", WebAppBundlesViewCommand(), nil, "--id is required"},
+		{"set needs id", WebAppBundlesAppsSetCommand(), []string{"--apps", "1,2", "--confirm"}, "--id is required"},
+		{"set needs apps", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--confirm"}, "--apps is required"},
+		{"set needs confirm", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2"}, "--confirm is required"},
+		{"set rejects duplicates", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2,1", "--confirm"}, "lists app 1 twice"},
+		{"set rejects names", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,two", "--confirm"}, "numeric app IDs"},
+		{"set rejects leading zeros", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,01", "--confirm"}, "numeric app IDs"},
+		{"set rejects an empty entry", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,,2", "--confirm"}, "numeric app IDs"},
+		{"create needs name", WebAppBundlesCreateCommand(), []string{"--sku", "S", "--apps", "1,2", "--confirm"}, "--name is required"},
+		{"create needs sku", WebAppBundlesCreateCommand(), []string{"--name", "N", "--apps", "1,2", "--confirm"}, "--sku is required"},
+		{"create needs confirm", WebAppBundlesCreateCommand(), []string{"--name", "N", "--sku", "S", "--apps", "1,2"}, "--confirm is required"},
+		{"submit needs id", webAppBundleReviewCommand("submit", "", "", submitWebAppBundleFn), []string{"--confirm"}, "--id is required"},
+		{"submit needs confirm", webAppBundleReviewCommand("submit", "", "", submitWebAppBundleFn), []string{"--id", "1"}, "--confirm is required"},
+		{"remove needs confirm", webAppBundleReviewCommand("remove-from-review", "", "", removeWebAppBundleFromReviewFn), []string{"--id", "1"}, "--confirm is required"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -139,7 +135,7 @@ func TestWebAppBundlesRejectsBadUsage(t *testing.T) {
 			}
 			var err error
 			_, stderr := captureWebCommandOutput(t, func() {
-				err = test.cmd.Exec(context.Background(), test.pos)
+				err = test.cmd.Exec(context.Background(), nil)
 			})
 			if !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, test.want) {
 				t.Fatalf("error = %v, stderr = %q, want usage error %q", err, stderr, test.want)

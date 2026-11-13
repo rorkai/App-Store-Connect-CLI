@@ -77,16 +77,6 @@ func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
 		{"links versions reject group owner with next", []string{"subscriptions", "groups", "versions", "links", "versions", "--group-id", "group-2", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/relationships/versions?cursor=next"}, "--next cannot be combined with --group-id"},
 		{"links localizations reject version owner with next", []string{"subscriptions", "groups", "versions", "links", "localizations", "--version-id", "version-2", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroupVersions/version-1/relationships/localizations?cursor=next"}, "--next cannot be combined with --version-id"},
 		{"links reject limit with next", []string{"subscriptions", "groups", "versions", "links", "versions", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/relationships/versions?cursor=next", "--limit", "5"}, "--next cannot be combined with --limit"},
-		{"create rejects positional args", []string{"subscriptions", "groups", "versions", "create", "--group-id", "group-1", "unexpected"}, "unexpected argument"},
-		{"list rejects positional args", []string{"subscriptions", "groups", "versions", "list", "--group-id", "group-1", "unexpected"}, "unexpected argument"},
-		{"view rejects positional args", []string{"subscriptions", "groups", "versions", "view", "--version-id", "version-1", "unexpected"}, "unexpected argument"},
-		{"localization list rejects positional args", []string{"subscriptions", "groups", "versions", "localizations", "list", "--version-id", "version-1", "unexpected"}, "unexpected argument"},
-		{"localization create rejects positional args", []string{"subscriptions", "groups", "versions", "localizations", "create", "--version-id", "version-1", "--name", "Premium", "--locale", "en-US", "unexpected"}, "unexpected argument"},
-		{"localization view rejects positional args", []string{"subscriptions", "groups", "versions", "localizations", "view", "--id", "loc-1", "unexpected"}, "unexpected argument"},
-		{"localization update rejects positional args", []string{"subscriptions", "groups", "versions", "localizations", "update", "--id", "loc-1", "--name", "Premium", "unexpected"}, "unexpected argument"},
-		{"localization delete rejects positional args", []string{"subscriptions", "groups", "versions", "localizations", "delete", "--id", "loc-1", "--confirm", "unexpected"}, "unexpected argument"},
-		{"versions links reject positional args", []string{"subscriptions", "groups", "versions", "links", "versions", "--group-id", "group-1", "unexpected"}, "unexpected argument"},
-		{"localizations links reject positional args", []string{"subscriptions", "groups", "versions", "links", "localizations", "--version-id", "version-1", "unexpected"}, "unexpected argument"},
 	}
 
 	for _, test := range tests {

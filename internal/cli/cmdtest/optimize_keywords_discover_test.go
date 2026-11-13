@@ -34,11 +34,6 @@ func TestOptimizeKeywordsDiscoverUsageErrors(t *testing.T) {
 			args:    []string{"optimize", "keywords", "discover", "--app", "1234567890", "--country", "usa"},
 			wantErr: `--country "usa" is not a supported App Store storefront`,
 		},
-		{
-			name:    "positional argument",
-			args:    []string{"optimize", "keywords", "discover", "--app", "1234567890", "extra"},
-			wantErr: "optimize keywords discover does not accept positional arguments",
-		},
 	}
 
 	for _, test := range tests {

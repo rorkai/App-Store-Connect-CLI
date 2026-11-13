@@ -371,9 +371,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			if strings.TrimSpace(*setID) != "" {
 				if strings.TrimSpace(*localizationID) != "" || strings.TrimSpace(*appID) != "" || strings.TrimSpace(*version) != "" || strings.TrimSpace(*versionID) != "" || strings.TrimSpace(*platform) != "" || strings.TrimSpace(*locale) != "" {
 					return shared.UsageError("screenshots list: --set-id cannot be combined with --version-localization, --app, --version, --version-id, --platform, or --locale")

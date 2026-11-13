@@ -114,7 +114,7 @@ func transactionsViewCommand() *ffcli.Command {
 		"Get one transaction (Get Transaction Info).",
 		"Get one transaction with Apple's Get Transaction Info endpoint.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
 				return err
 			}
 			raw, err := serverRequest(ctx, fs.Name(), flags.common, func(ctx context.Context, client *storekitapi.Client) (json.RawMessage, error) {
@@ -145,7 +145,7 @@ func transactionsHistoryCommand() *ffcli.Command {
 		"Get a customer's transaction history (Get Transaction History v2).",
 		"Get a customer's In-App Purchase history with Apple's Get Transaction History v2\nendpoint. Apple returns up to 20 transactions per page; use --paginate for all\npages or --revision to continue from a stored revision with the same filters.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
 				return err
 			}
 			query, err := transactionHistoryQuery(*start, *end, *productIDs, *productTypes, *ownershipType, *sort, revoked)
@@ -173,7 +173,7 @@ func subscriptionsStatusCommand() *ffcli.Command {
 		"Get all subscription statuses for a customer (Get All Subscription Statuses).",
 		"Get the status of every auto-renewable subscription a customer has in your app\nwith Apple's Get All Subscription Statuses endpoint.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
 				return err
 			}
 			statuses, err := parseSubscriptionStatuses(*status)
@@ -200,7 +200,7 @@ func refundsHistoryCommand() *ffcli.Command {
 		"Get a customer's refunded purchases (Get Refund History v2).",
 		"Get a customer's App Store-approved refunds with Apple's Get Refund History v2\nendpoint. Apple returns up to 20 transactions per page; use --paginate for all\npages or --revision to continue from a stored revision.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
 				return err
 			}
 			raw, err := serverRequest(ctx, fs.Name(), flags.common, func(ctx context.Context, client *storekitapi.Client) (json.RawMessage, error) {
@@ -223,7 +223,7 @@ func ordersLookupCommand() *ffcli.Command {
 		"Look up In-App Purchases by order ID (Look Up Order ID).",
 		"Look up the In-App Purchases in a customer's order with Apple's Look Up Order ID\nendpoint. A status of 0 means the order ID is valid; 1 means it's invalid or\nhas no In-App Purchases for your app. Apple doesn't offer this endpoint in\nsandbox, so --environment must be production.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--order-id", *orderID}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--order-id", *orderID}); err != nil {
 				return err
 			}
 			if err := requireEnvironment(flags.common, storekitapi.Production,
@@ -255,7 +255,7 @@ func notificationsHistoryCommand() *ffcli.Command {
 		"Get App Store Server Notifications history (Get Notification History).",
 		"Get the version 2 notifications the App Store attempted to send to your server\nwith Apple's Get Notification History endpoint. Apple transports this read as a\nPOST; it changes nothing and runs in read-only mode. Apple returns up to 20\nrecords per page; use --paginate for all pages.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--start", *start}, requiredFlag{"--end", *end}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--start", *start}, requiredFlag{"--end", *end}); err != nil {
 				return err
 			}
 			request, err := notificationHistoryRequest(*start, *end, *notificationType, *subtype, *transactionID, *onlyFailures)
@@ -288,7 +288,7 @@ Test Notification endpoint. Pass the returned testNotificationToken to
 Examples:
   asc storekit notifications test --environment sandbox --confirm`, fs,
 		func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags); err != nil {
+			if err := validateServerRead(flags); err != nil {
 				return err
 			}
 			if !*confirm {
@@ -312,7 +312,7 @@ func notificationsTestStatusCommand() *ffcli.Command {
 		"Check a TEST notification's delivery (Get Test Notification Status).",
 		"Check whether the App Store delivered a TEST notification to your server with\nApple's Get Test Notification Status endpoint. Apple returns 404 until the\nstatus is available.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--token", *token}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--token", *token}); err != nil {
 				return err
 			}
 			raw, err := serverRequest(ctx, fs.Name(), flags.common, func(ctx context.Context, client *storekitapi.Client) (json.RawMessage, error) {
@@ -339,7 +339,7 @@ without a CONSUMER group gets Apple's placeholder ORGANIZATION group
 Examples:
   asc storekit groups list --transaction-id 2000000000000001 --environment production`, fs,
 		func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--transaction-id", *transactionID}); err != nil {
 				return err
 			}
 			raw, err := serverRequest(ctx, fs.Name(), flags.common, func(ctx context.Context, client *storekitapi.Client) (json.RawMessage, error) {
@@ -367,7 +367,7 @@ Get Group Members endpoint.
 Examples:
   asc storekit groups members --group-id 900000000000000000 --environment sandbox --paginate`, fs,
 		func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--group-id", *groupID}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--group-id", *groupID}); err != nil {
 				return err
 			}
 			if flagWasSet(fs, "limit") && (*limit < 1 || *limit > 100) {
@@ -409,10 +409,7 @@ type requiredFlag struct {
 	value string
 }
 
-func validateServerRead(args []string, flags serverReadFlags, required ...requiredFlag) error {
-	if err := shared.RejectPositionalArgs(args); err != nil {
-		return err
-	}
+func validateServerRead(flags serverReadFlags, required ...requiredFlag) error {
 	for _, item := range required {
 		if err := requireFlag(item.name, item.value); err != nil {
 			return err

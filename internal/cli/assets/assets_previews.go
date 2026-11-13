@@ -729,10 +729,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("video-previews set-poster-frame does not accept positional arguments")
-			}
-
 			previewID := strings.TrimSpace(*id)
 			if previewID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")

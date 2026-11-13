@@ -148,9 +148,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return UsageError(config.ErrorPrefix + " does not accept positional arguments")
-			}
 			if err := resource.Validate(); err != nil {
 				return err
 			}

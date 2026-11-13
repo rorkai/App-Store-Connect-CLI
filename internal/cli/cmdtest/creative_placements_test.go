@@ -361,7 +361,6 @@ func TestCreativePlacementViewUsage(t *testing.T) {
 		{},
 		{"--id", "   "},
 		{"--id", "../apps"},
-		{"--id", "placement-1", "extra"},
 		{"--id", "placement-1", "--include", "app"},
 		{"--id", "placement-1", "--include", "image,"},
 		{"--id", "placement-1", "--fields", "placementGroupPosition"},

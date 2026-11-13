@@ -52,10 +52,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: xcode install does not accept positional arguments")
-				return flag.ErrHelp
-			}
 			options := localxcode.InstallOptions{
 				IPAPath:  *ipaPath,
 				DeviceID: *deviceID,

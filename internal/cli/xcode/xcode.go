@@ -137,10 +137,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: xcode archive does not accept positional arguments")
-				return flag.ErrHelp
-			}
 			if strings.TrimSpace(*workspacePath) == "" && strings.TrimSpace(*projectPath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
 				return shared.MissingRequiredUsageError("")
@@ -249,10 +245,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: xcode export does not accept positional arguments")
-				return flag.ErrHelp
-			}
 			if strings.TrimSpace(*archivePath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --archive-path is required")
 				return shared.MissingRequiredUsageError("--archive-path")
@@ -535,10 +527,6 @@ Examples:
 			trimmedAPIKey := strings.TrimSpace(*apiKey)
 			trimmedAPIIssuer := strings.TrimSpace(*apiIssuer)
 
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: xcode validate does not accept positional arguments")
-				return flag.ErrHelp
-			}
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "ipa", "pkg"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
 			}

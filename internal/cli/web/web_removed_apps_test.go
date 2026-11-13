@@ -138,7 +138,6 @@ func TestWebRemovedAppsListValidationErrors(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
-		{name: "positional", args: []string{"extra"}, wantErr: "web removed-apps list does not accept positional arguments"},
 		{name: "limit low", args: []string{"--limit", "0"}, wantErr: "--limit must be between 1 and 200"},
 		{name: "next with paginate", args: []string{"--next", "https://appstoreconnect.apple.com/iris/v1/apps?page=2", "--paginate"}, wantErr: "--next cannot be combined with --paginate"},
 		{name: "bad next host", args: []string{"--next", "https://example.com/iris/v1/apps?page=2"}, wantErr: "--next must be an App Store Connect web URL"},
@@ -176,7 +175,6 @@ func TestWebRemovedAppsRestoreValidationBeforeAuth(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"positional", []string{"extra"}, "does not accept positional arguments"},
 		{"app", nil, "--app is required"},
 		{"access", []string{"--app", "123"}, "--access must be limited or full"},
 		{"confirm", []string{"--app", "123", "--access", "full"}, "--confirm is required"},

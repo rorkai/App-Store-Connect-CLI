@@ -449,11 +449,6 @@ func TestAdsAuthEvalValidatesUsageErrors(t *testing.T) {
 		t.Fatalf("status error = %v stderr = %q, want invalid output usage error", err, stderr)
 	}
 
-	_, stderr, err = runAdsEvalCommand(t, "ads", "auth", "status", "--output", "json", "unexpected")
-	if !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, "unexpected argument(s): unexpected") {
-		t.Fatalf("status args error = %v stderr = %q, want unexpected argument usage error", err, stderr)
-	}
-
 	_, stderr, err = runAdsEvalCommand(t, "ads", "auth", "logout", "--all", "--name", "Marketing")
 	if !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, "--all and --name are mutually exclusive") {
 		t.Fatalf("logout error = %v stderr = %q, want mutually exclusive usage error", err, stderr)

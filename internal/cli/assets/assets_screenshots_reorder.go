@@ -41,9 +41,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			trimmedSetID := strings.TrimSpace(*setID)
 			if trimmedSetID == "" {
 				return shared.UsageError("screenshots reorder: --set-id is required")

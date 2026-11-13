@@ -74,9 +74,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("subscriptions pricing plan-availability show does not accept positional arguments")
-			}
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
 				return shared.UsageError("--subscription-id is required")
@@ -141,9 +138,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("subscriptions pricing plan-availability available-territories does not accept positional arguments")
-			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageErrorf("subscriptions pricing plan-availability available-territories: --limit must be between 1 and 200")
 			}

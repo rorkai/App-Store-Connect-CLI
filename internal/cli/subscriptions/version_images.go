@@ -52,9 +52,6 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 		Name: "list", ShortUsage: "asc subscriptions versions images list [flags]", ShortHelp: "List images for a subscription version.",
 		LongHelp: "List version-scoped subscription images.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			if err := validateNextFlagConflicts(
 				*next,
 				flagConflict{"--version-id", flagWasProvided(fs, "version-id")},
@@ -117,9 +114,6 @@ func SubscriptionsVersionImagesPrimaryCommand() *ffcli.Command {
 		Name: "primary", ShortUsage: "asc subscriptions versions images primary --version-id \"VERSION_ID\"", ShortHelp: "View the singular image for a version.",
 		LongHelp: "View the singular image relationship for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -156,9 +150,6 @@ func SubscriptionsVersionImagesLinksCommand() *ffcli.Command {
 		Name: "links", ShortUsage: "asc subscriptions versions images links [flags]", ShortHelp: "List raw image linkages.",
 		LongHelp: "List raw plural image relationship linkages for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			if err := validateNextFlagConflicts(
 				*next,
 				flagConflict{"--version-id", flagWasProvided(fs, "version-id")},
@@ -214,9 +205,6 @@ func SubscriptionsVersionImagesPrimaryLinkCommand() *ffcli.Command {
 		Name: "primary-link", ShortUsage: "asc subscriptions versions images primary-link --version-id \"VERSION_ID\"", ShortHelp: "View the singular image linkage.",
 		LongHelp: "View the raw singular image relationship linkage for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -247,9 +235,6 @@ func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
 		Name: "view", ShortUsage: "asc subscriptions versions images view --id \"IMAGE_ID\"", ShortHelp: "View a version-scoped image.",
 		LongHelp: "View a version-scoped subscription image by ID.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -284,9 +269,6 @@ func SubscriptionsVersionImagesUploadCommand() *ffcli.Command {
 		Name: "upload", ShortUsage: "asc subscriptions versions images upload [flags]", ShortHelp: "Upload a version-scoped subscription image.",
 		LongHelp: "Reserve, upload, and commit an image for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			id, pathValue := strings.TrimSpace(*versionID), strings.TrimSpace(*filePath)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -342,9 +324,6 @@ func SubscriptionsVersionImagesUpdateCommand() *ffcli.Command {
 		Name: "update", ShortUsage: "asc subscriptions versions images update --id \"IMAGE_ID\" --uploaded true", ShortHelp: "Update a version-scoped image.",
 		LongHelp: "Update the uploaded state for a version-scoped subscription image.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -379,9 +358,6 @@ func SubscriptionsVersionImagesDeleteCommand() *ffcli.Command {
 		Name: "delete", ShortUsage: "asc subscriptions versions images delete --id \"IMAGE_ID\" --confirm", ShortHelp: "Delete a version-scoped image.",
 		LongHelp: "Delete a version-scoped subscription image.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")

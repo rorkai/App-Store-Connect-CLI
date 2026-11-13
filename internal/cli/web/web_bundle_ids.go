@@ -97,9 +97,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web bundle-ids list does not accept positional arguments")
-			}
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err
 			}
@@ -171,9 +168,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web bundle-ids view does not accept positional arguments")
-			}
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			if resolvedBundleID == "" {
 				return shared.UsageError("--bundle-id is required")
@@ -291,10 +285,6 @@ Authentication:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web bundle-ids capabilities disable does not accept positional arguments")
-			}
-
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			resolvedCapability := strings.ToUpper(strings.TrimSpace(*capability))
 			switch {
@@ -392,10 +382,6 @@ Authentication:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web bundle-ids capabilities enable does not accept positional arguments")
-			}
-
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			resolvedCapability := strings.ToUpper(strings.TrimSpace(*capability))
 			switch {
@@ -496,10 +482,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web bundle-ids capabilities sync-app-clip does not accept positional arguments")
-			}
-
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			resolvedParentBundleID := strings.TrimSpace(*parentBundleID)
 			resolvedCapability := strings.ToUpper(strings.TrimSpace(*capability))

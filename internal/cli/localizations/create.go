@@ -67,10 +67,6 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("localizations create does not accept positional arguments")
-			}
-
 			if flagProvided(fs, "platform") && strings.TrimSpace(*platform) == "" {
 				return shared.UsageError("--platform must not be empty")
 			}

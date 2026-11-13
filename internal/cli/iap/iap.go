@@ -140,9 +140,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectIAPVersionArgs(args); err != nil {
-				return err
-			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("iap list: %v", err)
 			}
@@ -335,9 +332,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectIAPVersionArgs(args); err != nil {
-				return err
-			}
 			id := strings.TrimSpace(*iapID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")

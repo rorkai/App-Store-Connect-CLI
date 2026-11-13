@@ -73,7 +73,7 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewSandboxCommonInput(args, output); err != nil {
+			if err := validateWebReviewSandboxCommonInput(output); err != nil {
 				return err
 			}
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
@@ -127,7 +127,7 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewSandboxCommonInput(args, output); err != nil {
+			if err := validateWebReviewSandboxCommonInput(output); err != nil {
 				return err
 			}
 			version := strings.TrimSpace(*versionID)
@@ -194,7 +194,7 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewSandboxCommonInput(args, output); err != nil {
+			if err := validateWebReviewSandboxCommonInput(output); err != nil {
 				return err
 			}
 			version, key, err := requireWebReviewSandboxRowFlags(*versionID, *entitlement)
@@ -298,7 +298,7 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewSandboxCommonInput(args, output); err != nil {
+			if err := validateWebReviewSandboxCommonInput(output); err != nil {
 				return err
 			}
 			version, key, err := requireWebReviewSandboxRowFlags(*versionID, *entitlement)
@@ -354,10 +354,7 @@ Example:
 	}
 }
 
-func validateWebReviewSandboxCommonInput(args []string, output shared.OutputFlags) error {
-	if len(args) > 0 {
-		return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-	}
+func validateWebReviewSandboxCommonInput(output shared.OutputFlags) error {
 	if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 		return shared.UsageError(err.Error())
 	}

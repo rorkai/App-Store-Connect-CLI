@@ -79,9 +79,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewDraftArgs(args, "create"); err != nil {
-				return err
-			}
 			if err := validateWebReviewDraftOutput(output); err != nil {
 				return err
 			}
@@ -134,9 +131,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewDraftArgs(args, "update"); err != nil {
-				return err
-			}
 			if err := validateWebReviewDraftOutput(output); err != nil {
 				return err
 			}
@@ -189,9 +183,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewDraftArgs(args, "delete"); err != nil {
-				return err
-			}
 			if err := validateWebReviewDraftOutput(output); err != nil {
 				return err
 			}
@@ -222,13 +213,6 @@ type webReviewDraftMutation struct {
 	ThreadID string
 	DraftID  string
 	Body     string
-}
-
-func validateWebReviewDraftArgs(args []string, action string) error {
-	if len(args) > 0 {
-		return shared.UsageErrorf("web review drafts %s does not accept positional arguments", action)
-	}
-	return nil
 }
 
 func validateWebReviewDraftOutput(output shared.OutputFlags) error {
