@@ -18,6 +18,7 @@ import (
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 )
 
@@ -262,36 +263,62 @@ func TestSubscriptionsReviewScreenshotCreateRejectsChangedChecksumDuringPoll(t *
 }
 
 func TestSubscriptionsReviewScreenshotCreateStopsWhenPollDeadlineExpires(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_UPLOAD_TIMEOUT", "20ms")
-	t.Setenv("ASC_MAX_RETRIES", "0")
-	path, content, checksum := writeSubscriptionReviewScreenshotFixture(t)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	reads := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Errorf("poll timeout must not mutate: %s %s", req.Method, req.URL.Path)
-			return nil, errors.New("test transport assertion failed")
-		}
-		reads++
-		return jsonHTTPResponse(http.StatusOK, subscriptionReviewScreenshotResponse("shot-1", filepath.Base(path), int64(len(content)), checksum, "PROCESSING", false)), nil
-	})
+	tests := []struct {
+		name          string
+		uploadTimeout string
+		minWait       time.Duration
+		maxWait       time.Duration
+		maxReads      int
+	}{
+		{name: "ASC_UPLOAD_TIMEOUT bounds the wait", uploadTimeout: "20ms", maxWait: 20 * time.Millisecond, maxReads: 2},
+		// The fixture is under 1 MiB, so the default is 10m + 1m per file +
+		// 30s per MiB. The wait slows down instead of polling every 2s.
+		{name: "default scales with the screenshot", minWait: 11 * time.Minute, maxWait: 11*time.Minute + 30*time.Second, maxReads: 70},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_UPLOAD_TIMEOUT", test.uploadTimeout)
+			t.Setenv("ASC_UPLOAD_TIMEOUT_SECONDS", "")
+			t.Setenv("ASC_MAX_RETRIES", "0")
+			t.Cleanup(asc.SetMediaPollIntervalsForTest(2*time.Second, 15*time.Second))
+			path, content, checksum := writeSubscriptionReviewScreenshotFixture(t)
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			reads := 0
+			var first, last time.Time
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Errorf("poll timeout must not mutate: %s %s", req.Method, req.URL.Path)
+					return nil, errors.New("test transport assertion failed")
+				}
+				reads++
+				if first.IsZero() {
+					first = time.Now()
+				}
+				last = time.Now()
+				return jsonHTTPResponse(http.StatusOK, subscriptionReviewScreenshotResponse("shot-1", filepath.Base(path), int64(len(content)), checksum, "PROCESSING", false)), nil
+			})
 
-	stdout, stderr, err := runSubscriptionReviewScreenshotCreate(t, path)
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("expected poll deadline exceeded, got %v", err)
-	}
-	for _, want := range []string{"screenshot shot-1", "delivery state PROCESSING", "may still finish processing", "rerun the same command"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("poll deadline error %q does not contain %q", err, want)
-		}
-	}
-	if hint := errfmt.Classify(err).Hint; hint != "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=45m`)." {
-		t.Fatalf("poll deadline hint = %q", hint)
-	}
-	if stdout != "" || stderr != "" || reads != 2 {
-		t.Fatalf("unexpected poll timeout result: reads=%d stdout=%q stderr=%q", reads, stdout, stderr)
+			stdout, stderr, err := runSubscriptionReviewScreenshotCreate(t, path)
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("expected poll deadline exceeded, got %v", err)
+			}
+			for _, want := range []string{"screenshot shot-1", "delivery state PROCESSING", "may still finish processing", "rerun the same command"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("poll deadline error %q does not contain %q", err, want)
+				}
+			}
+			if hint := errfmt.Classify(err).Hint; hint != "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=45m`)." {
+				t.Fatalf("poll deadline hint = %q", hint)
+			}
+			if stdout != "" || stderr != "" || reads < 2 || reads > test.maxReads {
+				t.Fatalf("unexpected poll timeout result: reads=%d stdout=%q stderr=%q", reads, stdout, stderr)
+			}
+			if waited := last.Sub(first); waited < test.minWait || waited > test.maxWait {
+				t.Fatalf("polled for %s, want between %s and %s", waited, test.minWait, test.maxWait)
+			}
+		})
 	}
 }
 

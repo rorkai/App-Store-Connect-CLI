@@ -8,15 +8,12 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
-
-const reviewScreenshotPollInterval = 2 * time.Second
 
 // SubscriptionsReviewScreenshotsCommand returns the review screenshots command group.
 func SubscriptionsReviewScreenshotsCommand() *ffcli.Command {
@@ -291,7 +288,7 @@ Examples:
 func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID, expectedChecksum string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
 	var verifiedResp *asc.SubscriptionAppStoreReviewScreenshotResponse
 	lastState := ""
-	_, err := asc.PollUntil(ctx, reviewScreenshotPollInterval, func(ctx context.Context) (struct{}, bool, error) {
+	_, err := asc.PollMediaUntil(ctx, func(ctx context.Context) (struct{}, bool, error) {
 		resp, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
 			return client.GetSubscriptionAppStoreReviewScreenshot(requestCtx, screenshotID)
 		})
@@ -314,7 +311,7 @@ func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *as
 			}
 		}
 		return struct{}{}, false, nil
-	})
+	}, asc.PollOptions{})
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			stateDetail := ""

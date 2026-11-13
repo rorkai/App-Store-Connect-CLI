@@ -181,7 +181,7 @@ func prepareLibraryImage(command, path, group string, reference []byte, specs ma
 		return libraryFile{}, shared.UsageErrorf("%s: %s: %v", command, filepath.Base(path), err)
 	}
 	return libraryFile{path: path, close: func() { file.Close() }, send: func(ctx context.Context, client *asc.Client, libraryID string) (string, error) {
-		uploadCtx, cancel := shared.ContextWithUploadTimeout(ctx)
+		uploadCtx, cancel := libraryImageUploadContext(ctx, size)
 		defer cancel()
 		result, err := client.UploadAssetLibraryImageWithCategory(uploadCtx, libraryID, filepath.Base(path), file, size, nativeMediaCategory, "", shared.ContextWithTimeout)
 		if err != nil {

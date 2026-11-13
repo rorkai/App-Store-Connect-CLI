@@ -31,7 +31,8 @@ func imagesUploadCommand() *ffcli.Command {
 		ShortHelp: "Upload an image to the Asset Library and wait for processing.",
 		LongHelp: `Upload an image to the Asset Library without assigning it to a placement or submitting review.
 
-The command waits for processed image data under ASC_UPLOAD_TIMEOUT. On failure
+The command waits for processed image data under ASC_UPLOAD_TIMEOUT (default
+11 minutes plus 30 seconds per MiB of the image, at most 1 hour). On failure
 after reservation, it prints a partial receipt with the image ID for inspection
 or cleanup. It never automatically deletes the reserved image.
 
@@ -78,7 +79,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("asset-library images upload: %w", err)
 			}
-			uploadCtx, cancel := shared.ContextWithUploadTimeout(ctx)
+			uploadCtx, cancel := libraryImageUploadContext(ctx, size)
 			defer cancel()
 			if *progress {
 				uploadCtx = asc.WithAssetLibraryImageUploadProgress(uploadCtx, func(event asc.AssetLibraryImageUploadEvent) { _ = json.NewEncoder(os.Stderr).Encode(event) })
@@ -154,4 +155,10 @@ func validateLibraryImage(command, flagName, filePath string, file *os.File) (in
 		return 0, fmt.Errorf("%s: rewind file: %w", command, err)
 	}
 	return info.Size(), nil
+}
+
+// libraryImageUploadContext bounds one image's upload and Apple's processing
+// of it with the same size-scaled default as screenshot uploads.
+func libraryImageUploadContext(ctx context.Context, size int64) (context.Context, context.CancelFunc) {
+	return shared.ContextWithMediaUploadTimeout(ctx, size)
 }
