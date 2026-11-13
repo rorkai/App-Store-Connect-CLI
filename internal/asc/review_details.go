@@ -84,18 +84,7 @@ func (c *Client) GetAppStoreReviewDetail(ctx context.Context, detailID string) (
 		return nil, fmt.Errorf("detailID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appStoreReviewDetails/%s", detailID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreReviewDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreReviewDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreReviewDetails/%s", detailID)})
 }
 
 // GetAppStoreReviewDetailForVersion retrieves the review detail for an app store version.
@@ -105,18 +94,7 @@ func (c *Client) GetAppStoreReviewDetailForVersion(ctx context.Context, versionI
 		return nil, fmt.Errorf("versionID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreReviewDetail", versionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreReviewDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreReviewDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/appStoreReviewDetail", versionID)})
 }
 
 // CreateAppStoreReviewDetail creates review details for a version.
