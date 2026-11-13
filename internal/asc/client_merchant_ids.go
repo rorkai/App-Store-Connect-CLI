@@ -2,65 +2,26 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 // GetMerchantIDs retrieves the list of merchant IDs.
 func (c *Client) GetMerchantIDs(ctx context.Context, opts ...MerchantIDsOption) (*MerchantIDsResponse, error) {
-	query := &merchantIDsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/merchantIds"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("merchantIds: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildMerchantIDsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response MerchantIDsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[MerchantIDsResponse](ctx, c, readRequest{
+		Path:        "/v1/merchantIds",
+		Query:       buildMerchantIDsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "merchantIds",
+	})
 }
 
 // GetMerchantID retrieves a single merchant ID by ID.
 func (c *Client) GetMerchantID(ctx context.Context, id string, opts ...MerchantIDsOption) (*MerchantIDResponse, error) {
-	query := &merchantIDsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	id = strings.TrimSpace(id)
-	path := fmt.Sprintf("/v1/merchantIds/%s", id)
-	if queryString := buildMerchantIDsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response MerchantIDResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[MerchantIDResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/merchantIds/%s", id), Query: buildMerchantIDsQuery(query)})
 }
 
 // CreateMerchantID creates a new merchant ID.
@@ -71,23 +32,7 @@ func (c *Client) CreateMerchantID(ctx context.Context, attrs MerchantIDCreateAtt
 			Attributes: attrs,
 		},
 	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/merchantIds", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response MerchantIDResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[MerchantIDResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/merchantIds", Payload: request})
 }
 
 // UpdateMerchantID updates an existing merchant ID.
@@ -100,63 +45,25 @@ func (c *Client) UpdateMerchantID(ctx context.Context, id string, attrs Merchant
 			Attributes: &attrs,
 		},
 	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/merchantIds/%s", id), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response MerchantIDResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[MerchantIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/merchantIds/%s", id), Payload: request})
 }
 
 // DeleteMerchantID deletes a merchant ID by ID.
 func (c *Client) DeleteMerchantID(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)
-	path := fmt.Sprintf("/v1/merchantIds/%s", id)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/merchantIds/%s", id), nil)
 }
 
 // GetMerchantIDCertificates retrieves certificates for a merchant ID.
 func (c *Client) GetMerchantIDCertificates(ctx context.Context, merchantID string, opts ...MerchantIDCertificatesOption) (*CertificatesResponse, error) {
-	query := &merchantIDCertificatesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	merchantID = strings.TrimSpace(merchantID)
-	path := fmt.Sprintf("/v1/merchantIds/%s/certificates", merchantID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("merchantIdCertificates: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildMerchantIDCertificatesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CertificatesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CertificatesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/merchantIds/%s/certificates", merchantID),
+		Query:       buildMerchantIDCertificatesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "merchantIdCertificates",
+	})
 }
 
 // GetMerchantIDCertificatesRelationships retrieves certificate linkages for a merchant ID.

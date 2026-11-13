@@ -88,25 +88,7 @@ func (c *Client) GetBundleIDs(ctx context.Context, opts ...BundleIDsOption) (*Bu
 	}
 
 	path := bundleIDsRequestPath(query)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("bundleIds: %w", err)
-		}
-		path = query.nextURL
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BundleIDsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BundleIDsResponse](ctx, c, readRequest{Path: path, Next: query.nextURL, NextContext: "bundleIds"})
 }
 
 // PaginateBundleIDs fetches and aggregates bundle ID pages while preserving
@@ -376,18 +358,7 @@ func (c *Client) getBundleIDsPage(ctx context.Context, query *bundleIDsQuery) (*
 		}
 		path = query.nextURL
 	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BundleIDsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BundleIDsResponse](ctx, c, readRequest{Path: path})
 }
 
 func bundleIDsRequestPath(query *bundleIDsQuery) string {
@@ -438,18 +409,7 @@ func splitBundleIDsIdentifierFilter(query *bundleIDsQuery) ([][]string, error) {
 // GetBundleID retrieves a single bundle ID by ID.
 func (c *Client) GetBundleID(ctx context.Context, id string) (*BundleIDResponse, error) {
 	id = strings.TrimSpace(id)
-	path := fmt.Sprintf("/v1/bundleIds/%s", id)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BundleIDResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BundleIDResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/bundleIds/%s", id)})
 }
 
 // CreateBundleID creates a new bundle ID.
@@ -460,23 +420,7 @@ func (c *Client) CreateBundleID(ctx context.Context, attrs BundleIDCreateAttribu
 			Attributes: attrs,
 		},
 	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/bundleIds", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BundleIDResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BundleIDResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/bundleIds", Payload: request})
 }
 
 // UpdateBundleID updates an existing bundle ID.
@@ -489,63 +433,25 @@ func (c *Client) UpdateBundleID(ctx context.Context, id string, attrs BundleIDUp
 			Attributes: &attrs,
 		},
 	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/bundleIds/%s", id), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BundleIDResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BundleIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIds/%s", id), Payload: request})
 }
 
 // DeleteBundleID deletes a bundle ID by ID.
 func (c *Client) DeleteBundleID(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)
-	path := fmt.Sprintf("/v1/bundleIds/%s", id)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/bundleIds/%s", id), nil)
 }
 
 // GetBundleIDCapabilities retrieves capabilities for a bundle ID.
 func (c *Client) GetBundleIDCapabilities(ctx context.Context, bundleID string, opts ...BundleIDCapabilitiesOption) (*BundleIDCapabilitiesResponse, error) {
 	bundleID = strings.TrimSpace(bundleID)
-	query := &bundleIDCapabilitiesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/bundleIds/%s/bundleIdCapabilities", bundleID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("bundleIdCapabilities: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBundleIDCapabilitiesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BundleIDCapabilitiesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BundleIDCapabilitiesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/bundleIds/%s/bundleIdCapabilities", bundleID),
+		Query:       buildBundleIDCapabilitiesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "bundleIdCapabilities",
+	})
 }
 
 // CreateBundleIDCapability adds a capability to a bundle ID.
@@ -565,23 +471,7 @@ func (c *Client) CreateBundleIDCapability(ctx context.Context, bundleID string, 
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/bundleIdCapabilities", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BundleIDCapabilityResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BundleIDCapabilityResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/bundleIdCapabilities", Payload: request})
 }
 
 // UpdateBundleIDCapability updates an existing bundle ID capability.
@@ -597,90 +487,34 @@ func (c *Client) UpdateBundleIDCapability(ctx context.Context, capabilityID stri
 			Attributes: &attrs,
 		},
 	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BundleIDCapabilityResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BundleIDCapabilityResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), Payload: request})
 }
 
 // DeleteBundleIDCapability deletes a bundle ID capability by ID.
 func (c *Client) DeleteBundleIDCapability(ctx context.Context, capabilityID string) error {
 	capabilityID = strings.TrimSpace(capabilityID)
-	path := fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), nil)
 }
 
 // GetCertificates retrieves the list of certificates.
 func (c *Client) GetCertificates(ctx context.Context, opts ...CertificatesOption) (*CertificatesResponse, error) {
-	query := &certificatesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/certificates"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("certificates: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCertificatesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CertificatesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[CertificatesResponse](ctx, c, readRequest{
+		Path:        "/v1/certificates",
+		Query:       buildCertificatesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "certificates",
+	})
 }
 
 // GetCertificate retrieves a single certificate by ID.
 func (c *Client) GetCertificate(ctx context.Context, id string, opts ...CertificatesOption) (*CertificateResponse, error) {
 	id = strings.TrimSpace(id)
-	query := &certificatesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	if err := validateCertificateDetailQuery(query); err != nil {
 		return nil, err
 	}
-
-	path := fmt.Sprintf("/v1/certificates/%s", id)
-	if queryString := buildCertificateDetailQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CertificateResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CertificateResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/certificates/%s", id), Query: buildCertificateDetailQuery(query)})
 }
 
 func validateCertificateDetailQuery(query *certificatesQuery) error {
@@ -729,10 +563,7 @@ func WithCertificateMerchantID(merchantID string) CertificateCreateOption {
 
 // CreateCertificate creates a new certificate.
 func (c *Client) CreateCertificate(ctx context.Context, csrContent string, certType string, opts ...CertificateCreateOption) (*CertificateResponse, error) {
-	options := &certificateCreateOptions{}
-	for _, opt := range opts {
-		opt(options)
-	}
+	options := applyOptions(opts)
 
 	request := CertificateCreateRequest{
 		Data: CertificateCreateData{
@@ -763,23 +594,7 @@ func (c *Client) CreateCertificate(ctx context.Context, csrContent string, certT
 		}
 		request.Data.Relationships = relationships
 	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/certificates", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CertificateResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[CertificateResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/certificates", Payload: request})
 }
 
 // UpdateCertificate updates a certificate's attributes.
@@ -792,31 +607,13 @@ func (c *Client) UpdateCertificate(ctx context.Context, id string, attrs Certifi
 			Attributes: &attrs,
 		},
 	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/certificates/%s", id), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CertificateResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[CertificateResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/certificates/%s", id), Payload: request})
 }
 
 // RevokeCertificate revokes a certificate by ID.
 func (c *Client) RevokeCertificate(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)
-	path := fmt.Sprintf("/v1/certificates/%s", id)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/certificates/%s", id), nil)
 }
 
 // RegisterDevice registers a new device.
@@ -827,177 +624,61 @@ func (c *Client) RegisterDevice(ctx context.Context, attrs DeviceCreateAttribute
 			Attributes: attrs,
 		},
 	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/devices", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response DeviceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[DeviceResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/devices", Payload: request})
 }
 
 // GetProfiles retrieves the list of profiles.
 func (c *Client) GetProfiles(ctx context.Context, opts ...ProfilesOption) (*ProfilesResponse, error) {
-	query := &profilesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/profiles"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("profiles: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildProfilesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ProfilesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[ProfilesResponse](ctx, c, readRequest{
+		Path:        "/v1/profiles",
+		Query:       buildProfilesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "profiles",
+	})
 }
 
 // GetProfile retrieves a single profile by ID.
 func (c *Client) GetProfile(ctx context.Context, id string, opts ...ProfilesOption) (*ProfileResponse, error) {
 	id = strings.TrimSpace(id)
-	query := &profilesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/profiles/%s", id)
-	if queryString := buildProfilesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ProfileResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[ProfileResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s", id), Query: buildProfilesQuery(query)})
 }
 
 // GetProfileBundleID retrieves the bundle ID for a profile.
 func (c *Client) GetProfileBundleID(ctx context.Context, profileID string) (*BundleIDResponse, error) {
 	profileID = strings.TrimSpace(profileID)
-	path := fmt.Sprintf("/v1/profiles/%s/bundleId", profileID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BundleIDResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BundleIDResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s/bundleId", profileID)})
 }
 
 // GetProfileCertificates retrieves certificates for a profile.
 func (c *Client) GetProfileCertificates(ctx context.Context, profileID string, opts ...ProfileCertificatesOption) (*CertificatesResponse, error) {
 	profileID = strings.TrimSpace(profileID)
-	query := &profileCertificatesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/profiles/%s/certificates", profileID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("profileCertificates: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildProfileCertificatesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CertificatesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[CertificatesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/profiles/%s/certificates", profileID),
+		Query:       buildProfileCertificatesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "profileCertificates",
+	})
 }
 
 // GetProfileDevices retrieves devices for a profile.
 func (c *Client) GetProfileDevices(ctx context.Context, profileID string, opts ...ProfileDevicesOption) (*DevicesResponse, error) {
 	profileID = strings.TrimSpace(profileID)
-	query := &profileDevicesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/profiles/%s/devices", profileID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("profileDevices: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildProfileDevicesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response DevicesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[DevicesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/profiles/%s/devices", profileID),
+		Query:       buildProfileDevicesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "profileDevices",
+	})
 }
 
 // GetProfileBundleIDRelationship retrieves the bundle ID linkage for a profile.
 func (c *Client) GetProfileBundleIDRelationship(ctx context.Context, profileID string) (*ProfileBundleIDLinkageResponse, error) {
 	profileID = strings.TrimSpace(profileID)
-	path := fmt.Sprintf("/v1/profiles/%s/relationships/bundleId", profileID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ProfileBundleIDLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ProfileBundleIDLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s/relationships/bundleId", profileID)})
 }
 
 // GetProfileCertificatesRelationships retrieves certificate linkages for a profile.
@@ -1070,29 +751,11 @@ func (c *Client) CreateProfile(ctx context.Context, attrs ProfileCreateAttribute
 			Relationships: relationships,
 		},
 	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/profiles", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ProfileResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[ProfileResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/profiles", Payload: request})
 }
 
 // DeleteProfile deletes a profile by ID.
 func (c *Client) DeleteProfile(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)
-	path := fmt.Sprintf("/v1/profiles/%s", id)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/profiles/%s", id), nil)
 }
