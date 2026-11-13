@@ -87,14 +87,7 @@ func TestPublishTestFlightUploadOnlyIPAWaitsThenStopsBeforeDistribution(t *testi
 }
 
 func TestPublishTestFlightUploadOnlyLocalBuildStopsBeforeDistribution(t *testing.T) {
-	restore := overridePublishCommandTestHooks(t)
-	defer restore()
-
-	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
-	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
-		return "app-123", nil
-	}
-	validatePublishIPAPathFn = func(string) (os.FileInfo, error) { return newPublishTestFileInfo(t) }
+	stubPublishCommandSeams(t)
 	archivePath := filepath.Join(t.TempDir(), "Demo.xcarchive")
 	ipaPath := filepath.Join(t.TempDir(), "Demo.ipa")
 	archiveCalls := 0
@@ -362,13 +355,11 @@ func publishUploadOnlyResult(version, buildNumber, processingState string) *publ
 func rejectPublishUploadOnlyHTTP(t *testing.T) *int {
 	t.Helper()
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	requestCalls := 0
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requestCalls++
 		t.Fatalf("upload-only must not make post-upload client call: %s %s", req.Method, req.URL.String())
 		return nil, nil
-	})
+	}))
 	return &requestCalls
 }

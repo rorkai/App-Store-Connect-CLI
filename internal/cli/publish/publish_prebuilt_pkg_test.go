@@ -155,10 +155,8 @@ func TestPublishAppStorePrebuiltPKGUploadsAndAttaches(t *testing.T) {
 		return publishUploadOnlyResult(version, buildNumber, asc.BuildProcessingStateValid), nil
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	requestCount := 0
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requestCount++
 		switch requestCount {
 		case 1:
@@ -180,7 +178,7 @@ func TestPublishAppStorePrebuiltPKGUploadsAndAttaches(t *testing.T) {
 			t.Fatalf("unexpected request count %d", requestCount)
 			return nil, nil
 		}
-	})
+	}))
 
 	cmd := PublishAppStoreCommand()
 	cmd.FlagSet.SetOutput(io.Discard)

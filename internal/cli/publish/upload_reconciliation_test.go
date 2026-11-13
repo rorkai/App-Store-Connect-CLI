@@ -24,10 +24,8 @@ func TestUploadBuildAndWaitForIDRecoversAmbiguousCommit(t *testing.T) {
 		t.Fatalf("stat IPA: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	buildUploadLookups := 0
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
 			return publishCommandJSONResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
@@ -50,7 +48,7 @@ func TestUploadBuildAndWaitForIDRecoversAmbiguousCommit(t *testing.T) {
 			t.Error(err)
 			return nil, err
 		}
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	var result *publishUploadResult
@@ -89,10 +87,8 @@ func TestUploadPKGBuildAndWaitForIDPinsValidatedFile(t *testing.T) {
 		t.Fatalf("stat PKG: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	uploadedOriginal := false
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
 			return publishCommandJSONResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1"}}`)
@@ -119,7 +115,7 @@ func TestUploadPKGBuildAndWaitForIDPinsValidatedFile(t *testing.T) {
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
-	})
+	}))
 
 	_, err = uploadPKGBuildAndWaitForID(context.Background(), newPublishCommandTestClient(t), "app-1", path, fileInfo, "1.2.3", "42", asc.PlatformMacOS, time.Millisecond, time.Second, true)
 	if err == nil || !strings.Contains(err.Error(), "stop after upload") {
