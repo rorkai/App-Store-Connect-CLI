@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -14,18 +13,7 @@ func (c *Client) GetBetaCrashLog(ctx context.Context, logID string) (*BetaCrashL
 		return nil, fmt.Errorf("logID is required")
 	}
 
-	path := fmt.Sprintf("/v1/betaCrashLogs/%s", logID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaCrashLogResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaCrashLogResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaCrashLogs/%s", logID)})
 }
 
 // GetBetaFeedbackCrashSubmission retrieves a beta feedback crash submission by ID.
@@ -35,18 +23,7 @@ func (c *Client) GetBetaFeedbackCrashSubmission(ctx context.Context, submissionI
 		return nil, fmt.Errorf("submissionID is required")
 	}
 
-	path := fmt.Sprintf("/v1/betaFeedbackCrashSubmissions/%s", submissionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaFeedbackCrashSubmissionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaFeedbackCrashSubmissionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaFeedbackCrashSubmissions/%s", submissionID)})
 }
 
 // DeleteBetaFeedbackCrashSubmission deletes a beta feedback crash submission by ID.
@@ -56,9 +33,7 @@ func (c *Client) DeleteBetaFeedbackCrashSubmission(ctx context.Context, submissi
 		return fmt.Errorf("submissionID is required")
 	}
 
-	path := fmt.Sprintf("/v1/betaFeedbackCrashSubmissions/%s", submissionID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaFeedbackCrashSubmissions/%s", submissionID), nil)
 }
 
 // GetBetaFeedbackCrashSubmissionCrashLog retrieves the crash log for a beta feedback crash submission.
@@ -68,18 +43,7 @@ func (c *Client) GetBetaFeedbackCrashSubmissionCrashLog(ctx context.Context, sub
 		return nil, fmt.Errorf("submissionID is required")
 	}
 
-	path := fmt.Sprintf("/v1/betaFeedbackCrashSubmissions/%s/crashLog", submissionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaCrashLogResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaCrashLogResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaFeedbackCrashSubmissions/%s/crashLog", submissionID)})
 }
 
 // GetBetaFeedbackScreenshotSubmission retrieves a beta feedback screenshot submission by ID.
@@ -89,18 +53,7 @@ func (c *Client) GetBetaFeedbackScreenshotSubmission(ctx context.Context, submis
 		return nil, fmt.Errorf("submissionID is required")
 	}
 
-	path := fmt.Sprintf("/v1/betaFeedbackScreenshotSubmissions/%s", submissionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaFeedbackScreenshotSubmissionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaFeedbackScreenshotSubmissionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaFeedbackScreenshotSubmissions/%s", submissionID)})
 }
 
 // DeleteBetaFeedbackScreenshotSubmission deletes a beta feedback screenshot submission by ID.
@@ -110,7 +63,5 @@ func (c *Client) DeleteBetaFeedbackScreenshotSubmission(ctx context.Context, sub
 		return fmt.Errorf("submissionID is required")
 	}
 
-	path := fmt.Sprintf("/v1/betaFeedbackScreenshotSubmissions/%s", submissionID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaFeedbackScreenshotSubmissions/%s", submissionID), nil)
 }

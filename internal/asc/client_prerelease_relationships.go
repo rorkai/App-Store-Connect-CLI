@@ -2,9 +2,7 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -21,18 +19,7 @@ func (c *Client) GetPreReleaseVersionAppRelationship(ctx context.Context, versio
 		return nil, fmt.Errorf("versionID is required")
 	}
 
-	path := fmt.Sprintf("/v1/preReleaseVersions/%s/relationships/app", versionID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response PreReleaseVersionAppLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse app relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[PreReleaseVersionAppLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/preReleaseVersions/%s/relationships/app", versionID), ParseErr: "failed to parse app relationship response"})
 }
 
 // GetPreReleaseVersionBuildsRelationships retrieves build linkages for a pre-release version.

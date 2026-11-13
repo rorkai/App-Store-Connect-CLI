@@ -105,27 +105,13 @@ func NewAppClipDomainStatusResult(buildBundleID string, resp *AppClipDomainStatu
 
 // GetBuildBundlesForBuild retrieves build bundles for a build via include.
 func (c *Client) GetBuildBundlesForBuild(ctx context.Context, buildID string, opts ...BuildBundlesOption) (*BuildBundlesResponse, error) {
-	query := &buildBundlesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/builds/%s", buildID)
-	if queryString := buildBuildBundlesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
+	query := applyOptions(opts)
+	resp, err := getJSON[BuildResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s", buildID), Query: buildBuildBundlesQuery(query)})
 	if err != nil {
 		return nil, err
 	}
 
-	var response BuildResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	bundles, err := extractBuildBundles(response.Included)
+	bundles, err := extractBuildBundles(resp.Included)
 	if err != nil {
 		return nil, err
 	}
@@ -135,94 +121,34 @@ func (c *Client) GetBuildBundlesForBuild(ctx context.Context, buildID string, op
 
 // GetBuildBundleFileSizes retrieves build bundle file sizes by build bundle ID.
 func (c *Client) GetBuildBundleFileSizes(ctx context.Context, buildBundleID string, opts ...BuildBundleFileSizesOption) (*BuildBundleFileSizesResponse, error) {
-	query := &buildBundleFileSizesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/buildBundles/%s/buildBundleFileSizes", buildBundleID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("build bundle file sizes: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBuildBundleFileSizesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildBundleFileSizesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BuildBundleFileSizesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/buildBundles/%s/buildBundleFileSizes", buildBundleID),
+		Query:       buildBuildBundleFileSizesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "build bundle file sizes",
+	})
 }
 
 // GetBuildBundleAppClipDomainCacheStatus retrieves App Clip domain cache status for a build bundle.
 func (c *Client) GetBuildBundleAppClipDomainCacheStatus(ctx context.Context, buildBundleID string) (*AppClipDomainStatusResponse, error) {
-	path := fmt.Sprintf("/v1/buildBundles/%s/appClipDomainCacheStatus", buildBundleID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDomainStatusResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipDomainStatusResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildBundles/%s/appClipDomainCacheStatus", buildBundleID)})
 }
 
 // GetBuildBundleAppClipDomainDebugStatus retrieves App Clip domain debug status for a build bundle.
 func (c *Client) GetBuildBundleAppClipDomainDebugStatus(ctx context.Context, buildBundleID string) (*AppClipDomainStatusResponse, error) {
-	path := fmt.Sprintf("/v1/buildBundles/%s/appClipDomainDebugStatus", buildBundleID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppClipDomainStatusResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppClipDomainStatusResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildBundles/%s/appClipDomainDebugStatus", buildBundleID)})
 }
 
 // GetBuildBundleBetaAppClipInvocations retrieves beta app clip invocations for a build bundle.
 func (c *Client) GetBuildBundleBetaAppClipInvocations(ctx context.Context, buildBundleID string, opts ...BetaAppClipInvocationsOption) (*BetaAppClipInvocationsResponse, error) {
-	query := &betaAppClipInvocationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/buildBundles/%s/betaAppClipInvocations", buildBundleID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("build bundle app clip invocations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBetaAppClipInvocationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppClipInvocationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BetaAppClipInvocationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/buildBundles/%s/betaAppClipInvocations", buildBundleID),
+		Query:       buildBetaAppClipInvocationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "build bundle app clip invocations",
+	})
 }
 
 func extractBuildBundles(included json.RawMessage) ([]Resource[BuildBundleAttributes], error) {

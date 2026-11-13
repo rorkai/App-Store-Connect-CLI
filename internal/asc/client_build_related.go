@@ -33,18 +33,7 @@ func (c *Client) GetBuildApp(ctx context.Context, buildID string) (*AppResponse,
 		return nil, fmt.Errorf("buildID is required")
 	}
 
-	path := fmt.Sprintf("/v1/builds/%s/app", buildID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/app", buildID)})
 }
 
 // GetBuildBetaAppReviewSubmission retrieves the beta app review submission for a build.
@@ -86,53 +75,24 @@ func (c *Client) GetBuildBuildBetaDetail(ctx context.Context, buildID string) (*
 		return nil, fmt.Errorf("buildID is required")
 	}
 
-	path := fmt.Sprintf("/v1/builds/%s/buildBetaDetail", buildID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildBetaDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildBetaDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/buildBetaDetail", buildID)})
 }
 
 // GetBuildIcons retrieves build icons for a build.
 func (c *Client) GetBuildIcons(ctx context.Context, buildID string, opts ...BuildIconsOption) (*BuildIconsResponse, error) {
-	query := &listQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	buildID = strings.TrimSpace(buildID)
 	if query.nextURL == "" && buildID == "" {
 		return nil, fmt.Errorf("buildID is required")
 	}
 
-	path := fmt.Sprintf("/v1/builds/%s/icons", buildID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("buildIcons: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildListQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildIconsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildIconsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/builds/%s/icons", buildID),
+		Query:       buildListQuery(query),
+		Next:        query.nextURL,
+		NextContext: "buildIcons",
+	})
 }
 
 // GetBuildPreReleaseVersion retrieves the pre-release version for a build.
@@ -142,16 +102,5 @@ func (c *Client) GetBuildPreReleaseVersion(ctx context.Context, buildID string) 
 		return nil, fmt.Errorf("buildID is required")
 	}
 
-	path := fmt.Sprintf("/v1/builds/%s/preReleaseVersion", buildID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response PreReleaseVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[PreReleaseVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/preReleaseVersion", buildID)})
 }
