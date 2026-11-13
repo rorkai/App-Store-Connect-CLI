@@ -43,47 +43,51 @@ func runInvalidNextURLCases(t *testing.T, cases []invalidNextURLCase) {
 	for _, tc := range cases {
 		for _, nc := range nextCases {
 			t.Run(strings.Join(tc.args, " ")+"/"+nc.name, func(t *testing.T) {
-				wantErr := tc.wantErr + nc.wantErr
 				args := append(append([]string{}, tc.args...), "--next", nc.next)
-
-				root := RootCommand("1.2.3")
-				root.FlagSet.SetOutput(io.Discard)
-
-				var runErr error
-				stdout, stderr := captureOutput(t, func() {
-					if err := root.Parse(args); err != nil {
-						t.Fatalf("parse error: %v", err)
-					}
-					runErr = root.Run(context.Background())
-				})
-
-				if runErr == nil || !strings.Contains(runErr.Error(), wantErr) {
-					t.Fatalf("expected error %q, got %v", wantErr, runErr)
-				}
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if tc.runtimeErr {
-					if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitError {
-						t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitError)
-					}
-					assertEmptyStderr(t, stderr)
-					return
-				}
-				if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitUsage)
-				}
-				if tc.wantWarning != "" {
-					warning, rest, _ := strings.Cut(stderr, "\n")
-					if warning != tc.wantWarning {
-						t.Fatalf("stderr first line = %q, want %q", warning, tc.wantWarning)
-					}
-					stderr = rest
-				}
-				assertUsageDiagnosticFirstLine(t, stderr, wantErr)
+				assertInvalidNextURLRun(t, args, tc.wantErr+nc.wantErr, tc.wantWarning, tc.runtimeErr)
 			})
 		}
 	}
+}
+
+func assertInvalidNextURLRun(t *testing.T, args []string, wantErr, wantWarning string, runtimeErr bool) {
+	t.Helper()
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse(args); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil || !strings.Contains(runErr.Error(), wantErr) {
+		t.Fatalf("expected error %q, got %v", wantErr, runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if runtimeErr {
+		if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitError {
+			t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitError)
+		}
+		assertEmptyStderr(t, stderr)
+		return
+	}
+	if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitUsage)
+	}
+	if wantWarning != "" {
+		warning, rest, _ := strings.Cut(stderr, "\n")
+		if warning != wantWarning {
+			t.Fatalf("stderr first line = %q, want %q", warning, wantWarning)
+		}
+		stderr = rest
+	}
+	assertUsageDiagnosticFirstLine(t, stderr, wantErr)
 }
 
 type paginateFromNextCase struct {
@@ -92,6 +96,7 @@ type paginateFromNextCase struct {
 	dataType   string
 	wantStderr string
 	env        map[string]string
+	singlePage bool // run without --paginate and expect only the first page
 }
 
 // runPaginateFromNextCases runs each command with --paginate --next firstURL
@@ -115,6 +120,12 @@ func runPaginateFromNextCases(t *testing.T, cases []paginateFromNextCase) {
 			pages := []struct{ url, body string }{
 				{tc.firstURL, `{"data":[{"type":"` + tc.dataType + `","id":"page-1"}],"links":{"next":"` + secondURL + `"}}`},
 				{secondURL, `{"data":[{"type":"` + tc.dataType + `","id":"page-2"}],"links":{"next":""}}`},
+			}
+			args := append(append([]string{}, tc.args...), "--paginate", "--next", tc.firstURL)
+			if tc.singlePage {
+				pages = pages[:1]
+				pages[0].body = `{"data":[{"type":"` + tc.dataType + `","id":"page-1"}],"links":{"next":""}}`
+				args = append(append([]string{}, tc.args...), "--next", tc.firstURL)
 			}
 
 			originalTransport := http.DefaultTransport
@@ -141,7 +152,6 @@ func runPaginateFromNextCases(t *testing.T, cases []paginateFromNextCase) {
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 
-			args := append(append([]string{}, tc.args...), "--paginate", "--next", tc.firstURL)
 			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse(args); err != nil {
 					t.Fatalf("parse error: %v", err)
@@ -154,7 +164,7 @@ func runPaginateFromNextCases(t *testing.T, cases []paginateFromNextCase) {
 			if stderr != tc.wantStderr {
 				t.Fatalf("stderr = %q, want %q", stderr, tc.wantStderr)
 			}
-			for _, id := range []string{"page-1", "page-2"} {
+			for _, id := range []string{"page-1", "page-2"}[:len(pages)] {
 				if needle := `"id":"` + id + `"`; !strings.Contains(stdout, needle) {
 					t.Fatalf("expected output to contain %q, got %q", needle, stdout)
 				}
@@ -172,6 +182,7 @@ func TestCoreListsRejectsInvalidNextURL(t *testing.T) {
 		{args: []string{"android-ios-mapping", "list", "--app", "app-1"}, wantErr: "android-ios-mapping list: --next"},
 		{args: []string{"testflight", "feedback", "list"}, wantErr: "testflight feedback list: --next"},
 		{args: []string{"testflight", "crashes", "list"}, wantErr: "testflight crashes list: --next"},
+		{args: []string{"agreements", "territories", "list"}, wantErr: "agreements territories list: --next"},
 	})
 }
 
@@ -220,50 +231,35 @@ func TestCoreListsPaginateFromNext(t *testing.T) {
 	})
 }
 
-func TestAgreementsTerritoriesListRejectsInvalidNextURL(t *testing.T) {
+func TestListsRejectNextURLWithEmptyParentID(t *testing.T) {
 	tests := []struct {
-		name    string
-		next    string
-		wantErr string
+		args       []string
+		next       string
+		wantErr    string
+		runtimeErr bool
 	}{
 		{
-			name:    "invalid scheme",
-			next:    "http://api.appstoreconnect.apple.com/v1/endUserLicenseAgreements/eula-1/territories?cursor=AQ",
-			wantErr: "agreements territories list: --next must be an App Store Connect URL",
-		},
-		{
-			name:    "invalid extraction path",
+			args:    []string{"agreements", "territories", "list"},
 			next:    "https://api.appstoreconnect.apple.com/v1/endUserLicenseAgreements//territories?cursor=AQ",
 			wantErr: "agreements territories list: invalid --next URL",
+		},
+		{
+			args:    []string{"users", "visible-apps", "list"},
+			next:    "https://api.appstoreconnect.apple.com/v1/users//visibleApps?cursor=AQ",
+			wantErr: "users visible-apps list: invalid --next URL",
+		},
+		{
+			args:       []string{"webhooks", "deliveries", "links"},
+			next:       "https://api.appstoreconnect.apple.com/v1/webhooks//relationships/deliveries?cursor=AQ",
+			wantErr:    "webhooks deliveries links: invalid --next URL",
+			runtimeErr: true,
 		},
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"agreements", "territories", "list", "--next", test.next}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
-
-			if runErr == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if !strings.Contains(runErr.Error(), test.wantErr) {
-				t.Fatalf("expected error %q, got %v", test.wantErr, runErr)
-			}
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
-				t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitUsage)
-			}
-			assertUsageDiagnosticFirstLine(t, stderr, test.wantErr)
+		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
+			args := append(append([]string{}, test.args...), "--next", test.next)
+			assertInvalidNextURLRun(t, args, test.wantErr, "", test.runtimeErr)
 		})
 	}
 }
