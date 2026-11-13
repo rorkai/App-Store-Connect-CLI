@@ -77,6 +77,11 @@ func TestNotarizationValidationErrors(t *testing.T) {
 	if err := os.WriteFile(badFile, []byte("not a real archive"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
+	missingFile := filepath.Join(dir, "missing.zip")
+	_, missingErr := os.Lstat(missingFile)
+	if missingErr == nil {
+		t.Fatal("expected missing file to be absent")
+	}
 	runtimeTests := []struct {
 		name    string
 		args    []string
@@ -94,8 +99,8 @@ func TestNotarizationValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "submit nonexistent file",
-			args:    []string{"notarization", "submit", "--file", "/nonexistent/file.zip"},
-			wantErr: "Error: notarization submit: lstat /nonexistent/file.zip: no such file or directory",
+			args:    []string{"notarization", "submit", "--file", missingFile},
+			wantErr: "Error: notarization submit: " + missingErr.Error(),
 		},
 		{
 			name:    "submit directory",
