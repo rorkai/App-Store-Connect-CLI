@@ -257,7 +257,7 @@ func Run(args []string, versionInfo string) int {
 	if runErr != nil {
 		if _, ok := errors.AsType[shared.ReportedError](runErr); ok {
 			if !shared.IsPrintedToStderr(runErr) {
-				fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
+				fmt.Fprint(os.Stderr, errfmt.FormatCommandStderr(commandName, runErr))
 			}
 			exitCode := ExitCodeFromError(runErr)
 			emitTelemetry(commandName, versionInfo, elapsed, exitCode, runtimeFailureContext(analysis, runErr, exitCode))
@@ -269,7 +269,7 @@ func Run(args []string, versionInfo string) int {
 			return ExitUsage
 		}
 		printUnknownSubcommandSuggestion(analysis, commandName)
-		fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
+		fmt.Fprint(os.Stderr, errfmt.FormatCommandStderr(commandName, runErr))
 		exitCode := ExitCodeFromError(runErr)
 		emitTelemetry(commandName, versionInfo, elapsed, exitCode, runtimeFailureContext(analysis, runErr, exitCode))
 		return exitCode

@@ -189,8 +189,33 @@ func containsPrivacyError(err error) bool {
 	return strings.Contains(msg, "appdatausages") || strings.Contains(msg, "appdatausagespublications")
 }
 
+const submissionStateRead = "`asc review submissions-get --id SUBMISSION_ID --include items`"
+
+// conflictNextSteps names, per command path, the read command that shows the
+// state an App Store Connect 409 conflicted with, so a caller inspects that
+// state instead of repeating the same request.
+var conflictNextSteps = map[string]string{
+	"asc review items add":          "Check the submission's state and items with " + submissionStateRead + ". If the item is already on it, `--if-exists skip` accepts it.",
+	"asc review items-add":          "Check the submission's state and items with " + submissionStateRead + ". If the item is already on it, `--if-exists skip` accepts it.",
+	"asc review submissions-submit": "Check the submission's state and items with " + submissionStateRead + ", and what blocks review with `asc review doctor --app APP_ID`.",
+	"asc review submit":             "Check the app's review state and blockers with `asc review status --app APP_ID` and `asc review doctor --app APP_ID`.",
+	"asc localizations update":      "Check the version's state with `asc versions view --version-id VERSION_ID`, or for app-info localizations `asc localizations list --app APP_ID --type app-info --app-info-fields state`.",
+	"asc testflight testers add":    "Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
+	"asc testflight testers invite": "Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
+}
+
 func FormatStderr(err error) string {
+	return FormatCommandStderr("", err)
+}
+
+// FormatCommandStderr is FormatStderr for an error returned by the command at
+// path, such as "asc review items add". An HTTP 409 that gets no other hint
+// gets that command's conflictNextSteps entry.
+func FormatCommandStderr(path string, err error) string {
 	ce := Classify(err)
+	if ce.Hint == "" && errors.Is(err, asc.ErrConflict) {
+		ce.Hint = conflictNextSteps[path]
+	}
 	if ce.Message == "" {
 		return ""
 	}
