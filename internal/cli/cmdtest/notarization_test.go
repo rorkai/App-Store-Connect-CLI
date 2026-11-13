@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestNotarizationValidationErrors(t *testing.T) {
@@ -63,170 +66,63 @@ func TestNotarizationValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
+	runValidationTests(t, tests)
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestNotarizationSubmitInvalidPollInterval(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"notarization", "submit", "--file", "/tmp/test.zip", "--poll-interval", "invalid"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		t.Logf("got expected error: %v", err)
-	})
-
-	_ = stderr
-}
-
-func TestNotarizationSubmitInvalidTimeout(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"notarization", "submit", "--file", "/tmp/test.zip", "--timeout", "invalid"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		t.Logf("got expected error: %v", err)
-	})
-
-	_ = stderr
-}
-
-func TestNotarizationSubmitNonexistentFile(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	captureOutput(t, func() {
-		if err := root.Parse([]string{"notarization", "submit", "--file", "/nonexistent/file.zip"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for nonexistent file, got nil")
-		}
-		t.Logf("got expected error: %v", err)
-	})
-}
-
-func TestNotarizationSubmitDirectory(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	dir := t.TempDir()
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	captureOutput(t, func() {
-		if err := root.Parse([]string{"notarization", "submit", "--file", dir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for directory, got nil")
-		}
-		t.Logf("got expected error: %v", err)
-	})
-}
-
-func TestNotarizationSubmitEmptyFile(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	dir := t.TempDir()
 	emptyFile := filepath.Join(dir, "empty.zip")
 	if err := os.WriteFile(emptyFile, []byte{}, 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	captureOutput(t, func() {
-		if err := root.Parse([]string{"notarization", "submit", "--file", emptyFile}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for empty file, got nil")
-		}
-		t.Logf("got expected error: %v", err)
-	})
-}
-
-func TestNotarizationListNegativeLimit(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	captureOutput(t, func() {
-		if err := root.Parse([]string{"notarization", "list", "--limit", "-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for negative limit, got nil")
-		}
-		t.Logf("got expected error: %v", err)
-	})
-}
-
-func TestNotarizationSubmitUnsupportedExtension(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	dir := t.TempDir()
 	badFile := filepath.Join(dir, "app.txt")
 	if err := os.WriteFile(badFile, []byte("not a real archive"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	captureOutput(t, func() {
-		if err := root.Parse([]string{"notarization", "submit", "--file", badFile}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for unsupported file type, got nil")
-		}
-		t.Logf("got expected error: %v", err)
-	})
+	runtimeTests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "submit invalid poll interval",
+			args:    []string{"notarization", "submit", "--file", "/tmp/test.zip", "--poll-interval", "invalid"},
+			wantErr: "Error: notarization submit: --poll-interval must be a valid positive duration (e.g. 15s, 1m)",
+		},
+		{
+			name:    "submit invalid timeout",
+			args:    []string{"notarization", "submit", "--file", "/tmp/test.zip", "--timeout", "invalid"},
+			wantErr: "Error: notarization submit: --timeout must be a valid positive duration (e.g. 30m, 1h)",
+		},
+		{
+			name:    "submit nonexistent file",
+			args:    []string{"notarization", "submit", "--file", "/nonexistent/file.zip"},
+			wantErr: "Error: notarization submit: lstat /nonexistent/file.zip: no such file or directory",
+		},
+		{
+			name:    "submit directory",
+			args:    []string{"notarization", "submit", "--file", dir},
+			wantErr: fmt.Sprintf("Error: notarization submit: %q is a directory", dir),
+		},
+		{
+			name:    "submit empty file",
+			args:    []string{"notarization", "submit", "--file", emptyFile},
+			wantErr: "Error: notarization submit: file must not be empty",
+		},
+		{
+			name:    "list negative limit",
+			args:    []string{"notarization", "list", "--limit", "-1"},
+			wantErr: "Error: notarization list: --limit must not be negative",
+		},
+		{
+			name:    "submit unsupported extension",
+			args:    []string{"notarization", "submit", "--file", badFile},
+			wantErr: `Error: notarization submit: unsupported file type ".txt" (must be .zip, .dmg, or .pkg)`,
+		},
+	}
+	for _, test := range runtimeTests {
+		t.Run(test.name, func(t *testing.T) {
+			assertExitStderr(t, test.args, rootcmd.ExitError, test.wantErr)
+		})
+	}
 }
 
 func TestNotarizationHelpOutput(t *testing.T) {
