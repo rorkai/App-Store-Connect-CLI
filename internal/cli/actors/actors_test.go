@@ -1,32 +1,56 @@
 package actors
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"testing"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestActorsValidationErrors(t *testing.T) {
-	t.Run("list missing id", func(t *testing.T) {
-		cmd := ActorsListCommand()
-		if err := cmd.FlagSet.Parse([]string{}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	t.Parallel()
 
-	t.Run("get missing id", func(t *testing.T) {
-		cmd := ActorsGetCommand()
-		if err := cmd.FlagSet.Parse([]string{}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	tests := []struct {
+		name       string
+		newCommand func(*shared.Deps) *ffcli.Command
+	}{
+		{name: "list missing id", newCommand: newActorsListCommand},
+		{name: "get missing id", newCommand: newActorsViewCommand},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var stdout, stderr bytes.Buffer
+			d := &shared.Deps{
+				Client: func() (*asc.Client, error) {
+					return nil, errors.New("unexpected client request")
+				},
+				IO: &shared.IO{Out: &stdout, ErrOut: &stderr},
+			}
+
+			cmd := tt.newCommand(d)
+			if err := cmd.FlagSet.Parse([]string{}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
+			if got, want := stderr.String(), "Error: --id is required\n"; got != want {
+				t.Fatalf("stderr = %q, want %q", got, want)
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+		})
+	}
 }
 
 func TestNormalizeActorFields(t *testing.T) {
