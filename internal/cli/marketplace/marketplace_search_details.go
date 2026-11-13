@@ -69,7 +69,7 @@ Examples:
 
 			fieldsValue, err := normalizeMarketplaceSearchDetailFields(*fields)
 			if err != nil {
-				return fmt.Errorf("marketplace search-details view: %w", err)
+				return shared.UsageErrorf("marketplace search-details view: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

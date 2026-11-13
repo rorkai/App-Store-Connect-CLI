@@ -207,7 +207,7 @@ Examples:
 
 			fieldsValue, err := normalizeDeviceFields(*fields)
 			if err != nil {
-				return fmt.Errorf("devices view: %w", err)
+				return shared.UsageErrorf("devices view: %v", err)
 			}
 
 			client, err := shared.GetASCClient()
@@ -536,7 +536,7 @@ Examples:
 
 			statusValue, err := normalizeDeviceStatus(statusRaw)
 			if err != nil {
-				return fmt.Errorf("devices update: %w", err)
+				return shared.UsageErrorf("devices update: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

@@ -200,7 +200,7 @@ Examples:
 
 			typeValue, err := normalizeBackgroundAssetUploadFileAssetType(*assetType)
 			if err != nil {
-				return fmt.Errorf("background-assets upload-files create: %w", err)
+				return shared.UsageErrorf("background-assets upload-files create: %v", err)
 			}
 
 			info, err := os.Lstat(pathValue)

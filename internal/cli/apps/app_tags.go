@@ -249,17 +249,17 @@ Examples:
 
 			fieldsValue, err := normalizeAppTagFields(*fields)
 			if err != nil {
-				return fmt.Errorf("app-tags view: %w", err)
+				return shared.UsageErrorf("app-tags view: %v", err)
 			}
 
 			includeValues, err := normalizeAppTagInclude(*include)
 			if err != nil {
-				return fmt.Errorf("app-tags view: %w", err)
+				return shared.UsageErrorf("app-tags view: %v", err)
 			}
 
 			territoryFieldsValue, err := normalizeTerritoryFields(*territoryFields)
 			if err != nil {
-				return fmt.Errorf("app-tags view: %w", err)
+				return shared.UsageErrorf("app-tags view: %v", err)
 			}
 
 			includeTerritories := shared.HasInclude(includeValues, "territories")
@@ -438,7 +438,7 @@ Examples:
 
 			fieldsValue, err := normalizeTerritoryFields(*fields)
 			if err != nil {
-				return fmt.Errorf("app-tags territories: %w", err)
+				return shared.UsageErrorf("app-tags territories: %v", err)
 			}
 
 			warnAppTagTerritoryDeprecation()

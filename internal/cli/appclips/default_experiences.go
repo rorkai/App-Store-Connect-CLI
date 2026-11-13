@@ -164,7 +164,7 @@ Examples:
 
 			includeValue, err := normalizeAppClipDefaultExperienceInclude(*include)
 			if err != nil {
-				return fmt.Errorf("app-clips default-experiences view: %w", err)
+				return shared.UsageErrorf("app-clips default-experiences view: %v", err)
 			}
 			included, err := includedFields.Resolve("app-clips default-experiences view", "", includeValue)
 			if err != nil {
@@ -228,7 +228,7 @@ Examples:
 				templateProvided = templateProvided || f.Name == "template-id"
 			})
 			if templateProvided && templateValue == "" {
-				return fmt.Errorf("app-clips default-experiences create: --template-id must not be empty")
+				return shared.UsageError("app-clips default-experiences create: --template-id must not be empty")
 			}
 
 			var attrs *asc.AppClipDefaultExperienceCreateAttributes

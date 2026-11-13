@@ -258,7 +258,7 @@ Examples:
 
 			includeValues, err := normalizeCertificatesInclude(*include)
 			if err != nil {
-				return fmt.Errorf("certificates view: %w", err)
+				return shared.UsageErrorf("certificates view: %v", err)
 			}
 			included, err := includedFields.Resolve("certificates view", "", includeValues)
 			if err != nil {

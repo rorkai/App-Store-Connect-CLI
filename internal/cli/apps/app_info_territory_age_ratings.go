@@ -84,15 +84,15 @@ Examples:
 
 			fieldsValue, err := normalizeTerritoryAgeRatingFields(*fields)
 			if err != nil {
-				return fmt.Errorf("apps info territory-age-ratings list: %w", err)
+				return shared.UsageErrorf("apps info territory-age-ratings list: %v", err)
 			}
 			territoryFieldsValue, err := normalizeTerritoryFields(*territoryFields)
 			if err != nil {
-				return fmt.Errorf("apps info territory-age-ratings list: %w", err)
+				return shared.UsageErrorf("apps info territory-age-ratings list: %v", err)
 			}
 			includeValue, err := normalizeTerritoryAgeRatingInclude(*include)
 			if err != nil {
-				return fmt.Errorf("apps info territory-age-ratings list: %w", err)
+				return shared.UsageErrorf("apps info territory-age-ratings list: %v", err)
 			}
 			if len(territoryFieldsValue) > 0 && !contains(includeValue, "territory") {
 				fmt.Fprintln(os.Stderr, "Error: --territory-fields requires --include territory")

@@ -83,7 +83,7 @@ Examples:
 			}
 			fieldValues, err := normalizeAndroidIosMappingFields(*fields)
 			if err != nil {
-				return fmt.Errorf("android-ios-mapping list: %w", err)
+				return shared.UsageErrorf("android-ios-mapping list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()
@@ -152,7 +152,7 @@ Examples:
 			}
 			fieldValues, err := normalizeAndroidIosMappingFields(*fields)
 			if err != nil {
-				return fmt.Errorf("android-ios-mapping view: %w", err)
+				return shared.UsageErrorf("android-ios-mapping view: %v", err)
 			}
 
 			client, err := shared.GetASCClient()
@@ -272,17 +272,17 @@ Examples:
 				return shared.UsageError("android-ios-mapping update: at least one update flag is required")
 			}
 			if seen["android-package-name"] && *clearPackageName {
-				return fmt.Errorf("android-ios-mapping update: --android-package-name cannot be used with --clear-android-package-name")
+				return shared.UsageError("android-ios-mapping update: --android-package-name cannot be used with --clear-android-package-name")
 			}
 			if seen["fingerprints"] && *clearFingerprints {
-				return fmt.Errorf("android-ios-mapping update: --fingerprints cannot be used with --clear-fingerprints")
+				return shared.UsageError("android-ios-mapping update: --fingerprints cannot be used with --clear-fingerprints")
 			}
 
 			var attrs asc.AndroidToIosAppMappingDetailUpdateAttributes
 			if seen["android-package-name"] {
 				packageValue := strings.TrimSpace(*packageName)
 				if packageValue == "" {
-					return fmt.Errorf("android-ios-mapping update: --android-package-name cannot be empty")
+					return shared.UsageError("android-ios-mapping update: --android-package-name cannot be empty")
 				}
 				attrs.PackageName = &asc.NullableString{Value: &packageValue}
 			}
@@ -292,7 +292,7 @@ Examples:
 			if seen["fingerprints"] {
 				fingerprintValues := shared.SplitCSV(fingerprints.String())
 				if len(fingerprintValues) == 0 {
-					return fmt.Errorf("android-ios-mapping update: --fingerprints must include at least one value")
+					return shared.UsageError("android-ios-mapping update: --fingerprints must include at least one value")
 				}
 				attrs.AppSigningKeyPublicCertificateSha256Fingerprints = &asc.NullableStringSlice{Value: fingerprintValues}
 			}

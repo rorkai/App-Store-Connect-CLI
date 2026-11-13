@@ -233,7 +233,7 @@ Examples:
 
 			includeValues, err := normalizeUsersInclude(*include)
 			if err != nil {
-				return fmt.Errorf("users view: %w", err)
+				return shared.UsageErrorf("users view: %v", err)
 			}
 			included, err := includedFields.Resolve("users view", "", includeValues)
 			if err != nil {

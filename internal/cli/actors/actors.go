@@ -78,7 +78,7 @@ Examples:
 
 			fieldsValue, err := normalizeActorFields(*fields)
 			if err != nil {
-				return fmt.Errorf("actors list: %w", err)
+				return shared.UsageErrorf("actors list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()
@@ -153,7 +153,7 @@ Examples:
 
 			fieldsValue, err := normalizeActorFields(*fields)
 			if err != nil {
-				return fmt.Errorf("actors view: %w", err)
+				return shared.UsageErrorf("actors view: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

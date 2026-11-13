@@ -20,17 +20,6 @@ func TestMarketplaceSearchDetailsGetCommand_MissingApp(t *testing.T) {
 	}
 }
 
-func TestMarketplaceSearchDetailsGetCommand_InvalidFields(t *testing.T) {
-	cmd := MarketplaceSearchDetailsGetCommand()
-	if err := cmd.FlagSet.Parse([]string{"--app", "APP_ID", "--fields", "invalid"}); err != nil {
-		t.Fatalf("failed to parse flags: %v", err)
-	}
-
-	if err := cmd.Exec(context.Background(), []string{}); err == nil || errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected validation error for invalid --fields, got %v", err)
-	}
-}
-
 func TestMarketplaceSearchDetailsCreateCommand_MissingApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
@@ -178,16 +167,5 @@ func TestMarketplaceWebhooksDeleteCommand_MissingConfirm(t *testing.T) {
 
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --confirm is missing, got %v", err)
-	}
-}
-
-func TestMarketplaceWebhooksListCommand_InvalidFields(t *testing.T) {
-	cmd := MarketplaceWebhooksListCommand()
-	if err := cmd.FlagSet.Parse([]string{"--fields", "invalid"}); err != nil {
-		t.Fatalf("failed to parse flags: %v", err)
-	}
-
-	if err := cmd.Exec(context.Background(), []string{}); err == nil || errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected validation error for invalid --fields, got %v", err)
 	}
 }

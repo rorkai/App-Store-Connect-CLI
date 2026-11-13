@@ -78,7 +78,7 @@ Examples:
 
 			fieldsValue, err := normalizeMarketplaceWebhookFields(*fields)
 			if err != nil {
-				return fmt.Errorf("marketplace webhooks list: %w", err)
+				return shared.UsageErrorf("marketplace webhooks list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()
