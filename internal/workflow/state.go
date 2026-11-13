@@ -7,10 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 type persistedHookState struct {
@@ -69,13 +70,20 @@ func newPersistedRunState(workflowName, workflowFile, definitionHash string, par
 	}, nil
 }
 
-func loadRunState(path string) (*persistedRunState, error) {
-	data, err := os.ReadFile(path)
+func loadRunState(path string) (_ *persistedRunState, returnErr error) {
+	root, name, err := openRunStateRoot(path)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("read workflow run state: %w", err)
+	}
+	defer func() {
+		returnErr = errors.Join(returnErr, root.Close())
+	}()
+	data, found, err := root.ReadFileOptional(name)
+	if err != nil {
+		return nil, fmt.Errorf("read workflow run state: %w", err)
+	}
+	if !found {
+		return nil, nil
 	}
 	var state persistedRunState
 	if err := json.Unmarshal(data, &state); err != nil {
@@ -87,23 +95,37 @@ func loadRunState(path string) (*persistedRunState, error) {
 	return &state, nil
 }
 
-func saveRunState(path string, state persistedRunState) error {
+func saveRunState(path string, state persistedRunState) (returnErr error) {
 	state.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal workflow run state: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create workflow run state directory: %w", err)
-	}
-	tmpPath := path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0o600); err != nil {
+	root, name, err := openRunStateRoot(path)
+	if err != nil {
 		return fmt.Errorf("write workflow run state: %w", err)
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("persist workflow run state: %w", err)
+	defer func() {
+		returnErr = errors.Join(returnErr, root.Close())
+	}()
+	if err := root.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+		return fmt.Errorf("create workflow run state directory: %w", err)
+	}
+	if err := root.WriteFile(name, data, 0o600); err != nil {
+		return fmt.Errorf("write workflow run state: %w", err)
 	}
 	return nil
+}
+
+// openRunStateRoot anchors run state at the directory holding the state
+// directory, so a symlink at the state directory or file cannot redirect it.
+func openRunStateRoot(path string) (rootfs.Root, string, error) {
+	stateDir := filepath.Dir(path)
+	root, err := rootfs.New(filepath.Dir(stateDir))
+	if err != nil {
+		return rootfs.Root{}, "", err
+	}
+	return root, filepath.Join(filepath.Base(stateDir), filepath.Base(path)), nil
 }
 
 func runStateFilePath(stateDir, runID string) string {

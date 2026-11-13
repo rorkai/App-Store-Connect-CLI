@@ -1658,3 +1658,27 @@ func TestRun_DurationMS_IncludesAfterAll(t *testing.T) {
 		t.Fatalf("expected DurationMS >= 100 (must include after_all time), got %d", result.DurationMS)
 	}
 }
+
+func TestRun_RefusesSymlinkedStateDirectory(t *testing.T) {
+	workflowDir := t.TempDir()
+	outside := t.TempDir()
+	stateDir := filepath.Join(workflowDir, "runs")
+	if err := os.Symlink(outside, stateDir); err != nil {
+		t.Fatalf("Symlink() error = %v", err)
+	}
+
+	opts := runOpts("main")
+	opts.WorkflowFile = filepath.Join(workflowDir, "workflow.json")
+	opts.StateDir = stateDir
+
+	if _, err := Run(context.Background(), newTestDefinition(), opts); err == nil {
+		t.Fatal("expected Run to refuse a symlinked state directory")
+	}
+	entries, err := os.ReadDir(outside)
+	if err != nil {
+		t.Fatalf("ReadDir() error = %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected nothing written outside the workflow directory, found %d entries", len(entries))
+	}
+}
