@@ -115,7 +115,7 @@ sending that request.`,
 				SkipInternal: *skipInternal,
 			})
 			if err != nil {
-				return reportBuildBetaGroupAssignmentFailure(requestCtx, client, buildID, assignmentIncludesExternalGroup(resolvedGroups), err)
+				return reportBuildBetaGroupAssignmentFailure(requestCtx, client, buildID, plan.GroupsToAdd, err)
 			}
 
 			submissionResult, err := shared.SubmitBuildBetaReviewIfNeeded(requestCtx, client, buildID, resolvedGroups, addResult.AddedGroupIDs, *submit, "builds add-groups")
