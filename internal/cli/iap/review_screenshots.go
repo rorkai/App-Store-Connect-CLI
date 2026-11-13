@@ -233,7 +233,7 @@ func IAPReviewScreenshotsUpdateCommand() *ffcli.Command {
 	var uploaded shared.OptionalBool
 	fs.Var(&uploaded, "uploaded", "Mark upload complete: true or false")
 	filePath := fs.String("file", "", "Path to screenshot file; resumes an in-progress upload")
-	confirm := fs.Bool("confirm", false, "Confirm intent to replace a completed screenshot; update never deletes it automatically")
+	confirm := fs.Bool("confirm", false, "Accepted with --file; has no effect because update never replaces or deletes a completed screenshot")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -312,7 +312,7 @@ Examples:
 
 				requestCtx, uploadCancel := contextWithAssetUploadTimeout(ctx)
 				defer uploadCancel()
-				updated, err := updateIAPReviewScreenshotFromFile(requestCtx, client, id, snapshot, file.Name(), info.Size(), checksum.Hash, *confirm)
+				updated, err := updateIAPReviewScreenshotFromFile(requestCtx, client, id, snapshot, file.Name(), info.Size(), checksum.Hash)
 				if err != nil {
 					return fmt.Errorf("iap review-screenshots update: %w", err)
 				}
@@ -346,7 +346,7 @@ Examples:
 	}
 }
 
-func updateIAPReviewScreenshotFromFile(ctx context.Context, client *asc.Client, screenshotID string, file *os.File, fileName string, fileSize int64, checksum string, confirm bool) (*asc.InAppPurchaseAppStoreReviewScreenshotResponse, error) {
+func updateIAPReviewScreenshotFromFile(ctx context.Context, client *asc.Client, screenshotID string, file *os.File, fileName string, fileSize int64, checksum string) (*asc.InAppPurchaseAppStoreReviewScreenshotResponse, error) {
 	screenshotResp, err := client.GetInAppPurchaseAppStoreReviewScreenshot(ctx, screenshotID, asc.WithIAPReviewScreenshotFields([]string{
 		"fileSize",
 		"uploadOperations",
@@ -362,10 +362,10 @@ func updateIAPReviewScreenshotFromFile(ctx context.Context, client *asc.Client, 
 
 	uploadOps := screenshotResp.Data.Attributes.UploadOperations
 	if len(uploadOps) == 0 {
-		return nil, completedIAPReviewScreenshotReplacementError(screenshotID, screenshotResp.Data.Relationships, fileName, confirm)
+		return nil, completedIAPReviewScreenshotReplacementError(screenshotID, screenshotResp.Data.Relationships, fileName)
 	}
 	if screenshotResp.Data.Attributes.FileSize != fileSize {
-		return nil, fmt.Errorf("file size %d does not match the existing screenshot upload reservation size %d", fileSize, screenshotResp.Data.Attributes.FileSize)
+		return nil, shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("file size %d does not match the existing screenshot upload reservation size %d", fileSize, screenshotResp.Data.Attributes.FileSize)), shared.DiagnosticInvalidInput, "--file")
 	}
 
 	if err := asc.UploadAssetFromFile(ctx, file, fileSize, uploadOps); err != nil {
@@ -388,17 +388,14 @@ func updateIAPReviewScreenshotFromFile(ctx context.Context, client *asc.Client, 
 	return verified, nil
 }
 
-func completedIAPReviewScreenshotReplacementError(screenshotID string, relationships json.RawMessage, fileName string, confirm bool) error {
+func completedIAPReviewScreenshotReplacementError(screenshotID string, relationships json.RawMessage, fileName string) error {
 	iapID := "IAP_ID"
 	if relationshipID, err := relationshipResourceID(relationships, "inAppPurchaseV2"); err == nil {
 		iapID = relationshipID
 	}
 	deleteCommand, createCommand := completedIAPReviewScreenshotReplacementCommands(screenshotID, iapID, fileName)
 	manual := fmt.Sprintf("App Store Connect does not support replacing completed screenshot %s through update; run %s, then %s", shellQuotedRemediationArgument(screenshotID, "SCREENSHOT_ID"), deleteCommand, createCommand)
-	if !confirm {
-		return shared.UsageError("--confirm is required before attempting a completed screenshot replacement; " + manual)
-	}
-	return fmt.Errorf("%s", manual)
+	return shared.WithDiagnostic(shared.NewValidationError(shared.NewErrorWithCause(fmt.Errorf("%s", manual), asc.ErrConflict)), shared.DiagnosticResourceConflict, "--screenshot-id")
 }
 
 func completedIAPReviewScreenshotReplacementCommands(screenshotID, iapID, fileName string) (string, string) {
