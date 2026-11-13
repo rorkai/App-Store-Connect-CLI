@@ -81,11 +81,11 @@ Examples:
 
 			diagnosticTypes, err := normalizeDiagnosticSignatureTypes(shared.SplitCSVUpper(*diagnosticType))
 			if err != nil {
-				return fmt.Errorf("performance diagnostics list: %w", err)
+				return shared.UsageErrorf("performance diagnostics list: %v", err)
 			}
 			fieldValues, err := normalizeDiagnosticSignatureFields(*fields)
 			if err != nil {
-				return fmt.Errorf("performance diagnostics list: %w", err)
+				return shared.UsageErrorf("performance diagnostics list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

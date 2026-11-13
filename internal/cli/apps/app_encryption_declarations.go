@@ -78,15 +78,15 @@ Examples:
 
 			fieldsValue, err := normalizeAppEncryptionDeclarationFields(*fields)
 			if err != nil {
-				return fmt.Errorf("apps app-encryption-declarations list: %w", err)
+				return shared.UsageErrorf("apps app-encryption-declarations list: %v", err)
 			}
 			documentFieldsValue, err := normalizeAppEncryptionDeclarationDocumentFields(*documentFields)
 			if err != nil {
-				return fmt.Errorf("apps app-encryption-declarations list: %w", err)
+				return shared.UsageErrorf("apps app-encryption-declarations list: %v", err)
 			}
 			includeValue, err := normalizeAppEncryptionDeclarationInclude(*include)
 			if err != nil {
-				return fmt.Errorf("apps app-encryption-declarations list: %w", err)
+				return shared.UsageErrorf("apps app-encryption-declarations list: %v", err)
 			}
 			included, err := includedFields.Resolve("apps app-encryption-declarations list", *next, includeValue)
 			if err != nil {

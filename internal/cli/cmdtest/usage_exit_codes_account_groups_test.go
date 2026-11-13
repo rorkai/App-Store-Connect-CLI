@@ -39,6 +39,16 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			wantErr: "actors list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "actors list invalid fields",
+			args:    []string{"actors", "list", "--id", "ACTOR_ID", "--fields", "bad"},
+			wantErr: "actors list: --fields must be one of: actorType, userFirstName, userLastName, userEmail, apiKeyId",
+		},
+		{
+			name:    "actors view invalid fields",
+			args:    []string{"actors", "view", "--id", "ACTOR_ID", "--fields", "bad"},
+			wantErr: "actors view: --fields must be one of: actorType, userFirstName, userLastName, userEmail, apiKeyId",
+		},
+		{
 			name:    "agreements territories list limit",
 			args:    []string{"agreements", "territories", "list", "--id", "X", "--limit", "201"},
 			wantErr: "agreements territories list: --limit must be between 1 and 200",
@@ -72,6 +82,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "alternative-distribution keys list next",
 			args:    []string{"alternative-distribution", "keys", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "alternative-distribution keys list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "alternative-distribution keys create both key sources",
+			args:    []string{"alternative-distribution", "keys", "create", "--app", "APP_ID", "--public-key", "KEY", "--public-key-path", "key.pem"},
+			wantErr: "alternative-distribution keys create: only one of --public-key or --public-key-path is allowed",
 		},
 		{
 			name:    "alternative-distribution packages versions deltas limit",
@@ -114,6 +129,21 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			wantErr: "android-ios-mapping list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "android-ios-mapping list invalid fields",
+			args:    []string{"android-ios-mapping", "list", "--app", "APP_ID", "--fields", "bad"},
+			wantErr: "android-ios-mapping list: --fields must be one of: packageName, appSigningKeyPublicCertificateSha256Fingerprints",
+		},
+		{
+			name:    "android-ios-mapping view invalid fields",
+			args:    []string{"android-ios-mapping", "view", "--mapping-id", "MAP_ID", "--fields", "bad"},
+			wantErr: "android-ios-mapping view: --fields must be one of: packageName, appSigningKeyPublicCertificateSha256Fingerprints",
+		},
+		{
+			name:    "android-ios-mapping update conflicting package name flags",
+			args:    []string{"android-ios-mapping", "update", "--mapping-id", "MAP_ID", "--android-package-name", "com.example", "--clear-android-package-name"},
+			wantErr: "android-ios-mapping update: --android-package-name cannot be used with --clear-android-package-name",
+		},
+		{
 			name:    "background-assets list limit",
 			args:    []string{"background-assets", "list", "--app", "123456789", "--limit", "201"},
 			wantErr: "background-assets list: --limit must be between 1 and 200",
@@ -132,6 +162,16 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "background-assets upload-files list next",
 			args:    []string{"background-assets", "upload-files", "list", "--version-id", "V", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "background-assets upload-files list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "background-assets upload-files create invalid asset type",
+			args:    []string{"background-assets", "upload-files", "create", "--version-id", "VERSION_ID", "--file", "asset.bin", "--asset-type", "bad"},
+			wantErr: "background-assets upload-files create: --asset-type must be one of: ASSET, MANIFEST",
+		},
+		{
+			name:    "background-assets upload-files update invalid uploaded",
+			args:    []string{"background-assets", "upload-files", "update", "--upload-file-id", "FILE_ID", "--uploaded", "bad"},
+			wantErr: "background-assets upload-files update: --uploaded must be true or false",
 		},
 		{
 			name:    "background-assets versions list limit",
@@ -172,6 +212,26 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "certificates list limit",
 			args:    []string{"certificates", "list", "--limit", "201"},
 			wantErr: "certificates list: --limit must be between 1 and 200",
+		},
+		{
+			name:    "certificates view invalid include",
+			args:    []string{"certificates", "view", "--id", "CERT_ID", "--include", "bad"},
+			wantErr: "certificates view: --include must be one of: passTypeId",
+		},
+		{
+			name:    "certificates update invalid activated",
+			args:    []string{"certificates", "update", "--id", "CERT_ID", "--activated", "bad"},
+			wantErr: "certificates update: --activated must be true or false",
+		},
+		{
+			name:    "devices view invalid fields",
+			args:    []string{"devices", "view", "--id", "DEVICE_ID", "--fields", "bad"},
+			wantErr: "devices view: --fields must be one of: addedDate, deviceClass, model, name, platform, status, udid",
+		},
+		{
+			name:    "devices update invalid status",
+			args:    []string{"devices", "update", "--id", "DEVICE_ID", "--status", "bad"},
+			wantErr: "devices update: --status must be one of: ENABLED, DISABLED",
 		},
 		{
 			name:    "iap promoted-purchases list next",
@@ -264,6 +324,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			wantErr: "nominations view: --supported-territories-limit must be between 1 and 200",
 		},
 		{
+			name:    "marketplace search-details view invalid fields",
+			args:    []string{"marketplace", "search-details", "view", "--app", "APP_ID", "--fields", "bad"},
+			wantErr: "marketplace search-details view: --fields must be one of: catalogUrl",
+		},
+		{
 			name:    "nominations list invalid status",
 			args:    []string{"nominations", "list", "--status", "bad"},
 			wantErr: "nominations list: --status must be one of: DRAFT, SUBMITTED, ARCHIVED",
@@ -347,6 +412,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "profiles list next",
 			args:    []string{"profiles", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "profiles list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "profiles view invalid include",
+			args:    []string{"profiles", "view", "--id", "PROFILE_ID", "--include", "bad"},
+			wantErr: "profiles view: --include must be one of: bundleId, certificates, devices",
 		},
 		{
 			name:    "sandbox list limit",
@@ -474,6 +544,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			wantErr: "users visible-apps view: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "users view invalid include",
+			args:    []string{"users", "view", "--id", "USER_ID", "--include", "bad"},
+			wantErr: "users view: --include must be one of: visibleApps",
+		},
+		{
 			name:    "xcode-cloud artifacts list limit",
 			args:    []string{"xcode-cloud", "artifacts", "list", "--action-id", "A", "--limit", "201"},
 			wantErr: "xcode-cloud artifacts list: --limit must be between 1 and 200",
@@ -566,6 +641,11 @@ func TestMarketplaceWebhooksInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "invalid next",
 			args:    []string{"marketplace", "webhooks", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "marketplace webhooks list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "invalid fields",
+			args:    []string{"marketplace", "webhooks", "list", "--fields", "bad"},
+			wantErr: "marketplace webhooks list: --fields must be one of: endpointUrl",
 		},
 	}
 

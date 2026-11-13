@@ -84,17 +84,17 @@ Examples:
 
 			deviceFamilies, err := normalizeAccessibilityDeviceFamilies(shared.SplitCSVUpper(*deviceFamily))
 			if err != nil {
-				return fmt.Errorf("accessibility list: %w", err)
+				return shared.UsageErrorf("accessibility list: %v", err)
 			}
 
 			states, err := normalizeAccessibilityStates(shared.SplitCSVUpper(*state))
 			if err != nil {
-				return fmt.Errorf("accessibility list: %w", err)
+				return shared.UsageErrorf("accessibility list: %v", err)
 			}
 
 			fieldsValue, err := normalizeAccessibilityDeclarationFields(*fields)
 			if err != nil {
-				return fmt.Errorf("accessibility list: %w", err)
+				return shared.UsageErrorf("accessibility list: %v", err)
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -190,7 +190,7 @@ Examples:
 
 			fieldsValue, err := normalizeAccessibilityDeclarationFields(*fields)
 			if err != nil {
-				return fmt.Errorf("accessibility view: %w", err)
+				return shared.UsageErrorf("accessibility view: %v", err)
 			}
 
 			client, err := shared.GetASCClient()
@@ -254,7 +254,7 @@ Examples:
 
 			normalizedDeviceFamily, err := normalizeAccessibilityDeviceFamily(deviceFamilyValue)
 			if err != nil {
-				return fmt.Errorf("accessibility create: %w", err)
+				return shared.UsageErrorf("accessibility create: %v", err)
 			}
 
 			attrs, err := buildAccessibilityDeclarationCreateAttributes(normalizedDeviceFamily, map[string]string{
@@ -269,7 +269,7 @@ Examples:
 				"supports-voiceover":                         *supportsVoiceover,
 			})
 			if err != nil {
-				return fmt.Errorf("accessibility create: %w", err)
+				return shared.UsageErrorf("accessibility create: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

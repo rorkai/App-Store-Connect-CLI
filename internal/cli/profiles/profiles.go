@@ -456,7 +456,7 @@ Examples:
 
 			includeValues, err := normalizeProfileInclude(*include)
 			if err != nil {
-				return fmt.Errorf("profiles view: %w", err)
+				return shared.UsageErrorf("profiles view: %v", err)
 			}
 			included, err := includedFields.Resolve("profiles view", "", includeValues)
 			if err != nil {

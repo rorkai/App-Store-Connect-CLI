@@ -38,6 +38,26 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "accessibility list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "accessibility list invalid device family",
+			args:    []string{"accessibility", "list", "--app", "APP_ID", "--device-family", "bad"},
+			wantErr: "accessibility list: --device-family must be one of: IPHONE, IPAD, APPLE_TV, APPLE_WATCH, MAC, VISION",
+		},
+		{
+			name:    "accessibility view invalid fields",
+			args:    []string{"accessibility", "view", "--id", "DECLARATION_ID", "--fields", "bad"},
+			wantErr: "accessibility view: --fields must be one of: deviceFamily, state, supportsAudioDescriptions, supportsCaptions, supportsDarkInterface, supportsDifferentiateWithoutColorAlone, supportsLargerText, supportsReducedMotion, supportsSufficientContrast, supportsVoiceControl, supportsVoiceover",
+		},
+		{
+			name:    "accessibility create invalid device family",
+			args:    []string{"accessibility", "create", "--app", "APP_ID", "--device-family", "bad"},
+			wantErr: "accessibility create: --device-family must be one of: IPHONE, IPAD, APPLE_TV, APPLE_WATCH, MAC, VISION",
+		},
+		{
+			name:    "accessibility create invalid bool",
+			args:    []string{"accessibility", "create", "--app", "APP_ID", "--device-family", "IPHONE", "--supports-voiceover", "bad"},
+			wantErr: "accessibility create: --supports-voiceover must be true or false",
+		},
+		{
 			name:    "apps list next for builds",
 			args:    []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps/app-1/builds?cursor=AQ"},
 			wantErr: "apps: --next must point to /v1/apps",
@@ -71,6 +91,26 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "app-clips default-experiences list next",
 			args:    []string{"app-clips", "default-experiences", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "app-clips default-experiences list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "app-clips default-experiences view invalid include",
+			args:    []string{"app-clips", "default-experiences", "view", "--experience-id", "EXP_ID", "--include", "bad"},
+			wantErr: "app-clips default-experiences view: --include must be one of: appClip, releaseWithAppStoreVersion, appClipDefaultExperienceLocalizations, appClipAppStoreReviewDetail",
+		},
+		{
+			name:    "app-clips default-experiences create empty template-id",
+			args:    []string{"app-clips", "default-experiences", "create", "--app-clip-id", "CLIP_ID", "--template-id", " "},
+			wantErr: "app-clips default-experiences create: --template-id must not be empty",
+		},
+		{
+			name:    "app-clips default-experiences create invalid action",
+			args:    []string{"app-clips", "default-experiences", "create", "--app-clip-id", "CLIP_ID", "--action", "bad"},
+			wantErr: "app-clips default-experiences create: invalid action \"bad\"",
+		},
+		{
+			name:    "app-clips default-experiences update invalid action",
+			args:    []string{"app-clips", "default-experiences", "update", "--experience-id", "EXP_ID", "--action", "bad"},
+			wantErr: "app-clips default-experiences update: invalid action \"bad\"",
 		},
 		{
 			name:    "app-clips default-experiences localizations list limit",
@@ -258,6 +298,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "app-tags territories: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "app-tags territories invalid fields",
+			args:    []string{"app-tags", "territories", "--id", "TAG_ID", "--fields", "bad"},
+			wantErr: "app-tags territories: --territory-fields must be one of: currency",
+		},
+		{
 			name:    "app-tags territories-links limit",
 			args:    []string{"app-tags", "territories-links", "--id", "X", "--limit", "201"},
 			wantErr: "app-tags territories-links: --limit must be between 1 and 200",
@@ -271,6 +316,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "app-tags view territory-limit",
 			args:    []string{"app-tags", "view", "--app", "123456789", "--id", "X", "--territory-limit", "51"},
 			wantErr: "app-tags view: --territory-limit must be between 1 and 50",
+		},
+		{
+			name:    "app-tags view invalid fields",
+			args:    []string{"app-tags", "view", "--app", "APP_ID", "--id", "TAG_ID", "--fields", "bad"},
+			wantErr: "app-tags view: --fields must be one of: name, visibleInAppStore, territories",
 		},
 		{
 			name:    "apps app-encryption-declarations list build-limit",
@@ -288,6 +338,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "apps app-encryption-declarations list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "apps app-encryption-declarations list invalid fields",
+			args:    []string{"apps", "app-encryption-declarations", "list", "--id", "APP_ID", "--fields", "bad"},
+			wantErr: "apps app-encryption-declarations list: --fields must be one of: appDescription, createdDate, usesEncryption, exempt, containsProprietaryCryptography, containsThirdPartyCryptography, availableOnFrenchStore, platform, uploadedDate, documentUrl, documentName, documentType, appEncryptionDeclarationState, codeValue, app, builds, appEncryptionDeclarationDocument",
+		},
+		{
 			name:    "apps info territory-age-ratings list limit",
 			args:    []string{"apps", "info", "territory-age-ratings", "list", "--limit", "201"},
 			wantErr: "apps info territory-age-ratings list: --limit must be between 1 and 200",
@@ -296,6 +351,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "apps info territory-age-ratings list next",
 			args:    []string{"apps", "info", "territory-age-ratings", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "apps info territory-age-ratings list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "apps info territory-age-ratings list invalid fields",
+			args:    []string{"apps", "info", "territory-age-ratings", "list", "--info-id", "INFO_ID", "--fields", "bad"},
+			wantErr: "apps info territory-age-ratings list: --fields must be one of: appStoreAgeRating, territory",
 		},
 		{
 			name:    "apps search-keywords list limit",
@@ -516,6 +576,31 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "performance diagnostics view limit",
 			args:    []string{"performance", "diagnostics", "view", "--id", "I", "--limit", "201"},
 			wantErr: "performance diagnostics view: --limit must be between 1 and 200",
+		},
+		{
+			name:    "performance diagnostics list invalid diagnostic type",
+			args:    []string{"performance", "diagnostics", "list", "--build-id", "BUILD_ID", "--diagnostic-type", "bad"},
+			wantErr: "performance diagnostics list: --diagnostic-type must be one of: DISK_WRITES, HANGS, LAUNCHES",
+		},
+		{
+			name:    "performance metrics list invalid metric type",
+			args:    []string{"performance", "metrics", "list", "--app", "APP_ID", "--metric-type", "bad"},
+			wantErr: "performance metrics list: --metric-type must be one of: ANIMATION, BATTERY, DISK, HANG, LAUNCH, MEMORY, STORAGE, TERMINATION",
+		},
+		{
+			name:    "performance metrics view invalid metric type",
+			args:    []string{"performance", "metrics", "view", "--build-id", "BUILD_ID", "--metric-type", "bad"},
+			wantErr: "performance metrics view: --metric-type must be one of: ANIMATION, BATTERY, DISK, HANG, LAUNCH, MEMORY, STORAGE, TERMINATION",
+		},
+		{
+			name:    "performance metrics list invalid platform",
+			args:    []string{"performance", "metrics", "list", "--app", "APP_ID", "--platform", "bad"},
+			wantErr: "performance metrics list: --platform must be one of: IOS",
+		},
+		{
+			name:    "performance metrics view invalid platform",
+			args:    []string{"performance", "metrics", "view", "--build-id", "BUILD_ID", "--platform", "bad"},
+			wantErr: "performance metrics view: --platform must be one of: IOS",
 		},
 		{
 			name:    "product-pages custom-pages list limit",

@@ -185,7 +185,7 @@ Examples:
 			keyValue := strings.TrimSpace(*publicKey)
 			keyPath := strings.TrimSpace(*publicKeyPath)
 			if keyValue != "" && keyPath != "" {
-				return fmt.Errorf("alternative-distribution keys create: only one of --public-key or --public-key-path is allowed")
+				return shared.UsageError("alternative-distribution keys create: only one of --public-key or --public-key-path is allowed")
 			}
 			if keyValue == "" && keyPath == "" {
 				fmt.Fprintln(os.Stderr, "Error: --public-key or --public-key-path is required")

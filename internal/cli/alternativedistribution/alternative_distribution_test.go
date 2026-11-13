@@ -97,17 +97,6 @@ func TestAlternativeDistributionKeysCreateCommand_MissingKey(t *testing.T) {
 	}
 }
 
-func TestAlternativeDistributionKeysCreateCommand_ConflictingKeyInputs(t *testing.T) {
-	cmd := AlternativeDistributionKeysCreateCommand()
-	if err := cmd.FlagSet.Parse([]string{"--app", "APP_ID", "--public-key", "KEY", "--public-key-path", "./key.pem"}); err != nil {
-		t.Fatalf("failed to parse flags: %v", err)
-	}
-
-	if err := cmd.Exec(context.Background(), []string{}); err == nil || errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected validation error for conflicting key inputs, got %v", err)
-	}
-}
-
 func TestAlternativeDistributionKeysDeleteCommand_MissingID(t *testing.T) {
 	cmd := AlternativeDistributionKeysDeleteCommand()
 	if err := cmd.FlagSet.Parse([]string{"--confirm"}); err != nil {
