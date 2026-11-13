@@ -80,6 +80,66 @@ func TestLocalCredentialFailuresAreMissingAuth(t *testing.T) {
 	}
 }
 
+func TestSymlinkedConfigIsRefusedWithGuidance(t *testing.T) {
+	tests := []struct {
+		name string
+		link func(t *testing.T, home, realDir string)
+		args []string
+	}{
+		{
+			name: "symlinked config file",
+			link: func(t *testing.T, home, realDir string) {
+				if err := os.Mkdir(filepath.Join(home, ".asc"), 0o700); err != nil {
+					t.Fatalf("mkdir: %v", err)
+				}
+				if err := os.Symlink(filepath.Join(realDir, "config.json"), filepath.Join(home, ".asc", "config.json")); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+			},
+			args: []string{"apps", "list"},
+		},
+		{
+			name: "symlinked config directory",
+			link: func(t *testing.T, home, realDir string) {
+				if err := os.Symlink(realDir, filepath.Join(home, ".asc")); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+			},
+			args: []string{"auth", "status"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			home := setCmdtestHome(t)
+			t.Chdir(t.TempDir())
+			for _, name := range []string{"ASC_CONFIG_PATH", "ASC_PROFILE", "ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_PRIVATE_KEY_PATH", "ASC_PRIVATE_KEY", "ASC_PRIVATE_KEY_B64"} {
+				t.Setenv(name, "")
+			}
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			realDir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(realDir, "config.json"), []byte(`{"key_id":"ABC123DEFG","issuer_id":"00000000-0000-0000-0000-000000000000","private_key_path":"/nonexistent/AuthKey.p8"}`), 0o600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+			test.link(t, home, realDir)
+
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = rootcmd.Run(test.args, "1.2.3") })
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d; stderr = %q", code, rootcmd.ExitUsage, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			configPath := filepath.Join(home, ".asc", "config.json")
+			wantError := "config " + configPath + " is a symlink or is inside a symlinked directory; symlinked config files and directories are not followed\n"
+			wantHint := "Hint: Replace the symlink with the real file, or set ASC_CONFIG_PATH to the absolute path of a config file whose path contains no symlinks.\n"
+			if strings.Count(stderr, "Error:") != 1 || !strings.Contains(stderr, wantError) || !strings.HasSuffix(stderr, wantHint) {
+				t.Fatalf("stderr = %q, want one error ending %q and hint %q", stderr, wantError, wantHint)
+			}
+		})
+	}
+}
+
 func TestAuthLoginMissingPrivateKeyNamesGivenPath(t *testing.T) {
 	tests := []struct {
 		name string

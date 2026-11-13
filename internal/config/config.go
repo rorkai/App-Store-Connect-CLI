@@ -253,6 +253,10 @@ var ErrNotFound = fmt.Errorf("configuration not found")
 // ErrParse is returned when the config file is not valid JSON.
 var ErrParse = errors.New("failed to parse config")
 
+// ErrSymlinkedConfig is returned when the config file or a directory on its
+// path is a symlink.
+var ErrSymlinkedConfig = errors.New("symlinked config files and directories are not followed")
+
 // ErrInvalidPath is returned when the config path is invalid.
 var ErrInvalidPath = errors.New("invalid config path")
 
@@ -438,6 +442,9 @@ func LoadAt(path string) (*Config, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrNotFound
+		}
+		if errors.Is(err, rootfs.ErrSymlink) {
+			return nil, fmt.Errorf("config %s is a symlink or is inside a symlinked directory; %w", path, ErrSymlinkedConfig)
 		}
 		return nil, fmt.Errorf("failed to read config: %w", err)
 	}

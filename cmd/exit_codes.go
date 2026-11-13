@@ -8,6 +8,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleads"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/storekit"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -49,7 +50,7 @@ func ExitCodeFromError(err error) int {
 
 	// Usage errors. A missing Apple web session is rendered without the usage
 	// page but keeps the usage exit code its callers rely on.
-	if errors.Is(err, flag.ErrHelp) || shared.IsReportedUsageError(err) || errors.Is(err, shared.ErrMissingWebSession) {
+	if errors.Is(err, flag.ErrHelp) || shared.IsReportedUsageError(err) || errors.Is(err, shared.ErrMissingWebSession) || errors.Is(err, config.ErrSymlinkedConfig) {
 		return ExitUsage
 	}
 
