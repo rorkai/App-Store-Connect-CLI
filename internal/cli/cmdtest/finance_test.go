@@ -80,42 +80,21 @@ func TestFinanceReportsInvalidFlags(t *testing.T) {
 		{
 			name:    "invalid report type",
 			args:    []string{"finance", "reports", "--vendor", "12345678", "--report-type", "INVALID", "--region", "US", "--date", "2025-12"},
-			wantErr: "--report-type must be FINANCIAL or FINANCE_DETAIL",
+			wantErr: "Error: finance reports: --report-type must be FINANCIAL or FINANCE_DETAIL",
 		},
 		{
 			name:    "invalid date format",
 			args:    []string{"finance", "reports", "--vendor", "12345678", "--report-type", "FINANCIAL", "--region", "US", "--date", "2025-13"},
-			wantErr: "--date must be in YYYY-MM format",
+			wantErr: "Error: finance reports: --date must be in YYYY-MM format",
 		},
 		{
 			name:    "invalid finance detail region",
 			args:    []string{"finance", "reports", "--vendor", "12345678", "--report-type", "FINANCE_DETAIL", "--region", "US", "--date", "2025-12"},
-			wantErr: "--region must be Z1 for FINANCE_DETAIL reports",
+			wantErr: "Error: finance reports: --region must be Z1 for FINANCE_DETAIL reports",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				if errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected non-help error, got %v", err)
-				}
-			})
-
-			_ = stdout
-			_ = stderr
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestFinanceRegionsCommandOutputsJSON(t *testing.T) {

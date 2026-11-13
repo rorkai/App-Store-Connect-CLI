@@ -123,15 +123,15 @@ Examples:
 
 			normalizedReportType, err := normalizeFinanceReportType(*reportType)
 			if err != nil {
-				return fmt.Errorf("finance reports: %w", err)
+				return shared.UsageErrorf("finance reports: %v", err)
 			}
 			reportDate, err := normalizeFinanceReportDate(*date)
 			if err != nil {
-				return fmt.Errorf("finance reports: %w", err)
+				return shared.UsageErrorf("finance reports: %v", err)
 			}
 			regionCode, err := normalizeFinanceReportRegion(normalizedReportType, *region)
 			if err != nil {
-				return fmt.Errorf("finance reports: %w", err)
+				return shared.UsageErrorf("finance reports: %v", err)
 			}
 			defaultOutput := fmt.Sprintf("finance_report_%s_%s_%s.tsv.gz", reportDate, string(normalizedReportType), regionCode)
 			compressedPath, decompressedPath := shared.ResolveReportOutputPaths(*output, defaultOutput, ".tsv", *decompress)

@@ -325,7 +325,7 @@ Examples:
 			}
 			durationValue, err := normalizeWinBackOfferDuration(*duration)
 			if err != nil {
-				return fmt.Errorf("win-back-offers create: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 			}
 
 			if strings.TrimSpace(*offerMode) == "" {
@@ -334,7 +334,7 @@ Examples:
 			}
 			offerModeValue, err := normalizeWinBackOfferMode(*offerMode)
 			if err != nil {
-				return fmt.Errorf("win-back-offers create: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 			}
 
 			if !periodCount.set {
@@ -342,7 +342,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--period-count")
 			}
 			if periodCount.value <= 0 {
-				return fmt.Errorf("win-back-offers create: --period-count must be greater than 0")
+				return shared.UsageErrorCtx(ctx, "win-back-offers create: --period-count must be greater than 0")
 			}
 
 			if !eligibilityPaidMonths.set {
@@ -350,7 +350,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--eligibility-paid-months")
 			}
 			if eligibilityPaidMonths.value < 0 {
-				return fmt.Errorf("win-back-offers create: --eligibility-paid-months must be 0 or greater")
+				return shared.UsageErrorCtx(ctx, "win-back-offers create: --eligibility-paid-months must be 0 or greater")
 			}
 
 			if !eligibilityLastSubscribedMin.set && !eligibilityLastSubscribedMax.set {
@@ -358,13 +358,13 @@ Examples:
 				return shared.MissingRequiredUsageError("")
 			}
 			if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMin.value < 0 {
-				return fmt.Errorf("win-back-offers create: eligibility last subscribed min must be 0 or greater")
+				return shared.UsageErrorCtx(ctx, "win-back-offers create: eligibility last subscribed min must be 0 or greater")
 			}
 			if eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMax.value < 0 {
-				return fmt.Errorf("win-back-offers create: eligibility last subscribed max must be 0 or greater")
+				return shared.UsageErrorCtx(ctx, "win-back-offers create: eligibility last subscribed max must be 0 or greater")
 			}
 			if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMin.value > eligibilityLastSubscribedMax.value {
-				return fmt.Errorf("win-back-offers create: eligibility last subscribed min must be less than or equal to max")
+				return shared.UsageErrorCtx(ctx, "win-back-offers create: eligibility last subscribed min must be less than or equal to max")
 			}
 
 			rangeValue := asc.IntegerRange{}
@@ -381,7 +381,7 @@ Examples:
 			}
 			normalizedStartDate, err := shared.NormalizeDate(*startDate, "--start-date")
 			if err != nil {
-				return fmt.Errorf("win-back-offers create: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 			}
 
 			if strings.TrimSpace(*priority) == "" {
@@ -390,7 +390,7 @@ Examples:
 			}
 			priorityValue, err := normalizeWinBackOfferPriority(*priority)
 			if err != nil {
-				return fmt.Errorf("win-back-offers create: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 			}
 
 			isFreeTrial := offerModeValue == asc.SubscriptionOfferModeFreeTrial
@@ -423,14 +423,14 @@ Examples:
 			}
 
 			if eligibilityWaitMonths.set && eligibilityWaitMonths.value < 0 {
-				return fmt.Errorf("win-back-offers create: --eligibility-wait-months must be 0 or greater")
+				return shared.UsageErrorCtx(ctx, "win-back-offers create: --eligibility-wait-months must be 0 or greater")
 			}
 
 			normalizedEndDate := ""
 			if strings.TrimSpace(*endDate) != "" {
 				normalizedEndDate, err = shared.NormalizeDate(*endDate, "--end-date")
 				if err != nil {
-					return fmt.Errorf("win-back-offers create: %w", err)
+					return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 				}
 			}
 
@@ -438,7 +438,7 @@ Examples:
 			if strings.TrimSpace(*promotionIntent) != "" {
 				intent, err := normalizeWinBackOfferPromotionIntent(*promotionIntent)
 				if err != nil {
-					return fmt.Errorf("win-back-offers create: %w", err)
+					return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 				}
 				promotionIntentValue = &intent
 			}
@@ -614,7 +614,7 @@ Examples:
 
 			if eligibilityPaidMonths.set {
 				if eligibilityPaidMonths.value < 0 {
-					return fmt.Errorf("win-back-offers update: --eligibility-paid-months must be 0 or greater")
+					return shared.UsageErrorCtx(ctx, "win-back-offers update: --eligibility-paid-months must be 0 or greater")
 				}
 				attrs.CustomerEligibilityPaidSubscriptionDurationInMonths = &eligibilityPaidMonths.value
 				hasUpdates = true
@@ -622,13 +622,13 @@ Examples:
 
 			if eligibilityLastSubscribedMin.set || eligibilityLastSubscribedMax.set {
 				if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMin.value < 0 {
-					return fmt.Errorf("win-back-offers update: eligibility last subscribed min must be 0 or greater")
+					return shared.UsageErrorCtx(ctx, "win-back-offers update: eligibility last subscribed min must be 0 or greater")
 				}
 				if eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMax.value < 0 {
-					return fmt.Errorf("win-back-offers update: eligibility last subscribed max must be 0 or greater")
+					return shared.UsageErrorCtx(ctx, "win-back-offers update: eligibility last subscribed max must be 0 or greater")
 				}
 				if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMin.value > eligibilityLastSubscribedMax.value {
-					return fmt.Errorf("win-back-offers update: eligibility last subscribed min must be less than or equal to max")
+					return shared.UsageErrorCtx(ctx, "win-back-offers update: eligibility last subscribed min must be less than or equal to max")
 				}
 				rangeValue := asc.IntegerRange{}
 				if eligibilityLastSubscribedMin.set {
@@ -643,7 +643,7 @@ Examples:
 
 			if eligibilityWaitMonths.set {
 				if eligibilityWaitMonths.value < 0 {
-					return fmt.Errorf("win-back-offers update: --eligibility-wait-months must be 0 or greater")
+					return shared.UsageErrorCtx(ctx, "win-back-offers update: --eligibility-wait-months must be 0 or greater")
 				}
 				attrs.CustomerEligibilityWaitBetweenOffersInMonths = &eligibilityWaitMonths.value
 				hasUpdates = true
@@ -652,7 +652,7 @@ Examples:
 			if strings.TrimSpace(*startDate) != "" {
 				normalized, err := shared.NormalizeDate(*startDate, "--start-date")
 				if err != nil {
-					return fmt.Errorf("win-back-offers update: %w", err)
+					return shared.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
 				}
 				attrs.StartDate = &normalized
 				hasUpdates = true
@@ -661,7 +661,7 @@ Examples:
 			if strings.TrimSpace(*endDate) != "" {
 				normalized, err := shared.NormalizeDate(*endDate, "--end-date")
 				if err != nil {
-					return fmt.Errorf("win-back-offers update: %w", err)
+					return shared.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
 				}
 				attrs.EndDate = &normalized
 				hasUpdates = true
@@ -670,7 +670,7 @@ Examples:
 			if strings.TrimSpace(*priority) != "" {
 				value, err := normalizeWinBackOfferPriority(*priority)
 				if err != nil {
-					return fmt.Errorf("win-back-offers update: %w", err)
+					return shared.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
 				}
 				attrs.Priority = &value
 				hasUpdates = true
@@ -679,7 +679,7 @@ Examples:
 			if strings.TrimSpace(*promotionIntent) != "" {
 				value, err := normalizeWinBackOfferPromotionIntent(*promotionIntent)
 				if err != nil {
-					return fmt.Errorf("win-back-offers update: %w", err)
+					return shared.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
 				}
 				attrs.PromotionIntent = &value
 				hasUpdates = true
