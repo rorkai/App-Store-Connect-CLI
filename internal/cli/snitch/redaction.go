@@ -446,10 +446,7 @@ func isBenignTextCommand(command string) bool {
 	if len(spans) == 0 {
 		return false
 	}
-	words := make([]string, 0, len(spans))
-	for _, span := range spans {
-		words = append(words, span.value)
-	}
+	words := shellWordValues(spans)
 	for index, word := range words {
 		if !isCredentialCommandPrefix(words[:index]) {
 			continue
@@ -462,16 +459,65 @@ func isBenignTextCommand(command string) bool {
 	return false
 }
 
-// redactionStep redacts one kind of secret. Steps run in order, and each step
-// sees the output of the previous one.
-type redactionStep func(value string, depth int) (string, bool)
+// Each redaction step redacts one kind of secret. Steps run in order, and each
+// step sees the output of the previous one.
+var (
+	commandArgumentRedactionSteps = []func(string) (string, bool){
+		redactKubernetesSecretData,
+		redactPowerShellHereStringCredentials,
+		redactPowerShellCollectionCredentials,
+		redactCommandPromptSetAssignments,
+		redactCurlConfigCertificatePasswords,
+		redactSecretMarkedValues,
+		redactKubectlSecretLiterals,
+		redactSecurityCredentialArguments,
+		redactOpenSSLCredentialArguments,
+		redactNamedCommandArguments("keytool", "", keytoolCredentialFlagPattern),
+		redactNamedCommandArguments("jarsigner", "", jarsignerCredentialFlagPattern),
+		redactDockerLoginCredentialArguments,
+		redactShortOptionSecrets(sshpassSecrets),
+		redactShortOptionSecrets(sshKeygenSecrets),
+		redactNamedCommandArguments("zip", "P", zipCredentialFlagPattern),
+		redactNamedCommandArguments("unzip", "P", zipCredentialFlagPattern),
+		redactRedisCLICredentialArguments,
+		redactCurlCredentialArguments,
+		redactNetrcPasswords,
+		redactWebAuthCodeQueryValues,
+		redactEncodedQueryCredentialValues,
+		redactPlistCredentialValues,
+		redactXMLCredentialElements,
+		redactXMLCredentialAttributes,
+	}
+	structuredDataRedactionSteps = []func(string) (string, bool){
+		redactTOMLCredentialValues,
+		redactTOMLMultilineCredentials,
+		redactJSONEscapedCredentialValues,
+		redactContextualJSONCredentialValues,
+		redactSensitiveJSONNameValuePairs,
+		redactSensitiveYAMLNameValuePairs,
+		redactStructuredCookieValues,
+		redactRegistryConfigurationAuthValues,
+		redactStructuredUploadHeaderValues,
+		redactStructuredCredentialObjects,
+		redactYAMLCredentialAliases,
+		redactYAMLExplicitCredentialMappings,
+		redactYAMLCredentialBlocks,
+		redactYAMLFlowCredentials,
+		redactSensitiveCommandSubstitutions,
+		redactBareEnvironmentDumpCredentials,
+	}
+	plainTextRedactionSteps = []func(string) (string, bool){
+		redactCommandScopedSensitiveFlags,
+		applyingRules(singleLineShellWordRedactionRules),
+		applyingRules(sensitiveTextRedactionRules),
+		redactStandaloneURLSafeCredentials,
+		redactHighConfidenceAuthorizationCredentials,
+		redactStandaloneBearerCredentials,
+	}
+)
 
-func ignoringDepth(redact func(string) (string, bool)) redactionStep {
-	return func(value string, _ int) (string, bool) { return redact(value) }
-}
-
-func applyingRules(rules []redactionRule) redactionStep {
-	return func(value string, _ int) (string, bool) {
+func applyingRules(rules []redactionRule) func(string) (string, bool) {
+	return func(value string) (string, bool) {
 		changed := false
 		for _, rule := range rules {
 			if next := rule.pattern.ReplaceAllString(value, rule.replacement); next != value {
@@ -483,9 +529,9 @@ func applyingRules(rules []redactionRule) redactionStep {
 	}
 }
 
-func runRedactionSteps(value string, depth int, changed bool, steps []redactionStep) (string, bool) {
+func runRedactionSteps(value string, changed bool, steps []func(string) (string, bool)) (string, bool) {
 	for _, step := range steps {
-		if next, stepChanged := step(value, depth); stepChanged {
+		if next, stepChanged := step(value); stepChanged {
 			value = next
 			changed = true
 		}
@@ -501,67 +547,25 @@ func redactSensitiveTextDepth(value string, depth int) (string, bool) {
 		}
 		return redactionMarker, true
 	}
-	redacted, changed = runRedactionSteps(redacted, depth, changed, []redactionStep{
+	for _, redactNested := range [...]func(string, int) (string, bool){
 		redactShellCommandSubstitutionContents,
 		redactShellSubshellGroupContents,
 		redactEnvSplitCommandStrings,
 		redactShellCommandStrings,
 		redactEvalCommandStrings,
 		redactLaunchctlSubmitEmbeddedCommands,
-		ignoringDepth(redactKubernetesSecretData),
-		ignoringDepth(redactPowerShellHereStringCredentials),
-		ignoringDepth(redactPowerShellCollectionCredentials),
-		ignoringDepth(redactCommandPromptSetAssignments),
-		ignoringDepth(redactCurlConfigCertificatePasswords),
-		ignoringDepth(redactSecretMarkedValues),
-		ignoringDepth(redactKubectlSecretLiterals),
-		ignoringDepth(redactSecurityCredentialArguments),
-		ignoringDepth(redactOpenSSLCredentialArguments),
-		ignoringDepth(redactNamedCommandArguments("keytool", "", keytoolCredentialFlagPattern)),
-		ignoringDepth(redactNamedCommandArguments("jarsigner", "", jarsignerCredentialFlagPattern)),
-		ignoringDepth(redactDockerLoginCredentialArguments),
-		ignoringDepth(redactShortOptionSecrets(sshpassSecrets)),
-		ignoringDepth(redactShortOptionSecrets(sshKeygenSecrets)),
-		ignoringDepth(redactNamedCommandArguments("zip", "P", zipCredentialFlagPattern)),
-		ignoringDepth(redactNamedCommandArguments("unzip", "P", zipCredentialFlagPattern)),
-		ignoringDepth(redactRedisCLICredentialArguments),
-		ignoringDepth(redactCurlCredentialArguments),
-		ignoringDepth(redactNetrcPasswords),
-		ignoringDepth(redactWebAuthCodeQueryValues),
-		ignoringDepth(redactEncodedQueryCredentialValues),
-		ignoringDepth(redactPlistCredentialValues),
-		ignoringDepth(redactXMLCredentialElements),
-		ignoringDepth(redactXMLCredentialAttributes),
-	})
+	} {
+		if next, stepChanged := redactNested(redacted, depth); stepChanged {
+			redacted = next
+			changed = true
+		}
+	}
+	redacted, changed = runRedactionSteps(redacted, changed, commandArgumentRedactionSteps)
 	redacted, yamlKeyRestorations := normalizeYAMLEscapedCredentialKeys(redacted)
 	redacted, yamlAliasKeyRestorations := normalizeYAMLAliasCredentialKeys(redacted)
-	redacted, changed = runRedactionSteps(redacted, depth, changed, []redactionStep{
-		ignoringDepth(redactTOMLCredentialValues),
-		ignoringDepth(redactTOMLMultilineCredentials),
-		ignoringDepth(redactJSONEscapedCredentialValues),
-		ignoringDepth(redactContextualJSONCredentialValues),
-		ignoringDepth(redactSensitiveJSONNameValuePairs),
-		ignoringDepth(redactSensitiveYAMLNameValuePairs),
-		ignoringDepth(redactStructuredCookieValues),
-		ignoringDepth(redactRegistryConfigurationAuthValues),
-		ignoringDepth(redactStructuredUploadHeaderValues),
-		ignoringDepth(redactStructuredCredentialObjects),
-		ignoringDepth(redactYAMLCredentialAliases),
-		ignoringDepth(redactYAMLExplicitCredentialMappings),
-		ignoringDepth(redactYAMLCredentialBlocks),
-		ignoringDepth(redactYAMLFlowCredentials),
-		ignoringDepth(redactSensitiveCommandSubstitutions),
-		ignoringDepth(redactBareEnvironmentDumpCredentials),
-	})
+	redacted, changed = runRedactionSteps(redacted, changed, structuredDataRedactionSteps)
 	redacted, booleanMarkerProtection := protectBooleanSecretMarkers(redacted)
-	redacted, changed = runRedactionSteps(redacted, depth, changed, []redactionStep{
-		ignoringDepth(redactCommandScopedSensitiveFlags),
-		applyingRules(singleLineShellWordRedactionRules),
-		applyingRules(sensitiveTextRedactionRules),
-		ignoringDepth(redactStandaloneURLSafeCredentials),
-		ignoringDepth(redactHighConfidenceAuthorizationCredentials),
-		ignoringDepth(redactStandaloneBearerCredentials),
-	})
+	redacted, changed = runRedactionSteps(redacted, changed, plainTextRedactionSteps)
 	if booleanMarkerProtection != "" {
 		redacted = strings.ReplaceAll(redacted, booleanMarkerProtection, "")
 	}
@@ -4263,16 +4267,18 @@ func redactShellCommands(value string, redact func(command string) (string, bool
 // the program word, so words before the program are never treated as options.
 func redactCommandFrom(command string, start int, redact func(string) (string, bool)) (string, bool) {
 	redacted, changed := redact(command[start:])
-	return command[:start] + redacted, changed
+	if !changed {
+		return command, false
+	}
+	return command[:start] + redacted, true
 }
 
-func shellCommandWords(command string) ([]credentialShellWord, []string) {
-	spans := splitCredentialShellWordSpans(command)
+func shellWordValues(spans []credentialShellWord) []string {
 	words := make([]string, 0, len(spans))
 	for _, span := range spans {
 		words = append(words, span.value)
 	}
-	return spans, words
+	return words
 }
 
 // credentialCommandIndex returns the index of the first word that runs one of
@@ -4556,10 +4562,7 @@ func openSSLOptionValueWithPrefix(prefixes ...string) func(string) bool {
 
 func openSSLCommand(command string) (int, string, bool) {
 	spans := splitCredentialShellWordSpans(command)
-	words := make([]string, 0, len(spans))
-	for _, span := range spans {
-		words = append(words, span.value)
-	}
+	words := shellWordValues(spans)
 	for index, word := range words {
 		baseName := commandBaseName(word)
 		if (baseName != "openssl" && baseName != "openssl.exe") || !isCredentialCommandPrefix(words[:index]) {
@@ -4621,7 +4624,8 @@ func openSSLGlobalOption(option string) (bool, bool) {
 
 func redactOpenSSLPasswdPositionalArguments(value string) (string, bool) {
 	return redactShellCommands(value, func(command string) (string, bool) {
-		spans, words := shellCommandWords(command)
+		spans := splitCredentialShellWordSpans(command)
+		words := shellWordValues(spans)
 		passwordIndex, ok := openSSLPasswdPasswordWordIndex(words)
 		if !ok {
 			return command, false
@@ -4789,7 +4793,8 @@ var (
 func redactShortOptionSecrets(spec shortOptionSecrets) func(string) (string, bool) {
 	return func(value string) (string, bool) {
 		return redactShellCommands(value, func(command string) (string, bool) {
-			spans, words := shellCommandWords(command)
+			spans := splitCredentialShellWordSpans(command)
+			words := shellWordValues(spans)
 			commandIndex := credentialCommandIndex(words, spec.names...)
 			if commandIndex < 0 {
 				return command, false
@@ -4895,10 +4900,7 @@ func redactDockerLoginCredentialArguments(value string) (string, bool) {
 
 func dockerLoginCommandStart(command string) (int, bool) {
 	spans := splitCredentialShellWordSpans(command)
-	words := make([]string, 0, len(spans))
-	for _, span := range spans {
-		words = append(words, span.value)
-	}
+	words := shellWordValues(spans)
 	for index, word := range words {
 		baseName := commandBaseName(word)
 		if (baseName != "docker" && baseName != "docker.exe") || !isCredentialCommandPrefix(words[:index]) {
@@ -4954,10 +4956,7 @@ func redactAttachedShortCredentialArguments(command, flags string) (string, bool
 
 func namedCredentialCommandStart(command, commandName string) (int, bool) {
 	spans := splitCredentialShellWordSpans(command)
-	words := make([]string, 0, len(spans))
-	for _, span := range spans {
-		words = append(words, span.value)
-	}
+	words := shellWordValues(spans)
 	for index, word := range words {
 		baseName := commandBaseName(word)
 		if (baseName == commandName || baseName == commandName+".exe") && isCredentialCommandPrefix(words[:index]) {
@@ -4984,10 +4983,7 @@ func redactSecurityCredentialArguments(value string) (string, bool) {
 
 func securityCommand(command string) (int, string, bool) {
 	spans := splitCredentialShellWordSpans(command)
-	words := make([]string, 0, len(spans))
-	for _, span := range spans {
-		words = append(words, span.value)
-	}
+	words := shellWordValues(spans)
 	for index, word := range words {
 		word = strings.Trim(word, `"'`)
 		if separator := strings.LastIndexAny(word, `/\\`); separator >= 0 {
@@ -5138,49 +5134,56 @@ func isCredentialShellIdentifierStart(character byte) bool {
 	return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || character == '_'
 }
 
+// consumeCredentialCommandWrapper skips a program that runs a command given in
+// its arguments, and the wrapper's own arguments.
 func consumeCredentialCommandWrapper(words []string) ([]string, bool) {
 	if len(words) == 0 {
 		return nil, false
 	}
-	consume, ok := commandWrappers[commandBaseName(words[0])]
-	if !ok {
-		return nil, false
+	arguments := words[1:]
+	switch commandBaseName(words[0]) {
+	case "sudo":
+		return sudoOptions.consumeOptions(arguments)
+	case "doas":
+		return doasOptions.consumeOptions(arguments)
+	case "command":
+		return commandOptions.consumeOptions(arguments)
+	case "env":
+		return envOptions.consumeOptions(arguments)
+	case "timeout", "gtimeout":
+		return consumeTimeoutWrapper(arguments)
+	case "nohup":
+		return consumeNohupCredentialWrapper(arguments)
+	case "exec":
+		return consumeExecCredentialWrapper(arguments)
+	case "nice", "gnice":
+		return consumeNiceCredentialWrapper(arguments)
+	case "time", "gtime":
+		return timeOptions.consumeOptions(arguments)
+	case "stdbuf", "gstdbuf":
+		return stdbufOptions.consumeOptions(arguments)
+	case "setsid":
+		return setsidOptions.consumeOptions(arguments)
+	case "ionice":
+		return ioniceOptions.consumeOptions(arguments)
+	case "caffeinate":
+		return caffeinateOptions.consumeOptions(arguments)
+	case "arch":
+		return consumeArchCredentialWrapper(arguments)
+	case "xcrun":
+		return consumeXcrunCredentialWrapper(arguments)
+	case "launchctl":
+		return consumeLaunchctlCredentialWrapper(arguments)
+	case "chroot", "gchroot", "chroot.exe", "gchroot.exe":
+		return consumeChrootWrapper(arguments)
+	case "xargs", "gxargs":
+		return xargsOptions.consumeOptions(arguments)
+	case "find", "gfind":
+		return consumeFindExecCredentialWrapper(arguments)
+	case "watch":
+		return watchOptions.consumeOptions(arguments)
 	}
-	return consume(words[1:])
-}
-
-// commandWrappers maps programs that run a command given in their arguments to
-// a function that skips the wrapper's own arguments.
-var commandWrappers = map[string]func([]string) ([]string, bool){
-	"sudo":        sudoOptions.consumeOptions,
-	"doas":        doasOptions.consumeOptions,
-	"command":     commandOptions.consumeOptions,
-	"env":         envOptions.consumeOptions,
-	"timeout":     consumeTimeoutWrapper,
-	"gtimeout":    consumeTimeoutWrapper,
-	"nohup":       consumeNohupCredentialWrapper,
-	"exec":        consumeExecCredentialWrapper,
-	"nice":        consumeNiceCredentialWrapper,
-	"gnice":       consumeNiceCredentialWrapper,
-	"time":        timeOptions.consumeOptions,
-	"gtime":       timeOptions.consumeOptions,
-	"stdbuf":      stdbufOptions.consumeOptions,
-	"gstdbuf":     stdbufOptions.consumeOptions,
-	"setsid":      setsidOptions.consumeOptions,
-	"ionice":      ioniceOptions.consumeOptions,
-	"caffeinate":  caffeinateOptions.consumeOptions,
-	"arch":        consumeArchCredentialWrapper,
-	"xcrun":       consumeXcrunCredentialWrapper,
-	"launchctl":   consumeLaunchctlCredentialWrapper,
-	"chroot":      consumeChrootWrapper,
-	"gchroot":     consumeChrootWrapper,
-	"chroot.exe":  consumeChrootWrapper,
-	"gchroot.exe": consumeChrootWrapper,
-	"xargs":       xargsOptions.consumeOptions,
-	"gxargs":      xargsOptions.consumeOptions,
-	"find":        consumeFindExecCredentialWrapper,
-	"gfind":       consumeFindExecCredentialWrapper,
-	"watch":       watchOptions.consumeOptions,
+	return nil, false
 }
 
 // optionKind says how a long option takes a value.
@@ -5745,12 +5748,7 @@ type credentialShellWord struct {
 }
 
 func splitCredentialShellWords(value string) []string {
-	spans := splitCredentialShellWordSpans(value)
-	words := make([]string, 0, len(spans))
-	for _, span := range spans {
-		words = append(words, span.value)
-	}
-	return words
+	return shellWordValues(splitCredentialShellWordSpans(value))
 }
 
 func splitCredentialShellWordSpans(value string) []credentialShellWord {
@@ -6134,10 +6132,7 @@ func redactEnvSplitCommandStrings(value string, depth int) (string, bool) {
 
 func envSplitCommandStringSpan(command string) (int, int, bool) {
 	spans := splitCredentialShellWordSpans(command)
-	words := make([]string, 0, len(spans))
-	for _, span := range spans {
-		words = append(words, span.value)
-	}
+	words := shellWordValues(spans)
 	for index, word := range words {
 		if commandBaseName(word) != "env" || !isCredentialCommandPrefix(words[:index]) {
 			continue
@@ -6239,7 +6234,8 @@ func redactShellCommandStrings(value string, depth int) (string, bool) {
 // each eval argument recursively while preserving its quoting and spacing.
 func redactEvalCommandStrings(value string, depth int) (string, bool) {
 	return redactShellCommands(value, func(command string) (string, bool) {
-		spans, words := shellCommandWords(command)
+		spans := splitCredentialShellWordSpans(command)
+		words := shellWordValues(spans)
 		evalIndex := credentialCommandIndex(words, "eval")
 		if evalIndex < 0 {
 			return command, false
@@ -6270,10 +6266,7 @@ func redactLaunchctlSubmitEmbeddedCommands(value string, depth int) (string, boo
 
 func redactLaunchctlSubmitEmbeddedCommand(command string, depth int) (string, bool) {
 	spans := splitCredentialShellWordSpans(command)
-	words := make([]string, 0, len(spans))
-	for _, span := range spans {
-		words = append(words, span.value)
-	}
+	words := shellWordValues(spans)
 
 	for launchctlIndex, word := range words {
 		if commandBaseName(word) != "launchctl" || !isCredentialCommandPrefix(words[:launchctlIndex]) {
@@ -6355,10 +6348,7 @@ func isOpenSSLSubcommandName(value string) bool {
 
 func shellCommandStringSpan(command string) (int, int, bool) {
 	spans := splitCredentialShellWordSpans(command)
-	words := make([]string, 0, len(spans))
-	for _, span := range spans {
-		words = append(words, span.value)
-	}
+	words := shellWordValues(spans)
 	for index, word := range words {
 		if !isCredentialShell(commandBaseName(word)) || !isCredentialCommandPrefix(words[:index]) {
 			continue
