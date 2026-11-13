@@ -1,6 +1,8 @@
 module github.com/rudrankriyam/App-Store-Connect-CLI
 
-go 1.27.4
+go 1.27.0
+
+toolchain go1.27.4
 
 require (
 	github.com/1Password/srp v0.2.0
