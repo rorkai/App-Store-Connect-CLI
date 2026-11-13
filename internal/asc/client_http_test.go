@@ -444,6 +444,37 @@ func TestGetApps_RateLimitedIncludesRetryAfter(t *testing.T) {
 	}
 }
 
+func TestGetApps_RateLimitedReportsExhaustedHourlyLimit(t *testing.T) {
+	const hint = "hourly request limit of 3500 is used up; requests free up over the next hour, so wait before retrying"
+	tests := []struct {
+		name      string
+		rateLimit string
+		wantHint  bool
+	}{
+		{name: "no requests remaining", rateLimit: "user-hour-lim:3500;user-hour-rem:0;", wantHint: true},
+		{name: "requests remaining", rateLimit: "user-hour-lim:3500;user-hour-rem:500;"},
+		{name: "header absent"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("ASC_MAX_RETRIES", "0")
+			response := jsonResponse(http.StatusTooManyRequests, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED","title":"The request rate limit has been reached."}]}`)
+			if tt.rateLimit != "" {
+				response.Header.Set("X-Rate-Limit", tt.rateLimit)
+			}
+			client := newTestClient(t, nil, response)
+
+			_, err := client.GetApps(context.Background())
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if got := strings.Contains(err.Error(), hint); got != tt.wantHint {
+				t.Fatalf("hint present = %v, want %v; error: %v", got, tt.wantHint, err)
+			}
+		})
+	}
+}
+
 func TestGetApps_RetryExhaustedExposesHTTPStatus(t *testing.T) {
 	t.Setenv("ASC_MAX_RETRIES", "1")
 	t.Setenv("ASC_BASE_DELAY", "1ms")

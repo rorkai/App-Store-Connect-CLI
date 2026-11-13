@@ -202,7 +202,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 
 ## Authentication & Rate Limiting
 
-- App Store Connect JWTs are valid for 10 minutes. `--api-debug` / `ASC_DEBUG=api` logs `X-Rate-Limit` to stderr.
+- App Store Connect JWTs are valid for 10 minutes. `--api-debug` / `ASC_DEBUG=api` logs `X-Rate-Limit` to stderr. A 429 whose `X-Rate-Limit` reports `user-hour-rem:0` names the hourly limit in the error and tells the caller to wait, because backoff retries cannot outlast an hourly quota.
 - Retries (`ASC_MAX_RETRIES`, `ASC_BASE_DELAY`, `ASC_MAX_DELAY`, `ASC_RETRY_LOG`; `ASC_MAX_RETRIES=0` disables):
   - GET/HEAD retry transient 408/429/5xx and transport errors.
   - Ordinary POST/PATCH/PUT/DELETE replay only on 429 (ambiguous 408/5xx and transport errors are not replayed); explicitly idempotent mutations retry transient failures.
