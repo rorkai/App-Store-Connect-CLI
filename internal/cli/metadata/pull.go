@@ -363,7 +363,7 @@ func resolveVersionID(ctx context.Context, client *asc.Client, appID, version, p
 	}
 	pageHasNext := strings.TrimSpace(resp.Links.Next) != ""
 	if len(resp.Data) == 0 && !pageHasNext {
-		return "", "", shared.WithAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, "", fmt.Errorf("app store version not found for version %q", version))
+		return "", "", shared.WithAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, "", shared.NewErrorWithCause(fmt.Errorf("app store version not found for version %q", version), asc.ErrNotFound))
 	}
 	if len(resp.Data) > 1 || pageHasNext {
 		ambiguous := shared.AmbiguousAppStoreVersionError(version, "", resp.Data, "--platform", "")

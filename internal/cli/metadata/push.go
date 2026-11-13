@@ -7,6 +7,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -19,6 +21,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
 
 var (
@@ -365,6 +368,10 @@ func firstMetadataMutationErrorLeaf(err error) error {
 	if err == nil {
 		return nil
 	}
+	switch err.(type) { //nolint:errorlint
+	case *url.Error, *net.OpError, *urlsanitize.TransportError, shared.ValidationFailure:
+		return err
+	}
 	if joined, ok := err.(interface{ Unwrap() []error }); ok {
 		for _, child := range joined.Unwrap() {
 			if leaf := firstMetadataMutationErrorLeaf(child); leaf != nil {
@@ -539,7 +546,7 @@ func resolveMetadataAppInfoID(
 				Hint:        fmt.Sprintf("Inspect them with `asc apps info list --app %q` before retrying.", appID),
 			}))
 		}
-		return "", fmt.Errorf("no app info found for app %q", appID)
+		return "", shared.NewErrorWithCause(fmt.Errorf("no app info found for app %q", appID), asc.ErrNotFound)
 	}
 	if strings.TrimSpace(resp.Links.Next) != "" {
 		candidates := asc.AppInfoCandidates(resp.Data)

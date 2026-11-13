@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -1672,27 +1673,51 @@ func (r *cancelOnEOFReadCloser) Close() error {
 }
 
 func TestMetadataApplyPartialBatchPreservesTypedExitCode(t *testing.T) {
-	run := runFailedMetadataApply(t, "json", true, false)
-	if run.code != rootcmd.ExitHTTPUnprocessable {
-		t.Fatalf("expected partial exit %d, got %d; stderr=%q", rootcmd.ExitHTTPUnprocessable, run.code, run.stderr)
+	tests := []struct {
+		name       string
+		failure    func() (*http.Response, error)
+		wantCode   int
+		wantStderr string
+	}{
+		{
+			name:       "api status",
+			wantCode:   rootcmd.ExitHTTPUnprocessable,
+			wantStderr: "Error: metadata apply: 1 localization(s) failed\n",
+		},
+		{
+			name: "network failure",
+			failure: func() (*http.Response, error) {
+				return nil, &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection refused")}
+			},
+			wantCode:   rootcmd.ExitError,
+			wantStderr: "Error: metadata apply: 1 localization(s) failed\nHint: Check your network connection and proxy settings (HTTPS_PROXY), then retry.\n",
+		},
 	}
-	if want := "Error: metadata apply: 1 localization(s) failed\n"; run.stderr != want {
-		t.Fatalf("stderr = %q, want one root error line %q", run.stderr, want)
-	}
-	var result struct {
-		Failed              int    `json:"failed"`
-		FailureArtifactPath string `json:"failureArtifactPath"`
-	}
-	if err := json.Unmarshal([]byte(run.stdout), &result); err != nil {
-		t.Fatalf("parse structured output: %v\nstdout=%q", err, run.stdout)
-	}
-	if result.Failed != 1 || result.FailureArtifactPath == "" {
-		t.Fatalf("expected structured partial summary, got %+v", result)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			run := runFailedMetadataApply(t, "json", true, false, test.failure)
+			if run.code != test.wantCode {
+				t.Fatalf("expected partial exit %d, got %d; stderr=%q", test.wantCode, run.code, run.stderr)
+			}
+			if run.stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", run.stderr, test.wantStderr)
+			}
+			var result struct {
+				Failed              int    `json:"failed"`
+				FailureArtifactPath string `json:"failureArtifactPath"`
+			}
+			if err := json.Unmarshal([]byte(run.stdout), &result); err != nil {
+				t.Fatalf("parse structured output: %v\nstdout=%q", err, run.stdout)
+			}
+			if result.Failed != 1 || result.FailureArtifactPath == "" {
+				t.Fatalf("expected structured partial summary, got %+v", result)
+			}
+		})
 	}
 }
 
 func TestMetadataApplyPartialTableIncludesRecoveryDetails(t *testing.T) {
-	run := runFailedMetadataApply(t, "table", false, false)
+	run := runFailedMetadataApply(t, "table", false, false, nil)
 	if _, ok := errors.AsType[ReportedError](run.err); !ok {
 		t.Fatalf("expected reported error, got %T: %v", run.err, run.err)
 	}
@@ -1704,7 +1729,7 @@ func TestMetadataApplyPartialTableIncludesRecoveryDetails(t *testing.T) {
 }
 
 func TestMetadataApplyPartialMarkdownIncludesArtifactWriteError(t *testing.T) {
-	run := runFailedMetadataApply(t, "markdown", false, true)
+	run := runFailedMetadataApply(t, "markdown", false, true, nil)
 	if _, ok := errors.AsType[ReportedError](run.err); !ok {
 		t.Fatalf("expected reported error, got %T: %v", run.err, run.err)
 	}
@@ -1713,46 +1738,99 @@ func TestMetadataApplyPartialMarkdownIncludesArtifactWriteError(t *testing.T) {
 	}
 }
 
-func TestMetadataApplyInitialConflictPreservesTypedExit(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_MAX_RETRIES", "0")
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "version", "1.2.3"), 0o755); err != nil {
-		t.Fatalf("mkdir version: %v", err)
+func TestMetadataApplyInitialFailurePreservesTypedExit(t *testing.T) {
+	tests := []struct {
+		name       string
+		appInfoDir bool
+		responses  map[string]metadataApplyStubResponse
+		wantCode   int
+		wantStderr string
+	}{
+		{
+			name: "snapshot conflict",
+			responses: map[string]metadataApplyStubResponse{
+				"/v1/appStoreVersions/version-1/appStoreVersionLocalizations": {http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","detail":"snapshot conflict"}]}`},
+			},
+			wantCode: rootcmd.ExitConflict,
+		},
+		{
+			name: "version not found",
+			responses: map[string]metadataApplyStubResponse{
+				"/v1/apps/app-1/appStoreVersions": {http.StatusOK, `{"data":[],"links":{"next":""}}`},
+			},
+			wantCode:   rootcmd.ExitNotFound,
+			wantStderr: `app store version not found for version "1.2.3"`,
+		},
+		{
+			name:       "app info not found",
+			appInfoDir: true,
+			responses: map[string]metadataApplyStubResponse{
+				"/v1/apps/app-1/appInfos": {http.StatusOK, `{"data":[]}`},
+			},
+			wantCode:   rootcmd.ExitNotFound,
+			wantStderr: `no app info found for app "app-1"`,
+		},
 	}
-	if err := os.WriteFile(filepath.Join(dir, "version", "1.2.3", "en-US.json"), []byte(`{"description":"Desired"}`), 0o644); err != nil {
-		t.Fatalf("write version: %v", err)
-	}
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1/appInfos":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-		case "/v1/apps/app-1/appStoreVersions":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
-		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
-		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonHTTPResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","detail":"snapshot conflict"}]}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_MAX_RETRIES", "0")
+			dir := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(dir, "version", "1.2.3"), 0o755); err != nil {
+				t.Fatalf("mkdir version: %v", err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "version", "1.2.3", "en-US.json"), []byte(`{"description":"Desired"}`), 0o644); err != nil {
+				t.Fatalf("write version: %v", err)
+			}
+			if test.appInfoDir {
+				if err := os.MkdirAll(filepath.Join(dir, "app-info"), 0o755); err != nil {
+					t.Fatalf("mkdir app-info: %v", err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "app-info", "en-US.json"), []byte(`{"name":"Desired"}`), 0o644); err != nil {
+					t.Fatalf("write app-info: %v", err)
+				}
+			}
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if response, ok := test.responses[req.URL.Path]; ok {
+					return jsonHTTPResponse(response.status, response.body), nil
+				}
+				switch req.URL.Path {
+				case "/v1/apps/app-1/appInfos":
+					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
+				case "/v1/apps/app-1/appStoreVersions":
+					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
+				case "/v1/appInfos/appinfo-1/appInfoLocalizations":
+					return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
+				default:
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+					return nil, nil
+				}
+			})
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"metadata", "apply", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--output", "json"}, "1.2.3")
-	})
-	if code != rootcmd.ExitConflict {
-		t.Fatalf("expected conflict exit %d, got %d; stderr=%q", rootcmd.ExitConflict, code, stderr)
+			var code int
+			stdout, stderr := captureOutput(t, func() {
+				code = rootcmd.Run([]string{"metadata", "apply", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--output", "json"}, "1.2.3")
+			})
+			if code != test.wantCode {
+				t.Fatalf("expected exit %d, got %d; stderr=%q", test.wantCode, code, stderr)
+			}
+			if stdout != "" || strings.Contains(stderr, "0 localization(s) failed") || strings.Contains(stderr, "Failure Artifact") {
+				t.Fatalf("unexpected pre-batch summary: stdout=%q stderr=%q", stdout, stderr)
+			}
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("stderr = %q, want it to contain %q", stderr, test.wantStderr)
+			}
+		})
 	}
-	if stdout != "" || strings.Contains(stderr, "0 localization(s) failed") || strings.Contains(stderr, "Failure Artifact") {
-		t.Fatalf("unexpected pre-batch summary: stdout=%q stderr=%q", stdout, stderr)
-	}
+}
+
+type metadataApplyStubResponse struct {
+	status int
+	body   string
 }
 
 type metadataApplyRun struct {
@@ -1762,7 +1840,7 @@ type metadataApplyRun struct {
 	stderr string
 }
 
-func runFailedMetadataApply(t *testing.T, output string, useEntrypoint bool, blockArtifact bool) metadataApplyRun {
+func runFailedMetadataApply(t *testing.T, output string, useEntrypoint bool, blockArtifact bool, failure func() (*http.Response, error)) metadataApplyRun {
 	t.Helper()
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -1795,6 +1873,9 @@ func runFailedMetadataApply(t *testing.T, output string, useEntrypoint bool, blo
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Old"}}],"links":{"next":""}}`), nil
 		case "/v1/appStoreVersionLocalizations/loc-en":
+			if failure != nil {
+				return failure()
+			}
 			return jsonHTTPResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","detail":"rejected"}]}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
