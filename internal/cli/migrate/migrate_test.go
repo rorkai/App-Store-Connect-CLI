@@ -3,7 +3,9 @@ package migrate
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
@@ -309,10 +311,19 @@ func TestReadFastlaneMetadata_SkipsSpecialDirectories(t *testing.T) {
 		t.Fatalf("failed to write review description: %v", err)
 	}
 
-	// Create default directory (should be skipped)
+	// The default directory is not a locale; its files fill fields a locale leaves empty.
 	defaultDir := filepath.Join(dir, "default")
 	if err := os.MkdirAll(defaultDir, 0o755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
+	}
+	for name, content := range map[string]string{
+		"description.txt": "Default description",
+		"keywords.txt":    "default,keywords",
+		"name.txt":        "Default Name",
+	} {
+		if err := os.WriteFile(filepath.Join(defaultDir, name), []byte(content), 0o644); err != nil {
+			t.Fatalf("failed to write default %s: %v", name, err)
+		}
 	}
 
 	// Create en-US locale (should be included)
@@ -324,17 +335,73 @@ func TestReadFastlaneMetadata_SkipsSpecialDirectories(t *testing.T) {
 		t.Fatalf("failed to write locale description: %v", err)
 	}
 
+	// A locale holding only App Clip files must not gain store metadata from the default directory.
+	if err := os.MkdirAll(filepath.Join(dir, "fr-FR", "app_clip"), 0o755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+
+	// A locale with App Clip files and its own store metadata still receives the defaults.
+	if err := os.MkdirAll(filepath.Join(dir, "de-DE", "app_clip"), 0o755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "de-DE", "name.txt"), []byte("German Name"), 0o644); err != nil {
+		t.Fatalf("failed to write locale name: %v", err)
+	}
+
 	locs, err := readFastlaneMetadata(dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	sort.Slice(locs, func(i, j int) bool { return locs[i].Locale < locs[j].Locale })
 
-	if len(locs) != 1 {
-		t.Errorf("expected 1 localization (special dirs skipped), got %d", len(locs))
+	if len(locs) != 2 || locs[0].Locale != "de-DE" || locs[0].Description != "Default description" {
+		t.Fatalf("expected de-DE with the default description and en-US, got %#v", locs)
 	}
+	locs = locs[1:]
 
 	if locs[0].Locale != "en-US" {
 		t.Errorf("expected locale 'en-US', got %q", locs[0].Locale)
+	}
+	if locs[0].Description != "English description" {
+		t.Errorf("expected the locale's own description to win, got %q", locs[0].Description)
+	}
+	if locs[0].Keywords != "default,keywords" {
+		t.Errorf("expected keywords from the default directory, got %q", locs[0].Keywords)
+	}
+	if got, want := versionLocalizationFiles(locs[0]), []string{"description.txt", "../default/keywords.txt"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("versionLocalizationFiles() = %#v, want %#v", got, want)
+	}
+
+	appInfo, err := readFastlaneAppInfoMetadata(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	sort.Slice(appInfo, func(i, j int) bool { return appInfo[i].Locale < appInfo[j].Locale })
+	if len(appInfo) != 2 || appInfo[0].Name != "German Name" || appInfo[1].Locale != "en-US" || appInfo[1].Name != "Default Name" {
+		t.Fatalf("expected de-DE with its own name and en-US with the default name, got %#v", appInfo)
+	}
+	if got, want := appInfoLocalizationFiles(appInfo[1]), []string{"../default/name.txt"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("appInfoLocalizationFiles() = %#v, want %#v", got, want)
+	}
+}
+
+func TestScanMetadataLocaleDirsReportsUnusedDefaultDirectory(t *testing.T) {
+	dir := t.TempDir()
+	defaultDir := filepath.Join(dir, "default")
+	if err := os.MkdirAll(defaultDir, 0o755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(defaultDir, "description.txt"), []byte("Default description"), 0o644); err != nil {
+		t.Fatalf("failed to write default description: %v", err)
+	}
+
+	_, skipped, err := scanFastlaneMetadataLocaleDirs(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []SkippedItem{{Path: defaultDir, Reason: "default metadata not applied: no locale directories to fill"}}
+	if !reflect.DeepEqual(skipped, want) {
+		t.Fatalf("skipped = %#v, want %#v", skipped, want)
 	}
 }
 
