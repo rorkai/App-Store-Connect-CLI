@@ -40,7 +40,7 @@ assert lib.assertMsg (lib.versionAtLeast go.version goModVersion)
     ];
   };
 
-  vendorHash = "sha256-H9Biabg9wOhg4dBlTxDeWaeWbcftMxMrlORpEpK+4EE=";
+  vendorHash = "sha256-k5X50VoXSZq1SwyuDgjP+TBpPeUOXUEIFhsnKfm4bp8=";
 
   subPackages = [ "." ];
 
