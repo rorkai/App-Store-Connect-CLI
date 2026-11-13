@@ -169,6 +169,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			wantErr: "background-assets upload-files create: --asset-type must be one of: ASSET, MANIFEST",
 		},
 		{
+			name:    "background-assets upload-files update invalid uploaded",
+			args:    []string{"background-assets", "upload-files", "update", "--upload-file-id", "FILE_ID", "--uploaded", "bad"},
+			wantErr: "background-assets upload-files update: --uploaded must be true or false",
+		},
+		{
 			name:    "background-assets versions list limit",
 			args:    []string{"background-assets", "versions", "list", "--background-asset-id", "B", "--limit", "201"},
 			wantErr: "background-assets versions list: --limit must be between 1 and 200",
@@ -212,6 +217,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "certificates view invalid include",
 			args:    []string{"certificates", "view", "--id", "CERT_ID", "--include", "bad"},
 			wantErr: "certificates view: --include must be one of: passTypeId",
+		},
+		{
+			name:    "certificates update invalid activated",
+			args:    []string{"certificates", "update", "--id", "CERT_ID", "--activated", "bad"},
+			wantErr: "certificates update: --activated must be true or false",
 		},
 		{
 			name:    "devices view invalid fields",

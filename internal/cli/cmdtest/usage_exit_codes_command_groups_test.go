@@ -53,6 +53,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "accessibility create: --device-family must be one of: IPHONE, IPAD, APPLE_TV, APPLE_WATCH, MAC, VISION",
 		},
 		{
+			name:    "accessibility create invalid bool",
+			args:    []string{"accessibility", "create", "--app", "APP_ID", "--device-family", "IPHONE", "--supports-voiceover", "bad"},
+			wantErr: "accessibility create: --supports-voiceover must be true or false",
+		},
+		{
 			name:    "apps list next for builds",
 			args:    []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps/app-1/builds?cursor=AQ"},
 			wantErr: "apps: --next must point to /v1/apps",
@@ -96,6 +101,16 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "app-clips default-experiences create empty template-id",
 			args:    []string{"app-clips", "default-experiences", "create", "--app-clip-id", "CLIP_ID", "--template-id", " "},
 			wantErr: "app-clips default-experiences create: --template-id must not be empty",
+		},
+		{
+			name:    "app-clips default-experiences create invalid action",
+			args:    []string{"app-clips", "default-experiences", "create", "--app-clip-id", "CLIP_ID", "--action", "bad"},
+			wantErr: "app-clips default-experiences create: invalid action \"bad\"",
+		},
+		{
+			name:    "app-clips default-experiences update invalid action",
+			args:    []string{"app-clips", "default-experiences", "update", "--experience-id", "EXP_ID", "--action", "bad"},
+			wantErr: "app-clips default-experiences update: invalid action \"bad\"",
 		},
 		{
 			name:    "app-clips default-experiences localizations list limit",
@@ -521,6 +536,16 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "performance metrics view invalid metric type",
 			args:    []string{"performance", "metrics", "view", "--build-id", "BUILD_ID", "--metric-type", "bad"},
 			wantErr: "performance metrics view: --metric-type must be one of: ANIMATION, BATTERY, DISK, HANG, LAUNCH, MEMORY, STORAGE, TERMINATION",
+		},
+		{
+			name:    "performance metrics list invalid platform",
+			args:    []string{"performance", "metrics", "list", "--app", "APP_ID", "--platform", "bad"},
+			wantErr: "performance metrics list: --platform must be one of: IOS",
+		},
+		{
+			name:    "performance metrics view invalid platform",
+			args:    []string{"performance", "metrics", "view", "--build-id", "BUILD_ID", "--platform", "bad"},
+			wantErr: "performance metrics view: --platform must be one of: IOS",
 		},
 		{
 			name:    "product-pages custom-pages list limit",

@@ -527,7 +527,7 @@ Examples:
 
 			activatedValue, err := shared.ParseOptionalBoolFlag("--activated", *activated)
 			if err != nil {
-				return fmt.Errorf("certificates update: %w", err)
+				return shared.UsageErrorf("certificates update: %v", err)
 			}
 			if activatedValue == nil {
 				fmt.Fprintln(os.Stderr, "Error: --activated is required")

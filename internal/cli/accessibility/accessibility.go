@@ -269,7 +269,7 @@ Examples:
 				"supports-voiceover":                         *supportsVoiceover,
 			})
 			if err != nil {
-				return fmt.Errorf("accessibility create: %w", err)
+				return shared.UsageErrorf("accessibility create: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

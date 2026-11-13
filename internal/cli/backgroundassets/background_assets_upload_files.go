@@ -309,7 +309,7 @@ Examples:
 			}
 			uploadedBool, err := shared.ParseBoolFlag(uploadedValue, "--uploaded")
 			if err != nil {
-				return fmt.Errorf("background-assets upload-files update: %w", err)
+				return shared.UsageErrorf("background-assets upload-files update: %v", err)
 			}
 
 			pathValue := strings.TrimSpace(*filePath)

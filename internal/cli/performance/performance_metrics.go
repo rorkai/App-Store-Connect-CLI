@@ -68,7 +68,7 @@ Examples:
 
 			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
 			if err != nil {
-				return fmt.Errorf("performance metrics list: %w", err)
+				return shared.UsageErrorf("performance metrics list: %v", err)
 			}
 			metricTypes, err := normalizePerfPowerMetricTypes(shared.SplitCSVUpper(*metricType))
 			if err != nil {
@@ -128,7 +128,7 @@ Examples:
 
 			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
 			if err != nil {
-				return fmt.Errorf("performance metrics view: %w", err)
+				return shared.UsageErrorf("performance metrics view: %v", err)
 			}
 			metricTypes, err := normalizePerfPowerMetricTypes(shared.SplitCSVUpper(*metricType))
 			if err != nil {

@@ -235,7 +235,7 @@ Examples:
 			if strings.TrimSpace(*action) != "" {
 				actionValue, err := normalizeAppClipAction(*action)
 				if err != nil {
-					return fmt.Errorf("app-clips default-experiences create: %w", err)
+					return shared.UsageErrorf("app-clips default-experiences create: %v", err)
 				}
 				attrs = &asc.AppClipDefaultExperienceCreateAttributes{
 					Action: &actionValue,
@@ -301,7 +301,7 @@ Examples:
 			if visited["action"] {
 				actionValue, err := normalizeAppClipAction(*action)
 				if err != nil {
-					return fmt.Errorf("app-clips default-experiences update: %w", err)
+					return shared.UsageErrorf("app-clips default-experiences update: %v", err)
 				}
 				attrs = &asc.AppClipDefaultExperienceUpdateAttributes{
 					Action: &actionValue,
