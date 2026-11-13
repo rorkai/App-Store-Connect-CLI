@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,48 +10,18 @@ import (
 
 // GetGameCenterChallenges retrieves the list of Game Center challenges for a Game Center detail.
 func (c *Client) GetGameCenterChallenges(ctx context.Context, gcDetailID string, opts ...GCChallengesOption) (*GameCenterChallengesResponse, error) {
-	query := &gcChallengesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterChallenges", strings.TrimSpace(gcDetailID))
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("game-center-challenges: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildGCChallengesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[GameCenterChallengesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterChallenges", strings.TrimSpace(gcDetailID)),
+		Query:       buildGCChallengesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "game-center-challenges",
+	})
 }
 
 // GetGameCenterChallenge retrieves a Game Center challenge by ID.
 func (c *Client) GetGameCenterChallenge(ctx context.Context, challengeID string) (*GameCenterChallengeResponse, error) {
-	path := fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[GameCenterChallengeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID))})
 }
 
 // CreateGameCenterChallenge creates a new Game Center challenge.
@@ -116,22 +85,7 @@ func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID strin
 		}}
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/gameCenterChallenges", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[GameCenterChallengeResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallenges", Payload: payload})
 }
 
 // UpdateGameCenterChallenge updates an existing Game Center challenge.
@@ -157,76 +111,28 @@ func (c *Client) UpdateGameCenterChallenge(ctx context.Context, challengeID stri
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID))
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[GameCenterChallengeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID)), Payload: payload})
 }
 
 // DeleteGameCenterChallenge deletes a Game Center challenge.
 func (c *Client) DeleteGameCenterChallenge(ctx context.Context, challengeID string) error {
-	path := fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID))
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID)), nil)
 }
 
 // GetGameCenterChallengeVersions retrieves the list of challenge versions for a challenge.
 func (c *Client) GetGameCenterChallengeVersions(ctx context.Context, challengeID string, opts ...GCChallengeVersionsOption) (*GameCenterChallengeVersionsResponse, error) {
-	query := &gcChallengeVersionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterChallenges/%s/versions", strings.TrimSpace(challengeID))
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("game-center-challenge-versions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildGCChallengeVersionsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[GameCenterChallengeVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/gameCenterChallenges/%s/versions", strings.TrimSpace(challengeID)),
+		Query:       buildGCChallengeVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "game-center-challenge-versions",
+	})
 }
 
 // GetGameCenterChallengeVersion retrieves a challenge version by ID.
 func (c *Client) GetGameCenterChallengeVersion(ctx context.Context, versionID string) (*GameCenterChallengeVersionResponse, error) {
-	path := fmt.Sprintf("/v1/gameCenterChallengeVersions/%s", strings.TrimSpace(versionID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[GameCenterChallengeVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeVersions/%s", strings.TrimSpace(versionID))})
 }
 
 // CreateGameCenterChallengeVersion creates a new challenge version.
@@ -245,100 +151,33 @@ func (c *Client) CreateGameCenterChallengeVersion(ctx context.Context, challenge
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/gameCenterChallengeVersions", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[GameCenterChallengeVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeVersions", Payload: payload})
 }
 
 // GetGameCenterChallengeLocalizations retrieves the list of localizations for a challenge version.
 func (c *Client) GetGameCenterChallengeLocalizations(ctx context.Context, versionID string, opts ...GCChallengeLocalizationsOption) (*GameCenterChallengeLocalizationsResponse, error) {
-	query := &gcChallengeLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterChallengeVersions/%s/localizations", strings.TrimSpace(versionID))
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("game-center-challenge-localizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildGCChallengeLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[GameCenterChallengeLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/gameCenterChallengeVersions/%s/localizations", strings.TrimSpace(versionID)),
+		Query:       buildGCChallengeLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "game-center-challenge-localizations",
+	})
 }
 
 // GetGameCenterChallengeLocalization retrieves a challenge localization by ID.
 func (c *Client) GetGameCenterChallengeLocalization(ctx context.Context, localizationID string) (*GameCenterChallengeLocalizationResponse, error) {
-	path := fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s", strings.TrimSpace(localizationID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[GameCenterChallengeLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s", strings.TrimSpace(localizationID))})
 }
 
 // GetGameCenterChallengeLocalizationImage retrieves the image for a challenge localization.
 func (c *Client) GetGameCenterChallengeLocalizationImage(ctx context.Context, localizationID string) (*GameCenterChallengeImageResponse, error) {
-	path := fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s/image", strings.TrimSpace(localizationID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[GameCenterChallengeImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s/image", strings.TrimSpace(localizationID))})
 }
 
 // GetGameCenterChallengeVersionDefaultImage retrieves the default image for a challenge version.
 func (c *Client) GetGameCenterChallengeVersionDefaultImage(ctx context.Context, versionID string) (*GameCenterChallengeVersionDefaultImageResponse, error) {
-	path := fmt.Sprintf("/v1/gameCenterChallengeVersions/%s/defaultImage", strings.TrimSpace(versionID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeVersionDefaultImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[GameCenterChallengeVersionDefaultImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeVersions/%s/defaultImage", strings.TrimSpace(versionID))})
 }
 
 // CreateGameCenterChallengeLocalization creates a new challenge localization.
@@ -358,22 +197,7 @@ func (c *Client) CreateGameCenterChallengeLocalization(ctx context.Context, vers
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/gameCenterChallengeLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[GameCenterChallengeLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeLocalizations", Payload: payload})
 }
 
 // UpdateGameCenterChallengeLocalization updates a challenge localization.
@@ -386,46 +210,17 @@ func (c *Client) UpdateGameCenterChallengeLocalization(ctx context.Context, loca
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s", strings.TrimSpace(localizationID))
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[GameCenterChallengeLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s", strings.TrimSpace(localizationID)), Payload: payload})
 }
 
 // DeleteGameCenterChallengeLocalization deletes a challenge localization.
 func (c *Client) DeleteGameCenterChallengeLocalization(ctx context.Context, localizationID string) error {
-	path := fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s", strings.TrimSpace(localizationID))
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s", strings.TrimSpace(localizationID)), nil)
 }
 
 // GetGameCenterChallengeImage retrieves a challenge image by ID.
 func (c *Client) GetGameCenterChallengeImage(ctx context.Context, imageID string) (*GameCenterChallengeImageResponse, error) {
-	path := fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[GameCenterChallengeImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID))})
 }
 
 // CreateGameCenterChallengeImage reserves a challenge image upload.
@@ -454,22 +249,7 @@ func (c *Client) CreateGameCenterChallengeImage(ctx context.Context, localizatio
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/gameCenterChallengeImages", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[GameCenterChallengeImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeImages", Payload: payload})
 }
 
 // UpdateGameCenterChallengeImage commits a challenge image upload.
@@ -484,30 +264,12 @@ func (c *Client) UpdateGameCenterChallengeImage(ctx context.Context, imageID str
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID))
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeImageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[GameCenterChallengeImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID)), Payload: payload})
 }
 
 // DeleteGameCenterChallengeImage deletes a challenge image.
 func (c *Client) DeleteGameCenterChallengeImage(ctx context.Context, imageID string) error {
-	path := fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID))
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID)), nil)
 }
 
 // UploadGameCenterChallengeImage performs the full upload flow for a challenge image.
@@ -560,48 +322,18 @@ func (c *Client) UploadGameCenterChallengeImage(ctx context.Context, localizatio
 
 // GetGameCenterChallengeVersionRelease retrieves a challenge version release by ID.
 func (c *Client) GetGameCenterChallengeVersionRelease(ctx context.Context, releaseID string) (*GameCenterChallengeVersionReleaseResponse, error) {
-	path := fmt.Sprintf("/v1/gameCenterChallengeVersionReleases/%s", strings.TrimSpace(releaseID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeVersionReleaseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[GameCenterChallengeVersionReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeVersionReleases/%s", strings.TrimSpace(releaseID))})
 }
 
 // GetGameCenterChallengeVersionReleases retrieves challenge releases for a Game Center detail.
 func (c *Client) GetGameCenterChallengeVersionReleases(ctx context.Context, gcDetailID string, opts ...GCChallengeVersionReleasesOption) (*GameCenterChallengeVersionReleasesResponse, error) {
-	query := &gcChallengeVersionReleasesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterDetails/%s/challengeReleases", strings.TrimSpace(gcDetailID))
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("game-center-challenge-releases: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildGCChallengeVersionReleasesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeVersionReleasesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[GameCenterChallengeVersionReleasesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/challengeReleases", strings.TrimSpace(gcDetailID)),
+		Query:       buildGCChallengeVersionReleasesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "game-center-challenge-releases",
+	})
 }
 
 // CreateGameCenterChallengeVersionRelease creates a new challenge version release.
@@ -620,27 +352,10 @@ func (c *Client) CreateGameCenterChallengeVersionRelease(ctx context.Context, ve
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/gameCenterChallengeVersionReleases", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response GameCenterChallengeVersionReleaseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[GameCenterChallengeVersionReleaseResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeVersionReleases", Payload: payload})
 }
 
 // DeleteGameCenterChallengeVersionRelease deletes a challenge version release.
 func (c *Client) DeleteGameCenterChallengeVersionRelease(ctx context.Context, releaseID string) error {
-	path := fmt.Sprintf("/v1/gameCenterChallengeVersionReleases/%s", strings.TrimSpace(releaseID))
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterChallengeVersionReleases/%s", strings.TrimSpace(releaseID)), nil)
 }
