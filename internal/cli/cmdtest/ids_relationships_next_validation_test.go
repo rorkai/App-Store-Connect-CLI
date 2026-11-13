@@ -14,6 +14,31 @@ import (
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
+func TestIDsListsPaginateFromNext(t *testing.T) {
+	runPaginateFromNextCases(t, []paginateFromNextCase{
+		{
+			args:     []string{"merchant-ids", "certificates", "list"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/merchantIds/merchant-1/certificates?cursor=AQ&limit=200",
+			dataType: "certificates",
+		},
+		{
+			args:     []string{"merchant-ids", "certificates", "view"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/merchantIds/merchant-1/relationships/certificates?cursor=AQ&limit=200",
+			dataType: "certificates",
+		},
+		{
+			args:     []string{"pass-type-ids", "list"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/passTypeIds?cursor=AQ&limit=200",
+			dataType: "passTypeIds",
+		},
+		{
+			args:     []string{"merchant-ids", "list"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/merchantIds?cursor=AQ&limit=200",
+			dataType: "merchantIds",
+		},
+	})
+}
+
 func TestPassTypeIDCertificatesListRejectsInvalidNextURL(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -258,128 +283,4 @@ func installAppStoreConnectTestServer(t *testing.T, handler http.Handler) {
 		rewritten.Host = serverURL.Host
 		return server.Client().Transport.RoundTrip(rewritten)
 	}))
-}
-
-func TestMerchantIDCertificatesListPaginateFromNextWithoutMerchantID(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	const firstURL = "https://api.appstoreconnect.apple.com/v1/merchantIds/merchant-1/certificates?cursor=AQ&limit=200"
-	const secondURL = "https://api.appstoreconnect.apple.com/v1/merchantIds/merchant-1/certificates?cursor=BQ&limit=200"
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"certificates","id":"merchant-cert-next-1"}],"links":{"next":"` + secondURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"certificates","id":"merchant-cert-next-2"}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"merchant-ids", "certificates", "list", "--paginate", "--next", firstURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"merchant-cert-next-1"`) || !strings.Contains(stdout, `"id":"merchant-cert-next-2"`) {
-		t.Fatalf("expected paginated merchant certificates in output, got %q", stdout)
-	}
-}
-
-func TestMerchantIDCertificatesGetPaginateFromNextWithoutMerchantID(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	const firstURL = "https://api.appstoreconnect.apple.com/v1/merchantIds/merchant-1/relationships/certificates?cursor=AQ&limit=200"
-	const secondURL = "https://api.appstoreconnect.apple.com/v1/merchantIds/merchant-1/relationships/certificates?cursor=BQ&limit=200"
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"certificates","id":"merchant-rel-next-1"}],"links":{"next":"` + secondURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"certificates","id":"merchant-rel-next-2"}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"merchant-ids", "certificates", "view", "--paginate", "--next", firstURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"merchant-rel-next-1"`) || !strings.Contains(stdout, `"id":"merchant-rel-next-2"`) {
-		t.Fatalf("expected paginated merchant certificate relationships in output, got %q", stdout)
-	}
 }

@@ -1,136 +1,88 @@
 package cmdtest
 
-import (
-	"context"
-	"io"
-	"net/http"
-	"path/filepath"
-	"strings"
-	"testing"
-)
+import "testing"
 
-func TestTestFlightBetaGroupsListPaginateFromNextWithoutApp(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	const firstURL = "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=AQ&limit=200"
-	const secondURL = "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=BQ&limit=200"
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+func TestTestFlightListsRejectsInvalidNextURL(t *testing.T) {
+	runInvalidNextURLCases(t, []invalidNextURLCase{
+		{args: []string{"testflight", "testers", "apps", "list"}, wantErr: "testflight testers apps list: --next"},
+		{args: []string{"testflight", "testers", "groups", "list"}, wantErr: "testflight testers groups list: --next"},
+		{args: []string{"testflight", "testers", "builds", "list"}, wantErr: "testflight testers builds list: --next"},
+		{args: []string{"testflight", "testers", "metrics"}, wantErr: "testflight testers metrics: --next"},
+		{args: []string{"testflight", "metrics", "app-testers"}, wantErr: "testflight metrics app-testers: --next"},
+		{args: []string{"testflight", "review", "view"}, wantErr: "testflight review view: --next"},
 	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-next-1"}],"links":{"next":"` + secondURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-next-2"}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "groups", "list", "--paginate", "--next", firstURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"group-next-1"`) || !strings.Contains(stdout, `"id":"group-next-2"`) {
-		t.Fatalf("expected paginated beta groups in output, got %q", stdout)
-	}
 }
 
-func TestTestFlightBetaTestersListPaginateFromNextWithoutApp(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	const firstURL = "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=AQ&limit=200"
-	const secondURL = "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=BQ&limit=200"
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+func TestTestFlightListsPaginateFromNext(t *testing.T) {
+	runPaginateFromNextCases(t, []paginateFromNextCase{
+		{
+			args:     []string{"testflight", "groups", "list"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=AQ&limit=200",
+			dataType: "betaGroups",
+		},
+		{
+			args:     []string{"testflight", "testers", "list"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=AQ&limit=200",
+			dataType: "betaTesters",
+		},
+		{
+			args:     []string{"testflight", "groups", "links", "view", "--group-id", "group-1", "--type", "betaTesters"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/relationships/betaTesters?cursor=AQ&limit=200",
+			dataType: "betaTesters",
+		},
+		{
+			args:     []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "apps"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/relationships/apps?cursor=AQ&limit=200",
+			dataType: "apps",
+		},
+		{
+			args:     []string{"testflight", "testers", "apps", "list", "--tester-id", "tester-1"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/apps?cursor=AQ&limit=200",
+			dataType: "apps",
+		},
+		{
+			args:     []string{"testflight", "testers", "groups", "list", "--tester-id", "tester-1"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/betaGroups?cursor=AQ&limit=200",
+			dataType: "betaGroups",
+		},
+		{
+			args:     []string{"testflight", "testers", "builds", "list", "--tester-id", "tester-1"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/builds?cursor=AQ&limit=200",
+			dataType: "builds",
+		},
+		{
+			args:     []string{"testflight", "agreements", "list"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/betaLicenseAgreements?cursor=AQ&limit=200",
+			dataType: "betaLicenseAgreements",
+		},
+		{
+			args:       []string{"testflight", "testers", "metrics"},
+			firstURL:   "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/metrics/betaTesterUsages?cursor=AQ&limit=2",
+			dataType:   "betaTesterUsages",
+			singlePage: true,
+		},
+		{
+			args:       []string{"testflight", "review", "view"},
+			firstURL:   "https://api.appstoreconnect.apple.com/v1/betaAppReviewDetails?cursor=AQ&limit=2",
+			dataType:   "betaAppReviewDetails",
+			singlePage: true,
+		},
+		{
+			args:       []string{"testflight", "review", "view"},
+			firstURL:   "https://api.appstoreconnect.apple.com/v1/buildBetaDetails?cursor=AQ&limit=2",
+			dataType:   "buildBetaDetails",
+			singlePage: true,
+		},
+		{
+			args:       []string{"testflight", "recruitment", "options"},
+			firstURL:   "https://api.appstoreconnect.apple.com/v1/betaRecruitmentCriterionOptions?cursor=AQ&limit=2",
+			dataType:   "betaRecruitmentCriterionOptions",
+			singlePage: true,
+		},
+		{
+			args:     []string{"testflight", "review", "submissions", "list", "--build-id", "build-1"},
+			firstURL: "https://api.appstoreconnect.apple.com/v1/betaAppReviewSubmissions?cursor=AQ&limit=200",
+			dataType: "betaAppReviewSubmissions",
+		},
 	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaTesters","id":"tester-next-1"}],"links":{"next":"` + secondURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaTesters","id":"tester-next-2"}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "list", "--paginate", "--next", firstURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"tester-next-1"`) || !strings.Contains(stdout, `"id":"tester-next-2"`) {
-		t.Fatalf("expected paginated beta testers in output, got %q", stdout)
-	}
 }
