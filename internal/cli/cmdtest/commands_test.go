@@ -331,53 +331,7 @@ func TestBuildsInfoValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestSubscriptionsOfferCodesOneTimeCodesListRequiresOfferCodeID(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	root := RootCommand("1.2.3")
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "offers", "offer-codes", "one-time-codes", "list"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --offer-code-id is required") {
-		t.Fatalf("expected missing offer code id error, got %q", stderr)
-	}
+	runValidationTests(t, tests)
 }
 
 func TestCanonicalOfferCodesGenerateValidationErrors(t *testing.T) {
@@ -404,29 +358,14 @@ func TestCanonicalOfferCodesGenerateValidationErrors(t *testing.T) {
 			args:    []string{"subscriptions", "offers", "offer-codes", "generate", "--offer-code-id", "OFFER_CODE_ID", "--expiration-date", "2026-02-01"},
 			wantErr: "Error: --quantity is required",
 		},
+		{
+			name:    "one-time-codes list missing offer-code",
+			args:    []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "list"},
+			wantErr: "Error: --offer-code-id is required",
+		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestBuildsExpireAllValidationErrors(t *testing.T) {
@@ -455,29 +394,7 @@ func TestBuildsExpireAllValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestBuildsGroupValidationErrors(t *testing.T) {
@@ -525,29 +442,7 @@ func TestBuildsGroupValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestBuildsWaitValidationErrors(t *testing.T) {
@@ -600,29 +495,7 @@ func TestBuildsWaitValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestBuildsExpireValidationErrors(t *testing.T) {
@@ -645,29 +518,7 @@ func TestBuildsExpireValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestBuildsIndividualTestersValidationErrors(t *testing.T) {
@@ -683,29 +534,7 @@ func TestBuildsIndividualTestersValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestBuildBundlesValidationErrors(t *testing.T) {
@@ -748,29 +577,7 @@ func TestBuildBundlesValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestBetaManagementValidationErrors(t *testing.T) {
@@ -973,29 +780,7 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestIAPValidationErrors(t *testing.T) {
@@ -1223,29 +1008,7 @@ func TestIAPValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestUsersValidationErrors(t *testing.T) {
@@ -1326,29 +1089,7 @@ func TestUsersValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestPricingValidationErrors(t *testing.T) {
@@ -1391,29 +1132,7 @@ func TestPricingValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestSubscriptionsValidationErrors(t *testing.T) {
@@ -1806,29 +1525,7 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestDevicesValidationErrors(t *testing.T) {
@@ -1874,29 +1571,7 @@ func TestDevicesValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestCertificatesValidationErrors(t *testing.T) {
@@ -1915,31 +1590,14 @@ func TestCertificatesValidationErrors(t *testing.T) {
 			args:    []string{"certificates", "update", "--id", "CERT_ID"},
 			wantErr: "Error: --activated is required",
 		},
+		{
+			name:    "csr generate missing key out",
+			args:    []string{"certificates", "csr", "generate"},
+			wantErr: "Error: --key-out is required",
+		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestCertificatesCreateGenerateCSRFlagValidation(t *testing.T) {
@@ -2039,59 +1697,21 @@ func TestTestFlightAppsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantHelp bool
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:     "apps list missing auth",
-			args:     []string{"apps", "list"},
-			wantErr:  "missing authentication",
-			wantHelp: false,
-		},
-		{
-			name:     "apps view missing id",
-			args:     []string{"apps", "view"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "apps view missing id",
+			args:    []string{"apps", "view"},
+			wantErr: "--id is required",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if test.wantHelp {
-					if !errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected ErrHelp, got %v", err)
-					}
-				} else {
-					if err == nil {
-						t.Fatal("expected error, got nil")
-					}
-					if errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected non-help error, got %v", err)
-					}
-				}
-			})
-
-			if test.wantHelp {
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if !strings.Contains(stderr, test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-				}
-			}
-		})
-	}
+	runValidationTests(t, tests)
+	t.Run("apps list missing auth", func(t *testing.T) {
+		assertExitStderr(t, []string{"apps", "list"}, rootcmd.ExitAuth, "Error: apps: missing authentication")
+	})
 }
 
 func TestTestFlightReviewValidationErrors(t *testing.T) {
@@ -2129,29 +1749,7 @@ func TestTestFlightReviewValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAgeRatingValidationErrors(t *testing.T) {
@@ -2163,83 +1761,41 @@ func TestAgeRatingValidationErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantHelp bool
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:     "age-rating view missing app",
-			args:     []string{"age-rating", "view"},
-			wantErr:  "--app is required",
-			wantHelp: true,
+			name:    "age-rating view missing app",
+			args:    []string{"age-rating", "view"},
+			wantErr: "--app is required",
 		},
 		{
-			name:     "age-rating view conflicting targets",
-			args:     []string{"age-rating", "view", "--app-info-id", "INFO_ID", "--version-id", "VERSION_ID"},
-			wantErr:  "only one of --app-info-id or --version-id is allowed",
-			wantHelp: true,
+			name:    "age-rating view conflicting targets",
+			args:    []string{"age-rating", "view", "--app-info-id", "INFO_ID", "--version-id", "VERSION_ID"},
+			wantErr: "only one of --app-info-id or --version-id is allowed",
 		},
 		{
-			name:     "age-rating edit conflicting targets",
-			args:     []string{"age-rating", "edit", "--app-info-id", "INFO_ID", "--version-id", "VERSION_ID"},
-			wantErr:  "only one of --app-info-id or --version-id is allowed",
-			wantHelp: true,
+			name:    "age-rating edit conflicting targets",
+			args:    []string{"age-rating", "edit", "--app-info-id", "INFO_ID", "--version-id", "VERSION_ID"},
+			wantErr: "only one of --app-info-id or --version-id is allowed",
 		},
 		{
-			name:     "age-rating edit missing target",
-			args:     []string{"age-rating", "edit", "--gambling", "true"},
-			wantErr:  "--id or --app is required",
-			wantHelp: true,
+			name:    "age-rating edit missing target",
+			args:    []string{"age-rating", "edit", "--gambling", "true"},
+			wantErr: "--id or --app is required",
 		},
 		{
-			name:     "age-rating edit missing updates",
-			args:     []string{"age-rating", "edit", "--id", "AGE_ID"},
-			wantErr:  "at least one update flag is required",
-			wantHelp: true,
-		},
-		{
-			name:     "age-rating edit invalid enum",
-			args:     []string{"age-rating", "edit", "--id", "AGE_ID", "--gambling-simulated", "BAD"},
-			wantErr:  "--gambling-simulated must be one of",
-			wantHelp: false,
+			name:    "age-rating edit missing updates",
+			args:    []string{"age-rating", "edit", "--id", "AGE_ID"},
+			wantErr: "at least one update flag is required",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if test.wantHelp {
-					if !errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected ErrHelp, got %v", err)
-					}
-				} else {
-					if err == nil {
-						t.Fatal("expected error, got nil")
-					}
-					if errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected non-help error, got %v", err)
-					}
-				}
-			})
-
-			if test.wantHelp {
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if !strings.Contains(stderr, test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-				}
-			}
-		})
-	}
+	runValidationTests(t, tests)
+	t.Run("age-rating edit invalid enum", func(t *testing.T) {
+		assertExitStderr(t, []string{"age-rating", "edit", "--id", "AGE_ID", "--gambling-simulated", "BAD"}, rootcmd.ExitError, "Error: --gambling-simulated must be one of: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, FREQUENT")
+	})
 }
 
 func TestAccessibilityValidationErrors(t *testing.T) {
@@ -2251,89 +1807,46 @@ func TestAccessibilityValidationErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantHelp bool
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:     "accessibility list missing app",
-			args:     []string{"accessibility", "list"},
-			wantErr:  "--app is required",
-			wantHelp: true,
+			name:    "accessibility list missing app",
+			args:    []string{"accessibility", "list"},
+			wantErr: "--app is required",
 		},
 		{
-			name:     "accessibility view missing id",
-			args:     []string{"accessibility", "view"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "accessibility view missing id",
+			args:    []string{"accessibility", "view"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "accessibility create missing app",
-			args:     []string{"accessibility", "create", "--device-family", "IPHONE"},
-			wantErr:  "--app is required",
-			wantHelp: true,
+			name:    "accessibility create missing app",
+			args:    []string{"accessibility", "create", "--device-family", "IPHONE"},
+			wantErr: "--app is required",
 		},
 		{
-			name:     "accessibility create missing device family",
-			args:     []string{"accessibility", "create", "--app", "APP_ID"},
-			wantErr:  "--device-family is required",
-			wantHelp: true,
+			name:    "accessibility create missing device family",
+			args:    []string{"accessibility", "create", "--app", "APP_ID"},
+			wantErr: "--device-family is required",
 		},
 		{
-			name:     "accessibility update missing id",
-			args:     []string{"accessibility", "update", "--supports-voiceover", "true"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "accessibility update missing id",
+			args:    []string{"accessibility", "update", "--supports-voiceover", "true"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "accessibility update missing updates",
-			args:     []string{"accessibility", "update", "--id", "DECLARATION_ID"},
-			wantErr:  "at least one update flag is required",
-			wantHelp: false,
-		},
-		{
-			name:     "accessibility delete missing confirm",
-			args:     []string{"accessibility", "delete", "--id", "DECLARATION_ID"},
-			wantErr:  "--confirm is required",
-			wantHelp: true,
+			name:    "accessibility delete missing confirm",
+			args:    []string{"accessibility", "delete", "--id", "DECLARATION_ID"},
+			wantErr: "--confirm is required",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if test.wantHelp {
-					if !errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected ErrHelp, got %v", err)
-					}
-				} else {
-					if err == nil {
-						t.Fatal("expected error, got nil")
-					}
-					if errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected non-help error, got %v", err)
-					}
-				}
-			})
-
-			if test.wantHelp {
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if !strings.Contains(stderr, test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-				}
-			}
-		})
-	}
+	runValidationTests(t, tests)
+	t.Run("accessibility update missing updates", func(t *testing.T) {
+		assertExitStderr(t, []string{"accessibility", "update", "--id", "DECLARATION_ID"}, rootcmd.ExitError, "Error: accessibility update: at least one update flag is required")
+	})
 }
 
 func TestReviewCommandDetailsValidationErrors(t *testing.T) {
@@ -2344,77 +1857,38 @@ func TestReviewCommandDetailsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantHelp bool
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:     "review details-get missing id",
-			args:     []string{"review", "details-get"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "review details-get missing id",
+			args:    []string{"review", "details-get"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "review details-for-version missing version id",
-			args:     []string{"review", "details-for-version"},
-			wantErr:  "--version-id is required",
-			wantHelp: true,
+			name:    "review details-for-version missing version id",
+			args:    []string{"review", "details-for-version"},
+			wantErr: "--version-id is required",
 		},
 		{
-			name:     "review details-create missing version id",
-			args:     []string{"review", "details-create"},
-			wantErr:  "--version-id is required",
-			wantHelp: true,
+			name:    "review details-create missing version id",
+			args:    []string{"review", "details-create"},
+			wantErr: "--version-id is required",
 		},
 		{
-			name:     "review details-update missing id",
-			args:     []string{"review", "details-update", "--notes", "hi"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "review details-update missing id",
+			args:    []string{"review", "details-update", "--notes", "hi"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "review details-update missing fields",
-			args:     []string{"review", "details-update", "--id", "DETAIL_ID"},
-			wantErr:  "at least one update flag is required",
-			wantHelp: true,
+			name:    "review details-update missing fields",
+			args:    []string{"review", "details-update", "--id", "DETAIL_ID"},
+			wantErr: "at least one update flag is required",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if test.wantHelp {
-					if !errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected ErrHelp, got %v", err)
-					}
-				} else {
-					if err == nil {
-						t.Fatal("expected error, got nil")
-					}
-					if errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected non-help error, got %v", err)
-					}
-				}
-			})
-
-			if test.wantHelp {
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if !strings.Contains(stderr, test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-				}
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestReviewCommandAttachmentsValidationErrors(t *testing.T) {
@@ -2425,83 +1899,43 @@ func TestReviewCommandAttachmentsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantHelp bool
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:     "review attachments-list missing review detail",
-			args:     []string{"review", "attachments-list"},
-			wantErr:  "--review-detail is required",
-			wantHelp: true,
+			name:    "review attachments-list missing review detail",
+			args:    []string{"review", "attachments-list"},
+			wantErr: "--review-detail is required",
 		},
 		{
-			name:     "review attachments-get missing id",
-			args:     []string{"review", "attachments-get"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "review attachments-get missing id",
+			args:    []string{"review", "attachments-get"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "review attachments-upload missing review detail",
-			args:     []string{"review", "attachments-upload", "--file", "file.txt"},
-			wantErr:  "--review-detail is required",
-			wantHelp: true,
+			name:    "review attachments-upload missing review detail",
+			args:    []string{"review", "attachments-upload", "--file", "file.txt"},
+			wantErr: "--review-detail is required",
 		},
 		{
-			name:     "review attachments-upload missing file",
-			args:     []string{"review", "attachments-upload", "--review-detail", "DETAIL_ID"},
-			wantErr:  "--file is required",
-			wantHelp: true,
+			name:    "review attachments-upload missing file",
+			args:    []string{"review", "attachments-upload", "--review-detail", "DETAIL_ID"},
+			wantErr: "--file is required",
 		},
 		{
-			name:     "review attachments-delete missing id",
-			args:     []string{"review", "attachments-delete", "--confirm"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "review attachments-delete missing id",
+			args:    []string{"review", "attachments-delete", "--confirm"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "review attachments-delete missing confirm",
-			args:     []string{"review", "attachments-delete", "--id", "ATTACHMENT_ID"},
-			wantErr:  "--confirm is required",
-			wantHelp: true,
+			name:    "review attachments-delete missing confirm",
+			args:    []string{"review", "attachments-delete", "--id", "ATTACHMENT_ID"},
+			wantErr: "--confirm is required",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if test.wantHelp {
-					if !errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected ErrHelp, got %v", err)
-					}
-				} else {
-					if err == nil {
-						t.Fatal("expected error, got nil")
-					}
-					if errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected non-help error, got %v", err)
-					}
-				}
-			})
-
-			if test.wantHelp {
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if !strings.Contains(stderr, test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-				}
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestReviewSubmissionsValidationErrors(t *testing.T) {
@@ -2512,59 +1946,23 @@ func TestReviewSubmissionsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantHelp bool
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:     "review submissions-cancel missing confirm",
-			args:     []string{"review", "submissions-cancel", "--id", "SUBMISSION_ID"},
-			wantErr:  "--confirm is required to cancel",
-			wantHelp: true,
+			name:    "review submissions-cancel missing confirm",
+			args:    []string{"review", "submissions-cancel", "--id", "SUBMISSION_ID"},
+			wantErr: "--confirm is required to cancel",
 		},
 		{
-			name:     "review submissions-cancel missing id",
-			args:     []string{"review", "submissions-cancel", "--confirm"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "review submissions-cancel missing id",
+			args:    []string{"review", "submissions-cancel", "--confirm"},
+			wantErr: "--id is required",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if test.wantHelp {
-					if !errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected ErrHelp, got %v", err)
-					}
-				} else {
-					if err == nil {
-						t.Fatal("expected error, got nil")
-					}
-					if errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected non-help error, got %v", err)
-					}
-				}
-			})
-
-			if test.wantHelp {
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if !strings.Contains(stderr, test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-				}
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestRoutingCoverageValidationErrors(t *testing.T) {
@@ -2575,83 +1973,43 @@ func TestRoutingCoverageValidationErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantHelp bool
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:     "routing-coverage view missing version id",
-			args:     []string{"routing-coverage", "view"},
-			wantErr:  "--version-id is required",
-			wantHelp: true,
+			name:    "routing-coverage view missing version id",
+			args:    []string{"routing-coverage", "view"},
+			wantErr: "--version-id is required",
 		},
 		{
-			name:     "routing-coverage info missing id",
-			args:     []string{"routing-coverage", "info"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "routing-coverage info missing id",
+			args:    []string{"routing-coverage", "info"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "routing-coverage create missing version id",
-			args:     []string{"routing-coverage", "create", "--file", "coverage.geojson"},
-			wantErr:  "--version-id is required",
-			wantHelp: true,
+			name:    "routing-coverage create missing version id",
+			args:    []string{"routing-coverage", "create", "--file", "coverage.geojson"},
+			wantErr: "--version-id is required",
 		},
 		{
-			name:     "routing-coverage create missing file",
-			args:     []string{"routing-coverage", "create", "--version-id", "VERSION_ID"},
-			wantErr:  "--file is required",
-			wantHelp: true,
+			name:    "routing-coverage create missing file",
+			args:    []string{"routing-coverage", "create", "--version-id", "VERSION_ID"},
+			wantErr: "--file is required",
 		},
 		{
-			name:     "routing-coverage delete missing id",
-			args:     []string{"routing-coverage", "delete", "--confirm"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "routing-coverage delete missing id",
+			args:    []string{"routing-coverage", "delete", "--confirm"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "routing-coverage delete missing confirm",
-			args:     []string{"routing-coverage", "delete", "--id", "COVERAGE_ID"},
-			wantErr:  "--confirm is required",
-			wantHelp: true,
+			name:    "routing-coverage delete missing confirm",
+			args:    []string{"routing-coverage", "delete", "--id", "COVERAGE_ID"},
+			wantErr: "--confirm is required",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if test.wantHelp {
-					if !errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected ErrHelp, got %v", err)
-					}
-				} else {
-					if err == nil {
-						t.Fatal("expected error, got nil")
-					}
-					if errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected non-help error, got %v", err)
-					}
-				}
-			})
-
-			if test.wantHelp {
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if !strings.Contains(stderr, test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-				}
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestEncryptionValidationErrors(t *testing.T) {
@@ -2663,143 +2021,93 @@ func TestEncryptionValidationErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantHelp bool
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:     "encryption declarations list missing app",
-			args:     []string{"encryption", "declarations", "list"},
-			wantErr:  "--app is required",
-			wantHelp: true,
+			name:    "encryption declarations list missing app",
+			args:    []string{"encryption", "declarations", "list"},
+			wantErr: "--app is required",
 		},
 		{
-			name:     "encryption declarations view missing id",
-			args:     []string{"encryption", "declarations", "view"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "encryption declarations view missing id",
+			args:    []string{"encryption", "declarations", "view"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "encryption declarations app view missing id",
-			args:     []string{"encryption", "declarations", "app", "view"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "encryption declarations app view missing id",
+			args:    []string{"encryption", "declarations", "app", "view"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "encryption declarations document view missing id",
-			args:     []string{"encryption", "declarations", "app-encryption-declaration-document", "view"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "encryption declarations document view missing id",
+			args:    []string{"encryption", "declarations", "app-encryption-declaration-document", "view"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "encryption declarations create missing app",
-			args:     []string{"encryption", "declarations", "create", "--app-description", "Uses TLS", "--contains-proprietary-cryptography=false", "--contains-third-party-cryptography=true", "--available-on-french-store=true"},
-			wantErr:  "--app is required",
-			wantHelp: true,
+			name:    "encryption declarations create missing app",
+			args:    []string{"encryption", "declarations", "create", "--app-description", "Uses TLS", "--contains-proprietary-cryptography=false", "--contains-third-party-cryptography=true", "--available-on-french-store=true"},
+			wantErr: "--app is required",
 		},
 		{
-			name:     "encryption declarations create missing description",
-			args:     []string{"encryption", "declarations", "create", "--app", "APP_ID", "--contains-proprietary-cryptography=false", "--contains-third-party-cryptography=true", "--available-on-french-store=true"},
-			wantErr:  "--app-description is required",
-			wantHelp: true,
+			name:    "encryption declarations create missing description",
+			args:    []string{"encryption", "declarations", "create", "--app", "APP_ID", "--contains-proprietary-cryptography=false", "--contains-third-party-cryptography=true", "--available-on-french-store=true"},
+			wantErr: "--app-description is required",
 		},
 		{
-			name:     "encryption declarations create missing proprietary flag",
-			args:     []string{"encryption", "declarations", "create", "--app", "APP_ID", "--app-description", "Uses TLS", "--contains-third-party-cryptography=true", "--available-on-french-store=true"},
-			wantErr:  "--contains-proprietary-cryptography is required",
-			wantHelp: true,
+			name:    "encryption declarations create missing proprietary flag",
+			args:    []string{"encryption", "declarations", "create", "--app", "APP_ID", "--app-description", "Uses TLS", "--contains-third-party-cryptography=true", "--available-on-french-store=true"},
+			wantErr: "--contains-proprietary-cryptography is required",
 		},
 		{
-			name:     "encryption declarations create missing third-party flag",
-			args:     []string{"encryption", "declarations", "create", "--app", "APP_ID", "--app-description", "Uses TLS", "--contains-proprietary-cryptography=false", "--available-on-french-store=true"},
-			wantErr:  "--contains-third-party-cryptography is required",
-			wantHelp: true,
+			name:    "encryption declarations create missing third-party flag",
+			args:    []string{"encryption", "declarations", "create", "--app", "APP_ID", "--app-description", "Uses TLS", "--contains-proprietary-cryptography=false", "--available-on-french-store=true"},
+			wantErr: "--contains-third-party-cryptography is required",
 		},
 		{
-			name:     "encryption declarations create missing french store flag",
-			args:     []string{"encryption", "declarations", "create", "--app", "APP_ID", "--app-description", "Uses TLS", "--contains-proprietary-cryptography=false", "--contains-third-party-cryptography=true"},
-			wantErr:  "--available-on-french-store is required",
-			wantHelp: true,
+			name:    "encryption declarations create missing french store flag",
+			args:    []string{"encryption", "declarations", "create", "--app", "APP_ID", "--app-description", "Uses TLS", "--contains-proprietary-cryptography=false", "--contains-third-party-cryptography=true"},
+			wantErr: "--available-on-french-store is required",
 		},
 		{
-			name:     "encryption declarations exempt-declare unexpected args",
-			args:     []string{"encryption", "declarations", "exempt-declare", "unexpected"},
-			wantErr:  "does not accept positional arguments",
-			wantHelp: true,
+			name:    "encryption declarations exempt-declare unexpected args",
+			args:    []string{"encryption", "declarations", "exempt-declare", "unexpected"},
+			wantErr: `Error: unexpected argument "unexpected"`,
 		},
 		{
-			name:     "encryption declarations exempt-declare empty plist",
-			args:     []string{"encryption", "declarations", "exempt-declare", "--plist", ""},
-			wantErr:  "--plist must not be empty",
-			wantHelp: true,
+			name:    "encryption declarations exempt-declare empty plist",
+			args:    []string{"encryption", "declarations", "exempt-declare", "--plist", ""},
+			wantErr: "--plist must not be empty",
 		},
 		{
-			name:     "encryption declarations assign-builds missing id",
-			args:     []string{"encryption", "declarations", "assign-builds", "--build-id", "BUILD_ID"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "encryption declarations assign-builds missing id",
+			args:    []string{"encryption", "declarations", "assign-builds", "--build-id", "BUILD_ID"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "encryption declarations assign-builds missing build",
-			args:     []string{"encryption", "declarations", "assign-builds", "--id", "DECL_ID"},
-			wantErr:  "--build-id is required",
-			wantHelp: true,
+			name:    "encryption declarations assign-builds missing build",
+			args:    []string{"encryption", "declarations", "assign-builds", "--id", "DECL_ID"},
+			wantErr: "--build-id is required",
 		},
 		{
-			name:     "encryption documents view missing id",
-			args:     []string{"encryption", "documents", "view"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "encryption documents view missing id",
+			args:    []string{"encryption", "documents", "view"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "encryption documents upload missing declaration",
-			args:     []string{"encryption", "documents", "upload", "--file", "export.pdf"},
-			wantErr:  "--declaration is required",
-			wantHelp: true,
+			name:    "encryption documents upload missing declaration",
+			args:    []string{"encryption", "documents", "upload", "--file", "export.pdf"},
+			wantErr: "--declaration is required",
 		},
 		{
-			name:     "encryption documents upload missing file",
-			args:     []string{"encryption", "documents", "upload", "--declaration", "DECL_ID"},
-			wantErr:  "--file is required",
-			wantHelp: true,
+			name:    "encryption documents upload missing file",
+			args:    []string{"encryption", "documents", "upload", "--declaration", "DECL_ID"},
+			wantErr: "--file is required",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if test.wantHelp {
-					if !errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected ErrHelp, got %v", err)
-					}
-				} else {
-					if err == nil {
-						t.Fatal("expected error, got nil")
-					}
-					if errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected non-help error, got %v", err)
-					}
-				}
-			})
-
-			if test.wantHelp {
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if !strings.Contains(stderr, test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-				}
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAndroidIosMappingValidationErrors(t *testing.T) {
@@ -2811,100 +2119,56 @@ func TestAndroidIosMappingValidationErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantHelp bool
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:     "android-ios-mapping list missing app",
-			args:     []string{"android-ios-mapping", "list"},
-			wantErr:  "--app is required",
-			wantHelp: true,
+			name:    "android-ios-mapping list missing app",
+			args:    []string{"android-ios-mapping", "list"},
+			wantErr: "--app is required",
 		},
 		{
-			name:     "android-ios-mapping view missing id",
-			args:     []string{"android-ios-mapping", "view"},
-			wantErr:  "--mapping-id is required",
-			wantHelp: true,
+			name:    "android-ios-mapping view missing id",
+			args:    []string{"android-ios-mapping", "view"},
+			wantErr: "--mapping-id is required",
 		},
 		{
-			name:     "android-ios-mapping create missing app",
-			args:     []string{"android-ios-mapping", "create", "--android-package-name", "com.example.android", "--fingerprints", "sha1"},
-			wantErr:  "--app is required",
-			wantHelp: true,
+			name:    "android-ios-mapping create missing app",
+			args:    []string{"android-ios-mapping", "create", "--android-package-name", "com.example.android", "--fingerprints", "sha1"},
+			wantErr: "--app is required",
 		},
 		{
-			name:     "android-ios-mapping create missing package",
-			args:     []string{"android-ios-mapping", "create", "--app", "APP_ID", "--fingerprints", "sha1"},
-			wantErr:  "--android-package-name is required",
-			wantHelp: true,
+			name:    "android-ios-mapping create missing package",
+			args:    []string{"android-ios-mapping", "create", "--app", "APP_ID", "--fingerprints", "sha1"},
+			wantErr: "--android-package-name is required",
 		},
 		{
-			name:     "android-ios-mapping create missing fingerprints",
-			args:     []string{"android-ios-mapping", "create", "--app", "APP_ID", "--android-package-name", "com.example.android"},
-			wantErr:  "--fingerprints is required",
-			wantHelp: true,
+			name:    "android-ios-mapping create missing fingerprints",
+			args:    []string{"android-ios-mapping", "create", "--app", "APP_ID", "--android-package-name", "com.example.android"},
+			wantErr: "--fingerprints is required",
 		},
 		{
-			name:     "android-ios-mapping update missing id",
-			args:     []string{"android-ios-mapping", "update", "--android-package-name", "com.example.android"},
-			wantErr:  "--mapping-id is required",
-			wantHelp: true,
+			name:    "android-ios-mapping update missing id",
+			args:    []string{"android-ios-mapping", "update", "--android-package-name", "com.example.android"},
+			wantErr: "--mapping-id is required",
 		},
 		{
-			name:    "android-ios-mapping update missing updates",
-			args:    []string{"android-ios-mapping", "update", "--mapping-id", "MAP_ID"},
-			wantErr: "at least one update flag is required",
+			name:    "android-ios-mapping delete missing id",
+			args:    []string{"android-ios-mapping", "delete", "--confirm"},
+			wantErr: "--mapping-id is required",
 		},
 		{
-			name:     "android-ios-mapping delete missing id",
-			args:     []string{"android-ios-mapping", "delete", "--confirm"},
-			wantErr:  "--mapping-id is required",
-			wantHelp: true,
-		},
-		{
-			name:     "android-ios-mapping delete missing confirm",
-			args:     []string{"android-ios-mapping", "delete", "--mapping-id", "MAP_ID"},
-			wantErr:  "--confirm is required",
-			wantHelp: true,
+			name:    "android-ios-mapping delete missing confirm",
+			args:    []string{"android-ios-mapping", "delete", "--mapping-id", "MAP_ID"},
+			wantErr: "--confirm is required",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if test.wantHelp {
-					if !errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected ErrHelp, got %v", err)
-					}
-				} else {
-					if err == nil {
-						t.Fatal("expected error, got nil")
-					}
-					if errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected non-help error, got %v", err)
-					}
-				}
-			})
-
-			if test.wantHelp {
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if !strings.Contains(stderr, test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-				}
-			}
-		})
-	}
+	runValidationTests(t, tests)
+	t.Run("android-ios-mapping update missing updates", func(t *testing.T) {
+		assertExitStderr(t, []string{"android-ios-mapping", "update", "--mapping-id", "MAP_ID"}, rootcmd.ExitError, "Error: android-ios-mapping update: at least one update flag is required")
+	})
 }
 
 func TestPerformanceValidationErrors(t *testing.T) {
@@ -2916,101 +2180,58 @@ func TestPerformanceValidationErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantHelp bool
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name:     "performance metrics list missing app",
-			args:     []string{"performance", "metrics", "list"},
-			wantErr:  "--app is required",
-			wantHelp: true,
+			name:    "performance metrics list missing app",
+			args:    []string{"performance", "metrics", "list"},
+			wantErr: "--app is required",
 		},
 		{
-			name:     "performance metrics view missing build",
-			args:     []string{"performance", "metrics", "view"},
-			wantErr:  "--build-id is required",
-			wantHelp: true,
+			name:    "performance metrics view missing build",
+			args:    []string{"performance", "metrics", "view"},
+			wantErr: "--build-id is required",
 		},
 		{
-			name:     "performance diagnostics list missing build",
-			args:     []string{"performance", "diagnostics", "list"},
-			wantErr:  "--build-id is required",
-			wantHelp: true,
+			name:    "performance diagnostics list missing build",
+			args:    []string{"performance", "diagnostics", "list"},
+			wantErr: "--build-id is required",
 		},
 		{
-			name:     "performance diagnostics view missing id",
-			args:     []string{"performance", "diagnostics", "view"},
-			wantErr:  "--id is required",
-			wantHelp: true,
+			name:    "performance diagnostics view missing id",
+			args:    []string{"performance", "diagnostics", "view"},
+			wantErr: "--id is required",
 		},
 		{
-			name:     "performance download missing selection",
-			args:     []string{"performance", "download"},
-			wantErr:  "--app, --build-id, or --diagnostic-id is required",
-			wantHelp: true,
+			name:    "performance download missing selection",
+			args:    []string{"performance", "download"},
+			wantErr: "--app, --build-id, or --diagnostic-id is required",
 		},
 		{
-			name:     "performance download mutually exclusive",
-			args:     []string{"performance", "download", "--app", "APP_ID", "--build-id", "BUILD_ID"},
-			wantErr:  "mutually exclusive",
-			wantHelp: true,
+			name:    "performance download mutually exclusive",
+			args:    []string{"performance", "download", "--app", "APP_ID", "--build-id", "BUILD_ID"},
+			wantErr: "mutually exclusive",
 		},
 		{
-			name:     "performance download invalid limit",
-			args:     []string{"performance", "download", "--diagnostic-id", "SIG_ID", "--limit", "201"},
-			wantErr:  "--limit must be between 1 and 200",
-			wantHelp: true,
+			name:    "performance download invalid limit",
+			args:    []string{"performance", "download", "--diagnostic-id", "SIG_ID", "--limit", "201"},
+			wantErr: "--limit must be between 1 and 200",
 		},
 		{
-			name:     "performance download metric filter with diagnostic",
-			args:     []string{"performance", "download", "--diagnostic-id", "SIG_ID", "--platform", "IOS"},
-			wantErr:  "metric filters are not valid with --diagnostic-id",
-			wantHelp: true,
+			name:    "performance download metric filter with diagnostic",
+			args:    []string{"performance", "download", "--diagnostic-id", "SIG_ID", "--platform", "IOS"},
+			wantErr: "metric filters are not valid with --diagnostic-id",
 		},
 		{
-			name:     "performance download limit without diagnostic",
-			args:     []string{"performance", "download", "--app", "APP_ID", "--limit", "10"},
-			wantErr:  "--limit is only valid with --diagnostic-id",
-			wantHelp: true,
+			name:    "performance download limit without diagnostic",
+			args:    []string{"performance", "download", "--app", "APP_ID", "--limit", "10"},
+			wantErr: "--limit is only valid with --diagnostic-id",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if test.wantHelp {
-					if !errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected ErrHelp, got %v", err)
-					}
-				} else {
-					if err == nil {
-						t.Fatal("expected error, got nil")
-					}
-					if errors.Is(err, flag.ErrHelp) {
-						t.Fatalf("expected non-help error, got %v", err)
-					}
-				}
-			})
-
-			if test.wantHelp {
-				if stdout != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if !strings.Contains(stderr, test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-				}
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestTestFlightBetaDetailsValidationErrors(t *testing.T) {
@@ -3036,29 +2257,7 @@ func TestTestFlightBetaDetailsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestTestFlightRecruitmentValidationErrors(t *testing.T) {
@@ -3089,29 +2288,7 @@ func TestTestFlightRecruitmentValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestTestFlightMetricsValidationErrors(t *testing.T) {
@@ -3132,29 +2309,7 @@ func TestTestFlightMetricsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestTestFlightSyncValidationErrors(t *testing.T) {
@@ -3187,29 +2342,7 @@ func TestTestFlightSyncValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestParseCommaSeparatedIDs(t *testing.T) {
@@ -3276,7 +2409,7 @@ func TestLocalizationsValidationErrors(t *testing.T) {
 		{
 			name:    "localizations create unexpected args",
 			args:    []string{"localizations", "create", "--version", "VERSION_ID", "--locale", "ja", "unexpected"},
-			wantErr: "does not accept positional arguments",
+			wantErr: `Error: unexpected argument "unexpected"`,
 		},
 		{
 			name:    "localizations create missing locale",
@@ -3338,56 +2471,14 @@ func TestLocalizationsValidationErrors(t *testing.T) {
 			args:    []string{"localizations", "screenshot-sets", "delete", "--id", "SET_ID"},
 			wantErr: "Error: --confirm is required to delete",
 		},
+		{
+			name:    "localizations create invalid locale",
+			args:    []string{"localizations", "create", "--version", "VERSION_ID", "--locale", "not_a_locale"},
+			wantErr: `invalid locale "not_a_locale"`,
+		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
-func TestLocalizationsCreateInvalidLocale(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"localizations", "create", "--version", "VERSION_ID", "--locale", "not_a_locale"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected flag.ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, `invalid locale "not_a_locale"`) {
-		t.Fatalf("expected invalid locale error, got %q", stderr)
-	}
+	runValidationTests(t, tests)
 }
 
 func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
@@ -3476,29 +2567,7 @@ func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestBuildLocalizationsValidationErrors(t *testing.T) {
@@ -3524,29 +2593,7 @@ func TestBuildLocalizationsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestBuildsTestNotesValidationErrors(t *testing.T) {
@@ -3614,29 +2661,7 @@ func TestBuildsTestNotesValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestBuildsUploadValidationErrors(t *testing.T) {
@@ -3664,39 +2689,16 @@ func TestBuildsUploadValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestPublishValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	tests := []struct {
-		name     string
-		args     []string
-		wantErr  string
-		wantExit int
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
 			name:    "publish testflight missing app",
@@ -3729,10 +2731,9 @@ func TestPublishValidationErrors(t *testing.T) {
 			wantErr: "--upload-only requires --ipa, --pkg, --workspace, or --project",
 		},
 		{
-			name:     "publish testflight upload only invalid value",
-			args:     []string{"publish", "testflight", "--app", "APP_123", "--ipa", "app.ipa", "--upload-only=maybe"},
-			wantErr:  `invalid boolean value "maybe" for -upload-only`,
-			wantExit: rootcmd.ExitUsage,
+			name:    "publish testflight upload only invalid value",
+			args:    []string{"publish", "testflight", "--app", "APP_123", "--ipa", "app.ipa", "--upload-only=maybe"},
+			wantErr: `invalid boolean value "maybe" for -upload-only`,
 		},
 		{
 			name:    "publish testflight test-notes missing locale",
@@ -3750,10 +2751,9 @@ func TestPublishValidationErrors(t *testing.T) {
 			wantErr: "Error: --confirm is required with --submit",
 		},
 		{
-			name:     "publish testflight submit invalid value",
-			args:     []string{"publish", "testflight", "--app", "APP_123", "--build-id", "BUILD_123", "--group", "GROUP_ID", "--submit=maybe"},
-			wantErr:  `invalid boolean value "maybe" for -submit`,
-			wantExit: rootcmd.ExitUsage,
+			name:    "publish testflight submit invalid value",
+			args:    []string{"publish", "testflight", "--app", "APP_123", "--build-id", "BUILD_123", "--group", "GROUP_ID", "--submit=maybe"},
+			wantErr: `invalid boolean value "maybe" for -submit`,
 		},
 		{
 			name:    "publish testflight confirm requires submit",
@@ -3761,10 +2761,9 @@ func TestPublishValidationErrors(t *testing.T) {
 			wantErr: "Error: --confirm requires --submit",
 		},
 		{
-			name:     "publish testflight confirm invalid value",
-			args:     []string{"publish", "testflight", "--app", "APP_123", "--build-id", "BUILD_123", "--group", "GROUP_ID", "--confirm=maybe"},
-			wantErr:  `invalid boolean value "maybe" for -confirm`,
-			wantExit: rootcmd.ExitUsage,
+			name:    "publish testflight confirm invalid value",
+			args:    []string{"publish", "testflight", "--app", "APP_123", "--build-id", "BUILD_123", "--group", "GROUP_ID", "--confirm=maybe"},
+			wantErr: `invalid boolean value "maybe" for -confirm`,
 		},
 		{
 			name:    "publish appstore missing app",
@@ -3873,34 +2872,7 @@ func TestPublishValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if test.wantExit != 0 {
-				assertUsageExit(t, test.args, test.wantErr)
-				return
-			}
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestCommandsRejectSymlinkIPAPath(t *testing.T) {
@@ -4020,29 +2992,7 @@ func TestSubmitValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestVersionsValidationErrors(t *testing.T) {
@@ -4105,29 +3055,7 @@ func TestVersionsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAppInfoValidationErrors(t *testing.T) {
@@ -4190,29 +3118,7 @@ func TestAppInfoValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAppsValidationErrors(t *testing.T) {
@@ -4255,29 +3161,7 @@ func TestAppsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAppSetupInfoSetValidationErrors(t *testing.T) {
@@ -4305,29 +3189,7 @@ func TestAppSetupInfoSetValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAppInfoMutualExclusiveFlags(t *testing.T) {
@@ -4348,25 +3210,7 @@ func TestAppInfoMutualExclusiveFlags(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAppTagsValidationErrors(t *testing.T) {
@@ -4424,29 +3268,7 @@ func TestAppTagsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAppClipsValidationErrors(t *testing.T) {
@@ -4629,29 +3451,7 @@ func TestAppClipsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestPreReleaseVersionsValidationErrors(t *testing.T) {
@@ -4674,69 +3474,31 @@ func TestPreReleaseVersionsValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
-func TestAuthSwitchValidationErrors(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+func TestAuthValidationErrors(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "switch"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "auth switch missing name",
+			args:    []string{"auth", "switch"},
+			wantErr: "Error: --name is required",
+		},
+		{
+			name:    "auth doctor fix without confirm",
+			args:    []string{"auth", "doctor", "--fix"},
+			wantErr: "Error: --fix requires --confirm",
+		},
 	}
-	if !strings.Contains(stderr, "Error: --name is required") {
-		t.Fatalf("expected missing --name error, got %q", stderr)
-	}
-}
 
-func TestAuthLogoutBlankNameValidation(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "logout", "--name", "   "}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-	if !strings.Contains(stderr, "--name cannot be blank") {
-		t.Fatalf("expected blank-name error in stderr, got %q", stderr)
-	}
+	runValidationTests(t, tests)
 }
 
 func TestAuthSwitchUnknownProfile(t *testing.T) {
@@ -4760,21 +3522,7 @@ func TestAuthSwitchUnknownProfile(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", configPath)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "switch", "--name", "missing"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected non-help error, got %v", err)
-		}
-	})
+	assertExitStderr(t, []string{"auth", "switch", "--name", "missing"}, rootcmd.ExitError, `Error: auth switch: profile "missing" not found`)
 }
 
 func TestAuthStatusEnvironmentCredentialNotes(t *testing.T) {
@@ -4902,23 +3650,6 @@ func TestAuthStatusShowsStorageLocation(t *testing.T) {
 	if !strings.Contains(stdout, fmt.Sprintf("Location: %s", configPath)) {
 		t.Fatalf("expected config path in output, got %q", stdout)
 	}
-}
-
-func TestAuthDoctorFixRequiresConfirm(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "doctor", "--fix"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err == nil {
-			t.Fatal("expected error, got nil")
-		}
-	})
 }
 
 func TestAuthStatusValidateReportsCredentialResult(t *testing.T) {
@@ -5441,29 +4172,7 @@ func TestXcodeCloudValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
 
 func TestXcodeCloudMutualExclusiveFlags(t *testing.T) {
@@ -5514,27 +4223,5 @@ func TestXcodeCloudMutualExclusiveFlags(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q in stderr, got %q", test.wantErr, stderr)
-			}
-		})
-	}
+	runValidationTests(t, tests)
 }
