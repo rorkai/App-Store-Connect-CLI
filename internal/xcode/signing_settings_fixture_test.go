@@ -27,8 +27,8 @@ type signingFixtureManifest struct {
 
 type signingSettingsOption func(*signingFixtureManifest)
 
-func withSigningTarget(name string) signingSettingsOption {
-	return func(manifest *signingFixtureManifest) { manifest.target = name }
+func withWidgetSigningTarget() signingSettingsOption {
+	return func(manifest *signingFixtureManifest) { manifest.target = "Widget" }
 }
 
 // withSigningConfiguration adds a configuration whose settings are a JSON
@@ -204,15 +204,16 @@ func applySigningTestPlan(t *testing.T, plan *SigningPlan) *SigningApplyResult {
 	return result
 }
 
-func openSigningTestConfiguration(t *testing.T, projectPath, target, name string) (*structuredVersionProject, *versionConfiguration) {
+// openSigningTestDebugConfiguration opens the App target's Debug configuration.
+func openSigningTestDebugConfiguration(t *testing.T, projectPath string) (*structuredVersionProject, *versionConfiguration) {
 	t.Helper()
 	project, err := openStructuredVersionProject(projectPath)
 	if err != nil {
 		t.Fatalf("openStructuredVersionProject() error = %v", err)
 	}
-	configuration, err := signingConfigurationFor(project, target, name)
+	configuration, err := signingConfigurationFor(project, "App", "Debug")
 	if err != nil {
-		t.Fatalf("signingConfigurationFor(%s, %s) error = %v", target, name, err)
+		t.Fatalf("signingConfigurationFor(App, Debug) error = %v", err)
 	}
 	return project, configuration
 }

@@ -2378,7 +2378,7 @@ func TestSigningPlanBlocksUnselectedExternalXCConfigWithoutReadingIt(t *testing.
 	if err := os.WriteFile(externalPath, []byte("/* unterminated\n"), 0o640); err != nil {
 		t.Fatalf("write malformed external xcconfig error = %v", err)
 	}
-	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
+	fixture := newSigningSettingsFixture(t, project, withWidgetSigningTarget())
 
 	_, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err == nil || !strings.Contains(err.Error(), "unauthorized external xcconfig cannot be safely inventoried without --allow-external-xcconfig") {
@@ -2401,7 +2401,7 @@ func TestSigningPlanBlocksUnselectedEscapingXCConfigSymlink(t *testing.T) {
 		t.Skipf("symlink unavailable: %v", err)
 	}
 
-	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
+	fixture := newSigningSettingsFixture(t, project, withWidgetSigningTarget())
 	_, err := BuildSigningPlan(fixture.planOptions("state"))
 	if err == nil || !strings.Contains(err.Error(), "unauthorized external xcconfig cannot be safely inventoried without --allow-external-xcconfig") {
 		t.Fatalf("BuildSigningPlan() error = %v, want generic unauthorized external failure", err)
@@ -2445,7 +2445,7 @@ func TestSigningPlanRejectsUnselectedExternalXCConfigArtifactCollision(t *testin
 		signingResolveProspectivePathFn = previousProspective
 		signingArtifactPathInfoFn = previousArtifactInfo
 	})
-	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
+	fixture := newSigningSettingsFixture(t, project, withWidgetSigningTarget())
 
 	requireSigningPlanRefused(t, SigningPlanOptions{
 		ProjectPath: project, SettingsFilePath: fixture.settingsPath, PlanPath: externalPath,
@@ -2459,7 +2459,7 @@ func TestSigningPlanRejectsAllowedUnselectedMalformedExternalArtifactCollision(t
 	if err := os.WriteFile(externalPath, []byte("/* unterminated\n"), 0o640); err != nil {
 		t.Fatalf("write malformed external xcconfig error = %v", err)
 	}
-	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
+	fixture := newSigningSettingsFixture(t, project, withWidgetSigningTarget())
 
 	requireSigningPlanRefused(t, SigningPlanOptions{
 		ProjectPath: project, SettingsFilePath: fixture.settingsPath, PlanPath: externalPath,
@@ -2474,7 +2474,7 @@ func TestSigningPlanRejectsAllowedMissingExternalIncludeArtifactCollision(t *tes
 	if err := os.WriteFile(externalPath, []byte("#include \"Missing.xcconfig\"\n"), 0o640); err != nil {
 		t.Fatalf("write external xcconfig error = %v", err)
 	}
-	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
+	fixture := newSigningSettingsFixture(t, project, withWidgetSigningTarget())
 
 	requireSigningPlanRefused(t, SigningPlanOptions{
 		ProjectPath: project, SettingsFilePath: fixture.settingsPath, ReceiptPath: missingInclude,
@@ -2521,7 +2521,7 @@ func TestSigningPlanKeepsAllowedExternalCollectionFailureBlockedWithoutOverwrite
 	if err := os.WriteFile(externalPath, []byte(before), 0o640); err != nil {
 		t.Fatalf("write malformed external xcconfig error = %v", err)
 	}
-	fixture := newSigningSettingsFixture(t, project, withSigningTarget("Widget"))
+	fixture := newSigningSettingsFixture(t, project, withWidgetSigningTarget())
 	stateDir := filepath.Join(fixture.root, "state")
 
 	requireSigningPlanRefused(t, SigningPlanOptions{
@@ -3062,7 +3062,7 @@ func TestSigningPlanReclassifiesNoOpAfterDependentRemoval(t *testing.T) {
 	}
 
 	applySigningTestPlan(t, plan)
-	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	updated, configuration := openSigningTestDebugConfiguration(t, project)
 	if _, _, err := updated.resolveSetting(configuration, "CODE_SIGN_IDENTITY"); !errors.Is(err, errVersionSettingNotFound) {
 		t.Fatalf("resolved identity error = %v, want setting removal", err)
 	}
@@ -3121,7 +3121,7 @@ func TestSigningPlanDefersRemovalFallbackBlockerUntilNoOpPromotion(t *testing.T)
 	}
 
 	applySigningTestPlan(t, plan)
-	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	updated, configuration := openSigningTestDebugConfiguration(t, project)
 	for _, expected := range []struct {
 		setting string
 		value   string
@@ -3242,7 +3242,7 @@ func TestSigningPlanReclassifiesNoOpAfterProjectFallbackDependentChange(t *testi
 		t.Fatalf("identity change = %#v, want requested value", identityChange)
 	}
 	applySigningTestPlan(t, plan)
-	structured, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	structured, configuration := openSigningTestDebugConfiguration(t, project)
 	resolver := newSigningSettingResolver(structured, nil, false, nil)
 	resolvedIdentity, _, err := resolver.resolveSetting(configuration, "CODE_SIGN_IDENTITY")
 	if err != nil {
@@ -3412,7 +3412,7 @@ func TestSigningPlanRevalidatesTransitiveNoOpReferenceAfterDependentChange(t *te
 		t.Fatalf("ApplySigningPlan() result = %#v, want completed receipt", result)
 	}
 
-	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	updated, configuration := openSigningTestDebugConfiguration(t, project)
 	identity, _, err := newSigningSettingResolver(updated, nil, false, nil).resolveSetting(configuration, "CODE_SIGN_IDENTITY")
 	if err != nil {
 		t.Fatalf("resolve applied identity: %v", err)
@@ -3484,7 +3484,7 @@ func TestSigningPlanAppliesPromotedXCConfigNoOpAfterDependentChange(t *testing.T
 		t.Fatalf("changed files = %#v, want project update", result.ChangedFiles)
 	}
 
-	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	updated, configuration := openSigningTestDebugConfiguration(t, project)
 	profile, _, err := updated.resolveSetting(configuration, "PROVISIONING_PROFILE_SPECIFIER")
 	if err != nil {
 		t.Fatalf("resolve applied profile: %v", err)
@@ -3551,7 +3551,7 @@ func TestSigningPlanAppliesMultipleTransitiveXCConfigNoOpsAfterDependentChange(t
 	}
 
 	applySigningTestPlan(t, plan)
-	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	updated, configuration := openSigningTestDebugConfiguration(t, project)
 	for _, expected := range []struct {
 		setting string
 		value   string
@@ -3685,7 +3685,7 @@ func TestSigningPlanMaterializesTopLevelInheritedIdentityWhenTeamChanges(t *test
 		t.Fatalf("ApplySigningPlan() result = %#v, want completed receipt", result)
 	}
 
-	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	updated, configuration := openSigningTestDebugConfiguration(t, project)
 	identity, _, err := newSigningSettingResolver(updated, nil, false, nil).resolveSetting(configuration, "CODE_SIGN_IDENTITY")
 	if err != nil {
 		t.Fatalf("resolve applied identity: %v", err)
@@ -3734,7 +3734,7 @@ func TestSigningSettingResolverExpandsProjectFallbackInSelectedTargetContext(t *
 		`PRODUCT_BUNDLE_IDENTIFIER = com.project; CODE_SIGN_IDENTITY = "$(PRODUCT_BUNDLE_IDENTIFIER)";`)
 	injectSigningBuildSetting(t, pbxprojPath, "999999999999999999999993",
 		`PRODUCT_BUNDLE_IDENTIFIER = com.target;`)
-	structured, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	structured, configuration := openSigningTestDebugConfiguration(t, project)
 	resolved, _, err := newSigningSettingResolver(structured, nil, false, nil).resolveSetting(configuration, "CODE_SIGN_IDENTITY")
 	if err != nil {
 		t.Fatalf("resolveSetting(CODE_SIGN_IDENTITY) error = %v", err)
@@ -3763,7 +3763,7 @@ func TestSigningSettingResolverExpandsProjectFallbackInSelectedTargetContext(t *
 
 func TestSigningPlanRejectsBuildSettingReferenceModifiers(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
-	structured, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	structured, configuration := openSigningTestDebugConfiguration(t, project)
 	resolver := newSigningSettingResolver(structured, nil, false, nil)
 	_, _, err := resolver.expandSettingReferences(configuration, "$(MARKETING_VERSION:rfc1034identifier)", map[string]bool{})
 	if err == nil || !strings.Contains(err.Error(), "reference modifier") {
@@ -3773,7 +3773,7 @@ func TestSigningPlanRejectsBuildSettingReferenceModifiers(t *testing.T) {
 
 func TestSigningSettingResolverRejectsIncompleteBuildSettingReferences(t *testing.T) {
 	project := writeStructuredVersionProject(t, false)
-	structured, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	structured, configuration := openSigningTestDebugConfiguration(t, project)
 	configuration.buildSettings["KNOWN_SETTING"] = "resolved"
 	resolver := newSigningSettingResolver(structured, nil, false, nil)
 	tests := []struct {
@@ -6289,7 +6289,7 @@ func TestSigningPlanPromotesNoOpThroughStagedEscapedXCConfigValue(t *testing.T) 
 	}
 
 	applySigningTestPlan(t, plan)
-	updated, configuration := openSigningTestConfiguration(t, project, "App", "Debug")
+	updated, configuration := openSigningTestDebugConfiguration(t, project)
 	identity, _, err := updated.resolveSetting(configuration, "CODE_SIGN_IDENTITY")
 	if err != nil {
 		t.Fatalf("resolve applied identity: %v", err)
