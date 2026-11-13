@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -106,18 +105,7 @@ func (c *Client) GetEndUserLicenseAgreement(ctx context.Context, id string) (*En
 		return nil, fmt.Errorf("id is required")
 	}
 
-	path := fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response EndUserLicenseAgreementResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[EndUserLicenseAgreementResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id)})
 }
 
 // GetEndUserLicenseAgreementForApp retrieves an EULA for a specific app.
@@ -127,18 +115,7 @@ func (c *Client) GetEndUserLicenseAgreementForApp(ctx context.Context, appID str
 		return nil, fmt.Errorf("appID is required")
 	}
 
-	path := fmt.Sprintf("/v1/apps/%s/endUserLicenseAgreement", appID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response EndUserLicenseAgreementResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[EndUserLicenseAgreementResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/apps/%s/endUserLicenseAgreement", appID)})
 }
 
 // CreateEndUserLicenseAgreement creates an EULA for an app.
@@ -179,22 +156,7 @@ func (c *Client) CreateEndUserLicenseAgreement(ctx context.Context, appID, agree
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/endUserLicenseAgreements", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response EndUserLicenseAgreementResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[EndUserLicenseAgreementResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/endUserLicenseAgreements", Payload: payload})
 }
 
 // UpdateEndUserLicenseAgreement updates an EULA by ID.
@@ -235,23 +197,7 @@ func (c *Client) UpdateEndUserLicenseAgreement(ctx context.Context, id string, a
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id)
-	data, err := c.do(ctx, "PATCH", path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response EndUserLicenseAgreementResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[EndUserLicenseAgreementResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id), Payload: payload})
 }
 
 // DeleteEndUserLicenseAgreement deletes an EULA by ID.
@@ -261,38 +207,17 @@ func (c *Client) DeleteEndUserLicenseAgreement(ctx context.Context, id string) e
 		return fmt.Errorf("id is required")
 	}
 
-	path := fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id), nil)
 }
 
 // GetEndUserLicenseAgreementTerritories retrieves territories for an EULA.
 func (c *Client) GetEndUserLicenseAgreementTerritories(ctx context.Context, id string, opts ...EndUserLicenseAgreementTerritoriesOption) (*TerritoriesResponse, error) {
 	id = strings.TrimSpace(id)
-	query := &endUserLicenseAgreementTerritoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/endUserLicenseAgreements/%s/territories", id)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("endUserLicenseAgreementTerritories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildEndUserLicenseAgreementTerritoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response TerritoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[TerritoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/endUserLicenseAgreements/%s/territories", id),
+		Query:       buildEndUserLicenseAgreementTerritoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "endUserLicenseAgreementTerritories",
+	})
 }

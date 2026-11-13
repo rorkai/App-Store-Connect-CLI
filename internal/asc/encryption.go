@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -133,33 +132,14 @@ type AppEncryptionDeclarationDocumentUpdateRequest struct {
 
 // GetAppEncryptionDeclarations retrieves encryption declarations for an app.
 func (c *Client) GetAppEncryptionDeclarations(ctx context.Context, appID string, opts ...AppEncryptionDeclarationsOption) (*AppEncryptionDeclarationsResponse, error) {
-	query := &appEncryptionDeclarationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	query.appID = strings.TrimSpace(appID)
-
-	path := "/v1/appEncryptionDeclarations"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("app-encryption-declarations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppEncryptionDeclarationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEncryptionDeclarationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEncryptionDeclarationsResponse](ctx, c, readRequest{
+		Path:        "/v1/appEncryptionDeclarations",
+		Query:       buildAppEncryptionDeclarationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "app-encryption-declarations",
+	})
 }
 
 // GetAppEncryptionDeclaration retrieves an encryption declaration by ID.
@@ -169,27 +149,11 @@ func (c *Client) GetAppEncryptionDeclaration(ctx context.Context, declarationID 
 		return nil, fmt.Errorf("declarationID is required")
 	}
 
-	query := &appEncryptionDeclarationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/appEncryptionDeclarations/%s", declarationID)
-	if queryString := buildAppEncryptionDeclarationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEncryptionDeclarationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppEncryptionDeclarationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appEncryptionDeclarations/%s", declarationID),
+		Query: buildAppEncryptionDeclarationsQuery(query),
+	})
 }
 
 // CreateAppEncryptionDeclaration creates a new encryption declaration.
@@ -209,22 +173,7 @@ func (c *Client) CreateAppEncryptionDeclaration(ctx context.Context, appID strin
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appEncryptionDeclarations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEncryptionDeclarationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEncryptionDeclarationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appEncryptionDeclarations", Payload: payload})
 }
 
 // AddBuildsToAppEncryptionDeclaration assigns builds to a declaration.
@@ -248,14 +197,7 @@ func (c *Client) AddBuildsToAppEncryptionDeclaration(ctx context.Context, declar
 		}
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/appEncryptionDeclarations/%s/relationships/builds", declarationID)
-	_, err = c.do(ctx, http.MethodPost, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/appEncryptionDeclarations/%s/relationships/builds", declarationID), payload)
 }
 
 // GetAppEncryptionDeclarationDocument retrieves a document by ID.
@@ -265,22 +207,10 @@ func (c *Client) GetAppEncryptionDeclarationDocument(ctx context.Context, docume
 		return nil, fmt.Errorf("documentID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appEncryptionDeclarationDocuments/%s", documentID)
-	if queryString := buildAppEncryptionDeclarationDocumentFieldsQuery(fields); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEncryptionDeclarationDocumentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appEncryptionDeclarationDocuments/%s", documentID),
+		Query: buildAppEncryptionDeclarationDocumentFieldsQuery(fields),
+	})
 }
 
 // CreateAppEncryptionDeclarationDocument creates a new document upload reservation.
@@ -315,22 +245,7 @@ func (c *Client) CreateAppEncryptionDeclarationDocument(ctx context.Context, dec
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appEncryptionDeclarationDocuments", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEncryptionDeclarationDocumentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appEncryptionDeclarationDocuments", Payload: payload})
 }
 
 // UpdateAppEncryptionDeclarationDocument updates a document by ID.
@@ -350,20 +265,5 @@ func (c *Client) UpdateAppEncryptionDeclarationDocument(ctx context.Context, doc
 		payload.Data.Attributes = &attrs
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/appEncryptionDeclarationDocuments/%s", documentID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEncryptionDeclarationDocumentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appEncryptionDeclarationDocuments/%s", documentID), Payload: payload})
 }

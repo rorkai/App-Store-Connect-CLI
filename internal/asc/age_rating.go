@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 )
 
@@ -98,26 +97,11 @@ type AgeRatingDeclarationUpdateRequest struct {
 
 // GetAgeRatingDeclarationForAppInfo retrieves the age rating declaration for an app info.
 func (c *Client) GetAgeRatingDeclarationForAppInfo(ctx context.Context, appInfoID string, opts ...AgeRatingDeclarationOption) (*AgeRatingDeclarationResponse, error) {
-	query := &ageRatingDeclarationQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/appInfos/%s/ageRatingDeclaration", appInfoID)
-	if queryString := buildAgeRatingDeclarationQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AgeRatingDeclarationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AgeRatingDeclarationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appInfos/%s/ageRatingDeclaration", appInfoID),
+		Query: buildAgeRatingDeclarationQuery(query),
+	})
 }
 
 // GetAgeRatingDeclarationForAppStoreVersion retrieves the age rating declaration for a version.
@@ -143,20 +127,5 @@ func (c *Client) UpdateAgeRatingDeclaration(ctx context.Context, declarationID s
 		},
 	}
 
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/ageRatingDeclarations/%s", declarationID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AgeRatingDeclarationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AgeRatingDeclarationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/ageRatingDeclarations/%s", declarationID), Payload: request})
 }
