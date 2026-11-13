@@ -446,8 +446,12 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader
 
 		if isRetryableHTTPStatus(resp.StatusCode) {
 			retryAfter := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
+			statusErr := buildRetryableError(resp.StatusCode, retryAfter, respBody)
+			if limit, ok := exhaustedHourlyRequestLimit(resp.Header.Get("X-Rate-Limit")); ok && resp.StatusCode == http.StatusTooManyRequests {
+				statusErr.message += fmt.Sprintf(" (hourly request limit of %s is used up; requests free up over the next hour, so wait before retrying)", limit)
+			}
 			return nil, &RetryableError{
-				Err:        buildRetryableError(resp.StatusCode, retryAfter, respBody),
+				Err:        statusErr,
 				RetryAfter: retryAfter,
 			}
 		}
@@ -615,11 +619,30 @@ func shouldLimitMutatingMethod(method string) bool {
 	}
 }
 
-func buildRetryableError(statusCode int, retryAfter time.Duration, respBody []byte) error {
+func buildRetryableError(statusCode int, retryAfter time.Duration, respBody []byte) *retryableStatusError {
 	return buildRetryableErrorWithSource(statusCode, retryAfter, respBody, "App Store Connect")
 }
 
-func buildRetryableErrorWithSource(statusCode int, retryAfter time.Duration, respBody []byte, source string) error {
+// exhaustedHourlyRequestLimit returns the hourly limit from an X-Rate-Limit
+// value such as "user-hour-lim:3500;user-hour-rem:0;" when none remain.
+func exhaustedHourlyRequestLimit(header string) (string, bool) {
+	var limit, remaining string
+	for part := range strings.SplitSeq(header, ";") {
+		key, value, ok := strings.Cut(part, ":")
+		if !ok {
+			continue
+		}
+		switch strings.TrimSpace(key) {
+		case "user-hour-lim":
+			limit = strings.TrimSpace(value)
+		case "user-hour-rem":
+			remaining = strings.TrimSpace(value)
+		}
+	}
+	return limit, limit != "" && remaining == "0"
+}
+
+func buildRetryableErrorWithSource(statusCode int, retryAfter time.Duration, respBody []byte, source string) *retryableStatusError {
 	base := "API request failed"
 	switch statusCode {
 	case http.StatusRequestTimeout:
