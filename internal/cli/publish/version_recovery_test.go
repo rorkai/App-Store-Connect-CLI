@@ -17,9 +17,7 @@ func TestFindOrCreatePublishAppStoreVersionUsesFreshCreateDeadline(t *testing.T)
 	t.Setenv("ASC_TIMEOUT", "500ms")
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
 			deadline, ok := req.Context().Deadline()
@@ -37,7 +35,7 @@ func TestFindOrCreatePublishAppStoreVersionUsesFreshCreateDeadline(t *testing.T)
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 		}
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	result, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
@@ -55,9 +53,7 @@ func TestFindOrCreatePublishAppStoreVersionReadsTwiceBeforeReplay(t *testing.T) 
 	sequence := make([]string, 0, 5)
 	reads := 0
 	creates := 0
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
 			reads++
@@ -73,7 +69,7 @@ func TestFindOrCreatePublishAppStoreVersionReadsTwiceBeforeReplay(t *testing.T) 
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 		}
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	result, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
@@ -92,9 +88,7 @@ func TestFindOrCreatePublishAppStoreVersionReconcilesAmbiguousCreate(t *testing.
 
 	reads := 0
 	creates := 0
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
 			reads++
@@ -112,7 +106,7 @@ func TestFindOrCreatePublishAppStoreVersionReconcilesAmbiguousCreate(t *testing.
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 		}
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	result, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
@@ -123,9 +117,7 @@ func TestFindOrCreatePublishAppStoreVersionReconcilesAmbiguousCreate(t *testing.
 
 func TestFindOrCreatePublishAppStoreVersionReturnsNormalizedExistingMatch(t *testing.T) {
 	requests := 0
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests++
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/appStoreVersions" {
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
@@ -137,7 +129,7 @@ func TestFindOrCreatePublishAppStoreVersionReturnsNormalizedExistingMatch(t *tes
 			t.Fatalf("expected normalized platform filter, got %q", got)
 		}
 		return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-existing","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`)
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	result, err := findOrCreatePublishAppStoreVersion(context.Background(), client, " app-1 ", " 1.2.3 ", asc.Platform(" ios "))
@@ -147,14 +139,12 @@ func TestFindOrCreatePublishAppStoreVersionReturnsNormalizedExistingMatch(t *tes
 }
 
 func TestFindOrCreatePublishAppStoreVersionRejectsMultipleExactMatches(t *testing.T) {
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodGet {
 			return nil, fmt.Errorf("unexpected mutation: %s %s", req.Method, req.URL.RequestURI())
 		}
 		return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1"},{"type":"appStoreVersions","id":"version-2"}]}`)
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	_, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
@@ -165,15 +155,13 @@ func TestFindOrCreatePublishAppStoreVersionRejectsMultipleExactMatches(t *testin
 
 func TestFindOrCreatePublishAppStoreVersionRejectsSingleIncompleteMatch(t *testing.T) {
 	requests := 0
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests++
 		if req.Method != http.MethodGet {
 			return nil, fmt.Errorf("unexpected mutation: %s %s", req.Method, req.URL.RequestURI())
 		}
 		return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=next"}}`)
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	_, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
@@ -188,9 +176,7 @@ func TestFindOrCreatePublishAppStoreVersionRejectsSingleIncompleteMatch(t *testi
 func TestFindOrCreatePublishAppStoreVersionPreservesNonTransientCreateError(t *testing.T) {
 	reads := 0
 	creates := 0
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.Method {
 		case http.MethodGet:
 			reads++
@@ -201,7 +187,7 @@ func TestFindOrCreatePublishAppStoreVersionPreservesNonTransientCreateError(t *t
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 		}
-	})
+	}))
 	client := newPublishCommandTestClient(t)
 
 	_, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)

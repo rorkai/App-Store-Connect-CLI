@@ -26,10 +26,8 @@ func TestUploadPKGBuildAndWaitForIDUsesPKGUTI(t *testing.T) {
 		t.Fatalf("stat PKG: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	requestCount := 0
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requestCount++
 		switch requestCount {
 		case 1:
@@ -47,7 +45,7 @@ func TestUploadPKGBuildAndWaitForIDUsesPKGUTI(t *testing.T) {
 			t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			return nil, nil
 		}
-	})
+	}))
 
 	_, err = uploadPKGBuildAndWaitForID(context.Background(), newPublishCommandTestClient(t), "app-1", path, fileInfo, "1.2.3", "42", asc.PlatformMacOS, time.Second, time.Second, true)
 	if err == nil || !strings.Contains(err.Error(), "no upload operations returned") {
