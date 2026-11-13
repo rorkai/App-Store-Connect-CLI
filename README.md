@@ -524,7 +524,6 @@ Reference hierarchy:
 - [docs/CI_CD.md](docs/CI_CD.md) - CI/CD integration guides (GitHub Actions, GitLab, Bitrise, CircleCI)
 - [commands/signing.mdx](website/src/content/docs/commands/signing.mdx) - signing identities, encrypted sync, CI, and release-testing profiles
 - [docs/COMMANDS.md](docs/COMMANDS.md) - Command families and reference navigation
-- [docs/PARITY.md](docs/PARITY.md) - Remaining parity areas and intentional non-goals
 - [docs/WORKFLOWS.md](docs/WORKFLOWS.md) - Reusable workflow patterns, including local Xcode to TestFlight
 - [docs/linux-ios.md](docs/linux-ios.md) - Portable Linux iOS builds and IPA packaging with xtool and rcodesign
 - [guides/apple-ads-playbooks.mdx](website/src/content/docs/guides/apple-ads-playbooks.mdx) - Apple Ads operator playbooks

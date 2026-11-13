@@ -106,7 +106,3 @@ done
 - No duplicate "Subcommands:" sections (don't list subcommands in LongHelp; DefaultUsageFunc handles it)
 - All flags have descriptions
 - Examples are up to date
-
-## Parity map
-
-Remaining fastlane/ASC parity areas and the intentional non-goal list live in [PARITY.md](PARITY.md).
