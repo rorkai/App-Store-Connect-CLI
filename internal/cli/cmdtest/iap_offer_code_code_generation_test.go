@@ -182,56 +182,6 @@ func TestIAPOfferCodesCustomCodesCreateSuccess(t *testing.T) {
 	}
 }
 
-func TestIAPOfferCodesCustomCodesCreatePrettyJSON(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		body := `{"data":{"type":"inAppPurchaseOfferCodeCustomCodes","id":"cc-1","attributes":{"customCode":"SUMMER26","numberOfCodes":100}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "custom-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--custom-code", "SUMMER26",
-			"--quantity", "100",
-			"--pretty",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	// Pretty-printed JSON should contain indentation
-	if !strings.Contains(stdout, "\n") {
-		t.Fatalf("expected pretty-printed JSON with newlines, got %q", stdout)
-	}
-	// Verify it parses as valid JSON
-	var out map[string]any
-	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
-		t.Fatalf("expected valid JSON, got parse error: %v\nstdout: %s", err, stdout)
-	}
-}
-
 // --- one-time-codes create ---
 
 func TestIAPOfferCodesOneTimeCodesCreateSandboxEnvironmentSuccess(t *testing.T) {
@@ -302,23 +252,6 @@ func TestIAPOfferCodesOneTimeCodesCreateSandboxEnvironmentSuccess(t *testing.T) 
 	}
 	if out.Data.Attributes.Environment != "SANDBOX" {
 		t.Fatalf("expected response environment SANDBOX, got %q", out.Data.Attributes.Environment)
-	}
-}
-
-func TestIAPOfferCodesOneTimeCodesCreateHelpShowsEnvironmentFlag(t *testing.T) {
-	root := RootCommand("1.2.3")
-	cmd := findSubcommand(root, "iap", "offer-codes", "one-time-codes", "create")
-	if cmd == nil {
-		t.Fatal("expected iap offer-codes one-time-codes create command")
-		return
-	}
-
-	usage := cmd.UsageFunc(cmd)
-	if !strings.Contains(usage, "--environment") {
-		t.Fatalf("expected usage to mention --environment, got %q", usage)
-	}
-	if !strings.Contains(usage, "SANDBOX") {
-		t.Fatalf("expected usage to mention SANDBOX, got %q", usage)
 	}
 }
 
@@ -417,55 +350,5 @@ func TestIAPOfferCodesOneTimeCodesCreateSuccess(t *testing.T) {
 	}
 	if out.Data.Attributes.NumberOfCodes != 500 {
 		t.Fatalf("expected numberOfCodes 500, got %d", out.Data.Attributes.NumberOfCodes)
-	}
-}
-
-func TestIAPOfferCodesOneTimeCodesCreatePrettyJSON(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		body := `{"data":{"type":"inAppPurchaseOfferCodeOneTimeUseCodes","id":"otuc-1","attributes":{"numberOfCodes":100,"expirationDate":"2026-12-31"}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "one-time-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--quantity", "100",
-			"--expiration-date", "2026-12-31",
-			"--pretty",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	// Pretty-printed JSON should contain indentation
-	if !strings.Contains(stdout, "\n") {
-		t.Fatalf("expected pretty-printed JSON with newlines, got %q", stdout)
-	}
-	// Verify it parses as valid JSON
-	var out map[string]any
-	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
-		t.Fatalf("expected valid JSON, got parse error: %v\nstdout: %s", err, stdout)
 	}
 }

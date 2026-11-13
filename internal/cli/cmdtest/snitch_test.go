@@ -340,35 +340,6 @@ func TestSnitchPreviewWithoutConfirmNoToken(t *testing.T) {
 	}
 }
 
-func TestSnitchLocalLog(t *testing.T) {
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	defer func() {
-		if err := os.Chdir(origDir); err != nil {
-			t.Fatalf("os.Chdir restore error: %v", err)
-		}
-	}()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("os.Chdir temp dir error: %v", err)
-	}
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"snitch", "--local", "local test entry"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "Friction logged") {
-		t.Fatalf("expected friction logged message, got %q", stderr)
-	}
-}
-
 func TestSnitchDryRunLocalDoesNotWriteLog(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("GH_TOKEN", "")
@@ -507,7 +478,7 @@ func TestSnitchFlushFormatsEntries(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	_, _ = captureOutput(t, func() {
+	_, logStderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"snitch", "--local", "--repro", `asc status --app "com.example.app"`, "status command needs bundle ID support"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -515,6 +486,9 @@ func TestSnitchFlushFormatsEntries(t *testing.T) {
 			t.Fatalf("run error: %v", err)
 		}
 	})
+	if !strings.Contains(logStderr, "Friction logged") {
+		t.Fatalf("expected friction logged message, got %q", logStderr)
+	}
 
 	flushRoot := RootCommand("1.2.3")
 	flushRoot.FlagSet.SetOutput(io.Discard)
