@@ -54,32 +54,13 @@ func (c *Client) getInAppPurchasesV2(ctx context.Context, appID string, strict b
 
 // GetInAppPurchases retrieves the legacy list of in-app purchases for an app.
 func (c *Client) GetInAppPurchases(ctx context.Context, appID string, opts ...IAPOption) (*InAppPurchasesResponse, error) {
-	query := &inAppPurchasesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/inAppPurchases", strings.TrimSpace(appID))
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchases: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildInAppPurchasesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchasesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[InAppPurchasesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/inAppPurchases", strings.TrimSpace(appID)),
+		Query:       buildInAppPurchasesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchases",
+	})
 }
 
 // GetInAppPurchaseV2 retrieves an in-app purchase by ID.
@@ -89,41 +70,13 @@ func (c *Client) GetInAppPurchaseV2(ctx context.Context, iapID string, opts ...I
 		return nil, fmt.Errorf("iapID is required")
 	}
 
-	query := &inAppPurchaseGetQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v2/inAppPurchases/%s", iapID)
-	if queryString := buildInAppPurchaseGetQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s", iapID), Query: buildInAppPurchaseGetQuery(query)})
 }
 
 // GetInAppPurchase retrieves a legacy in-app purchase by ID.
 func (c *Client) GetInAppPurchase(ctx context.Context, iapID string) (*InAppPurchaseResponse, error) {
-	path := fmt.Sprintf("/v1/inAppPurchases/%s", strings.TrimSpace(iapID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchases/%s", strings.TrimSpace(iapID))})
 }
 
 // CreateInAppPurchaseV2 creates a new in-app purchase.
@@ -143,22 +96,7 @@ func (c *Client) CreateInAppPurchaseV2(ctx context.Context, appID string, attrs 
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v2/inAppPurchases", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseV2Response](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/inAppPurchases", Payload: payload})
 }
 
 // UpdateInAppPurchaseV2 updates an existing in-app purchase.
@@ -171,60 +109,23 @@ func (c *Client) UpdateInAppPurchaseV2(ctx context.Context, iapID string, attrs 
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v2/inAppPurchases/%s", strings.TrimSpace(iapID))
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/inAppPurchases/%s", strings.TrimSpace(iapID)), Payload: payload})
 }
 
 // DeleteInAppPurchaseV2 deletes an in-app purchase.
 func (c *Client) DeleteInAppPurchaseV2(ctx context.Context, iapID string) error {
-	path := fmt.Sprintf("/v2/inAppPurchases/%s", strings.TrimSpace(iapID))
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/inAppPurchases/%s", strings.TrimSpace(iapID)), nil)
 }
 
 // GetInAppPurchaseLocalizations fetches localizations for an IAP.
 //
 // Deprecated: Use GetInAppPurchaseVersionLocalizations with an in-app purchase version ID.
 func (c *Client) GetInAppPurchaseLocalizations(ctx context.Context, iapID string, opts ...IAPLocalizationsOption) (*InAppPurchaseLocalizationsResponse, error) {
-	query := &iapLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v2/inAppPurchases/%s/inAppPurchaseLocalizations", strings.TrimSpace(iapID))
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchase-localizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildIAPLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v2/inAppPurchases/%s/inAppPurchaseLocalizations", strings.TrimSpace(iapID)),
+		Query:       buildIAPLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-localizations",
+	})
 }
