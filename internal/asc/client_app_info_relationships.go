@@ -2,9 +2,7 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -57,18 +55,10 @@ func (c *Client) GetAppInfoAgeRatingDeclarationRelationship(ctx context.Context,
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/relationships/ageRatingDeclaration", appInfoID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoAgeRatingDeclarationLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse ageRatingDeclaration relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppInfoAgeRatingDeclarationLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appInfos/%s/relationships/ageRatingDeclaration", appInfoID),
+		ParseErr: "failed to parse ageRatingDeclaration relationship response",
+	})
 }
 
 // GetAppInfoPrimaryCategoryRelationship retrieves the primary category linkage for an app info.
@@ -78,18 +68,10 @@ func (c *Client) GetAppInfoPrimaryCategoryRelationship(ctx context.Context, appI
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/relationships/primaryCategory", appInfoID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoPrimaryCategoryLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse primaryCategory relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppInfoPrimaryCategoryLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appInfos/%s/relationships/primaryCategory", appInfoID),
+		ParseErr: "failed to parse primaryCategory relationship response",
+	})
 }
 
 // GetAppInfoPrimarySubcategoryOneRelationship retrieves the primary subcategory one linkage.
@@ -99,18 +81,10 @@ func (c *Client) GetAppInfoPrimarySubcategoryOneRelationship(ctx context.Context
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/relationships/primarySubcategoryOne", appInfoID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoPrimarySubcategoryOneLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse primarySubcategoryOne relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppInfoPrimarySubcategoryOneLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appInfos/%s/relationships/primarySubcategoryOne", appInfoID),
+		ParseErr: "failed to parse primarySubcategoryOne relationship response",
+	})
 }
 
 // GetAppInfoPrimarySubcategoryTwoRelationship retrieves the primary subcategory two linkage.
@@ -120,18 +94,10 @@ func (c *Client) GetAppInfoPrimarySubcategoryTwoRelationship(ctx context.Context
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/relationships/primarySubcategoryTwo", appInfoID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoPrimarySubcategoryTwoLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse primarySubcategoryTwo relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppInfoPrimarySubcategoryTwoLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appInfos/%s/relationships/primarySubcategoryTwo", appInfoID),
+		ParseErr: "failed to parse primarySubcategoryTwo relationship response",
+	})
 }
 
 // GetAppInfoSecondaryCategoryRelationship retrieves the secondary category linkage.
@@ -141,18 +107,10 @@ func (c *Client) GetAppInfoSecondaryCategoryRelationship(ctx context.Context, ap
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/relationships/secondaryCategory", appInfoID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoSecondaryCategoryLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse secondaryCategory relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppInfoSecondaryCategoryLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appInfos/%s/relationships/secondaryCategory", appInfoID),
+		ParseErr: "failed to parse secondaryCategory relationship response",
+	})
 }
 
 // GetAppInfoSecondarySubcategoryOneRelationship retrieves the secondary subcategory one linkage.
@@ -162,18 +120,10 @@ func (c *Client) GetAppInfoSecondarySubcategoryOneRelationship(ctx context.Conte
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/relationships/secondarySubcategoryOne", appInfoID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoSecondarySubcategoryOneLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse secondarySubcategoryOne relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppInfoSecondarySubcategoryOneLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appInfos/%s/relationships/secondarySubcategoryOne", appInfoID),
+		ParseErr: "failed to parse secondarySubcategoryOne relationship response",
+	})
 }
 
 // GetAppInfoSecondarySubcategoryTwoRelationship retrieves the secondary subcategory two linkage.
@@ -183,16 +133,8 @@ func (c *Client) GetAppInfoSecondarySubcategoryTwoRelationship(ctx context.Conte
 		return nil, fmt.Errorf("appInfoID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appInfos/%s/relationships/secondarySubcategoryTwo", appInfoID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoSecondarySubcategoryTwoLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse secondarySubcategoryTwo relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppInfoSecondarySubcategoryTwoLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appInfos/%s/relationships/secondarySubcategoryTwo", appInfoID),
+		ParseErr: "failed to parse secondarySubcategoryTwo relationship response",
+	})
 }
