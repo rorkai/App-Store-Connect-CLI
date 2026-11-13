@@ -334,15 +334,15 @@ func resolveLatestBuildSelection(ctx context.Context, client *asc.Client, opts L
 func noPreReleaseVersionFound(appID, version, platform string) error {
 	version = strings.TrimSpace(version)
 	platform = strings.TrimSpace(platform)
-	nextSteps := BuildLookupNextSteps(appID, version, "", platform)
+	waitHint := BuildsWaitHint(appID, version, "", platform)
 	var message string
 	switch {
 	case version != "" && platform != "":
-		message = fmt.Sprintf("no pre-release version found for version %q on platform %s for app %s; %s; otherwise check --version and --platform", version, platform, appID, nextSteps)
+		message = fmt.Sprintf("no pre-release version found for version %q on platform %s; check --version and --platform; %s", version, platform, waitHint)
 	case version != "":
-		message = fmt.Sprintf("no pre-release version found for version %q for app %s; %s; otherwise check --version", version, appID, nextSteps)
+		message = fmt.Sprintf("no pre-release version found for version %q; check --version; %s", version, waitHint)
 	default:
-		message = fmt.Sprintf("no pre-release version found for platform %s for app %s; %s; otherwise check --platform", platform, appID, nextSteps)
+		message = fmt.Sprintf("no pre-release version found for platform %s; check --platform; %s", platform, waitHint)
 	}
 	return NewErrorWithCause(errors.New(message), asc.ErrNotFound)
 }
@@ -351,30 +351,29 @@ func noPreReleaseVersionFound(appID, version, platform string) error {
 // filters. The error carries asc.ErrNotFound so the CLI exits with the
 // not-found code instead of a generic failure.
 func noLatestBuildFound(appID string, opts LatestBuildSelectionOptions) error {
-	nextSteps := BuildLookupNextSteps(appID, opts.Version, "", opts.Platform)
+	waitHint := BuildsWaitHint(appID, opts.Version, "", opts.Platform)
 	filters := describeLatestBuildSelectionFilters(opts)
 	if len(filters) == 0 {
 		return NewErrorWithCause(
-			fmt.Errorf("no builds found for app %s; %s; otherwise check --app", appID, nextSteps),
+			fmt.Errorf("no builds found for app %s; check --app; %s", appID, waitHint),
 			asc.ErrNotFound,
 		)
 	}
 	return NewErrorWithCause(
 		fmt.Errorf(
-			"no builds found for app %s matching %s; %s; otherwise adjust the filters, or use --build-id",
+			"no builds found for app %s matching %s; adjust the filters, or use --build-id; %s",
 			appID,
 			strings.Join(filters, " and "),
-			nextSteps,
+			waitHint,
 		),
 		asc.ErrNotFound,
 	)
 }
 
-// BuildLookupNextSteps names the commands that tell a build that is not
-// visible yet apart from a selector that matches nothing: builds wait with the
-// same selectors, and builds list for the builds the app has. An empty
-// buildNumber selects the latest build.
-func BuildLookupNextSteps(appID, version, buildNumber, platform string) string {
+// BuildsWaitHint names the builds wait command with the caller's
+// selectors, for a build that was just uploaded and is not visible yet. An
+// empty buildNumber selects the latest build.
+func BuildsWaitHint(appID, version, buildNumber, platform string) string {
 	waitArgs := []string{"builds", "wait", "--app", appID}
 	if buildNumber = strings.TrimSpace(buildNumber); buildNumber != "" {
 		waitArgs = append(waitArgs, "--build-number", buildNumber)
@@ -384,18 +383,15 @@ func BuildLookupNextSteps(appID, version, buildNumber, platform string) string {
 	if version = strings.TrimSpace(version); version != "" {
 		waitArgs = append(waitArgs, "--version", version)
 	}
-	listArgs := []string{"builds", "list", "--app", appID}
 	if platform = strings.TrimSpace(platform); platform != "" {
 		waitArgs = append(waitArgs, "--platform", platform)
-		listArgs = append(listArgs, "--platform", platform)
 	}
 
-	waitCommand, waitOK := renderASCCommand(waitArgs)
-	listCommand, listOK := renderASCCommand(listArgs)
-	if !waitOK || !listOK {
-		return "a new upload may still be processing: check with `asc builds wait` or `asc builds list`"
+	waitCommand, ok := renderASCCommand(waitArgs)
+	if !ok {
+		return "a just-uploaded build may still be processing; wait for it with `asc builds wait`"
 	}
-	return fmt.Sprintf("a new upload may still be processing: wait for it with `%s`, or see the app's builds with `%s`", waitCommand, listCommand)
+	return fmt.Sprintf("a just-uploaded build may still be processing; wait for it with `%s`", waitCommand)
 }
 
 func renderASCCommand(args []string) (string, bool) {
