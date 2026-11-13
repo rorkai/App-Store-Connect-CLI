@@ -57,12 +57,12 @@ func resolveBetaGroupIDs(ctx context.Context, client *asc.Client, appID, rawGrou
 		return nil, fmt.Errorf("beta group name is required")
 	}
 
-	groups, err := client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsLimit(200))
+	groups, err := client.GetBetaGroups(ctx, appID, asc.Limit[asc.BetaGroupsOption](200))
 	if err != nil {
 		return nil, err
 	}
 	for groups.Links.Next != "" {
-		page, err := client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsNextURL(groups.Links.Next))
+		page, err := client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](groups.Links.Next))
 		if err != nil {
 			return nil, err
 		}

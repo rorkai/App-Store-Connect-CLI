@@ -136,15 +136,15 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaTesterUsagesOption{
-				asc.WithBetaTesterUsagesLimit(*limit),
-				asc.WithBetaTesterUsagesNextURL(*next),
+				asc.Limit[asc.BetaTesterUsagesOption](*limit),
+				asc.NextURL[asc.BetaTesterUsagesOption](*next),
 				asc.WithBetaTesterUsagesPeriod(periodValue),
 				asc.WithBetaTesterUsagesGroupBy(normalizeBetaTesterUsageGroupBy(*groupBy)),
 				asc.WithBetaTesterUsagesFilterBetaTesters(*filterTester),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaTesterUsagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaTesterUsagesOption](200))
 				firstPage, err := client.GetAppBetaTesterUsagesMetrics(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("testflight metrics beta-tester-usages: failed to fetch: %w", err)
@@ -233,7 +233,7 @@ func paginateBetaTesterUsages(ctx context.Context, client *asc.Client, appID str
 		seenNext[next] = struct{}{}
 		pageNumber++
 
-		nextPage, err := client.GetAppBetaTesterUsagesMetrics(ctx, appID, asc.WithBetaTesterUsagesNextURL(next))
+		nextPage, err := client.GetAppBetaTesterUsagesMetrics(ctx, appID, asc.NextURL[asc.BetaTesterUsagesOption](next))
 		if err != nil {
 			return combined, fmt.Errorf("page %d: %w", pageNumber, err)
 		}
@@ -412,7 +412,7 @@ func fetchBetaTestersByIDs(ctx context.Context, client *asc.Client, ids []string
 	firstPage, err := func() (*asc.BetaTestersResponse, error) {
 		requestCtx, cancel := shared.ContextWithTimeout(ctx)
 		defer cancel()
-		return client.GetBetaTesters(requestCtx, "", asc.WithBetaTestersIDs(ids), asc.WithBetaTestersLimit(200))
+		return client.GetBetaTesters(requestCtx, "", asc.WithBetaTestersIDs(ids), asc.Limit[asc.BetaTestersOption](200))
 	}()
 	if err != nil {
 		return nil, err
@@ -421,7 +421,7 @@ func fetchBetaTestersByIDs(ctx context.Context, client *asc.Client, ids []string
 	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := shared.ContextWithTimeout(ctx)
 		defer cancel()
-		return client.GetBetaTesters(requestCtx, "", asc.WithBetaTestersNextURL(nextURL))
+		return client.GetBetaTesters(requestCtx, "", asc.NextURL[asc.BetaTestersOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

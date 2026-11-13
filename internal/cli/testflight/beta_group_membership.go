@@ -128,7 +128,7 @@ func betaGroupMembersMatching(
 	options := []asc.BetaTestersOption{
 		asc.WithBetaTestersGroupIDs([]string{groupID}),
 		asc.WithBetaTestersIDs(testerIDs),
-		asc.WithBetaTestersLimit(200),
+		asc.Limit[asc.BetaTestersOption](200),
 	}
 
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -141,7 +141,7 @@ func betaGroupMembersMatching(
 	all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := shared.ContextWithTimeout(ctx)
 		defer cancel()
-		return client.GetBetaTesters(requestCtx, "", asc.WithBetaTestersNextURL(nextURL))
+		return client.GetBetaTesters(requestCtx, "", asc.NextURL[asc.BetaTestersOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

@@ -203,8 +203,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaTestersOption{
-				asc.WithBetaTestersLimit(*limit),
-				asc.WithBetaTestersNextURL(*next),
+				asc.Limit[asc.BetaTestersOption](*limit),
+				asc.NextURL[asc.BetaTestersOption](*next),
 			}
 
 			if strings.TrimSpace(*buildID) != "" {
@@ -259,14 +259,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaTestersLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaTestersOption](200))
 				testers, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBetaTesters(ctx, resolvedAppID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBetaTesters(ctx, resolvedAppID, asc.WithBetaTestersNextURL(nextURL))
+						return client.GetBetaTesters(ctx, resolvedAppID, asc.NextURL[asc.BetaTestersOption](nextURL))
 					},
 				)
 				if err != nil {

@@ -240,7 +240,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaGroups",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/123/betaGroups?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaGroups(ctx, "123", WithBetaGroupsLimit(5), WithBetaGroupsNextURL(next))
+				_, err := c.GetBetaGroups(ctx, "123", Limit[BetaGroupsOption](5), NextURL[BetaGroupsOption](next))
 				return err
 			},
 		},
@@ -248,7 +248,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaGroupBuilds",
 			next: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/builds?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaGroupBuilds(ctx, "group-1", WithBetaGroupBuildsNextURL(next))
+				_, err := c.GetBetaGroupBuilds(ctx, "group-1", NextURL[BetaGroupBuildsOption](next))
 				return err
 			},
 		},
@@ -256,7 +256,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaGroupTesters",
 			next: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/betaTesters?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaGroupTesters(ctx, "group-1", WithBetaGroupTestersNextURL(next))
+				_, err := c.GetBetaGroupTesters(ctx, "group-1", NextURL[BetaGroupTestersOption](next))
 				return err
 			},
 		},
@@ -264,7 +264,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaTesters",
 			next: "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaTesters(ctx, "123", WithBetaTestersLimit(5), WithBetaTestersNextURL(next))
+				_, err := c.GetBetaTesters(ctx, "123", Limit[BetaTestersOption](5), NextURL[BetaTestersOption](next))
 				return err
 			},
 		},
@@ -352,7 +352,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaAppReviewDetails",
 			next: "https://api.appstoreconnect.apple.com/v1/betaAppReviewDetails?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaAppReviewDetails(ctx, "app-1", WithBetaAppReviewDetailsNextURL(next))
+				_, err := c.GetBetaAppReviewDetails(ctx, "app-1", NextURL[BetaAppReviewDetailsOption](next))
 				return err
 			},
 		},
@@ -376,7 +376,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "ListBetaGroups",
 			next: "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.ListBetaGroups(ctx, WithBetaGroupsNextURL(next))
+				_, err := c.ListBetaGroups(ctx, NextURL[BetaGroupsOption](next))
 				return err
 			},
 		},
@@ -384,7 +384,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "ListBetaBuildLocalizations",
 			next: "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations?cursor=xyz",
 			call: func(c *Client, next string) error {
-				_, err := c.ListBetaBuildLocalizations(ctx, WithBetaBuildLocalizationsNextURL(next))
+				_, err := c.ListBetaBuildLocalizations(ctx, NextURL[BetaBuildLocalizationsOption](next))
 				return err
 			},
 		},
@@ -605,7 +605,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/apps/123/betaGroups",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"betaGroups","id":"1","attributes":{"name":"Beta"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetBetaGroups(ctx, "123", WithBetaGroupsLimit(10))) },
+			call:  func(c *Client) error { return discardResult(c.GetBetaGroups(ctx, "123", Limit[BetaGroupsOption](10))) },
 		},
 		{
 			name:  "GetBetaGroupBuilds_WithLimit",
@@ -613,7 +613,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "50"},
 			body:  `{"data":[{"type":"builds","id":"build-1","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBetaGroupBuilds(ctx, "group-1", WithBetaGroupBuildsLimit(50)))
+				return discardResult(c.GetBetaGroupBuilds(ctx, "group-1", Limit[BetaGroupBuildsOption](50)))
 			},
 		},
 		{
@@ -622,7 +622,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBetaGroupTesters(ctx, "group-1", WithBetaGroupTestersLimit(20)))
+				return discardResult(c.GetBetaGroupTesters(ctx, "group-1", Limit[BetaGroupTestersOption](20)))
 			},
 		},
 		{
@@ -640,7 +640,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"123",
 					WithBetaTestersEmail("tester@example.com"),
-					WithBetaTestersLimit(5),
+					Limit[BetaTestersOption](5),
 				))
 			},
 		},
@@ -707,7 +707,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"build-1",
 					WithBetaBuildLocalizationLocales([]string{"en-US"}),
-					WithBetaBuildLocalizationsLimit(5),
+					Limit[BetaBuildLocalizationsOption](5),
 				))
 			},
 		},
@@ -721,7 +721,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					WithBetaAppLocalizationAppIDs([]string{"app-1"}),
 					WithBetaAppLocalizationLocales([]string{"en-US"}),
-					WithBetaAppLocalizationsLimit(5),
+					Limit[BetaAppLocalizationsOption](5),
 				))
 			},
 		},
@@ -1233,7 +1233,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"filter[app]": "app-1", "limit": "10"},
 			body:  `{"data":[{"type":"betaAppReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBetaAppReviewDetails(ctx, "app-1", WithBetaAppReviewDetailsLimit(10)))
+				return discardResult(c.GetBetaAppReviewDetails(ctx, "app-1", Limit[BetaAppReviewDetailsOption](10)))
 			},
 		},
 		{
@@ -1242,7 +1242,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"betaRecruitmentCriterionOptions","id":"opt-1","attributes":{"identifier":"OPTION_1","name":"Option 1"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBetaRecruitmentCriterionOptions(ctx, WithBetaRecruitmentCriterionOptionsLimit(5)))
+				return discardResult(c.GetBetaRecruitmentCriterionOptions(ctx, Limit[BetaRecruitmentCriterionOptionsOption](5)))
 			},
 		},
 		{
@@ -1400,7 +1400,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					"build-1",
 					WithDiagnosticSignaturesDiagnosticTypes([]string{"HANGS"}),
 					WithDiagnosticSignaturesFields([]string{"diagnosticType", "signature"}),
-					WithDiagnosticSignaturesLimit(50),
+					Limit[DiagnosticSignaturesOption](50),
 				))
 			},
 		},
@@ -4978,7 +4978,7 @@ func TestGetFeedback_BuildsQuery(t *testing.T) {
 		WithFeedbackBuildIDs([]string{"build-1"}),
 		WithFeedbackBuildPreReleaseVersionIDs([]string{"pre-1"}),
 		WithFeedbackTesterIDs([]string{"tester-1"}),
-		WithFeedbackLimit(10),
+		Limit[FeedbackOption](10),
 		WithFeedbackSort("-createdDate"),
 	}
 
@@ -5088,7 +5088,7 @@ func TestGetCrashes_BuildsQuery(t *testing.T) {
 		WithCrashBuildIDs([]string{"build-2"}),
 		WithCrashBuildPreReleaseVersionIDs([]string{"pre-2"}),
 		WithCrashTesterIDs([]string{"tester-2"}),
-		WithCrashLimit(5),
+		Limit[CrashOption](5),
 		WithCrashSort("createdDate"),
 	}
 
@@ -5462,7 +5462,7 @@ func TestGetBuildBetaUsagesMetrics_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	resp, err := client.GetBuildBetaUsagesMetrics(context.Background(), "build-1", WithBetaBuildUsagesLimit(7))
+	resp, err := client.GetBuildBetaUsagesMetrics(context.Background(), "build-1", Limit[BetaBuildUsagesOption](7))
 	if err != nil {
 		t.Fatalf("GetBuildBetaUsagesMetrics() error: %v", err)
 	}
@@ -5497,7 +5497,7 @@ func TestGetBetaTesterUsagesMetrics_WithFilters(t *testing.T) {
 		context.Background(), "tester-1",
 		WithBetaTesterUsagesPeriod("P30D"),
 		WithBetaTesterUsagesAppID("app-1"),
-		WithBetaTesterUsagesLimit(20),
+		Limit[BetaTesterUsagesOption](20),
 	)
 	if err != nil {
 		t.Fatalf("GetBetaTesterUsagesMetrics() error: %v", err)
@@ -5532,7 +5532,7 @@ func TestGetAppBetaTesterUsagesMetrics_WithPeriodAndLimit(t *testing.T) {
 	resp, err := client.GetAppBetaTesterUsagesMetrics(
 		context.Background(), "app-1",
 		WithBetaTesterUsagesPeriod("P90D"),
-		WithBetaTesterUsagesLimit(12),
+		Limit[BetaTesterUsagesOption](12),
 	)
 	if err != nil {
 		t.Fatalf("GetAppBetaTesterUsagesMetrics() error: %v", err)
@@ -10063,7 +10063,7 @@ func TestGetDiagnosticSignatureLogs(t *testing.T) {
 		}
 	}, response)
 
-	_, err := client.GetDiagnosticSignatureLogs(context.Background(), "diag-1", WithDiagnosticLogsLimit(20))
+	_, err := client.GetDiagnosticSignatureLogs(context.Background(), "diag-1", Limit[DiagnosticLogsOption](20))
 	if err != nil {
 		t.Fatalf("GetDiagnosticSignatureLogs() error: %v", err)
 	}
@@ -10415,7 +10415,7 @@ func TestListBetaGroupsGlobal_UsesV1BetaGroupsPath(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	resp, err := client.ListBetaGroups(context.Background(), WithBetaGroupsLimit(50))
+	resp, err := client.ListBetaGroups(context.Background(), Limit[BetaGroupsOption](50))
 	if err != nil {
 		t.Fatalf("ListBetaGroups() error: %v", err)
 	}
@@ -10443,7 +10443,7 @@ func TestListBetaBuildLocalizationsGlobal_UsesV1BetaBuildLocalizationsPath(t *te
 		assertAuthorized(t, req)
 	}, response)
 
-	resp, err := client.ListBetaBuildLocalizations(context.Background(), WithBetaBuildLocalizationsLimit(25))
+	resp, err := client.ListBetaBuildLocalizations(context.Background(), Limit[BetaBuildLocalizationsOption](25))
 	if err != nil {
 		t.Fatalf("ListBetaBuildLocalizations() error: %v", err)
 	}

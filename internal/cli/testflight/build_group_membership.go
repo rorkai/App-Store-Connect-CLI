@@ -43,7 +43,7 @@ func lookupBuildGroupMembership(
 	appOptions := []asc.BetaGroupsOption{
 		asc.WithBetaGroupsApps([]string{appID}),
 		asc.WithBetaGroupsFields(buildGroupSparseFields),
-		asc.WithBetaGroupsLimit(200),
+		asc.Limit[asc.BetaGroupsOption](200),
 	}
 	if internalFilter != nil {
 		appOptions = append(appOptions, asc.WithBetaGroupsIsInternal(*internalFilter))
@@ -59,7 +59,7 @@ func lookupBuildGroupMembership(
 		client,
 		asc.WithBetaGroupsBuilds([]string{buildID}),
 		asc.WithBetaGroupsFields(buildGroupSparseFields),
-		asc.WithBetaGroupsLimit(200),
+		asc.Limit[asc.BetaGroupsOption](200),
 	)
 	if filterErr == nil {
 		explicitIDs := make(map[string]struct{}, len(explicitGroups.Data))
@@ -111,7 +111,7 @@ func listAllBetaGroups(ctx context.Context, client *asc.Client, opts ...asc.Beta
 		return nil, err
 	}
 	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.ListBetaGroups(ctx, asc.WithBetaGroupsNextURL(nextURL))
+		return client.ListBetaGroups(ctx, asc.NextURL[asc.BetaGroupsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

@@ -292,7 +292,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		feedback, err := client.GetFeedback(ctx, appID, WithFeedbackLimit(1))
+		feedback, err := client.GetFeedback(ctx, appID, Limit[FeedbackOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch feedback: %v", err)
 		}
@@ -308,7 +308,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		if feedback.Links.Next != "" {
 			nextCtx, nextCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer nextCancel()
-			nextFeedback, err := client.GetFeedback(nextCtx, appID, WithFeedbackNextURL(feedback.Links.Next))
+			nextFeedback, err := client.GetFeedback(nextCtx, appID, NextURL[FeedbackOption](feedback.Links.Next))
 			if err != nil {
 				t.Fatalf("failed to fetch feedback next page: %v", err)
 			}
@@ -331,7 +331,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithFeedbackDeviceModels([]string{first.DeviceModel}),
-				WithFeedbackLimit(5),
+				Limit[FeedbackOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered feedback by device model: %v", err)
@@ -354,7 +354,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithFeedbackOSVersions([]string{first.OSVersion}),
-				WithFeedbackLimit(5),
+				Limit[FeedbackOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered feedback by os version: %v", err)
@@ -377,7 +377,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithFeedbackAppPlatforms([]string{first.AppPlatform}),
-				WithFeedbackLimit(5),
+				Limit[FeedbackOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered feedback by app platform: %v", err)
@@ -400,7 +400,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithFeedbackDevicePlatforms([]string{first.DevicePlatform}),
-				WithFeedbackLimit(5),
+				Limit[FeedbackOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered feedback by device platform: %v", err)
@@ -422,7 +422,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			sortedCtx,
 			appID,
 			WithFeedbackSort("-createdDate"),
-			WithFeedbackLimit(5),
+			Limit[FeedbackOption](5),
 		)
 		if err != nil {
 			t.Fatalf("failed to fetch sorted feedback: %v", err)
@@ -445,7 +445,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		crashes, err := client.GetCrashes(ctx, appID, WithCrashLimit(1))
+		crashes, err := client.GetCrashes(ctx, appID, Limit[CrashOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch crashes: %v", err)
 		}
@@ -461,7 +461,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		if crashes.Links.Next != "" {
 			nextCtx, nextCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer nextCancel()
-			nextCrashes, err := client.GetCrashes(nextCtx, appID, WithCrashNextURL(crashes.Links.Next))
+			nextCrashes, err := client.GetCrashes(nextCtx, appID, NextURL[CrashOption](crashes.Links.Next))
 			if err != nil {
 				t.Fatalf("failed to fetch crashes next page: %v", err)
 			}
@@ -484,7 +484,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithCrashDeviceModels([]string{first.DeviceModel}),
-				WithCrashLimit(5),
+				Limit[CrashOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered crashes by device model: %v", err)
@@ -507,7 +507,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithCrashOSVersions([]string{first.OSVersion}),
-				WithCrashLimit(5),
+				Limit[CrashOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered crashes by os version: %v", err)
@@ -530,7 +530,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithCrashAppPlatforms([]string{first.AppPlatform}),
-				WithCrashLimit(5),
+				Limit[CrashOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered crashes by app platform: %v", err)
@@ -553,7 +553,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithCrashDevicePlatforms([]string{first.DevicePlatform}),
-				WithCrashLimit(5),
+				Limit[CrashOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered crashes by device platform: %v", err)
@@ -575,7 +575,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			sortedCtx,
 			appID,
 			WithCrashSort("-createdDate"),
-			WithCrashLimit(5),
+			Limit[CrashOption](5),
 		)
 		if err != nil {
 			t.Fatalf("failed to fetch sorted crashes: %v", err)
