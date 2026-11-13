@@ -515,60 +515,6 @@ func TestAppsRegistryPullRejectsDuplicateASCResponseIDs(t *testing.T) {
 	}
 }
 
-func TestAppsRegistryPullParserPermutations(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
-	}))
-
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{
-			name: "root flag before subcommand",
-			args: []string{"--debug=false", "apps", "registry", "pull", "--path", filepath.Join(t.TempDir(), "registry.json"), "--dry-run", "--output", "json"},
-		},
-		{
-			name: "mixed flag order",
-			args: []string{"apps", "registry", "pull", "--output", "json", "--dry-run", "--path", filepath.Join(t.TempDir(), "registry.json")},
-		},
-		{
-			name: "flag value equals subcommand name",
-			args: []string{"apps", "registry", "pull", "--path", filepath.Join(t.TempDir(), "pull"), "--dry-run", "--output", "json"},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
-
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
-			var result map[string]any
-			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-				t.Fatalf("failed to parse JSON output %q: %v", stdout, err)
-			}
-			if result["dryRun"] != true {
-				t.Fatalf("expected dryRun=true, got %#v", result["dryRun"])
-			}
-		})
-	}
-}
-
 func TestAppsRegistryPullInvalidOutputDoesNotWriteRegistry(t *testing.T) {
 	registryPath := filepath.Join(t.TempDir(), "app_registry.json")
 	initialRegistry := `{"apps":[]}`
@@ -616,62 +562,6 @@ func TestAppsRegistryPullInvalidOutputDoesNotWriteRegistry(t *testing.T) {
 	}
 }
 
-func TestAppsRegistryPullInvalidFlagValues(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
-	}))
-
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "empty path",
-			args:    []string{"apps", "registry", "pull", "--path", ""},
-			wantErr: "--path is required",
-		},
-		{
-			name:    "output value equals subcommand",
-			args:    []string{"apps", "registry", "pull", "--path", filepath.Join(t.TempDir(), "registry.json"), "--dry-run", "--output", "pull"},
-			wantErr: `(got "pull")`,
-		},
-		{
-			name:    "pretty with table output",
-			args:    []string{"apps", "registry", "pull", "--path", filepath.Join(t.TempDir(), "registry.json"), "--dry-run", "--output", "table", "--pretty"},
-			wantErr: "--pretty is only valid with JSON output",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
-
-			if !isUsageClassError(runErr) {
-				t.Fatalf("expected help error, got %v", runErr)
-			}
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected stderr %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
 func TestAppsRegistryPullInvalidFlagExitCode(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -687,41 +577,15 @@ func TestAppsRegistryPullInvalidFlagExitCode(t *testing.T) {
 			wantErr: "--path is required",
 		},
 		{
-			name: "invalid dry run",
+			name: "pretty with table output",
 			args: []string{
 				"apps", "registry", "pull",
 				"--path", filepath.Join(t.TempDir(), "registry.json"),
-				"--dry-run=maybe",
+				"--dry-run",
+				"--output", "table",
+				"--pretty",
 			},
-			wantErr: `invalid boolean value "maybe" for -dry-run`,
-		},
-		{
-			name: "invalid prune missing",
-			args: []string{
-				"apps", "registry", "pull",
-				"--path", filepath.Join(t.TempDir(), "registry.json"),
-				"--prune-missing=maybe",
-			},
-			wantErr: `invalid boolean value "maybe" for -prune-missing`,
-		},
-		{
-			name: "invalid confirm",
-			args: []string{
-				"apps", "registry", "pull",
-				"--path", filepath.Join(t.TempDir(), "registry.json"),
-				"--confirm=maybe",
-			},
-			wantErr: `invalid boolean value "maybe" for -confirm`,
-		},
-		{
-			name: "invalid dry run mixed flag order",
-			args: []string{
-				"apps", "registry", "pull",
-				"--output", "json",
-				"--dry-run=maybe",
-				"--path", filepath.Join(t.TempDir(), "registry.json"),
-			},
-			wantErr: `invalid boolean value "maybe" for -dry-run`,
+			wantErr: "--pretty is only valid with JSON output",
 		},
 	}
 

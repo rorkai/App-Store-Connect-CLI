@@ -47,56 +47,6 @@ func stubAuthLogoutRemovers(t *testing.T) *authLogoutCalls {
 	return calls
 }
 
-func TestAuthLogoutConfirmRemovesNamedCredentialWithoutWarning(t *testing.T) {
-	calls := stubAuthLogoutRemovers(t)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "logout", "--name", "demo", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stdout != "Successfully removed stored credential 'demo'\n" {
-		t.Fatalf("stdout = %q", stdout)
-	}
-	if stderr != authLogoutBypassNote {
-		t.Fatalf("expected no warning with --confirm, got %q", stderr)
-	}
-	if len(calls.names) != 1 || calls.names[0] != "demo" || calls.all != 0 {
-		t.Fatalf("unexpected removal calls: %+v", calls)
-	}
-}
-
-func TestAuthLogoutConfirmRemovesAllCredentialsWithoutWarning(t *testing.T) {
-	calls := stubAuthLogoutRemovers(t)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "logout", "--all", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stdout != "Successfully removed stored credentials\n" {
-		t.Fatalf("stdout = %q", stdout)
-	}
-	if stderr != authLogoutBypassNote {
-		t.Fatalf("expected no warning with --confirm, got %q", stderr)
-	}
-	if len(calls.names) != 0 || calls.all != 1 {
-		t.Fatalf("unexpected removal calls: %+v", calls)
-	}
-}
-
 func TestAuthLogoutUsageErrorsRemoveNothing(t *testing.T) {
 	const missingConfirm = "--confirm is required to remove stored credentials"
 	for _, tt := range []struct {

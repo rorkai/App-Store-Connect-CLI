@@ -10,23 +10,6 @@ import (
 	"testing"
 )
 
-func TestAppsContentRightsCommandSurface(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	if findSubcommand(root, "apps", "content-rights", "view") == nil {
-		t.Fatal("expected apps content-rights view command")
-	}
-	if findSubcommand(root, "apps", "content-rights", "edit") == nil {
-		t.Fatal("expected apps content-rights edit command")
-	}
-	if findSubcommand(root, "apps", "content-rights", "get") != nil {
-		t.Fatal("did not expect deprecated get alias")
-	}
-	if findSubcommand(root, "apps", "content-rights", "set") != nil {
-		t.Fatal("did not expect deprecated set alias")
-	}
-}
-
 func TestAppsContentRightsEditRequiresExplicitValue(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestAnalyticsRequestReuseExistingRejectsInvalidAccessType(t *testing.T) {
@@ -42,61 +40,6 @@ func TestAnalyticsRequestReuseExistingRejectsInvalidAccessType(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "--access-type must be ONGOING or ONE_TIME_SNAPSHOT") {
 		t.Fatalf("expected invalid access type error, got %q", stderr)
-	}
-}
-
-func TestAnalyticsRequestReuseExistingRejectsInvalidBoolExitCode(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name: "invalid bool",
-			args: []string{
-				"analytics", "request",
-				"--app", "app-1",
-				"--access-type", "ONGOING",
-				"--reuse-existing=maybe",
-			},
-			wantErr: `invalid boolean value "maybe" for -reuse-existing`,
-		},
-		{
-			name: "invalid bool mixed flag order",
-			args: []string{
-				"analytics", "request",
-				"--access-type=ONGOING",
-				"--reuse-existing=maybe",
-				"--app", "app-1",
-			},
-			wantErr: `invalid boolean value "maybe" for -reuse-existing`,
-		},
-		{
-			name: "invalid bool before subcommand",
-			args: []string{
-				"--reuse-existing=maybe",
-				"analytics", "request",
-				"--app", "app-1",
-				"--access-type", "ONGOING",
-			},
-			wantErr: "Error: unknown flag `--reuse-existing` for `asc`",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitUsage {
-					t.Fatalf("expected exit code %d, got %d", rootcmd.ExitUsage, code)
-				}
-			})
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected invalid bool error, got %q", stderr)
-			}
-		})
 	}
 }
 

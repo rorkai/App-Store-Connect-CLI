@@ -1,12 +1,15 @@
 package cmdtest
 
 import (
+	"errors"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const analyticsUsageExitRequestID = "11111111-1111-1111-1111-111111111111"
@@ -209,6 +212,11 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 			if test.appEnv != "" {
 				t.Setenv("ASC_APP_ID", test.appEnv)
 			}
+			clientFactoryCalls := 0
+			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+				clientFactoryCalls++
+				return nil, errors.New("client construction should not be attempted")
+			}))
 			stdout, stderr, runErr := runCommand(t, test.args)
 
 			if runErr == nil {
@@ -221,6 +229,9 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
 			assertUsageErrorStderr(t, stderr, test.wantErr)
+			if clientFactoryCalls != 0 {
+				t.Fatalf("client factory calls = %d, want 0", clientFactoryCalls)
+			}
 		})
 	}
 }

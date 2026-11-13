@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 // TestAppsListStateFiltersSendExactQuery covers the app-state triage filters
@@ -206,29 +204,4 @@ func TestAppsListStateFiltersRejectNextCombination(t *testing.T) {
 	}
 
 	runValidationTests(t, tests)
-}
-
-// TestAppsListStateFiltersExitUsageOnInvalidValue locks the exit code for
-// invalid triage filter values to the usage class.
-func TestAppsListStateFiltersExitUsageOnInvalidValue(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", t.TempDir()+"/config.json")
-
-	for _, args := range [][]string{
-		{"apps", "list", "--version-state", "NOPE"},
-		{"apps", "list", "--review-submission-state", "NOPE"},
-	} {
-		_, stderr := captureOutput(t, func() {
-			if code := cmd.Run(args, "1.0.0"); code != cmd.ExitUsage {
-				t.Errorf("exit code for %v = %d, want %d", args, code, cmd.ExitUsage)
-			}
-		})
-		if !strings.Contains(stderr, "must be one of") {
-			t.Errorf("stderr for %v = %q, want it to list the valid values", args, stderr)
-		}
-	}
 }

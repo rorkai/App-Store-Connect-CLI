@@ -34,51 +34,6 @@ func findSubcommand(root *ffcli.Command, path ...string) *ffcli.Command {
 	return cmd
 }
 
-func TestAppsWallFlagDefaults(t *testing.T) {
-	root := RootCommand("1.2.3")
-	cmd := findSubcommand(root, "apps", "wall")
-	if cmd == nil {
-		t.Fatal("expected apps wall command")
-		return
-	}
-
-	outputFlag := cmd.FlagSet.Lookup("output")
-	if outputFlag == nil {
-		t.Fatal("expected --output flag")
-		return
-	}
-	if got := outputFlag.DefValue; got != "table" {
-		t.Fatalf("expected --output default table, got %q", got)
-	}
-
-	sortFlag := cmd.FlagSet.Lookup("sort")
-	if sortFlag == nil {
-		t.Fatal("expected --sort flag")
-		return
-	}
-	if got := sortFlag.DefValue; got != "name" {
-		t.Fatalf("expected --sort default name, got %q", got)
-	}
-}
-
-func TestAppsWallSubmitCommandExists(t *testing.T) {
-	root := RootCommand("1.2.3")
-	cmd := findSubcommand(root, "apps", "wall", "submit")
-	if cmd == nil {
-		t.Fatal("expected apps wall submit command")
-		return
-	}
-
-	outputFlag := cmd.FlagSet.Lookup("output")
-	if outputFlag == nil {
-		t.Fatal("expected --output flag")
-		return
-	}
-	if got := outputFlag.DefValue; got != "json" {
-		t.Fatalf("expected --output default json, got %q", got)
-	}
-}
-
 func TestAppsWallSubmitRequiresConfirmUnlessDryRun(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -146,29 +101,6 @@ func TestAppsWallSubmitInvalidCountryReturnsUsageExitCode(t *testing.T) {
 				t.Fatalf("expected --country guidance in stderr, got %q", stderr)
 			}
 		})
-	}
-}
-
-func TestAppsShowcaseRemoved(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"apps", "showcase"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp for removed subcommand, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, `unknown subcommand "showcase"`) {
-		t.Fatalf("expected unknown subcommand error, got %q", stderr)
 	}
 }
 

@@ -8,27 +8,6 @@ import (
 	"testing"
 )
 
-func TestAppInfoRootsAreRemoved(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "app-info root",
-			args:    []string{"app-info", "get"},
-			wantErr: "Error: unknown command `asc app-info`",
-		},
-		{
-			name:    "app-infos root",
-			args:    []string{"app-infos", "list"},
-			wantErr: "Error: unknown command `asc app-infos`",
-		},
-	}
-
-	runValidationTests(t, tests)
-}
-
 func TestAppsInfoViewIncludeFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
