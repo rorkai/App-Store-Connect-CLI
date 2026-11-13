@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -136,19 +135,7 @@ func (c *Client) CreateSubscriptionGroupVersion(ctx context.Context, groupID str
 			ID:   groupID,
 		}}},
 	}}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	data, err := c.do(ctx, http.MethodPost, "/v1/subscriptionGroupVersions", body)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionGroupVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[SubscriptionGroupVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/subscriptionGroupVersions", Payload: payload})
 }
 
 // GetSubscriptionGroupVersion retrieves a version by ID.
@@ -157,10 +144,7 @@ func (c *Client) GetSubscriptionGroupVersion(ctx context.Context, versionID stri
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	q := &subscriptionGroupVersionsQuery{}
-	for _, opt := range opts {
-		opt(q)
-	}
+	q := applyOptions(opts)
 	if q.limit > 0 {
 		return nil, fmt.Errorf("limit is only supported when listing subscription group versions")
 	}
@@ -170,49 +154,25 @@ func (c *Client) GetSubscriptionGroupVersion(ctx context.Context, versionID stri
 	if len(q.states) > 0 {
 		return nil, fmt.Errorf("state filter is only supported when listing subscription group versions")
 	}
-	path := fmt.Sprintf("/v1/subscriptionGroupVersions/%s", versionID)
-	if query := buildSubscriptionGroupVersionsQuery(q, false); query != "" {
-		path += "?" + query
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionGroupVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[SubscriptionGroupVersionResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptionGroupVersions/%s", versionID),
+		Query: buildSubscriptionGroupVersionsQuery(q, false),
+	})
 }
 
 // GetSubscriptionGroupVersions lists versions owned by a group.
 func (c *Client) GetSubscriptionGroupVersions(ctx context.Context, groupID string, opts ...SubscriptionGroupVersionsOption) (*SubscriptionGroupVersionsResponse, error) {
-	q := &subscriptionGroupVersionsQuery{}
-	for _, opt := range opts {
-		opt(q)
-	}
+	q := applyOptions(opts)
 	groupID = strings.TrimSpace(groupID)
 	if q.nextURL == "" && groupID == "" {
 		return nil, fmt.Errorf("groupID is required")
 	}
-	path := fmt.Sprintf("/v1/subscriptionGroups/%s/versions", groupID)
-	if q.nextURL != "" {
-		if err := validateNextURL(q.nextURL); err != nil {
-			return nil, fmt.Errorf("subscription-group-versions: %w", err)
-		}
-		path = q.nextURL
-	} else if query := buildSubscriptionGroupVersionsQuery(q, true); query != "" {
-		path += "?" + query
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionGroupVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[SubscriptionGroupVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionGroups/%s/versions", groupID),
+		Query:       buildSubscriptionGroupVersionsQuery(q, true),
+		Next:        q.nextURL,
+		NextContext: "subscription-group-versions",
+	})
 }
 
 // GetSubscriptionGroupVersionsRelationships retrieves raw version linkages for a group.
@@ -222,32 +182,17 @@ func (c *Client) GetSubscriptionGroupVersionsRelationships(ctx context.Context, 
 
 // GetSubscriptionGroupVersionLocalizations lists v2 localizations owned by a version.
 func (c *Client) GetSubscriptionGroupVersionLocalizations(ctx context.Context, versionID string, opts ...SubscriptionGroupVersionLocalizationsOption) (*SubscriptionGroupLocalizationsV2Response, error) {
-	q := &subscriptionGroupVersionLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(q)
-	}
+	q := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
 	if q.nextURL == "" && versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	path := fmt.Sprintf("/v1/subscriptionGroupVersions/%s/localizations", versionID)
-	if q.nextURL != "" {
-		if err := validateNextURL(q.nextURL); err != nil {
-			return nil, fmt.Errorf("subscription-group-version-localizations: %w", err)
-		}
-		path = q.nextURL
-	} else if query := buildSubscriptionGroupVersionLocalizationsQuery(q, true); query != "" {
-		path += "?" + query
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionGroupLocalizationsV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[SubscriptionGroupLocalizationsV2Response](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionGroupVersions/%s/localizations", versionID),
+		Query:       buildSubscriptionGroupVersionLocalizationsQuery(q, true),
+		Next:        q.nextURL,
+		NextContext: "subscription-group-version-localizations",
+	})
 }
 
 // GetSubscriptionGroupVersionLocalizationsRelationships retrieves raw localization linkages.
@@ -285,19 +230,7 @@ func (c *Client) CreateSubscriptionGroupLocalizationV2(ctx context.Context, vers
 			ID:   versionID,
 		}}},
 	}}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	data, err := c.do(ctx, http.MethodPost, "/v2/subscriptionGroupLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionGroupLocalizationV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[SubscriptionGroupLocalizationV2Response](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/subscriptionGroupLocalizations", Payload: payload})
 }
 
 // GetSubscriptionGroupLocalizationV2 retrieves a version-scoped localization.
@@ -306,29 +239,17 @@ func (c *Client) GetSubscriptionGroupLocalizationV2(ctx context.Context, localiz
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	q := &subscriptionGroupVersionLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(q)
-	}
+	q := applyOptions(opts)
 	if q.limit > 0 {
 		return nil, fmt.Errorf("limit is only supported when listing subscription group version localizations")
 	}
 	if q.nextURL != "" {
 		return nil, fmt.Errorf("next URL is only supported when listing subscription group version localizations")
 	}
-	path := fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID)
-	if query := buildSubscriptionGroupVersionLocalizationsQuery(q, false); query != "" {
-		path += "?" + query
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionGroupLocalizationV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[SubscriptionGroupLocalizationV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID),
+		Query: buildSubscriptionGroupVersionLocalizationsQuery(q, false),
+	})
 }
 
 // UpdateSubscriptionGroupLocalizationV2 updates nullable version-scoped attributes.
@@ -342,19 +263,7 @@ func (c *Client) UpdateSubscriptionGroupLocalizationV2(ctx context.Context, loca
 		ID:         localizationID,
 		Attributes: &attrs,
 	}}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	data, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID), body)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionGroupLocalizationV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[SubscriptionGroupLocalizationV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID), Payload: payload})
 }
 
 // DeleteSubscriptionGroupLocalizationV2 deletes a version-scoped localization.
@@ -363,6 +272,5 @@ func (c *Client) DeleteSubscriptionGroupLocalizationV2(ctx context.Context, loca
 	if localizationID == "" {
 		return fmt.Errorf("localizationID is required")
 	}
-	_, err := c.do(ctx, http.MethodDelete, fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID), nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID), nil)
 }

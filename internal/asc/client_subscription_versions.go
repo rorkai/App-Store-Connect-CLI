@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -21,19 +20,7 @@ func (c *Client) CreateSubscriptionVersion(ctx context.Context, subscriptionID s
 			ID:   subscriptionID,
 		}}},
 	}}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	data, err := c.do(ctx, http.MethodPost, "/v1/subscriptionVersions", body)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[SubscriptionVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/subscriptionVersions", Payload: payload})
 }
 
 // GetSubscriptionVersion retrieves a subscription version by ID.
@@ -42,53 +29,26 @@ func (c *Client) GetSubscriptionVersion(ctx context.Context, versionID string, o
 	if versionID == "" {
 		return nil, fmt.Errorf("version ID is required")
 	}
-	query := &subscriptionVersionQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v1/subscriptionVersions/%s", versionID)
-	if queryString := buildSubscriptionVersionQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[SubscriptionVersionResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptionVersions/%s", versionID),
+		Query: buildSubscriptionVersionQuery(query),
+	})
 }
 
 // GetSubscriptionVersions retrieves versions for a subscription.
 func (c *Client) GetSubscriptionVersions(ctx context.Context, subscriptionID string, opts ...SubscriptionVersionsOption) (*SubscriptionVersionsResponse, error) {
-	query := &subscriptionVersionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	subscriptionID = strings.TrimSpace(subscriptionID)
 	if query.nextURL == "" && subscriptionID == "" {
 		return nil, fmt.Errorf("subscription ID is required")
 	}
-	path := fmt.Sprintf("/v1/subscriptions/%s/versions", subscriptionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("subscriptionVersions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildSubscriptionVersionsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[SubscriptionVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptions/%s/versions", subscriptionID),
+		Query:       buildSubscriptionVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscriptionVersions",
+	})
 }
 
 // GetSubscriptionVersionsRelationships retrieves version linkages for a subscription.
@@ -98,32 +58,17 @@ func (c *Client) GetSubscriptionVersionsRelationships(ctx context.Context, subsc
 
 // GetSubscriptionVersionLocalizations retrieves localizations for a version.
 func (c *Client) GetSubscriptionVersionLocalizations(ctx context.Context, versionID string, opts ...SubscriptionVersionLocalizationsOption) (*SubscriptionLocalizationsV2Response, error) {
-	query := &subscriptionVersionLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
 	if query.nextURL == "" && versionID == "" {
 		return nil, fmt.Errorf("version ID is required")
 	}
-	path := fmt.Sprintf("/v1/subscriptionVersions/%s/localizations", versionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("subscriptionVersionLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildSubscriptionVersionLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionLocalizationsV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[SubscriptionLocalizationsV2Response](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionVersions/%s/localizations", versionID),
+		Query:       buildSubscriptionVersionLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscriptionVersionLocalizations",
+	})
 }
 
 // GetSubscriptionVersionLocalizationsRelationships retrieves localization linkages for a version.
@@ -137,23 +82,11 @@ func (c *Client) GetSubscriptionVersionImage(ctx context.Context, versionID stri
 	if versionID == "" {
 		return nil, fmt.Errorf("version ID is required")
 	}
-	query := &subscriptionImageV2Query{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v1/subscriptionVersions/%s/image", versionID)
-	if queryString := buildSubscriptionImageV2Query(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionImageV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[SubscriptionImageV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptionVersions/%s/image", versionID),
+		Query: buildSubscriptionImageV2Query(query),
+	})
 }
 
 // GetSubscriptionVersionImageRelationship retrieves the singular image linkage.
@@ -162,45 +95,22 @@ func (c *Client) GetSubscriptionVersionImageRelationship(ctx context.Context, ve
 	if versionID == "" {
 		return nil, fmt.Errorf("version ID is required")
 	}
-	data, err := c.do(ctx, http.MethodGet, fmt.Sprintf("/v1/subscriptionVersions/%s/relationships/image", versionID), nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionVersionImageLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[SubscriptionVersionImageLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptionVersions/%s/relationships/image", versionID)})
 }
 
 // GetSubscriptionVersionImages retrieves all images for a version.
 func (c *Client) GetSubscriptionVersionImages(ctx context.Context, versionID string, opts ...SubscriptionVersionImagesOption) (*SubscriptionImagesV2Response, error) {
-	query := &subscriptionVersionImagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
 	if query.nextURL == "" && versionID == "" {
 		return nil, fmt.Errorf("version ID is required")
 	}
-	path := fmt.Sprintf("/v1/subscriptionVersions/%s/images", versionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("subscriptionVersionImages: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildSubscriptionVersionImagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionImagesV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[SubscriptionImagesV2Response](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionVersions/%s/images", versionID),
+		Query:       buildSubscriptionVersionImagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscriptionVersionImages",
+	})
 }
 
 // GetSubscriptionVersionImagesRelationships retrieves image linkages for a version.
@@ -209,32 +119,17 @@ func (c *Client) GetSubscriptionVersionImagesRelationships(ctx context.Context, 
 }
 
 func (c *Client) getSubscriptionVersionLinkages(ctx context.Context, ownerID, pathFormat, label string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	ownerID = strings.TrimSpace(ownerID)
 	if query.nextURL == "" && ownerID == "" {
 		return nil, fmt.Errorf("owner ID is required")
 	}
-	path := fmt.Sprintf(pathFormat, ownerID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("%s: %w", label, err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf(pathFormat, ownerID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: label,
+	})
 }
 
 // CreateSubscriptionLocalizationV2 creates a version-scoped localization.
@@ -257,19 +152,7 @@ func (c *Client) CreateSubscriptionLocalizationV2(ctx context.Context, versionID
 			ID:   versionID,
 		}}},
 	}}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	data, err := c.do(ctx, http.MethodPost, "/v2/subscriptionLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionLocalizationV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[SubscriptionLocalizationV2Response](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/subscriptionLocalizations", Payload: payload})
 }
 
 // GetSubscriptionLocalizationV2 retrieves a version-scoped localization.
@@ -278,23 +161,11 @@ func (c *Client) GetSubscriptionLocalizationV2(ctx context.Context, localization
 	if localizationID == "" {
 		return nil, fmt.Errorf("localization ID is required")
 	}
-	query := &subscriptionLocalizationV2Query{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID)
-	if queryString := buildSubscriptionLocalizationV2Query(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionLocalizationV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[SubscriptionLocalizationV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID),
+		Query: buildSubscriptionLocalizationV2Query(query),
+	})
 }
 
 // UpdateSubscriptionLocalizationV2 updates a version-scoped localization.
@@ -308,19 +179,7 @@ func (c *Client) UpdateSubscriptionLocalizationV2(ctx context.Context, localizat
 		ID:         localizationID,
 		Attributes: attrs,
 	}}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	data, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID), body)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionLocalizationV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[SubscriptionLocalizationV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID), Payload: payload})
 }
 
 // DeleteSubscriptionLocalizationV2 deletes a version-scoped localization.
@@ -329,8 +188,7 @@ func (c *Client) DeleteSubscriptionLocalizationV2(ctx context.Context, localizat
 	if localizationID == "" {
 		return fmt.Errorf("localization ID is required")
 	}
-	_, err := c.do(ctx, http.MethodDelete, fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID), nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID), nil)
 }
 
 // CreateSubscriptionImageV2 reserves a version-scoped image upload.
@@ -357,19 +215,7 @@ func (c *Client) CreateSubscriptionImageV2(ctx context.Context, versionID, fileN
 			ID:   versionID,
 		}}},
 	}}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	data, err := c.do(ctx, http.MethodPost, "/v2/subscriptionImages", body)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionImageV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[SubscriptionImageV2Response](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/subscriptionImages", Payload: payload})
 }
 
 // GetSubscriptionImageV2 retrieves a version-scoped image.
@@ -378,23 +224,11 @@ func (c *Client) GetSubscriptionImageV2(ctx context.Context, imageID string, opt
 	if imageID == "" {
 		return nil, fmt.Errorf("image ID is required")
 	}
-	query := &subscriptionImageV2Query{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v2/subscriptionImages/%s", imageID)
-	if queryString := buildSubscriptionImageV2Query(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionImageV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[SubscriptionImageV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/subscriptionImages/%s", imageID),
+		Query: buildSubscriptionImageV2Query(query),
+	})
 }
 
 // UpdateSubscriptionImageV2 commits or updates a version-scoped image.
@@ -408,19 +242,7 @@ func (c *Client) UpdateSubscriptionImageV2(ctx context.Context, imageID string, 
 		ID:         imageID,
 		Attributes: attrs,
 	}}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	data, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v2/subscriptionImages/%s", imageID), body)
-	if err != nil {
-		return nil, err
-	}
-	var response SubscriptionImageV2Response
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[SubscriptionImageV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/subscriptionImages/%s", imageID), Payload: payload})
 }
 
 // DeleteSubscriptionImageV2 deletes a version-scoped image.
@@ -429,6 +251,5 @@ func (c *Client) DeleteSubscriptionImageV2(ctx context.Context, imageID string) 
 	if imageID == "" {
 		return fmt.Errorf("image ID is required")
 	}
-	_, err := c.do(ctx, http.MethodDelete, fmt.Sprintf("/v2/subscriptionImages/%s", imageID), nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/subscriptionImages/%s", imageID), nil)
 }
