@@ -40,6 +40,10 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 			args:     []string{"testflight", "testers", "invite", "--app", "app-1", "--email", "tester@example.com"},
 			wantHint: "Hint: Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
 		},
+		{
+			args:     []string{"video-previews", "set-poster-frame", "--id", "preview-1", "--time-code", "00:00:05:00"},
+			wantHint: "Hint: Apple accepts a poster frame only after the preview's video finishes processing. Check its `videoDeliveryState` with `asc video-previews list --version-localization VERSION_LOCALIZATION_ID` and retry once it is COMPLETE.",
+		},
 	}
 
 	for _, test := range tests {

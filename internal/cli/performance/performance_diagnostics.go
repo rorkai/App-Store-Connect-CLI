@@ -107,7 +107,7 @@ Examples:
 				paginateOpts := append(opts, asc.WithDiagnosticSignaturesLimit(200))
 				firstPage, err := client.GetDiagnosticSignaturesForBuild(requestCtx, trimmedBuildID, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("performance diagnostics list: failed to fetch: %w", err)
+					return diagnosticsListFetchError(trimmedBuildID, err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
@@ -122,11 +122,22 @@ Examples:
 
 			resp, err := client.GetDiagnosticSignaturesForBuild(requestCtx, trimmedBuildID, opts...)
 			if err != nil {
-				return fmt.Errorf("performance diagnostics list: failed to fetch: %w", err)
+				return diagnosticsListFetchError(trimmedBuildID, err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+func diagnosticsListFetchError(buildID string, err error) error {
+	err = fmt.Errorf("performance diagnostics list: failed to fetch: %w", err)
+	if !asc.IsNotFound(err) {
+		return err
+	}
+	return &shared.HintedError{
+		Err:  err,
+		Hint: fmt.Sprintf("The build may exist without diagnostic data: Apple reports diagnostics for App Store versions only after a few days of significant usage. Check that the build exists with `asc builds info --build-id %q`.", buildID),
 	}
 }
 

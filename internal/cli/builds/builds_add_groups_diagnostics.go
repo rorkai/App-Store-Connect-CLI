@@ -28,7 +28,7 @@ func reportBuildBetaGroupAssignmentFailure(
 	ctx context.Context,
 	client *asc.Client,
 	buildID string,
-	includesExternal bool,
+	groups []resolvedBuildBetaGroup,
 	originalErr error,
 ) error {
 	if originalErr == nil {
@@ -46,7 +46,12 @@ func reportBuildBetaGroupAssignmentFailure(
 		buildID,
 		appleUnprocessableDetail(apiErr),
 	)
-	lines := readBuildBetaGroupStateDiagnostics(ctx, client, buildID, includesExternal)
+	lines := readBuildBetaGroupStateDiagnostics(ctx, client, buildID, assignmentIncludesExternalGroup(groups))
+	for _, group := range groups {
+		if group.IsInternalGroup && group.HasAccessToAllBuilds {
+			lines = append(lines, fmt.Sprintf("Internal group %q (%s) has access to all builds, so App Store Connect adds builds to it automatically; leave it out of --group or pass --skip-internal", group.NameForDisplay(), group.ID))
+		}
+	}
 
 	fmt.Fprintf(os.Stderr, "Error: %s\n", shared.SanitizeTerminal(message))
 	for _, line := range lines {

@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -428,14 +427,6 @@ func twoFactorInputError(err error, code shared.DiagnosticCode) error {
 	return shared.WithDiagnostic(shared.NewValidationError(err), code, "--two-factor-code-command")
 }
 
-func twoFactorCodeCommandShellArgs(command string) []string {
-	if runtime.GOOS == "windows" {
-		return []string{"/d", "/s", "/c", command}
-	}
-	// Avoid login-shell startup noise contaminating stdout before the 2FA code.
-	return []string{"-c", command}
-}
-
 type twoFactorCodeRequestedAtContextKey struct{}
 
 // contextWithTwoFactorCodeRequestedAt records when asc asked Apple for the code
@@ -459,12 +450,7 @@ func readTwoFactorCodeFromCommand(ctx context.Context, command string) (string, 
 
 	commandCtx, cancel := shared.ContextWithResolvedTimeout(shared.ContextWithoutTimeout(ctx), webTwoFactorCommandTimeout)
 	defer cancel()
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(commandCtx, "cmd", twoFactorCodeCommandShellArgs(command)...)
-	} else {
-		cmd = exec.CommandContext(commandCtx, "/bin/sh", twoFactorCodeCommandShellArgs(command)...)
-	}
+	cmd := shared.ShellCommand(commandCtx, command)
 
 	if hasRequestedAt {
 		cmd.Env = append(os.Environ(), webTwoFactorCodeRequestedAtEnv+"="+requestedAt.UTC().Format(time.RFC3339Nano))
