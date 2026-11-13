@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -208,36 +207,17 @@ type AppCustomProductPageLocalizationDeleteResult struct {
 
 // GetAppCustomProductPages retrieves custom product pages for an app.
 func (c *Client) GetAppCustomProductPages(ctx context.Context, appID string, opts ...AppCustomProductPagesOption) (*AppCustomProductPagesResponse, error) {
-	query := &appCustomProductPagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	appID = strings.TrimSpace(appID)
 	if query.nextURL == "" && appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
-	path := fmt.Sprintf("/v1/apps/%s/appCustomProductPages", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appCustomProductPages: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppCustomProductPagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCustomProductPagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appCustomProductPages", appID),
+		Query:       buildAppCustomProductPagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appCustomProductPages",
+	})
 }
 
 // GetAppCustomProductPage retrieves a custom product page by ID.
@@ -246,17 +226,7 @@ func (c *Client) GetAppCustomProductPage(ctx context.Context, pageID string) (*A
 	if pageID == "" {
 		return nil, fmt.Errorf("pageID is required")
 	}
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appCustomProductPages/%s", pageID), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCustomProductPageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appCustomProductPages/%s", pageID)})
 }
 
 // CreateAppCustomProductPage creates a custom product page with an initial version and
@@ -323,23 +293,7 @@ func (c *Client) CreateAppCustomProductPage(ctx context.Context, appID, name str
 	if template.CustomPageID != "" {
 		payload.Data.Relationships.CustomProductPageTemplate = &Relationship{Data: ResourceData{Type: ResourceTypeAppCustomProductPages, ID: template.CustomPageID}}
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appCustomProductPages", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppCustomProductPageResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appCustomProductPages", Payload: payload})
 }
 
 // UpdateAppCustomProductPage updates a custom product page.
@@ -358,23 +312,7 @@ func (c *Client) UpdateAppCustomProductPage(ctx context.Context, pageID string, 
 	if attrs.Name != nil || attrs.Visible != nil {
 		payload.Data.Attributes = &attrs
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/appCustomProductPages/%s", pageID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppCustomProductPageResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appCustomProductPages/%s", pageID), Payload: payload})
 }
 
 // DeleteAppCustomProductPage deletes a custom product page.
@@ -383,42 +321,22 @@ func (c *Client) DeleteAppCustomProductPage(ctx context.Context, pageID string) 
 	if pageID == "" {
 		return fmt.Errorf("pageID is required")
 	}
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/appCustomProductPages/%s", pageID), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appCustomProductPages/%s", pageID), nil)
 }
 
 // GetAppCustomProductPageVersions retrieves versions for a custom product page.
 func (c *Client) GetAppCustomProductPageVersions(ctx context.Context, pageID string, opts ...AppCustomProductPageVersionsOption) (*AppCustomProductPageVersionsResponse, error) {
-	query := &appCustomProductPageVersionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	pageID = strings.TrimSpace(pageID)
 	if query.nextURL == "" && pageID == "" {
 		return nil, fmt.Errorf("pageID is required")
 	}
-	path := fmt.Sprintf("/v1/appCustomProductPages/%s/appCustomProductPageVersions", pageID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appCustomProductPageVersions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppCustomProductPageVersionsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCustomProductPageVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appCustomProductPages/%s/appCustomProductPageVersions", pageID),
+		Query:       buildAppCustomProductPageVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appCustomProductPageVersions",
+	})
 }
 
 // GetAppCustomProductPageVersion retrieves a custom product page version by ID.
@@ -427,17 +345,7 @@ func (c *Client) GetAppCustomProductPageVersion(ctx context.Context, versionID s
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCustomProductPageVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID)})
 }
 
 // CreateAppCustomProductPageVersion creates a custom product page version.
@@ -462,23 +370,7 @@ func (c *Client) CreateAppCustomProductPageVersion(ctx context.Context, pageID, 
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appCustomProductPageVersions", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppCustomProductPageVersionResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appCustomProductPageVersions", Payload: payload})
 }
 
 // UpdateAppCustomProductPageVersion updates a custom product page version.
@@ -497,57 +389,22 @@ func (c *Client) UpdateAppCustomProductPageVersion(ctx context.Context, versionI
 	if attrs.DeepLink != nil {
 		payload.Data.Attributes = &attrs
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppCustomProductPageVersionResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID), Payload: payload})
 }
 
 // GetAppCustomProductPageLocalizations retrieves custom product page localizations for a version.
 func (c *Client) GetAppCustomProductPageLocalizations(ctx context.Context, versionID string, opts ...AppCustomProductPageLocalizationsOption) (*AppCustomProductPageLocalizationsResponse, error) {
-	query := &appCustomProductPageLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
 	if query.nextURL == "" && versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	path := fmt.Sprintf("/v1/appCustomProductPageVersions/%s/appCustomProductPageLocalizations", versionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appCustomProductPageLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppCustomProductPageLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCustomProductPageLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appCustomProductPageVersions/%s/appCustomProductPageLocalizations", versionID),
+		Query:       buildAppCustomProductPageLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appCustomProductPageLocalizations",
+	})
 }
 
 // GetAppCustomProductPageLocalization retrieves a custom product page localization by ID.
@@ -556,17 +413,7 @@ func (c *Client) GetAppCustomProductPageLocalization(ctx context.Context, locali
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	data, err := c.do(ctx, "GET", localizationReadPath(fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), opts), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCustomProductPageLocalizationResponse](ctx, c, readRequest{Path: localizationReadPath(fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), opts)})
 }
 
 // CreateAppCustomProductPageLocalization creates a custom product page localization.
@@ -595,23 +442,7 @@ func (c *Client) CreateAppCustomProductPageLocalization(ctx context.Context, ver
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appCustomProductPageLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppCustomProductPageLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appCustomProductPageLocalizations", Payload: payload})
 }
 
 // UpdateAppCustomProductPageLocalization updates a custom product page localization.
@@ -630,23 +461,7 @@ func (c *Client) UpdateAppCustomProductPageLocalization(ctx context.Context, loc
 	if attrs.PromotionalText != nil {
 		payload.Data.Attributes = &attrs
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCustomProductPageLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppCustomProductPageLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), Payload: payload})
 }
 
 // DeleteAppCustomProductPageLocalization deletes a custom product page localization.
@@ -655,8 +470,7 @@ func (c *Client) DeleteAppCustomProductPageLocalization(ctx context.Context, loc
 	if localizationID == "" {
 		return fmt.Errorf("localizationID is required")
 	}
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), nil)
 }
 
 // GetAppCustomProductPageLocalizationSearchKeywords retrieves search keywords for a localization.
@@ -665,18 +479,7 @@ func (c *Client) GetAppCustomProductPageLocalizationSearchKeywords(ctx context.C
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/searchKeywords", localizationID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppKeywordsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppKeywordsResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/searchKeywords", localizationID)})
 }
 
 // AddAppCustomProductPageLocalizationSearchKeywords adds search keywords to a localization.
@@ -699,15 +502,7 @@ func (c *Client) AddAppCustomProductPageLocalizationSearchKeywords(ctx context.C
 			ID:   keyword,
 		})
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID)
-	_, err = c.do(ctx, "POST", path, body)
-	return err
+	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID), payload)
 }
 
 // DeleteAppCustomProductPageLocalizationSearchKeywords removes search keywords from a localization.
@@ -730,79 +525,35 @@ func (c *Client) DeleteAppCustomProductPageLocalizationSearchKeywords(ctx contex
 			ID:   keyword,
 		})
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID)
-	_, err = c.do(ctx, "DELETE", path, body)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID), payload)
 }
 
 // GetAppCustomProductPageLocalizationPreviewSets retrieves preview sets for a localization.
 func (c *Client) GetAppCustomProductPageLocalizationPreviewSets(ctx context.Context, localizationID string, opts ...AppCustomProductPageLocalizationPreviewSetsOption) (*AppPreviewSetsResponse, error) {
-	query := &appCustomProductPageLocalizationPreviewSetsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	localizationID = strings.TrimSpace(localizationID)
 	if query.nextURL == "" && localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/appPreviewSets", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPreviewSets: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppCustomProductPageLocalizationPreviewSetsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPreviewSetsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppPreviewSetsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/appPreviewSets", localizationID),
+		Query:       buildAppCustomProductPageLocalizationPreviewSetsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appPreviewSets",
+	})
 }
 
 // GetAppCustomProductPageLocalizationScreenshotSets retrieves screenshot sets for a localization.
 func (c *Client) GetAppCustomProductPageLocalizationScreenshotSets(ctx context.Context, localizationID string, opts ...AppCustomProductPageLocalizationScreenshotSetsOption) (*AppScreenshotSetsResponse, error) {
-	query := &appCustomProductPageLocalizationScreenshotSetsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	localizationID = strings.TrimSpace(localizationID)
 	if query.nextURL == "" && localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/appScreenshotSets", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appScreenshotSets: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppCustomProductPageLocalizationScreenshotSetsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppScreenshotSetsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppScreenshotSetsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/appScreenshotSets", localizationID),
+		Query:       buildAppCustomProductPageLocalizationScreenshotSetsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appScreenshotSets",
+	})
 }
