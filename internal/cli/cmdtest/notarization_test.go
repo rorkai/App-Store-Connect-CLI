@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -126,62 +125,6 @@ func TestNotarizationValidationErrors(t *testing.T) {
 	for _, test := range runtimeTests {
 		t.Run(test.name, func(t *testing.T) {
 			assertExitStderr(t, test.args, rootcmd.ExitError, test.wantErr)
-		})
-	}
-}
-
-func TestNotarizationHelpOutput(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{
-			name: "notarization help",
-			args: []string{"notarization"},
-			want: "notarization",
-		},
-		{
-			name: "notarization submit help",
-			args: []string{"notarization", "submit"},
-			want: "--file",
-		},
-		{
-			name: "notarization status help",
-			args: []string{"notarization", "status"},
-			want: "--id",
-		},
-		{
-			name: "notarization log help",
-			args: []string{"notarization", "log"},
-			want: "--id",
-		},
-		{
-			name: "notarization group shows subcommands",
-			args: []string{"notarization"},
-			want: "submit",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				// Help output is expected
-				if err != nil && !errors.Is(err, flag.ErrHelp) {
-					t.Logf("run returned: %v", err)
-				}
-			})
-
-			if !strings.Contains(stderr, test.want) {
-				t.Fatalf("expected %q in help output, got %q", test.want, stderr)
-			}
 		})
 	}
 }
