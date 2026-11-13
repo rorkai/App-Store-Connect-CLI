@@ -60,7 +60,7 @@ func TestRemainingListsRejectsInvalidNextURL(t *testing.T) {
 		{args: []string{"pricing", "price-points"}, wantErr: "pricing price-points: --next"},
 		{args: []string{"review", "items-list"}, wantErr: "review items-list: --next"},
 		{args: []string{"review", "submissions-items-ids"}, wantErr: "review submissions-items-ids: --next"},
-		{args: []string{"review", "submissions-list"}, wantErr: "review submissions-list: --next", runtimeErr: true},
+		{args: []string{"review", "submissions-list"}, wantErr: "review submissions-list: --next"},
 		{args: []string{"users", "invites", "visible-apps", "list"}, wantErr: "users invites visible-apps list: --next"},
 		{args: []string{"users", "visible-apps", "view"}, wantErr: "users visible-apps view: --next"},
 		{args: []string{"subscriptions", "offers", "win-back", "list"}, wantErr: "subscriptions offers win-back list: --next"},

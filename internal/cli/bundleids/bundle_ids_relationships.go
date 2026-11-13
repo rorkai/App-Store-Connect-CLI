@@ -138,7 +138,7 @@ Examples:
 			if idValue == "" && strings.TrimSpace(*next) != "" {
 				derivedID, err := extractBundleIDFromNextURL(*next)
 				if err != nil {
-					return fmt.Errorf("bundle-ids profiles list: %w", err)
+					return shared.UsageErrorf("bundle-ids profiles list: %v", err)
 				}
 				idValue = derivedID
 			}

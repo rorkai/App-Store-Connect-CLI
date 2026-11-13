@@ -275,21 +275,6 @@ Examples:
 				applyAllNoneDefaults(values)
 			}
 
-			// Keep the existing validation/error contract for established fields,
-			// while treating invalid values for the new 4.4.1 boolean flags as
-			// command-line usage errors.
-			for _, flag := range []string{"social-media", "social-media-age-restricted"} {
-				if strings.TrimSpace(values[flag]) == "" {
-					continue
-				}
-				if _, err := shared.ParseOptionalBoolFlag("--"+flag, values[flag]); err != nil {
-					return shared.UsageError(err.Error())
-				}
-			}
-
-			if _, err := parseOptionalEnumFlag("--korea-age-rating-override", *koreaAgeRatingOverride, koreaAgeRatingOverrideValues); err != nil {
-				return shared.UsageError(err.Error())
-			}
 			gracProvided := false
 			fs.Visit(func(f *flag.Flag) { gracProvided = gracProvided || f.Name == "grac-rating-classification-number" })
 			if gracProvided && *clearGracNumber {
@@ -301,7 +286,7 @@ Examples:
 			}
 			attributes, err := buildAgeRatingAttributes(values)
 			if err != nil {
-				return err
+				return shared.UsageError(err.Error())
 			}
 			if err := validateAgeRatingDependencies(attributes); err != nil {
 				return err

@@ -1794,7 +1794,7 @@ func TestAgeRatingValidationErrors(t *testing.T) {
 
 	runValidationTests(t, tests)
 	t.Run("age-rating edit invalid enum", func(t *testing.T) {
-		assertExitStderr(t, []string{"age-rating", "edit", "--id", "AGE_ID", "--gambling-simulated", "BAD"}, rootcmd.ExitError, "Error: --gambling-simulated must be one of: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, FREQUENT")
+		assertExitStderr(t, []string{"age-rating", "edit", "--id", "AGE_ID", "--gambling-simulated", "BAD"}, rootcmd.ExitUsage, "Error: --gambling-simulated must be one of: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, FREQUENT")
 	})
 }
 
@@ -1841,12 +1841,19 @@ func TestAccessibilityValidationErrors(t *testing.T) {
 			args:    []string{"accessibility", "delete", "--id", "DECLARATION_ID"},
 			wantErr: "--confirm is required",
 		},
+		{
+			name:    "accessibility update invalid bool",
+			args:    []string{"accessibility", "update", "--id", "DECLARATION_ID", "--supports-voiceover", "maybe"},
+			wantErr: "Error: accessibility update: --supports-voiceover must be true or false",
+		},
+		{
+			name:    "accessibility update missing updates",
+			args:    []string{"accessibility", "update", "--id", "DECLARATION_ID"},
+			wantErr: "Error: accessibility update: at least one update flag is required",
+		},
 	}
 
 	runValidationTests(t, tests)
-	t.Run("accessibility update missing updates", func(t *testing.T) {
-		assertExitStderr(t, []string{"accessibility", "update", "--id", "DECLARATION_ID"}, rootcmd.ExitError, "Error: accessibility update: at least one update flag is required")
-	})
 }
 
 func TestReviewCommandDetailsValidationErrors(t *testing.T) {
@@ -2163,12 +2170,14 @@ func TestAndroidIosMappingValidationErrors(t *testing.T) {
 			args:    []string{"android-ios-mapping", "delete", "--mapping-id", "MAP_ID"},
 			wantErr: "--confirm is required",
 		},
+		{
+			name:    "android-ios-mapping update missing updates",
+			args:    []string{"android-ios-mapping", "update", "--mapping-id", "MAP_ID"},
+			wantErr: "Error: android-ios-mapping update: at least one update flag is required",
+		},
 	}
 
 	runValidationTests(t, tests)
-	t.Run("android-ios-mapping update missing updates", func(t *testing.T) {
-		assertExitStderr(t, []string{"android-ios-mapping", "update", "--mapping-id", "MAP_ID"}, rootcmd.ExitError, "Error: android-ios-mapping update: at least one update flag is required")
-	})
 }
 
 func TestPerformanceValidationErrors(t *testing.T) {

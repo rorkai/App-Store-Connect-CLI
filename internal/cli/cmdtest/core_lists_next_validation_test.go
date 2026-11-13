@@ -15,7 +15,6 @@ type invalidNextURLCase struct {
 	args        []string // command args without --next
 	wantErr     string   // diagnostic prefix, e.g. "builds icons list: --next"
 	wantWarning string   // stderr line printed before the diagnostic
-	runtimeErr  bool     // reported as a runtime error with empty stderr
 }
 
 // runInvalidNextURLCases runs each command with an http:// and a malformed
@@ -44,13 +43,13 @@ func runInvalidNextURLCases(t *testing.T, cases []invalidNextURLCase) {
 		for _, nc := range nextCases {
 			t.Run(strings.Join(tc.args, " ")+"/"+nc.name, func(t *testing.T) {
 				args := append(append([]string{}, tc.args...), "--next", nc.next)
-				assertInvalidNextURLRun(t, args, tc.wantErr+nc.wantErr, tc.wantWarning, tc.runtimeErr)
+				assertInvalidNextURLRun(t, args, tc.wantErr+nc.wantErr, tc.wantWarning)
 			})
 		}
 	}
 }
 
-func assertInvalidNextURLRun(t *testing.T, args []string, wantErr, wantWarning string, runtimeErr bool) {
+func assertInvalidNextURLRun(t *testing.T, args []string, wantErr, wantWarning string) {
 	t.Helper()
 
 	root := RootCommand("1.2.3")
@@ -69,13 +68,6 @@ func assertInvalidNextURLRun(t *testing.T, args []string, wantErr, wantWarning s
 	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if runtimeErr {
-		if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitError)
-		}
-		assertEmptyStderr(t, stderr)
-		return
 	}
 	if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
 		t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitUsage)
@@ -233,10 +225,9 @@ func TestCoreListsPaginateFromNext(t *testing.T) {
 
 func TestListsRejectNextURLWithEmptyParentID(t *testing.T) {
 	tests := []struct {
-		args       []string
-		next       string
-		wantErr    string
-		runtimeErr bool
+		args    []string
+		next    string
+		wantErr string
 	}{
 		{
 			args:    []string{"agreements", "territories", "list"},
@@ -244,22 +235,26 @@ func TestListsRejectNextURLWithEmptyParentID(t *testing.T) {
 			wantErr: "agreements territories list: invalid --next URL",
 		},
 		{
+			args:    []string{"bundle-ids", "profiles", "list"},
+			next:    "https://api.appstoreconnect.apple.com/v1/bundleIds//profiles?cursor=AQ",
+			wantErr: "bundle-ids profiles list: invalid --next URL",
+		},
+		{
 			args:    []string{"users", "visible-apps", "list"},
 			next:    "https://api.appstoreconnect.apple.com/v1/users//visibleApps?cursor=AQ",
 			wantErr: "users visible-apps list: invalid --next URL",
 		},
 		{
-			args:       []string{"webhooks", "deliveries", "links"},
-			next:       "https://api.appstoreconnect.apple.com/v1/webhooks//relationships/deliveries?cursor=AQ",
-			wantErr:    "webhooks deliveries links: invalid --next URL",
-			runtimeErr: true,
+			args:    []string{"webhooks", "deliveries", "links"},
+			next:    "https://api.appstoreconnect.apple.com/v1/webhooks//relationships/deliveries?cursor=AQ",
+			wantErr: "webhooks deliveries links: invalid --next URL",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
 			args := append(append([]string{}, test.args...), "--next", test.next)
-			assertInvalidNextURLRun(t, args, test.wantErr, "", test.runtimeErr)
+			assertInvalidNextURLRun(t, args, test.wantErr, "")
 		})
 	}
 }
