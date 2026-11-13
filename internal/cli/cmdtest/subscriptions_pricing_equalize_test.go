@@ -1010,6 +1010,10 @@ func TestSubscriptionsPricingEqualize_AutoStartDateFalseLeavesExistingPricesImme
 	basePricePointID := testSubscriptionPricePointID("USA")
 	canPricePointID := testSubscriptionPricePointID("CAN")
 	ledger := newSubscriptionPriceLedger()
+	// The subscription also bills monthly; equalize writes and verifies only
+	// the default UPFRONT plan.
+	ledger.setMonthly("USA", "pp-usa-monthly")
+	ledger.setMonthly("CAN", "pp-can-monthly")
 	postChecked := false
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {

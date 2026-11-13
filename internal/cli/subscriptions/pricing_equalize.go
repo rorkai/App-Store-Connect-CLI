@@ -423,10 +423,7 @@ func verifyEqualizedPrices(ctx context.Context, client *asc.Client, subID string
 	if err != nil {
 		return 0, nil, err
 	}
-	currentByTerritory := make(map[string]string, len(resolved.Prices))
-	for _, row := range resolved.Prices {
-		currentByTerritory[strings.ToUpper(strings.TrimSpace(row.Territory))] = strings.TrimSpace(row.PricePointID)
-	}
+	currentByTerritory := equalizedPlanPricePoints(resolved.Prices, planType)
 	submissionErrByTerritory := make(map[string]error, len(submissionFailures))
 	for _, failure := range submissionFailures {
 		submissionErrByTerritory[strings.ToUpper(strings.TrimSpace(failure.Target.Territory))] = failure.Err
@@ -652,14 +649,7 @@ func reconcileEqualizeFailures(ctx context.Context, client *asc.Client, subID st
 		return 0, failures, err
 	}
 
-	currentByTerritory := make(map[string]string, len(resolved.Prices))
-	for _, row := range resolved.Prices {
-		territoryID := strings.ToUpper(strings.TrimSpace(row.Territory))
-		if territoryID == "" {
-			continue
-		}
-		currentByTerritory[territoryID] = strings.TrimSpace(row.PricePointID)
-	}
+	currentByTerritory := equalizedPlanPricePoints(resolved.Prices, planType)
 
 	reconciled := 0
 	remaining := make([]equalizeAttemptFailure, 0, len(failures))
@@ -672,6 +662,27 @@ func reconcileEqualizeFailures(ctx context.Context, client *asc.Client, subID st
 	}
 
 	return reconciled, remaining, nil
+}
+
+// equalizedPlanPricePoints maps each territory to its price point in the plan
+// equalize writes: planType, or Apple's default UPFRONT plan when it is empty.
+// A subscription that also bills monthly has MONTHLY rows for the same
+// territories, which must not stand in for the written plan.
+func equalizedPlanPricePoints(rows []shared.ResolvedPriceRow, planType asc.SubscriptionPlanType) map[string]string {
+	written := asc.SubscriptionPlanTypeUpfront
+	if planType != "" {
+		written = planType
+	}
+	byTerritory := make(map[string]string, len(rows))
+	for _, row := range rows {
+		territoryID := strings.ToUpper(strings.TrimSpace(row.Territory))
+		rowPlanType := strings.ToUpper(strings.TrimSpace(row.PlanType))
+		if territoryID == "" || (rowPlanType != "" && rowPlanType != string(written)) {
+			continue
+		}
+		byTerritory[territoryID] = strings.TrimSpace(row.PricePointID)
+	}
+	return byTerritory
 }
 
 func maxEqualizeRetryAfter(failures []equalizeAttemptFailure) time.Duration {

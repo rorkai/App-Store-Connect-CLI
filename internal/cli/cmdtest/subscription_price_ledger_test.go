@@ -15,8 +15,9 @@ import (
 // and serves them from GET /v1/subscriptions/{id}/prices, so a command that
 // reads prices back sees what it wrote.
 type subscriptionPriceLedger struct {
-	mu     sync.Mutex
-	prices map[string]subscriptionPriceLedgerEntry
+	mu      sync.Mutex
+	prices  map[string]subscriptionPriceLedgerEntry
+	monthly map[string]string
 }
 
 type subscriptionPriceLedgerEntry struct {
@@ -25,7 +26,15 @@ type subscriptionPriceLedgerEntry struct {
 }
 
 func newSubscriptionPriceLedger() *subscriptionPriceLedger {
-	return &subscriptionPriceLedger{prices: make(map[string]subscriptionPriceLedgerEntry)}
+	return &subscriptionPriceLedger{prices: make(map[string]subscriptionPriceLedgerEntry), monthly: make(map[string]string)}
+}
+
+// setMonthly adds a MONTHLY plan price; the prices equalize writes carry no
+// plan type, as Apple's default UPFRONT plan rows can.
+func (l *subscriptionPriceLedger) setMonthly(territory, pricePointID string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.monthly[territory] = pricePointID
 }
 
 func (l *subscriptionPriceLedger) set(territory, pricePointID, startDate string) {
@@ -83,6 +92,16 @@ func (l *subscriptionPriceLedger) response() *http.Response {
 			fmt.Sprintf(`{"type":"subscriptionPricePoints","id":%q,"attributes":{"customerPrice":"0.99","proceeds":"0.84","proceedsYear2":"0.84"}}`, entry.pricePointID),
 			fmt.Sprintf(`{"type":"territories","id":%q,"attributes":{"currency":"USD"}}`, territory),
 		)
+	}
+	monthlyTerritories := make([]string, 0, len(l.monthly))
+	for territory := range l.monthly {
+		monthlyTerritories = append(monthlyTerritories, territory)
+	}
+	sort.Strings(monthlyTerritories)
+	for _, territory := range monthlyTerritories {
+		pricePointID := l.monthly[territory]
+		data = append(data, fmt.Sprintf(`{"type":"subscriptionPrices","id":"price-%s-monthly","attributes":{"startDate":"2025-01-01","preserved":false,"planType":"MONTHLY"},"relationships":{"territory":{"data":{"type":"territories","id":%q}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":%q}}}}`, territory, territory, pricePointID))
+		included = append(included, fmt.Sprintf(`{"type":"subscriptionPricePoints","id":%q,"attributes":{"customerPrice":"0.10","proceeds":"0.08","proceedsYear2":"0.08"}}`, pricePointID))
 	}
 	return jsonHTTPResponse(http.StatusOK, `{"data":[`+strings.Join(data, ",")+`],"included":[`+strings.Join(included, ",")+`],"links":{"next":""}}`)
 }
