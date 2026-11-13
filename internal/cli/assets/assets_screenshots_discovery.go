@@ -199,11 +199,11 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 		}
 	}
 	if cfg.SingleLocale && len(missingLocales) == 1 {
-		return zero, screenshotVersionLocalizationLocaleError(cfg.VersionID, missingLocales[0], localizationsResp.Data)
+		return zero, shared.WithDiagnostic(shared.NewValidationError(screenshotVersionLocalizationLocaleError(cfg.VersionID, missingLocales[0], localizationsResp.Data)), shared.DiagnosticResourceNotFound, "--locale")
 	}
 	if len(missingLocales) > 0 {
 		sort.Strings(missingLocales)
-		return zero, fmt.Errorf("no matching App Store version localizations found for locales: %s", strings.Join(missingLocales, ", "))
+		return zero, shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("no matching App Store version localizations found for locales: %s", strings.Join(missingLocales, ", "))), shared.DiagnosticResourceNotFound, "--path")
 	}
 
 	result := asc.AppScreenshotFanoutUploadResult{
