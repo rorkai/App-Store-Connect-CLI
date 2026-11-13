@@ -3,13 +3,10 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -96,56 +93,21 @@ func TestAppEventsCreateAllowsOptionalEventTypeAndNormalizesPurchaseRequirement(
 	}
 }
 
-func TestAppEventsCreateRejectsInvalidPurchaseRequirement(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-events", "create",
-			"--app", "APP_ID",
-			"--name", "Launch",
-			"--event-type", "CHALLENGE",
-			"--purchase-requirement", "free",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
+func TestAppEventsRejectsUnsupportedPurchaseRequirement(t *testing.T) {
+	runValidationTests(t, []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "create invalid value",
+			args:    []string{"app-events", "create", "--app", "APP_ID", "--name", "Launch", "--event-type", "CHALLENGE", "--purchase-requirement", "free"},
+			wantErr: "Error: --purchase-requirement currently supports only: NO_COST_ASSOCIATED",
+		},
+		{
+			name:    "update known unsupported value",
+			args:    []string{"app-events", "update", "--event-id", "EVENT_ID", "--purchase-requirement", "IAP_REQUIRED"},
+			wantErr: "known 500 UNEXPECTED_ERROR",
+		},
 	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --purchase-requirement currently supports only: NO_COST_ASSOCIATED") {
-		t.Fatalf("expected invalid purchase requirement error, got %q", stderr)
-	}
-}
-
-func TestAppEventsUpdateRejectsKnownUnsupportedPurchaseRequirement(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-events", "update",
-			"--event-id", "EVENT_ID",
-			"--purchase-requirement", "IAP_REQUIRED",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "known 500 UNEXPECTED_ERROR") {
-		t.Fatalf("expected known Apple 500 warning, got %q", stderr)
-	}
 }

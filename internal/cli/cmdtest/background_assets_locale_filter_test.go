@@ -62,62 +62,6 @@ func runBackgroundAssetsCommandWithTransport(
 	return stdout, stderr, runErr
 }
 
-func TestBackgroundAssetsListFiltersByVersionsLocale(t *testing.T) {
-	stdout, stderr, err := runBackgroundAssetsCommandWithTransport(
-		t,
-		[]string{"background-assets", "list", "--app", "app-1", "--versions-locale", "en-US, ja"},
-		"/v1/apps/app-1/backgroundAssets",
-		map[string]string{"filter[versions.locale]": "en-US,ja"},
-		`{"data":[{"type":"backgroundAssets","id":"asset-1"}]}`,
-	)
-	if err != nil {
-		t.Fatalf("run error: %v", err)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if jsonErr := json.Unmarshal([]byte(stdout), &payload); jsonErr != nil {
-		t.Fatalf("failed to parse stdout JSON: %v (stdout %q)", jsonErr, stdout)
-	}
-	if len(payload.Data) != 1 || payload.Data[0].ID != "asset-1" {
-		t.Fatalf("expected asset-1 in output, got %+v", payload.Data)
-	}
-}
-
-func TestBackgroundAssetsVersionsListFiltersByLocale(t *testing.T) {
-	stdout, stderr, err := runBackgroundAssetsCommandWithTransport(
-		t,
-		[]string{"background-assets", "versions", "list", "--background-asset-id", "asset-1", "--locale", "en-US"},
-		"/v1/backgroundAssets/asset-1/versions",
-		map[string]string{"filter[locale]": "en-US"},
-		`{"data":[{"type":"backgroundAssetVersions","id":"version-1"}]}`,
-	)
-	if err != nil {
-		t.Fatalf("run error: %v", err)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if jsonErr := json.Unmarshal([]byte(stdout), &payload); jsonErr != nil {
-		t.Fatalf("failed to parse stdout JSON: %v (stdout %q)", jsonErr, stdout)
-	}
-	if len(payload.Data) != 1 || payload.Data[0].ID != "version-1" {
-		t.Fatalf("expected version-1 in output, got %+v", payload.Data)
-	}
-}
-
 func TestBackgroundAssetsListsSendOnlyTheFiltersAndSortRequested(t *testing.T) {
 	const (
 		assetsPath   = "/v1/apps/app-1/backgroundAssets"
@@ -131,7 +75,25 @@ func TestBackgroundAssetsListsSendOnlyTheFiltersAndSortRequested(t *testing.T) {
 		args      []string
 		wantPath  string
 		wantQuery map[string]string
+		body      string
+		wantID    string
 	}{
+		{
+			name:      "asset list sends versions locale",
+			args:      append(append([]string{}, assetArgs...), "--versions-locale", "en-US, ja"),
+			wantPath:  assetsPath,
+			wantQuery: map[string]string{"filter[versions.locale]": "en-US,ja"},
+			body:      `{"data":[{"type":"backgroundAssets","id":"asset-1"}]}`,
+			wantID:    "asset-1",
+		},
+		{
+			name:      "version list sends locale",
+			args:      append(append([]string{}, versionArgs...), "--locale", "en-US"),
+			wantPath:  versionsPath,
+			wantQuery: map[string]string{"filter[locale]": "en-US"},
+			body:      `{"data":[{"type":"backgroundAssetVersions","id":"version-1"}]}`,
+			wantID:    "version-1",
+		},
 		{
 			name:     "asset list omits new parameters by default",
 			args:     assetArgs,
@@ -190,12 +152,30 @@ func TestBackgroundAssetsListsSendOnlyTheFiltersAndSortRequested(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, stderr, err := runBackgroundAssetsCommandWithTransport(t, test.args, test.wantPath, test.wantQuery, `{"data":[]}`)
+			body := test.body
+			if body == "" {
+				body = `{"data":[]}`
+			}
+			stdout, stderr, err := runBackgroundAssetsCommandWithTransport(t, test.args, test.wantPath, test.wantQuery, body)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if test.wantID == "" {
+				return
+			}
+			var payload struct {
+				Data []struct {
+					ID string `json:"id"`
+				} `json:"data"`
+			}
+			if jsonErr := json.Unmarshal([]byte(stdout), &payload); jsonErr != nil {
+				t.Fatalf("failed to parse stdout JSON: %v (stdout %q)", jsonErr, stdout)
+			}
+			if len(payload.Data) != 1 || payload.Data[0].ID != test.wantID {
+				t.Fatalf("expected %s in output, got %+v", test.wantID, payload.Data)
 			}
 		})
 	}

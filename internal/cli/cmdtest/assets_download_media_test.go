@@ -25,111 +25,136 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestScreenshotsDownload_ByID_WritesFile(t *testing.T) {
-	setupAuth(t)
+func TestMediaDownload_ByID_WritesFile(t *testing.T) {
+	tests := []struct {
+		name             string
+		command          string
+		id               string
+		apiPath          string
+		apiBody          string
+		assetPath        string
+		assetData        string
+		contentType      string
+		userAgent        string
+		fileName         string
+		reportsUnchanged bool
+	}{
+		{
+			name:             "screenshot",
+			command:          "screenshots",
+			id:               "shot-1",
+			apiPath:          "/v1/appScreenshots/shot-1",
+			apiBody:          `{"data":{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","fileSize":7,"imageAsset":{"templateUrl":"https://example.com/assets/{w}x{h}bb.{f}","width":1242,"height":2688}}}}`,
+			assetPath:        "/assets/1242x2688bb.png",
+			assetData:        "PNGDATA",
+			contentType:      "image/png",
+			userAgent:        "curl/8.7.1 App-Store-Connect-CLI/asset-download",
+			fileName:         "shot.png",
+			reportsUnchanged: true,
+		},
+		{
+			name:        "video preview",
+			command:     "video-previews",
+			id:          "prev-1",
+			apiPath:     "/v1/appPreviews/prev-1",
+			apiBody:     `{"data":{"type":"appPreviews","id":"prev-1","attributes":{"fileName":"preview.mov","fileSize":7,"mimeType":"video/quicktime","videoUrl":"https://example.com/preview.mov"}}}`,
+			assetPath:   "/preview.mov",
+			assetData:   "MOVDATA",
+			contentType: "video/quicktime",
+			fileName:    "preview.mov",
+		},
+	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				switch req.URL.Host {
+				case "api.appstoreconnect.apple.com":
+					if req.URL.Path != test.apiPath {
+						t.Fatalf("unexpected path: %s", req.URL.Path)
+					}
+					return jsonResponse(http.StatusOK, test.apiBody)
+				case "example.com":
+					if req.URL.Path != test.assetPath {
+						t.Fatalf("unexpected asset path: %s", req.URL.Path)
+					}
+					if test.userAgent != "" {
+						if got := strings.TrimSpace(req.Header.Get("User-Agent")); got != test.userAgent {
+							t.Fatalf("unexpected user agent: %q", got)
+						}
+					}
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(test.assetData)),
+						Header:     http.Header{"Content-Type": []string{test.contentType}},
+					}, nil
+				default:
+					t.Fatalf("unexpected host: %s", req.URL.Host)
+					return nil, nil
+				}
+			}))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Host {
-		case "api.appstoreconnect.apple.com":
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
+			outPath := filepath.Join(t.TempDir(), test.fileName)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			type item struct {
+				ID           string `json:"id"`
+				OutputPath   string `json:"outputPath"`
+				Unchanged    *bool  `json:"unchanged"`
+				BytesWritten int64  `json:"bytesWritten"`
 			}
-			if req.URL.Path != "/v1/appScreenshots/shot-1" {
-				t.Fatalf("unexpected path: %s", req.URL.Path)
+			type result struct {
+				Total      int    `json:"total"`
+				Downloaded int    `json:"downloaded"`
+				Failed     int    `json:"failed"`
+				Items      []item `json:"items"`
 			}
 
-			body := `{"data":{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","fileSize":7,"imageAsset":{"templateUrl":"https://example.com/assets/{w}x{h}bb.{f}","width":1242,"height":2688}}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "example.com":
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{test.command, "download", "--id", test.id, "--output", outPath}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if req.URL.Path != "/assets/1242x2688bb.png" {
-				t.Fatalf("unexpected asset path: %s", req.URL.Path)
+			var got result
+			if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+				t.Fatalf("decode stdout JSON: %v (stdout=%q)", err, stdout)
 			}
-			if got := strings.TrimSpace(req.Header.Get("User-Agent")); got != "curl/8.7.1 App-Store-Connect-CLI/asset-download" {
-				t.Fatalf("unexpected user agent: %q", got)
+			if got.Total != 1 || got.Downloaded != 1 || got.Failed != 0 || len(got.Items) != 1 {
+				t.Fatalf("unexpected result: %+v", got)
 			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader("PNGDATA")),
-				Header:     http.Header{"Content-Type": []string{"image/png"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected host: %s", req.URL.Host)
-			return nil, nil
-		}
-	})
+			if got.Items[0].ID != test.id {
+				t.Fatalf("expected item id %s, got %q", test.id, got.Items[0].ID)
+			}
+			if filepath.Clean(got.Items[0].OutputPath) != filepath.Clean(outPath) {
+				t.Fatalf("expected outputPath %q, got %q", outPath, got.Items[0].OutputPath)
+			}
+			if got.Items[0].BytesWritten != int64(len(test.assetData)) {
+				t.Fatalf("expected bytesWritten %d, got %d", len(test.assetData), got.Items[0].BytesWritten)
+			}
+			if test.reportsUnchanged && (got.Items[0].Unchanged == nil || *got.Items[0].Unchanged) {
+				t.Fatalf("expected unchanged=false in item JSON, got %v", got.Items[0].Unchanged)
+			}
 
-	outPath := filepath.Join(t.TempDir(), "shot.png")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	type item struct {
-		ID           string `json:"id"`
-		OutputPath   string `json:"outputPath"`
-		Unchanged    *bool  `json:"unchanged"`
-		BytesWritten int64  `json:"bytesWritten"`
-	}
-	type result struct {
-		Total      int    `json:"total"`
-		Downloaded int    `json:"downloaded"`
-		Failed     int    `json:"failed"`
-		Items      []item `json:"items"`
-	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"screenshots", "download", "--id", "shot-1", "--output", outPath}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var got result
-	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
-		t.Fatalf("decode stdout JSON: %v (stdout=%q)", err, stdout)
-	}
-	if got.Total != 1 || got.Downloaded != 1 || got.Failed != 0 {
-		t.Fatalf("unexpected result: %+v", got)
-	}
-	if len(got.Items) != 1 {
-		t.Fatalf("expected 1 item, got %d", len(got.Items))
-	}
-	if got.Items[0].ID != "shot-1" {
-		t.Fatalf("expected item id shot-1, got %q", got.Items[0].ID)
-	}
-	if filepath.Clean(got.Items[0].OutputPath) != filepath.Clean(outPath) {
-		t.Fatalf("expected outputPath %q, got %q", outPath, got.Items[0].OutputPath)
-	}
-	if got.Items[0].BytesWritten != int64(len("PNGDATA")) {
-		t.Fatalf("expected bytesWritten %d, got %d", len("PNGDATA"), got.Items[0].BytesWritten)
-	}
-	if got.Items[0].Unchanged == nil || *got.Items[0].Unchanged {
-		t.Fatalf("expected unchanged=false in item JSON, got %v", got.Items[0].Unchanged)
-	}
-
-	data, err := os.ReadFile(outPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error: %v", err)
-	}
-	if string(data) != "PNGDATA" {
-		t.Fatalf("unexpected file contents: %q", string(data))
+			data, err := os.ReadFile(outPath)
+			if err != nil {
+				t.Fatalf("ReadFile() error: %v", err)
+			}
+			if string(data) != test.assetData {
+				t.Fatalf("unexpected file contents: %q", string(data))
+			}
+		})
 	}
 }
 
@@ -472,78 +497,6 @@ func TestScreenshotsDownload_ByLocalization_RetriesTransientForbidden(t *testing
 		t.Fatalf("ReadFile() error: %v", err)
 	}
 	if string(data) != "PNGDATA" {
-		t.Fatalf("unexpected file contents: %q", string(data))
-	}
-}
-
-func TestVideoPreviewsDownload_ByID_WritesFile(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Host {
-		case "api.appstoreconnect.apple.com":
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/appPreviews/prev-1" {
-				t.Fatalf("unexpected path: %s", req.URL.Path)
-			}
-
-			body := `{"data":{"type":"appPreviews","id":"prev-1","attributes":{"fileName":"preview.mov","fileSize":7,"mimeType":"video/quicktime","videoUrl":"https://example.com/preview.mov"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "example.com":
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/preview.mov" {
-				t.Fatalf("unexpected asset path: %s", req.URL.Path)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader("MOVDATA")),
-				Header:     http.Header{"Content-Type": []string{"video/quicktime"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected host: %s", req.URL.Host)
-			return nil, nil
-		}
-	})
-
-	outPath := filepath.Join(t.TempDir(), "preview.mov")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"video-previews", "download", "--id", "prev-1", "--output", outPath}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"downloaded":1`) || !strings.Contains(stdout, `"failed":0`) {
-		t.Fatalf("unexpected stdout: %q", stdout)
-	}
-
-	data, err := os.ReadFile(outPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error: %v", err)
-	}
-	if string(data) != "MOVDATA" {
 		t.Fatalf("unexpected file contents: %q", string(data))
 	}
 }
