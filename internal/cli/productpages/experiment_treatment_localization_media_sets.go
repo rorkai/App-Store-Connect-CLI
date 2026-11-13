@@ -17,6 +17,8 @@ import (
 
 var experimentTreatmentLocalizationMediaClientFactory = shared.GetASCClient
 
+const treatmentScreenshotSetsListCommand = "asc product-pages experiments treatments localizations screenshot-sets list --include-screenshots --paginate"
+
 // ExperimentTreatmentLocalizationPreviewSetsCommand returns the preview sets command group.
 func ExperimentTreatmentLocalizationPreviewSetsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("preview-sets", flag.ExitOnError)
@@ -295,6 +297,7 @@ func ExperimentTreatmentLocalizationScreenshotSetsUploadCommand() *ffcli.Command
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	pollInterval := shared.BindMediaPollIntervalFlag(fs)
+	uploadFlags := assets.BindScreenshotSetUploadFlags(fs, treatmentScreenshotSetsListCommand)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -312,6 +315,10 @@ Examples:
 			ctx, pollErr := pollInterval.Apply(ctx)
 			if pollErr != nil {
 				return pollErr
+			}
+			ctx, err := uploadFlags.Apply(ctx, "experiments treatments localizations screenshot-sets upload")
+			if err != nil {
+				return err
 			}
 			result, err := executeExperimentTreatmentLocalizationScreenshotUpload(ctx, *localizationID, *path, *deviceType, false)
 			if err != nil {
@@ -331,6 +338,7 @@ func ExperimentTreatmentLocalizationScreenshotSetsSyncCommand() *ffcli.Command {
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	confirm := fs.Bool("confirm", false, "Confirm sync (deletes existing media in the matching set before upload)")
 	pollInterval := shared.BindMediaPollIntervalFlag(fs)
+	uploadFlags := assets.BindScreenshotSetUploadFlags(fs, treatmentScreenshotSetsListCommand)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -353,6 +361,10 @@ Examples:
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to sync")
 				return shared.MissingRequiredUsageError("--confirm")
+			}
+			ctx, err := uploadFlags.Apply(ctx, "experiments treatments localizations screenshot-sets sync")
+			if err != nil {
+				return err
 			}
 
 			result, err := executeExperimentTreatmentLocalizationScreenshotUpload(ctx, *localizationID, *path, *deviceType, true)

@@ -17,6 +17,8 @@ import (
 
 var customPageMediaClientFactory = shared.GetASCClient
 
+const customPageScreenshotSetsListCommand = "asc product-pages custom-pages localizations screenshot-sets list --include-screenshots --paginate"
+
 // CustomPageLocalizationsScreenshotSetsUploadCommand returns the screenshot sets upload subcommand.
 func CustomPageLocalizationsScreenshotSetsUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations screenshot-sets upload", flag.ExitOnError)
@@ -25,6 +27,7 @@ func CustomPageLocalizationsScreenshotSetsUploadCommand() *ffcli.Command {
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	pollInterval := shared.BindMediaPollIntervalFlag(fs)
+	uploadFlags := assets.BindScreenshotSetUploadFlags(fs, customPageScreenshotSetsListCommand)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -42,6 +45,10 @@ Examples:
 			ctx, pollErr := pollInterval.Apply(ctx)
 			if pollErr != nil {
 				return pollErr
+			}
+			ctx, err := uploadFlags.Apply(ctx, "custom-pages localizations screenshot-sets upload")
+			if err != nil {
+				return err
 			}
 			result, err := executeCustomPageScreenshotUpload(ctx, *localizationID, *path, *deviceType, false)
 			if err != nil {
@@ -61,6 +68,7 @@ func CustomPageLocalizationsScreenshotSetsSyncCommand() *ffcli.Command {
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	confirm := fs.Bool("confirm", false, "Confirm sync (deletes existing media in the matching set before upload)")
 	pollInterval := shared.BindMediaPollIntervalFlag(fs)
+	uploadFlags := assets.BindScreenshotSetUploadFlags(fs, customPageScreenshotSetsListCommand)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -83,6 +91,10 @@ Examples:
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to sync")
 				return shared.MissingRequiredUsageError("--confirm")
+			}
+			ctx, err := uploadFlags.Apply(ctx, "custom-pages localizations screenshot-sets sync")
+			if err != nil {
+				return err
 			}
 
 			result, err := executeCustomPageScreenshotUpload(ctx, *localizationID, *path, *deviceType, true)

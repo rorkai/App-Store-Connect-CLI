@@ -3,6 +3,7 @@ package assets
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -58,6 +59,33 @@ func withScreenshotUploadConcurrency(ctx context.Context, concurrency int) conte
 		concurrency = maxScreenshotUploadConcurrency
 	}
 	return context.WithValue(ctx, screenshotConcurrencyKey{}, concurrency)
+}
+
+// ScreenshotSetUploadFlags holds the --concurrency and --no-wait flags of a
+// screenshot-set upload command.
+type ScreenshotSetUploadFlags struct {
+	concurrency *int
+	noWait      *bool
+}
+
+// BindScreenshotSetUploadFlags registers the upload controls of asc screenshots
+// upload. listCommand names the command that shows processing state after a
+// --no-wait upload.
+func BindScreenshotSetUploadFlags(fs *flag.FlagSet, listCommand string) ScreenshotSetUploadFlags {
+	return ScreenshotSetUploadFlags{
+		concurrency: fs.Int("concurrency", defaultScreenshotUploadConcurrency, fmt.Sprintf("Parallel screenshot uploads within a set (1-%d)", maxScreenshotUploadConcurrency)),
+		noWait:      fs.Bool("no-wait", false, "Return once each file is uploaded and committed instead of waiting for App Store Connect processing; check later with "+listCommand),
+	}
+}
+
+// Apply validates the flags and returns ctx carrying them for
+// ExecuteScreenshotSetUpload.
+func (f ScreenshotSetUploadFlags) Apply(ctx context.Context, command string) (context.Context, error) {
+	if *f.concurrency < 1 || *f.concurrency > maxScreenshotUploadConcurrency {
+		return ctx, shared.UsageError(fmt.Sprintf("%s: --concurrency must be between 1 and %d", command, maxScreenshotUploadConcurrency))
+	}
+	ctx = withScreenshotUploadConcurrency(ctx, *f.concurrency)
+	return withScreenshotNoWait(ctx, *f.noWait), nil
 }
 
 func screenshotUploadConcurrencyFromContext(ctx context.Context) int {
