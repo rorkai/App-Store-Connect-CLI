@@ -531,10 +531,11 @@ func TestAuthLoginCommand(t *testing.T) {
 		}
 	})
 
-	t.Run("missing key id hints from key file name", func(t *testing.T) {
+	t.Run("blank key id hints from key file name", func(t *testing.T) {
 		cmd := AuthLoginCommand()
 		if err := cmd.FlagSet.Parse([]string{
 			"--name", "demo",
+			"--key-id", "   ",
 			"--issuer-id", "ISS",
 			"--private-key", "/tmp/keys/AuthKey_39MX87M9Y4.p8",
 		}); err != nil {
@@ -692,8 +693,8 @@ func TestAuthLoginCommand(t *testing.T) {
 			if !safe || !strings.HasPrefix(wantCommand, "chmod 600 ") || !strings.Contains(wantCommand, keyPath) {
 				t.Fatalf("remediation command = %q, safe=%t; want a chmod 600 command naming the key", wantCommand, safe)
 			}
-			if !strings.Contains(stderr, wantCommand) {
-				t.Fatalf("stderr = %q, want remediation %q", stderr, wantCommand)
+			if strings.Count(stderr, wantCommand) != 1 {
+				t.Fatalf("stderr = %q, want remediation %q exactly once", stderr, wantCommand)
 			}
 			if !strings.Contains(stderr, "--fix-permissions") {
 				t.Fatalf("stderr = %q, want --fix-permissions hint", stderr)

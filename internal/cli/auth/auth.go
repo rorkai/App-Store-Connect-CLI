@@ -585,7 +585,7 @@ func AuthLoginCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth login", flag.ExitOnError)
 
 	name := fs.String("name", "", "Friendly name for this key (optional on first login: defaults to \"default\" when no profiles are stored)")
-	keyID := fs.String("key-id", "", "App Store Connect API Key ID")
+	keyID := fs.String("key-id", "", "App Store Connect API Key ID (read from an AuthKey_<KEY_ID>.p8 file name when omitted)")
 	issuerID := fs.String("issuer-id", "", "App Store Connect Issuer ID")
 	keyType := fs.String("key-type", config.CredentialKeyTypeTeam, "API key type: team, individual, or enterprise (Enterprise Program API)")
 	keyPath := fs.String("private-key", "", "Path to private key (.p8) file")
@@ -646,10 +646,18 @@ so commands continue to work even if the original .p8 file is removed.`,
 				return shared.MissingRequiredUsageError("--name")
 			}
 			trimmedKeyID := strings.TrimSpace(*keyID)
+			if !flagWasSet(fs, "key-id") {
+				if inferred := keyIDHintFromKeyPath(*keyPath); inferred != "" {
+					fmt.Fprintf(os.Stderr, "Using --key-id %s from the private key file name\n", inferred)
+					trimmedKeyID = inferred
+				}
+			}
 			if trimmedKeyID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --key-id is required")
 				if hint := keyIDHintFromKeyPath(*keyPath); hint != "" {
 					fmt.Fprintf(os.Stderr, "Hint: the key file name suggests --key-id %s\n", hint)
+				} else {
+					fmt.Fprintln(os.Stderr, "Hint: the key ID is listed next to the key on the API keys page and in the downloaded file name, AuthKey_<KEY_ID>.p8.")
 				}
 				fmt.Fprintf(os.Stderr, "Hint: create an API key at %s, then run: %s\n", authsvc.APIKeysURL, authsvc.LoginCommandExample)
 				return shared.MissingRequiredUsageError("--key-id")
@@ -693,7 +701,11 @@ so commands continue to work even if the original .p8 file is removed.`,
 			}
 
 			if err := authsvc.ValidateKeyFile(*keyPath); err != nil {
-				rendered := shared.WithPrivateKeyDiagnostic(shared.UsageErrorf("auth login: invalid private key: %v", err), err)
+				message := err.Error()
+				if kind, _ := authsvc.PrivateKeyErrorKindOf(err); kind == authsvc.PrivateKeyPermissionsInsecure {
+					message = "private key file is too permissive; other users can read this credential"
+				}
+				rendered := shared.WithPrivateKeyDiagnostic(shared.UsageErrorf("auth login: invalid private key: %s", message), err)
 				printPrivateKeyPermissionRemediation(err, *keyPath)
 				return rendered
 			}
