@@ -26,14 +26,7 @@ func (c *Client) UpdateGameCenterChallengeLeaderboardRelationship(ctx context.Co
 			ID:   leaderboardID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterChallenges/%s/relationships/leaderboard", challengeID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterChallenges/%s/relationships/leaderboard", challengeID), payload)
 }
 
 // UpdateGameCenterChallengeLeaderboardV2Relationship updates the leaderboardV2 relationship on a challenge.
@@ -55,12 +48,5 @@ func (c *Client) UpdateGameCenterChallengeLeaderboardV2Relationship(ctx context.
 			ID:   leaderboardID,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterChallenges/%s/relationships/leaderboardV2", challengeID)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterChallenges/%s/relationships/leaderboardV2", challengeID), payload)
 }

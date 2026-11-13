@@ -21,14 +21,7 @@ func (c *Client) AddGameCenterAppVersionCompatibilityVersions(ctx context.Contex
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterAppVersions, compatibleIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterAppVersions/%s/relationships/compatibilityVersions", appVersionID)
-	_, err = c.do(ctx, http.MethodPost, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/gameCenterAppVersions/%s/relationships/compatibilityVersions", appVersionID), payload)
 }
 
 // RemoveGameCenterAppVersionCompatibilityVersions removes compatibility versions from a Game Center app version.
@@ -45,12 +38,5 @@ func (c *Client) RemoveGameCenterAppVersionCompatibilityVersions(ctx context.Con
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterAppVersions, compatibleIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterAppVersions/%s/relationships/compatibilityVersions", appVersionID)
-	_, err = c.do(ctx, http.MethodDelete, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterAppVersions/%s/relationships/compatibilityVersions", appVersionID), payload)
 }

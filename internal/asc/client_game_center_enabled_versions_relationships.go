@@ -21,14 +21,7 @@ func (c *Client) AddGameCenterEnabledVersionCompatibleVersions(ctx context.Conte
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterEnabledVersions, compatibleIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", enabledVersionID)
-	_, err = c.do(ctx, http.MethodPost, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", enabledVersionID), payload)
 }
 
 // RemoveGameCenterEnabledVersionCompatibleVersions removes compatible enabled versions.
@@ -45,14 +38,7 @@ func (c *Client) RemoveGameCenterEnabledVersionCompatibleVersions(ctx context.Co
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterEnabledVersions, compatibleIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", enabledVersionID)
-	_, err = c.do(ctx, http.MethodDelete, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", enabledVersionID), payload)
 }
 
 // UpdateGameCenterEnabledVersionCompatibleVersionsRelationship replaces the compatibleVersions relationship.
@@ -60,12 +46,5 @@ func (c *Client) UpdateGameCenterEnabledVersionCompatibleVersionsRelationship(ct
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(ResourceTypeGameCenterEnabledVersions, compatibleIDs),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", strings.TrimSpace(enabledVersionID))
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", strings.TrimSpace(enabledVersionID)), payload)
 }
