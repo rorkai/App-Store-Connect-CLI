@@ -39,7 +39,7 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body io.Re
 	}
 
 	// Generate JWT token
-	token, err := c.generateJWT()
+	token, err := c.generateJWT(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
 	}
@@ -89,10 +89,10 @@ func (c *Client) validateRequestHost(target string) error {
 }
 
 // generateJWT generates a JWT for the client's API
-func (c *Client) generateJWT() (string, error) {
+func (c *Client) generateJWT(ctx context.Context) (string, error) {
 	now := time.Now()
-	if c.bearerToken != "" {
-		return c.bearerJWT(now)
+	if c.bearer != nil {
+		return c.bearer.current(ctx, now)
 	}
 
 	c.jwtMu.Lock()
@@ -943,11 +943,11 @@ func BuildRequestBody(data any) (io.Reader, error) {
 
 func (c *Client) parseAuthenticatedResponseError(body []byte, resp *http.Response) error {
 	err := ParseErrorWithStatus(body, resp.StatusCode)
-	if resp.StatusCode != http.StatusUnauthorized || c.bearerToken == "" {
+	if resp.StatusCode != http.StatusUnauthorized || c.bearer == nil {
 		return err
 	}
 	// A redirect can drop the Authorization header before the final response.
-	if resp.Request != nil && resp.Request.Header.Get("Authorization") != "Bearer "+c.bearerToken {
+	if resp.Request != nil && !strings.HasPrefix(resp.Request.Header.Get("Authorization"), "Bearer ") {
 		return err
 	}
 	if apiErr, ok := errors.AsType[*APIError](err); ok {
