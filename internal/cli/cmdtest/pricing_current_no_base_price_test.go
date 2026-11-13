@@ -57,7 +57,9 @@ func TestPricingCurrentNoBaseTerritoryPriceIsExpectedNegative(t *testing.T) {
 	tests := []struct {
 		name       string
 		prices     []string
+		output     string
 		wantStdout string
+		wantTable  []string
 		wantStderr string
 	}{
 		{
@@ -77,6 +79,13 @@ func TestPricingCurrentNoBaseTerritoryPriceIsExpectedNegative(t *testing.T) {
 			wantStdout: `{"appId":"app-1","configured":false,"baseTerritory":"USA","reason":"no_current_base_price","nextStartDate":"2026-03-05"}`,
 			wantStderr: `App app-1 has no current price for base territory USA (the next base price starts 2026-03-05); set one with: asc pricing schedule create --app app-1 --free --base-territory "USA"`,
 		},
+		{
+			name:       "only a future base price table",
+			prices:     []string{appPriceResource("price-1", "pp-paid", "2026-03-05", "")},
+			output:     "table",
+			wantTable:  []string{"Base Territory", "Reason", "Next Start Date", "USA", "no_current_base_price", "2026-03-05", "false"},
+			wantStderr: `App app-1 has no current price for base territory USA (the next base price starts 2026-03-05); set one with: asc pricing schedule create --app app-1 --free --base-territory "USA"`,
+		},
 	}
 
 	for _, test := range tests {
@@ -86,10 +95,19 @@ func TestPricingCurrentNoBaseTerritoryPriceIsExpectedNegative(t *testing.T) {
 			fixPricingClock(t, mustParseRFC3339(t, "2026-03-01T20:00:00Z"))
 			useServerTransport(t, newPricingCurrentScheduleServer(t, appPricesBody(test.prices...)))
 
-			stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "json"})
+			output := test.output
+			if output == "" {
+				output = "json"
+			}
+			stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", output})
 
 			assertNotConfiguredExpectedNegative(t, runErr)
-			if want := test.wantStdout + "\n"; stdout != want {
+			for _, want := range test.wantTable {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("expected table to contain %q, got %q", want, stdout)
+				}
+			}
+			if want := test.wantStdout + "\n"; test.wantTable == nil && stdout != want {
 				t.Fatalf("stdout = %q, want %q", stdout, want)
 			}
 			if want := test.wantStderr + "\n"; stderr != want {
@@ -99,22 +117,6 @@ func TestPricingCurrentNoBaseTerritoryPriceIsExpectedNegative(t *testing.T) {
 				t.Fatalf("unexpected error: %v", runErr)
 			}
 		})
-	}
-}
-
-func TestPricingCurrentNoBaseTerritoryPriceTableOutput(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	fixPricingClock(t, mustParseRFC3339(t, "2026-03-01T20:00:00Z"))
-	useServerTransport(t, newPricingCurrentScheduleServer(t, appPricesBody(appPriceResource("price-1", "pp-paid", "2026-03-05", ""))))
-
-	stdout, _, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "table"})
-
-	assertNotConfiguredExpectedNegative(t, runErr)
-	for _, want := range []string{"Base Territory", "Reason", "Next Start Date", "USA", "no_current_base_price", "2026-03-05", "false"} {
-		if !strings.Contains(stdout, want) {
-			t.Fatalf("expected table to contain %q, got %q", want, stdout)
-		}
 	}
 }
 

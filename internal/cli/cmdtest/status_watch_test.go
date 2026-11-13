@@ -217,89 +217,70 @@ func TestStatusWatchSubmissionAndReviewUseBoundedRecentPage(t *testing.T) {
 	}
 }
 
-func TestStatusWatchCancellationDuringSnapshotFetchExitsCleanly(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return nil, req.Context().Err()
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"status",
-			"--app", "123456789",
-			"--watch",
-			"--poll-interval", "1ms",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(ctx); err != nil {
-			t.Fatalf("expected clean exit on cancellation, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+func TestStatusWatchContextEndDuringSnapshotFetchExitsCleanly(t *testing.T) {
+	tests := []struct {
+		name string
+		ctx  func() (context.Context, context.CancelFunc)
+	}{
+		{
+			name: "cancellation",
+			ctx: func() (context.Context, context.CancelFunc) {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx, cancel
+			},
+		},
+		{
+			name: "deadline",
+			ctx: func() (context.Context, context.CancelFunc) {
+				return context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+			},
+		},
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-}
 
-func TestStatusWatchDeadlineDuringSnapshotFetchExitsCleanly(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() {
+				http.DefaultTransport = originalTransport
+			})
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return nil, req.Context().Err()
-	})
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return nil, req.Context().Err()
+			})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
-	defer cancel()
+			ctx, cancel := test.ctx()
+			defer cancel()
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"status",
-			"--app", "123456789",
-			"--watch",
-			"--poll-interval", "1ms",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(ctx); err != nil {
-			t.Fatalf("expected clean exit on deadline, got %v", err)
-		}
-	})
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"status",
+					"--app", "123456789",
+					"--watch",
+					"--poll-interval", "1ms",
+					"--output", "json",
+				}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(ctx); err != nil {
+					t.Fatalf("expected clean exit on %s, got %v", test.name, err)
+				}
+			})
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
 	}
 }
 

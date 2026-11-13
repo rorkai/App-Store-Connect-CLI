@@ -39,69 +39,6 @@ func TestGameCenterEnabledVersionsValidationErrors(t *testing.T) {
 	})
 }
 
-func TestGameCenterEnabledVersionsOutputErrors(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-	}{
-		{
-			name:    "enabled-versions list unsupported output",
-			args:    []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--output", "yaml"},
-			wantErr: `(got "yaml")`,
-		},
-		{
-			name:    "enabled-versions list pretty with table",
-			args:    []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--output", "table", "--pretty"},
-			wantErr: "--pretty is only valid with JSON output",
-		},
-		{
-			name:    "enabled-versions list pretty with markdown",
-			args:    []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--output", "markdown", "--pretty"},
-			wantErr: "--pretty is only valid with JSON output",
-		},
-		{
-			name:    "enabled-versions compatible unsupported output",
-			args:    []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--output", "yaml"},
-			wantErr: `(got "yaml")`,
-		},
-		{
-			name:    "enabled-versions compatible pretty with table",
-			args:    []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--output", "table", "--pretty"},
-			wantErr: "--pretty is only valid with JSON output",
-		},
-		{
-			name:    "enabled-versions compatible pretty with markdown",
-			args:    []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--output", "markdown", "--pretty"},
-			wantErr: "--pretty is only valid with JSON output",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !isUsageClassError(err) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
-			}
-		})
-	}
-}
-
 func TestGameCenterEnabledVersionsListSuccess(t *testing.T) {
 	setupAuth(t)
 

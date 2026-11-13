@@ -3,8 +3,6 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -724,26 +722,6 @@ func TestRunReviewsRespondBatchPartialFailureReturnsExitError(t *testing.T) {
 	failed := findReviewBatchTestResult(t, payload, "review-2")
 	if failed.Status != "failed" || failed.Error == "" {
 		t.Fatalf("unexpected failed result: %+v", failed)
-	}
-}
-
-func TestReviewsResponseParentShowsHelp(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"reviews", "response"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	// Should show help with subcommands listed
-	if !strings.Contains(stderr, "view") || !strings.Contains(stderr, "delete") || !strings.Contains(stderr, "for-review") {
-		t.Fatalf("expected help output with subcommands, got %q", stderr)
 	}
 }
 

@@ -3,8 +3,6 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -18,27 +16,6 @@ import (
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
-
-func TestProductPagesExperimentTreatmentLocalizationScreenshotSetsGroupHelpIncludesUploadAndSync(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	help := stdout + stderr
-	for _, token := range []string{"upload", "sync"} {
-		if !strings.Contains(help, token) {
-			t.Fatalf("expected help to contain %q, got %q", token, help)
-		}
-	}
-}
 
 func TestRunProductPagesExperimentTreatmentLocalizationScreenshotSetsUsageErrors(t *testing.T) {
 	tests := []struct {

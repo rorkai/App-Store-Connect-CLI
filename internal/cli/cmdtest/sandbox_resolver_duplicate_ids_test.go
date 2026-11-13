@@ -115,124 +115,106 @@ func TestSandboxViewByEmailRejectsBlankResourceID(t *testing.T) {
 	}
 }
 
-func TestSandboxViewByEmailNormalizesID(t *testing.T) {
-	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.Method {
-		case http.MethodGet:
-			if req.URL.Path != "/v2/sandboxTesters" {
-				t.Fatalf("unexpected list request: %s", req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"sandboxTesters","id":" tester-42 ","attributes":{"email":"view@example.com"}}],"links":{}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
-
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"sandbox", "view", "--email", "view@example.com", "--output", "json"}, "1.2.3"); code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+func TestSandboxByEmailNormalizesID(t *testing.T) {
+	tests := []struct {
+		name          string
+		email         string
+		args          []string
+		mutation      func(t *testing.T, req *http.Request) *http.Response
+		wantStdout    string
+		notWantStdout string
+	}{
+		{
+			name:          "view",
+			email:         "view@example.com",
+			args:          []string{"sandbox", "view", "--email", "view@example.com", "--output", "json"},
+			wantStdout:    `"id":"tester-42"`,
+			notWantStdout: `"id":" tester-42 "`,
+		},
+		{
+			name:  "update",
+			email: "update@example.com",
+			args:  []string{"sandbox", "update", "--email", "update@example.com", "--territory", "USA", "--output", "json"},
+			mutation: func(t *testing.T, req *http.Request) *http.Response {
+				if req.Method != http.MethodPatch || req.URL.Path != "/v2/sandboxTesters/tester-42" {
+					t.Fatalf("expected normalized update request, got %s %s", req.Method, req.URL.Path)
+				}
+				var body struct {
+					Data struct {
+						ID string `json:"id"`
+					} `json:"data"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+					t.Fatalf("decode update body: %v", err)
+				}
+				if body.Data.ID != "tester-42" {
+					t.Fatalf("expected normalized update body ID, got %q", body.Data.ID)
+				}
+				return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"sandboxTesters","id":"tester-42","attributes":{"email":"update@example.com","territory":"USA"}}}`)
+			},
+			wantStdout: `"id":"tester-42"`,
+		},
+		{
+			name:  "clear-history",
+			email: "clear@example.com",
+			args:  []string{"sandbox", "clear-history", "--email", "clear@example.com", "--confirm", "--output", "json"},
+			mutation: func(t *testing.T, req *http.Request) *http.Response {
+				if req.Method != http.MethodPost || req.URL.Path != "/v2/sandboxTestersClearPurchaseHistoryRequest" {
+					t.Fatalf("unexpected clear-history request: %s %s", req.Method, req.URL.Path)
+				}
+				var body struct {
+					Data struct {
+						Relationships struct {
+							SandboxTesters struct {
+								Data []struct {
+									ID string `json:"id"`
+								} `json:"data"`
+							} `json:"sandboxTesters"`
+						} `json:"relationships"`
+					} `json:"data"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+					t.Fatalf("decode clear-history body: %v", err)
+				}
+				if len(body.Data.Relationships.SandboxTesters.Data) != 1 || body.Data.Relationships.SandboxTesters.Data[0].ID != "tester-42" {
+					t.Fatalf("expected normalized clear-history ID, got %+v", body.Data.Relationships.SandboxTesters.Data)
+				}
+				return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"sandboxTestersClearPurchaseHistoryRequest","id":"request-1"}}`)
+			},
+			wantStdout: `"testerId":"tester-42"`,
+		},
 	}
-	if !strings.Contains(stdout, `"id":"tester-42"`) || strings.Contains(stdout, `"id":" tester-42 "`) {
-		t.Fatalf("expected normalized view ID, got %q", stdout)
-	}
-}
 
-func TestSandboxUpdateByEmailNormalizesID(t *testing.T) {
-	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.Method {
-		case http.MethodGet:
-			if req.URL.Path != "/v2/sandboxTesters" {
-				t.Fatalf("unexpected list request: %s", req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"sandboxTesters","id":" tester-42 ","attributes":{"email":"update@example.com"}}],"links":{}}`), nil
-		case http.MethodPatch:
-			if req.URL.Path != "/v2/sandboxTesters/tester-42" {
-				t.Fatalf("expected normalized update path, got %s", req.URL.Path)
-			}
-			var body struct {
-				Data struct {
-					ID string `json:"id"`
-				} `json:"data"`
-			}
-			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-				t.Fatalf("decode update body: %v", err)
-			}
-			if body.Data.ID != "tester-42" {
-				t.Fatalf("expected normalized update body ID, got %q", body.Data.ID)
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"sandboxTesters","id":"tester-42","attributes":{"email":"update@example.com","territory":"USA"}}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method == http.MethodGet {
+					if req.URL.Path != "/v2/sandboxTesters" {
+						t.Fatalf("unexpected list request: %s", req.URL.String())
+					}
+					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"sandboxTesters","id":" tester-42 ","attributes":{"email":"`+test.email+`"}}],"links":{}}`), nil
+				}
+				if test.mutation == nil {
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+				}
+				return test.mutation(t, req), nil
+			}))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"sandbox", "update", "--email", "update@example.com", "--territory", "USA", "--output", "json"}, "1.2.3"); code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"tester-42"`) {
-		t.Fatalf("expected updated tester output, got %q", stdout)
-	}
-}
-
-func TestSandboxClearHistoryByEmailNormalizesID(t *testing.T) {
-	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.Method {
-		case http.MethodGet:
-			if req.URL.Path != "/v2/sandboxTesters" {
-				t.Fatalf("unexpected list request: %s", req.URL.String())
+			stdout, stderr := captureOutput(t, func() {
+				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitSuccess {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"sandboxTesters","id":" tester-42 ","attributes":{"email":"clear@example.com"}}],"links":{}}`), nil
-		case http.MethodPost:
-			if req.URL.Path != "/v2/sandboxTestersClearPurchaseHistoryRequest" {
-				t.Fatalf("unexpected clear-history path: %s", req.URL.Path)
+			if !strings.Contains(stdout, test.wantStdout) {
+				t.Fatalf("expected stdout to contain %q, got %q", test.wantStdout, stdout)
 			}
-			var body struct {
-				Data struct {
-					Relationships struct {
-						SandboxTesters struct {
-							Data []struct {
-								ID string `json:"id"`
-							} `json:"data"`
-						} `json:"sandboxTesters"`
-					} `json:"relationships"`
-				} `json:"data"`
+			if test.notWantStdout != "" && strings.Contains(stdout, test.notWantStdout) {
+				t.Fatalf("expected stdout not to contain %q, got %q", test.notWantStdout, stdout)
 			}
-			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-				t.Fatalf("decode clear-history body: %v", err)
-			}
-			if len(body.Data.Relationships.SandboxTesters.Data) != 1 || body.Data.Relationships.SandboxTesters.Data[0].ID != "tester-42" {
-				t.Fatalf("expected normalized clear-history ID, got %+v", body.Data.Relationships.SandboxTesters.Data)
-			}
-			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"sandboxTestersClearPurchaseHistoryRequest","id":"request-1"}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
-
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"sandbox", "clear-history", "--email", "clear@example.com", "--confirm", "--output", "json"}, "1.2.3"); code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"testerId":"tester-42"`) {
-		t.Fatalf("expected normalized clear-history receipt, got %q", stdout)
+		})
 	}
 }

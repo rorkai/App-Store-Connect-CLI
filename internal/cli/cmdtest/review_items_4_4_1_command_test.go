@@ -89,7 +89,7 @@ func TestReviewListsOwnerlessNextPaginateAllPages(t *testing.T) {
 	}
 }
 
-func TestRunReviewItemsAddSupports441SubscriptionVersionTypes(t *testing.T) {
+func TestRunReviewItemsAddSupportedItemTypes(t *testing.T) {
 	tests := []struct {
 		name             string
 		itemType         string
@@ -99,6 +99,12 @@ func TestRunReviewItemsAddSupports441SubscriptionVersionTypes(t *testing.T) {
 		{name: "subscription version", itemType: "subscriptionVersions", relationshipName: "subscriptionVersion", resourceType: "subscriptionVersions"},
 		{name: "subscription group version", itemType: "subscriptionGroupVersions", relationshipName: "subscriptionGroupVersion", resourceType: "subscriptionGroupVersions"},
 		{name: "retention message version", itemType: "retentionMessageVersions", relationshipName: "retentionMessageVersion", resourceType: "retentionMessageVersions"},
+		{name: "background asset version", itemType: "backgroundAssetVersions", relationshipName: "backgroundAssetVersion", resourceType: "backgroundAssetVersions"},
+		{name: "game center achievement version", itemType: "gameCenterAchievementVersions", relationshipName: "gameCenterAchievementVersion", resourceType: "gameCenterAchievementVersions"},
+		{name: "game center activity version", itemType: "gameCenterActivityVersions", relationshipName: "gameCenterActivityVersion", resourceType: "gameCenterActivityVersions"},
+		{name: "game center challenge version", itemType: "gameCenterChallengeVersions", relationshipName: "gameCenterChallengeVersion", resourceType: "gameCenterChallengeVersions"},
+		{name: "game center leaderboard set version", itemType: "gameCenterLeaderboardSetVersions", relationshipName: "gameCenterLeaderboardSetVersion", resourceType: "gameCenterLeaderboardSetVersions"},
+		{name: "game center leaderboard version", itemType: "gameCenterLeaderboardVersions", relationshipName: "gameCenterLeaderboardVersion", resourceType: "gameCenterLeaderboardVersions"},
 	}
 
 	for _, test := range tests {

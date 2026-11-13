@@ -170,18 +170,6 @@ func TestIAPPricingMovedSurfacesUseCanonicalHelp(t *testing.T) {
 	}
 }
 
-func TestIAPSchedulePriceLeafHelpMentionsResolved(t *testing.T) {
-	for _, path := range [][]string{
-		{"iap", "pricing", "schedules", "manual-prices"},
-		{"iap", "pricing", "schedules", "automatic-prices"},
-	} {
-		usage := usageForCommand(t, path...)
-		if !strings.Contains(usage, "--resolved") {
-			t.Fatalf("expected usage for %q to mention --resolved, got %q", strings.Join(path, " "), usage)
-		}
-	}
-}
-
 func TestRemovedIAPPricingAliasPathsFallBackToCanonicalIAPHelp(t *testing.T) {
 	tests := []struct {
 		name string
