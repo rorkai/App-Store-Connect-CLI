@@ -290,6 +290,7 @@ Examples:
 // a terminal delivery state and returns the successful response for output.
 func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID, expectedChecksum string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
 	var verifiedResp *asc.SubscriptionAppStoreReviewScreenshotResponse
+	lastState := ""
 	_, err := asc.PollUntil(ctx, reviewScreenshotPollInterval, func(ctx context.Context) (struct{}, bool, error) {
 		resp, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
 			return client.GetSubscriptionAppStoreReviewScreenshot(requestCtx, screenshotID)
@@ -299,7 +300,8 @@ func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *as
 		}
 		state := resp.Data.Attributes.AssetDeliveryState
 		if state != nil && state.State != nil {
-			switch strings.ToUpper(*state.State) {
+			lastState = strings.ToUpper(*state.State)
+			switch lastState {
 			case "COMPLETE":
 				actualChecksum := strings.TrimSpace(resp.Data.Attributes.SourceFileChecksum)
 				if !strings.EqualFold(actualChecksum, strings.TrimSpace(expectedChecksum)) {
@@ -314,6 +316,13 @@ func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *as
 		return struct{}{}, false, nil
 	})
 	if err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			stateDetail := ""
+			if lastState != "" {
+				stateDetail = " after delivery state " + lastState
+			}
+			return nil, shared.MarkUploadDeadline(fmt.Errorf("timed out waiting for screenshot %s delivery%s: %w; the screenshot was uploaded and App Store Connect may still finish processing it; rerun the same command to resume waiting", screenshotID, stateDetail, err))
+		}
 		return nil, err
 	}
 	if verifiedResp == nil {
