@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -269,6 +270,35 @@ func TestDeveloperPortalForbiddenKeepsAppleCodesAndNeverSuggestsLogout(t *testin
 	}
 	if strings.Contains(err.Error(), "logout") {
 		t.Fatalf("error %q must not suggest logout for a 403", err)
+	}
+}
+
+func TestEnsureDeveloperPortalSessionReportsTeamsResultCodeInsteadOfNoTeam(t *testing.T) {
+	var portalHits int
+	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path == developerPortalTeamsPath {
+			return developerPortalTestResponse(http.StatusOK, `{"resultCode":1100,"resultString":"Your session has expired.  Please log in.","userString":"Your session has expired.  Please log in.","requestId":"req-1"}`, nil), nil
+		}
+		portalHits++
+		return developerPortalTestResponse(http.StatusInternalServerError, `{}`, nil), nil
+	})
+
+	_, err := client.EnableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityEnableRequest{
+		BundleID:   "bundle-1",
+		Capability: "PRIVATE_CLOUD_COMPUTE",
+	})
+	var resultErr *DeveloperPortalResultError
+	if !errors.As(err, &resultErr) || resultErr.ResultCode != 1100 {
+		t.Fatalf("error = %v, want DeveloperPortalResultError with result code 1100", err)
+	}
+	if !strings.Contains(err.Error(), "Your session has expired") {
+		t.Fatalf("error %q does not carry Apple's message", err)
+	}
+	if strings.Contains(err.Error(), "no Developer Portal team") {
+		t.Fatalf("error %q misreports a refused teams request as a missing team", err)
+	}
+	if portalHits != 0 {
+		t.Fatalf("portal requests after refused teams request = %d, want 0", portalHits)
 	}
 }
 
