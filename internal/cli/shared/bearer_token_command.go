@@ -18,7 +18,9 @@ const bearerTokenCommandTimeout = 60 * time.Second
 // token it prints. The command's stderr reaches the user; its stdout, the
 // token, never does.
 func readBearerTokenFromCommand(ctx context.Context, command string) (string, error) {
-	commandCtx, cancel := ContextWithResolvedTimeout(ContextWithoutTimeout(ctx), bearerTokenCommandTimeout)
+	// Keep the caller's deadline: a renewal inside a request must finish while
+	// that request can still be sent.
+	commandCtx, cancel := ContextWithResolvedTimeout(ctx, bearerTokenCommandTimeout)
 	defer cancel()
 	cmd := ShellCommand(commandCtx, command)
 	cmd.Stderr = os.Stderr
