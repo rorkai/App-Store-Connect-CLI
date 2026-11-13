@@ -107,6 +107,7 @@ func TestAuthLogoutUsageErrorsRemoveNothing(t *testing.T) {
 		{name: "implicit all without confirm", args: []string{"auth", "logout"}, wantErr: missingConfirm},
 		{name: "explicit all without confirm", args: []string{"auth", "logout", "--all"}, wantErr: missingConfirm},
 		{name: "named without confirm", args: []string{"auth", "logout", "--name", "demo"}, wantErr: missingConfirm},
+		{name: "blank name", args: []string{"auth", "logout", "--name", "   "}, wantErr: "--name cannot be blank"},
 		{name: "explicit false confirm", args: []string{"auth", "logout", "--all", "--confirm=false"}, wantErr: "--confirm must be true when specified"},
 		{name: "positional args", args: []string{"auth", "logout", "--all", "--confirm", "unexpected"}, wantErr: "unexpected argument(s): unexpected"},
 	} {

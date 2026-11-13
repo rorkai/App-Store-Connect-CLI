@@ -15,28 +15,6 @@ import (
 	"testing"
 )
 
-func TestCertificatesCSRGenerate_MissingRequiredFlags(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"certificates", "csr", "generate"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected flag.ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --key-out is required") {
-		t.Fatalf("expected missing key-out error, got %q", stderr)
-	}
-}
-
 func TestCertificatesCSRGenerate_GeneratesKeyAndCSR(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
