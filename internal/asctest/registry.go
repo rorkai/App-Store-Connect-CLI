@@ -8,7 +8,9 @@
 package asctest
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -85,18 +87,31 @@ func newMatcher(method, path string, query []string) Matcher {
 }
 
 // JSONBody also requires the request body to be JSON equal to want, ignoring
-// formatting and key order.
+// formatting and key order. Numbers are compared by their literal text.
 func (m Matcher) JSONBody(want string) Matcher {
-	var wantValue any
-	if err := json.Unmarshal([]byte(want), &wantValue); err != nil {
+	wantValue, err := decodeJSON([]byte(want))
+	if err != nil {
 		panic(fmt.Sprintf("asctest: invalid JSON body %q: %v", want, err))
 	}
 	m.body = func(got []byte) bool {
-		var gotValue any
-		return json.Unmarshal(got, &gotValue) == nil && reflect.DeepEqual(gotValue, wantValue)
+		gotValue, err := decodeJSON(got)
+		return err == nil && reflect.DeepEqual(gotValue, wantValue)
 	}
 	m.desc += " body " + want
 	return m
+}
+
+func decodeJSON(data []byte) (any, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	var value any
+	if err := dec.Decode(&value); err != nil {
+		return nil, err
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return nil, errors.New("data after the JSON value")
+	}
+	return value, nil
 }
 
 func (m Matcher) String() string { return m.desc }

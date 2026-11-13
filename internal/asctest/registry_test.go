@@ -66,6 +66,7 @@ func TestRegistryMatching(t *testing.T) {
 		{"other query value", GET("/v1/apps", "limit=50"), http.MethodGet, base + "/v1/apps?limit=51", "", false},
 		{"equal JSON body", PATCH("/v1/apps/1").JSONBody(`{"data":{"id":"1","type":"apps"}}`), http.MethodPatch, base + "/v1/apps/1", `{"data":{"type":"apps","id":"1"}}`, true},
 		{"other JSON body", POST("/v1/apps").JSONBody(`{"data":{"id":"1"}}`), http.MethodPost, base + "/v1/apps", `{"data":{"id":"2"}}`, false},
+		{"integers beyond float64 precision", POST("/v1/apps").JSONBody(`{"n":9007199254740992}`), http.MethodPost, base + "/v1/apps", `{"n":9007199254740993}`, false},
 		{"body that is not JSON", DELETE("/v1/apps/1").JSONBody(`{}`), http.MethodDelete, base + "/v1/apps/1", `not json`, false},
 	}
 
