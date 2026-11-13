@@ -223,6 +223,16 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "app-events video-clips list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "app-setup info set invalid locale",
+			args:    []string{"app-setup", "info", "set", "--app", "APP_ID", "--locale", "!!!bad!!!", "--name", "Test"},
+			wantErr: `app-setup info set: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
+			name:    "app-setup info set invalid primary locale",
+			args:    []string{"app-setup", "info", "set", "--app", "APP_ID", "--primary-locale", "!!!bad!!!"},
+			wantErr: `app-setup info set: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
 			name:    "app-tags links limit",
 			args:    []string{"app-tags", "links", "--limit", "201"},
 			wantErr: "app-tags links: --limit must be between 1 and 200",
@@ -293,6 +303,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "apps search-keywords list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "apps search-keywords list invalid locale",
+			args:    []string{"apps", "search-keywords", "list", "--app", "APP_ID", "--locale", "!!!bad!!!"},
+			wantErr: `apps search-keywords list: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
 			name:    "build-bundles app-clip invocations list limit",
 			args:    []string{"build-bundles", "app-clip", "invocations", "list", "--limit", "201"},
 			wantErr: "build-bundles app-clip invocations list: --limit must be between 1 and 200",
@@ -326,6 +341,16 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "build-localizations list next",
 			args:    []string{"build-localizations", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "build-localizations list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "build-localizations list invalid locale",
+			args:    []string{"build-localizations", "list", "--build-id", "BUILD_ID", "--locale", "!!!bad!!!"},
+			wantErr: `build-localizations list: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
+			name:    "build-localizations create invalid locale",
+			args:    []string{"build-localizations", "create", "--build-id", "BUILD_ID", "--locale", "!!!bad!!!"},
+			wantErr: `build-localizations create: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
 		},
 		{
 			name:    "builds expire-all keep-latest negative",

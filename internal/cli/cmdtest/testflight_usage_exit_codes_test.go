@@ -29,6 +29,16 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "testflight app-localizations list: --limit must be between 1 and 200",
 		},
 		{
+			name:    "app-localizations list invalid locale",
+			args:    []string{"testflight", "app-localizations", "list", "--app", "123", "--locale", "!!!bad!!!"},
+			wantErr: `testflight app-localizations list: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
+			name:    "app-localizations create invalid locale",
+			args:    []string{"testflight", "app-localizations", "create", "--app", "123", "--locale", "!!!bad!!!"},
+			wantErr: `testflight app-localizations create: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
 			name:    "groups list limit 201",
 			args:    []string{"testflight", "groups", "list", "--limit", "201"},
 			wantErr: "groups list: --limit must be between 1 and 200",

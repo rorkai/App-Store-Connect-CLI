@@ -138,7 +138,7 @@ Examples:
 			}
 			if primaryLocaleValue != "" {
 				if err := shared.ValidateBuildLocalizationLocale(primaryLocaleValue); err != nil {
-					return fmt.Errorf("app-setup info set: %w", err)
+					return shared.UsageErrorf("app-setup info set: %v", err)
 				}
 			}
 			if hasLocalization && localeValue == "" {
@@ -147,7 +147,7 @@ Examples:
 			}
 			if localeValue != "" {
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-					return fmt.Errorf("app-setup info set: %w", err)
+					return shared.UsageErrorf("app-setup info set: %v", err)
 				}
 			}
 
