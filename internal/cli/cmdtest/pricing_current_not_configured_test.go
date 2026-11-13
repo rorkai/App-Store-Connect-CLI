@@ -52,10 +52,12 @@ func newSyntheticScheduleServer(t *testing.T) *httptest.Server {
 	return server
 }
 
-func TestPricingCurrentNotConfiguredIsExpectedNegativeJSON(t *testing.T) {
+func TestPricingCurrentNotConfiguredIsExpectedNegative(t *testing.T) {
 	tests := []struct {
-		name   string
-		server func(t *testing.T) *httptest.Server
+		name      string
+		server    func(t *testing.T) *httptest.Server
+		output    string
+		wantTable []string
 	}{
 		{
 			name: "schedule read 404",
@@ -64,6 +66,14 @@ func TestPricingCurrentNotConfiguredIsExpectedNegativeJSON(t *testing.T) {
 			},
 		},
 		{name: "synthetic schedule with manual prices 404", server: newSyntheticScheduleServer},
+		{
+			name: "schedule read 404 table",
+			server: func(t *testing.T) *httptest.Server {
+				return newNotFoundServer(t, "/v1/apps/app-1/appPriceSchedule", appPriceScheduleNotConfiguredBody)
+			},
+			output:    "table",
+			wantTable: []string{"Configured", "false", "app-1"},
+		},
 	}
 
 	for _, test := range tests {
@@ -72,33 +82,26 @@ func TestPricingCurrentNotConfiguredIsExpectedNegativeJSON(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			useServerTransport(t, test.server(t))
 
-			stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "json"})
+			output := test.output
+			if output == "" {
+				output = "json"
+			}
+			stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", output})
 
 			assertNotConfiguredExpectedNegative(t, runErr)
 			wantStderr := `App app-1 has no price schedule configured yet; create it with: asc pricing schedule create --app app-1 --free --base-territory "USA"` + "\n"
 			if stderr != wantStderr {
 				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
 			}
-			if stdout != `{"appId":"app-1","configured":false}`+"\n" {
+			for _, want := range test.wantTable {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("expected table to contain %q, got %q", want, stdout)
+				}
+			}
+			if test.wantTable == nil && stdout != `{"appId":"app-1","configured":false}`+"\n" {
 				t.Fatalf("unexpected stdout: %q", stdout)
 			}
 		})
-	}
-}
-
-func TestPricingCurrentNotConfiguredTableOutput(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	useServerTransport(t, newNotFoundServer(t, "/v1/apps/app-1/appPriceSchedule", appPriceScheduleNotConfiguredBody))
-
-	stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "table"})
-
-	assertNotConfiguredExpectedNegative(t, runErr)
-	if !strings.Contains(stderr, "App app-1 has no price schedule configured yet") {
-		t.Fatalf("expected not-configured hint on stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, "Configured") || !strings.Contains(stdout, "false") || !strings.Contains(stdout, "app-1") {
-		t.Fatalf("expected table with configured=false row, got %q", stdout)
 	}
 }
 

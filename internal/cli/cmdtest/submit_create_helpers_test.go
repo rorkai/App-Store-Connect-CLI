@@ -2,11 +2,7 @@ package cmdtest
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"net/http"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -21,15 +17,6 @@ func setupSubmitCreateAuth(t *testing.T) {
 	t.Setenv("ASC_KEY_ID", "TEST_KEY")
 	t.Setenv("ASC_ISSUER_ID", "TEST_ISSUER")
 	t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
-}
-
-func submitCreateJSONResponse(status int, body string) (*http.Response, error) {
-	return &http.Response{
-		Status:     fmt.Sprintf("%d %s", status, http.StatusText(status)),
-		StatusCode: status,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(strings.NewReader(body)),
-	}, nil
 }
 
 func sleepWithContext(ctx context.Context) error {

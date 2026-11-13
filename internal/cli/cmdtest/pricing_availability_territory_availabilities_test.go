@@ -10,176 +10,115 @@ import (
 	"testing"
 )
 
-func TestPricingAvailabilityTerritoryAvailabilitiesPaginate(t *testing.T) {
-	setupAuth(t)
+func TestTerritoryAvailabilitiesListPagination(t *testing.T) {
+	const baseURL = "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?fields%5BterritoryAvailabilities%5D=available%2CreleaseDate%2CpreOrderEnabled%2CpreOrderPublishDate%2CcontentStatuses%2Cterritory&include=territory"
+	const firstURL = baseURL + "&limit=200"
+	const nextURL = baseURL + "&cursor=Mg"
 
-	const firstURL = "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?fields%5BterritoryAvailabilities%5D=available%2CreleaseDate%2CpreOrderEnabled%2CpreOrderPublishDate%2CcontentStatuses%2Cterritory&include=territory&limit=200"
-	const secondURL = "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?fields%5BterritoryAvailabilities%5D=available%2CreleaseDate%2CpreOrderEnabled%2CpreOrderPublishDate%2CcontentStatuses%2Cterritory&include=territory&cursor=Mg"
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"territoryAvailabilities","id":"ta-1"}],"links":{"next":"` + secondURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"territoryAvailabilities","id":"ta-2"}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
+	for _, command := range [][]string{
+		{"pricing", "availability", "territory-availabilities"},
+		{"pre-orders", "list"},
+	} {
+		commandName := strings.Join(command, " ")
+		withArgs := func(args ...string) []string {
+			return append(append([]string{}, command...), args...)
 		}
-	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "territory-availabilities",
-			"--availability", "availability-1",
-			"--paginate",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
+		tests := []struct {
+			name       string
+			args       []string
+			wantURLs   []string
+			wantLimit  string
+			bodies     []string
+			wantOutIDs []string
+		}{
+			{
+				name:       "paginate",
+				args:       withArgs("--availability", "availability-1", "--paginate"),
+				wantURLs:   []string{firstURL, nextURL},
+				bodies:     []string{`{"data":[{"type":"territoryAvailabilities","id":"ta-1"}],"links":{"next":"` + nextURL + `"}}`, `{"data":[{"type":"territoryAvailabilities","id":"ta-2"}],"links":{"next":""}}`},
+				wantOutIDs: []string{"ta-1", "ta-2"},
+			},
+			{
+				name:       "limit",
+				args:       withArgs("--availability", "availability-1", "--limit", "175"),
+				wantLimit:  "175",
+				bodies:     []string{`{"data":[{"type":"territoryAvailabilities","id":"ta-175"}],"links":{"next":""}}`},
+				wantOutIDs: []string{"ta-175"},
+			},
+			{
+				name:       "next",
+				args:       withArgs("--next", nextURL),
+				wantURLs:   []string{nextURL},
+				bodies:     []string{`{"data":[{"type":"territoryAvailabilities","id":"ta-next"}],"links":{"next":""}}`},
+				wantOutIDs: []string{"ta-next"},
+			},
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+		for _, test := range tests {
+			t.Run(commandName+"/"+test.name, func(t *testing.T) {
+				setupAuth(t)
+
+				originalTransport := http.DefaultTransport
+				t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+				requestCount := 0
+				http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					requestCount++
+					if requestCount > len(test.bodies) {
+						t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
+					}
+					if req.Method != http.MethodGet || req.URL.Path != "/v2/appAvailabilities/availability-1/territoryAvailabilities" {
+						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+					}
+					if test.wantURLs != nil && req.URL.String() != test.wantURLs[requestCount-1] {
+						t.Fatalf("request %d = %s, want %s", requestCount, req.URL.String(), test.wantURLs[requestCount-1])
+					}
+					if test.wantLimit != "" && req.URL.Query().Get("limit") != test.wantLimit {
+						t.Fatalf("expected limit=%s, got %q", test.wantLimit, req.URL.Query().Get("limit"))
+					}
+					return jsonHTTPResponse(http.StatusOK, test.bodies[requestCount-1]), nil
+				})
+
+				root := RootCommand("1.2.3")
+				root.FlagSet.SetOutput(io.Discard)
+
+				stdout, stderr := captureOutput(t, func() {
+					if err := root.Parse(test.args); err != nil {
+						t.Fatalf("parse error: %v", err)
+					}
+					if err := root.Run(context.Background()); err != nil {
+						t.Fatalf("run error: %v", err)
+					}
+				})
+
+				if stderr != "" {
+					t.Fatalf("expected empty stderr, got %q", stderr)
+				}
+				if requestCount != len(test.bodies) {
+					t.Fatalf("requests = %d, want %d", requestCount, len(test.bodies))
+				}
+				for _, id := range test.wantOutIDs {
+					if !strings.Contains(stdout, `"id":"`+id+`"`) {
+						t.Fatalf("expected %s in output, got %q", id, stdout)
+					}
+				}
+			})
+		}
+
+		runUsageExitCases(t, []usageExitCase{
+			{
+				name:    commandName + "/RejectsInvalidLimit",
+				args:    withArgs("--availability", "availability-1", "--limit", "201"),
+				wantErr: "Error: " + commandName + ": --limit must be between 1 and 200",
+			},
+			{
+				name:    commandName + "/RejectsInvalidNextURL",
+				args:    withArgs("--next", "http://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?cursor=AQ"),
+				wantErr: "Error: " + commandName + ": --next must be an App Store Connect URL",
+			},
+		})
 	}
-	if !strings.Contains(stdout, `"id":"ta-1"`) || !strings.Contains(stdout, `"id":"ta-2"`) {
-		t.Fatalf("expected paginated territory availabilities in output, got %q", stdout)
-	}
-}
-
-func TestPricingAvailabilityTerritoryAvailabilitiesLimit(t *testing.T) {
-	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v2/appAvailabilities/availability-1/territoryAvailabilities" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		if req.URL.Query().Get("limit") != "175" {
-			t.Fatalf("expected limit=175, got %q", req.URL.Query().Get("limit"))
-		}
-		body := `{"data":[{"type":"territoryAvailabilities","id":"ta-175"}],"links":{"next":""}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "territory-availabilities",
-			"--availability", "availability-1",
-			"--limit", "175",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"ta-175"`) {
-		t.Fatalf("expected territory availability output, got %q", stdout)
-	}
-}
-
-func TestPricingAvailabilityTerritoryAvailabilitiesNext(t *testing.T) {
-	setupAuth(t)
-
-	const nextURL = "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?fields%5BterritoryAvailabilities%5D=available%2CreleaseDate%2CpreOrderEnabled%2CpreOrderPublishDate%2CcontentStatuses%2Cterritory&include=territory&cursor=Mg"
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.String() != nextURL {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		body := `{"data":[{"type":"territoryAvailabilities","id":"ta-next"}],"links":{"next":""}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "territory-availabilities",
-			"--next", nextURL,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"ta-next"`) {
-		t.Fatalf("expected territory availability output, got %q", stdout)
-	}
-}
-
-func TestPricingAvailabilityTerritoryAvailabilitiesUsageErrors(t *testing.T) {
-	runUsageExitCases(t, []usageExitCase{
-		{
-			name:    "RejectsInvalidLimit",
-			args:    []string{"pricing", "availability", "territory-availabilities", "--availability", "availability-1", "--limit", "201"},
-			wantErr: "Error: pricing availability territory-availabilities: --limit must be between 1 and 200",
-		},
-		{
-			name:    "RejectsInvalidNextURL",
-			args:    []string{"pricing", "availability", "territory-availabilities", "--next", "http://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?cursor=AQ"},
-			wantErr: "Error: pricing availability territory-availabilities: --next must be an App Store Connect URL",
-		},
-	})
 }
 
 func TestPricingAvailabilityTerritoryAvailabilitiesByAppOrAvailability(t *testing.T) {

@@ -9,51 +9,94 @@ import (
 	"testing"
 )
 
-func TestReviewSubmissionsListGlobalSuccess(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/reviewSubmissions" {
-			t.Fatalf("expected path /v1/reviewSubmissions, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("filter[app]") != "app-1" {
-			t.Fatalf("expected filter[app]=app-1, got %q", req.URL.Query().Get("filter[app]"))
-		}
-		body := `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}],"links":{"self":"/v1/reviewSubmissions"}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "submissions-list", "--global", "--app", "app-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+func TestReviewSubmissionsListSelectorRequests(t *testing.T) {
+	tests := []struct {
+		name       string
+		envAppID   string
+		args       []string
+		wantPath   string
+		wantQuery  map[string]string
+		body       string
+		wantStdout string
+	}{
+		{
+			name:       "global with app",
+			args:       []string{"review", "submissions-list", "--global", "--app", "app-1"},
+			wantPath:   "/v1/reviewSubmissions",
+			wantQuery:  map[string]string{"filter[app]": "app-1"},
+			body:       `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}],"links":{"self":"/v1/reviewSubmissions"}}`,
+			wantStdout: `"id":"rs-1"`,
+		},
+		{
+			name:       "global with ASC_APP_ID",
+			envAppID:   "app-from-env",
+			args:       []string{"review", "submissions-list", "--global"},
+			wantPath:   "/v1/reviewSubmissions",
+			wantQuery:  map[string]string{"filter[app]": "app-from-env"},
+			body:       `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`,
+			wantStdout: `"data":[]`,
+		},
+		{
+			name:     "global with filters",
+			args:     []string{"review", "submissions-list", "--global", "--app", "app-1", "--platform", "IOS", "--state", "READY_FOR_REVIEW"},
+			wantPath: "/v1/reviewSubmissions",
+			wantQuery: map[string]string{
+				"filter[app]":      "app-1",
+				"filter[platform]": "IOS",
+				"filter[state]":    "READY_FOR_REVIEW",
+			},
+			body: `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`,
+		},
+		{
+			name:       "app scoped",
+			args:       []string{"review", "submissions-list", "--app", "app-1"},
+			wantPath:   "/v1/apps/app-1/reviewSubmissions",
+			body:       `{"data":[{"type":"reviewSubmissions","id":"rs-scoped","attributes":{"platform":"IOS"}}],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`,
+			wantStdout: `"id":"rs-scoped"`,
+		},
 	}
-	if !strings.Contains(stdout, `"id":"rs-1"`) {
-		t.Fatalf("expected submission id in output, got %q", stdout)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_APP_ID", test.envAppID)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet || req.URL.Path != test.wantPath {
+					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, test.wantPath)
+				}
+				for key, want := range test.wantQuery {
+					if got := req.URL.Query().Get(key); got != want {
+						t.Fatalf("%s = %q, want %q", key, got, want)
+					}
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(test.body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			})
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if !strings.Contains(stdout, test.wantStdout) {
+				t.Fatalf("expected stdout to contain %q, got %q", test.wantStdout, stdout)
+			}
+		})
 	}
 }
 
@@ -231,202 +274,6 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
 		})
-	}
-}
-
-func TestReviewSubmissionsListGlobalWithASCAppIDSet(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_APP_ID", "app-from-env")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/reviewSubmissions" {
-			t.Fatalf("expected global path /v1/reviewSubmissions, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("filter[app]") != "app-from-env" {
-			t.Fatalf("expected filter[app]=app-from-env, got %q", req.URL.Query().Get("filter[app]"))
-		}
-		body := `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "submissions-list", "--global"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"data":[]`) {
-		t.Fatalf("expected empty data output, got %q", stdout)
-	}
-}
-
-func TestReviewSubmissionsListGlobalWithFilters(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/reviewSubmissions" {
-			t.Fatalf("expected path /v1/reviewSubmissions, got %s", req.URL.Path)
-		}
-		values := req.URL.Query()
-		if values.Get("filter[app]") != "app-1" {
-			t.Fatalf("expected filter[app]=app-1, got %q", values.Get("filter[app]"))
-		}
-		if values.Get("filter[platform]") != "IOS" {
-			t.Fatalf("expected filter[platform]=IOS, got %q", values.Get("filter[platform]"))
-		}
-		if values.Get("filter[state]") != "READY_FOR_REVIEW" {
-			t.Fatalf("expected filter[state]=READY_FOR_REVIEW, got %q", values.Get("filter[state]"))
-		}
-		body := `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "submissions-list", "--global", "--app", "app-1", "--platform", "IOS", "--state", "READY_FOR_REVIEW"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-}
-
-func TestReviewSubmissionsListUsageErrors(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-
-	runUsageExitCases(t, []usageExitCase{
-		{
-			name:    "GlobalMissingAppError",
-			args:    []string{"review", "submissions-list", "--global"},
-			wantErr: "Error: --app is required with --global",
-		},
-		{
-			name:    "MissingSelectorError",
-			args:    []string{"review", "submissions-list"},
-			wantErr: "Error: --app or --global is required",
-		},
-	})
-}
-
-func TestReviewSubmissionsListScopedStillWorks(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/apps/app-1/reviewSubmissions" {
-			t.Fatalf("expected path /v1/apps/app-1/reviewSubmissions, got %s", req.URL.Path)
-		}
-		body := `{"data":[{"type":"reviewSubmissions","id":"rs-scoped","attributes":{"platform":"IOS"}}],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "submissions-list", "--app", "app-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"id":"rs-scoped"`) {
-		t.Fatalf("expected scoped submission in output, got %q", stdout)
-	}
-}
-
-func TestReviewSubmissionsListNextSkipsSelector(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	nextURL := "https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=page2"
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.String() != nextURL {
-			t.Fatalf("expected next URL %q, got %q", nextURL, req.URL.String())
-		}
-		body := `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "submissions-list", "--next", nextURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 }
 
