@@ -8,7 +8,6 @@
 package asctest
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -57,17 +56,17 @@ func GET(path string, query ...string) Matcher {
 	return newMatcher(http.MethodGet, path, query)
 }
 
-// POST is GET for POST requests.
+// POST matches a POST request the way GET matches a GET request.
 func POST(path string, query ...string) Matcher {
 	return newMatcher(http.MethodPost, path, query)
 }
 
-// PATCH is GET for PATCH requests.
+// PATCH matches a PATCH request the way GET matches a GET request.
 func PATCH(path string, query ...string) Matcher {
 	return newMatcher(http.MethodPatch, path, query)
 }
 
-// DELETE is GET for DELETE requests.
+// DELETE matches a DELETE request the way GET matches a GET request.
 func DELETE(path string, query ...string) Matcher {
 	return newMatcher(http.MethodDelete, path, query)
 }
@@ -111,7 +110,8 @@ func (m Matcher) matches(req *http.Request, body []byte) bool {
 		(m.body == nil || m.body(body))
 }
 
-// Responder builds the response for a matched request.
+// Responder builds the response for a matched request. The request body has
+// already been read; Registry.Requests holds it.
 type Responder func(*http.Request) (*http.Response, error)
 
 // JSON responds with status and a JSON body.
@@ -190,7 +190,6 @@ func (r *Registry) RoundTrip(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			return nil, r.fixture.Errorf("asctest: read body of %s %s: %w", req.Method, req.URL, err)
 		}
-		req.Body = io.NopCloser(bytes.NewReader(body))
 	}
 
 	r.mu.Lock()
