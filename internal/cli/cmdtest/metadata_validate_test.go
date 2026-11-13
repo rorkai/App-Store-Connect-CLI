@@ -633,167 +633,74 @@ func writeMetadataValidateTermsFiles(t *testing.T, description string) string {
 	return dir
 }
 
-func TestMetadataValidateWarnsWhenSubscriptionAppDescriptionMissingTermsLink(t *testing.T) {
-	dir := writeMetadataValidateTermsFiles(t, "Subscription description without a legal link")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"metadata", "validate", "--dir", dir, "--subscription-app"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected warning-only validation, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+func TestMetadataValidateSubscriptionTermsLink(t *testing.T) {
+	tests := []struct {
+		name            string
+		description     string
+		subscriptionApp bool
+		wantWarning     bool
+	}{
+		{name: "missing terms link warns", description: "Subscription description without a legal link", subscriptionApp: true, wantWarning: true},
+		{name: "skipped without subscription app flag", description: "Subscription description without a legal link"},
+		{name: "apple standard EULA URL", description: "Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/", subscriptionApp: true},
+		{name: "terms keyword with URL", description: "Read our Terms of Use: https://example.com/subscription-agreement", subscriptionApp: true},
+		{name: "unrelated URL warns", description: "Learn more at https://example.com/about", subscriptionApp: true, wantWarning: true},
 	}
 
-	var payload struct {
-		Valid        bool `json:"valid"`
-		ErrorCount   int  `json:"errorCount"`
-		WarningCount int  `json:"warningCount"`
-		Issues       []struct {
-			Field    string `json:"field"`
-			Severity string `json:"severity"`
-		} `json:"issues"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if !payload.Valid || payload.ErrorCount != 0 {
-		t.Fatalf("expected valid warning-only report, got %+v", payload)
-	}
-	if payload.WarningCount == 0 {
-		t.Fatalf("expected at least one warning, got %+v", payload)
-	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := writeMetadataValidateTermsFiles(t, test.description)
+			args := []string{"metadata", "validate", "--dir", dir}
+			if test.subscriptionApp {
+				args = append(args, "--subscription-app")
+			}
 
-	found := false
-	for _, issue := range payload.Issues {
-		if issue.Field == "description" && issue.Severity == "warning" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected description warning, got %+v", payload.Issues)
-	}
-}
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-func TestMetadataValidateSkipsTermsWarningWithoutSubscriptionAppFlag(t *testing.T) {
-	dir := writeMetadataValidateTermsFiles(t, "Subscription description without a legal link")
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("expected warning-only validation, got %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"metadata", "validate", "--dir", dir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected validation to succeed without warning, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload struct {
-		WarningCount int `json:"warningCount"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if payload.WarningCount != 0 {
-		t.Fatalf("expected zero warnings without --subscription-app, got %+v", payload)
-	}
-}
-
-func TestMetadataValidateAcceptsAppleStandardEULAURLWithSubscriptionApp(t *testing.T) {
-	dir := writeMetadataValidateTermsFiles(t, "Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"metadata", "validate", "--dir", dir, "--subscription-app"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected validation to succeed, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload struct {
-		WarningCount int `json:"warningCount"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if payload.WarningCount != 0 {
-		t.Fatalf("expected zero warnings, got %+v", payload)
-	}
-}
-
-func TestMetadataValidateAcceptsKeywordAndURLWithSubscriptionApp(t *testing.T) {
-	dir := writeMetadataValidateTermsFiles(t, "Read our Terms of Use: https://example.com/subscription-agreement")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"metadata", "validate", "--dir", dir, "--subscription-app"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected validation to succeed, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload struct {
-		WarningCount int `json:"warningCount"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if payload.WarningCount != 0 {
-		t.Fatalf("expected zero warnings, got %+v", payload)
-	}
-}
-
-func TestMetadataValidateRejectsUnrelatedURLWithSubscriptionApp(t *testing.T) {
-	dir := writeMetadataValidateTermsFiles(t, "Learn more at https://example.com/about")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"metadata", "validate", "--dir", dir, "--subscription-app"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected warning-only validation, got %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload struct {
-		WarningCount int `json:"warningCount"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if payload.WarningCount == 0 {
-		t.Fatalf("expected unrelated URL to keep failing the terms heuristic, got %+v", payload)
+			var payload struct {
+				Valid        bool `json:"valid"`
+				ErrorCount   int  `json:"errorCount"`
+				WarningCount int  `json:"warningCount"`
+				Issues       []struct {
+					Field    string `json:"field"`
+					Severity string `json:"severity"`
+				} `json:"issues"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+			}
+			if !payload.Valid || payload.ErrorCount != 0 {
+				t.Fatalf("expected valid report without errors, got %+v", payload)
+			}
+			if !test.wantWarning {
+				if payload.WarningCount != 0 {
+					t.Fatalf("expected zero warnings, got %+v", payload)
+				}
+				return
+			}
+			found := false
+			for _, issue := range payload.Issues {
+				if issue.Field == "description" && issue.Severity == "warning" {
+					found = true
+					break
+				}
+			}
+			if payload.WarningCount == 0 || !found {
+				t.Fatalf("expected description warning, got %+v", payload)
+			}
+		})
 	}
 }

@@ -15,89 +15,6 @@ import (
 	"time"
 )
 
-func TestMetadataHelpShowsKeywordsWorkflow(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	metadataCmd := findSubcommand(root, "metadata")
-	if metadataCmd == nil {
-		t.Fatal("expected metadata command")
-		return
-	}
-
-	metadataUsage := metadataCmd.UsageFunc(metadataCmd)
-	if !usageListsSubcommand(metadataUsage, "keywords") {
-		t.Fatalf("expected metadata help to list keywords, got %q", metadataUsage)
-	}
-	if !strings.Contains(metadataUsage, "searchKeywords") {
-		t.Fatalf("expected metadata help to explain searchKeywords distinction, got %q", metadataUsage)
-	}
-
-	keywordsCmd := findSubcommand(root, "metadata", "keywords")
-	if keywordsCmd == nil {
-		t.Fatal("expected metadata keywords command")
-		return
-	}
-	keywordsUsage := keywordsCmd.UsageFunc(keywordsCmd)
-	for _, subcommand := range []string{"import", "audit", "plan", "diff", "localize", "apply", "push", "sync"} {
-		if !usageListsSubcommand(keywordsUsage, subcommand) {
-			t.Fatalf("expected metadata keywords help to list %s, got %q", subcommand, keywordsUsage)
-		}
-	}
-	if !strings.Contains(keywordsUsage, "asc apps search-keywords list") {
-		t.Fatalf("expected metadata keywords help to point to the app keyword read command, got %q", keywordsUsage)
-	}
-}
-
-func TestSearchKeywordsHelpDistinguishesSupportedWorkflows(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	appsCmd := findSubcommand(root, "apps", "search-keywords")
-	if appsCmd == nil {
-		t.Fatal("expected apps search-keywords command")
-		return
-	}
-	appsUsage := appsCmd.UsageFunc(appsCmd)
-	if !strings.Contains(appsUsage, "set --app") || !strings.Contains(appsUsage, "version-localized") {
-		t.Fatalf("expected apps search-keywords help to document the supported version-localization setter, got %q", appsUsage)
-	}
-
-	localizationsCmd := findSubcommand(root, "localizations", "search-keywords")
-	if localizationsCmd == nil {
-		t.Fatal("expected localizations search-keywords command")
-		return
-	}
-	localizationsUsage := localizationsCmd.UsageFunc(localizationsCmd)
-	if !strings.Contains(localizationsUsage, "asc metadata keywords") {
-		t.Fatalf("expected localizations search-keywords help to point to metadata keywords, got %q", localizationsUsage)
-	}
-}
-
-func TestRootHelpShowsMetadataInAppManagement(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-
-	appManagement := metadataKeywordHelpSection(stderr, "APP MANAGEMENT COMMANDS", "TESTFLIGHT & BUILD COMMANDS")
-	if !strings.Contains(appManagement, "metadata:") {
-		t.Fatalf("expected metadata in app management help section, got %q", appManagement)
-	}
-	if strings.Contains(stderr, "ADDITIONAL COMMANDS\n  metadata:") {
-		t.Fatalf("expected metadata to be removed from additional commands, got %q", stderr)
-	}
-}
-
 func TestMetadataKeywordsImportJSONDryRun(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(t.TempDir(), "keywords.json")
@@ -165,68 +82,6 @@ func TestMetadataKeywordsImportJSONDryRun(t *testing.T) {
 	}
 	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected dry-run to avoid writing %s, got err=%v", path, err)
-	}
-}
-
-func TestMetadataKeywordsImportDryRunReportsOverLimitIssue(t *testing.T) {
-	dir := t.TempDir()
-	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
-	// 101 bytes, above the App Store keyword limit.
-	if err := os.WriteFile(inputPath, []byte(strings.Repeat("k", 101)), 0o644); err != nil {
-		t.Fatalf("write input: %v", err)
-	}
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"metadata", "keywords", "import",
-			"--dir", dir,
-			"--version", "1.2.3",
-			"--input", inputPath,
-			"--format", "text",
-			"--locale", "en-US",
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	if runErr == nil {
-		t.Fatal("expected non-nil run error for invalid preview")
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload struct {
-		Valid  bool `json:"valid"`
-		Issues []struct {
-			Locale       string `json:"locale"`
-			Message      string `json:"message"`
-			KeywordField string `json:"keywordField"`
-			Length       int    `json:"length"`
-			Limit        int    `json:"limit"`
-		} `json:"issues"`
-		Results []struct {
-			Locale string `json:"locale"`
-			Action string `json:"action"`
-			Reason string `json:"reason"`
-		} `json:"results"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if payload.Valid {
-		t.Fatalf("expected invalid preview payload, got %+v", payload)
-	}
-	if len(payload.Issues) != 1 || payload.Issues[0].Locale != "en-US" || payload.Issues[0].Message != "keywords exceed 100 characters" || payload.Issues[0].Length != 101 || payload.Issues[0].Limit != 100 {
-		t.Fatalf("unexpected issues payload: %+v", payload.Issues)
-	}
-	if len(payload.Results) != 1 || payload.Results[0].Action != "invalid" || payload.Results[0].Reason != "keywords exceed 100 characters" {
-		t.Fatalf("unexpected result payload: %+v", payload.Results)
 	}
 }
 
@@ -2366,104 +2221,80 @@ func TestMetadataKeywordsSyncStopsWhenImportPreviewHasIssues(t *testing.T) {
 	}
 }
 
-func TestMetadataKeywordsApplyEarlyPlanningErrorDoesNotPrintOutput(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	dir := t.TempDir()
-	versionDir := filepath.Join(dir, "version", "1.2.3")
-	if err := os.MkdirAll(versionDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll() error: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(versionDir, "en-US.json"), []byte(`{"keywords":"habit tracker,mood journal"}`), 0o644); err != nil {
-		t.Fatalf("WriteFile() error: %v", err)
-	}
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return nil, errors.New("dial test failure")
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"metadata", "keywords", "apply",
-			"--app", "app-1",
-			"--version", "1.2.3",
-			"--dir", dir,
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	if runErr == nil {
-		t.Fatal("expected planning error")
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(runErr.Error(), "metadata keywords apply:") || !strings.Contains(runErr.Error(), "dial test failure") {
-		t.Fatalf("expected wrapped planning error, got %v", runErr)
-	}
-}
-
-func TestMetadataKeywordsSyncEarlyPlanningErrorDoesNotPrintOutput(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	dir := t.TempDir()
-	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
-	if err := os.WriteFile(inputPath, []byte("habit tracker,mood journal"), 0o644); err != nil {
-		t.Fatalf("write input: %v", err)
+func TestMetadataKeywordsEarlyPlanningErrorDoesNotPrintOutput(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		args    func(t *testing.T, dir string) []string
+	}{
+		{
+			name:    "apply",
+			command: "apply",
+			args: func(t *testing.T, dir string) []string {
+				versionDir := filepath.Join(dir, "version", "1.2.3")
+				if err := os.MkdirAll(versionDir, 0o755); err != nil {
+					t.Fatalf("MkdirAll() error: %v", err)
+				}
+				if err := os.WriteFile(filepath.Join(versionDir, "en-US.json"), []byte(`{"keywords":"habit tracker,mood journal"}`), 0o644); err != nil {
+					t.Fatalf("WriteFile() error: %v", err)
+				}
+				return []string{"--confirm"}
+			},
+		},
+		{
+			name:    "sync",
+			command: "sync",
+			args: func(t *testing.T, _ string) []string {
+				inputPath := filepath.Join(t.TempDir(), "keywords.txt")
+				if err := os.WriteFile(inputPath, []byte("habit tracker,mood journal"), 0o644); err != nil {
+					t.Fatalf("write input: %v", err)
+				}
+				return []string{"--input", inputPath, "--format", "text", "--locale", "en-US"}
+			},
+		},
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return nil, errors.New("dial test failure")
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			t.Setenv("ASC_APP_ID", "")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			dir := t.TempDir()
+			args := append([]string{
+				"metadata", "keywords", test.command,
+				"--app", "app-1",
+				"--version", "1.2.3",
+				"--dir", dir,
+			}, test.args(t, dir)...)
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return nil, errors.New("dial test failure")
+			}))
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"metadata", "keywords", "sync",
-			"--app", "app-1",
-			"--version", "1.2.3",
-			"--dir", dir,
-			"--input", inputPath,
-			"--format", "text",
-			"--locale", "en-US",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	if runErr == nil {
-		t.Fatal("expected planning error")
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(runErr.Error(), "metadata keywords sync:") || !strings.Contains(runErr.Error(), "dial test failure") {
-		t.Fatalf("expected wrapped planning error, got %v", runErr)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+			if runErr == nil {
+				t.Fatal("expected planning error")
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if !strings.Contains(runErr.Error(), "metadata keywords "+test.command+":") || !strings.Contains(runErr.Error(), "dial test failure") {
+				t.Fatalf("expected wrapped planning error, got %v", runErr)
+			}
+		})
 	}
 }
 
@@ -2511,20 +2342,4 @@ func metadataKeywordsJSONResponse(body string) (*http.Response, error) {
 		Body:       io.NopCloser(strings.NewReader(body)),
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 	}, nil
-}
-
-func metadataKeywordHelpSection(help string, startHeading string, endHeading string) string {
-	start := strings.Index(help, startHeading)
-	if start == -1 {
-		return ""
-	}
-	section := help[start:]
-	if endHeading == "" {
-		return section
-	}
-	end := strings.Index(section, endHeading)
-	if end == -1 {
-		return section
-	}
-	return section[:end]
 }

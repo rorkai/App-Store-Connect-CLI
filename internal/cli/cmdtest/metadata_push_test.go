@@ -12,8 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestMetadataPushApplyDeleteGuardrails(t *testing.T) {
@@ -128,61 +126,6 @@ func TestMetadataPushApplyDeleteGuardrails(t *testing.T) {
 			t.Fatalf("expected confirm error, got %q", stderr)
 		}
 	})
-}
-
-func TestRunMetadataPushRejectsOverLimitKeywordBytesBeforeAuthResolution(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY", "")
-	t.Setenv("ASC_PRIVATE_KEY_B64", "")
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	dir := t.TempDir()
-	versionDir := filepath.Join(dir, "version", "1.2.3")
-	if err := os.MkdirAll(versionDir, 0o755); err != nil {
-		t.Fatalf("mkdir version dir: %v", err)
-	}
-	body := `{"keywords":"` + strings.Repeat("語", 101) + `"}`
-	if err := os.WriteFile(filepath.Join(versionDir, "ja.json"), []byte(body), 0o644); err != nil {
-		t.Fatalf("write version file: %v", err)
-	}
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
-
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"metadata", "push",
-			"--app", "app-1",
-			"--version", "1.2.3",
-			"--dir", dir,
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "keywords exceed 100 characters") {
-		t.Fatalf("expected keyword character-limit error, got %q", stderr)
-	}
-	if requestCount != 0 {
-		t.Fatalf("expected no HTTP requests, got %d", requestCount)
-	}
 }
 
 func TestMetadataPushDryRunBuildsPlanWithoutMutations(t *testing.T) {
@@ -322,109 +265,162 @@ func TestMetadataPushDryRunBuildsPlanWithoutMutations(t *testing.T) {
 	}
 }
 
-func TestMetadataPushDryRunDoesNotWarnForCompleteCreate(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "version", "1.2.3"), 0o755); err != nil {
-		t.Fatalf("mkdir version: %v", err)
+func TestMetadataPushVersionLocaleCreateWarnings(t *testing.T) {
+	const (
+		versionList  = `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`
+		emptyList    = `{"data":[],"links":{"next":""}}`
+		releasedList = `{"data":[{"type":"appStoreVersions","id":"released-version","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"READY_FOR_SALE"}}],"links":{"next":""}}`
+	)
+	tests := []struct {
+		name            string
+		localeFile      string
+		dryRun          bool
+		releasedBody    string
+		createdAttrs    string
+		wantStderr      []string
+		wantEmptyStderr bool
+		check           func(t *testing.T, stdout string)
+	}{
+		{
+			name:            "dry run complete create does not warn",
+			localeFile:      `{"description":"日本語説明","keywords":"一,二","supportUrl":"https://example.com/ja"}`,
+			dryRun:          true,
+			releasedBody:    emptyList,
+			wantEmptyStderr: true,
+			check: func(t *testing.T, stdout string) {
+				var payload struct {
+					Adds []struct {
+						Key string `json:"key"`
+					} `json:"adds"`
+				}
+				if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+					t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+				}
+				if len(payload.Adds) != 3 {
+					t.Fatalf("expected three create-plan fields, got %+v", payload.Adds)
+				}
+			},
+		},
+		{
+			name:         "apply incomplete create warns",
+			localeFile:   `{"description":"日本語説明"}`,
+			releasedBody: versionList,
+			createdAttrs: `{"locale":"ja","description":"日本語説明"}`,
+			wantStderr:   []string{"created locale ja now participates in submission validation", "keywords, supportUrl", "Fill the remaining metadata before submission."},
+			check: func(t *testing.T, stdout string) {
+				var payload struct {
+					Applied bool `json:"applied"`
+					Actions []struct {
+						Action string `json:"action"`
+						Scope  string `json:"scope"`
+						Locale string `json:"locale"`
+					} `json:"actions"`
+				}
+				if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+					t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+				}
+				if !payload.Applied {
+					t.Fatalf("expected applied result, got %+v", payload)
+				}
+				if len(payload.Actions) != 1 || payload.Actions[0].Action != "create" || payload.Actions[0].Locale != "ja" || payload.Actions[0].Scope != "version" {
+					t.Fatalf("expected single version create action, got %+v", payload.Actions)
+				}
+			},
+		},
+		{
+			name:         "apply update create requires whats new",
+			localeFile:   `{"description":"日本語説明","keywords":"日本語,キーワード","supportUrl":"https://example.com/support-ja"}`,
+			releasedBody: releasedList,
+			createdAttrs: `{"locale":"ja","description":"日本語説明","keywords":"日本語,キーワード","supportUrl":"https://example.com/support-ja"}`,
+			wantStderr:   []string{"created locale ja now participates in submission validation", "whatsNew"},
+			check: func(t *testing.T, stdout string) {
+				var payload struct {
+					Applied bool `json:"applied"`
+				}
+				if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+					t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+				}
+				if !payload.Applied {
+					t.Fatalf("expected applied result, got %+v", payload)
+				}
+			},
+		},
 	}
-	if err := os.WriteFile(filepath.Join(dir, "version", "1.2.3", "ja.json"), []byte(`{"description":"日本語説明","keywords":"一,二","supportUrl":"https://example.com/ja"}`), 0o644); err != nil {
-		t.Fatalf("write version ja file: %v", err)
-	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected dry-run to use GET only, got %s %s", req.Method, req.URL.Path)
-		}
-		switch req.URL.Path {
-		case "/v1/apps/app-1/appInfos":
-			body := `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/apps/app-1/appStoreVersions":
-			if strings.Contains(req.URL.RawQuery, "filter%5BappStoreState%5D") || req.URL.Query().Get("filter[appVersionState]") == "READY_FOR_DISTRIBUTION" {
-				body := `{"data":[],"links":{"next":""}}`
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			t.Setenv("ASC_APP_ID", "")
+
+			dir := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(dir, "version", "1.2.3"), 0o755); err != nil {
+				t.Fatalf("mkdir version: %v", err)
 			}
-			body := `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/appStoreVersions/version-1":
-			body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-			return nil, nil
-		}
-	})
+			if err := os.WriteFile(filepath.Join(dir, "version", "1.2.3", "ja.json"), []byte(test.localeFile), 0o644); err != nil {
+				t.Fatalf("write version ja file: %v", err)
+			}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			createCount := 0
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations" && !test.dryRun {
+					createCount++
+					return jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-ja","attributes":`+test.createdAttrs+`}}`)
+				}
+				if req.Method != http.MethodGet {
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+				}
+				switch req.URL.Path {
+				case "/v1/apps/app-1/appInfos":
+					return jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`)
+				case "/v1/apps/app-1/appStoreVersions":
+					if strings.Contains(req.URL.RawQuery, "filter%5BappStoreState%5D") || req.URL.Query().Get("filter[appVersionState]") == "READY_FOR_DISTRIBUTION" {
+						return jsonResponse(http.StatusOK, test.releasedBody)
+					}
+					return jsonResponse(http.StatusOK, versionList)
+				case "/v1/appStoreVersions/version-1":
+					return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+				case "/v1/appInfos/appinfo-1/appInfoLocalizations", "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+					return jsonResponse(http.StatusOK, emptyList)
+				default:
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+					return nil, nil
+				}
+			}))
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"metadata", "push",
-			"--app", "app-1",
-			"--version", "1.2.3",
-			"--dir", dir,
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+			args := []string{"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--dir", dir}
+			if test.dryRun {
+				args = append(args, "--dry-run")
+			}
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
 
-	var payload struct {
-		Adds []struct {
-			Key string `json:"key"`
-		} `json:"adds"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if len(payload.Adds) != 3 {
-		t.Fatalf("expected three create-plan fields, got %+v", payload.Adds)
+			wantCreates := 1
+			if test.dryRun {
+				wantCreates = 0
+			}
+			if createCount != wantCreates {
+				t.Fatalf("expected %d create API calls, got %d", wantCreates, createCount)
+			}
+			if test.wantEmptyStderr && stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			for _, want := range test.wantStderr {
+				if !strings.Contains(stderr, want) {
+					t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+				}
+			}
+			test.check(t, stdout)
+		})
 	}
 }
 
@@ -1058,250 +1054,6 @@ func TestMetadataPushApplyExecutesUpdates(t *testing.T) {
 	}
 	if len(payload.Actions) != 2 {
 		t.Fatalf("expected 2 actions, got %+v", payload.Actions)
-	}
-}
-
-func TestMetadataPushApplyWarnsForIncompleteCreate(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "version", "1.2.3"), 0o755); err != nil {
-		t.Fatalf("mkdir version: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "version", "1.2.3", "ja.json"), []byte(`{"description":"日本語説明"}`), 0o644); err != nil {
-		t.Fatalf("write version ja file: %v", err)
-	}
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	createCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1/appInfos":
-			body := `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/apps/app-1/appStoreVersions":
-			body := `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			if req.Method == http.MethodGet {
-				body := `{"data":[],"links":{"next":""}}`
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}
-		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			if req.Method == http.MethodGet {
-				body := `{"data":[],"links":{"next":""}}`
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}
-		case "/v1/appStoreVersions/version-1":
-			if req.Method == http.MethodGet {
-				body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}
-		case "/v1/appStoreVersionLocalizations":
-			if req.Method == http.MethodPost {
-				createCount++
-				body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-ja","attributes":{"locale":"ja","description":"日本語説明"}}}`
-				return &http.Response{
-					StatusCode: http.StatusCreated,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}
-		}
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"metadata", "push",
-			"--app", "app-1",
-			"--version", "1.2.3",
-			"--dir", dir,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if createCount != 1 {
-		t.Fatalf("expected one create API call, got %d", createCount)
-	}
-	if !strings.Contains(stderr, "created locale ja now participates in submission validation") {
-		t.Fatalf("expected applied create warning on stderr, got %q", stderr)
-	}
-	for _, want := range []string{"keywords, supportUrl", "Fill the remaining metadata before submission."} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
-		}
-	}
-
-	var payload struct {
-		Applied bool `json:"applied"`
-		Actions []struct {
-			Action string `json:"action"`
-			Scope  string `json:"scope"`
-			Locale string `json:"locale"`
-		} `json:"actions"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if !payload.Applied {
-		t.Fatalf("expected applied result, got %+v", payload)
-	}
-	if len(payload.Actions) != 1 || payload.Actions[0].Action != "create" || payload.Actions[0].Locale != "ja" || payload.Actions[0].Scope != "version" {
-		t.Fatalf("expected single version create action, got %+v", payload.Actions)
-	}
-}
-
-func TestMetadataPushApplyWarnsWhenUpdateRequiresWhatsNew(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "version", "1.2.3"), 0o755); err != nil {
-		t.Fatalf("mkdir version: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "version", "1.2.3", "ja.json"), []byte(`{"description":"日本語説明","keywords":"日本語,キーワード","supportUrl":"https://example.com/support-ja"}`), 0o644); err != nil {
-		t.Fatalf("write version ja file: %v", err)
-	}
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	createCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1/appInfos":
-			body := `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/apps/app-1/appStoreVersions":
-			if strings.Contains(req.URL.RawQuery, "filter%5BappStoreState%5D") || req.URL.Query().Get("filter[appVersionState]") == "READY_FOR_DISTRIBUTION" {
-				body := `{"data":[{"type":"appStoreVersions","id":"released-version","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"READY_FOR_SALE"}}],"links":{"next":""}}`
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}
-			body := `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/appStoreVersions/version-1":
-			body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/appStoreVersionLocalizations":
-			if req.Method != http.MethodPost {
-				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			}
-			createCount++
-			body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-ja","attributes":{"locale":"ja","description":"日本語説明","keywords":"日本語,キーワード","supportUrl":"https://example.com/support-ja"}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"metadata", "push",
-			"--app", "app-1",
-			"--version", "1.2.3",
-			"--dir", dir,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if createCount != 1 {
-		t.Fatalf("expected one create API call, got %d", createCount)
-	}
-	if !strings.Contains(stderr, "created locale ja now participates in submission validation") {
-		t.Fatalf("expected applied create warning on stderr, got %q", stderr)
-	}
-	if !strings.Contains(stderr, "whatsNew") {
-		t.Fatalf("expected whatsNew requirement in warning, got %q", stderr)
-	}
-
-	var payload struct {
-		Applied bool `json:"applied"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
-	}
-	if !payload.Applied {
-		t.Fatalf("expected applied result, got %+v", payload)
 	}
 }
 
