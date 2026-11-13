@@ -28,6 +28,7 @@ Use ` + "`asc web apps create`" + ` as the canonical app-creation command in thi
 Examples:
   asc web auth status
   asc web agreements status
+  asc web teams list
   asc web api-keys list --output json
   asc web api-keys view --key-id KEY_ID
   asc web api-keys create --name "Release automation"
@@ -54,6 +55,7 @@ Examples:
 			WebAppsCommand(),
 			WebRemovedAppsCommand(),
 			WebAppBundlesCommand(),
+			WebTeamsCommand(),
 			WebBundleIDsCommand(),
 			WebServiceIDsCommand(),
 			WebSignInKeysCommand(),

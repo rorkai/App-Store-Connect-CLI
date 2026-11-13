@@ -6,8 +6,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const (
@@ -381,5 +385,31 @@ func assertDeveloperPortalErrorHasNoSecrets(t *testing.T, err error) {
 		if strings.Contains(message, secret) {
 			t.Fatalf("error %q leaked secret %q", message, secret)
 		}
+	}
+}
+
+func TestListDeveloperPortalTeamsReturnsEveryTeamWithoutSelecting(t *testing.T) {
+	t.Setenv(readonly.EnvVar, "1")
+
+	var requests []string
+	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		return developerPortalTestResponse(http.StatusOK, `{"teams":[{"teamId":" TEAMTWO456 ","name":" Example Two ","status":"active"},{"teamId":" ","name":"No ID"},{"teamId":"TEAMONE123","name":"Example One","status":"expired"}]}`, nil), nil
+	})
+	client.SetDeveloperTeamSelector("UNKNOWN")
+
+	result, err := client.ListDeveloperPortalTeams(context.Background())
+	if err != nil {
+		t.Fatalf("ListDeveloperPortalTeams() error: %v", err)
+	}
+	want := []asc.WebDeveloperTeam{
+		{TeamID: "TEAMTWO456", Name: "Example Two", Status: "active"},
+		{TeamID: "TEAMONE123", Name: "Example One", Status: "expired"},
+	}
+	if result == nil || !reflect.DeepEqual(result.Teams, want) {
+		t.Fatalf("teams = %+v, want %+v", result, want)
+	}
+	if got := strings.Join(requests, ","); got != "POST "+developerPortalTeamsPath {
+		t.Fatalf("requests = %q, want one teams POST", got)
 	}
 }

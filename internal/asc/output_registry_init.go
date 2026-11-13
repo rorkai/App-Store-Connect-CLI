@@ -57,6 +57,7 @@ func registerAllOutputRenderers() {
 	registerRows(webServiceIDMutationRows)
 	registerRows(webICloudContainerCreateRows)
 	registerRows(webSignInKeyReceiptRows)
+	registerRows(webDeveloperTeamsRows)
 	registerRows(webAppDistributionSetRows)
 	registerRows(webAppDistributionUserMutationRows)
 	registerRows(webAppTaxCategoryViewResultRows)

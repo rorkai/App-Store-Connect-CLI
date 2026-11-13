@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
@@ -83,41 +84,9 @@ func (c *Client) rememberDeveloperPortalTeam(teamID string) {
 func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	// The App Store Connect SRP session becomes usable by Developer Portal only
 	// after its legacy team endpoint establishes Portal team and CSRF context.
-	headers := developerPortalHeaders("")
-	headers.Set("Accept", "application/json, text/javascript, */*; q=0.01")
-	headers.Set("Content-Type", "application/x-www-form-urlencoded")
-	// Listing teams only establishes Portal context; it changes nothing.
-	body, response, err := c.doDeveloperPortalHTTP(readonly.WithReadIntent(ctx), http.MethodPost, c.developerPortalOrigin()+developerPortalTeamsPath, nil, headers)
+	teams, err := c.fetchDeveloperPortalTeams(ctx)
 	if err != nil {
 		return err
-	}
-	c.captureDeveloperCSRFTokens(response.Header)
-	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
-		return developerPortalSessionError(response, body)
-	}
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return &APIError{Status: response.StatusCode, AppleRequestID: extractAppleRequestID(response.Header), rawBody: body}
-	}
-	portalURL, parseErr := url.Parse(c.developerPortalOrigin())
-	if parseErr != nil {
-		return fmt.Errorf("invalid Developer Portal base URL: %w", parseErr)
-	}
-	if response.Request != nil && response.Request.URL != nil && !sameURLOrigin(portalURL, response.Request.URL) {
-		return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Host, developerPortalAuthHint)
-	}
-
-	var payload developerPortalTeamsResponse
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return fmt.Errorf("failed to parse Developer Portal teams response: %w", err)
-	}
-	teams := payload.Teams
-	if len(teams) == 0 {
-		teams = payload.Data.Teams
-	}
-	if len(teams) == 0 && payload.ResultCode != nil {
-		if err := validateDeveloperPortalLegacyResponse(payload.developerPortalLegacyResponse); err != nil {
-			return err
-		}
 	}
 	team, err := resolveDeveloperPortalTeam(teams, developerPortalTeamSelection{
 		Selector:         c.currentDeveloperTeamSelector(),
@@ -130,6 +99,68 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	}
 	c.rememberDeveloperPortalTeam(team.TeamID)
 	return nil
+}
+
+// ListDeveloperPortalTeams returns every Developer Portal team on the web
+// session's Apple Account without selecting one.
+func (c *Client) ListDeveloperPortalTeams(ctx context.Context) (*asc.WebDeveloperTeamsResult, error) {
+	teams, err := c.fetchDeveloperPortalTeams(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := &asc.WebDeveloperTeamsResult{Teams: make([]asc.WebDeveloperTeam, 0, len(teams))}
+	for _, team := range teams {
+		teamID := strings.TrimSpace(team.TeamID)
+		if teamID == "" {
+			continue
+		}
+		result.Teams = append(result.Teams, asc.WebDeveloperTeam{
+			TeamID: teamID,
+			Name:   strings.TrimSpace(team.Name),
+			Status: strings.TrimSpace(team.Status),
+		})
+	}
+	return result, nil
+}
+
+func (c *Client) fetchDeveloperPortalTeams(ctx context.Context) ([]developerPortalTeam, error) {
+	headers := developerPortalHeaders("")
+	headers.Set("Accept", "application/json, text/javascript, */*; q=0.01")
+	headers.Set("Content-Type", "application/x-www-form-urlencoded")
+	// Listing teams only establishes Portal context; it changes nothing.
+	body, response, err := c.doDeveloperPortalHTTP(readonly.WithReadIntent(ctx), http.MethodPost, c.developerPortalOrigin()+developerPortalTeamsPath, nil, headers)
+	if err != nil {
+		return nil, err
+	}
+	c.captureDeveloperCSRFTokens(response.Header)
+	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
+		return nil, developerPortalSessionError(response, body)
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, &APIError{Status: response.StatusCode, AppleRequestID: extractAppleRequestID(response.Header), rawBody: body}
+	}
+	portalURL, parseErr := url.Parse(c.developerPortalOrigin())
+	if parseErr != nil {
+		return nil, fmt.Errorf("invalid Developer Portal base URL: %w", parseErr)
+	}
+	if response.Request != nil && response.Request.URL != nil && !sameURLOrigin(portalURL, response.Request.URL) {
+		return nil, fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Host, developerPortalAuthHint)
+	}
+
+	var payload developerPortalTeamsResponse
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("failed to parse Developer Portal teams response: %w", err)
+	}
+	teams := payload.Teams
+	if len(teams) == 0 {
+		teams = payload.Data.Teams
+	}
+	if len(teams) == 0 && payload.ResultCode != nil {
+		if err := validateDeveloperPortalLegacyResponse(payload.developerPortalLegacyResponse); err != nil {
+			return nil, err
+		}
+	}
+	return teams, nil
 }
 
 func resolveDeveloperPortalTeam(teams []developerPortalTeam, selection developerPortalTeamSelection) (developerPortalTeam, error) {

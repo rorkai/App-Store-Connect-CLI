@@ -453,6 +453,18 @@ explicitly. After the write, `accept` re-reads the team's agreement history and
 exits non-zero when any requested agreement is still pending or missing. The
 receipt reflects that re-read state and includes `verified: true`.
 
+### `asc web teams`
+
+List every Apple Developer team that the web session's Apple Account belongs
+to, with each team's ID, name, and status as Developer Portal reports them. Use
+a listed team ID or exact team name as `--developer-team` on other `asc web`
+commands. The command only reads the list; it does not select a team.
+
+```bash
+asc web teams list
+asc web teams list --output json
+```
+
 ### `asc web finance`
 
 Private finance report workflows that use the authenticated App Store Connect

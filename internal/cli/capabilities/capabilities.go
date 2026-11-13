@@ -696,6 +696,14 @@ func capabilityRows() []Capability {
 		},
 		{
 			Area:       "access",
+			Capability: "Developer Portal teams",
+			Status:     statusWebSession,
+			Commands:   []string{"asc web teams list"},
+			Notes:      []string{"Lists every Developer Portal team on the web session's Apple Account with its ID, name, and status. Membership expiry is not reported."},
+			NextAction: "Use asc web teams list to find a --developer-team value for other asc web commands.",
+		},
+		{
+			Area:       "access",
 			Capability: "App Store Connect Business agreements",
 			Status:     statusWebSession,
 			Commands:   []string{"asc web business agreements"},
