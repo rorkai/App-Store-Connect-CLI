@@ -1,15 +1,14 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestGameCenterLeaderboardsValidationErrors(t *testing.T) {
@@ -42,37 +41,15 @@ func TestGameCenterLeaderboardsListNoDetailReturnsEmptyList(t *testing.T) {
 
 	expectedURL := "https://api.appstoreconnect.apple.com/v1/apps/APP_ID/gameCenterDetail"
 
-	callCount := &lockedCounter{}
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if callCount.Inc() > 1 {
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-		}
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.String() != expectedURL {
-			t.Fatalf("expected URL %s, got %s", expectedURL, req.URL.String())
-		}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/APP_ID/gameCenterDetail"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"","attributes":{}},"links":{"self":"`+expectedURL+`"}}`))
 
-		body := `{"data":{"type":"gameCenterDetails","id":"","attributes":{}},"links":{"self":"` + expectedURL + `"}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"game-center", "leaderboards", "list", "--app", "APP_ID"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"game-center", "leaderboards", "list", "--app", "APP_ID"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if !strings.Contains(stderr, "Warning: no Game Center detail exists for this app") {
 		t.Fatalf("expected warning in stderr, got %q", stderr)
@@ -148,25 +125,16 @@ func TestGameCenterLeaderboardsUpdateScoringRequestBody(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var requests int
-			setGameCenterContractClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requests++
-				if req.Method != http.MethodPatch || req.URL.Path != test.wantPath {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				body, err := io.ReadAll(req.Body)
-				if err != nil {
-					t.Fatalf("read request body: %v", err)
-				}
-				assertJSONDocumentEqual(t, body, []byte(`{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{`+test.wantAttrs+`}}}`))
-				return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{}}}`), nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.PATCH(test.wantPath).JSONBody(`{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{`+test.wantAttrs+`}}}`),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{}}}`))
+			setGameCenterContractClient(t, reg)
 
 			args := append([]string{"game-center", "leaderboards", "update", "--id", "lb-1"}, test.args...)
 			if _, stderr, err := runCommand(t, args); err != nil {
 				t.Fatalf("run error: %v\nstderr: %s", err, stderr)
 			}
-			if requests != 1 {
+			if requests := len(reg.Requests()); requests != 1 {
 				t.Fatalf("request count = %d, want 1", requests)
 			}
 		})

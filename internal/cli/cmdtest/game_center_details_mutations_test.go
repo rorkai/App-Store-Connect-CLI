@@ -1,13 +1,11 @@
 package cmdtest
 
 import (
-	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
-	"reflect"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestGameCenterDetailsMutationValidationErrors(t *testing.T) {
@@ -56,41 +54,18 @@ func TestGameCenterDetailsUpdateSendsOnlyRequestedRelationships(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			var body map[string]any
-			requests := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requests++
-				if req.Method != http.MethodPatch || req.URL.Path != "/v1/gameCenterDetails/DETAIL_ID" {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-					t.Fatalf("decode request body: %v", err)
-				}
-				return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"DETAIL_ID"}}`), nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH("/v1/gameCenterDetails/DETAIL_ID").JSONBody(`{"data":{"type":"gameCenterDetails","id":"DETAIL_ID","relationships":`+test.want+`}}`),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"DETAIL_ID"}}`))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 			args := append([]string{"game-center", "details", "update", "--id", "DETAIL_ID", "--output", "json"}, test.args...)
+			if _, _, err := runCommand(t, args); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
-			captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
-
-			if requests != 1 {
+			if requests := len(reg.Requests()); requests != 1 {
 				t.Fatalf("expected 1 request, got %d", requests)
-			}
-			var want map[string]any
-			if err := json.Unmarshal([]byte(`{"data":{"type":"gameCenterDetails","id":"DETAIL_ID","relationships":`+test.want+`}}`), &want); err != nil {
-				t.Fatalf("decode expected body: %v", err)
-			}
-			if !reflect.DeepEqual(body, want) {
-				t.Fatalf("request body = %v, want %v", body, want)
 			}
 		})
 	}
