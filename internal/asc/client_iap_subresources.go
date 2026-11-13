@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -45,22 +44,7 @@ func (c *Client) CreateInAppPurchaseLocalization(ctx context.Context, iapID stri
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/inAppPurchaseLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseLocalizations", Payload: payload})
 }
 
 // GetInAppPurchaseAppStoreReviewScreenshotForIAP retrieves the review screenshot for an IAP.
@@ -70,25 +54,8 @@ func (c *Client) GetInAppPurchaseAppStoreReviewScreenshotForIAP(ctx context.Cont
 		return nil, fmt.Errorf("iapID is required")
 	}
 
-	query := &iapReviewScreenshotQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v2/inAppPurchases/%s/appStoreReviewScreenshot", iapID)
-	if queryString := buildIAPReviewScreenshotQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseAppStoreReviewScreenshotResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseAppStoreReviewScreenshotResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s/appStoreReviewScreenshot", iapID), Query: buildIAPReviewScreenshotQuery(query)})
 }
 
 // GetInAppPurchaseAppStoreReviewScreenshot retrieves a review screenshot by ID.
@@ -98,25 +65,8 @@ func (c *Client) GetInAppPurchaseAppStoreReviewScreenshot(ctx context.Context, s
 		return nil, fmt.Errorf("screenshotID is required")
 	}
 
-	query := &iapReviewScreenshotQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v1/inAppPurchaseAppStoreReviewScreenshots/%s", screenshotID)
-	if queryString := buildIAPReviewScreenshotQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseAppStoreReviewScreenshotResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseAppStoreReviewScreenshotResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseAppStoreReviewScreenshots/%s", screenshotID), Query: buildIAPReviewScreenshotQuery(query)})
 }
 
 // CreateInAppPurchaseAppStoreReviewScreenshot creates a review screenshot upload reservation.
@@ -151,22 +101,7 @@ func (c *Client) CreateInAppPurchaseAppStoreReviewScreenshot(ctx context.Context
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/inAppPurchaseAppStoreReviewScreenshots", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseAppStoreReviewScreenshotResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseAppStoreReviewScreenshotResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseAppStoreReviewScreenshots", Payload: payload})
 }
 
 // UpdateInAppPurchaseAppStoreReviewScreenshot updates a review screenshot.
@@ -196,22 +131,7 @@ func (c *Client) UpdateInAppPurchaseAppStoreReviewScreenshot(ctx context.Context
 		payload.Data.Attributes = &attrs
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/inAppPurchaseAppStoreReviewScreenshots/%s", screenshotID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseAppStoreReviewScreenshotResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseAppStoreReviewScreenshotResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/inAppPurchaseAppStoreReviewScreenshots/%s", screenshotID), Payload: payload})
 }
 
 // DeleteInAppPurchaseAppStoreReviewScreenshot deletes a review screenshot by ID.
@@ -220,8 +140,7 @@ func (c *Client) DeleteInAppPurchaseAppStoreReviewScreenshot(ctx context.Context
 	if screenshotID == "" {
 		return fmt.Errorf("screenshotID is required")
 	}
-	_, err := c.do(ctx, http.MethodDelete, fmt.Sprintf("/v1/inAppPurchaseAppStoreReviewScreenshots/%s", screenshotID), nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/inAppPurchaseAppStoreReviewScreenshots/%s", screenshotID), nil)
 }
 
 // GetInAppPurchaseAvailability retrieves availability for an in-app purchase.
@@ -230,19 +149,7 @@ func (c *Client) GetInAppPurchaseAvailability(ctx context.Context, iapID string)
 	if iapID == "" {
 		return nil, fmt.Errorf("iapID is required")
 	}
-
-	path := fmt.Sprintf("/v2/inAppPurchases/%s/inAppPurchaseAvailability", iapID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseAvailabilityResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchaseAvailabilityResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s/inAppPurchaseAvailability", iapID)})
 }
 
 // GetInAppPurchaseAvailabilityByID retrieves an in-app purchase availability by ID.
@@ -251,54 +158,23 @@ func (c *Client) GetInAppPurchaseAvailabilityByID(ctx context.Context, availabil
 	if availabilityID == "" {
 		return nil, fmt.Errorf("availabilityID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchaseAvailabilities/%s", availabilityID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseAvailabilityResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchaseAvailabilityResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseAvailabilities/%s", availabilityID)})
 }
 
 // GetInAppPurchaseAvailabilityAvailableTerritories lists available territories for an availability.
 func (c *Client) GetInAppPurchaseAvailabilityAvailableTerritories(ctx context.Context, availabilityID string, opts ...IAPAvailabilityTerritoriesOption) (*TerritoriesResponse, error) {
-	query := &iapAvailabilityTerritoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	availabilityID = strings.TrimSpace(availabilityID)
 	if query.nextURL == "" && availabilityID == "" {
 		return nil, fmt.Errorf("availabilityID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchaseAvailabilities/%s/availableTerritories", availabilityID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchase-availability-territories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildIAPAvailabilityTerritoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response TerritoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[TerritoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchaseAvailabilities/%s/availableTerritories", availabilityID),
+		Query:       buildIAPAvailabilityTerritoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-availability-territories",
+	})
 }
 
 // CreateInAppPurchaseAvailability creates or updates availability for an in-app purchase.
@@ -339,22 +215,7 @@ func (c *Client) CreateInAppPurchaseAvailability(ctx context.Context, iapID stri
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/inAppPurchaseAvailabilities", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseAvailabilityResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseAvailabilityResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseAvailabilities", Payload: payload})
 }
 
 // GetInAppPurchaseContent retrieves the content resource for an IAP.
@@ -364,25 +225,8 @@ func (c *Client) GetInAppPurchaseContent(ctx context.Context, iapID string, opts
 		return nil, fmt.Errorf("iapID is required")
 	}
 
-	query := &iapContentQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v2/inAppPurchases/%s/content", iapID)
-	if queryString := buildIAPContentQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseContentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseContentResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s/content", iapID), Query: buildIAPContentQuery(query)})
 }
 
 // GetInAppPurchaseContentByID retrieves an in-app purchase content resource by ID.
@@ -392,153 +236,62 @@ func (c *Client) GetInAppPurchaseContentByID(ctx context.Context, contentID stri
 		return nil, fmt.Errorf("contentID is required")
 	}
 
-	query := &iapContentQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v1/inAppPurchaseContents/%s", contentID)
-	if queryString := buildIAPContentQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseContentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseContentResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseContents/%s", contentID), Query: buildIAPContentQuery(query)})
 }
 
 // GetInAppPurchasePricePoints retrieves price points for an in-app purchase.
 func (c *Client) GetInAppPurchasePricePoints(ctx context.Context, iapID string, opts ...IAPPricePointsOption) (*InAppPurchasePricePointsResponse, error) {
-	query := &iapPricePointsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	iapID = strings.TrimSpace(iapID)
 	if query.nextURL == "" && iapID == "" {
 		return nil, fmt.Errorf("iapID is required")
 	}
-
-	path := fmt.Sprintf("/v2/inAppPurchases/%s/pricePoints", iapID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchase-price-points: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildIAPPricePointsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchasePricePointsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchasePricePointsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v2/inAppPurchases/%s/pricePoints", iapID),
+		Query:       buildIAPPricePointsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-price-points",
+	})
 }
 
 // GetInAppPurchasePricePointEqualizations retrieves equalized price points for a price point.
 func (c *Client) GetInAppPurchasePricePointEqualizations(ctx context.Context, pricePointID string, opts ...IAPPricePointsOption) (*InAppPurchasePricePointsResponse, error) {
-	query := &iapPricePointsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	pricePointID = strings.TrimSpace(pricePointID)
 	if query.nextURL == "" && pricePointID == "" {
 		return nil, fmt.Errorf("pricePointID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchasePricePoints/%s/equalizations", pricePointID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchase-price-point-equalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildIAPPricePointsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchasePricePointsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchasePricePointsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchasePricePoints/%s/equalizations", pricePointID),
+		Query:       buildIAPPricePointsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-price-point-equalizations",
+	})
 }
 
 // GetInAppPurchasePriceSchedule retrieves the price schedule for an IAP.
 func (c *Client) GetInAppPurchasePriceSchedule(ctx context.Context, iapID string, opts ...IAPPriceScheduleOption) (*InAppPurchasePriceScheduleResponse, error) {
-	query := &iapPriceScheduleQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	iapID = strings.TrimSpace(iapID)
 	if iapID == "" {
 		return nil, fmt.Errorf("iapID is required")
 	}
-
-	path := fmt.Sprintf("/v2/inAppPurchases/%s/iapPriceSchedule", iapID)
-	if queryString := buildIAPPriceScheduleQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchasePriceScheduleResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchasePriceScheduleResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s/iapPriceSchedule", iapID), Query: buildIAPPriceScheduleQuery(query)})
 }
 
 // GetInAppPurchasePriceScheduleByID retrieves an in-app purchase price schedule by ID.
 func (c *Client) GetInAppPurchasePriceScheduleByID(ctx context.Context, scheduleID string, opts ...IAPPriceScheduleOption) (*InAppPurchasePriceScheduleResponse, error) {
-	query := &iapPriceScheduleQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	scheduleID = strings.TrimSpace(scheduleID)
 	if scheduleID == "" {
 		return nil, fmt.Errorf("scheduleID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s", scheduleID)
-	if queryString := buildIAPPriceScheduleQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchasePriceScheduleResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchasePriceScheduleResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s", scheduleID), Query: buildIAPPriceScheduleQuery(query)})
 }
 
 // GetInAppPurchasePromotedPurchase retrieves the promoted purchase for an in-app purchase.
@@ -548,25 +301,8 @@ func (c *Client) GetInAppPurchasePromotedPurchase(ctx context.Context, iapID str
 		return nil, fmt.Errorf("iapID is required")
 	}
 
-	query := &promotedPurchaseGetQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v2/inAppPurchases/%s/promotedPurchase", iapID)
-	if queryString := buildPromotedPurchaseGetQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response PromotedPurchaseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[PromotedPurchaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s/promotedPurchase", iapID), Query: buildPromotedPurchaseGetQuery(query)})
 }
 
 // GetInAppPurchasePriceScheduleBaseTerritory retrieves base territory for a schedule.
@@ -575,89 +311,39 @@ func (c *Client) GetInAppPurchasePriceScheduleBaseTerritory(ctx context.Context,
 	if scheduleID == "" {
 		return nil, fmt.Errorf("scheduleID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/baseTerritory", scheduleID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response TerritoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[TerritoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/baseTerritory", scheduleID)})
 }
 
 // GetInAppPurchasePriceScheduleManualPrices retrieves manual prices for a schedule.
 func (c *Client) GetInAppPurchasePriceScheduleManualPrices(ctx context.Context, scheduleID string, opts ...IAPPriceSchedulePricesOption) (*InAppPurchasePricesResponse, error) {
-	query := &iapPriceSchedulePricesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	scheduleID = strings.TrimSpace(scheduleID)
 	if query.nextURL == "" && scheduleID == "" {
 		return nil, fmt.Errorf("scheduleID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/manualPrices", scheduleID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchase-manual-prices: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildIAPPriceSchedulePricesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchasePricesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchasePricesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/manualPrices", scheduleID),
+		Query:       buildIAPPriceSchedulePricesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-manual-prices",
+	})
 }
 
 // GetInAppPurchasePriceScheduleAutomaticPrices retrieves automatic prices for a schedule.
 func (c *Client) GetInAppPurchasePriceScheduleAutomaticPrices(ctx context.Context, scheduleID string, opts ...IAPPriceSchedulePricesOption) (*InAppPurchasePricesResponse, error) {
-	query := &iapPriceSchedulePricesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	scheduleID = strings.TrimSpace(scheduleID)
 	if query.nextURL == "" && scheduleID == "" {
 		return nil, fmt.Errorf("scheduleID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/automaticPrices", scheduleID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchase-automatic-prices: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildIAPPriceSchedulePricesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchasePricesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchasePricesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/automaticPrices", scheduleID),
+		Query:       buildIAPPriceSchedulePricesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-automatic-prices",
+	})
 }
 
 // CreateInAppPurchasePriceSchedule creates an IAP price schedule.
@@ -732,92 +418,39 @@ func (c *Client) CreateInAppPurchasePriceSchedule(ctx context.Context, iapID str
 		Included: included,
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/inAppPurchasePriceSchedules", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchasePriceScheduleResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchasePriceScheduleResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchasePriceSchedules", Payload: payload})
 }
 
 // GetInAppPurchaseOfferCodes retrieves offer codes for an in-app purchase.
 func (c *Client) GetInAppPurchaseOfferCodes(ctx context.Context, iapID string, opts ...IAPOfferCodesOption) (*InAppPurchaseOfferCodesResponse, error) {
-	query := &iapOfferCodesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	iapID = strings.TrimSpace(iapID)
 	if query.nextURL == "" && iapID == "" {
 		return nil, fmt.Errorf("iapID is required")
 	}
-
-	path := fmt.Sprintf("/v2/inAppPurchases/%s/offerCodes", iapID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchase-offer-codes: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildIAPOfferCodesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchaseOfferCodesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v2/inAppPurchases/%s/offerCodes", iapID),
+		Query:       buildIAPOfferCodesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-offer-codes",
+	})
 }
 
 // GetInAppPurchaseOfferCodeCustomCodes retrieves custom codes for an offer code.
 func (c *Client) GetInAppPurchaseOfferCodeCustomCodes(ctx context.Context, offerCodeID string, opts ...IAPOfferCodeCustomCodesOption) (*InAppPurchaseOfferCodeCustomCodesResponse, error) {
-	query := &iapOfferCodeCustomCodesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	offerCodeID = strings.TrimSpace(offerCodeID)
 	if query.nextURL == "" && offerCodeID == "" {
 		return nil, fmt.Errorf("offerCodeID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/customCodes", offerCodeID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchase-offer-code-custom-codes: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildIAPOfferCodeCustomCodesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeCustomCodesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchaseOfferCodeCustomCodesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/customCodes", offerCodeID),
+		Query:       buildIAPOfferCodeCustomCodesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-offer-code-custom-codes",
+	})
 }
 
 // GetInAppPurchaseOfferCodeCustomCode retrieves a custom code by ID.
@@ -826,19 +459,7 @@ func (c *Client) GetInAppPurchaseOfferCodeCustomCode(ctx context.Context, custom
 	if customCodeID == "" {
 		return nil, fmt.Errorf("customCodeID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodeCustomCodes/%s", customCodeID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeCustomCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchaseOfferCodeCustomCodeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeCustomCodes/%s", customCodeID)})
 }
 
 // CreateInAppPurchaseOfferCodeCustomCode creates a custom code for an offer code.
@@ -857,22 +478,7 @@ func (c *Client) CreateInAppPurchaseOfferCodeCustomCode(ctx context.Context, req
 	req.Data.Relationships.OfferCode.Data.ID = offerCodeID
 	req.Data.Attributes.CustomCode = customCode
 
-	body, err := BuildRequestBody(req)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/inAppPurchaseOfferCodeCustomCodes", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeCustomCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseOfferCodeCustomCodeResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseOfferCodeCustomCodes", Payload: req})
 }
 
 // UpdateInAppPurchaseOfferCodeCustomCode updates a custom code by ID.
@@ -892,58 +498,23 @@ func (c *Client) UpdateInAppPurchaseOfferCodeCustomCode(ctx context.Context, cus
 		payload.Data.Attributes = &attrs
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodeCustomCodes/%s", customCodeID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeCustomCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseOfferCodeCustomCodeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeCustomCodes/%s", customCodeID), Payload: payload})
 }
 
 // GetInAppPurchaseOfferCodeOneTimeUseCodes retrieves one-time use codes for an offer code.
 func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCodes(ctx context.Context, offerCodeID string, opts ...IAPOfferCodeOneTimeUseCodesOption) (*InAppPurchaseOfferCodeOneTimeUseCodesResponse, error) {
-	query := &iapOfferCodeOneTimeUseCodesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	offerCodeID = strings.TrimSpace(offerCodeID)
 	if query.nextURL == "" && offerCodeID == "" {
 		return nil, fmt.Errorf("offerCodeID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/oneTimeUseCodes", offerCodeID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchase-offer-code-one-time-use-codes: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildIAPOfferCodeOneTimeUseCodesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeOneTimeUseCodesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchaseOfferCodeOneTimeUseCodesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/oneTimeUseCodes", offerCodeID),
+		Query:       buildIAPOfferCodeOneTimeUseCodesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-offer-code-one-time-use-codes",
+	})
 }
 
 // GetInAppPurchaseOfferCodeOneTimeUseCode retrieves a one-time use code batch by ID.
@@ -952,19 +523,7 @@ func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context, on
 	if oneTimeUseCodeID == "" {
 		return nil, fmt.Errorf("oneTimeUseCodeID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeOneTimeUseCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchaseOfferCodeOneTimeUseCodeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID)})
 }
 
 // CreateInAppPurchaseOfferCodeOneTimeUseCode generates a new one-time use code batch.
@@ -985,22 +544,7 @@ func (c *Client) CreateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context,
 	req.Data.Attributes.ExpirationDate = expirationDate
 	req.Data.Attributes.Environment = environment
 
-	body, err := BuildRequestBody(req)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/inAppPurchaseOfferCodeOneTimeUseCodes", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeOneTimeUseCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseOfferCodeOneTimeUseCodeResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseOfferCodeOneTimeUseCodes", Payload: req})
 }
 
 // UpdateInAppPurchaseOfferCodeOneTimeUseCode updates a one-time use code batch by ID.
@@ -1020,58 +564,23 @@ func (c *Client) UpdateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context,
 		payload.Data.Attributes = &attrs
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeOneTimeUseCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseOfferCodeOneTimeUseCodeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID), Payload: payload})
 }
 
 // GetInAppPurchaseOfferCodePrices retrieves prices for an offer code.
 func (c *Client) GetInAppPurchaseOfferCodePrices(ctx context.Context, offerCodeID string, opts ...IAPOfferCodePricesOption) (*InAppPurchaseOfferPricesResponse, error) {
-	query := &iapOfferCodePricesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	offerCodeID = strings.TrimSpace(offerCodeID)
 	if query.nextURL == "" && offerCodeID == "" {
 		return nil, fmt.Errorf("offerCodeID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/prices", offerCodeID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("in-app-purchase-offer-code-prices: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildIAPOfferCodePricesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferPricesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchaseOfferPricesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/prices", offerCodeID),
+		Query:       buildIAPOfferCodePricesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-offer-code-prices",
+	})
 }
 
 // GetInAppPurchaseOfferCode retrieves an offer code by ID.
@@ -1080,19 +589,7 @@ func (c *Client) GetInAppPurchaseOfferCode(ctx context.Context, offerCodeID stri
 	if offerCodeID == "" {
 		return nil, fmt.Errorf("offerCodeID is required")
 	}
-
-	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s", offerCodeID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[InAppPurchaseOfferCodeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s", offerCodeID)})
 }
 
 // CreateInAppPurchaseOfferCode creates an offer code.
@@ -1173,22 +670,7 @@ func (c *Client) CreateInAppPurchaseOfferCode(ctx context.Context, iapID string,
 		Included: included,
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/inAppPurchaseOfferCodes", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseOfferCodeResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseOfferCodes", Payload: payload})
 }
 
 // UpdateInAppPurchaseOfferCode updates an offer code by ID.
@@ -1208,20 +690,5 @@ func (c *Client) UpdateInAppPurchaseOfferCode(ctx context.Context, offerCodeID s
 		payload.Data.Attributes = &attrs
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s", offerCodeID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response InAppPurchaseOfferCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[InAppPurchaseOfferCodeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s", offerCodeID), Payload: payload})
 }
