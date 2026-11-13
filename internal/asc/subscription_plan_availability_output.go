@@ -3,6 +3,7 @@ package asc
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -37,13 +38,13 @@ func subscriptionPlanAvailabilityShowRows(resp *SubscriptionPlanAvailabilitiesRe
 // PrintSubscriptionPlanAvailabilityShowTable renders plan-availability show as a table.
 func PrintSubscriptionPlanAvailabilityShowTable(resp *SubscriptionPlanAvailabilitiesResponse) error {
 	headers, rows := subscriptionPlanAvailabilityShowRows(resp)
-	return renderTable(headers, rows)
+	return renderTable(os.Stdout, headers, rows)
 }
 
 // PrintSubscriptionPlanAvailabilityShowMarkdown renders plan-availability show as Markdown.
 func PrintSubscriptionPlanAvailabilityShowMarkdown(resp *SubscriptionPlanAvailabilitiesResponse) error {
 	headers, rows := subscriptionPlanAvailabilityShowRows(resp)
-	return renderMarkdown(headers, rows)
+	return renderMarkdown(os.Stdout, headers, rows)
 }
 
 // SubscriptionPlanAvailabilityIncludedTerritories extracts included available
