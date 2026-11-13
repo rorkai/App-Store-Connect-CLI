@@ -308,108 +308,43 @@ func buildScmPullRequestsQuery(query *scmPullRequestsQuery) string {
 
 // GetScmProviders retrieves SCM providers.
 func (c *Client) GetScmProviders(ctx context.Context, opts ...ScmProvidersOption) (*ScmProvidersResponse, error) {
-	query := &scmProvidersQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := "/v1/scmProviders"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("scmProviders: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildScmProvidersQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ScmProvidersResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ScmProvidersResponse](ctx, c, readRequest{
+		Path:        "/v1/scmProviders",
+		Query:       buildScmProvidersQuery(query),
+		Next:        query.nextURL,
+		NextContext: "scmProviders",
+	})
 }
 
 // GetScmProvider retrieves an SCM provider by ID.
 func (c *Client) GetScmProvider(ctx context.Context, providerID string) (*ScmProviderResponse, error) {
-	path := fmt.Sprintf("/v1/scmProviders/%s", strings.TrimSpace(providerID))
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ScmProviderResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ScmProviderResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/scmProviders/%s", strings.TrimSpace(providerID))})
 }
 
 // GetScmProviderRepositories retrieves repositories for an SCM provider.
 func (c *Client) GetScmProviderRepositories(ctx context.Context, providerID string, opts ...ScmRepositoriesOption) (*ScmRepositoriesResponse, error) {
-	query := &scmRepositoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/scmProviders/%s/repositories", strings.TrimSpace(providerID))
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("scmProviderRepositories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildScmRepositoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ScmRepositoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ScmRepositoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/scmProviders/%s/repositories", strings.TrimSpace(providerID)),
+		Query:       buildScmRepositoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "scmProviderRepositories",
+	})
 }
 
 // GetScmRepositories retrieves SCM repositories.
 func (c *Client) GetScmRepositories(ctx context.Context, opts ...ScmRepositoriesOption) (*ScmRepositoriesResponse, error) {
-	query := &scmRepositoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := "/v1/scmRepositories"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("scmRepositories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildScmRepositoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ScmRepositoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ScmRepositoriesResponse](ctx, c, readRequest{
+		Path:        "/v1/scmRepositories",
+		Query:       buildScmRepositoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "scmRepositories",
+	})
 }
 
 // GetScmRepository retrieves an SCM repository by ID.
@@ -432,156 +367,62 @@ func (c *Client) GetScmRepository(ctx context.Context, repositoryID string) (*Sc
 
 // GetScmGitReference retrieves a git reference by ID.
 func (c *Client) GetScmGitReference(ctx context.Context, referenceID string) (*ScmGitReferenceResponse, error) {
-	path := fmt.Sprintf("/v1/scmGitReferences/%s", strings.TrimSpace(referenceID))
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ScmGitReferenceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ScmGitReferenceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/scmGitReferences/%s", strings.TrimSpace(referenceID))})
 }
 
 // GetScmGitReferences retrieves git references for a repository.
 func (c *Client) GetScmGitReferences(ctx context.Context, repositoryID string, opts ...ScmGitReferencesOption) (*ScmGitReferencesResponse, error) {
-	query := &scmGitReferencesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/scmRepositories/%s/gitReferences", strings.TrimSpace(repositoryID))
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("scmGitReferences: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildScmGitReferencesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ScmGitReferencesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ScmGitReferencesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/scmRepositories/%s/gitReferences", strings.TrimSpace(repositoryID)),
+		Query:       buildScmGitReferencesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "scmGitReferences",
+	})
 }
 
 // GetScmRepositoryGitReferencesRelationships retrieves git reference linkages for a repository.
 func (c *Client) GetScmRepositoryGitReferencesRelationships(ctx context.Context, repositoryID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	repositoryID = strings.TrimSpace(repositoryID)
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/scmRepositories/%s/relationships/gitReferences", repositoryID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("scmRepositoryGitReferencesRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/scmRepositories/%s/relationships/gitReferences", repositoryID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "scmRepositoryGitReferencesRelationships",
+	})
 }
 
 // GetScmRepositoryPullRequests retrieves pull requests for a repository.
 func (c *Client) GetScmRepositoryPullRequests(ctx context.Context, repositoryID string, opts ...ScmPullRequestsOption) (*ScmPullRequestsResponse, error) {
-	query := &scmPullRequestsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/scmRepositories/%s/pullRequests", strings.TrimSpace(repositoryID))
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("scmRepositoryPullRequests: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildScmPullRequestsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ScmPullRequestsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ScmPullRequestsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/scmRepositories/%s/pullRequests", strings.TrimSpace(repositoryID)),
+		Query:       buildScmPullRequestsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "scmRepositoryPullRequests",
+	})
 }
 
 // GetScmRepositoryPullRequestsRelationships retrieves pull request linkages for a repository.
 func (c *Client) GetScmRepositoryPullRequestsRelationships(ctx context.Context, repositoryID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	repositoryID = strings.TrimSpace(repositoryID)
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/scmRepositories/%s/relationships/pullRequests", repositoryID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("scmRepositoryPullRequestsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/scmRepositories/%s/relationships/pullRequests", repositoryID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "scmRepositoryPullRequestsRelationships",
+	})
 }
 
 // GetScmPullRequest retrieves a pull request by ID.
 func (c *Client) GetScmPullRequest(ctx context.Context, pullRequestID string) (*ScmPullRequestResponse, error) {
-	path := fmt.Sprintf("/v1/scmPullRequests/%s", strings.TrimSpace(pullRequestID))
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ScmPullRequestResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ScmPullRequestResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/scmPullRequests/%s", strings.TrimSpace(pullRequestID))})
 }
 
 // ResolveGitReferenceByName finds a git reference (branch or tag) by name.

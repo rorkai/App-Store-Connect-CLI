@@ -516,216 +516,85 @@ func buildCiProductRepositoriesQuery(query *ciProductRepositoriesQuery) string {
 
 // GetCiProducts retrieves CI products with optional filters, sparse fields, includes, and pagination.
 func (c *Client) GetCiProducts(ctx context.Context, opts ...CiProductsOption) (*CiProductsResponse, error) {
-	query := &ciProductsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := "/v1/ciProducts"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciProducts: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiProductsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiProductsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiProductsResponse](ctx, c, readRequest{
+		Path:        "/v1/ciProducts",
+		Query:       buildCiProductsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciProducts",
+	})
 }
 
 // GetCiProduct retrieves a CI product by ID.
 func (c *Client) GetCiProduct(ctx context.Context, productID string) (*CiProductResponse, error) {
-	path := fmt.Sprintf("/v1/ciProducts/%s", productID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiProductResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiProductResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciProducts/%s", productID)})
 }
 
 // GetCiProductApp retrieves the app for a CI product.
 func (c *Client) GetCiProductApp(ctx context.Context, productID string, opts ...CiProductAppOption) (*AppResponse, error) {
-	query := &ciProductAppQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciProducts/%s/app", productID)
-	if queryString := buildCiProductAppQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciProducts/%s/app", productID), Query: buildCiProductAppQuery(query)})
 }
 
 // GetCiProductBuildRuns retrieves build runs for a CI product.
 func (c *Client) GetCiProductBuildRuns(ctx context.Context, productID string, opts ...CiBuildRunsOption) (*CiBuildRunsResponse, error) {
-	query := &ciBuildRunsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciProducts/%s/buildRuns", productID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciProductBuildRuns: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiBuildRunsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiBuildRunsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiBuildRunsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciProducts/%s/buildRuns", productID),
+		Query:       buildCiBuildRunsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciProductBuildRuns",
+	})
 }
 
 // GetCiProductPrimaryRepositories retrieves primary repositories for a CI product.
 func (c *Client) GetCiProductPrimaryRepositories(ctx context.Context, productID string, opts ...CiProductRepositoriesOption) (*ScmRepositoriesResponse, error) {
-	query := &ciProductRepositoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciProducts/%s/primaryRepositories", productID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciProductPrimaryRepositories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiProductRepositoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ScmRepositoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ScmRepositoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciProducts/%s/primaryRepositories", productID),
+		Query:       buildCiProductRepositoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciProductPrimaryRepositories",
+	})
 }
 
 // GetCiProductAdditionalRepositories retrieves additional repositories for a CI product.
 func (c *Client) GetCiProductAdditionalRepositories(ctx context.Context, productID string, opts ...CiProductRepositoriesOption) (*ScmRepositoriesResponse, error) {
-	query := &ciProductRepositoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciProducts/%s/additionalRepositories", productID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciProductAdditionalRepositories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiProductRepositoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ScmRepositoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[ScmRepositoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciProducts/%s/additionalRepositories", productID),
+		Query:       buildCiProductRepositoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciProductAdditionalRepositories",
+	})
 }
 
 // DeleteCiProduct deletes a CI product by ID.
 func (c *Client) DeleteCiProduct(ctx context.Context, productID string) error {
 	productID = strings.TrimSpace(productID)
-	path := fmt.Sprintf("/v1/ciProducts/%s", productID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/ciProducts/%s", productID), nil)
 }
 
 // GetCiWorkflows retrieves CI workflows for a product.
 func (c *Client) GetCiWorkflows(ctx context.Context, productID string, opts ...CiWorkflowsOption) (*CiWorkflowsResponse, error) {
-	query := &ciWorkflowsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciProducts/%s/workflows", productID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciWorkflows: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiWorkflowsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiWorkflowsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiWorkflowsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciProducts/%s/workflows", productID),
+		Query:       buildCiWorkflowsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciWorkflows",
+	})
 }
 
 // GetCiWorkflow retrieves a CI workflow by ID.
 func (c *Client) GetCiWorkflow(ctx context.Context, workflowID string) (*CiWorkflowResponse, error) {
-	path := fmt.Sprintf("/v1/ciWorkflows/%s", workflowID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiWorkflowResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiWorkflowResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciWorkflows/%s", workflowID)})
 }
 
 // GetCiWorkflowRaw retrieves a CI workflow by ID as the unmodified Apple response body.
@@ -794,9 +663,7 @@ func (c *Client) UpdateCiWorkflow(ctx context.Context, workflowID string, payloa
 // DeleteCiWorkflow deletes a CI workflow by ID.
 func (c *Client) DeleteCiWorkflow(ctx context.Context, workflowID string) error {
 	workflowID = strings.TrimSpace(workflowID)
-	path := fmt.Sprintf("/v1/ciWorkflows/%s", workflowID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/ciWorkflows/%s", workflowID), nil)
 }
 
 // GetCiWorkflowRepository retrieves the repository for a CI workflow.

@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -241,107 +240,38 @@ func buildCiBuildRunBuildsQuery(query *ciBuildRunBuildsQuery) string {
 
 // GetCiBuildRuns retrieves build runs for a workflow.
 func (c *Client) GetCiBuildRuns(ctx context.Context, workflowID string, opts ...CiBuildRunsOption) (*CiBuildRunsResponse, error) {
-	query := &ciBuildRunsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciWorkflows/%s/buildRuns", workflowID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciBuildRuns: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiBuildRunsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiBuildRunsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiBuildRunsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciWorkflows/%s/buildRuns", workflowID),
+		Query:       buildCiBuildRunsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciBuildRuns",
+	})
 }
 
 // GetCiBuildRun retrieves a CI build run by ID.
 func (c *Client) GetCiBuildRun(ctx context.Context, buildRunID string, opts ...CiBuildRunGetOption) (*CiBuildRunResponse, error) {
-	query := &ciBuildRunGetQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciBuildRuns/%s", buildRunID)
-	if queryString := buildCiBuildRunGetQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiBuildRunResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiBuildRunResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciBuildRuns/%s", buildRunID), Query: buildCiBuildRunGetQuery(query)})
 }
 
 // GetCiBuildRunBuilds retrieves builds for a CI build run.
 func (c *Client) GetCiBuildRunBuilds(ctx context.Context, buildRunID string, opts ...CiBuildRunBuildsOption) (*BuildsResponse, error) {
-	query := &ciBuildRunBuildsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciBuildRuns/%s/builds", buildRunID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciBuildRunBuilds: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiBuildRunBuildsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciBuildRuns/%s/builds", buildRunID),
+		Query:       buildCiBuildRunBuildsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciBuildRunBuilds",
+	})
 }
 
 // CreateCiBuildRun creates a new CI build run (triggers a workflow).
 func (c *Client) CreateCiBuildRun(ctx context.Context, req CiBuildRunCreateRequest) (*CiBuildRunResponse, error) {
-	body, err := BuildRequestBody(req)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/ciBuildRuns", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiBuildRunResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[CiBuildRunResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/ciBuildRuns", Payload: req})
 }
 
 // XcodeCloudRunResult represents the result of triggering a build run.
