@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/signal"
 	"reflect"
 	"slices"
 	"strconv"
@@ -955,7 +956,11 @@ func bearerTokenClient(timeout time.Duration) (client *asc.Client, ok bool, err 
 	if command != "" {
 		renew = func(ctx context.Context) (string, error) { return readBearerTokenFromCommand(ctx, command) }
 	}
-	client, err = asc.NewClientFromBearerToken(context.Background(), token, renew, timeout)
+	// Client creation has no command context, so Ctrl-C must stop a stalled
+	// first token fetch here.
+	ctx, stopInterrupt := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stopInterrupt()
+	client, err = asc.NewClientFromBearerToken(ctx, token, renew, timeout)
 	if errors.Is(err, asc.ErrBearerTokenRenewal) {
 		// readBearerTokenFromCommand already names the variable.
 		return nil, true, missingAuthError{msg: err.Error(), cause: err}
