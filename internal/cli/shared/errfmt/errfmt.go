@@ -30,6 +30,7 @@ const (
 	bearerTokenHint    = "Set ASC_BEARER_TOKEN to a new token from the service that holds your private key, or unset it to use your configured credentials."
 	missingAuthHint    = "Run `asc auth status` to see configured credentials. To add an API key, create one at " + auth.APIKeysURL +
 		" and run `" + auth.LoginCommandExample + "` (or set ASC_KEY_ID/ASC_ISSUER_ID/ASC_PRIVATE_KEY_PATH)."
+	downloadTimeoutHint = "Increase the download timeout, which `ASC_UPLOAD_TIMEOUT` sets (e.g. `ASC_UPLOAD_TIMEOUT=45m`)."
 	networkHint         = "Check your network connection and proxy settings (HTTPS_PROXY), then retry."
 	symlinkedConfigHint = "Replace the symlink with the real file, or set ASC_CONFIG_PATH to the absolute path of a config file whose path contains no symlinks."
 )
@@ -83,6 +84,8 @@ func Classify(err error) ClassifiedError {
 		hint := requestTimeoutHint
 		if isUploadTimeoutError(err) {
 			hint = uploadTimeoutHint
+		} else if strings.Contains(err.Error(), "failed to write report") {
+			hint = downloadTimeoutHint
 		}
 		return ClassifiedError{
 			Message: err.Error(),

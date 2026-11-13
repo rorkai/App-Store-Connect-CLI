@@ -81,6 +81,32 @@ func TestClassify_TimeoutUploadOperation(t *testing.T) {
 	}
 }
 
+func TestClassify_TimeoutReportDownloadNamesGoverningSetting(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{
+			name: "body copy uses the transfer budget",
+			err:  fmt.Errorf("analytics download: failed to write report: %w", context.DeadlineExceeded),
+			want: "Increase the download timeout, which `ASC_UPLOAD_TIMEOUT` sets (e.g. `ASC_UPLOAD_TIMEOUT=45m`).",
+		},
+		{
+			name: "waiting for headers uses the request budget",
+			err:  fmt.Errorf("analytics download: failed to download report: timed out after 30s awaiting response headers: %w", context.DeadlineExceeded),
+			want: "Increase the request timeout (e.g. set `ASC_TIMEOUT=90s`).",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Classify(tt.err).Hint; got != tt.want {
+				t.Fatalf("hint = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestClassify_TimeoutBuildsUploadsListKeepsRequestHint(t *testing.T) {
 	err := fmt.Errorf("builds uploads list: failed to fetch: %w", context.DeadlineExceeded)
 
