@@ -63,6 +63,21 @@ func TestNotarizationValidationErrors(t *testing.T) {
 			args:    []string{"notarization", "log", "--id", "sub-1", "--fetch", "--path", "logs/"},
 			wantErr: "--path must be a file path",
 		},
+		{
+			name:    "submit invalid poll interval",
+			args:    []string{"notarization", "submit", "--file", "/tmp/test.zip", "--poll-interval", "invalid"},
+			wantErr: "Error: notarization submit: --poll-interval must be a valid positive duration (e.g. 15s, 1m)",
+		},
+		{
+			name:    "submit invalid timeout",
+			args:    []string{"notarization", "submit", "--file", "/tmp/test.zip", "--timeout", "invalid"},
+			wantErr: "Error: notarization submit: --timeout must be a valid positive duration (e.g. 30m, 1h)",
+		},
+		{
+			name:    "list negative limit",
+			args:    []string{"notarization", "list", "--limit", "-1"},
+			wantErr: "Error: notarization list: --limit must not be negative",
+		},
 	}
 
 	runValidationTests(t, tests)
@@ -87,16 +102,6 @@ func TestNotarizationValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "submit invalid poll interval",
-			args:    []string{"notarization", "submit", "--file", "/tmp/test.zip", "--poll-interval", "invalid"},
-			wantErr: "Error: notarization submit: --poll-interval must be a valid positive duration (e.g. 15s, 1m)",
-		},
-		{
-			name:    "submit invalid timeout",
-			args:    []string{"notarization", "submit", "--file", "/tmp/test.zip", "--timeout", "invalid"},
-			wantErr: "Error: notarization submit: --timeout must be a valid positive duration (e.g. 30m, 1h)",
-		},
-		{
 			name:    "submit nonexistent file",
 			args:    []string{"notarization", "submit", "--file", missingFile},
 			wantErr: "Error: notarization submit: " + missingErr.Error(),
@@ -110,11 +115,6 @@ func TestNotarizationValidationErrors(t *testing.T) {
 			name:    "submit empty file",
 			args:    []string{"notarization", "submit", "--file", emptyFile},
 			wantErr: "Error: notarization submit: file must not be empty",
-		},
-		{
-			name:    "list negative limit",
-			args:    []string{"notarization", "list", "--limit", "-1"},
-			wantErr: "Error: notarization list: --limit must not be negative",
 		},
 		{
 			name:    "submit unsupported extension",

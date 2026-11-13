@@ -1477,12 +1477,12 @@ Examples:
 
 			interval, err := time.ParseDuration(strings.TrimSpace(*pollInterval))
 			if err != nil || interval <= 0 {
-				return fmt.Errorf("notarization submit: --poll-interval must be a valid positive duration (e.g. 15s, 1m)")
+				return shared.UsageError("notarization submit: --poll-interval must be a valid positive duration (e.g. 15s, 1m)")
 			}
 
 			timeoutDuration, err := time.ParseDuration(strings.TrimSpace(*timeout))
 			if err != nil || timeoutDuration <= 0 {
-				return fmt.Errorf("notarization submit: --timeout must be a valid positive duration (e.g. 30m, 1h)")
+				return shared.UsageError("notarization submit: --timeout must be a valid positive duration (e.g. 30m, 1h)")
 			}
 
 			// Preserve the explicit symlink error while relying on the no-follow
@@ -1862,7 +1862,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit < 0 {
-				return fmt.Errorf("notarization list: --limit must not be negative")
+				return shared.UsageError("notarization list: --limit must not be negative")
 			}
 
 			client, err := shared.GetASCClient()

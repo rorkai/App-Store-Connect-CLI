@@ -25,7 +25,7 @@ func TestBuildsInvalidInputFailsBeforeNetwork(t *testing.T) {
 		{
 			name:     "test-notes update invalid locale",
 			args:     []string{"builds", "test-notes", "update", "--build-id", "build-1", "--locale", "!!!bad!!!", "--whats-new", "test"},
-			wantExit: rootcmd.ExitError,
+			wantExit: rootcmd.ExitUsage,
 			wantErr:  `Error: builds test-notes update: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
 		},
 		{

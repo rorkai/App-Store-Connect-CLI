@@ -187,7 +187,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			localeValue := strings.TrimSpace(*locale)
-			if err := validateTestNotesLocalizationTarget(id, localeValue, selectors); err != nil {
+			if err := validateTestNotesLocalizationTarget("builds test-notes view", id, localeValue, selectors); err != nil {
 				return fmt.Errorf("builds test-notes view: %w", err)
 			}
 
@@ -318,7 +318,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			localeValue := strings.TrimSpace(*locale)
-			if err := validateTestNotesLocalizationTarget(id, localeValue, selectors); err != nil {
+			if err := validateTestNotesLocalizationTarget("builds test-notes update", id, localeValue, selectors); err != nil {
 				return fmt.Errorf("builds test-notes update: %w", err)
 			}
 
@@ -393,7 +393,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			localeValue := strings.TrimSpace(*locale)
-			if err := validateTestNotesLocalizationTarget(id, localeValue, selectors); err != nil {
+			if err := validateTestNotesLocalizationTarget("builds test-notes delete", id, localeValue, selectors); err != nil {
 				return fmt.Errorf("builds test-notes delete: %w", err)
 			}
 			if !*confirm {
@@ -466,7 +466,7 @@ func (f testNotesBuildSelectorFlags) resolveBuild(ctx context.Context, client *a
 	return ResolveBuild(requestCtx, client, opts)
 }
 
-func validateTestNotesLocalizationTarget(localizationID, locale string, selectors testNotesBuildSelectorFlags) error {
+func validateTestNotesLocalizationTarget(command, localizationID, locale string, selectors testNotesBuildSelectorFlags) error {
 	localizationIDValue := strings.TrimSpace(localizationID)
 	localeValue := strings.TrimSpace(locale)
 	if localizationIDValue != "" {
@@ -479,7 +479,7 @@ func validateTestNotesLocalizationTarget(localizationID, locale string, selector
 		return shared.UsageError("either --localization-id or (--locale and a build selector) is required")
 	}
 	if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-		return err
+		return shared.UsageErrorf("%s: %v", command, err)
 	}
 	return validateResolveBuildOptions(selectors.resolveOptions())
 }

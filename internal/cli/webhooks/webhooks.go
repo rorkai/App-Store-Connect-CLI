@@ -547,7 +547,7 @@ Examples:
 			if trimmedID == "" && trimmedNext != "" {
 				derivedID, err := extractWebhookIDFromNextURL(trimmedNext)
 				if err != nil {
-					return fmt.Errorf("webhooks deliveries links: %w", err)
+					return shared.UsageErrorf("webhooks deliveries links: %v", err)
 				}
 				trimmedID = derivedID
 			}

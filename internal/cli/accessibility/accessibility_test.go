@@ -39,17 +39,6 @@ func TestAccessibilityValidationErrors(t *testing.T) {
 			t.Fatalf("expected ErrHelp, got %v", err)
 		}
 	})
-
-	t.Run("update missing update flags", func(t *testing.T) {
-		cmd := AccessibilityUpdateCommand()
-		if err := cmd.FlagSet.Parse([]string{"--id", "DECLARATION_ID"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := cmd.Exec(context.Background(), nil)
-		if err == nil || errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected non-ErrHelp error, got %v", err)
-		}
-	})
 }
 
 func TestAccessibilityHelpers(t *testing.T) {

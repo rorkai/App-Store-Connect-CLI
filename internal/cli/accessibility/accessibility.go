@@ -338,11 +338,11 @@ Examples:
 				"supports-voiceover":                         *supportsVoiceover,
 			})
 			if err != nil {
-				return fmt.Errorf("accessibility update: %w", err)
+				return shared.UsageErrorf("accessibility update: %v", err)
 			}
 
 			if !asc.HasAccessibilityDeclarationUpdates(attrs) {
-				return fmt.Errorf("accessibility update: at least one update flag is required")
+				return shared.UsageError("accessibility update: at least one update flag is required")
 			}
 
 			client, err := shared.GetASCClient()
