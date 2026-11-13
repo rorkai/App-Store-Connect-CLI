@@ -14,7 +14,7 @@ import (
 
 func TestMissingSubmitRequiredLocalizationFields_AllEmpty(t *testing.T) {
 	attrs := asc.AppStoreVersionLocalizationAttributes{Locale: "en-US"}
-	missing := MissingSubmitRequiredLocalizationFields(attrs)
+	missing := MissingSubmitRequiredLocalizationFieldsWithOptions(attrs, SubmitReadinessOptions{})
 	want := []string{"description", "keywords", "supportUrl"}
 	if len(missing) != len(want) {
 		t.Fatalf("expected %v, got %v", want, missing)
@@ -34,7 +34,7 @@ func TestMissingSubmitRequiredLocalizationFields_DoesNotCheckWhatsNew(t *testing
 		SupportURL:  "https://example.com",
 		WhatsNew:    "", // empty but should not be flagged without RequireWhatsNew
 	}
-	missing := MissingSubmitRequiredLocalizationFields(attrs)
+	missing := MissingSubmitRequiredLocalizationFieldsWithOptions(attrs, SubmitReadinessOptions{})
 	if len(missing) != 0 {
 		t.Fatalf("expected no missing fields without RequireWhatsNew, got %v", missing)
 	}
@@ -126,33 +126,13 @@ func TestSubmitReadinessIssuesByLocaleWithOptions_WhatsNewMixedLocales(t *testin
 	}
 }
 
-func TestSubmitReadinessIssuesByLocale_BackwardCompatible(t *testing.T) {
-	localizations := []asc.Resource[asc.AppStoreVersionLocalizationAttributes]{
-		{
-			ID: "loc-1",
-			Attributes: asc.AppStoreVersionLocalizationAttributes{
-				Locale:      "en-US",
-				Description: "desc",
-				Keywords:    "kw",
-				SupportURL:  "https://example.com",
-				WhatsNew:    "", // empty but should not be flagged by default
-			},
-		},
-	}
-
-	issues := SubmitReadinessIssuesByLocale(localizations)
-	if len(issues) != 0 {
-		t.Fatalf("expected no issues from backward-compatible call, got %v", issues)
-	}
-}
-
 func TestSubmitReadinessCreateWarningForLocale_ReturnsWarningForIncompleteCreate(t *testing.T) {
 	attrs := asc.AppStoreVersionLocalizationAttributes{
 		Locale:   "fr-FR",
 		Keywords: "journal,humeur",
 	}
 
-	warning, ok := SubmitReadinessCreateWarningForLocale("", attrs, SubmitReadinessCreateModeApplied)
+	warning, ok := SubmitReadinessCreateWarningForLocaleWithOptions("", attrs, SubmitReadinessCreateModeApplied, SubmitReadinessOptions{})
 	if !ok {
 		t.Fatal("expected warning")
 	}
@@ -181,7 +161,7 @@ func TestSubmitReadinessCreateWarningForLocale_ReturnsFalseForCompleteCreate(t *
 		SupportURL:  "https://example.com/support",
 	}
 
-	if _, ok := SubmitReadinessCreateWarningForLocale("", attrs, SubmitReadinessCreateModePlanned); ok {
+	if _, ok := SubmitReadinessCreateWarningForLocaleWithOptions("", attrs, SubmitReadinessCreateModePlanned, SubmitReadinessOptions{}); ok {
 		t.Fatal("expected no warning")
 	}
 }

@@ -36,12 +36,6 @@ type SubmitReadinessOptions struct {
 	RequireWhatsNew bool
 }
 
-// MissingSubmitRequiredLocalizationFields returns missing metadata fields that
-// block App Store submission for a version localization.
-func MissingSubmitRequiredLocalizationFields(attrs asc.AppStoreVersionLocalizationAttributes) []string {
-	return MissingSubmitRequiredLocalizationFieldsWithOptions(attrs, SubmitReadinessOptions{})
-}
-
 // MissingSubmitRequiredLocalizationFieldsWithOptions returns missing metadata
 // fields that block App Store submission, with configurable checks.
 func MissingSubmitRequiredLocalizationFieldsWithOptions(attrs asc.AppStoreVersionLocalizationAttributes, opts SubmitReadinessOptions) []string {
@@ -59,12 +53,6 @@ func MissingSubmitRequiredLocalizationFieldsWithOptions(attrs asc.AppStoreVersio
 		missing = append(missing, "whatsNew")
 	}
 	return missing
-}
-
-// SubmitReadinessIssuesByLocale evaluates all localizations and returns
-// per-locale missing submit-required fields.
-func SubmitReadinessIssuesByLocale(localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) []SubmitReadinessIssue {
-	return SubmitReadinessIssuesByLocaleWithOptions(localizations, SubmitReadinessOptions{})
 }
 
 // SubmitReadinessIssuesByLocaleWithOptions evaluates all localizations with
@@ -91,12 +79,6 @@ func SubmitReadinessIssuesByLocaleWithOptions(localizations []asc.Resource[asc.A
 		return issues[i].Locale < issues[j].Locale
 	})
 	return issues
-}
-
-// SubmitReadinessCreateWarningForLocale returns a create warning when the
-// provided attributes would leave the locale incomplete for submission.
-func SubmitReadinessCreateWarningForLocale(locale string, attrs asc.AppStoreVersionLocalizationAttributes, mode string) (SubmitReadinessCreateWarning, bool) {
-	return SubmitReadinessCreateWarningForLocaleWithOptions(locale, attrs, mode, SubmitReadinessOptions{})
 }
 
 // SubmitReadinessCreateWarningForLocaleWithOptions returns a create warning when

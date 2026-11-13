@@ -51,7 +51,7 @@ type distributionSigningReceiptEvidence struct {
 
 // validateDistributionReconcileEvidence validates candidate run-local
 // evidence before it is adopted into state. verified must come from the
-// read-only signing.VerifyReconcileCompletion seam for the exact nested plan.
+// read-only signing.VerifyReconcileCompletionFromEvidence seam for the exact nested plan.
 func validateDistributionReconcileEvidence(
 	stateDir string,
 	plan persistedDistributionPlan,
@@ -144,7 +144,7 @@ func validateAdoptedReconcileEvidence(stateDir string, plan persistedDistributio
 
 // validateAdoptedReconcileEvidenceLocal validates the protected run copy
 // without account access. It is used by status and completion verification;
-// resume additionally performs live VerifyReconcileCompletion first.
+// resume additionally performs live VerifyReconcileCompletionFromEvidence first.
 func validateAdoptedReconcileEvidenceLocal(stateDir string, plan persistedDistributionPlan, state persistedDistributionRunState) error {
 	if state.Artifacts.ReconcileReceipt == nil || state.Artifacts.Profile == nil {
 		return fmt.Errorf("adopted reconcile evidence is incomplete")

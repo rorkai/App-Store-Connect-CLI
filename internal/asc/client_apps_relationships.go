@@ -177,7 +177,7 @@ func (c *Client) GetAppBuildUploadsRelationships(ctx context.Context, appID stri
 		path += "?" + queryString
 	}
 
-	data, err := c.doAppBuildUploadsRead(ctx, appID, path)
+	data, err := c.doAppBuildUploadsRead(ctx, path)
 	if err != nil {
 		return nil, err
 	}

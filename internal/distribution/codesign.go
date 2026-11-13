@@ -42,7 +42,6 @@ const (
 
 var (
 	runCodeSignTool                   = runBoundedTool
-	duringMaterializationForTest      func(string)
 	duringMaterializedCopyForTest     func()
 	materializeMainAppForVerification func(*os.Root, []*zip.File, string) error
 )
@@ -556,9 +555,6 @@ func materializeMainAppContext(ctx context.Context, destination *os.Root, member
 	prefix := appDir + "/"
 	var total int64
 	for _, member := range members {
-		if duringMaterializationForTest != nil {
-			duringMaterializationForTest(member.Name)
-		}
 		if err := contextError(ctx); err != nil {
 			return err
 		}

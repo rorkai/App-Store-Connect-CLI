@@ -284,15 +284,6 @@ func EncodeVersionLocalization(loc VersionLocalization) ([]byte, error) {
 	return encodeCanonicalJSON(normalized)
 }
 
-// ReadAppInfoLocalizationFile reads and decodes canonical app-info JSON.
-func ReadAppInfoLocalizationFile(path string) (AppInfoLocalization, error) {
-	data, err := readFileNoFollow(path)
-	if err != nil {
-		return AppInfoLocalization{}, err
-	}
-	return DecodeAppInfoLocalization(data)
-}
-
 // ReadVersionLocalizationFile reads and decodes canonical version JSON.
 func ReadVersionLocalizationFile(path string) (VersionLocalization, error) {
 	data, err := readFileNoFollow(path)

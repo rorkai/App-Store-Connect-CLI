@@ -945,7 +945,7 @@ func (c *Client) CreateGameCenterLeaderboardSetV2(ctx context.Context, gcDetailI
 	const initialVersionID = "${lbsetVer1}"
 
 	relationships := &GameCenterLeaderboardSetV2Relationships{
-		GameCenterLeaderboards: buildToManyRelationship(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
+		GameCenterLeaderboards: buildRelationshipList(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
 		Versions: &RelationshipList{Data: []ResourceData{{
 			Type: ResourceTypeGameCenterLeaderboardSetVersions,
 			ID:   initialVersionID,

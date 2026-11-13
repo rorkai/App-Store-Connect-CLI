@@ -42,12 +42,10 @@ var matrixReviewManifestLoadedForTest func()
 // These narrow seams make filesystem replacement and cancellation races
 // deterministic in package tests. They are unset in production.
 var (
-	matrixReviewAssetRootBeforeOpenForTest func(kind, path string)
-	matrixReviewAssetRootOpenedForTest     func(kind, path string)
-	matrixReviewAssetBeforeHashForTest     func(path string)
-	matrixReviewAssetRootBeforePinForTest  func(kind, path string)
-	matrixReviewAssetRootsCapturedForTest  func(kind, path string)
-	matrixReviewAssetValidatedForTest      func(path string)
+	matrixReviewAssetBeforeHashForTest    func(path string)
+	matrixReviewAssetRootBeforePinForTest func(kind, path string)
+	matrixReviewAssetRootsCapturedForTest func(kind, path string)
+	matrixReviewAssetValidatedForTest     func(path string)
 )
 
 // GenerateMatrixReview writes an offline HTML report and its JSON manifest.
@@ -714,9 +712,6 @@ func matrixReviewBrowserAssetsWithExpectedRoots(ctx context.Context, htmlPath st
 				}
 				opened, ok := openedRoots[kind]
 				if !ok {
-					if matrixReviewAssetRootBeforeOpenForTest != nil {
-						matrixReviewAssetRootBeforeOpenForTest(kind, rootPath)
-					}
 					if expected, ok := expectedRoots[kind]; ok {
 						opened = openedAssetRoot{root: expected}
 					} else {
@@ -738,9 +733,6 @@ func matrixReviewBrowserAssetsWithExpectedRoots(ctx context.Context, htmlPath st
 							return nil, errMatrixReviewPairMismatch
 						}
 						openedInfo, openedErr := openedRoot.Stat(".")
-						if matrixReviewAssetRootOpenedForTest != nil {
-							matrixReviewAssetRootOpenedForTest(kind, rootPath)
-						}
 						currentInfo, currentErr := os.Lstat(rootPath)
 						_ = openedRoot.Close()
 						if openedErr != nil || currentErr != nil || currentInfo.Mode()&os.ModeSymlink != 0 || !currentInfo.IsDir() || !os.SameFile(rootInfo, openedInfo) || !os.SameFile(openedInfo, currentInfo) {

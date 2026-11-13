@@ -550,7 +550,7 @@ func validateCiArtifactDownloadURL(downloadURL string) error {
 		return nil
 	}
 	if isAllowedAnalyticsCDNHost(host) {
-		if !hasSignedAnalyticsQuery(parsedURL.Query()) {
+		if !hasSignedQuery(parsedURL.Query()) {
 			return fmt.Errorf("rejected ci artifact download URL from CDN host %q without signed query", parsedURL.Host)
 		}
 		return nil
