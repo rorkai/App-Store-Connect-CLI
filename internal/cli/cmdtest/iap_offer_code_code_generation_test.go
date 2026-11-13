@@ -3,8 +3,6 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -12,140 +10,79 @@ import (
 	"testing"
 )
 
+func TestIAPOfferCodesCodeCreateValidationErrors(t *testing.T) {
+	setupUsageExitCodeEnv(t)
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "custom-codes missing offer code id",
+			args:    []string{"iap", "offer-codes", "custom-codes", "create", "--custom-code", "SUMMER26", "--quantity", "100"},
+			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "custom-codes missing custom code",
+			args:    []string{"iap", "offer-codes", "custom-codes", "create", "--offer-code-id", "offer-1", "--quantity", "100"},
+			wantErr: "--custom-code is required",
+		},
+		{
+			name:    "custom-codes missing quantity",
+			args:    []string{"iap", "offer-codes", "custom-codes", "create", "--offer-code-id", "offer-1", "--custom-code", "SUMMER26"},
+			wantErr: "--quantity must be a positive integer",
+		},
+		{
+			name:    "custom-codes negative quantity",
+			args:    []string{"iap", "offer-codes", "custom-codes", "create", "--offer-code-id", "offer-1", "--custom-code", "SUMMER26", "--quantity", "-5"},
+			wantErr: "--quantity must be a positive integer",
+		},
+		{
+			name:    "custom-codes invalid expiration date",
+			args:    []string{"iap", "offer-codes", "custom-codes", "create", "--offer-code-id", "offer-1", "--custom-code", "SUMMER26", "--quantity", "100", "--expiration-date", "not-a-date"},
+			wantErr: "--expiration-date must be in YYYY-MM-DD format",
+		},
+		{
+			name:    "one-time-codes missing offer code id",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "create", "--quantity", "100", "--expiration-date", "2026-12-31"},
+			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "one-time-codes zero quantity",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "create", "--offer-code-id", "offer-1", "--quantity", "0", "--expiration-date", "2026-12-31"},
+			wantErr: "--quantity must be a positive integer",
+		},
+		{
+			name:    "one-time-codes negative quantity",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "create", "--offer-code-id", "offer-1", "--quantity", "-5", "--expiration-date", "2026-12-31"},
+			wantErr: "--quantity must be a positive integer",
+		},
+		{
+			name:    "one-time-codes invalid expiration date",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "create", "--offer-code-id", "offer-1", "--quantity", "100", "--expiration-date", "not-a-date"},
+			wantErr: "--expiration-date must be in YYYY-MM-DD format",
+		},
+		{
+			name:    "one-time-codes missing expiration date",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "create", "--offer-code-id", "offer-1", "--quantity", "100"},
+			wantErr: "--expiration-date is required",
+		},
+		{
+			name:    "one-time-codes invalid environment",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "create", "--offer-code-id", "offer-1", "--quantity", "100", "--expiration-date", "2026-12-31", "--environment", "beta"},
+			wantErr: "--environment must be one of: PRODUCTION, SANDBOX",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitCode(t, test.args, test.wantErr)
+		})
+	}
+}
+
 // --- custom-codes create ---
-
-func TestIAPOfferCodesCustomCodesCreateMissingOfferCodeID(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "custom-codes", "create",
-			"--custom-code", "SUMMER26",
-			"--quantity", "100",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --offer-code-id is required") {
-		t.Fatalf("expected stderr to contain --offer-code-id required, got %q", stderr)
-	}
-}
-
-func TestIAPOfferCodesCustomCodesCreateMissingCustomCode(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "custom-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--quantity", "100",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --custom-code is required") {
-		t.Fatalf("expected stderr to contain --custom-code required, got %q", stderr)
-	}
-}
-
-func TestIAPOfferCodesCustomCodesCreateMissingQuantity(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "custom-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--custom-code", "SUMMER26",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --quantity must be a positive integer") {
-		t.Fatalf("expected stderr to contain --quantity error, got %q", stderr)
-	}
-}
-
-func TestIAPOfferCodesCustomCodesCreateInvalidQuantity(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "custom-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--custom-code", "SUMMER26",
-			"--quantity", "-5",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --quantity must be a positive integer") {
-		t.Fatalf("expected stderr to contain --quantity error, got %q", stderr)
-	}
-}
-
-func TestIAPOfferCodesCustomCodesCreateInvalidExpirationDate(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "custom-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--custom-code", "SUMMER26",
-			"--quantity", "100",
-			"--expiration-date", "not-a-date",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --expiration-date must be in YYYY-MM-DD format") {
-		t.Fatalf("expected stderr to contain expiration-date format error, got %q", stderr)
-	}
-}
 
 func TestIAPOfferCodesCustomCodesCreateSuccess(t *testing.T) {
 	setupAuth(t)
@@ -296,152 +233,6 @@ func TestIAPOfferCodesCustomCodesCreatePrettyJSON(t *testing.T) {
 }
 
 // --- one-time-codes create ---
-
-func TestIAPOfferCodesOneTimeCodesCreateMissingOfferCodeID(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "one-time-codes", "create",
-			"--quantity", "100",
-			"--expiration-date", "2026-12-31",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --offer-code-id is required") {
-		t.Fatalf("expected stderr to contain --offer-code-id required, got %q", stderr)
-	}
-}
-
-func TestIAPOfferCodesOneTimeCodesCreateInvalidQuantity(t *testing.T) {
-	tests := []struct {
-		name     string
-		quantity string
-	}{
-		{name: "zero", quantity: "0"},
-		{name: "negative", quantity: "-5"},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"iap", "offer-codes", "one-time-codes", "create",
-					"--offer-code-id", "offer-1",
-					"--quantity", test.quantity,
-					"--expiration-date", "2026-12-31",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, "Error: --quantity must be a positive integer") {
-				t.Fatalf("expected stderr to contain --quantity error, got %q", stderr)
-			}
-		})
-	}
-}
-
-func TestIAPOfferCodesOneTimeCodesCreateInvalidExpirationDate(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "one-time-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--quantity", "100",
-			"--expiration-date", "not-a-date",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --expiration-date must be in YYYY-MM-DD format") {
-		t.Fatalf("expected stderr to contain expiration-date format error, got %q", stderr)
-	}
-}
-
-func TestIAPOfferCodesOneTimeCodesCreateMissingExpirationDate(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "one-time-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--quantity", "100",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --expiration-date is required") {
-		t.Fatalf("expected stderr to contain expiration-date required error, got %q", stderr)
-	}
-}
-
-func TestIAPOfferCodesOneTimeCodesCreateInvalidEnvironment(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "one-time-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--quantity", "100",
-			"--expiration-date", "2026-12-31",
-			"--environment", "beta",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: --environment must be one of: PRODUCTION, SANDBOX") {
-		t.Fatalf("expected stderr to contain environment validation error, got %q", stderr)
-	}
-}
 
 func TestIAPOfferCodesOneTimeCodesCreateSandboxEnvironmentSuccess(t *testing.T) {
 	setupAuth(t)

@@ -2,8 +2,6 @@ package cmdtest
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"strings"
@@ -11,53 +9,40 @@ import (
 	"time"
 )
 
-func TestIAPPriceSchedulesCreate_TierAndPricesMutualExclusion(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+func TestIAPPriceSchedulesCreateValidationErrors(t *testing.T) {
+	setupUsageExitCodeEnv(t)
 
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "pricing", "schedules", "create",
-			"--iap-id", "9000000003",
-			"--base-territory", "USA",
-			"--tier", "5",
-			"--prices", "PP:2026-03-01",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "mutually exclusive") {
-		t.Fatalf("expected mutually exclusive error, got %q", stderr)
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "tier with prices",
+			args:    []string{"iap", "pricing", "schedules", "create", "--iap-id", "9000000003", "--base-territory", "USA", "--tier", "5", "--prices", "PP:2026-03-01"},
+			wantErr: "--prices and --tier/--price are mutually exclusive",
+		},
+		{
+			name:    "tier with price",
+			args:    []string{"iap", "pricing", "schedules", "create", "--iap-id", "9000000003", "--base-territory", "USA", "--tier", "5", "--price", "4.99"},
+			wantErr: "--tier and --price are mutually exclusive",
+		},
+		{
+			name:    "non-numeric price",
+			args:    []string{"iap", "pricing", "schedules", "create", "--iap-id", "9000000003", "--base-territory", "USA", "--price", "abc"},
+			wantErr: "--price must be a number",
+		},
+		{
+			name:    "invalid tier start date",
+			args:    []string{"iap", "pricing", "schedules", "create", "--iap-id", "9000000003", "--base-territory", "USA", "--tier", "1", "--start-date", "invalid"},
+			wantErr: "--start-date must be in YYYY-MM-DD format",
+		},
 	}
-}
 
-func TestIAPPriceSchedulesCreate_TierAndPriceMutualExclusion(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "pricing", "schedules", "create",
-			"--iap-id", "9000000003",
-			"--base-territory", "USA",
-			"--tier", "5",
-			"--price", "4.99",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "mutually exclusive") {
-		t.Fatalf("expected mutually exclusive error, got %q", stderr)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitCode(t, test.args, test.wantErr)
+		})
 	}
 }
 
@@ -132,55 +117,6 @@ func TestIAPPriceSchedulesCreate_TierUsesIAPPricePoints(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"id":"sched-1"`) {
 		t.Fatalf("expected schedule output, got %q", stdout)
-	}
-}
-
-func TestIAPPriceSchedulesCreate_InvalidPriceValue(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "pricing", "schedules", "create",
-			"--iap-id", "9000000003",
-			"--base-territory", "USA",
-			"--price", "abc",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--price must be a number") {
-		t.Fatalf("expected invalid --price error, got %q", stderr)
-	}
-}
-
-func TestIAPPriceSchedulesCreate_InvalidTierStartDate(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "pricing", "schedules", "create",
-			"--iap-id", "9000000003",
-			"--base-territory", "USA",
-			"--tier", "1",
-			"--start-date", "invalid",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "--start-date must be in YYYY-MM-DD format") {
-		t.Fatalf("expected invalid --start-date error, got %q", stderr)
 	}
 }
 
