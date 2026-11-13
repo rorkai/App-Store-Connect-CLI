@@ -694,22 +694,33 @@ func TestImportSessionBundleRestoresExistingSessionWhenLastSessionPointerCannotB
 }
 
 func TestImportSessionBundleOverwritesMalformedKeychainStore(t *testing.T) {
-	kr := withArraySessionKeyring(t)
-	withSessionInfoStub(t)
-	t.Setenv(webSessionCacheEnabledEnv, "1")
-	t.Setenv(webSessionBackendEnv, "keychain")
-	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "unused-file-cache"))
-	if err := kr.Set(keyring.Item{Key: webSessionStoreItem, Data: []byte("{")}); err != nil {
-		t.Fatalf("seed malformed keychain store: %v", err)
-	}
+	for _, tc := range []struct {
+		name    string
+		backend string
+		dir     string
+	}{
+		{name: "keychain backend", backend: "keychain", dir: "unused-file-cache"},
+		{name: "default backend keychain mirror", backend: "", dir: "web-cache"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			kr := withArraySessionKeyring(t)
+			withSessionInfoStub(t)
+			t.Setenv(webSessionCacheEnabledEnv, "1")
+			t.Setenv(webSessionBackendEnv, tc.backend)
+			t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), tc.dir))
+			if err := kr.Set(keyring.Item{Key: webSessionStoreItem, Data: []byte("{")}); err != nil {
+				t.Fatalf("seed malformed keychain store: %v", err)
+			}
 
-	bundle := validTestBundle(time.Now().Add(time.Hour))
-	if _, err := ImportSessionBundleWithOptions(bundle, true); err != nil {
-		t.Fatalf("ImportSessionBundle() error = %v, want overwrite of a malformed keychain store", err)
-	}
-	loaded, ok, err := LoadCachedSession("user@example.com")
-	if err != nil || !ok || loaded == nil {
-		t.Fatalf("LoadCachedSession() = (%v, %v, %v), want the imported session", loaded, ok, err)
+			bundle := validTestBundle(time.Now().Add(time.Hour))
+			if _, err := ImportSessionBundleWithOptions(bundle, true); err != nil {
+				t.Fatalf("ImportSessionBundle() error = %v, want overwrite of a malformed keychain store", err)
+			}
+			loaded, ok, err := LoadCachedSession("user@example.com")
+			if err != nil || !ok || loaded == nil {
+				t.Fatalf("LoadCachedSession() = (%v, %v, %v), want the imported session", loaded, ok, err)
+			}
+		})
 	}
 }
 

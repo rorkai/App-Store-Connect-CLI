@@ -540,6 +540,9 @@ func TestTryResumeSessionKeychainBackendFallsBackToFileAndPersistsKeychain(t *te
 	if !ok || resumed == nil {
 		t.Fatal("expected resumed file-backed session")
 	}
+	if resumed.cachedSource != CachedSessionSourceFile {
+		t.Fatalf("cached source = %v, want file", resumed.cachedSource)
+	}
 
 	if _, ok, err := readSessionFromKeychain(key); err != nil {
 		t.Fatalf("readSessionFromKeychain error: %v", err)
@@ -575,6 +578,9 @@ func TestTryResumeLastSessionKeychainBackendFallsBackToFileAndPersistsKeychain(t
 	}
 	if !ok || resumed == nil {
 		t.Fatal("expected resumed last session from file fallback")
+	}
+	if resumed.cachedSource != CachedSessionSourceFile {
+		t.Fatalf("cached source = %v, want file", resumed.cachedSource)
 	}
 
 	if _, ok, err := readSessionFromKeychain(key); err != nil {
