@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +30,7 @@ func isolateBearerTokenAuth(t *testing.T, token string) {
 	t.Setenv("ASC_KEY_TYPE", "")
 	t.Setenv("ASC_CONFIG_PATH", t.TempDir()+"/config.json")
 	t.Setenv("ASC_BEARER_TOKEN", token)
+	t.Setenv("ASC_BEARER_TOKEN_COMMAND", "")
 }
 
 func signedTestToken(t *testing.T, expiresAt time.Time) string {
@@ -76,6 +78,83 @@ func TestBearerTokenAuthenticatesWithoutAPrivateKey(t *testing.T) {
 
 	if authorization != "Bearer "+token {
 		t.Fatalf("Authorization = %q, want the ASC_BEARER_TOKEN token; stderr: %s", authorization, stderr)
+	}
+}
+
+func TestBearerTokenCommandSuppliesTheToken(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a POSIX shell command")
+	}
+	fresh := signedTestToken(t, time.Now().Add(20*time.Minute))
+	tests := []struct {
+		name    string
+		initial string
+		command string
+		want    string
+	}{
+		{name: "command alone", command: "printf '%s\\n' " + fresh, want: fresh},
+		{name: "expired ASC_BEARER_TOKEN is renewed", initial: signedTestToken(t, time.Now().Add(-time.Minute)), command: "printf '%s' " + fresh, want: fresh},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			isolateBearerTokenAuth(t, test.initial)
+			t.Setenv("ASC_BEARER_TOKEN_COMMAND", test.command)
+			var authorization string
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				authorization = req.Header.Get("Authorization")
+				response := jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`)
+				response.Request = req
+				return response, nil
+			}))
+
+			stdout, stderr := captureOutput(t, func() {
+				if code := cmd.Run([]string{"apps", "list", "--output", "json"}, "1.2.3"); code != 0 {
+					t.Fatalf("exit code = %d, want 0", code)
+				}
+			})
+
+			if authorization != "Bearer "+test.want {
+				t.Fatalf("Authorization = %q, want the token ASC_BEARER_TOKEN_COMMAND printed; stderr: %s", authorization, stderr)
+			}
+			if strings.Contains(stdout+stderr, test.want) {
+				t.Fatal("command output exposed the bearer token")
+			}
+		})
+	}
+}
+
+func TestFailingBearerTokenCommandFailsAsAuthBeforeAnyRequest(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a POSIX shell command")
+	}
+	tests := []struct {
+		name    string
+		command string
+		wantErr string
+	}{
+		{name: "exits non-zero", command: "echo signer unavailable >&2; exit 7", wantErr: "ASC_BEARER_TOKEN_COMMAND exited with status 7"},
+		{name: "prints nothing", command: "true", wantErr: "ASC_BEARER_TOKEN_COMMAND printed no token"},
+		{name: "prints an expired token", command: "printf '%s' " + signedTestToken(t, time.Now().Add(-time.Minute)), wantErr: "the new token already expired"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			isolateBearerTokenAuth(t, "")
+			t.Setenv("ASC_BEARER_TOKEN_COMMAND", test.command)
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("unexpected request to %s", req.URL)
+				return nil, nil
+			}))
+
+			_, stderr := captureOutput(t, func() {
+				if code := cmd.Run([]string{"apps", "list"}, "1.2.3"); code != cmd.ExitAuth {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitAuth)
+				}
+			})
+
+			if !strings.Contains(stderr, test.wantErr) || !strings.Contains(stderr, "Hint: Set ASC_BEARER_TOKEN to a new token") {
+				t.Fatalf("stderr = %q, want %q and the bearer token hint", stderr, test.wantErr)
+			}
+		})
 	}
 }
 

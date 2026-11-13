@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -10,7 +11,7 @@ func TestGenerateJWT_UsesCachedTokenWhenStillValid(t *testing.T) {
 	client.cachedJWT = "cached-token"
 	client.cachedJWTExpiresAt = time.Now().Add(2 * time.Minute)
 
-	token, err := client.generateJWT()
+	token, err := client.generateJWT(context.Background())
 	if err != nil {
 		t.Fatalf("generateJWT() error: %v", err)
 	}
@@ -24,7 +25,7 @@ func TestGenerateJWT_RefreshesExpiredOrNearExpiryToken(t *testing.T) {
 	client.cachedJWT = "stale-token"
 	client.cachedJWTExpiresAt = time.Now().Add(5 * time.Second)
 
-	token, err := client.generateJWT()
+	token, err := client.generateJWT(context.Background())
 	if err != nil {
 		t.Fatalf("generateJWT() error: %v", err)
 	}

@@ -43,6 +43,7 @@ const (
 	strictAuthEnvVar       = "ASC_STRICT_AUTH"
 	defaultOutputEnvVar    = "ASC_DEFAULT_OUTPUT"
 	bearerTokenEnvVar      = "ASC_BEARER_TOKEN"
+	bearerTokenCommandEnv  = "ASC_BEARER_TOKEN_COMMAND"
 )
 
 const (
@@ -928,26 +929,39 @@ func allowsEnvFallbackForStoredError(err error) bool {
 }
 
 // bearerTokenClient returns a client for ASC_BEARER_TOKEN, a token signed by
-// a service that keeps the private key (for example `rork apple asc`). It
-// takes precedence over every stored or environment key; ok is false when the
-// variable is unset.
+// a service that keeps the private key, renewed through
+// ASC_BEARER_TOKEN_COMMAND when that is set. Either variable takes precedence
+// over every stored or environment key; ok is false when both are unset.
 func bearerTokenClient(timeout time.Duration) (client *asc.Client, ok bool, err error) {
 	token := strings.TrimSpace(os.Getenv(bearerTokenEnvVar))
-	if token == "" {
+	command := strings.TrimSpace(os.Getenv(bearerTokenCommandEnv))
+	if token == "" && command == "" {
 		return nil, false, nil
+	}
+	source := bearerTokenEnvVar
+	if command != "" {
+		source = bearerTokenCommandEnv
 	}
 	// The token already names its key and team, so a selection that would
 	// pick other credentials or another API host cannot be honored.
 	if profile := resolveProfileName(); profile != "" {
-		return nil, true, fmt.Errorf("%s cannot be combined with profile %q from --profile or %s; unset one of them", bearerTokenEnvVar, profile, profileEnvVar)
+		return nil, true, fmt.Errorf("%s cannot be combined with profile %q from --profile or %s; unset one of them", source, profile, profileEnvVar)
 	}
 	if config.IsEnterpriseCredentialKeyType(config.NormalizeCredentialKeyType(os.Getenv(keyTypeEnvVar))) {
-		return nil, true, fmt.Errorf("%s does not support %s=enterprise; unset %s or use the enterprise private key", bearerTokenEnvVar, keyTypeEnvVar, keyTypeEnvVar)
+		return nil, true, fmt.Errorf("%s does not support %s=enterprise; unset %s or use the enterprise private key", source, keyTypeEnvVar, keyTypeEnvVar)
 	}
 	ApplyRootLoggingOverrides()
-	client, err = asc.NewClientFromBearerToken(token, timeout)
+	var renew asc.BearerTokenRenewer
+	if command != "" {
+		renew = func(ctx context.Context) (string, error) { return readBearerTokenFromCommand(ctx, command) }
+	}
+	client, err = asc.NewClientFromBearerToken(context.Background(), token, renew, timeout)
+	if errors.Is(err, asc.ErrBearerTokenRenewal) {
+		// readBearerTokenFromCommand already names the variable.
+		return nil, true, missingAuthError{msg: err.Error(), cause: err}
+	}
 	if err != nil {
-		return nil, true, missingAuthError{msg: fmt.Sprintf("%s: %v", bearerTokenEnvVar, err), cause: err}
+		return nil, true, missingAuthError{msg: fmt.Sprintf("%s: %v", source, err), cause: err}
 	}
 	return client, true, nil
 }
