@@ -76,7 +76,7 @@ Examples:
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return fmt.Errorf("pre-release-versions list: %w", err)
+				return shared.UsageErrorfCtx(ctx, "pre-release-versions list: %v", err)
 			}
 
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(strings.TrimSpace(*appID)))

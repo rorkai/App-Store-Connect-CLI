@@ -76,7 +76,7 @@ Examples:
 				testerValue = aliasValue
 			} else if aliasValue != "" && aliasValue != testerValue {
 				return shared.WithDiagnostic(
-					shared.NewValidationError(fmt.Errorf("testflight beta-testers apps list: --tester-id and --id must match")),
+					shared.UsageErrorCtx(ctx, "testflight beta-testers apps list: --tester-id and --id must match"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)
@@ -193,7 +193,7 @@ Examples:
 				testerValue = aliasValue
 			} else if aliasValue != "" && aliasValue != testerValue {
 				return shared.WithDiagnostic(
-					shared.NewValidationError(fmt.Errorf("testflight beta-testers beta-groups list: --tester-id and --id must match")),
+					shared.UsageErrorCtx(ctx, "testflight beta-testers beta-groups list: --tester-id and --id must match"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)
@@ -310,7 +310,7 @@ Examples:
 				testerValue = aliasValue
 			} else if aliasValue != "" && aliasValue != testerValue {
 				return shared.WithDiagnostic(
-					shared.NewValidationError(fmt.Errorf("testflight beta-testers builds list: --tester-id and --id must match")),
+					shared.UsageErrorCtx(ctx, "testflight beta-testers builds list: --tester-id and --id must match"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)

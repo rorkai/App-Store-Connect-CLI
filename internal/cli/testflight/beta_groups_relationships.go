@@ -98,7 +98,7 @@ Examples:
 				groupValue = aliasValue
 			} else if aliasValue != "" && aliasValue != groupValue {
 				return shared.WithDiagnostic(
-					shared.NewValidationError(fmt.Errorf("testflight beta-groups relationships view: --group-id and --id must match")),
+					shared.UsageErrorCtx(ctx, "testflight beta-groups relationships view: --group-id and --id must match"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)

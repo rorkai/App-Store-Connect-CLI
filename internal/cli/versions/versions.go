@@ -130,14 +130,14 @@ Examples:
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return fmt.Errorf("versions list: %w", err)
+				return shared.UsageErrorf("versions list: %v", err)
 			}
 			states, err := shared.NormalizeAppStoreVersionStates(shared.SplitCSVUpper(*state))
 			if err != nil {
-				return fmt.Errorf("versions list: %w", err)
+				return shared.UsageErrorf("versions list: %v", err)
 			}
 			if err := shared.ValidateAppStoreVersionStateFilterCombination(states); err != nil {
-				return fmt.Errorf("versions list: %w", err)
+				return shared.UsageErrorf("versions list: %v", err)
 			}
 
 			includeValues, err := normalizeAppStoreVersionsInclude(include.String())

@@ -133,6 +133,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "app-events list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "app-events submit invalid platform",
+			args:    []string{"app-events", "submit", "--event-id", "EVENT_ID", "--app", "123456789", "--platform", "bad", "--confirm"},
+			wantErr: "app-events submit: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
+		},
+		{
 			name:    "app-events localizations list limit",
 			args:    []string{"app-events", "localizations", "list", "--event-id", "E", "--limit", "201"},
 			wantErr: "app-events localizations list: --limit must be between 1 and 200",
@@ -428,6 +433,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "builds uploads list: --next cannot be combined with --app",
 		},
 		{
+			name:    "builds uploads list invalid platform",
+			args:    []string{"builds", "uploads", "list", "--app", "123456789", "--platform", "bad"},
+			wantErr: "builds uploads list: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
+		},
+		{
 			name:    "localizations download limit",
 			args:    []string{"localizations", "download", "--limit", "201"},
 			wantErr: "localizations download: --limit must be between 1 and 200",
@@ -466,6 +476,26 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "localizations list next",
 			args:    []string{"localizations", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "localizations list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "localizations list invalid type",
+			args:    []string{"localizations", "list", "--version", "VERSION_ID", "--type", "bad"},
+			wantErr: "localizations list: --type must be \"version\" or \"app-info\"",
+		},
+		{
+			name:    "localizations download invalid type",
+			args:    []string{"localizations", "download", "--version", "VERSION_ID", "--type", "bad"},
+			wantErr: "localizations download: --type must be \"version\" or \"app-info\"",
+		},
+		{
+			name:    "localizations upload invalid type",
+			args:    []string{"localizations", "upload", "--version", "VERSION_ID", "--type", "bad", "--path", "localizations"},
+			wantErr: "localizations upload: --type must be \"version\" or \"app-info\"",
+		},
+		{
+			name:    "localizations update invalid type",
+			args:    []string{"localizations", "update", "--version", "VERSION_ID", "--type", "bad"},
+			wantErr: "localizations update: --type must be \"version\" or \"app-info\"",
 		},
 		{
 			name:    "performance diagnostics rejects unrelated cursor",
@@ -598,6 +628,16 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "review attachments-list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "review attachments-list invalid fields",
+			args:    []string{"review", "attachments-list", "--review-detail", "DETAIL_ID", "--fields", "bad"},
+			wantErr: "review attachments-list: --fields must be one of: fileSize, fileName, sourceFileChecksum, uploadOperations, assetDeliveryState, appStoreReviewDetail",
+		},
+		{
+			name:    "review attachments-get invalid include",
+			args:    []string{"review", "attachments-get", "--id", "ATTACHMENT_ID", "--include", "bad"},
+			wantErr: "review attachments-get: --include must be one of: appStoreReviewDetail",
+		},
+		{
 			name:    "review submissions-items-ids next",
 			args:    []string{"review", "submissions-items-ids", "--id", "X", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "review submissions-items-ids: --next must be an App Store Connect URL",
@@ -628,6 +668,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "reviews: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "reviews invalid sort",
+			args:    []string{"reviews", "--app", "123456789", "--sort", "bad"},
+			wantErr: "--sort must be one of: rating, -rating, createdDate, -createdDate",
+		},
+		{
 			name:    "reviews list limit",
 			args:    []string{"reviews", "list", "--app", "123456789", "--limit", "201"},
 			wantErr: "reviews: --limit must be between 1 and 200",
@@ -638,6 +683,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "reviews: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "reviews list invalid sort",
+			args:    []string{"reviews", "list", "--app", "123456789", "--sort", "bad"},
+			wantErr: "--sort must be one of: rating, -rating, createdDate, -createdDate",
+		},
+		{
 			name:    "reviews summarizations limit",
 			args:    []string{"reviews", "summarizations", "--app", "123456789", "--limit", "201"},
 			wantErr: "reviews summarizations: --limit must be between 1 and 200",
@@ -646,6 +696,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "reviews summarizations next",
 			args:    []string{"reviews", "summarizations", "--app", "123456789", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "reviews summarizations: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "reviews summarizations invalid fields",
+			args:    []string{"reviews", "summarizations", "--app", "123456789", "--fields", "bad"},
+			wantErr: "reviews summarizations: --fields must be one of: createdDate, locale, platform, text",
 		},
 		{
 			name:    "versions customer-reviews list limit",
@@ -691,6 +746,21 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "versions list owner with next",
 			args:    []string{"versions", "list", "--app", "APP_A", "--next", "https://api.appstoreconnect.apple.com/v1/apps/APP_B/appStoreVersions?cursor=next"},
 			wantErr: "versions list: --next cannot be combined with --app",
+		},
+		{
+			name:    "versions list invalid platform",
+			args:    []string{"versions", "list", "--app", "123456789", "--platform", "bad"},
+			wantErr: "versions list: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
+		},
+		{
+			name:    "versions list mixed state filters",
+			args:    []string{"versions", "list", "--app", "123456789", "--state", "READY_FOR_DISTRIBUTION,READY_FOR_SALE"},
+			wantErr: "versions list: --state cannot mix appVersionState-only values with appStoreState-only values (READY_FOR_SALE); run separate commands for those states",
+		},
+		{
+			name:    "validate invalid platform",
+			args:    []string{"validate", "--app", "123456789", "--version", "1.0", "--platform", "bad"},
+			wantErr: "validate: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
 		},
 		{
 			name:    "web apps compatibility view without app",
