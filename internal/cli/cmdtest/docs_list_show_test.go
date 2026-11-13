@@ -50,132 +50,69 @@ func TestDocsListOutputsEmbeddedGuidesAsJSON(t *testing.T) {
 	}
 }
 
-func TestDocsListSupportsMarkdownOutput(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"docs", "list", "--output", "markdown"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+func TestDocsListSupportsTextOutputs(t *testing.T) {
+	tests := []struct {
+		output string
+		want   []string
+	}{
+		{output: "markdown", want: []string{"api-notes", "reference", "workflows"}},
+		{output: "table", want: []string{"slug", "description", "api-notes", "reference", "workflows"}},
 	}
-	for _, slug := range []string{"api-notes", "reference", "workflows"} {
-		if !strings.Contains(stdout, slug) {
-			t.Fatalf("expected markdown output to contain %q, got %q", slug, stdout)
-		}
+
+	for _, test := range tests {
+		t.Run(test.output, func(t *testing.T) {
+			stdout := runDocsCommand(t, "docs", "list", "--output", test.output)
+			for _, want := range test.want {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("expected %s output to contain %q, got %q", test.output, want, stdout)
+				}
+			}
+		})
 	}
 }
 
-func TestDocsListSupportsTableOutput(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"docs", "list", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+func TestDocsShowPrintsGuide(t *testing.T) {
+	tests := []struct {
+		guide string
+		want  []string
+	}{
+		{
+			guide: "api-notes",
+			want:  []string{"# API Notes", "Finance reports use Apple fiscal months", "Sandbox Testers"},
+		},
+		{
+			guide: "reference",
+			want:  []string{"# asc cli reference", "Publish to App Store (canonical)", "Submission readiness (canonical)", `asc status --app "APP_ID"`},
+		},
+		{
+			guide: "workflows",
+			want:  []string{"# Workflow Patterns", "asc publish appstore", "asc publish testflight"},
+		},
 	}
-	if !strings.Contains(stdout, "slug") || !strings.Contains(stdout, "description") {
-		t.Fatalf("expected table output headers, got %q", stdout)
-	}
-	if !strings.Contains(stdout, "api-notes") || !strings.Contains(stdout, "reference") || !strings.Contains(stdout, "workflows") {
-		t.Fatalf("expected table output to include all guide slugs, got %q", stdout)
+
+	for _, test := range tests {
+		t.Run(test.guide, func(t *testing.T) {
+			stdout := runDocsCommand(t, "docs", "show", test.guide)
+			for _, want := range test.want {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("expected %s guide to contain %q, got %q", test.guide, want, stdout)
+				}
+			}
+		})
 	}
 }
 
-func TestDocsShowPrintsAPINotesGuide(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+func runDocsCommand(t *testing.T, args ...string) string {
+	t.Helper()
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"docs", "show", "api-notes"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
+	stdout, stderr, err := runCommand(t, args)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "# API Notes") {
-		t.Fatalf("expected API notes heading in output, got %q", stdout)
-	}
-	if !strings.Contains(stdout, "Finance reports use Apple fiscal months") {
-		t.Fatalf("expected API notes guide to cover finance quirks, got %q", stdout)
-	}
-	if !strings.Contains(stdout, "Sandbox Testers") {
-		t.Fatalf("expected API notes guide to keep sandbox guidance discoverable, got %q", stdout)
-	}
-}
-
-func TestDocsShowPrintsReferenceGuide(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"docs", "show", "reference"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, "# asc cli reference") {
-		t.Fatalf("expected reference guide heading, got %q", stdout)
-	}
-	if !strings.Contains(stdout, "Publish to App Store (canonical)") {
-		t.Fatalf("expected reference guide to lead with App Store publish guidance, got %q", stdout)
-	}
-	if !strings.Contains(stdout, "Submission readiness (canonical)") {
-		t.Fatalf("expected reference guide to keep readiness guidance discoverable, got %q", stdout)
-	}
-	if !strings.Contains(stdout, `asc status --app "APP_ID"`) {
-		t.Fatalf("expected reference guide to mention status monitoring, got %q", stdout)
-	}
-}
-
-func TestDocsShowPrintsWorkflowsGuide(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"docs", "show", "workflows"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, "# Workflow Patterns") {
-		t.Fatalf("expected workflows guide heading, got %q", stdout)
-	}
-	if !strings.Contains(stdout, "asc publish appstore") || !strings.Contains(stdout, "asc publish testflight") {
-		t.Fatalf("expected workflows guide to document canonical App Store and TestFlight paths, got %q", stdout)
-	}
+	return stdout
 }
 
 func TestDocsShowUnknownGuideReturnsUsageError(t *testing.T) {
