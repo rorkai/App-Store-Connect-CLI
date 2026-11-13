@@ -2372,91 +2372,6 @@ func TestRun_NoArgsShowsHelpReturnsSuccess(t *testing.T) {
 	}
 }
 
-func TestRun_DisablesAutomaticSkillsUpdateCheckForSubcommand(t *testing.T) {
-	resetReportFlags(t)
-
-	origCheck := maybeScheduleSkillsUpdateCheck
-	t.Cleanup(func() { maybeScheduleSkillsUpdateCheck = origCheck })
-
-	called := make(chan struct{}, 1)
-	maybeScheduleSkillsUpdateCheck = func() {
-		select {
-		case called <- struct{}{}:
-		default:
-		}
-	}
-
-	_, _ = captureCommandOutput(t, func() {
-		code := Run([]string{"completion", "--shell", "bash"}, "1.0.0")
-		if code != ExitSuccess {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
-		}
-	})
-
-	select {
-	case <-called:
-		t.Fatal("automatic skills update check unexpectedly ran")
-	case <-time.After(50 * time.Millisecond):
-	}
-}
-
-func TestRun_SkipsSkillsUpdateCheckForRootInvocation(t *testing.T) {
-	resetReportFlags(t)
-
-	origCheck := maybeScheduleSkillsUpdateCheck
-	t.Cleanup(func() { maybeScheduleSkillsUpdateCheck = origCheck })
-
-	called := false
-	maybeScheduleSkillsUpdateCheck = func() {
-		called = true
-	}
-
-	_, _ = captureCommandOutput(t, func() {
-		code := Run([]string{}, "1.0.0")
-		if code != ExitSuccess {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
-		}
-	})
-
-	if called {
-		t.Fatal("expected skills update check to be skipped for root invocation")
-	}
-}
-
-func TestRun_SkipsSkillsUpdateCheckForHelpAndVersionInvocations(t *testing.T) {
-	origCheck := maybeScheduleSkillsUpdateCheck
-	t.Cleanup(func() { maybeScheduleSkillsUpdateCheck = origCheck })
-
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{name: "root help", args: []string{"--help"}},
-		{name: "subcommand help", args: []string{"completion", "--help"}},
-		{name: "version flag", args: []string{"--version"}},
-		{name: "version command", args: []string{"version"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resetReportFlags(t)
-			called := false
-			maybeScheduleSkillsUpdateCheck = func() {
-				called = true
-			}
-
-			_, _ = captureCommandOutput(t, func() {
-				if code := Run(tt.args, "1.0.0"); code != ExitSuccess {
-					t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
-				}
-			})
-			if called {
-				t.Fatalf("skills update check scheduled for %v", tt.args)
-			}
-		})
-	}
-}
-
 func TestShouldCancelRunContextAfterError(t *testing.T) {
 	tests := []struct {
 		name string
@@ -2496,25 +2411,6 @@ func TestShouldCancelRunContextAfterError(t *testing.T) {
 				t.Fatalf("shouldCancelRunContextAfterError(%v) = %v, want %v", tt.err, got, tt.want)
 			}
 		})
-	}
-}
-
-func TestShouldRunSkillsUpdateCheck(t *testing.T) {
-	for _, commandName := range []string{"asc", "asc completion", "asc install-skills", "asc version"} {
-		t.Run(commandName, func(t *testing.T) {
-			if shouldRunSkillsUpdateCheck(commandName, context.Background(), nil) {
-				t.Fatal("automatic external skills check must remain disabled")
-			}
-		})
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if shouldRunSkillsUpdateCheck("asc web auth login", ctx, context.Canceled) {
-		t.Fatal("automatic external skills check must remain disabled")
-	}
-	if shouldRunSkillsUpdateCheck("asc web auth login", context.Background(), fmt.Errorf("boom")) {
-		t.Fatal("automatic external skills check must remain disabled")
 	}
 }
 

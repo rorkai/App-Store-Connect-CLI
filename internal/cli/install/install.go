@@ -24,11 +24,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
-// The skills check still uses the exact package version in offline mode. The
-// install command deliberately does not execute this package (or any npm
-// dependency); it checks out and installs the reviewed source directly.
 const (
-	skillsInstallerPackage    = "skills@1.5.20"
 	skillsSourceRepositoryURL = "https://github.com/rorkai/app-store-connect-cli-skills.git"
 	skillsSourceCommit        = "f52c4f04323bb2dfb21ca8be82e6494e9cd0b4d8"
 	expectedSkillsCount       = 25
