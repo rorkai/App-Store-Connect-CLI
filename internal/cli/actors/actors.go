@@ -19,7 +19,7 @@ func ActorsCommand() *ffcli.Command {
 
 // NewActorsCommand returns the actors command with subcommands built on d.
 func NewActorsCommand(d *shared.Deps) *ffcli.Command {
-	fs := flag.NewFlagSet("actors", flag.ExitOnError)
+	fs := d.NewFlagSet("actors", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "actors",
@@ -44,7 +44,7 @@ Examples:
 
 // newActorsListCommand returns the actors list subcommand built on d.
 func newActorsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	ids := fs.String("id", "", "Actor ID(s), comma-separated")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(actorFieldsList(), ", "))
@@ -131,7 +131,7 @@ Examples:
 
 // newActorsViewCommand returns the actors view subcommand built on d.
 func newActorsViewCommand(d *shared.Deps) *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "actors", "Actor ID")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(actorFieldsList(), ", "))

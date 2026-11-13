@@ -60,6 +60,14 @@ func (processStdout) Write(p []byte) (int, error) { return os.Stdout.Write(p) }
 
 func (processStderr) Write(p []byte) (int, error) { return os.Stderr.Write(p) }
 
+// NewFlagSet returns a flag set that writes usage and parse errors to d's
+// stderr.
+func (d *Deps) NewFlagSet(name string, errorHandling flag.ErrorHandling) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, errorHandling)
+	fs.SetOutput(d.IO.ErrOut)
+	return fs
+}
+
 // BindOutputFlags registers --output and --pretty. Unless ASC_DEFAULT_OUTPUT
 // or a CI environment decides otherwise, --output defaults to table when d's
 // stdout is a terminal and to json when it is not.

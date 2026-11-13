@@ -53,6 +53,38 @@ func TestActorsValidationErrors(t *testing.T) {
 	}
 }
 
+func TestActorsHelpWritesToDepsStderr(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		newCommand func(*shared.Deps) *ffcli.Command
+	}{
+		{name: "actors", newCommand: NewActorsCommand},
+		{name: "list", newCommand: newActorsListCommand},
+		{name: "view", newCommand: newActorsViewCommand},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var stdout, stderr bytes.Buffer
+			cmd := tt.newCommand(&shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &stderr}})
+			cmd.FlagSet.Init(cmd.FlagSet.Name(), flag.ContinueOnError)
+			if err := cmd.Parse([]string{"--help"}); !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
+			if got, want := stderr.String(), cmd.UsageFunc(cmd)+"\n"; got != want {
+				t.Fatalf("stderr = %q, want %q", got, want)
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+		})
+	}
+}
+
 func TestNormalizeActorFields(t *testing.T) {
 	got, err := normalizeActorFields("actorType,userEmail")
 	if err != nil {
