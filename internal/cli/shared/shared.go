@@ -1537,13 +1537,13 @@ var (
 // Valid ASC_DEFAULT_OUTPUT values are "json", "table", "markdown", and "md".
 func DefaultOutputFormat() string {
 	defaultOutputOnce.Do(func() {
-		defaultOutputValue = defaultOutputFormatFor(isTerminal(int(os.Stdout.Fd())))
+		defaultOutputValue = defaultOutputFormatFor(isTerminal(int(os.Stdout.Fd())), os.Stderr)
 	})
 	return defaultOutputValue
 }
 
-func defaultOutputFormatFor(stdoutTTY bool) string {
-	if format := defaultOutputFromEnv(); format != "" {
+func defaultOutputFormatFor(stdoutTTY bool, errOut io.Writer) string {
+	if format := defaultOutputFromEnv(errOut); format != "" {
 		return format
 	}
 	if isCIEnvironment() || !stdoutTTY {
@@ -1553,15 +1553,16 @@ func defaultOutputFormatFor(stdoutTTY bool) string {
 }
 
 // defaultOutputFromEnv reads ASC_DEFAULT_OUTPUT once, so an invalid value is
-// reported once per process however many commands bind --output.
-func defaultOutputFromEnv() string {
+// reported once per process, to the first caller's errOut, however many
+// commands bind --output.
+func defaultOutputFromEnv(errOut io.Writer) string {
 	defaultOutputEnvOnce.Do(func() {
-		defaultOutputEnvValue = resolveDefaultOutputEnv()
+		defaultOutputEnvValue = resolveDefaultOutputEnv(errOut)
 	})
 	return defaultOutputEnvValue
 }
 
-func resolveDefaultOutputEnv() string {
+func resolveDefaultOutputEnv(errOut io.Writer) string {
 	env := strings.TrimSpace(os.Getenv(defaultOutputEnvVar))
 	if env == "" {
 		return ""
@@ -1571,7 +1572,7 @@ func resolveDefaultOutputEnv() string {
 	case "json", "table", "markdown", "md":
 		return normalized
 	default:
-		fmt.Fprintf(os.Stderr, "Warning: invalid %s value %q (expected json, table, markdown, or md); using json\n", defaultOutputEnvVar, env)
+		fmt.Fprintf(errOut, "Warning: invalid %s value %q (expected json, table, markdown, or md); using json\n", defaultOutputEnvVar, env)
 		return "json"
 	}
 }

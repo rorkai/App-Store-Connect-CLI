@@ -31,6 +31,28 @@ func TestDepsBindOutputFlagsDefaultFollowsStdoutTTY(t *testing.T) {
 	}
 }
 
+func TestDepsBindOutputFlagsReportsInvalidDefaultOnDepsStderr(t *testing.T) {
+	resetDefaultOutput(t)
+	t.Setenv("ASC_DEFAULT_OUTPUT", "xml")
+
+	var stderr bytes.Buffer
+	d := &Deps{IO: &IO{ErrOut: &stderr, StdoutTTY: true}}
+	var output OutputFlags
+	processStdout, processStderr := captureOutput(t, func() {
+		output = d.BindOutputFlags(flag.NewFlagSet("list", flag.ContinueOnError))
+	})
+
+	if processStdout != "" || processStderr != "" {
+		t.Fatalf("process stdout = %q, stderr = %q, want both empty", processStdout, processStderr)
+	}
+	if got, want := stderr.String(), "Warning: invalid ASC_DEFAULT_OUTPUT value \"xml\" (expected json, table, markdown, or md); using json\n"; got != want {
+		t.Fatalf("deps stderr = %q, want %q", got, want)
+	}
+	if *output.Output != "json" {
+		t.Fatalf("default output = %q, want json", *output.Output)
+	}
+}
+
 func TestDepsPrintOutputMatchesPrintOutputOnDepsStreams(t *testing.T) {
 	var page asc.ActorsResponse
 	if err := json.Unmarshal([]byte(`{

@@ -64,7 +64,7 @@ func (processStderr) Write(p []byte) (int, error) { return os.Stderr.Write(p) }
 // or a CI environment decides otherwise, --output defaults to table when d's
 // stdout is a terminal and to json when it is not.
 func (d *Deps) BindOutputFlags(fs *flag.FlagSet) OutputFlags {
-	return BindOutputFlagsWith(fs, "output", defaultOutputFormatFor(d.IO.StdoutTTY), "Output format: json, table, markdown")
+	return BindOutputFlagsWith(fs, "output", defaultOutputFormatFor(d.IO.StdoutTTY, d.IO.ErrOut), "Output format: json, table, markdown")
 }
 
 // PrintOutput writes data to d's stdout in the given format, and the notice
