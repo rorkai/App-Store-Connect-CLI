@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -38,7 +39,7 @@ func SubscriptionsPricingEqualizeCommand() *ffcli.Command {
 	basePrice := fs.String("base-price", "", "Customer price in the base territory (required)")
 	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD) for scheduled price changes")
 	preserved := fs.Bool("preserved", false, "Preserve existing prices")
-	autoStartDate := fs.Bool("auto-start-date", true, "Automatically schedule approved/live subscriptions for tomorrow when --start-date is omitted")
+	autoStartDate := fs.Bool("auto-start-date", true, "Automatically schedule approved/live subscriptions for tomorrow, or the earliest later date App Store Connect accepts, when --start-date is omitted")
 	dryRun := fs.Bool("dry-run", false, "Show equalized prices without applying them")
 	confirm := fs.Bool("confirm", false, "Confirm applying equalized prices (required unless --dry-run)")
 	workers := fs.Int("workers", defaultEqualizeWorkers, "Number of concurrent API requests")
@@ -54,6 +55,12 @@ Finds the price point matching the given base territory and price, fetches
 Apple's equalized prices for all other territories, and sets them in one
 operation. This replaces the manual process of exporting equalizations and
 importing a CSV.
+
+Approved or live subscriptions are scheduled for tomorrow (US Pacific) unless
+--start-date is set; when App Store Connect requires a later start date, the
+command uses the earliest one it accepts. After applying, every territory is
+read back on the start date, and any territory that does not resolve to its
+equalized price counts as failed.
 
 Prerequisite: the subscription's availability must already include every
 pricing territory. Equalize only sets prices; configure territories first with
@@ -212,6 +219,31 @@ Examples:
 				}
 			}
 
+			buildResult := func() *equalizeResult {
+				return &equalizeResult{
+					SubscriptionID:    subID,
+					BaseTerritory:     territory,
+					BasePrice:         price,
+					StartDate:         priceAttrs.StartDate,
+					AutoScheduled:     autoScheduled,
+					Preserved:         *preserved,
+					SubscriptionState: subscriptionState,
+					DryRun:            false,
+					Total:             len(allTerritories),
+					Succeeded:         succeeded,
+					Failed:            len(failures),
+					Failures:          renderEqualizeFailures(failures),
+				}
+			}
+			stopAfterBaseFailure := func(message string, cause error) error {
+				result := buildResult()
+				fmt.Fprintf(os.Stderr, "Done: %d succeeded, %d failed\n", result.Succeeded, result.Failed)
+				if err := printEqualizeResult(result, *output.Output, *output.Pretty); err != nil {
+					return err
+				}
+				return shared.NewReportedError(shared.NewErrorWithCause(errors.New(message), cause))
+			}
+
 			remainingTerritories := allTerritories
 			if len(existingPrices.Data) == 0 && len(allTerritories) > 0 {
 				fmt.Fprintf(os.Stderr, "Subscription has no prices; setting initial price in %s first...\n", territory)
@@ -236,55 +268,48 @@ Examples:
 					},
 				)
 				if err != nil {
-					failures = append(failures, equalizeAttemptFailure{
-						Target: baseTarget,
-						Err:    err,
-					})
-					result := &equalizeResult{
-						SubscriptionID:    subID,
-						BaseTerritory:     territory,
-						BasePrice:         price,
-						StartDate:         priceAttrs.StartDate,
-						AutoScheduled:     autoScheduled,
-						Preserved:         *preserved,
-						SubscriptionState: subscriptionState,
-						DryRun:            false,
-						Total:             len(allTerritories),
-						Succeeded:         succeeded,
-						Failed:            len(failures),
-						Failures:          renderEqualizeFailures(failures),
-					}
-					fmt.Fprintf(os.Stderr, "Done: %d succeeded, %d failed\n", result.Succeeded, result.Failed)
-					if err := printEqualizeResult(result, *output.Output, *output.Pretty); err != nil {
-						return err
-					}
-					return shared.NewReportedError(shared.NewErrorWithCause(fmt.Errorf("equalize: failed to set initial price in %s", baseTarget.Territory), err))
+					failures = append(failures, equalizeAttemptFailure{Target: baseTarget, Err: err})
+					return stopAfterBaseFailure("equalize: failed to set initial price in "+baseTarget.Territory, err)
 				}
 				succeeded++
+				remainingTerritories = allTerritories[1:]
+			} else if autoScheduled && len(allTerritories) > 0 {
+				// Apple's minimum lead time for a scheduled price is undocumented
+				// and can exceed one day, so the base territory goes first and
+				// adopts the earliest start date Apple names when it rejects ours.
+				// The probe reads Apple's raw error: applyEqualizedPrices would
+				// reconcile a rejection away when the base already has its price.
+				baseTarget := allTerritories[0]
+				baseSucceeded, baseFailures := runEqualizePricePass(ctx, client, subID, allTerritories[:1], 1, priceAttrs)
+				if len(baseFailures) > 0 {
+					if earliest, ok := appleEarliestSubscriptionPriceStartDate(baseFailures[0].Err); ok && earliest.After(effectiveAt) {
+						fmt.Fprintf(os.Stderr, "App Store Connect rejected %s as too soon; scheduling price changes for %s\n", priceAttrs.StartDate, earliest.Format(equalizeDateLayout))
+						priceAttrs.StartDate = earliest.Format(equalizeDateLayout)
+						effectiveAt = earliest
+					}
+					baseSucceeded, baseFailures = applyEqualizedPrices(ctx, client, subID, allTerritories[:1], 1, priceAttrs, effectiveAt)
+				}
+				if len(baseFailures) > 0 {
+					failures = append(failures, baseFailures...)
+					return stopAfterBaseFailure("equalize: failed to set price in "+baseTarget.Territory, baseFailures[0].Err)
+				}
+				succeeded += baseSucceeded
 				remainingTerritories = allTerritories[1:]
 			}
 
 			passSucceeded, passFailures := applyEqualizedPrices(ctx, client, subID, remainingTerritories, numWorkers, priceAttrs, effectiveAt)
 			succeeded += passSucceeded
-			if len(passFailures) > 0 {
-				failures = append(failures, passFailures...)
+			failures = append(failures, passFailures...)
+
+			// A 201 does not prove the price applies: read every territory back on
+			// the date the new prices take effect.
+			verifiedSucceeded, verifiedFailures, verifyErr := verifyEqualizedPrices(ctx, client, subID, allTerritories, failures, effectiveAt, priceAttrs.PlanType)
+			if verifyErr == nil {
+				succeeded = verifiedSucceeded
+				failures = verifiedFailures
 			}
 
-			result := &equalizeResult{
-				SubscriptionID:    subID,
-				BaseTerritory:     territory,
-				BasePrice:         price,
-				StartDate:         priceAttrs.StartDate,
-				AutoScheduled:     autoScheduled,
-				Preserved:         *preserved,
-				SubscriptionState: subscriptionState,
-				DryRun:            false,
-				Total:             len(allTerritories),
-				Succeeded:         succeeded,
-				Failed:            len(failures),
-				Failures:          renderEqualizeFailures(failures),
-			}
-
+			result := buildResult()
 			fmt.Fprintf(os.Stderr, "Done: %d succeeded, %d failed\n", result.Succeeded, result.Failed)
 
 			if err := printEqualizeResult(result, *output.Output, *output.Pretty); err != nil {
@@ -297,6 +322,9 @@ Examples:
 					return strings.Compare(a.Target.Territory, b.Target.Territory)
 				})
 				return shared.NewReportedError(shared.NewErrorWithCause(fmt.Errorf("equalize: %d territory update(s) failed", result.Failed), primary.Err))
+			}
+			if verifyErr != nil {
+				return shared.NewReportedError(fmt.Errorf("equalize: App Store Connect accepted %d territory update(s), but they could not be verified: %w", result.Succeeded, verifyErr))
 			}
 			return nil
 		},
@@ -380,6 +408,71 @@ func applyEqualizedPrices(ctx context.Context, client *asc.Client, subID string,
 	}
 	succeeded += reconciled
 	return succeeded, remaining
+}
+
+var errEqualizePriceNotApplied = errors.New("price not applied")
+
+// verifyEqualizedPrices reads every target territory back on effectiveAt. A
+// territory succeeds only when it resolves to its target price point; one that
+// does not keeps its submission error, or reports that App Store Connect
+// accepted the price without applying it.
+func verifyEqualizedPrices(ctx context.Context, client *asc.Client, subID string, targets []equalization, submissionFailures []equalizeAttemptFailure, effectiveAt time.Time, planType asc.SubscriptionPlanType) (int, []equalizeAttemptFailure, error) {
+	fmt.Fprintf(os.Stderr, "Verifying %d territory price(s) on %s...\n", len(targets), effectiveAt.Format(equalizeDateLayout))
+
+	resolved, err := fetchResolvedSubscriptionPrices(ctx, client, subID, 200, "", effectiveAt, planType, "")
+	if err != nil {
+		return 0, nil, err
+	}
+	currentByTerritory := equalizedPlanPricePoints(resolved.Prices, planType)
+	submissionErrByTerritory := make(map[string]error, len(submissionFailures))
+	for _, failure := range submissionFailures {
+		submissionErrByTerritory[strings.ToUpper(strings.TrimSpace(failure.Target.Territory))] = failure.Err
+	}
+
+	succeeded := 0
+	failures := make([]equalizeAttemptFailure, 0)
+	for _, target := range targets {
+		territoryID := strings.ToUpper(strings.TrimSpace(target.Territory))
+		current := currentByTerritory[territoryID]
+		if current == strings.TrimSpace(target.PricePointID) {
+			succeeded++
+			continue
+		}
+		failureErr := submissionErrByTerritory[territoryID]
+		if failureErr == nil {
+			if current == "" {
+				current = "no price"
+			}
+			failureErr = fmt.Errorf("%w: App Store Connect accepted the price, but %s resolves to %s on %s instead of price point %s", errEqualizePriceNotApplied, territoryID, current, effectiveAt.Format(equalizeDateLayout), target.PricePointID)
+		}
+		failures = append(failures, equalizeAttemptFailure{Target: target, Err: failureErr})
+	}
+	return succeeded, failures, nil
+}
+
+var appleEarliestStartDatePattern = regexp.MustCompile(`(?i)startDate\b.*\bmust be on or after (\d{4}-\d{2}-\d{2})`)
+
+// appleEarliestSubscriptionPriceStartDate returns the earliest start date App
+// Store Connect names when it rejects a subscription price start date as too
+// soon, for example "Invalid startDate=2026-11-13, must be on or after
+// 2026-11-14" (observed 2026-11-12).
+func appleEarliestSubscriptionPriceStartDate(err error) (time.Time, bool) {
+	apiErr, ok := errors.AsType[*asc.APIError](err)
+	if !ok {
+		return time.Time{}, false
+	}
+	for _, detail := range append([]string{apiErr.Detail}, apiErr.AllDetails...) {
+		match := appleEarliestStartDatePattern.FindStringSubmatch(detail)
+		if match == nil {
+			continue
+		}
+		earliest, parseErr := time.Parse(equalizeDateLayout, match[1])
+		if parseErr != nil {
+			continue
+		}
+		return earliest, true
+	}
+	return time.Time{}, false
 }
 
 func runEqualizePricePass(ctx context.Context, client *asc.Client, subID string, targets []equalization, workers int, attrs asc.SubscriptionPriceCreateAttributes) (int, []equalizeAttemptFailure) {
@@ -556,14 +649,7 @@ func reconcileEqualizeFailures(ctx context.Context, client *asc.Client, subID st
 		return 0, failures, err
 	}
 
-	currentByTerritory := make(map[string]string, len(resolved.Prices))
-	for _, row := range resolved.Prices {
-		territoryID := strings.ToUpper(strings.TrimSpace(row.Territory))
-		if territoryID == "" {
-			continue
-		}
-		currentByTerritory[territoryID] = strings.TrimSpace(row.PricePointID)
-	}
+	currentByTerritory := equalizedPlanPricePoints(resolved.Prices, planType)
 
 	reconciled := 0
 	remaining := make([]equalizeAttemptFailure, 0, len(failures))
@@ -576,6 +662,27 @@ func reconcileEqualizeFailures(ctx context.Context, client *asc.Client, subID st
 	}
 
 	return reconciled, remaining, nil
+}
+
+// equalizedPlanPricePoints maps each territory to its price point in the plan
+// equalize writes: planType, or Apple's default UPFRONT plan when it is empty.
+// A subscription that also bills monthly has MONTHLY rows for the same
+// territories, which must not stand in for the written plan.
+func equalizedPlanPricePoints(rows []shared.ResolvedPriceRow, planType asc.SubscriptionPlanType) map[string]string {
+	written := asc.SubscriptionPlanTypeUpfront
+	if planType != "" {
+		written = planType
+	}
+	byTerritory := make(map[string]string, len(rows))
+	for _, row := range rows {
+		territoryID := strings.ToUpper(strings.TrimSpace(row.Territory))
+		rowPlanType := strings.ToUpper(strings.TrimSpace(row.PlanType))
+		if territoryID == "" || (rowPlanType != "" && rowPlanType != string(written)) {
+			continue
+		}
+		byTerritory[territoryID] = strings.TrimSpace(row.PricePointID)
+	}
+	return byTerritory
 }
 
 func maxEqualizeRetryAfter(failures []equalizeAttemptFailure) time.Duration {

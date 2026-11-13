@@ -79,7 +79,7 @@ func TestRunSubscriptionsPricingEqualizePartialFailureKeepsConflictCause(t *test
 			case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/relationships/prices":
 				fmt.Fprint(w, `{"data":[{"type":"subscriptionPrices","id":"price-existing"}],"links":{}}`)
 			case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
-				fmt.Fprint(w, `{"data":[],"links":{}}`)
+				fmt.Fprint(w, `{"data":[{"type":"subscriptionPrices","id":"price-usa","attributes":{"startDate":"2025-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"`+equalizeTestPricePointUSA+`"}}}}],"included":[{"type":"subscriptionPricePoints","id":"`+equalizeTestPricePointUSA+`","attributes":{"customerPrice":"0.99"}},{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],"links":{}}`)
 			case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
 				body, _ := io.ReadAll(req.Body)
 				if strings.Contains(string(body), `"id":"CAN"`) {

@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 )
 
 const libraryUploadRefData = `{"data":[{"type":"appAssetLibraryRefData","id":"1","attributes":{
@@ -44,6 +45,7 @@ type libraryUploadFake struct {
 	failUploadOf     string
 	failPlacementFor string
 	failOrdering     bool
+	stuckProcessing  string
 	writes           []string
 	reservedNames    []string
 	placedAssets     []string
@@ -122,6 +124,9 @@ func (f *libraryUploadFake) roundTrip(req *http.Request) (*http.Response, error)
 		return jsonResponse(200, `{"data":{}}`)
 	case req.Method == http.MethodGet && strings.HasPrefix(req.URL.Path, "/v1/appAssetLibraryImages/"):
 		id := strings.TrimPrefix(req.URL.Path, "/v1/appAssetLibraryImages/")
+		if id == f.stuckProcessing {
+			return jsonResponse(200, fmt.Sprintf(`{"data":{"type":"appAssetLibraryImages","id":%q,"attributes":{"state":"UPLOAD_COMPLETE","imageAsset":null}}}`, id))
+		}
 		return jsonResponse(200, fmt.Sprintf(`{"data":{"type":"appAssetLibraryImages","id":%q,"attributes":{"state":"PREPARE_FOR_SUBMISSION","imageAsset":{"width":1398,"height":2034}}}}`, id))
 	case req.Method == http.MethodGet && strings.HasPrefix(req.URL.Path, "/v1/appAssetLibraryVideos/"):
 		id := strings.TrimPrefix(req.URL.Path, "/v1/appAssetLibraryVideos/")
@@ -297,15 +302,20 @@ func TestScreenshotsUploadAssetLibraryPartialFailureKeepsReceipt(t *testing.T) {
 		placed   int
 		ordered  bool
 		wantErrs []string
+		timeout  string
 	}{
 		{name: "upload fails before any placement", fake: libraryUploadFake{failUploadOf: "02.png"}, states: []string{"uploaded", "upload-failed", "pending"}, wantErrs: []string{"02.png", "1 of 3 file(s) uploaded", "0 placed"}},
 		{name: "placement fails midway", fake: libraryUploadFake{failPlacementFor: "asset-2"}, states: []string{"placed", "placement-failed", "uploaded"}, placed: 1, wantErrs: []string{"02.png", "3 of 3 file(s) uploaded", "1 placed"}},
 		{name: "ordering fails after placement", fake: libraryUploadFake{failOrdering: true}, states: []string{"placed", "placed", "placed"}, placed: 3, wantErrs: []string{"3 placed", "order"}},
+		{name: "processing outlives the upload deadline", fake: libraryUploadFake{stuckProcessing: "asset-2"}, timeout: "100ms", states: []string{"uploaded", "upload-failed", "pending"}, wantErrs: []string{"02.png", "may still finish processing", "asc asset-library images view --id asset-2"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_UPLOAD_TIMEOUT", "3s")
+			if test.timeout != "" {
+				t.Setenv("ASC_UPLOAD_TIMEOUT", test.timeout)
+			}
 			fake := test.fake
 			fake.t = t
 			fake.install()
@@ -320,6 +330,9 @@ func TestScreenshotsUploadAssetLibraryPartialFailureKeepsReceipt(t *testing.T) {
 			}
 			if errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("partial failure reported as usage: %v", err)
+			}
+			if test.timeout != "" && errfmt.Classify(err).Hint != "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=45m`)." {
+				t.Fatalf("processing deadline hint = %q", errfmt.Classify(err).Hint)
 			}
 			if len(fake.placedAssets) != test.placed {
 				t.Fatalf("placed %v, want %d", fake.placedAssets, test.placed)

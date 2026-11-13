@@ -19,6 +19,7 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 )
 
 func TestSubscriptionsReviewScreenshotCreateSkipsCompleteMatchingAsset(t *testing.T) {
@@ -302,6 +303,14 @@ func TestSubscriptionsReviewScreenshotCreateStopsWhenPollDeadlineExpires(t *test
 			stdout, stderr, err := runSubscriptionReviewScreenshotCreate(t, path)
 			if !errors.Is(err, context.DeadlineExceeded) {
 				t.Fatalf("expected poll deadline exceeded, got %v", err)
+			}
+			for _, want := range []string{"screenshot shot-1", "delivery state PROCESSING", "may still finish processing", "rerun the same command"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("poll deadline error %q does not contain %q", err, want)
+				}
+			}
+			if hint := errfmt.Classify(err).Hint; hint != "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=45m`)." {
+				t.Fatalf("poll deadline hint = %q", hint)
 			}
 			if stdout != "" || stderr != "" || reads < 2 || reads > test.maxReads {
 				t.Fatalf("unexpected poll timeout result: reads=%d stdout=%q stderr=%q", reads, stdout, stderr)

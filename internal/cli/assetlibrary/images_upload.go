@@ -3,6 +3,7 @@ package assetlibrary
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -90,11 +91,24 @@ Examples:
 				}
 			}
 			if uploadErr != nil {
-				return fmt.Errorf("asset-library images upload: %w", uploadErr)
+				return fmt.Errorf("asset-library images upload: %w", libraryImageDeadlineError(uploadCtx, result, uploadErr))
 			}
 			return nil
 		},
 	}
+}
+
+// libraryImageDeadlineError marks an upload deadline hit and, once the image
+// was committed, says that Apple may still finish processing it.
+func libraryImageDeadlineError(uploadCtx context.Context, result asc.AssetLibraryImageUploadResult, err error) error {
+	if !errors.Is(uploadCtx.Err(), context.DeadlineExceeded) {
+		return err
+	}
+	err = shared.MarkUploadDeadline(err)
+	if !result.Uploaded || result.ImageID == "" {
+		return err
+	}
+	return fmt.Errorf("%w; the image was uploaded and App Store Connect may still finish processing it; check it with `asc asset-library images view --id %s`", err, result.ImageID)
 }
 
 // openLibraryImage validates an image and returns it rewound for upload.

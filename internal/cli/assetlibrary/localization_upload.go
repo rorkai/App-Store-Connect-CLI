@@ -184,6 +184,9 @@ func prepareLibraryImage(command, path, group string, reference []byte, specs ma
 		uploadCtx, cancel := libraryImageUploadContext(ctx, size)
 		defer cancel()
 		result, err := client.UploadAssetLibraryImageWithCategory(uploadCtx, libraryID, filepath.Base(path), file, size, nativeMediaCategory, "", shared.ContextWithTimeout)
+		if err != nil {
+			err = libraryImageDeadlineError(uploadCtx, result, err)
+		}
 		return result.ImageID, err
 	}}, nil
 }
