@@ -104,19 +104,19 @@ Examples:
 			}
 
 			opts := []asc.GCAchievementsOption{
-				asc.WithGCAchievementsLimit(*limit),
-				asc.WithGCAchievementsNextURL(*next),
+				asc.Limit[asc.GCAchievementsOption](*limit),
+				asc.NextURL[asc.GCAchievementsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCAchievementsOption](200))
 				firstPage, err := client.GetGameCenterAchievementsV2(requestCtx, gcDetailID, group, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center achievements v2 list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievementsV2(ctx, gcDetailID, group, asc.WithGCAchievementsNextURL(nextURL))
+					return client.GetGameCenterAchievementsV2(ctx, gcDetailID, group, asc.NextURL[asc.GCAchievementsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center achievements v2 list: %w", err)
@@ -206,19 +206,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCAchievementVersionsOption{
-				asc.WithGCAchievementVersionsLimit(*limit),
-				asc.WithGCAchievementVersionsNextURL(*next),
+				asc.Limit[asc.GCAchievementVersionsOption](*limit),
+				asc.NextURL[asc.GCAchievementVersionsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementVersionsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCAchievementVersionsOption](200))
 				firstPage, err := client.GetGameCenterAchievementVersions(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center achievements v2 versions list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievementVersions(ctx, id, asc.WithGCAchievementVersionsNextURL(nextURL))
+					return client.GetGameCenterAchievementVersions(ctx, id, asc.NextURL[asc.GCAchievementVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center achievements v2 versions list: %w", err)
@@ -393,19 +393,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCAchievementLocalizationsOption{
-				asc.WithGCAchievementLocalizationsLimit(*limit),
-				asc.WithGCAchievementLocalizationsNextURL(*next),
+				asc.Limit[asc.GCAchievementLocalizationsOption](*limit),
+				asc.NextURL[asc.GCAchievementLocalizationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCAchievementLocalizationsOption](200))
 				firstPage, err := client.GetGameCenterAchievementVersionLocalizations(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center achievements v2 localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievementVersionLocalizations(ctx, id, asc.WithGCAchievementLocalizationsNextURL(nextURL))
+					return client.GetGameCenterAchievementVersionLocalizations(ctx, id, asc.NextURL[asc.GCAchievementLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center achievements v2 localizations list: %w", err)

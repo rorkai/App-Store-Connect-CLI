@@ -111,19 +111,19 @@ Examples:
 			}
 
 			opts := []asc.GCLeaderboardSetsOption{
-				asc.WithGCLeaderboardSetsLimit(*limit),
-				asc.WithGCLeaderboardSetsNextURL(*next),
+				asc.Limit[asc.GCLeaderboardSetsOption](*limit),
+				asc.NextURL[asc.GCLeaderboardSetsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardSetsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetsOption](200))
 				firstPage, err := client.GetGameCenterLeaderboardSetsV2(requestCtx, gcDetailID, group, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetsV2(ctx, gcDetailID, group, asc.WithGCLeaderboardSetsNextURL(nextURL))
+					return client.GetGameCenterLeaderboardSetsV2(ctx, gcDetailID, group, asc.NextURL[asc.GCLeaderboardSetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 list: %w", err)
@@ -471,19 +471,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetMembersOption{
-				asc.WithGCLeaderboardSetMembersLimit(*limit),
-				asc.WithGCLeaderboardSetMembersNextURL(*next),
+				asc.Limit[asc.GCLeaderboardSetMembersOption](*limit),
+				asc.NextURL[asc.GCLeaderboardSetMembersOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardSetMembersLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetMembersOption](200))
 				firstPage, err := client.GetGameCenterLeaderboardSetMembersV2(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 members list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetMembersV2(ctx, id, asc.WithGCLeaderboardSetMembersNextURL(nextURL))
+					return client.GetGameCenterLeaderboardSetMembersV2(ctx, id, asc.NextURL[asc.GCLeaderboardSetMembersOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 members list: %w", err)
@@ -638,19 +638,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetVersionsOption{
-				asc.WithGCLeaderboardSetVersionsLimit(*limit),
-				asc.WithGCLeaderboardSetVersionsNextURL(*next),
+				asc.Limit[asc.GCLeaderboardSetVersionsOption](*limit),
+				asc.NextURL[asc.GCLeaderboardSetVersionsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardSetVersionsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetVersionsOption](200))
 				firstPage, err := client.GetGameCenterLeaderboardSetVersions(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 versions list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetVersions(ctx, id, asc.WithGCLeaderboardSetVersionsNextURL(nextURL))
+					return client.GetGameCenterLeaderboardSetVersions(ctx, id, asc.NextURL[asc.GCLeaderboardSetVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 versions list: %w", err)
@@ -825,19 +825,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetLocalizationsOption{
-				asc.WithGCLeaderboardSetLocalizationsLimit(*limit),
-				asc.WithGCLeaderboardSetLocalizationsNextURL(*next),
+				asc.Limit[asc.GCLeaderboardSetLocalizationsOption](*limit),
+				asc.NextURL[asc.GCLeaderboardSetLocalizationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardSetLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetLocalizationsOption](200))
 				firstPage, err := client.GetGameCenterLeaderboardSetVersionLocalizations(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetVersionLocalizations(ctx, id, asc.WithGCLeaderboardSetLocalizationsNextURL(nextURL))
+					return client.GetGameCenterLeaderboardSetVersionLocalizations(ctx, id, asc.NextURL[asc.GCLeaderboardSetLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 localizations list: %w", err)

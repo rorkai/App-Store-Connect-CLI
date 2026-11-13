@@ -112,22 +112,22 @@ Examples:
 			}
 
 			opts := []asc.GCGroupsOption{
-				asc.WithGCGroupsLimit(*limit),
-				asc.WithGCGroupsNextURL(*next),
+				asc.Limit[asc.GCGroupsOption](*limit),
+				asc.NextURL[asc.GCGroupsOption](*next),
 			}
 			if gcDetailID != "" {
 				opts = append(opts, asc.WithGCGroupsGameCenterDetailIDs([]string{gcDetailID}))
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCGroupsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCGroupsOption](200))
 				firstPage, err := client.GetGameCenterGroups(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center groups list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterGroups(ctx, asc.WithGCGroupsNextURL(nextURL))
+					return client.GetGameCenterGroups(ctx, asc.NextURL[asc.GCGroupsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center groups list: %w", err)
@@ -402,19 +402,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCAchievementsOption{
-				asc.WithGCAchievementsLimit(*limit),
-				asc.WithGCAchievementsNextURL(*next),
+				asc.Limit[asc.GCAchievementsOption](*limit),
+				asc.NextURL[asc.GCAchievementsOption](*next),
 			}
 
 			fetch := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 				if *v2 {
-					return client.GetGameCenterGroupAchievementsV2(ctx, id, asc.WithGCAchievementsNextURL(nextURL))
+					return client.GetGameCenterGroupAchievementsV2(ctx, id, asc.NextURL[asc.GCAchievementsOption](nextURL))
 				}
-				return client.GetGameCenterGroupAchievements(ctx, id, asc.WithGCAchievementsNextURL(nextURL))
+				return client.GetGameCenterGroupAchievements(ctx, id, asc.NextURL[asc.GCAchievementsOption](nextURL))
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCAchievementsOption](200))
 				var firstPage *asc.GameCenterAchievementsResponse
 				if *v2 {
 					firstPage, err = client.GetGameCenterGroupAchievementsV2(requestCtx, id, paginateOpts...)
@@ -582,19 +582,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCLeaderboardsOption{
-				asc.WithGCLeaderboardsLimit(*limit),
-				asc.WithGCLeaderboardsNextURL(*next),
+				asc.Limit[asc.GCLeaderboardsOption](*limit),
+				asc.NextURL[asc.GCLeaderboardsOption](*next),
 			}
 
 			fetch := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 				if *v2 {
-					return client.GetGameCenterGroupLeaderboardsV2(ctx, id, asc.WithGCLeaderboardsNextURL(nextURL))
+					return client.GetGameCenterGroupLeaderboardsV2(ctx, id, asc.NextURL[asc.GCLeaderboardsOption](nextURL))
 				}
-				return client.GetGameCenterGroupLeaderboards(ctx, id, asc.WithGCLeaderboardsNextURL(nextURL))
+				return client.GetGameCenterGroupLeaderboards(ctx, id, asc.NextURL[asc.GCLeaderboardsOption](nextURL))
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardsOption](200))
 				var firstPage *asc.GameCenterLeaderboardsResponse
 				if *v2 {
 					firstPage, err = client.GetGameCenterGroupLeaderboardsV2(requestCtx, id, paginateOpts...)
@@ -760,19 +760,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetsOption{
-				asc.WithGCLeaderboardSetsLimit(*limit),
-				asc.WithGCLeaderboardSetsNextURL(*next),
+				asc.Limit[asc.GCLeaderboardSetsOption](*limit),
+				asc.NextURL[asc.GCLeaderboardSetsOption](*next),
 			}
 
 			fetch := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 				if *v2 {
-					return client.GetGameCenterGroupLeaderboardSetsV2(ctx, id, asc.WithGCLeaderboardSetsNextURL(nextURL))
+					return client.GetGameCenterGroupLeaderboardSetsV2(ctx, id, asc.NextURL[asc.GCLeaderboardSetsOption](nextURL))
 				}
-				return client.GetGameCenterGroupLeaderboardSets(ctx, id, asc.WithGCLeaderboardSetsNextURL(nextURL))
+				return client.GetGameCenterGroupLeaderboardSets(ctx, id, asc.NextURL[asc.GCLeaderboardSetsOption](nextURL))
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardSetsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetsOption](200))
 				var firstPage *asc.GameCenterLeaderboardSetsResponse
 				if *v2 {
 					firstPage, err = client.GetGameCenterGroupLeaderboardSetsV2(requestCtx, id, paginateOpts...)
@@ -874,19 +874,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCActivitiesOption{
-				asc.WithGCActivitiesLimit(*limit),
-				asc.WithGCActivitiesNextURL(*next),
+				asc.Limit[asc.GCActivitiesOption](*limit),
+				asc.NextURL[asc.GCActivitiesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCActivitiesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCActivitiesOption](200))
 				firstPage, err := client.GetGameCenterGroupActivities(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center groups activities list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterGroupActivities(ctx, id, asc.WithGCActivitiesNextURL(nextURL))
+					return client.GetGameCenterGroupActivities(ctx, id, asc.NextURL[asc.GCActivitiesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center groups activities list: %w", err)
@@ -977,19 +977,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCChallengesOption{
-				asc.WithGCChallengesLimit(*limit),
-				asc.WithGCChallengesNextURL(*next),
+				asc.Limit[asc.GCChallengesOption](*limit),
+				asc.NextURL[asc.GCChallengesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCChallengesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCChallengesOption](200))
 				firstPage, err := client.GetGameCenterGroupChallenges(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center groups challenges list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterGroupChallenges(ctx, id, asc.WithGCChallengesNextURL(nextURL))
+					return client.GetGameCenterGroupChallenges(ctx, id, asc.NextURL[asc.GCChallengesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center groups challenges list: %w", err)
@@ -1077,14 +1077,14 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCDetailsOption{
-				asc.WithGCDetailsLimit(*limit),
-				asc.WithGCDetailsNextURL(*next),
+				asc.Limit[asc.GCDetailsOption](*limit),
+				asc.NextURL[asc.GCDetailsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := []asc.GCDetailsOption{asc.WithGCDetailsNextURL(*next)}
+				paginateOpts := []asc.GCDetailsOption{asc.NextURL[asc.GCDetailsOption](*next)}
 				if nextURL == "" {
-					paginateOpts = []asc.GCDetailsOption{asc.WithGCDetailsLimit(200)}
+					paginateOpts = []asc.GCDetailsOption{asc.Limit[asc.GCDetailsOption](200)}
 				}
 				firstPage, err := client.GetGameCenterGroupGameCenterDetails(requestCtx, id, paginateOpts...)
 				if err != nil {
@@ -1092,7 +1092,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterGroupGameCenterDetails(ctx, id, asc.WithGCDetailsNextURL(nextURL))
+					return client.GetGameCenterGroupGameCenterDetails(ctx, id, asc.NextURL[asc.GCDetailsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center groups details list: %w", err)

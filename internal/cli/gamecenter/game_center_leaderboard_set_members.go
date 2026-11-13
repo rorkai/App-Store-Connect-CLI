@@ -83,19 +83,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetMembersOption{
-				asc.WithGCLeaderboardSetMembersLimit(*limit),
-				asc.WithGCLeaderboardSetMembersNextURL(*next),
+				asc.Limit[asc.GCLeaderboardSetMembersOption](*limit),
+				asc.NextURL[asc.GCLeaderboardSetMembersOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardSetMembersLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetMembersOption](200))
 				firstPage, err := client.GetGameCenterLeaderboardSetMembers(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets members list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetMembers(ctx, id, asc.WithGCLeaderboardSetMembersNextURL(nextURL))
+					return client.GetGameCenterLeaderboardSetMembers(ctx, id, asc.NextURL[asc.GCLeaderboardSetMembersOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets members list: %w", err)

@@ -109,19 +109,19 @@ Examples:
 			}
 
 			opts := []asc.GCChallengesOption{
-				asc.WithGCChallengesLimit(*limit),
-				asc.WithGCChallengesNextURL(*next),
+				asc.Limit[asc.GCChallengesOption](*limit),
+				asc.NextURL[asc.GCChallengesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCChallengesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCChallengesOption](200))
 				firstPage, err := client.GetGameCenterChallenges(requestCtx, gcDetailID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center challenges list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterChallenges(ctx, gcDetailID, asc.WithGCChallengesNextURL(nextURL))
+					return client.GetGameCenterChallenges(ctx, gcDetailID, asc.NextURL[asc.GCChallengesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center challenges list: %w", err)
@@ -494,19 +494,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCChallengeVersionsOption{
-				asc.WithGCChallengeVersionsLimit(*limit),
-				asc.WithGCChallengeVersionsNextURL(*next),
+				asc.Limit[asc.GCChallengeVersionsOption](*limit),
+				asc.NextURL[asc.GCChallengeVersionsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCChallengeVersionsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCChallengeVersionsOption](200))
 				firstPage, err := client.GetGameCenterChallengeVersions(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center challenges versions list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterChallengeVersions(ctx, id, asc.WithGCChallengeVersionsNextURL(nextURL))
+					return client.GetGameCenterChallengeVersions(ctx, id, asc.NextURL[asc.GCChallengeVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center challenges versions list: %w", err)
@@ -686,19 +686,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCChallengeLocalizationsOption{
-				asc.WithGCChallengeLocalizationsLimit(*limit),
-				asc.WithGCChallengeLocalizationsNextURL(*next),
+				asc.Limit[asc.GCChallengeLocalizationsOption](*limit),
+				asc.NextURL[asc.GCChallengeLocalizationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCChallengeLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCChallengeLocalizationsOption](200))
 				firstPage, err := client.GetGameCenterChallengeLocalizations(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center challenges localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterChallengeLocalizations(ctx, id, asc.WithGCChallengeLocalizationsNextURL(nextURL))
+					return client.GetGameCenterChallengeLocalizations(ctx, id, asc.NextURL[asc.GCChallengeLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center challenges localizations list: %w", err)
@@ -1195,19 +1195,19 @@ Examples:
 			}
 
 			opts := []asc.GCChallengeVersionReleasesOption{
-				asc.WithGCChallengeVersionReleasesLimit(*limit),
-				asc.WithGCChallengeVersionReleasesNextURL(*next),
+				asc.Limit[asc.GCChallengeVersionReleasesOption](*limit),
+				asc.NextURL[asc.GCChallengeVersionReleasesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCChallengeVersionReleasesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCChallengeVersionReleasesOption](200))
 				firstPage, err := client.GetGameCenterChallengeVersionReleases(requestCtx, gcDetailID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center challenges releases list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterChallengeVersionReleases(ctx, gcDetailID, asc.WithGCChallengeVersionReleasesNextURL(nextURL))
+					return client.GetGameCenterChallengeVersionReleases(ctx, gcDetailID, asc.NextURL[asc.GCChallengeVersionReleasesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center challenges releases list: %w", err)

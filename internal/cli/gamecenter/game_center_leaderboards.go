@@ -253,19 +253,19 @@ Examples:
 			}
 
 			opts := []asc.GCLeaderboardsOption{
-				asc.WithGCLeaderboardsLimit(*limit),
-				asc.WithGCLeaderboardsNextURL(*next),
+				asc.Limit[asc.GCLeaderboardsOption](*limit),
+				asc.NextURL[asc.GCLeaderboardsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardsOption](200))
 				firstPage, err := client.GetGameCenterLeaderboards(requestCtx, gcDetailID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboards list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboards(ctx, gcDetailID, asc.WithGCLeaderboardsNextURL(nextURL))
+					return client.GetGameCenterLeaderboards(ctx, gcDetailID, asc.NextURL[asc.GCLeaderboardsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboards list: %w", err)
@@ -982,19 +982,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCLeaderboardReleasesOption{
-				asc.WithGCLeaderboardReleasesLimit(*limit),
-				asc.WithGCLeaderboardReleasesNextURL(*next),
+				asc.Limit[asc.GCLeaderboardReleasesOption](*limit),
+				asc.NextURL[asc.GCLeaderboardReleasesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardReleasesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardReleasesOption](200))
 				firstPage, err := client.GetGameCenterLeaderboardReleases(requestCtx, lbID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboards releases list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardReleases(ctx, lbID, asc.WithGCLeaderboardReleasesNextURL(nextURL))
+					return client.GetGameCenterLeaderboardReleases(ctx, lbID, asc.NextURL[asc.GCLeaderboardReleasesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboards releases list: %w", err)

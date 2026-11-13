@@ -91,19 +91,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCLeaderboardLocalizationsOption{
-				asc.WithGCLeaderboardLocalizationsLimit(*limit),
-				asc.WithGCLeaderboardLocalizationsNextURL(*next),
+				asc.Limit[asc.GCLeaderboardLocalizationsOption](*limit),
+				asc.NextURL[asc.GCLeaderboardLocalizationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardLocalizationsOption](200))
 				firstPage, err := client.GetGameCenterLeaderboardLocalizations(requestCtx, lbID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboards localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardLocalizations(ctx, lbID, asc.WithGCLeaderboardLocalizationsNextURL(nextURL))
+					return client.GetGameCenterLeaderboardLocalizations(ctx, lbID, asc.NextURL[asc.GCLeaderboardLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboards localizations list: %w", err)

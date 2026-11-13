@@ -2,7 +2,6 @@ package asc
 
 import (
 	"net/url"
-	"strings"
 )
 
 // GameCenterLeaderboardSetMemberLocalizationAttributes represents a leaderboard set member localization.
@@ -24,24 +23,6 @@ type gcLeaderboardSetMemberLocalizationsQuery struct {
 	listQuery
 	leaderboardSetIDs []string
 	leaderboardIDs    []string
-}
-
-// WithGCLeaderboardSetMemberLocalizationsLimit sets the max number of localizations to return.
-func WithGCLeaderboardSetMemberLocalizationsLimit(limit int) GCLeaderboardSetMemberLocalizationsOption {
-	return func(q *gcLeaderboardSetMemberLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCLeaderboardSetMemberLocalizationsNextURL uses a next page URL directly.
-func WithGCLeaderboardSetMemberLocalizationsNextURL(next string) GCLeaderboardSetMemberLocalizationsOption {
-	return func(q *gcLeaderboardSetMemberLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 // WithGCLeaderboardSetMemberLocalizationsLeaderboardSetIDs filters by leaderboard set IDs.
