@@ -6,8 +6,13 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestFinanceReportsValidationErrors(t *testing.T) {
@@ -149,5 +154,35 @@ func TestFinanceRegionsCommandOutputsJSON(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("expected region Z1 in output")
+	}
+}
+
+func TestFinanceReportsNotFoundExplainsReportAvailability(t *testing.T) {
+	setupAuth(t)
+	const detail = "The requested report was not found."
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/financeReports" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+		return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+detail+`"}]}`)
+	}))
+	outputPath := filepath.Join(t.TempDir(), "finance.tsv.gz")
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = rootcmd.Run([]string{"finance", "reports", "--vendor", "12345678", "--report-type", "FINANCIAL", "--region", "US", "--date", "2026-10", "--output", outputPath}, "1.2.3")
+	})
+	if code != rootcmd.ExitNotFound {
+		t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitNotFound, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	const hint = "Hint: Apple publishes a financial report only after the fiscal month closes (by the first Friday of the next fiscal month) and only for regions with purchases or refunds that month. Check --date and --vendor; for FINANCIAL, try --region ZZ or a code from `asc finance regions`.\n"
+	if !strings.Contains(stderr, detail) || !strings.HasSuffix(stderr, hint) {
+		t.Fatalf("stderr = %q, want Apple's detail and hint %q", stderr, hint)
+	}
+	if _, err := os.Stat(outputPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("output file stat error = %v, want not-exist", err)
 	}
 }

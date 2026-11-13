@@ -151,7 +151,11 @@ Examples:
 				ReportDate:   reportDate,
 			})
 			if err != nil {
-				return fmt.Errorf("finance reports: failed to download report: %w", err)
+				err = fmt.Errorf("finance reports: failed to download report: %w", err)
+				if asc.IsNotFound(err) {
+					return &shared.HintedError{Err: err, Hint: financeReportNotFoundHint}
+				}
+				return err
 			}
 			defer download.Body.Close()
 
@@ -184,6 +188,8 @@ Examples:
 		},
 	}
 }
+
+const financeReportNotFoundHint = "Apple publishes a financial report only after the fiscal month closes (by the first Friday of the next fiscal month) and only for regions with purchases or refunds that month. Check --date and --vendor; for FINANCIAL, try --region ZZ or a code from `asc finance regions`."
 
 // FinanceRegionsCommand lists finance report regions and currencies.
 func FinanceRegionsCommand() *ffcli.Command {
