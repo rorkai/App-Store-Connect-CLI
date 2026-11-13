@@ -99,6 +99,18 @@ func TestRenewableBearerTokenReportsRenewalFailures(t *testing.T) {
 	}
 }
 
+// A slow token command can return a token that was valid when the renewal
+// started but expired by the time it finished.
+func TestRenewableBearerTokenRejectsATokenThatExpiredWhileRenewing(t *testing.T) {
+	source := &bearerTokenSource{renew: func(context.Context) (string, error) {
+		return signedTestJWT(t, time.Now().Add(-time.Minute)), nil
+	}}
+	renewalStarted := time.Now().Add(-2 * time.Minute)
+	if token, err := source.current(context.Background(), renewalStarted); !errors.Is(err, ErrBearerTokenRenewal) {
+		t.Fatalf("current() = %q, %v; want ErrBearerTokenRenewal for a token that expired during renewal", token, err)
+	}
+}
+
 func TestBearerTokenClientRefusesNotarization(t *testing.T) {
 	client, err := NewClientFromBearerToken(context.Background(), mustGenerateJWT(t), nil, 0)
 	if err != nil {

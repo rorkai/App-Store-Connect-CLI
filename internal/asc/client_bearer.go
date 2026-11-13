@@ -89,6 +89,10 @@ func (s *bearerTokenSource) renewToken(ctx context.Context, now time.Time) error
 	if err := s.set(token); err != nil {
 		return fmt.Errorf("%w: %w", ErrBearerTokenRenewal, err)
 	}
+	// The command can run for a while; judge the new token by when it returned.
+	if returned := time.Now(); returned.After(now) {
+		now = returned
+	}
 	if !now.Before(s.expiresAt) {
 		return fmt.Errorf("%w: the new token already expired", ErrBearerTokenRenewal)
 	}
