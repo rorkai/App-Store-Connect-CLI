@@ -69,6 +69,7 @@ func TestRun_BuildsInfoLatestWithNoBuildsReturnsExitNotFound(t *testing.T) {
 	if !strings.Contains(stderr, "--app") {
 		t.Fatalf("expected stderr to name the selector flag to check, got %q", stderr)
 	}
+	assertBuildsWaitHint(t, stderr, "asc builds wait --app 123456789 --latest")
 	if strings.Contains(stderr, "USAGE") {
 		t.Fatalf("expected no usage page for a not-found result, got %q", stderr)
 	}
@@ -93,6 +94,7 @@ func TestRun_BuildsInfoLatestVersionWithoutPreReleaseVersionReturnsExitNotFound(
 	if !strings.Contains(stderr, "--version") || !strings.Contains(stderr, "--platform") {
 		t.Fatalf("expected stderr to name --version and --platform, got %q", stderr)
 	}
+	assertBuildsWaitHint(t, stderr, "asc builds wait --app 123456789 --latest --version 1.2.3 --platform IOS")
 }
 
 func TestRun_BuildsInfoLatestVersionWithNoMatchingBuildsReturnsExitNotFound(t *testing.T) {
@@ -112,6 +114,7 @@ func TestRun_BuildsInfoLatestVersionWithNoMatchingBuildsReturnsExitNotFound(t *t
 	if !strings.Contains(stderr, `no builds found for app 123456789 matching --version "1.2.3" and --platform IOS`) {
 		t.Fatalf("expected filtered not-found message in stderr, got %q", stderr)
 	}
+	assertBuildsWaitHint(t, stderr, "asc builds wait --app 123456789 --latest --version 1.2.3 --platform IOS")
 }
 
 func TestRun_BuildsInfoBuildNumberWithNoMatchReturnsExitNotFound(t *testing.T) {
@@ -132,6 +135,15 @@ func TestRun_BuildsInfoBuildNumberWithNoMatchReturnsExitNotFound(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "--build-number") {
 		t.Fatalf("expected stderr to name --build-number, got %q", stderr)
+	}
+	assertBuildsWaitHint(t, stderr, "asc builds wait --app 123456789 --build-number 42 --platform IOS")
+}
+
+func assertBuildsWaitHint(t *testing.T, stderr, waitCommand string) {
+	t.Helper()
+	want := "a just-uploaded build may still be processing; wait for it with `" + waitCommand + "`"
+	if !strings.Contains(stderr, want) {
+		t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
 	}
 }
 
