@@ -109,9 +109,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("screenshots plan does not accept positional arguments")
-			}
 			result, err := executeScreenshotReviewPlan(ctx, screenshotReviewPlanOptions{
 				AppID:           *appID,
 				Version:         *version,
@@ -167,9 +164,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("screenshots apply does not accept positional arguments")
-			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to apply screenshot uploads")
 				return shared.MissingRequiredUsageError("--confirm")

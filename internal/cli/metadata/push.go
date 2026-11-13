@@ -234,9 +234,6 @@ Notes:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError(fmt.Sprintf("metadata %s does not accept positional arguments", cfg.name))
-			}
 			// Validate the raw flag before any side effect. The flag defaults to
 			// fail, so an empty value here was supplied explicitly; the execution
 			// path treats an unset options field as fail for in-process callers.

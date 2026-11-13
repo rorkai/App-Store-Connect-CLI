@@ -125,9 +125,6 @@ func TestVersionsUpdateConfirmValidationFailsBeforeHTTP(t *testing.T) {
 	}{
 		{name: "downloadable false without confirm", args: []string{"--downloadable", "false"}, wantErr: "--confirm is required"},
 		{name: "downloadable false with explicit false confirm", args: []string{"--downloadable", "false", "--confirm=false"}, wantErr: "--confirm is required"},
-		// Boolean flags do not consume a following spaced value. Reject the
-		// leftover operand before a bare --confirm can authorize the write.
-		{name: "spaced confirm false", args: []string{"--downloadable", "false", "--confirm", "false"}, wantErr: "unexpected argument(s): false"},
 		{name: "confirm with downloadable true", args: []string{"--downloadable", "true", "--confirm"}, wantErr: "--confirm applies only to --downloadable false"},
 		{name: "confirm with unrelated update", args: []string{"--copyright", "2026 Example", "--confirm"}, wantErr: "--confirm applies only to --downloadable false"},
 		{name: "explicit false confirm with unrelated update", args: []string{"--copyright", "2026 Example", "--confirm=false"}, wantErr: "--confirm applies only to --downloadable false"},

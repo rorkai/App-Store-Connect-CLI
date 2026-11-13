@@ -241,9 +241,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				return shared.UsageError("signing reconcile plan does not accept positional arguments")
-			}
 			if err := validateSigningReconcilePlanFlags(*archivePath, *devicesFile, *minimumValidityDays, *maxMutations, *stateDir); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				return signingReconcilePlanUsageError(err)
@@ -286,9 +283,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				return shared.UsageError("signing reconcile apply does not accept positional arguments")
-			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
 				return shared.MissingRequiredUsageError("--confirm")

@@ -80,10 +80,10 @@ func populatePinnedSkillsFixture(t *testing.T, sourceDir string, names []string)
 	}
 }
 
-func runInstallCommand(t *testing.T, args ...string) error {
+func runInstallCommand(t *testing.T) error {
 	t.Helper()
 	cmd := InstallSkillsCommand()
-	if err := cmd.Parse(args); err != nil {
+	if err := cmd.Parse(nil); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	return cmd.Run(context.Background())
@@ -111,22 +111,6 @@ func TestSkillsSourceIsPinnedToImmutableInput(t *testing.T) {
 		if !regexp.MustCompile(`^[0-9a-f]{40}$`).MatchString(expectedSkillTreeHashes[name]) {
 			t.Fatalf("tree hash for %s = %q, want a Git object ID", name, expectedSkillTreeHashes[name])
 		}
-	}
-}
-
-func TestInstallSkillsRejectsPositionalArgumentsBeforeSideEffects(t *testing.T) {
-	preserveInstallerGlobals(t)
-	lookupExecutable = func(name string) (string, error) {
-		t.Fatalf("positional argument caused executable lookup for %q", name)
-		return "", nil
-	}
-
-	err := runInstallCommand(t, "unexpected")
-	if err == nil {
-		t.Fatal("expected positional argument error")
-	}
-	if !strings.Contains(err.Error(), "unexpected arguments: unexpected") {
-		t.Fatalf("error = %q, want unexpected argument diagnostic", err)
 	}
 }
 

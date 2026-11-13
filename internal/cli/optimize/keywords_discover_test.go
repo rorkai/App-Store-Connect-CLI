@@ -56,24 +56,13 @@ func TestKeywordsDiscoverCommandValidatesInputBeforeRequests(t *testing.T) {
 			args: []string{"--app", "1234567890", "--limit", "0"},
 			want: "--limit must be at least 1",
 		},
-		{
-			name: "positional",
-			args: nil,
-			want: "optimize keywords discover does not accept positional arguments",
-		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
 			failKeywordsAdsCollector(t)
-			command := KeywordsDiscoverCommand()
-			var err error
-			if test.args == nil {
-				err = command.Exec(context.Background(), []string{"extra"})
-			} else {
-				err = command.ParseAndRun(context.Background(), test.args)
-			}
+			err := KeywordsDiscoverCommand().ParseAndRun(context.Background(), test.args)
 			if err == nil || err.Error() != test.want {
 				t.Fatalf("error = %v, want %q", err, test.want)
 			}

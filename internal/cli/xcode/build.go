@@ -56,10 +56,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: xcode build does not accept positional arguments")
-				return flag.ErrHelp
-			}
 			opts := localxcode.BuildOptions{
 				WorkspacePath:    strings.TrimSpace(*workspacePath),
 				ProjectPath:      strings.TrimSpace(*projectPath),

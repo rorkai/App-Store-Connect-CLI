@@ -147,21 +147,9 @@ func TestWebXcodeCloudScmValidatesBeforeSession(t *testing.T) {
 		want string
 	}{
 		{
-			name: "providers positional",
-			cmd:  webXcodeCloudScmProvidersListCommand,
-			args: []string{"unexpected"},
-			want: "does not accept positional arguments",
-		},
-		{
 			name: "connection status missing provider",
 			cmd:  webXcodeCloudScmConnectionStatusCommand,
 			want: "--scm-provider-id is required",
-		},
-		{
-			name: "connection status positional",
-			cmd:  webXcodeCloudScmConnectionStatusCommand,
-			args: []string{"unexpected"},
-			want: "does not accept positional arguments",
 		},
 		{
 			name: "providers invalid output combination",

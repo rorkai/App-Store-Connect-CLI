@@ -187,25 +187,6 @@ func TestWebICloudContainersCreateRequiresConfirm(t *testing.T) {
 	}
 }
 
-func TestWebICloudContainersListValidationErrors(t *testing.T) {
-	command := WebICloudContainersListCommand()
-	if err := command.FlagSet.Parse([]string{"extra"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
-		err := command.Exec(context.Background(), command.FlagSet.Args())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected usage error, got %v", err)
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "web icloud-containers list does not accept positional arguments") {
-		t.Fatalf("stderr = %q, want positional argument error", stderr)
-	}
-}
-
 func TestWebICloudContainersListPrintsJSONAndPassesHidden(t *testing.T) {
 	restore := stubWebICloudContainerReadDependencies(t)
 	defer restore()

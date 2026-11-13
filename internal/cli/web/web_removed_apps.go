@@ -85,9 +85,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web removed-apps list does not accept positional arguments")
-			}
 			if *limit < 1 || *limit > webcore.MaxRemovedAppsLimit {
 				return shared.UsageError(fmt.Sprintf("web removed-apps list: --limit must be between 1 and %d", webcore.MaxRemovedAppsLimit))
 			}
@@ -139,9 +136,6 @@ func WebRemovedAppsRestoreCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name: "restore", ShortUsage: "asc web removed-apps restore --app APP_ID --access limited|full --confirm [flags]", ShortHelp: "Restore a removed app via Apple web API.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web removed-apps restore does not accept positional arguments")
-			}
 			id, mode := strings.TrimSpace(*app), strings.ToLower(strings.TrimSpace(*access))
 			if id == "" {
 				return shared.UsageError("--app is required")

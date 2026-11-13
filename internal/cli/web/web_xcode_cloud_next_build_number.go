@@ -71,9 +71,6 @@ Example:
 		UsageFunc: shared.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web xcode-cloud settings next-build-number show does not accept positional arguments")
-			}
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
@@ -135,9 +132,6 @@ Example:
 		UsageFunc: shared.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web xcode-cloud settings next-build-number set does not accept positional arguments")
-			}
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")

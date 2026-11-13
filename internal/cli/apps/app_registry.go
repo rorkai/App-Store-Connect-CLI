@@ -108,10 +108,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: apps registry pull does not accept positional arguments")
-				return flag.ErrHelp
-			}
 			return appsRegistryPull(ctx, appsRegistryPullOptions{
 				Path:         *path,
 				DryRun:       *dryRun,

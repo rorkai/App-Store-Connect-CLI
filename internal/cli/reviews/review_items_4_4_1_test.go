@@ -95,24 +95,6 @@ func TestReviewListNextConflictsUseFlagPresenceBeforeClientFactory(t *testing.T)
 	}
 }
 
-func TestReviewItemsListRejectsPositionalArgsBeforeAuth(t *testing.T) {
-	factoryCalled := false
-	restore := SetReviewItemsClientFactory(func() (*asc.Client, error) {
-		factoryCalled = true
-		return nil, errors.New("poison client factory called")
-	})
-	defer restore()
-
-	cmd := ReviewItemsListCommand()
-	err := cmd.ParseAndRun(context.Background(), []string{"unexpected"})
-	if err == nil || !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("error = %v, want usage error", err)
-	}
-	if factoryCalled {
-		t.Fatal("client factory called before positional-argument validation")
-	}
-}
-
 func TestReviewSubmissionsValidateIncludeBeforeAuth(t *testing.T) {
 	tests := []struct {
 		name string
@@ -223,7 +205,6 @@ func TestReviewItemsUpdateValidatesSchemaFlagsBeforeAuth(t *testing.T) {
 		{name: "invalid removed", args: []string{"--id", "item-1", "--removed", "no"}, want: "--removed must be true or false"},
 		{name: "resolved conflict", args: []string{"--id", "item-1", "--resolved", "false", "--clear-resolved"}, want: "--resolved cannot be combined with --clear-resolved"},
 		{name: "removed conflict", args: []string{"--id", "item-1", "--removed", "true", "--clear-removed"}, want: "--removed cannot be combined with --clear-removed"},
-		{name: "positional", args: []string{"--id", "item-1", "--resolved", "true", "unexpected"}, want: "unexpected positional arguments"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

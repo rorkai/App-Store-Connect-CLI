@@ -90,9 +90,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web website-push-ids view does not accept positional arguments")
-			}
 			resolvedWebsitePushID := strings.TrimSpace(*websitePushID)
 			if resolvedWebsitePushID == "" {
 				return shared.UsageError("--website-push-id is required")
@@ -166,9 +163,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web website-push-ids create does not accept positional arguments")
-			}
 			request := webcore.DeveloperWebsitePushIDCreateRequest{Name: *name, Identifier: *identifier}
 			if err := request.Validate(); err != nil {
 				return shared.UsageError(websitePushIDCreateUsageError(err))
@@ -232,9 +226,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web website-push-ids delete does not accept positional arguments")
-			}
 			request := webcore.DeveloperWebsitePushIDDeleteRequest{WebsitePushID: *websitePushID}
 			if err := request.Validate(); err != nil {
 				return shared.UsageError("--website-push-id is required")
@@ -320,9 +311,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web website-push-ids list does not accept positional arguments")
-			}
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err
 			}

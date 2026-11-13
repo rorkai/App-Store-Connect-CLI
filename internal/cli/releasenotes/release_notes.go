@@ -78,11 +78,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: unexpected arguments")
-				return flag.ErrHelp
-			}
-
 			sinceTagValue := strings.TrimSpace(*sinceTag)
 			sinceRefValue := strings.TrimSpace(*sinceRef)
 			if sinceTagValue != "" && sinceRefValue != "" {

@@ -86,9 +86,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("optimize keywords score does not accept positional arguments")
-			}
 			if strings.TrimSpace(keywords.String()) == "" {
 				return shared.UsageError("--keywords is required")
 			}

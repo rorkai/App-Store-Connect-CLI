@@ -57,9 +57,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectUnexpectedArgs(args); err != nil {
-				return err
-			}
 			outputFormat, err := validateAdsRawOutput(output)
 			if err != nil {
 				return shared.UsageError(err.Error())

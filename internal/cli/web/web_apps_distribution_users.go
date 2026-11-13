@@ -75,9 +75,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-			}
 			resolvedAppID, err := resolveWebDistributionUsersAppID(*appID)
 			if err != nil {
 				return err
@@ -138,9 +135,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-			}
 			resolvedAppID, err := resolveWebDistributionUsersAppID(*appID)
 			if err != nil {
 				return err
@@ -242,9 +236,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-			}
 			resolvedAppID, err := resolveWebDistributionUsersAppID(*appID)
 			if err != nil {
 				return err

@@ -91,10 +91,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("optimize search plan does not accept positional arguments")
-			}
-
 			resolvedAppSelector := shared.ResolveAppID(*appID)
 			if resolvedAppSelector == "" {
 				return shared.UsageError("--app is required (or set ASC_APP_ID)")

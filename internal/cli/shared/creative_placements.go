@@ -47,9 +47,6 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 		ShortUsage: "asc " + prefix + " placements list [flags]", FlagSet: fs, UsageFunc: DefaultUsageFunc,
 		LongHelp: "List asset placements for " + label + ". These placement reads are documented in Apple's published OpenAPI 4.5.1. Apple enforces availability and permissions for the selected localization. Empty data means no matching asset is assigned. JSON preserves Apple's full envelope and included media. Filter and sort flags cannot be combined with --next.\n\nExamples:\n  asc " + prefix + " placements list --localization-id ID --placement-type " + listTypes[0] + "\n  asc " + prefix + " placements list --localization-id ID --placement-type " + listTypes[1] + " --include image,video\n  asc " + prefix + " placements list --localization-id ID --paginate --output table\n  asc " + prefix + " placements list --localization-id ID --state FAILED --sort -lastModifiedDate",
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				return UsageErrorf(prefix+" placements list: unexpected argument %q", args[0])
-			}
 			if err := ValidateBoundOutputFlags(fs); err != nil {
 				return UsageErrorf(prefix+" placements list: %v", err)
 			}
@@ -168,9 +165,6 @@ func creativePlacementViewCommand(prefix string) *ffcli.Command {
 		ShortUsage: "asc " + prefix + " placements view --id ID [flags]", FlagSet: fs, UsageFunc: DefaultUsageFunc,
 		LongHelp: "Read one asset placement with the public GET endpoint. IDs are authoritative: Apple's endpoint has no localization parent, so this command does not check that the placement belongs to this command group's localization type. JSON preserves Apple's full envelope and included resources.\n\nExamples:\n  asc " + prefix + " placements view --id PLACEMENT_ID\n  asc " + prefix + " placements view --id PLACEMENT_ID --include image,video\n  asc " + prefix + " placements view --id PLACEMENT_ID --fields state,stateDetails --output table",
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				return UsageErrorf(prefix+" placements view: unexpected argument %q", args[0])
-			}
 			if err := ValidateBoundOutputFlags(fs); err != nil {
 				return UsageErrorf(prefix+" placements view: %v", err)
 			}

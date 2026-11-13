@@ -95,9 +95,6 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			id, nextURL := strings.TrimSpace(*ownerID), ""
 			if next != nil {
 				nextURL = strings.TrimSpace(*next)
@@ -232,9 +229,6 @@ func retentionWriteCommand(path, usage, help string, examples []string, bind fun
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectPositionalArgs(args); err != nil {
-				return err
-			}
 			call, err := run()
 			if err != nil {
 				return err

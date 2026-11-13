@@ -70,9 +70,6 @@ func creativePlacementReorderCommand(resource, prefix, label string) *ffcli.Comm
 		Name: "reorder", ShortHelp: "Order existing asset library placements within a localization and group.", ShortUsage: "asc " + prefix + " placements reorder --localization-id ID --placement-group GROUP --placement-ids ID1,ID2", FlagSet: fs, UsageFunc: DefaultUsageFunc,
 		LongHelp: "Order existing placements for " + label + " using a placement ordering request. Supply unique placement IDs in the desired order and their placement group. Apple validates localization/group membership and whether the resource is editable. This command does not delete media, submit assets for review, or promise publication.\n\nExample:\n  asc " + prefix + " placements reorder --localization-id ID --placement-group " + exampleGroup + " --placement-ids FIRST_ID,SECOND_ID",
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return UsageErrorf("placements reorder: unexpected argument %q", args[0])
-			}
 			if err := ValidateBoundOutputFlags(fs); err != nil {
 				return UsageErrorf("placements reorder: %v", err)
 			}

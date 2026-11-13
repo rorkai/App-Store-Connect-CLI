@@ -113,9 +113,6 @@ func readCommand(name, help, selector, path string, collection bool) *ffcli.Comm
 		Name: name, ShortHelp: help, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		LongHelp: longHelp,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 0 {
-				return shared.UsageErrorf("asset-library %s: unexpected argument %q", name, args[0])
-			}
 			if err := shared.ValidateBoundOutputFlags(fs); err != nil {
 				return shared.UsageErrorf("asset-library %s: %v", name, err)
 			}

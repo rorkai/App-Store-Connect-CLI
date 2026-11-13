@@ -60,23 +60,6 @@ func TestWebAppsDeclarationsListValidationErrors(t *testing.T) {
 	}
 }
 
-func TestWebAppsDeclarationsListRejectsPositionalArguments(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-	cmd := WebAppsDeclarationsListCommand()
-	if err := cmd.FlagSet.Parse([]string{"--app", "app-1"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	_, stderr := captureWebCommandOutput(t, func() {
-		err := cmd.Exec(context.Background(), []string{"extra"})
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected flag.ErrHelp, got %v", err)
-		}
-	})
-	if !strings.Contains(stderr, "unexpected argument") {
-		t.Fatalf("expected positional argument error, got %q", stderr)
-	}
-}
-
 func TestWebAppsDeclarationsListRequiresPublicProviderID(t *testing.T) {
 	stubWebDeclarationSession(t, "")
 

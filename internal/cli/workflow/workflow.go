@@ -279,10 +279,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(_ context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-			}
-
 			absPath, err := filepath.Abs(strings.TrimSpace(*filePath))
 			if err != nil {
 				return fmt.Errorf("workflow validate: resolve path: %w", err)
@@ -337,10 +333,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(_ context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-			}
-
 			absPath, err := filepath.Abs(strings.TrimSpace(*filePath))
 			if err != nil {
 				return fmt.Errorf("workflow list: resolve path: %w", err)

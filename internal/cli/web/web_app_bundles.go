@@ -100,9 +100,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-bundles list does not accept positional arguments")
-			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -148,9 +145,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-bundles view does not accept positional arguments")
-			}
 			bundleID := strings.TrimSpace(*id)
 			if bundleID == "" {
 				return shared.UsageError("--id is required")
@@ -207,9 +201,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-bundles create does not accept positional arguments")
-			}
 			if strings.TrimSpace(*name) == "" {
 				return shared.UsageError("--name is required")
 			}
@@ -291,9 +282,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-bundles apps eligible does not accept positional arguments")
-			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -347,9 +335,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-bundles apps set does not accept positional arguments")
-			}
 			bundleID := strings.TrimSpace(*id)
 			if bundleID == "" {
 				return shared.UsageError("--id is required")
@@ -396,9 +381,6 @@ func webAppBundleReviewCommand(name, shortHelp, longHelp string, run func(contex
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError(commandName + " does not accept positional arguments")
-			}
 			bundleID := strings.TrimSpace(*id)
 			if bundleID == "" {
 				return shared.UsageError("--id is required")

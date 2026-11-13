@@ -161,9 +161,6 @@ auto policy warns on stderr before running xcodebuild -showBuildSettings. Use
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-			}
 			lookupPolicy, err := parseXcodebuildSettingsLookup(*xcodebuildSettingsLookup)
 			if err != nil {
 				return err
@@ -259,9 +256,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-			}
 			lookupPolicy, err := parseXcodebuildSettingsLookup(*xcodebuildSettingsLookup)
 			if err != nil {
 				return err
@@ -387,9 +381,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-			}
 			lookupPolicy, err := parseXcodebuildSettingsLookup(*xcodebuildSettingsLookup)
 			if err != nil {
 				return err

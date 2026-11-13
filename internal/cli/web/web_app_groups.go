@@ -108,9 +108,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-groups list does not accept positional arguments")
-			}
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err
 			}
@@ -155,9 +152,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-groups create does not accept positional arguments")
-			}
 			resolvedName := strings.TrimSpace(*name)
 			resolvedIdentifier := strings.TrimSpace(*identifier)
 			if resolvedName == "" {
@@ -231,9 +225,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-groups assign does not accept positional arguments")
-			}
 			resolvedGroupID := strings.TrimSpace(*groupID)
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			switch {
@@ -301,9 +292,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-groups unassign does not accept positional arguments")
-			}
 			resolvedGroupID := strings.TrimSpace(*groupID)
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			switch {
@@ -368,9 +356,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-groups set does not accept positional arguments")
-			}
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			switch {
 			case resolvedBundleID == "":
@@ -431,9 +416,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web app-groups delete does not accept positional arguments")
-			}
 			resolvedGroupID := strings.TrimSpace(*groupID)
 			switch {
 			case resolvedGroupID == "":

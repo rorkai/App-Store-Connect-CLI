@@ -221,7 +221,6 @@ func TestXcodeDoctorCommandRejectsInvalidInputBeforeRunning(t *testing.T) {
 		args []string
 		want string
 	}{
-		{name: "positional", args: []string{"unexpected"}, want: "does not accept positional arguments"},
 		{name: "empty developer dir", args: []string{"--developer-dir", ""}, want: "--developer-dir must not be empty"},
 		{name: "empty sdk", args: []string{"--sdk", "  "}, want: "--sdk must not be empty"},
 		{name: "invalid output", args: []string{"--output", "yaml"}, want: "must be one of"},

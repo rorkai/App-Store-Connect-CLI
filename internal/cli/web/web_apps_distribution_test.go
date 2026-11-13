@@ -149,23 +149,6 @@ func TestWebAppsDistributionViewRequiresApp(t *testing.T) {
 	}
 }
 
-func TestWebAppsDistributionViewRejectsPositionalArguments(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-
-	cmd := WebAppsDistributionViewCommand()
-	if err := cmd.FlagSet.Parse([]string{"--app", "app-1"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	err := cmd.Exec(context.Background(), []string{"extra"})
-	if err == nil {
-		t.Fatal("expected error for positional argument")
-	}
-	if !strings.Contains(err.Error(), "unexpected argument") {
-		t.Fatalf("error = %v, want unexpected argument", err)
-	}
-}
-
 func TestWebAppsRegistersDistributionAndHistory(t *testing.T) {
 	registered := map[string]*ffcli.Command{}
 	for _, sub := range WebAppsCommand().Subcommands {

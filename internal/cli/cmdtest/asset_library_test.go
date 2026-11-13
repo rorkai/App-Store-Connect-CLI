@@ -89,7 +89,6 @@ func TestAssetLibraryValidationBeforeAuth(t *testing.T) {
 		{"images", "list", "--next", "https://evil.example/v1/apps"},
 		{"images", "list", "--library-id", "lib", "--next", "https://api.appstoreconnect.apple.com/v1/apps"},
 		{"images", "view", "--id", "../apps"},
-		{"specs", "unexpected"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			_, stderr, err := runAssetLibrary(t, append([]string{"asset-library"}, args...)...)

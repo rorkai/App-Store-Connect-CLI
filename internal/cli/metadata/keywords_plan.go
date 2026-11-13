@@ -84,7 +84,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runMetadataKeywordsPlanLikeCommand(ctx, args, "metadata keywords plan", metadataKeywordsPlanOptions{
+			return runMetadataKeywordsPlanLikeCommand(ctx, "metadata keywords plan", metadataKeywordsPlanOptions{
 				AppID:    *appID,
 				Version:  *version,
 				Platform: *platform,
@@ -120,7 +120,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runMetadataKeywordsPlanLikeCommand(ctx, args, "metadata keywords diff", metadataKeywordsPlanOptions{
+			return runMetadataKeywordsPlanLikeCommand(ctx, "metadata keywords diff", metadataKeywordsPlanOptions{
 				AppID:    *appID,
 				Version:  *version,
 				Platform: *platform,
@@ -133,14 +133,10 @@ Examples:
 
 func runMetadataKeywordsPlanLikeCommand(
 	ctx context.Context,
-	args []string,
 	errorPrefix string,
 	opts metadataKeywordsPlanOptions,
 	output shared.OutputFlags,
 ) error {
-	if len(args) > 0 {
-		return shared.UsageError(fmt.Sprintf("%s does not accept positional arguments", errorPrefix))
-	}
 	result, err := executeMetadataKeywordsPlan(ctx, opts)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {

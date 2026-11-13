@@ -172,7 +172,6 @@ func TestSigningSyncNukeValidatesFlagsBeforeSideEffects(t *testing.T) {
 		{"missing repo", []string{"--profile-type", "IOS_APP_DEVELOPMENT", "--confirm"}, "--repo is required"},
 		{"empty branch", []string{"--profile-type", "IOS_APP_DEVELOPMENT", "--repo", "git@github.com:team/certs.git", "--branch", " ", "--confirm"}, "--branch must not be empty"},
 		{"unsupported certificate type", []string{"--profile-type", "IOS_APP_DEVELOPMENT", "--repo", "git@github.com:team/certs.git", "--certificate-type", "NOPE", "--confirm"}, "--certificate-type: unsupported certificate type NOPE"},
-		{"unexpected argument", []string{"--profile-type", "IOS_APP_DEVELOPMENT", "--repo", "git@github.com:team/certs.git", "--confirm", "extra"}, "unexpected argument(s): extra"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

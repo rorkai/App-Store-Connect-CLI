@@ -53,10 +53,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("age-rating audit does not accept positional arguments")
-			}
-
 			appProvided := false
 			fs.Visit(func(parsed *flag.Flag) {
 				appProvided = appProvided || parsed.Name == "app"

@@ -76,9 +76,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web icloud-containers list does not accept positional arguments")
-			}
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err
 			}
@@ -194,9 +191,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web icloud-containers create does not accept positional arguments")
-			}
 			resolvedIdentifier := strings.TrimSpace(*identifier)
 			resolvedName := strings.TrimSpace(*name)
 			if resolvedIdentifier == "" {

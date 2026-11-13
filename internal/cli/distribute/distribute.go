@@ -78,9 +78,6 @@ Examples:
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			if len(args) != 0 {
-				return shared.UsageError("distribute inspect does not accept positional arguments")
-			}
 			if strings.TrimSpace(*ipaPath) == "" {
 				return shared.UsageError("--ipa is required")
 			}
@@ -138,9 +135,6 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if err := ctx.Err(); err != nil {
 				return err
-			}
-			if len(args) != 0 {
-				return shared.UsageError("distribute prepare does not accept positional arguments")
 			}
 			if strings.TrimSpace(*ipaPath) == "" {
 				return shared.UsageError("--ipa is required")

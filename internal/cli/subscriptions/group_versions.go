@@ -26,13 +26,6 @@ var (
 	subscriptionGroupVersionClientFactory      = shared.GetASCClient
 )
 
-func rejectSubscriptionGroupVersionArgs(args []string) error {
-	if len(args) == 0 {
-		return nil
-	}
-	return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
-}
-
 func subscriptionGroupAnyFlagSet(fs *flag.FlagSet, names ...string) bool {
 	set := make(map[string]struct{}, len(names))
 	for _, name := range names {
@@ -81,9 +74,6 @@ func SubscriptionsGroupsVersionsCreateCommand() *ffcli.Command {
 		Name: "create", ShortUsage: `asc subscriptions groups versions create --group-id "GROUP_ID"`, ShortHelp: "Create a subscription group version.",
 		LongHelp: "Create a subscription group version.\n\nExamples:\n  asc subscriptions groups versions create --group-id \"GROUP_ID\"", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectSubscriptionGroupVersionArgs(args); err != nil {
-				return err
-			}
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
@@ -186,9 +176,6 @@ func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 		Name: "list", ShortUsage: `asc subscriptions groups versions list --group-id "GROUP_ID" [flags]`, ShortHelp: "List versions for a subscription group.",
 		LongHelp: "List versions for a subscription group.\n\nExamples:\n  asc subscriptions groups versions list --group-id \"GROUP_ID\" --state PREPARE_FOR_SUBMISSION --paginate", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectSubscriptionGroupVersionArgs(args); err != nil {
-				return err
-			}
 			id := strings.TrimSpace(*groupID)
 			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "group-id") {
 				return shared.UsageError("subscriptions groups versions list: --next cannot be combined with --group-id")
@@ -246,9 +233,6 @@ func SubscriptionsGroupsVersionsViewCommand() *ffcli.Command {
 		Name: "view", ShortUsage: `asc subscriptions groups versions view --version-id "VERSION_ID" [flags]`, ShortHelp: "View a subscription group version.",
 		LongHelp: "View a subscription group version.\n\nExamples:\n  asc subscriptions groups versions view --version-id \"VERSION_ID\" --include localizations", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectSubscriptionGroupVersionArgs(args); err != nil {
-				return err
-			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -305,9 +289,6 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 		Name: name, ShortUsage: "asc subscriptions groups versions links " + name + " [flags]", ShortHelp: "View " + name + " relationship linkages.", LongHelp: "View " + name + " relationship linkages.",
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := rejectSubscriptionGroupVersionArgs(args); err != nil {
-				return err
-			}
 			id := strings.TrimSpace(*ownerID)
 			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, strings.TrimPrefix(requiredFlag, "--")) {
 				return shared.UsageError("subscriptions groups versions links " + name + ": --next cannot be combined with " + requiredFlag)

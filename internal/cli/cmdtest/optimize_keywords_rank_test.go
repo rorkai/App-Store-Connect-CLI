@@ -39,11 +39,6 @@ func TestOptimizeKeywordsRankUsageErrors(t *testing.T) {
 			wantErr: "--keywords accepts at most 100 keywords per invocation",
 		},
 		{
-			name:    "positional argument",
-			args:    []string{"optimize", "keywords", "rank", "--app", "1234567890", "--keywords", "focus timer", "extra"},
-			wantErr: "optimize keywords rank does not accept positional arguments",
-		},
-		{
 			name:    "unsupported platform",
 			args:    []string{"optimize", "keywords", "rank", "--app", "1234567890", "--keywords", "focus timer", "--platform", "MAC_OS"},
 			wantErr: "--platform must be one of: IOS, TV_OS",

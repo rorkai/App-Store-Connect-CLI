@@ -54,9 +54,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.WithDiagnostic(shared.UsageError("xcode-cloud doctor does not accept positional arguments"), shared.DiagnosticInvalidInput, "")
-			}
 			runIDValue := strings.TrimSpace(*runID)
 			if runIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --run-id is required")

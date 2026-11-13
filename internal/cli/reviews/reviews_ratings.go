@@ -62,11 +62,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: reviews ratings does not accept positional arguments")
-				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "")
-			}
-
 			app := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(app) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")

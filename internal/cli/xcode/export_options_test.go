@@ -217,23 +217,6 @@ func TestXcodeExportOptionsGenerateRejectsInvalidValues(t *testing.T) {
 	}
 }
 
-func TestXcodeExportOptionsGenerateRejectsPositionalArguments(t *testing.T) {
-	cmd := XcodeExportOptionsCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureCommandOutput(t, func() error {
-		runErr = cmd.Exec(context.Background(), []string{"unexpected"})
-		return runErr
-	})
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected usage error, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "Error: xcode export-options generate does not accept positional arguments") {
-		t.Fatalf("expected positional argument usage error, got %q", stderr)
-	}
-}
-
 func TestXcodeExportGeneratesOptionsWhenPathIsOmitted(t *testing.T) {
 	restore := overrideXcodeCommandTestHooks(t)
 	defer restore()

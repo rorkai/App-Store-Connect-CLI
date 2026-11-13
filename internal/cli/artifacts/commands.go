@@ -55,7 +55,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runArtifactInfo(ctx, args, artifactInfoConfig{
+			return runArtifactInfo(ctx, artifactInfoConfig{
 				Kind:                "ipa-info",
 				Path:                *path,
 				IncludeEntitlements: *includeEntitlements,
@@ -108,7 +108,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runArtifactInfo(ctx, args, artifactInfoConfig{
+			return runArtifactInfo(ctx, artifactInfoConfig{
 				Kind:            "pkg-info",
 				Path:            *path,
 				VerifySignature: *verifySignature,
@@ -129,12 +129,9 @@ type artifactInfoConfig struct {
 	Pretty              bool
 }
 
-func runArtifactInfo(ctx context.Context, args []string, config artifactInfoConfig) error {
+func runArtifactInfo(ctx context.Context, config artifactInfoConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err
-	}
-	if len(args) > 0 {
-		return shared.UsageErrorf("%s does not accept positional arguments", config.Kind)
 	}
 	path := strings.TrimSpace(config.Path)
 	if path == "" {

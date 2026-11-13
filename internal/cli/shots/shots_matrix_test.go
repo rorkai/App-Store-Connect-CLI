@@ -13,41 +13,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
-func TestShotsMatrixRejectsPositionalArgumentsBeforeLoadingOrRunning(t *testing.T) {
-	var loadCalls, runCalls int
-	command := shotsMatrixCommandWithDependencies(
-		shotsMatrixCommandDependencies{
-			loadPlan: func(string) (*screenshots.MatrixPlan, error) {
-				loadCalls++
-				return nil, errors.New("load guard called")
-			},
-			runMatrix: func(context.Context, string, *screenshots.MatrixPlan, screenshots.MatrixOptions) (*screenshots.MatrixResult, error) {
-				runCalls++
-				return nil, errors.New("run guard called")
-			},
-		},
-	)
-
-	stdout, stderr, err := captureShotsMatrixOutput(t, func() error {
-		return command.ParseAndRun(context.Background(), []string{
-			"--plan", filepath.Join(t.TempDir(), "matrix.json"),
-			"unexpected",
-		})
-	})
-	if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "unexpected argument(s): unexpected") {
-		t.Fatalf("error = %v, want positional-argument usage error", err)
-	}
-	if loadCalls != 0 || runCalls != 0 {
-		t.Fatalf("guards called for positional arguments: load=%d run=%d", loadCalls, runCalls)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "unexpected argument(s): unexpected") {
-		t.Fatalf("stderr = %q, want positional-argument diagnostic", stderr)
-	}
-}
-
 func TestShotsMatrixRejectsInvalidOutputBeforeLoadingOrRunning(t *testing.T) {
 	var loadCalls, runCalls int
 	command := shotsMatrixCommandWithDependencies(

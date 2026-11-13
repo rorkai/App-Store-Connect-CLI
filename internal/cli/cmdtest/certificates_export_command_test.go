@@ -216,26 +216,6 @@ func TestCertificatesExport_RejectsStdoutDestinationAsUsageError(t *testing.T) {
 	}
 }
 
-func TestCertificatesExport_RejectsPositionalArguments(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"certificates", "export", "unexpected"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("run error = %v, want usage error", err)
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "does not accept positional arguments") {
-		t.Fatalf("stderr = %q, want positional-argument error", stderr)
-	}
-}
-
 func TestCertificatesExport_RejectsInvalidOutputBeforeWriting(t *testing.T) {
 	tests := []struct {
 		name string

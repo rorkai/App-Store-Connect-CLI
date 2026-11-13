@@ -47,9 +47,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("apps published does not accept positional arguments")
-			}
 			client, err := appsPublishedClientFactory()
 			if err != nil {
 				return fmt.Errorf("apps published: %w", err)

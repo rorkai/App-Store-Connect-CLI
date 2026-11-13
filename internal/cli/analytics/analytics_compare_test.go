@@ -96,11 +96,6 @@ func TestAnalyticsCompareValidationErrors(t *testing.T) {
 			args:    []string{"analytics", "compare", "--source", "sales", "--app", "123", "--vendor", "V", "--from", "2026-01-01", "--to", "2026-03-01", "--to-end", "2026-02-01", "--frequency", "DAILY"},
 			wantErr: "--to-end must not be before --to",
 		},
-		{
-			name:    "unexpected args",
-			args:    []string{"analytics", "compare", "--source", "sales", "--app", "123", "--vendor", "V", "--from", "2026-01-01", "--to", "2026-02-01", "--frequency", "DAILY", "extra"},
-			wantErr: "unexpected argument(s)",
-		},
 	}
 
 	for _, test := range tests {

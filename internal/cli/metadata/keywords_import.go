@@ -119,9 +119,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("metadata keywords import does not accept positional arguments")
-			}
 			result, err := executeMetadataKeywordsImport(metadataKeywordsImportOptions{
 				Dir:                *dir,
 				Version:            *version,

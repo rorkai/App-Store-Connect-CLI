@@ -36,7 +36,7 @@ func appTransactionViewCommand() *ffcli.Command {
 Examples:
   asc storekit app-transactions view --transaction-id 2000000000000001 --environment sandbox
   asc storekit app-transactions view --transaction-id 2000000000000001 --environment production --decode --output json`, fs, func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--transaction-id", *id}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--transaction-id", *id}); err != nil {
 				return err
 			}
 			raw, err := serverRequest(ctx, fs.Name(), flags.common, func(ctx context.Context, c *storekitapi.Client) (json.RawMessage, error) {
@@ -62,7 +62,7 @@ Family Shared transactions are unsupported. Requires --confirm.
 Examples:
   asc storekit transactions set-account-token --original-transaction-id 2000000000000001 --app-account-token 11111111-2222-4333-8444-555555555555 --environment sandbox --confirm`, fs, func(ctx context.Context, args []string) error {
 			var accountToken string
-			if err := flags.validate(args, func() (err error) {
+			if err := flags.validate(func() (err error) {
 				accountToken, err = parseUUIDFlag("--app-account-token", *token)
 				return err
 			}, requiredFlag{"--original-transaction-id", *id}, requiredFlag{"--app-account-token", *token}); err != nil {
@@ -89,7 +89,7 @@ unnecessary. Requires --confirm. The CLI sends once without automatic retries.
 
 Examples:
   asc storekit transactions finish --transaction-id 2000000000000001 --environment production --confirm`, fs, func(ctx context.Context, args []string) error {
-			if err := flags.validate(args, nil, requiredFlag{"--transaction-id", *id}); err != nil {
+			if err := flags.validate(nil, requiredFlag{"--transaction-id", *id}); err != nil {
 				return err
 			}
 			_, err := serverRequest(ctx, fs.Name(), flags.common, func(ctx context.Context, c *storekitapi.Client) (json.RawMessage, error) {
@@ -126,7 +126,7 @@ auto-renewable subscriptions. Requires --confirm.
 Examples:
   asc storekit transactions send-consumption --transaction-id 2000000000000001 --customer-consented true --delivery-status DELIVERED --sample-content-provided false --consumption-percentage 50000 --environment production --confirm`, fs, func(ctx context.Context, args []string) error {
 			var request storekitapi.ConsumptionRequest
-			if err := flags.validate(args, func() error {
+			if err := flags.validate(func() error {
 				if !consent.IsSet() || !consent.Value() {
 					return shared.UsageError("--customer-consented must be explicitly true")
 				}
@@ -177,10 +177,7 @@ func bindServerWriteFlags(fs *flag.FlagSet) serverWriteFlags {
 	return serverWriteFlags{common: bindCommonFlags(fs), output: shared.BindOutputFlags(fs), confirm: fs.Bool("confirm", false, "Confirm this mutation (required)")}
 }
 
-func (f serverWriteFlags) validate(args []string, check func() error, required ...requiredFlag) error {
-	if err := shared.RejectPositionalArgs(args); err != nil {
-		return err
-	}
+func (f serverWriteFlags) validate(check func() error, required ...requiredFlag) error {
 	for _, item := range required {
 		if err := requireFlag(item.name, item.value); err != nil {
 			return err
@@ -255,7 +252,7 @@ Reuse the same --request-id to retry an uncertain request. Requires --confirm.
 Examples:
   asc storekit subscriptions extend --original-transaction-id 2000000000000001 --days 7 --reason 3 --request-id outage-2026-10-01 --environment production --confirm`, fs, func(ctx context.Context, args []string) error {
 			var request storekitapi.ExtendRenewalDateRequest
-			if err := flags.validate(args, func() (err error) {
+			if err := flags.validate(func() (err error) {
 				request, err = extension.request(fs, false)
 				return err
 			}, requiredFlag{"--original-transaction-id", *id}); err != nil {
@@ -304,7 +301,7 @@ Examples:
   asc storekit subscriptions extend-all --product-id com.example.monthly --days 7 --reason 3 --request-id 11111111-2222-4333-8444-555555555555 --storefront-country-codes USA,GBR --environment production --confirm`, fs, func(ctx context.Context, args []string) error {
 			var request storekitapi.ExtendRenewalDateRequest
 			codes := shared.SplitCSVUpper(*countries)
-			if err := flags.validate(args, func() (err error) {
+			if err := flags.validate(func() (err error) {
 				if request, err = extension.request(fs, true); err != nil {
 					return err
 				}
@@ -343,7 +340,7 @@ notifications report failures (FAILURE) and completion (SUMMARY).
 
 Examples:
   asc storekit subscriptions extension-status --product-id com.example.monthly --request-id 11111111-2222-4333-8444-555555555555 --environment production`, fs, func(ctx context.Context, args []string) error {
-			if err := validateServerRead(args, flags, requiredFlag{"--product-id", *product}, requiredFlag{"--request-id", *id}); err != nil {
+			if err := validateServerRead(flags, requiredFlag{"--product-id", *product}, requiredFlag{"--request-id", *id}); err != nil {
 				return err
 			}
 			requestID, err := extensionRequestID(strings.TrimSpace(*id), true)

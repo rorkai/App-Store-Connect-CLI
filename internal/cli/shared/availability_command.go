@@ -160,9 +160,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return UsageError("pricing availability remove-from-sale does not accept positional arguments")
-			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
 				return MissingRequiredUsageError("--confirm")

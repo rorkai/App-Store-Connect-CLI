@@ -97,9 +97,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web service-ids list does not accept positional arguments")
-			}
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err
 			}
@@ -158,9 +155,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web service-ids view does not accept positional arguments")
-			}
 			resolvedID := strings.TrimSpace(*serviceID)
 			if resolvedID == "" {
 				return shared.UsageError("--service-id is required")
@@ -229,9 +223,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web service-ids create does not accept positional arguments")
-			}
 			resolvedIdentifier := strings.TrimSpace(*identifier)
 			resolvedName := strings.TrimSpace(*name)
 			if resolvedIdentifier == "" {
@@ -309,9 +300,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web service-ids rename does not accept positional arguments")
-			}
 			resolvedID := strings.TrimSpace(*serviceID)
 			resolvedName := strings.TrimSpace(*name)
 			if resolvedID == "" {
@@ -388,9 +376,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web service-ids delete does not accept positional arguments")
-			}
 			resolvedID := strings.TrimSpace(*serviceID)
 			if resolvedID == "" {
 				return shared.UsageError("--service-id is required")
@@ -549,9 +534,6 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web service-ids domains set does not accept positional arguments")
-			}
 			request, err := webcore.NormalizeDeveloperServiceIDDomainsSetRequest(webcore.DeveloperServiceIDDomainsSetRequest{
 				ServiceID: *serviceID, Domains: strings.Split(*domain, ","), ReturnURLs: strings.Split(*returnURL, ","),
 			})

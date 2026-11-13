@@ -37,9 +37,6 @@ an incomplete destination; inspect it before retrying.
 
 Example:
   asc builds compile --package-path ./AppPackage --product App --app-path ./artifacts/App.app --platform device --configuration release`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
-		if len(args) != 0 {
-			return shared.UsageError("builds compile does not accept positional arguments")
-		}
 		if *platform != "device" && *platform != "simulator" {
 			return shared.UsageError("--platform must be device or simulator")
 		}
@@ -95,9 +92,6 @@ After real signing, asc builds upload --wait is a separate Apple verification st
 Examples:
   asc builds package --app-path ./artifacts/App.app --ipa-path ./artifacts/App.ipa --ad-hoc
   asc builds package --app-path ./artifacts/App.app --ipa-path ./artifacts/App.ipa --identity ./signing/App.p12 --identity-password-file ./secrets/password --provisioning-profile ./signing/App.mobileprovision --entitlements ./signing/entitlements.plist`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
-		if len(args) != 0 {
-			return shared.UsageError("builds package does not accept positional arguments")
-		}
 		if *adHoc && (*identity != "" || *profile != "" || *password != "") {
 			return shared.UsageError("--ad-hoc cannot be combined with identity, profile, or password")
 		}

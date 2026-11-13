@@ -89,11 +89,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: xcode export-options generate does not accept positional arguments")
-				return flag.ErrHelp
-			}
-
 			trimmedDestination := strings.TrimSpace(*destination)
 			if trimmedDestination != "export" && trimmedDestination != "upload" {
 				return shared.UsageError("--destination must be one of: export, upload")

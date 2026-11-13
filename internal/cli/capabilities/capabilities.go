@@ -87,10 +87,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageErrorf("unexpected arguments: %s", strings.Join(args, " "))
-			}
-
 			filter, err := parseCapabilityFilter(*status, *area)
 			if err != nil {
 				return err

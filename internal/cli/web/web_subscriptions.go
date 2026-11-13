@@ -112,10 +112,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return shared.UsageError("web subscriptions availability remove-from-sale does not accept positional arguments")
-			}
-
 			trimmedSubscriptionID := strings.TrimSpace(*subscriptionID)
 			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			trimmedPlanAvailabilityID := strings.TrimSpace(*planAvailabilityID)

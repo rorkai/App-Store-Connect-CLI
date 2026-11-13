@@ -236,11 +236,6 @@ func TestPricingAvailabilityCreate_RejectsInvalidInputWithUsageExit(t *testing.T
 			args:       []string{"pricing", "availability", "create", "--app", "app-1", "--territory", "Atlantis", "--available", "true", "--available-in-new-territories", "true"},
 			wantStderr: `territory "Atlantis" could not be mapped`,
 		},
-		{
-			name:       "positional argument",
-			args:       []string{"pricing", "availability", "create", "extra", "--app", "app-1", "--territory", "USA", "--available", "true", "--available-in-new-territories", "true"},
-			wantStderr: "pricing availability create does not accept positional arguments",
-		},
 	}
 
 	for _, test := range tests {

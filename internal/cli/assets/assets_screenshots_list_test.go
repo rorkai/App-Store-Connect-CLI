@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -253,27 +252,6 @@ func TestExecuteScreenshotListCommandValidatesPlatformBeforeAuth(t *testing.T) {
 	}
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp", err)
-	}
-}
-
-func TestAssetsScreenshotsListCommandRejectsUnexpectedArguments(t *testing.T) {
-	cmd := AssetsScreenshotsListCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse([]string{"--version-localization", "loc-1", "typo"}); err != nil {
-		t.Fatalf("parse arguments: %v", err)
-	}
-
-	stdout, stderr := captureOutput(t, func() {
-		err := cmd.Exec(context.Background(), cmd.FlagSet.Args())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("error = %v, want usage error", err)
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "unexpected argument(s): typo") {
-		t.Fatalf("stderr = %q, want unexpected argument diagnostic", stderr)
 	}
 }
 

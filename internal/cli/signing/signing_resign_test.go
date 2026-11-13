@@ -93,7 +93,6 @@ func TestSigningResignCommandRejectsInvalidFlagShapes(t *testing.T) {
 		name string
 		args []string
 	}{
-		{name: "positional argument", args: []string{"unexpected"}},
 		{name: "missing required flags", args: nil},
 	} {
 		t.Run(test.name, func(t *testing.T) {

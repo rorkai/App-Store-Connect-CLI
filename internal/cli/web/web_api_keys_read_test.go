@@ -53,34 +53,6 @@ func TestWebAPIKeysListPrintsMetadataWithoutKeyMaterial(t *testing.T) {
 	assertNoKeyMaterial(t, apiKeyTestP8(t), stdout, stderr)
 }
 
-func TestWebAPIKeysListRejectsPositionalArgumentsBeforeSession(t *testing.T) {
-	resolveCalled := false
-	restoreSession := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-		resolveCalled = true
-		return &webcore.AuthSession{}, "cache", nil
-	})
-	t.Cleanup(restoreSession)
-
-	cmd := WebAPIKeysListCommand()
-	if err := cmd.FlagSet.Parse([]string{"extra"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	var execErr error
-	_, stderr := captureOutput(t, func() {
-		execErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-	})
-	if !errors.Is(execErr, flag.ErrHelp) {
-		t.Fatalf("expected usage error, got %v", execErr)
-	}
-	if !strings.Contains(stderr, "web api-keys list does not accept positional arguments") {
-		t.Fatalf("expected positional-args stderr, got %q", stderr)
-	}
-	if resolveCalled {
-		t.Fatal("did not expect session resolution for positional arguments")
-	}
-}
-
 func TestWebAPIKeysListRejectsInvalidOutputBeforeSession(t *testing.T) {
 	resolveCalled := false
 	restoreSession := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {

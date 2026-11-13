@@ -10,8 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/peterbourgon/ff/v3/ffcli"
-
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/ads"
 )
 
@@ -46,33 +44,6 @@ func TestSearchPlanCommandRejectsInvalidCountryGenreLocaleAndWindow(t *testing.T
 			err := command.ParseAndRun(context.Background(), test.args)
 			if err == nil || err.Error() != test.want {
 				t.Fatalf("error = %v, want %q", err, test.want)
-			}
-			if !errors.Is(err, flag.ErrHelp) {
-				t.Fatalf("error = %v, want usage error", err)
-			}
-		})
-	}
-}
-
-func TestOptimizeCommandsRejectPositionalArguments(t *testing.T) {
-	tests := []struct {
-		name    string
-		command func() *ffcli.Command
-		stub    func(*testing.T)
-	}{
-		{name: "optimize search plan", command: SearchPlanCommand, stub: stubSearchPlanResolversToFail},
-		{name: "optimize keywords rank", command: KeywordsRankCommand, stub: failKeywordsClient},
-		{name: "optimize keywords score", command: KeywordsScoreCommand, stub: func(t *testing.T) {
-			failKeywordsClient(t)
-			failKeywordsAdsCollector(t)
-		}},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			test.stub(t)
-			err := test.command().Exec(context.Background(), []string{"extra"})
-			if want := test.name + " does not accept positional arguments"; err == nil || err.Error() != want {
-				t.Fatalf("error = %v, want %q", err, want)
 			}
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("error = %v, want usage error", err)
