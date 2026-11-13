@@ -27,17 +27,17 @@ func TestAnalyticsViewRefreshesTimeoutForEachRequest(t *testing.T) {
 		segmentsNextURL  = "https://api.appstoreconnect.apple.com/v1/analyticsReportInstances/instance-1/segments?cursor=segments-next"
 	)
 	var (
-		deadlines    []time.Time
-		requestCount int
-		requestMu    sync.Mutex
+		requestContexts []<-chan struct{}
+		requestCount    int
+		requestMu       sync.Mutex
 	)
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requestMu.Lock()
 		requestCount++
 		requestMu.Unlock()
-		deadline := requireAnalyticsRequestDeadline(t, req)
+		requireAnalyticsRequestDeadline(t, req)
 		requestMu.Lock()
-		deadlines = append(deadlines, deadline)
+		requestContexts = append(requestContexts, req.Context().Done())
 		requestMu.Unlock()
 		if req.Header.Get("Authorization") == "" {
 			t.Fatal("expected App Store Connect request authorization")
@@ -113,7 +113,7 @@ func TestAnalyticsViewRefreshesTimeoutForEachRequest(t *testing.T) {
 	if gotRequests != 8 {
 		t.Fatalf("request count = %d, want 8", gotRequests)
 	}
-	assertAnalyticsDeadlinesArePerRequest(t, deadlines)
+	assertAnalyticsRequestContextsArePerRequest(t, requestContexts)
 }
 
 func TestAnalyticsViewWarnsWhenReportsHaveAnotherPage(t *testing.T) {
@@ -407,20 +407,17 @@ func requireAnalyticsRequestAuth(t *testing.T, req *http.Request, want bool) {
 	}
 }
 
-func assertAnalyticsDeadlinesArePerRequest(t *testing.T, deadlines []time.Time) {
+func assertAnalyticsRequestContextsArePerRequest(t *testing.T, requestContexts []<-chan struct{}) {
 	t.Helper()
-	if len(deadlines) < 2 {
-		t.Fatalf("deadline count = %d, want at least 2", len(deadlines))
+	if len(requestContexts) < 2 {
+		t.Fatalf("request context count = %d, want at least 2", len(requestContexts))
 	}
-	seen := make(map[time.Time]int, len(deadlines))
-	for index, deadline := range deadlines {
-		if deadline.IsZero() {
-			t.Fatalf("request %d has no deadline", index+1)
+	seen := make(map[<-chan struct{}]int, len(requestContexts))
+	for index, done := range requestContexts {
+		if previous, ok := seen[done]; ok {
+			t.Fatalf("request %d reused timeout context from request %d", index+1, previous)
 		}
-		if previous, ok := seen[deadline]; ok {
-			t.Fatalf("request %d reused deadline from request %d (%s)", index+1, previous, deadline.Format(time.RFC3339Nano))
-		}
-		seen[deadline] = index + 1
+		seen[done] = index + 1
 	}
 }
 
