@@ -39,131 +39,95 @@ func appInfoSetJSONResponse(status int, body string) (*http.Response, error) {
 }
 
 func TestAppInfoSetCopyFromLocaleBackfillsRequiredFields(t *testing.T) {
-	setupAppInfoSetAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	var createBody string
-	http.DefaultTransport = appInfoSetRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"}}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			body, _ := io.ReadAll(req.Body)
-			createBody = string(body)
-			return appInfoSetJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support","whatsNew":"Nouveautes"}}}`)
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"apps", "info", "edit",
-			"--version-id", "version-1",
-			"--locale", "fr-FR",
-			"--copy-from-locale", "en-US",
-			"--whats-new", "Nouveautes",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if !strings.Contains(createBody, `"description":"English description"`) {
-		t.Fatalf("expected copied description in request body, got: %s", createBody)
-	}
-	if !strings.Contains(createBody, `"keywords":"english,keywords"`) {
-		t.Fatalf("expected copied keywords in request body, got: %s", createBody)
-	}
-	if !strings.Contains(createBody, `"supportUrl":"https://example.com/support"`) {
-		t.Fatalf("expected copied supportUrl in request body, got: %s", createBody)
-	}
-	if strings.Contains(stderr, "submit-required fields") {
-		t.Fatalf("did not expect submit-required warning for copied locale, got: %q", stderr)
+	tests := []struct {
+		name         string
+		args         []string
+		version      string
+		released     string
+		created      string
+		wantStderr   []string
+		rejectStderr string
+	}{
+		{
+			name:         "new app with whats new",
+			args:         []string{"--whats-new", "Nouveautes"},
+			version:      `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"}}}`,
+			created:      `{"locale":"fr-FR","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support","whatsNew":"Nouveautes"}`,
+			rejectStderr: "submit-required fields",
+		},
+		{
+			name:     "app update without whats new",
+			version:  `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`,
+			released: `{"data":[{"type":"appStoreVersions","id":"released-version","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"READY_FOR_SALE"}}],"links":{"next":""}}`,
+			created:  `{"locale":"fr-FR","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support"}`,
+			wantStderr: []string{
+				"created locale fr-FR now participates in submission validation",
+				"whatsNew",
+			},
+		},
 	}
 
-	var result map[string]any
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("failed to parse JSON output: %v (stdout=%q)", err, stdout)
-	}
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAppInfoSetAuth(t)
 
-func TestAppInfoSetCopyFromLocaleWarnsWhenUpdateRequiresWhatsNew(t *testing.T) {
-	setupAppInfoSetAuth(t)
+			var createBody string
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+					return appInfoSetJSONResponse(http.StatusOK, test.version)
+				case test.released != "" && req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+					if !strings.Contains(req.URL.RawQuery, "filter%5BappStoreState%5D=") {
+						return nil, fmt.Errorf("unexpected app versions query: %s", req.URL.RawQuery)
+					}
+					return appInfoSetJSONResponse(http.StatusOK, test.released)
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+					return appInfoSetJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}]}`)
+				case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
+					body, _ := io.ReadAll(req.Body)
+					createBody = string(body)
+					return appInfoSetJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":`+test.created+`}}`)
+				default:
+					return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+				}
+			}))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	var createBody string
-	http.DefaultTransport = appInfoSetRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			if !strings.Contains(req.URL.RawQuery, "filter%5BappStoreState%5D=") {
-				return nil, fmt.Errorf("unexpected app versions query: %s", req.URL.RawQuery)
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(append([]string{
+					"apps", "info", "edit",
+					"--version-id", "version-1",
+					"--locale", "fr-FR",
+					"--copy-from-locale", "en-US",
+				}, test.args...)); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+
+			for _, want := range []string{`"description":"English description"`, `"keywords":"english,keywords"`, `"supportUrl":"https://example.com/support"`} {
+				if !strings.Contains(createBody, want) {
+					t.Fatalf("expected copied %s in request body, got: %s", want, createBody)
+				}
 			}
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"released-version","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"READY_FOR_SALE"}}],"links":{"next":""}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			body, _ := io.ReadAll(req.Body)
-			createBody = string(body)
-			return appInfoSetJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}}`)
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-	})
+			for _, want := range test.wantStderr {
+				if !strings.Contains(stderr, want) {
+					t.Fatalf("expected stderr to contain %q, got: %q", want, stderr)
+				}
+			}
+			if test.rejectStderr != "" && strings.Contains(stderr, test.rejectStderr) {
+				t.Fatalf("did not expect %q in stderr, got: %q", test.rejectStderr, stderr)
+			}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"apps", "info", "edit",
-			"--version-id", "version-1",
-			"--locale", "fr-FR",
-			"--copy-from-locale", "en-US",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if !strings.Contains(createBody, `"description":"English description"`) {
-		t.Fatalf("expected copied description in request body, got: %s", createBody)
-	}
-	if !strings.Contains(createBody, `"keywords":"english,keywords"`) {
-		t.Fatalf("expected copied keywords in request body, got: %s", createBody)
-	}
-	if !strings.Contains(createBody, `"supportUrl":"https://example.com/support"`) {
-		t.Fatalf("expected copied supportUrl in request body, got: %s", createBody)
-	}
-	if !strings.Contains(stderr, "created locale fr-FR now participates in submission validation") {
-		t.Fatalf("expected create warning in stderr, got: %q", stderr)
-	}
-	if !strings.Contains(stderr, "whatsNew") {
-		t.Fatalf("expected whatsNew requirement in warning, got: %q", stderr)
-	}
-
-	var result map[string]any
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("failed to parse JSON output: %v (stdout=%q)", err, stdout)
+			var result map[string]any
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("failed to parse JSON output: %v (stdout=%q)", err, stdout)
+			}
+		})
 	}
 }
 
@@ -211,93 +175,79 @@ func TestAppInfoSetCopyFromLocaleErrorsWhenSourceLocaleMissing(t *testing.T) {
 }
 
 func TestAppInfoSetWarnsWhenLocaleRemainsSubmitIncomplete(t *testing.T) {
-	setupAppInfoSetAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = appInfoSetRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"}}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			return appInfoSetJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","whatsNew":"Nouveautes"}}}`)
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"apps", "info", "edit",
-			"--version-id", "version-1",
-			"--locale", "fr-FR",
-			"--whats-new", "Nouveautes",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "created locale fr-FR now participates in submission validation") {
-		t.Fatalf("expected create warning in stderr, got: %q", stderr)
+	tests := []struct {
+		name          string
+		args          []string
+		version       string
+		released      string
+		localizations string
+		writeMethod   string
+		writePath     string
+		writeStatus   int
+		writeResponse string
+		wantStderr    []string
+	}{
+		{
+			name:          "created locale misses base fields",
+			args:          []string{"--locale", "fr-FR", "--whats-new", "Nouveautes"},
+			version:       `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"}}}`,
+			localizations: `{"data":[]}`,
+			writeMethod:   http.MethodPost,
+			writePath:     "/v1/appStoreVersionLocalizations",
+			writeStatus:   http.StatusCreated,
+			writeResponse: `{"data":{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","whatsNew":"Nouveautes"}}}`,
+			wantStderr:    []string{"created locale fr-FR now participates in submission validation", "description", "keywords", "supportUrl"},
+		},
+		{
+			name:          "updated locale misses whats new on app update",
+			args:          []string{"--locale", "en-US", "--description", "Updated description"},
+			version:       `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`,
+			released:      `{"data":[{"type":"appStoreVersions","id":"released-version","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"READY_FOR_SALE"}}],"links":{"next":""}}`,
+			localizations: `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}]}`,
+			writeMethod:   http.MethodPatch,
+			writePath:     "/v1/appStoreVersionLocalizations/loc-en",
+			writeStatus:   http.StatusOK,
+			writeResponse: `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Updated description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}}`,
+			wantStderr:    []string{"locale en-US is missing submit-required fields: whatsNew"},
+		},
 	}
-	if !strings.Contains(stderr, "description") || !strings.Contains(stderr, "keywords") || !strings.Contains(stderr, "supportUrl") {
-		t.Fatalf("expected missing field list in warning, got: %q", stderr)
-	}
-}
 
-func TestAppInfoSetWarnsWhenUpdatedLocaleMissesWhatsNewOnAppUpdate(t *testing.T) {
-	setupAppInfoSetAuth(t)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAppInfoSetAuth(t)
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+					return appInfoSetJSONResponse(http.StatusOK, test.version)
+				case test.released != "" && req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+					return appInfoSetJSONResponse(http.StatusOK, test.released)
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+					return appInfoSetJSONResponse(http.StatusOK, test.localizations)
+				case req.Method == test.writeMethod && req.URL.Path == test.writePath:
+					return appInfoSetJSONResponse(test.writeStatus, test.writeResponse)
+				default:
+					return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+				}
+			}))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	http.DefaultTransport = appInfoSetRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"released-version","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"READY_FOR_SALE"}}],"links":{"next":""}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}]}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Updated description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}}`)
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-	})
+			_, stderr := captureOutput(t, func() {
+				if err := root.Parse(append([]string{"apps", "info", "edit", "--version-id", "version-1"}, test.args...)); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"apps", "info", "edit",
-			"--version-id", "version-1",
-			"--locale", "en-US",
-			"--description", "Updated description",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "locale en-US is missing submit-required fields: whatsNew") {
-		t.Fatalf("expected whatsNew warning in stderr, got: %q", stderr)
+			for _, want := range test.wantStderr {
+				if !strings.Contains(stderr, want) {
+					t.Fatalf("expected stderr to contain %q, got: %q", want, stderr)
+				}
+			}
+		})
 	}
 }
 

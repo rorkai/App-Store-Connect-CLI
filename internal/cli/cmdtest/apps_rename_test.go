@@ -67,196 +67,163 @@ func TestAppsRenameValidatesRequiredFlagsBeforeClient(t *testing.T) {
 	}
 }
 
-func TestAppsRenameUpdatesExistingLocalization(t *testing.T) {
-	steps := []appsRenameHTTPStep{
-		appInfoOwnershipStep(),
-		{
-			method:       http.MethodGet,
-			uri:          "/v1/appInfos/info-1/appInfoLocalizations?filter%5Blocale%5D=en-US&limit=200",
-			responseBody: `{"data":[{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Old Name"}}]}`,
-		},
-		{
-			method:       http.MethodPatch,
-			uri:          "/v1/appInfoLocalizations/loc-1",
-			requestBody:  `{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{"name":"New Name"}}}`,
-			responseBody: `{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"New Name"}}}`,
-		},
-	}
-
-	stdout, stderr, runErr := runAppsRenameWithServer(
-		t, steps,
-		"--name", "New Name",
-		"--app-info", "info-1",
-		"--locale", "en-US",
-		"--app", "app-1",
-		"--output", "json",
-	)
-	if runErr != nil {
-		t.Fatalf("run error: %v (stderr=%q)", runErr, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
-	}
-
-	var got asc.AppRenameResult
-	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
-		t.Fatalf("decode output %q: %v", stdout, err)
-	}
-	if got.AppID != "app-1" || got.AppInfoID != "info-1" || got.Locale != "en-US" || got.Name != "New Name" || got.Action != "update" || got.LocalizationID != "loc-1" {
-		t.Fatalf("unexpected result: %+v", got)
-	}
-}
-
-func TestAppsRenameCreatesMissingLocalization(t *testing.T) {
-	steps := []appsRenameHTTPStep{
-		appInfoOwnershipStep(),
-		{
-			method:       http.MethodGet,
-			uri:          "/v1/appInfos/info-1/appInfoLocalizations?filter%5Blocale%5D=fr-FR&limit=200",
-			responseBody: `{"data":[]}`,
-		},
-		{
-			method:       http.MethodPost,
-			uri:          "/v1/appInfoLocalizations",
-			status:       http.StatusCreated,
-			requestBody:  `{"data":{"type":"appInfoLocalizations","attributes":{"locale":"fr-FR","name":"Nouveau nom"},"relationships":{"appInfo":{"data":{"type":"appInfos","id":"info-1"}}}}}`,
-			responseBody: `{"data":{"type":"appInfoLocalizations","id":"loc-created","attributes":{"locale":"fr-FR","name":"Nouveau nom"}}}`,
-		},
-	}
-
-	stdout, stderr, runErr := runAppsRenameWithServer(
-		t, steps,
-		"--app", "app-1",
-		"--locale", "fr-FR",
-		"--name", "Nouveau nom",
-		"--app-info", "info-1",
-		"--output", "table",
-	)
-	if runErr != nil {
-		t.Fatalf("run error: %v (stderr=%q)", runErr, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
-	}
-	for _, value := range []string{"App ID", "App Info ID", "Locale", "Name", "Action", "Localization ID", "app-1", "info-1", "fr-FR", "Nouveau nom", "create", "loc-created"} {
-		if !strings.Contains(stdout, value) {
-			t.Fatalf("table output missing %q: %s", value, stdout)
+func TestAppsRenameWritesLocalizationAndRendersResult(t *testing.T) {
+	updateSteps := func(locale string) []appsRenameHTTPStep {
+		return []appsRenameHTTPStep{
+			appInfoOwnershipStep(),
+			{
+				method:       http.MethodGet,
+				uri:          "/v1/appInfos/info-1/appInfoLocalizations?filter%5Blocale%5D=" + locale + "&limit=200",
+				responseBody: `{"data":[{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Old Name"}}]}`,
+			},
+			{
+				method:       http.MethodPatch,
+				uri:          "/v1/appInfoLocalizations/loc-1",
+				requestBody:  `{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{"name":"New Name"}}}`,
+				responseBody: `{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"New Name"}}}`,
+			},
 		}
 	}
-}
 
-func TestAppsRenameRendersMarkdown(t *testing.T) {
-	steps := []appsRenameHTTPStep{
-		appInfoOwnershipStep(),
-		{
-			method:       http.MethodGet,
-			uri:          "/v1/appInfos/info-1/appInfoLocalizations?filter%5Blocale%5D=en-US&limit=200",
-			responseBody: `{"data":[{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Old Name"}}]}`,
-		},
-		{
-			method:       http.MethodPatch,
-			uri:          "/v1/appInfoLocalizations/loc-1",
-			requestBody:  `{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{"name":"New Name"}}}`,
-			responseBody: `{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"New Name"}}}`,
-		},
-	}
-
-	stdout, stderr, runErr := runAppsRenameWithServer(
-		t, steps,
-		"--app", "app-1", "--app-info", "info-1", "--locale", "en-US", "--name", "New Name", "--output", "markdown",
-	)
-	if runErr != nil {
-		t.Fatalf("run error: %v (stderr=%q)", runErr, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
-	}
-	for _, value := range []string{"| App ID |", "| app-1", "New Name", "update", "loc-1"} {
-		if !strings.Contains(stdout, value) {
-			t.Fatalf("markdown output missing %q: %s", value, stdout)
-		}
-	}
-}
-
-func TestAppsRenameReturnsAPIError(t *testing.T) {
-	steps := []appsRenameHTTPStep{
-		appInfoOwnershipStep(),
-		{
-			method:       http.MethodGet,
-			uri:          "/v1/appInfos/info-1/appInfoLocalizations?filter%5Blocale%5D=en-US&limit=200",
-			status:       http.StatusUnprocessableEntity,
-			responseBody: `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid Attribute","detail":"The app info cannot be edited."}]}`,
-		},
-	}
-
-	stdout, _, runErr := runAppsRenameWithServer(
-		t, steps,
-		"--app", "app-1", "--app-info", "info-1", "--locale", "en-US", "--name", "New Name",
-	)
-	if runErr == nil || !strings.Contains(runErr.Error(), "apps rename") || !strings.Contains(runErr.Error(), "The app info cannot be edited") {
-		t.Fatalf("run error = %v, want contextual API error", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-}
-
-func TestAppsRenameRejectsAppInfoOwnedByAnotherAppBeforeMutation(t *testing.T) {
-	steps := []appsRenameHTTPStep{{
-		method:       http.MethodGet,
-		uri:          "/v1/appInfos/info-foreign?include=app",
-		responseBody: `{"data":{"type":"appInfos","id":"info-foreign","relationships":{"app":{"data":{"type":"apps","id":"app-other"}}}},"included":[{"type":"apps","id":"app-other"}]}`,
-	}}
-
-	stdout, _, runErr := runAppsRenameWithServer(
-		t, steps,
-		"--app", "app-1", "--app-info", "info-foreign", "--locale", "en-US", "--name", "New Name",
-	)
-	if runErr == nil || !strings.Contains(runErr.Error(), `app info "info-foreign" belongs to app "app-other", not "app-1"`) {
-		t.Fatalf("run error = %v, want app ownership error", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-}
-
-func TestAppsRenameRejectsAmbiguousOrEmptyLocalizationIDsBeforeMutation(t *testing.T) {
 	tests := []struct {
-		name      string
-		response  string
-		wantError string
+		name  string
+		steps []appsRenameHTTPStep
+		args  []string
+		check func(t *testing.T, stdout string)
 	}{
 		{
-			name: "multiple localizations",
-			response: `{"data":[
-				{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US"}},
-				{"type":"appInfoLocalizations","id":"loc-2","attributes":{"locale":"en-US"}}
-			]}`,
-			wantError: `2 app info localizations match locale "en-US":`,
+			name:  "updates existing localization as json",
+			steps: updateSteps("en-US"),
+			args:  []string{"--name", "New Name", "--app-info", "info-1", "--locale", "en-US", "--app", "app-1", "--output", "json"},
+			check: func(t *testing.T, stdout string) {
+				var got asc.AppRenameResult
+				if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+					t.Fatalf("decode output %q: %v", stdout, err)
+				}
+				if got.AppID != "app-1" || got.AppInfoID != "info-1" || got.Locale != "en-US" || got.Name != "New Name" || got.Action != "update" || got.LocalizationID != "loc-1" {
+					t.Fatalf("unexpected result: %+v", got)
+				}
+			},
 		},
 		{
-			name:      "empty localization id",
-			response:  `{"data":[{"type":"appInfoLocalizations","id":"","attributes":{"locale":"en-US"}}]}`,
-			wantError: "localization id is empty",
+			name: "creates missing localization as table",
+			steps: []appsRenameHTTPStep{
+				appInfoOwnershipStep(),
+				{
+					method:       http.MethodGet,
+					uri:          "/v1/appInfos/info-1/appInfoLocalizations?filter%5Blocale%5D=fr-FR&limit=200",
+					responseBody: `{"data":[]}`,
+				},
+				{
+					method:       http.MethodPost,
+					uri:          "/v1/appInfoLocalizations",
+					status:       http.StatusCreated,
+					requestBody:  `{"data":{"type":"appInfoLocalizations","attributes":{"locale":"fr-FR","name":"Nouveau nom"},"relationships":{"appInfo":{"data":{"type":"appInfos","id":"info-1"}}}}}`,
+					responseBody: `{"data":{"type":"appInfoLocalizations","id":"loc-created","attributes":{"locale":"fr-FR","name":"Nouveau nom"}}}`,
+				},
+			},
+			args: []string{"--app", "app-1", "--locale", "fr-FR", "--name", "Nouveau nom", "--app-info", "info-1", "--output", "table"},
+			check: func(t *testing.T, stdout string) {
+				for _, value := range []string{"App ID", "App Info ID", "Locale", "Name", "Action", "Localization ID", "app-1", "info-1", "fr-FR", "Nouveau nom", "create", "loc-created"} {
+					if !strings.Contains(stdout, value) {
+						t.Fatalf("table output missing %q: %s", value, stdout)
+					}
+				}
+			},
+		},
+		{
+			name:  "renders markdown",
+			steps: updateSteps("en-US"),
+			args:  []string{"--app", "app-1", "--app-info", "info-1", "--locale", "en-US", "--name", "New Name", "--output", "markdown"},
+			check: func(t *testing.T, stdout string) {
+				for _, value := range []string{"| App ID |", "| app-1", "New Name", "update", "loc-1"} {
+					if !strings.Contains(stdout, value) {
+						t.Fatalf("markdown output missing %q: %s", value, stdout)
+					}
+				}
+			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			steps := []appsRenameHTTPStep{
-				appInfoOwnershipStep(),
-				{
-					method:       http.MethodGet,
-					uri:          "/v1/appInfos/info-1/appInfoLocalizations?filter%5Blocale%5D=en-US&limit=200",
-					responseBody: test.response,
-				},
+			stdout, stderr, runErr := runAppsRenameWithServer(t, test.steps, test.args...)
+			if runErr != nil {
+				t.Fatalf("run error: %v (stderr=%q)", runErr, stderr)
 			}
+			if stderr != "" {
+				t.Fatalf("stderr = %q, want empty", stderr)
+			}
+			test.check(t, stdout)
+		})
+	}
+}
+
+func TestAppsRenameFailsBeforeMutation(t *testing.T) {
+	localizationLookup := func(status int, body string) []appsRenameHTTPStep {
+		return []appsRenameHTTPStep{
+			appInfoOwnershipStep(),
+			{
+				method:       http.MethodGet,
+				uri:          "/v1/appInfos/info-1/appInfoLocalizations?filter%5Blocale%5D=en-US&limit=200",
+				status:       status,
+				responseBody: body,
+			},
+		}
+	}
+
+	tests := []struct {
+		name      string
+		appInfoID string
+		steps     []appsRenameHTTPStep
+		wantError []string
+	}{
+		{
+			name:      "API error",
+			appInfoID: "info-1",
+			steps:     localizationLookup(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid Attribute","detail":"The app info cannot be edited."}]}`),
+			wantError: []string{"apps rename", "The app info cannot be edited"},
+		},
+		{
+			name:      "app info owned by another app",
+			appInfoID: "info-foreign",
+			steps: []appsRenameHTTPStep{{
+				method:       http.MethodGet,
+				uri:          "/v1/appInfos/info-foreign?include=app",
+				responseBody: `{"data":{"type":"appInfos","id":"info-foreign","relationships":{"app":{"data":{"type":"apps","id":"app-other"}}}},"included":[{"type":"apps","id":"app-other"}]}`,
+			}},
+			wantError: []string{`app info "info-foreign" belongs to app "app-other", not "app-1"`},
+		},
+		{
+			name:      "multiple localizations",
+			appInfoID: "info-1",
+			steps: localizationLookup(0, `{"data":[
+				{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US"}},
+				{"type":"appInfoLocalizations","id":"loc-2","attributes":{"locale":"en-US"}}
+			]}`),
+			wantError: []string{`2 app info localizations match locale "en-US":`},
+		},
+		{
+			name:      "empty localization id",
+			appInfoID: "info-1",
+			steps:     localizationLookup(0, `{"data":[{"type":"appInfoLocalizations","id":"","attributes":{"locale":"en-US"}}]}`),
+			wantError: []string{"localization id is empty"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			stdout, _, runErr := runAppsRenameWithServer(
-				t, steps,
-				"--app", "app-1", "--app-info", "info-1", "--locale", "en-US", "--name", "New Name",
+				t, test.steps,
+				"--app", "app-1", "--app-info", test.appInfoID, "--locale", "en-US", "--name", "New Name",
 			)
-			if runErr == nil || !strings.Contains(runErr.Error(), test.wantError) {
-				t.Fatalf("run error = %v, want %q", runErr, test.wantError)
+			if runErr == nil {
+				t.Fatalf("run error = nil, want %q", test.wantError)
+			}
+			for _, want := range test.wantError {
+				if !strings.Contains(runErr.Error(), want) {
+					t.Fatalf("run error = %v, want %q", runErr, want)
+				}
 			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)

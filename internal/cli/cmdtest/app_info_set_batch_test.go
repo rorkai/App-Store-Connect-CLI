@@ -95,92 +95,57 @@ func TestAppInfoSetBatchValidationErrors(t *testing.T) {
 	}
 }
 
-func TestRunAppInfoSetRejectsOverLimitKeywordBytesBeforeAuthResolution(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY", "")
-	t.Setenv("ASC_PRIVATE_KEY_B64", "")
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
-
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"apps", "info", "edit",
-			"--app", "APP_ID",
-			"--locale", "ja",
-			"--keywords", strings.Repeat("語", 101),
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if !strings.Contains(stderr, "keywords exceed 100 characters") {
-		t.Fatalf("expected keyword character-limit error, got %q", stderr)
-	}
-	if requestCount != 0 {
-		t.Fatalf("expected no HTTP requests, got %d", requestCount)
-	}
-}
-
-func TestRunAppInfoSetFromDirRejectsOverLimitKeywordCharactersBeforeAuthResolution(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-	t.Setenv("ASC_PRIVATE_KEY", "")
-	t.Setenv("ASC_PRIVATE_KEY_B64", "")
-	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-
-	inputDir := t.TempDir()
-	content := `{"description":"Japanese description","keywords":"` + strings.Repeat("語", 101) + `"}`
-	if err := os.WriteFile(filepath.Join(inputDir, "ja.json"), []byte(content), 0o644); err != nil {
-		t.Fatalf("write ja file: %v", err)
+func TestRunAppInfoSetRejectsOverLimitKeywordsBeforeAuthResolution(t *testing.T) {
+	overLimit := strings.Repeat("語", 101)
+	tests := []struct {
+		name string
+		args func(t *testing.T) []string
+	}{
+		{
+			name: "inline keywords",
+			args: func(*testing.T) []string {
+				return []string{"apps", "info", "edit", "--app", "APP_ID", "--locale", "ja", "--keywords", overLimit}
+			},
+		},
+		{
+			name: "from dir",
+			args: func(t *testing.T) []string {
+				inputDir := t.TempDir()
+				content := `{"description":"Japanese description","keywords":"` + overLimit + `"}`
+				if err := os.WriteFile(filepath.Join(inputDir, "ja.json"), []byte(content), 0o644); err != nil {
+					t.Fatalf("write ja file: %v", err)
+				}
+				return []string{"apps", "info", "edit", "--app", "APP_ID", "--from-dir", inputDir}
+			},
+		},
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_KEY_ID", "")
+			t.Setenv("ASC_ISSUER_ID", "")
+			t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+			t.Setenv("ASC_PRIVATE_KEY", "")
+			t.Setenv("ASC_PRIVATE_KEY_B64", "")
+			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+				return nil, nil
+			}))
+			args := test.args(t)
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+			_, stderr := captureOutput(t, func() {
+				if code := cmd.Run(args, "1.2.3"); code != cmd.ExitUsage {
+					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+				}
+			})
 
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"apps", "info", "edit",
-			"--app", "APP_ID",
-			"--from-dir", inputDir,
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
-
-	if !strings.Contains(stderr, "keywords exceed 100 characters") {
-		t.Fatalf("expected keyword character-limit error, got %q", stderr)
-	}
-	if requestCount != 0 {
-		t.Fatalf("expected no HTTP requests, got %d", requestCount)
+			if !strings.Contains(stderr, "keywords exceed 100 characters") {
+				t.Fatalf("expected keyword character-limit error, got %q", stderr)
+			}
+		})
 	}
 }
 

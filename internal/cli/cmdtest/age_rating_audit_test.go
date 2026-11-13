@@ -222,7 +222,7 @@ func TestAgeRatingAuditChecksEveryCurrentAppInfo(t *testing.T) {
 	}
 }
 
-func TestAgeRatingAuditRestrictedSocialMediaReadiness(t *testing.T) {
+func TestAgeRatingAuditReportsMissingReadinessResponses(t *testing.T) {
 	tests := []struct {
 		name        string
 		attributes  string
@@ -238,6 +238,26 @@ func TestAgeRatingAuditRestrictedSocialMediaReadiness(t *testing.T) {
 			attributes:  `{"socialMedia":false,"socialMediaAgeRestricted":true,"messagingAndChat":true,"ageAssurance":true,"userGeneratedContent":true}`,
 			wantMissing: "socialMedia",
 		},
+		{
+			name:        "social media requires user-generated content",
+			attributes:  `{"socialMedia":true,"socialMediaAgeRestricted":false,"messagingAndChat":true,"ageAssurance":false,"userGeneratedContent":false}`,
+			wantMissing: "userGeneratedContent",
+		},
+		{
+			name:        "age-restricted social media requires user-generated content",
+			attributes:  `{"socialMedia":false,"socialMediaAgeRestricted":true,"messagingAndChat":true,"ageAssurance":true,"userGeneratedContent":false}`,
+			wantMissing: "socialMedia,userGeneratedContent",
+		},
+		{
+			name:        "social media with user-generated content unset",
+			attributes:  `{"socialMedia":true,"socialMediaAgeRestricted":false,"messagingAndChat":true,"ageAssurance":false}`,
+			wantMissing: "userGeneratedContent",
+		},
+		{
+			name:        "age-restricted social media with user-generated content unset",
+			attributes:  `{"socialMedia":false,"socialMediaAgeRestricted":true,"messagingAndChat":true,"ageAssurance":true}`,
+			wantMissing: "socialMedia,userGeneratedContent",
+		},
 	}
 
 	for _, test := range tests {
@@ -251,77 +271,6 @@ func TestAgeRatingAuditRestrictedSocialMediaReadiness(t *testing.T) {
 					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`), nil
 				case "/v1/appInfos/info-1/ageRatingDeclaration":
 					return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-1","attributes":`+test.attributes+`}}`), nil
-				default:
-					return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-				}
-			}))
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, _ := captureOutput(t, func() {
-				if err := root.Parse([]string{"age-rating", "audit", "--output", "json"}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
-
-			var result struct {
-				Apps []struct {
-					MissingResponses []string `json:"missingResponses"`
-					Ready            bool     `json:"ready"`
-				} `json:"apps"`
-			}
-			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-				t.Fatalf("unmarshal output: %v (%q)", err, stdout)
-			}
-			if len(result.Apps) != 1 || result.Apps[0].Ready || strings.Join(result.Apps[0].MissingResponses, ",") != test.wantMissing {
-				t.Fatalf("unexpected readiness result: %+v", result.Apps)
-			}
-		})
-	}
-}
-
-func TestAgeRatingAuditRequiresUserGeneratedContent(t *testing.T) {
-	tests := []struct {
-		name        string
-		attributes  string
-		wantMissing string
-	}{
-		{
-			name:        "social media",
-			attributes:  `"socialMedia":true,"socialMediaAgeRestricted":false,"messagingAndChat":true,"ageAssurance":false,"userGeneratedContent":false`,
-			wantMissing: "userGeneratedContent",
-		},
-		{
-			name:        "age-restricted social media",
-			attributes:  `"socialMedia":false,"socialMediaAgeRestricted":true,"messagingAndChat":true,"ageAssurance":true,"userGeneratedContent":false`,
-			wantMissing: "socialMedia,userGeneratedContent",
-		},
-		{
-			name:        "social media with user-generated content unset",
-			attributes:  `"socialMedia":true,"socialMediaAgeRestricted":false,"messagingAndChat":true,"ageAssurance":false`,
-			wantMissing: "userGeneratedContent",
-		},
-		{
-			name:        "age-restricted social media with user-generated content unset",
-			attributes:  `"socialMedia":false,"socialMediaAgeRestricted":true,"messagingAndChat":true,"ageAssurance":true`,
-			wantMissing: "socialMedia,userGeneratedContent",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch req.URL.Path {
-				case "/v1/apps":
-					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"apps","id":"app-1"}],"links":{}}`), nil
-				case "/v1/apps/app-1/appInfos":
-					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`), nil
-				case "/v1/appInfos/info-1/ageRatingDeclaration":
-					return jsonHTTPResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"ageRatingDeclarations","id":"decl-1","attributes":{%s}}}`, test.attributes)), nil
 				default:
 					return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 				}
