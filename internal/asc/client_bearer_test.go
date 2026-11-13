@@ -87,6 +87,7 @@ func TestRenewableBearerTokenReportsRenewalFailures(t *testing.T) {
 	}{
 		{"renewer fails", func(context.Context) (string, error) { return "", errors.New("helper exited with status 1") }},
 		{"renewer prints an expired token", func(context.Context) (string, error) { return signedTestJWT(t, time.Now().Add(-time.Minute)), nil }},
+		{"renewer prints a token inside the renewal window", func(context.Context) (string, error) { return signedTestJWT(t, time.Now().Add(bearerRenewSkew/2)), nil }},
 		{"renewer prints no JWT", func(context.Context) (string, error) { return "not-a-jwt", nil }},
 	}
 	for _, test := range tests {

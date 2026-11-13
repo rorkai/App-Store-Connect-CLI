@@ -96,6 +96,9 @@ func (s *bearerTokenSource) renewToken(ctx context.Context, now time.Time) error
 	if !now.Before(s.expiresAt) {
 		return fmt.Errorf("%w: the new token already expired", ErrBearerTokenRenewal)
 	}
+	if !now.Add(bearerRenewSkew).Before(s.expiresAt) {
+		return fmt.Errorf("%w: the new token expires within %s", ErrBearerTokenRenewal, bearerRenewSkew)
+	}
 	return nil
 }
 

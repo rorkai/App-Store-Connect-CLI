@@ -191,7 +191,7 @@ export ASC_BEARER_TOKEN_COMMAND="my-signer token --team TEAM_ID"
 asc screenshots upload --version-localization "LOC_ID" --path ./screenshots --device-type IPHONE_67
 ```
 
-`asc` runs the command through `/bin/sh -c` (`cmd /c` on Windows) with its own environment, passes the command's stderr through, and never prints the token. A run is limited to 60 seconds, or `ASC_TIMEOUT` when set. If the command exits non-zero, prints nothing, or prints a token that is malformed or already expired, the command exits `3` before sending another request. The same profile and key-type restrictions apply. The token already names its key and team, so `asc` refuses to combine it with `--profile`, `ASC_PROFILE`, or `ASC_KEY_TYPE=enterprise`. Notarization (`asc notarization`) needs its own token scope and still requires a private key. Commands that hand the key to Xcode or `altool` also need a private key.
+`asc` runs the command through `/bin/sh -c` (`cmd /c` on Windows) with its own environment, passes the command's stderr through, and never prints the token. A run is limited to 60 seconds, or `ASC_TIMEOUT` when set. If the command exits non-zero, prints nothing, or prints a token that is malformed, expired, or expiring within a minute, the command exits `3` before sending another request. The same profile and key-type restrictions apply. The token already names its key and team, so `asc` refuses to combine it with `--profile`, `ASC_PROFILE`, or `ASC_KEY_TYPE=enterprise`. Notarization (`asc notarization`) needs its own token scope and still requires a private key. Commands that hand the key to Xcode or `altool` also need a private key.
 
 ## Apple Account web sessions
 
