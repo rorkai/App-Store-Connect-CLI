@@ -7,11 +7,6 @@ import (
 	"strings"
 )
 
-// GetGameCenterEnabledVersionCompatibleVersionsRelationships retrieves compatible enabled version linkages.
-func (c *Client) GetGameCenterEnabledVersionCompatibleVersionsRelationships(ctx context.Context, enabledVersionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getGameCenterEnabledVersionLinkages(ctx, enabledVersionID, "compatibleVersions", opts...)
-}
-
 // AddGameCenterEnabledVersionCompatibleVersions adds compatible enabled versions.
 func (c *Client) AddGameCenterEnabledVersionCompatibleVersions(ctx context.Context, enabledVersionID string, compatibleIDs []string) error {
 	enabledVersionID = strings.TrimSpace(enabledVersionID)
@@ -73,16 +68,4 @@ func (c *Client) UpdateGameCenterEnabledVersionCompatibleVersionsRelationship(ct
 	path := fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", strings.TrimSpace(enabledVersionID))
 	_, err = c.do(ctx, http.MethodPatch, path, body)
 	return err
-}
-
-func (c *Client) getGameCenterEnabledVersionLinkages(ctx context.Context, enabledVersionID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(
-		ctx,
-		enabledVersionID,
-		relationship,
-		"enabledVersionID",
-		"/v1/gameCenterEnabledVersions/%s/relationships/%s",
-		"gameCenterEnabledVersionRelationships",
-		opts...,
-	)
 }

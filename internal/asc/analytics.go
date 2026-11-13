@@ -194,9 +194,6 @@ type AnalyticsReportInstancesLinkagesResponse = LinkagesResponse
 // AnalyticsReportInstanceSegmentsLinkagesResponse is the response from analytics report instance segments linkages endpoint.
 type AnalyticsReportInstanceSegmentsLinkagesResponse = LinkagesResponse
 
-// AnalyticsReportRequestReportsLinkagesResponse is the response from analytics report request reports linkages endpoint.
-type AnalyticsReportRequestReportsLinkagesResponse = LinkagesResponse
-
 type analyticsReportRequestsQuery struct {
 	listQuery
 	accessType AnalyticsAccessType
@@ -537,20 +534,6 @@ func (c *Client) GetAnalyticsReports(ctx context.Context, requestID string, opts
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 	return &response, nil
-}
-
-// GetAnalyticsReportRequestReportsRelationships retrieves report linkages for an analytics report request.
-func (c *Client) GetAnalyticsReportRequestReportsRelationships(ctx context.Context, requestID string, opts ...LinkagesOption) (*AnalyticsReportRequestReportsLinkagesResponse, error) {
-	return getTypedResourceLinkages[AnalyticsReportRequestReportsLinkagesResponse](
-		c,
-		ctx,
-		requestID,
-		"reports",
-		"request ID",
-		"/v1/analyticsReportRequests/%s/relationships/%s",
-		"analyticsReportRequestReportsRelationships",
-		opts...,
-	)
 }
 
 // GetAnalyticsReportInstancesRelationships retrieves report instance linkages for a report.

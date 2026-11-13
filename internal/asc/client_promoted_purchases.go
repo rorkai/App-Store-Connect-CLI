@@ -39,37 +39,6 @@ func (c *Client) GetAppPromotedPurchases(ctx context.Context, appID string, opts
 	return &response, nil
 }
 
-// GetAppPromotedPurchasesRelationships retrieves promoted purchase linkages for an app.
-func (c *Client) GetAppPromotedPurchasesRelationships(ctx context.Context, appID string, opts ...LinkagesOption) (*AppPromotedPurchasesLinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	appID = strings.TrimSpace(appID)
-	path := fmt.Sprintf("/v1/apps/%s/relationships/promotedPurchases", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("promotedPurchasesRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppPromotedPurchasesLinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse promoted purchase relationships response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // SetAppPromotedPurchases replaces promoted purchases for an app.
 func (c *Client) SetAppPromotedPurchases(ctx context.Context, appID string, promotedPurchaseIDs []string) error {
 	appID = strings.TrimSpace(appID)

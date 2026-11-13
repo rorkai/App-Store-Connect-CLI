@@ -1676,33 +1676,6 @@ func (c *Client) GetBetaBuildLocalizationBuild(ctx context.Context, localization
 	return &response, nil
 }
 
-// BetaBuildLocalizationBuildLinkageResponse is the response for beta build localization build relationships.
-type BetaBuildLocalizationBuildLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// GetBetaBuildLocalizationBuildRelationship retrieves the build linkage for a beta build localization.
-func (c *Client) GetBetaBuildLocalizationBuildRelationship(ctx context.Context, localizationID string) (*BetaBuildLocalizationBuildLinkageResponse, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-
-	path := fmt.Sprintf("/v1/betaBuildLocalizations/%s/relationships/build", localizationID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaBuildLocalizationBuildLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // CreateBetaBuildLocalization creates a beta build localization for a build.
 func (c *Client) CreateBetaBuildLocalization(ctx context.Context, buildID string, attributes BetaBuildLocalizationAttributes) (*BetaBuildLocalizationResponse, error) {
 	attributes.api = apiAttributes{}

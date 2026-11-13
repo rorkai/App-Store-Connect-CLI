@@ -17,100 +17,12 @@ func TestSubscriptionRelationshipEndpoints(t *testing.T) {
 			wantPath string
 		}{
 			{
-				name: "subscription availability available territories",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionAvailabilityAvailableTerritoriesRelationships(context.Background(), "avail-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptionAvailabilities/avail-1/relationships/availableTerritories",
-			},
-			{
-				name: "subscription group subscriptions",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionGroupSubscriptionsRelationships(context.Background(), "group-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptionGroups/group-1/relationships/subscriptions",
-			},
-			{
-				name: "subscription offer code custom codes",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionOfferCodeCustomCodesRelationships(context.Background(), "oc-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptionOfferCodes/oc-1/relationships/customCodes",
-			},
-			{
-				name: "subscription offer code one-time use codes",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionOfferCodeOneTimeUseCodesRelationships(context.Background(), "oc-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptionOfferCodes/oc-1/relationships/oneTimeUseCodes",
-			},
-			{
-				name: "subscription offer code prices",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionOfferCodePricesRelationships(context.Background(), "oc-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptionOfferCodes/oc-1/relationships/prices",
-			},
-			{
-				name: "subscription price point equalizations",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionPricePointEqualizationsRelationships(context.Background(), "pp-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptionPricePoints/pp-1/relationships/equalizations",
-			},
-			{
-				name: "subscription promotional offer prices",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionPromotionalOfferPricesRelationships(context.Background(), "promo-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptionPromotionalOffers/promo-1/relationships/prices",
-			},
-			{
-				name: "subscription introductory offers",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionIntroductoryOffersRelationships(context.Background(), "sub-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptions/sub-1/relationships/introductoryOffers",
-			},
-			{
-				name: "subscription offer codes",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionOfferCodesRelationships(context.Background(), "sub-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptions/sub-1/relationships/offerCodes",
-			},
-			{
-				name: "subscription price points",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionPricePointsRelationships(context.Background(), "sub-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptions/sub-1/relationships/pricePoints",
-			},
-			{
 				name: "subscription prices",
 				call: func(c *Client) error {
 					_, err := c.GetSubscriptionPricesRelationships(context.Background(), "sub-1", WithLinkagesLimit(5))
 					return err
 				},
 				wantPath: "/v1/subscriptions/sub-1/relationships/prices",
-			},
-			{
-				name: "subscription promotional offers",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionPromotionalOffersRelationships(context.Background(), "sub-1", WithLinkagesLimit(5))
-					return err
-				},
-				wantPath: "/v1/subscriptions/sub-1/relationships/promotionalOffers",
 			},
 		}
 
@@ -126,63 +38,6 @@ func TestSubscriptionRelationshipEndpoints(t *testing.T) {
 					}
 					if req.URL.Query().Get("limit") != "5" {
 						t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
-					}
-					assertAuthorized(t, req)
-				}, response)
-
-				if err := tc.call(client); err != nil {
-					t.Fatalf("request error: %v", err)
-				}
-			})
-		}
-	})
-
-	t.Run("to-one relationships use ResourceData linkage", func(t *testing.T) {
-		toOneBody := `{"data":{"type":"apps","id":"a1"},"links":{}}`
-
-		cases := []struct {
-			name     string
-			call     func(*Client) error
-			wantPath string
-		}{
-			{
-				name: "subscription review screenshot",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionAppStoreReviewScreenshotRelationship(context.Background(), "sub-1")
-					return err
-				},
-				wantPath: "/v1/subscriptions/sub-1/relationships/appStoreReviewScreenshot",
-			},
-			{
-				name: "subscription promoted purchase",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionPromotedPurchaseRelationship(context.Background(), "sub-1")
-					return err
-				},
-				wantPath: "/v1/subscriptions/sub-1/relationships/promotedPurchase",
-			},
-			{
-				name: "subscription availability",
-				call: func(c *Client) error {
-					_, err := c.GetSubscriptionSubscriptionAvailabilityRelationship(context.Background(), "sub-1")
-					return err
-				},
-				wantPath: "/v1/subscriptions/sub-1/relationships/subscriptionAvailability",
-			},
-		}
-
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
-				response := jsonResponse(http.StatusOK, toOneBody)
-				client := newTestClient(t, func(req *http.Request) {
-					if req.Method != http.MethodGet {
-						t.Fatalf("expected GET, got %s", req.Method)
-					}
-					if req.URL.Path != tc.wantPath {
-						t.Fatalf("expected path %s, got %s", tc.wantPath, req.URL.Path)
-					}
-					if len(req.URL.Query()) != 0 {
-						t.Fatalf("expected no query params, got %q", req.URL.RawQuery)
 					}
 					assertAuthorized(t, req)
 				}, response)

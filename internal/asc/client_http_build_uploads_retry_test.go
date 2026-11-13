@@ -233,35 +233,6 @@ func TestGetBuildUploadsMaxRetriesZeroSkipsAppVerification(t *testing.T) {
 	}
 }
 
-func TestGetAppBuildUploadsRelationshipsRetriesWhenAppExists(t *testing.T) {
-	setFastRetryEnv(t, "3")
-
-	var paths []string
-	client := newTestClient(
-		t, func(req *http.Request) {
-			paths = append(paths, req.URL.Path)
-		},
-		jsonResponse(http.StatusNotFound, buildUploadsFlakyNotFoundBody),
-		jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"6759231657"}}`),
-		jsonResponse(http.StatusOK, `{"data":[{"type":"buildUploads","id":"bu-1"}]}`),
-	)
-
-	response, err := client.GetAppBuildUploadsRelationships(context.Background(), "6759231657")
-	if err != nil {
-		t.Fatalf("GetAppBuildUploadsRelationships() error: %v", err)
-	}
-	if len(response.Data) != 1 || response.Data[0].ID != "bu-1" {
-		t.Fatalf("response data = %#v, want bu-1", response.Data)
-	}
-	if want := []string{
-		"/v1/apps/6759231657/relationships/buildUploads",
-		"/v1/apps/6759231657",
-		"/v1/apps/6759231657/relationships/buildUploads",
-	}; !slices.Equal(paths, want) {
-		t.Fatalf("paths = %v, want %v", paths, want)
-	}
-}
-
 func TestGetBuildUploadsNextURLOnlyRetriesWhenAppExists(t *testing.T) {
 	setFastRetryEnv(t, "3")
 

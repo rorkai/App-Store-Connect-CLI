@@ -150,12 +150,6 @@ type AlternativeDistributionPackageDeltasResponse = Response[AlternativeDistribu
 // AlternativeDistributionPackageDeltaResponse is the response from package delta detail endpoints.
 type AlternativeDistributionPackageDeltaResponse = SingleResponse[AlternativeDistributionPackageDeltaAttributes]
 
-// AppAlternativeDistributionKeyLinkageResponse is the response for app key relationships.
-type AppAlternativeDistributionKeyLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
 // AppStoreVersionAlternativeDistributionPackageLinkageResponse is the response for app store version package relationships.
 type AppStoreVersionAlternativeDistributionPackageLinkageResponse struct {
 	Data  ResourceData `json:"data"`

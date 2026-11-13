@@ -79,33 +79,6 @@ func (c *Client) GetBetaAppLocalizationApp(ctx context.Context, localizationID s
 	return &response, nil
 }
 
-// BetaAppLocalizationAppLinkageResponse is the response for beta app localization app relationships.
-type BetaAppLocalizationAppLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
-// GetBetaAppLocalizationAppRelationship retrieves the app linkage for a beta app localization.
-func (c *Client) GetBetaAppLocalizationAppRelationship(ctx context.Context, localizationID string) (*BetaAppLocalizationAppLinkageResponse, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-
-	path := fmt.Sprintf("/v1/betaAppLocalizations/%s/relationships/app", localizationID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppLocalizationAppLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // CreateBetaAppLocalization creates a beta app localization for an app.
 func (c *Client) CreateBetaAppLocalization(ctx context.Context, appID string, attrs BetaAppLocalizationAttributes) (*BetaAppLocalizationResponse, error) {
 	attrs.api = apiAttributes{}

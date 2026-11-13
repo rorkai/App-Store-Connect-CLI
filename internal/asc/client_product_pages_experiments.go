@@ -583,76 +583,6 @@ func (c *Client) GetAppStoreVersionExperimentTreatmentsV2(ctx context.Context, e
 	return &response, nil
 }
 
-// GetAppStoreVersionExperimentTreatmentsRelationships retrieves treatment linkages for an experiment (v1).
-func (c *Client) GetAppStoreVersionExperimentTreatmentsRelationships(ctx context.Context, experimentID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	experimentID = strings.TrimSpace(experimentID)
-	if query.nextURL == "" && experimentID == "" {
-		return nil, fmt.Errorf("experimentID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersionExperiments/%s/relationships/appStoreVersionExperimentTreatments", experimentID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appStoreVersionExperimentTreatmentsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppStoreVersionExperimentTreatmentsV2Relationships retrieves treatment linkages for an experiment (v2).
-func (c *Client) GetAppStoreVersionExperimentTreatmentsV2Relationships(ctx context.Context, experimentID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	experimentID = strings.TrimSpace(experimentID)
-	if query.nextURL == "" && experimentID == "" {
-		return nil, fmt.Errorf("experimentID is required")
-	}
-
-	path := fmt.Sprintf("/v2/appStoreVersionExperiments/%s/relationships/appStoreVersionExperimentTreatments", experimentID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appStoreVersionExperimentTreatmentsV2Relationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetAppStoreVersionExperimentTreatment retrieves a treatment by ID.
 func (c *Client) GetAppStoreVersionExperimentTreatment(ctx context.Context, treatmentID string) (*AppStoreVersionExperimentTreatmentResponse, error) {
 	treatmentID = strings.TrimSpace(treatmentID)
@@ -808,41 +738,6 @@ func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizations(ctx context.
 	return &response, nil
 }
 
-// GetAppStoreVersionExperimentTreatmentLocalizationsRelationships retrieves localization linkages for a treatment.
-func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationsRelationships(ctx context.Context, treatmentID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	treatmentID = strings.TrimSpace(treatmentID)
-	if query.nextURL == "" && treatmentID == "" {
-		return nil, fmt.Errorf("treatmentID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s/relationships/appStoreVersionExperimentTreatmentLocalizations", treatmentID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appStoreVersionExperimentTreatmentLocalizationsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetAppStoreVersionExperimentTreatmentLocalization retrieves a treatment localization by ID.
 func (c *Client) GetAppStoreVersionExperimentTreatmentLocalization(ctx context.Context, localizationID string, opts ...LocalizationReadOption) (*AppStoreVersionExperimentTreatmentLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
@@ -950,41 +845,6 @@ func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ct
 	return &response, nil
 }
 
-// GetAppStoreVersionExperimentTreatmentLocalizationPreviewSetsRelationships retrieves preview set linkages for a treatment localization.
-func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationPreviewSetsRelationships(ctx context.Context, localizationID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	localizationID = strings.TrimSpace(localizationID)
-	if query.nextURL == "" && localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s/relationships/appPreviewSets", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPreviewSetsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets retrieves screenshot sets for a treatment localization.
 func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(ctx context.Context, localizationID string, opts ...AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption) (*AppScreenshotSetsResponse, error) {
 	query := &appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery{}
@@ -1012,41 +872,6 @@ func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets
 	}
 
 	var response AppScreenshotSetsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsRelationships retrieves screenshot set linkages for a treatment localization.
-func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsRelationships(ctx context.Context, localizationID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	localizationID = strings.TrimSpace(localizationID)
-	if query.nextURL == "" && localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s/relationships/appScreenshotSets", localizationID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appScreenshotSetsRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

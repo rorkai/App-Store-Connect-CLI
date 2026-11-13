@@ -26,12 +26,6 @@ type AppStoreVersionAppClipDefaultExperienceLinkageResponse struct {
 	Links Links        `json:"links"`
 }
 
-// AppStoreVersionPhasedReleaseLinkageResponse is the response for phased release relationships.
-type AppStoreVersionPhasedReleaseLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
 // AppStoreVersionBuildLinkageResponse is the response for build relationships.
 type AppStoreVersionBuildLinkageResponse struct {
 	Data  ResourceData `json:"data"`
@@ -116,40 +110,6 @@ func (c *Client) GetAppStoreVersionAppClipDefaultExperienceRelationship(ctx cont
 	var response AppStoreVersionAppClipDefaultExperienceLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse appClipDefaultExperience relationship response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetAppStoreVersionLocalizationsRelationships retrieves localization linkages for a version.
-func (c *Client) GetAppStoreVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(
-		ctx,
-		versionID,
-		"appStoreVersionLocalizations",
-		"versionID",
-		"/v1/appStoreVersions/%s/relationships/%s",
-		"appStoreVersionLocalizationsRelationships",
-		opts...,
-	)
-}
-
-// GetAppStoreVersionPhasedReleaseRelationship retrieves the phased release linkage for a version.
-func (c *Client) GetAppStoreVersionPhasedReleaseRelationship(ctx context.Context, versionID string) (*AppStoreVersionPhasedReleaseLinkageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreVersionPhasedRelease", versionID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionPhasedReleaseLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse appStoreVersionPhasedRelease relationship response: %w", err)
 	}
 
 	return &response, nil
