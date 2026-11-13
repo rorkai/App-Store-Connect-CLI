@@ -359,7 +359,9 @@ For `subscriptions offers introductory create`, an explicit request timeout also
 
   Default: `5m` (`30m` for `asc asset-library videos upload`, which also waits for Apple's video processing;
   for `screenshots upload` and `video-previews upload` without `--asset-library`, 10 minutes per set plus 1 minute per file and
-  30 seconds per MiB, at most 1 hour)
+  30 seconds per MiB, at most 1 hour; for `asc asset-library images upload`,
+  each image uploaded with `screenshots upload --asset-library`, and the delivery wait of
+  `asc subscriptions review screenshots create`, 11 minutes per file plus 30 seconds per MiB, at most 1 hour)
 </ParamField>
 
 <ParamField path="ASC_UPLOAD_TIMEOUT_SECONDS" type="number">

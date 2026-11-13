@@ -85,9 +85,9 @@ func createOrResumeSubscriptionReviewScreenshot(ctx context.Context, client *asc
 	}
 	switch action {
 	case subscriptionReviewScreenshotSkip:
-		return pollSubscriptionReviewScreenshot(ctx, client, reservation.Data.ID, target.Checksum)
+		return pollSubscriptionReviewScreenshot(ctx, client, reservation.Data.ID, target.Checksum, target.FileSize)
 	case subscriptionReviewScreenshotPoll:
-		return pollSubscriptionReviewScreenshot(ctx, client, reservation.Data.ID, target.Checksum)
+		return pollSubscriptionReviewScreenshot(ctx, client, reservation.Data.ID, target.Checksum, target.FileSize)
 	case subscriptionReviewScreenshotResume:
 	default:
 		return nil, fmt.Errorf("unsupported screenshot recovery action %q", action)
@@ -136,7 +136,7 @@ func createOrResumeSubscriptionReviewScreenshot(ctx context.Context, client *asc
 		reservation = committed
 	}
 
-	return pollSubscriptionReviewScreenshot(ctx, client, reservation.Data.ID, target.Checksum)
+	return pollSubscriptionReviewScreenshot(ctx, client, reservation.Data.ID, target.Checksum, target.FileSize)
 }
 
 func readSubscriptionReviewScreenshot(ctx context.Context, client *asc.Client, subscriptionID string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, bool, error) {
@@ -228,8 +228,8 @@ func subscriptionReviewScreenshotDeliveryError(resp *asc.SubscriptionAppStoreRev
 	return shared.ReviewScreenshotDeliveryError("asc subscriptions review screenshots", strings.TrimSpace(resp.Data.ID), details)
 }
 
-func pollSubscriptionReviewScreenshot(ctx context.Context, client *asc.Client, screenshotID, expectedChecksum string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
-	verifyCtx, verifyCancel := shared.ContextWithUploadTimeout(ctx)
+func pollSubscriptionReviewScreenshot(ctx context.Context, client *asc.Client, screenshotID, expectedChecksum string, fileSize int64) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
+	verifyCtx, verifyCancel := shared.ContextWithMediaUploadTimeout(ctx, fileSize)
 	defer verifyCancel()
 	return waitForSubscriptionReviewScreenshotDelivery(verifyCtx, client, screenshotID, expectedChecksum)
 }
