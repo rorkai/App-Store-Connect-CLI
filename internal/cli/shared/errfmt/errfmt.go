@@ -209,6 +209,8 @@ var conflictNextSteps = map[string]string{
 	"asc localizations update":      "Check the version's state with `asc versions view --version-id VERSION_ID`, or for app-info localizations `asc localizations list --app APP_ID --type app-info --app-info-fields state`.",
 	"asc testflight testers add":    "Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
 	"asc testflight testers invite": "Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
+
+	"asc video-previews set-poster-frame": "Apple accepts a poster frame only after the preview's video finishes processing. Check its `videoDeliveryState` with `asc video-previews list --version-localization VERSION_LOCALIZATION_ID` and retry once it is COMPLETE.",
 }
 
 func FormatStderr(err error) string {
