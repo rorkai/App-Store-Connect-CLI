@@ -398,14 +398,8 @@ func redactCommandScopedSensitiveFlags(value string) (string, bool) {
 		end := findScopedSensitiveCommandEnd(result, start)
 		command := result[start:end]
 		if !isBenignTextCommand(command) {
-			redacted := command
-			for _, rule := range commandScopedSensitiveFlagRedactionRules {
-				next := rule.pattern.ReplaceAllString(redacted, rule.replacement)
-				if next != redacted {
-					redacted = next
-					changed = true
-				}
-			}
+			redacted, commandChanged := redactCommandScopedFlagValues(command)
+			changed = changed || commandChanged
 			if redacted != command {
 				result = result[:start] + redacted + result[end:]
 			}
@@ -442,21 +436,8 @@ func findScopedSensitiveCommandEnd(value string, start int) int {
 }
 
 func isBenignTextCommand(command string) bool {
-	spans := splitCredentialShellWordSpans(command)
-	if len(spans) == 0 {
-		return false
-	}
-	words := shellWordValues(spans)
-	for index, word := range words {
-		if !isCredentialCommandPrefix(words[:index]) {
-			continue
-		}
-		switch commandBaseName(word) {
-		case "echo", "printf", "grep", "rg", "ripgrep":
-			return true
-		}
-	}
-	return false
+	words := shellWordValues(splitCredentialShellWordSpans(command))
+	return credentialCommandIndex(words, "echo", "printf", "grep", "rg", "ripgrep") >= 0
 }
 
 // Each redaction step redacts one kind of secret. Steps run in order, and each
@@ -506,7 +487,8 @@ var (
 		redactSensitiveCommandSubstitutions,
 		redactBareEnvironmentDumpCredentials,
 	}
-	plainTextRedactionSteps = []func(string) (string, bool){
+	redactCommandScopedFlagValues = applyingRules(commandScopedSensitiveFlagRedactionRules)
+	plainTextRedactionSteps       = []func(string) (string, bool){
 		redactCommandScopedSensitiveFlags,
 		applyingRules(singleLineShellWordRedactionRules),
 		applyingRules(sensitiveTextRedactionRules),
@@ -579,15 +561,9 @@ func redactSensitiveTextDepth(value string, depth int) (string, bool) {
 }
 
 func redactKubernetesSecretData(value string) (string, bool) {
-	redacted, changed := redactKubernetesSecretYAMLData(value)
-	maxEscapeDepth := maxJSONEscapeDepthForLength(len(redacted))
-	for escapeDepth := 0; escapeDepth <= maxEscapeDepth; escapeDepth++ {
-		if next, jsonChanged := redactKubernetesSecretJSONData(redacted, escapeDepth); jsonChanged {
-			redacted = next
-			changed = true
-		}
-	}
-	return redacted, changed
+	redacted, yamlChanged := redactKubernetesSecretYAMLData(value)
+	redacted, jsonChanged := redactAtEachJSONEscapeDepth(redacted, redactKubernetesSecretJSONData)
+	return redacted, yamlChanged || jsonChanged
 }
 
 func redactKubernetesSecretYAMLData(value string) (string, bool) {
@@ -818,14 +794,7 @@ func yamlEffectiveMergeKindIsSecret(lines []string, line, keyIndent int, content
 }
 
 func yamlExplicitKindForMapping(lines []string, currentLine, mappingIndent int, scalarAnchors map[string]string) (string, bool) {
-	start := currentLine
-	for start > 0 && yamlLineBelongsToMapping(lines[start-1], mappingIndent) {
-		start--
-	}
-	end := currentLine + 1
-	for end < len(lines) && yamlLineBelongsToMapping(lines[end], mappingIndent) {
-		end++
-	}
+	start, end := yamlMappingLines(lines, currentLine, mappingIndent)
 	for line := start; line < end; line++ {
 		content, _ := splitLineEnding(lines[line])
 		key, valueStart, ok := parseYAMLMappingLine(content)
@@ -836,6 +805,20 @@ func yamlExplicitKindForMapping(lines []string, currentLine, mappingIndent int, 
 		return kind, true
 	}
 	return "", false
+}
+
+// yamlMappingLines returns the range of lines around line that belong to the
+// mapping whose keys are indented by mappingIndent.
+func yamlMappingLines(lines []string, line, mappingIndent int) (int, int) {
+	start := line
+	for start > 0 && yamlLineBelongsToMapping(lines[start-1], mappingIndent) {
+		start--
+	}
+	end := line + 1
+	for end < len(lines) && yamlLineBelongsToMapping(lines[end], mappingIndent) {
+		end++
+	}
+	return start, end
 }
 
 func yamlLineBelongsToMapping(line string, mappingIndent int) bool {
@@ -1615,17 +1598,7 @@ func findYAMLFlowDelimiter(value string, start int, stop byte) int {
 	var quote byte
 	for index := start; index < len(value); index++ {
 		if quote != 0 {
-			if quote == '"' && value[index] == '\\' {
-				index++
-				continue
-			}
-			if quote == '\'' && value[index] == '\'' && index+1 < len(value) && value[index+1] == '\'' {
-				index++
-				continue
-			}
-			if value[index] == quote {
-				quote = 0
-			}
+			index, quote = stepYAMLQuotedScalar(value, index, quote)
 			continue
 		}
 		switch value[index] {
@@ -1645,6 +1618,21 @@ func findYAMLFlowDelimiter(value string, start int, stop byte) int {
 		}
 	}
 	return -1
+}
+
+// stepYAMLQuotedScalar reads value[index] inside a scalar quoted by quote. It
+// returns the index of the last byte read, which includes an escaped or
+// doubled quote, and quote, or 0 when the scalar closed.
+func stepYAMLQuotedScalar(value string, index int, quote byte) (int, byte) {
+	switch {
+	case quote == '"' && value[index] == '\\':
+		return index + 1, quote
+	case quote == '\'' && value[index] == '\'' && index+1 < len(value) && value[index+1] == '\'':
+		return index + 1, quote
+	case value[index] == quote:
+		return index, 0
+	}
+	return index, quote
 }
 
 func findKubernetesFlowColon(value string, start int) int {
@@ -1672,31 +1660,44 @@ func redactKubernetesSecretJSONData(value string, escapeDepth int) (string, bool
 		!containsJSONKeyAtDepth(value, "data", escapeDepth) && !containsJSONKeyAtDepth(value, "stringData", escapeDepth) {
 		return value, false
 	}
+	return redactEachJSONObject(value, escapeDepth, true, func(object string) (string, bool) {
+		return redactKubernetesSecretJSONObject(object, escapeDepth)
+	})
+}
+
+func redactEachJSONObject(value string, escapeDepth int, redactUnclosed bool, redact func(object string) (string, bool)) (string, bool) {
+	return redactEachObject(value, func(value string, start int) int {
+		return nextJSONObjectStart(value, start, escapeDepth)
+	}, func(value string, open int) int {
+		return findJSONContainerEndAtDepthStrict(value, open, escapeDepth)
+	}, redactUnclosed, redact)
+}
+
+// redactEachObject redacts each object that next finds and end closes,
+// including nested objects. An object without a close ends the scan, so a
+// malformed outer object does not make every nested object rescan the rest of
+// value; with redactUnclosed, the rest of value is redacted as that object.
+func redactEachObject(value string, next, end func(value string, start int) int, redactUnclosed bool, redact func(object string) (string, bool)) (string, bool) {
 	redacted := value
 	changed := false
 	for searchStart := 0; searchStart < len(redacted); {
-		open := nextJSONObjectStart(redacted, searchStart, escapeDepth)
+		open := next(redacted, searchStart)
 		if open < 0 {
 			break
 		}
-		close := findJSONContainerEndAtDepthStrict(redacted, open, escapeDepth)
-		truncated := close < open
-		if truncated {
-			// A malformed outer object used to make every nested opening brace
-			// rescan the remaining suffix. Keep the existing truncated-object
-			// redaction behavior, but stop after the first unmatched container.
+		close := end(redacted, open)
+		unclosed := close < open
+		if unclosed {
+			if !redactUnclosed {
+				break
+			}
 			close = len(redacted) - 1
 		}
-		if close < open {
-			break
-		}
-		object := redacted[open : close+1]
-		redactedObject, objectChanged := redactKubernetesSecretJSONObject(object, escapeDepth)
-		if objectChanged {
+		if redactedObject, objectChanged := redact(redacted[open : close+1]); objectChanged {
 			redacted = redacted[:open] + redactedObject + redacted[close+1:]
 			changed = true
 		}
-		if truncated {
+		if unclosed {
 			break
 		}
 		searchStart = open + 1
@@ -1707,31 +1708,52 @@ func redactKubernetesSecretJSONData(value string, escapeDepth int) (string, bool
 func containsJSONKeyAtDepth(value, key string, escapeDepth int) bool {
 	delimiter := jsonQuoteDelimiter(escapeDepth)
 	for searchStart := 0; searchStart < len(value); {
-		relative := strings.Index(value[searchStart:], delimiter)
-		if relative < 0 {
-			return false
-		}
-		open := searchStart + relative
-		quote := open + len(delimiter) - 1
-		if !isJSONStringDelimiterAtDepth(value, quote, escapeDepth) {
-			searchStart = open + len(delimiter)
-			continue
-		}
-		close := findJSONStringEndAtDepth(value, open, escapeDepth)
+		open, close := nextJSONStringAtDepth(value, searchStart, delimiter, escapeDepth)
 		if close < 0 {
 			return false
 		}
-		cursor := close + 1
-		for cursor < len(value) && (value[cursor] == ' ' || value[cursor] == '\t' || value[cursor] == '\r' || value[cursor] == '\n') {
-			cursor++
-		}
 		decoded, valid := decodeJSONCredentialKey(value[open:close+1], escapeDepth)
-		if valid && cursor < len(value) && value[cursor] == ':' && strings.EqualFold(decoded, key) {
+		if valid && jsonValueAfterKey(value, close) >= 0 && strings.EqualFold(decoded, key) {
 			return true
 		}
 		searchStart = close + 1
 	}
 	return false
+}
+
+// nextJSONStringAtDepth returns the bounds of the next string from start that
+// is quoted by delimiter, the jsonQuoteDelimiter of escapeDepth, the close
+// being -1 when it or its end is missing.
+func nextJSONStringAtDepth(value string, start int, delimiter string, escapeDepth int) (int, int) {
+	for start < len(value) {
+		relative := strings.Index(value[start:], delimiter)
+		if relative < 0 {
+			break
+		}
+		open := start + relative
+		if isJSONStringDelimiterAtDepth(value, open+len(delimiter)-1, escapeDepth) {
+			return open, findJSONStringEndAtDepth(value, open, escapeDepth)
+		}
+		start = open + len(delimiter)
+	}
+	return -1, -1
+}
+
+// jsonValueAfterKey returns where the value of the key that ends at keyClose
+// starts, or -1 when no colon follows the key.
+func jsonValueAfterKey(value string, keyClose int) int {
+	colon := skipJSONWhitespace(value, keyClose+1)
+	if colon >= len(value) || value[colon] != ':' {
+		return -1
+	}
+	return skipJSONWhitespace(value, colon+1)
+}
+
+func skipJSONWhitespace(value string, index int) int {
+	for index < len(value) && (value[index] == ' ' || value[index] == '\t' || value[index] == '\r' || value[index] == '\n') {
+		index++
+	}
+	return index
 }
 
 func nextJSONObjectStart(value string, start, escapeDepth int) int {
@@ -1750,26 +1772,11 @@ func nextJSONObjectStart(value string, start, escapeDepth int) int {
 
 func redactKubernetesSecretJSONObject(object string, escapeDepth int) (string, bool) {
 	properties := parseJSONObjectProperties(object, escapeDepth)
-	if len(properties) == 0 {
-		return object, false
-	}
-	isSecret := false
-	for _, property := range properties {
-		if !strings.EqualFold(property.key, "kind") || property.valueStart >= len(object) || !strings.HasPrefix(object[property.valueStart:], jsonQuoteDelimiter(escapeDepth)) {
-			continue
-		}
-		kind, valid := decodeJSONCredentialKey(object[property.valueStart:property.valueEnd], escapeDepth)
-		if valid && strings.EqualFold(kind, "Secret") {
-			isSecret = true
-			break
-		}
-	}
-	if !isSecret {
+	if !hasJSONStringProperty(object, properties, escapeDepth, "kind", func(kind string) bool { return strings.EqualFold(kind, "Secret") }) {
 		return object, false
 	}
 
-	type replacement struct{ start, end int }
-	var replacements []replacement
+	var replacements []textReplacement
 	quotedMarker := jsonQuoteDelimiter(escapeDepth) + redactionMarker + jsonQuoteDelimiter(escapeDepth)
 	for _, property := range properties {
 		if !strings.EqualFold(property.key, "data") && !strings.EqualFold(property.key, "stringData") || property.valueStart >= len(object) || object[property.valueStart] != '{' {
@@ -1781,21 +1788,24 @@ func redactKubernetesSecretJSONObject(object string, escapeDepth int) (string, b
 			if child.valueStart >= len(container) || container[child.valueStart:child.valueEnd] == quotedMarker {
 				continue
 			}
-			replacements = append(replacements, replacement{
-				start: property.valueStart + child.valueStart,
-				end:   property.valueStart + child.valueEnd,
-			})
+			replacements = append(replacements, textReplacement{property.valueStart + child.valueStart, property.valueStart + child.valueEnd, quotedMarker})
 		}
 	}
-	if len(replacements) == 0 {
-		return object, false
+	return applyTextReplacements(object, replacements), len(replacements) > 0
+}
+
+// hasJSONStringProperty reports whether object has a property named key, in
+// any case, whose string value matches.
+func hasJSONStringProperty(object string, properties []jsonObjectProperty, escapeDepth int, key string, matches func(string) bool) bool {
+	for _, property := range properties {
+		if !strings.EqualFold(property.key, key) || property.valueStart >= len(object) || !strings.HasPrefix(object[property.valueStart:], jsonQuoteDelimiter(escapeDepth)) {
+			continue
+		}
+		if decoded, valid := decodeJSONCredentialKey(object[property.valueStart:property.valueEnd], escapeDepth); valid && matches(decoded) {
+			return true
+		}
 	}
-	redacted := object
-	for index := len(replacements) - 1; index >= 0; index-- {
-		span := replacements[index]
-		redacted = redacted[:span.start] + quotedMarker + redacted[span.end:]
-	}
-	return redacted, true
+	return false
 }
 
 func parseJSONObjectProperties(object string, escapeDepth int) []jsonObjectProperty {
@@ -1823,16 +1833,9 @@ func parseJSONObjectProperties(object string, escapeDepth int) []jsonObjectPrope
 		if !valid {
 			return properties
 		}
-		valueStart := keyEnd + 1
-		for valueStart < len(object) && (object[valueStart] == ' ' || object[valueStart] == '\t' || object[valueStart] == '\r' || object[valueStart] == '\n') {
-			valueStart++
-		}
-		if valueStart >= len(object) || object[valueStart] != ':' {
+		valueStart := jsonValueAfterKey(object, keyEnd)
+		if valueStart < 0 {
 			return properties
-		}
-		valueStart++
-		for valueStart < len(object) && (object[valueStart] == ' ' || object[valueStart] == '\t' || object[valueStart] == '\r' || object[valueStart] == '\n') {
-			valueStart++
 		}
 		valueEnd := jsonPropertyValueEnd(object, valueStart, escapeDepth)
 		if valueEnd <= valueStart {
@@ -2484,11 +2487,7 @@ func redactXMLElementValueAttribute(value string, elementStart, elementEnd int, 
 		if !strings.EqualFold(attribute.Name.Local, "value") {
 			continue
 		}
-		attributeMatch := attributeMatches[index]
-		valueStart, valueEnd := attributeMatch[4], attributeMatch[5]
-		if valueStart < 0 {
-			valueStart, valueEnd = attributeMatch[6], attributeMatch[7]
-		}
+		valueStart, valueEnd := xmlAttributeValueSpan(attributeMatches[index])
 		if valueStart < 0 || valueEnd < valueStart {
 			return value, false, 0
 		}
@@ -2500,6 +2499,15 @@ func redactXMLElementValueAttribute(value string, elementStart, elementEnd int, 
 		return value[:valueStart] + redactionMarker + value[valueEnd:], true, len(redactionMarker) - (valueEnd - valueStart)
 	}
 	return value, false, 0
+}
+
+// xmlAttributeValueSpan returns the bounds of the double- or single-quoted
+// value in a match of xmlAttribute.
+func xmlAttributeValueSpan(match []int) (int, int) {
+	if match[4] >= 0 {
+		return match[4], match[5]
+	}
+	return match[6], match[7]
 }
 
 func redactXMLCredentialAttributes(value string) (string, bool) {
@@ -2556,11 +2564,7 @@ func redactXMLCredentialAttributes(value string) (string, bool) {
 			continue
 		}
 
-		attributeMatch := attributeMatches[valueAttribute]
-		valueStart, valueEnd := attributeMatch[4], attributeMatch[5]
-		if valueStart < 0 {
-			valueStart, valueEnd = attributeMatch[6], attributeMatch[7]
-		}
+		valueStart, valueEnd := xmlAttributeValueSpan(attributeMatches[valueAttribute])
 		valueStart += elementStart
 		valueEnd += elementStart
 		if redacted[valueStart:valueEnd] == redactionMarker {
@@ -3102,25 +3106,25 @@ func findTOMLMultilineStringEnd(value string, open int) int {
 }
 
 func redactJSONEscapedCredentialValues(value string) (string, bool) {
+	return redactAtEachJSONEscapeDepth(value, redactJSONCredentialValues)
+}
+
+// redactAtEachJSONEscapeDepth runs redact once for each level of JSON string
+// escaping that value is long enough to hold, from unescaped JSON upwards.
+func redactAtEachJSONEscapeDepth(value string, redact func(value string, escapeDepth int) (string, bool)) (string, bool) {
+	maxEscapeDepth := 0
+	for length := len(value); length > 1; length >>= 1 {
+		maxEscapeDepth++
+	}
 	redacted := value
 	changed := false
-	maxEscapeDepth := maxJSONEscapeDepthForLength(len(value))
 	for escapeDepth := 0; escapeDepth <= maxEscapeDepth; escapeDepth++ {
-		if next, layerChanged := redactJSONCredentialValues(redacted, escapeDepth); layerChanged {
+		if next, layerChanged := redact(redacted, escapeDepth); layerChanged {
 			redacted = next
 			changed = true
 		}
 	}
 	return redacted, changed
-}
-
-func maxJSONEscapeDepthForLength(length int) int {
-	maxDepth := 0
-	for length > 1 {
-		maxDepth++
-		length >>= 1
-	}
-	return maxDepth
 }
 
 func redactJSONCredentialValues(value string, escapeDepth int) (string, bool) {
@@ -3132,17 +3136,7 @@ func redactJSONValuesMatchingName(value string, escapeDepth int, nameMatches fun
 	changed := false
 	quoteDelimiter := jsonQuoteDelimiter(escapeDepth)
 	for searchStart := 0; searchStart < len(redacted); {
-		relativeOpen := strings.Index(redacted[searchStart:], quoteDelimiter)
-		if relativeOpen < 0 {
-			break
-		}
-		open := searchStart + relativeOpen
-		quote := open + len(quoteDelimiter) - 1
-		if !isJSONStringDelimiterAtDepth(redacted, quote, escapeDepth) {
-			searchStart = open + len(quoteDelimiter)
-			continue
-		}
-		close := findJSONStringEndAtDepth(redacted, open, escapeDepth)
+		open, close := nextJSONStringAtDepth(redacted, searchStart, quoteDelimiter, escapeDepth)
 		if close < 0 {
 			break
 		}
@@ -3158,17 +3152,10 @@ func redactJSONValuesMatchingName(value string, escapeDepth int, nameMatches fun
 			continue
 		}
 
-		colon := close + 1
-		for colon < len(redacted) && strings.ContainsRune(" \t\r\n", rune(redacted[colon])) {
-			colon++
-		}
-		if colon >= len(redacted) || redacted[colon] != ':' {
+		valueStart := jsonValueAfterKey(redacted, close)
+		if valueStart < 0 {
 			searchStart = close + 1
 			continue
-		}
-		valueStart := colon + 1
-		for valueStart < len(redacted) && strings.ContainsRune(" \t\r\n", rune(redacted[valueStart])) {
-			valueStart++
 		}
 		valueEnd, replacement := jsonCredentialValueReplacement(redacted, valueStart, escapeDepth)
 		if preserveUnterminatedValues && strings.HasPrefix(redacted[valueStart:], quoteDelimiter) && findJSONStringEndAtDepth(redacted, valueStart, escapeDepth) < 0 {
@@ -3204,83 +3191,36 @@ var contextualJSONContainerRules = []contextualJSONContainerRule{
 }
 
 func redactContextualJSONCredentialValues(value string) (string, bool) {
-	redacted := value
-	changed := false
-	maxEscapeDepth := maxJSONEscapeDepthForLength(len(value))
-	for escapeDepth := 0; escapeDepth <= maxEscapeDepth; escapeDepth++ {
+	return redactAtEachJSONEscapeDepth(value, func(redacted string, escapeDepth int) (string, bool) {
+		changed := false
 		for _, rule := range contextualJSONContainerRules {
-			if next, layerChanged := redactJSONValuesInNamedContainer(redacted, escapeDepth, rule); layerChanged {
+			if next, ruleChanged := redactJSONValuesInNamedContainer(redacted, escapeDepth, rule); ruleChanged {
 				redacted = next
 				changed = true
 			}
 		}
-	}
-	return redacted, changed
+		return redacted, changed
+	})
 }
 
 func redactSensitiveJSONNameValuePairs(value string) (string, bool) {
-	redacted := value
-	changed := false
-	maxEscapeDepth := maxJSONEscapeDepthForLength(len(value))
-	for escapeDepth := 0; escapeDepth <= maxEscapeDepth; escapeDepth++ {
-		if next, layerChanged := redactSensitiveJSONNameValuePairsAtDepth(redacted, escapeDepth); layerChanged {
-			redacted = next
-			changed = true
-		}
-	}
-	return redacted, changed
+	return redactAtEachJSONEscapeDepth(value, redactSensitiveJSONNameValuePairsAtDepth)
 }
 
 func redactSensitiveJSONNameValuePairsAtDepth(value string, escapeDepth int) (string, bool) {
-	redacted := value
-	changed := false
-	for searchStart := 0; searchStart < len(redacted); {
-		open := nextJSONObjectStart(redacted, searchStart, escapeDepth)
-		if open < 0 {
-			break
-		}
-		close := findJSONContainerEndAtDepthStrict(redacted, open, escapeDepth)
-		if close < open {
-			// Do not rescan every nested object when the outer JSON container is
-			// malformed. Other JSON passes still handle credential pairs in the
-			// truncated text, while this object-oriented pass has no safe bound.
-			break
-		}
-		object := redacted[open : close+1]
-		redactedObject, objectChanged := redactSensitiveJSONNameValueObject(object, escapeDepth)
-		if objectChanged {
-			redacted = redacted[:open] + redactedObject + redacted[close+1:]
-			changed = true
-		}
-		searchStart = open + 1
-	}
-	return redacted, changed
+	return redactEachJSONObject(value, escapeDepth, false, func(object string) (string, bool) {
+		return redactSensitiveJSONNameValueObject(object, escapeDepth)
+	})
 }
 
 func redactSensitiveJSONNameValueObject(object string, escapeDepth int) (string, bool) {
 	properties := parseJSONObjectProperties(object, escapeDepth)
-	delimiter := jsonQuoteDelimiter(escapeDepth)
-	sensitiveName := false
-	for _, property := range properties {
-		if !strings.EqualFold(property.key, "name") || property.valueStart >= len(object) || !strings.HasPrefix(object[property.valueStart:], delimiter) {
-			continue
-		}
-		name, valid := decodeJSONCredentialKey(object[property.valueStart:property.valueEnd], escapeDepth)
-		if valid && jsonCredentialName.MatchString(name) {
-			sensitiveName = true
-			break
-		}
-	}
-	if !sensitiveName {
+	if !hasJSONStringProperty(object, properties, escapeDepth, "name", jsonCredentialName.MatchString) {
 		return object, false
 	}
 
-	type replacement struct {
-		start int
-		end   int
-		value string
-	}
-	var replacements []replacement
+	delimiter := jsonQuoteDelimiter(escapeDepth)
+	var replacements []textReplacement
 	for _, property := range properties {
 		if !strings.EqualFold(property.key, "value") || property.valueStart >= len(object) {
 			continue
@@ -3292,18 +3232,9 @@ func redactSensitiveJSONNameValueObject(object string, escapeDepth int) (string,
 		if valueEnd <= property.valueStart || object[property.valueStart:valueEnd] == replacementValue {
 			continue
 		}
-		replacements = append(replacements, replacement{start: property.valueStart, end: valueEnd, value: replacementValue})
+		replacements = append(replacements, textReplacement{property.valueStart, valueEnd, replacementValue})
 	}
-	if len(replacements) == 0 {
-		return object, false
-	}
-
-	redacted := object
-	for index := len(replacements) - 1; index >= 0; index-- {
-		span := replacements[index]
-		redacted = redacted[:span.start] + span.value + redacted[span.end:]
-	}
-	return redacted, true
+	return applyTextReplacements(object, replacements), len(replacements) > 0
 }
 
 func redactSensitiveYAMLNameValuePairs(value string) (string, bool) {
@@ -3372,20 +3303,13 @@ func redactSensitiveYAMLBlockNameValuePairs(lines []string, scalarAnchors map[st
 		}
 
 		mappingIndent := yamlKeyIndent(content)
-		start := line
-		for start > 0 && yamlLineBelongsToMapping(lines[start-1], mappingIndent) {
-			start--
-		}
+		start, end := yamlMappingLines(lines, line, mappingIndent)
 		if start > 0 {
 			previous, _ := splitLineEnding(lines[start-1])
 			previousIndent := leadingIndent(previous)
 			if isYAMLSequenceItemAtIndent(previous, previousIndent) && yamlKeyIndent(previous) == mappingIndent {
 				start--
 			}
-		}
-		end := line + 1
-		for end < len(lines) && yamlLineBelongsToMapping(lines[end], mappingIndent) {
-			end++
 		}
 		for candidate := start; candidate < end; candidate++ {
 			valueContent, ending := splitLineEnding(lines[candidate])
@@ -3406,26 +3330,9 @@ func redactSensitiveYAMLBlockNameValuePairs(lines []string, scalarAnchors map[st
 }
 
 func redactSensitiveYAMLFlowNameValuePairs(value string, scalarAnchors map[string]string) (string, bool) {
-	redacted := value
-	changed := false
-	for searchStart := 0; searchStart < len(redacted); {
-		open := nextYAMLFlowObjectStart(redacted, searchStart)
-		if open < 0 {
-			break
-		}
-		close := findYAMLFlowEnd(redacted, open)
-		if close < open {
-			break
-		}
-		object := redacted[open : close+1]
-		redactedObject, objectChanged := redactSensitiveYAMLFlowNameValueObject(object, scalarAnchors)
-		if objectChanged {
-			redacted = redacted[:open] + redactedObject + redacted[close+1:]
-			changed = true
-		}
-		searchStart = open + 1
-	}
-	return redacted, changed
+	return redactEachObject(value, nextYAMLFlowObjectStart, findYAMLFlowEnd, false, func(object string) (string, bool) {
+		return redactSensitiveYAMLFlowNameValueObject(object, scalarAnchors)
+	})
 }
 
 func nextYAMLFlowObjectStart(value string, start int) int {
@@ -3439,17 +3346,7 @@ func nextYAMLFlowObjectStart(value string, start int) int {
 			continue
 		}
 		if quote != 0 {
-			if quote == '"' && value[index] == '\\' {
-				index++
-				continue
-			}
-			if quote == '\'' && value[index] == '\'' && index+1 < len(value) && value[index+1] == '\'' {
-				index++
-				continue
-			}
-			if value[index] == quote {
-				quote = 0
-			}
+			index, quote = stepYAMLQuotedScalar(value, index, quote)
 			continue
 		}
 		switch value[index] {
@@ -3502,17 +3399,7 @@ func redactJSONValuesInNamedContainer(value string, escapeDepth int, rule contex
 	changed := false
 	quoteDelimiter := jsonQuoteDelimiter(escapeDepth)
 	for searchStart := 0; searchStart < len(redacted); {
-		relativeOpen := strings.Index(redacted[searchStart:], quoteDelimiter)
-		if relativeOpen < 0 {
-			break
-		}
-		keyOpen := searchStart + relativeOpen
-		quote := keyOpen + len(quoteDelimiter) - 1
-		if !isJSONStringDelimiterAtDepth(redacted, quote, escapeDepth) {
-			searchStart = keyOpen + len(quoteDelimiter)
-			continue
-		}
-		keyClose := findJSONStringEndAtDepth(redacted, keyOpen, escapeDepth)
+		keyOpen, keyClose := nextJSONStringAtDepth(redacted, searchStart, quoteDelimiter, escapeDepth)
 		if keyClose < 0 {
 			break
 		}
@@ -3523,19 +3410,8 @@ func redactJSONValuesInNamedContainer(value string, escapeDepth int, rule contex
 			continue
 		}
 
-		colon := keyClose + 1
-		for colon < len(redacted) && strings.ContainsRune(" \t\r\n", rune(redacted[colon])) {
-			colon++
-		}
-		if colon >= len(redacted) || redacted[colon] != ':' {
-			searchStart = keyClose + 1
-			continue
-		}
-		containerOpen := colon + 1
-		for containerOpen < len(redacted) && strings.ContainsRune(" \t\r\n", rune(redacted[containerOpen])) {
-			containerOpen++
-		}
-		if containerOpen >= len(redacted) || !strings.ContainsRune(rule.openers, rune(redacted[containerOpen])) {
+		containerOpen := jsonValueAfterKey(redacted, keyClose)
+		if containerOpen < 0 || containerOpen >= len(redacted) || !strings.ContainsRune(rule.openers, rune(redacted[containerOpen])) {
 			searchStart = keyClose + 1
 			continue
 		}
@@ -3930,17 +3806,7 @@ func findYAMLFlowEnd(value string, open int) int {
 	var quote byte
 	for i := open + 1; i < len(value); i++ {
 		if quote != 0 {
-			if quote == '"' && value[i] == '\\' {
-				i++
-				continue
-			}
-			if quote == '\'' && value[i] == '\'' && i+1 < len(value) && value[i+1] == '\'' {
-				i++
-				continue
-			}
-			if value[i] == quote {
-				quote = 0
-			}
+			i, quote = stepYAMLQuotedScalar(value, i, quote)
 			continue
 		}
 
@@ -4373,14 +4239,8 @@ func redactCommandCredentialFlagValuesMatching(command string, pattern *lazyRege
 }
 
 func redactCommandCredentialOptionValues(command, subcommand string, options ...string) (string, bool) {
-	type replacement struct {
-		start int
-		end   int
-		text  string
-	}
-
 	spans := splitCredentialShellWordSpans(command)
-	replacements := make([]replacement, 0, 2)
+	replacements := make([]textReplacement, 0, 2)
 	for index := 0; index < len(spans); index++ {
 		span := spans[index]
 		if span.start < len(command) && command[span.start] == '#' {
@@ -4439,27 +4299,15 @@ func redactCommandCredentialOptionValues(command, subcommand string, options ...
 			content := rawArgument[contentStart:contentEnd]
 			separator := strings.IndexByte(content, '=')
 			if separator < 0 {
-				replacements = append(replacements, replacement{
-					start: spans[argumentSpanIndex].start,
-					end:   argumentEnd,
-					text:  redactionMarker,
-				})
+				replacements = append(replacements, textReplacement{spans[argumentSpanIndex].start, argumentEnd, redactionMarker})
 				continue
 			}
 			if content[separator+1:] == redactionMarker {
 				continue
 			}
-			replacements = append(replacements, replacement{
-				start: spans[argumentSpanIndex].start + contentStart + separator + 1,
-				end:   spans[argumentSpanIndex].start + contentEnd,
-				text:  redactionMarker,
-			})
+			replacements = append(replacements, textReplacement{spans[argumentSpanIndex].start + contentStart + separator + 1, spans[argumentSpanIndex].start + contentEnd, redactionMarker})
 		} else if rawArgument[contentStart:contentEnd] != redactionMarker {
-			replacements = append(replacements, replacement{
-				start: spans[argumentSpanIndex].start,
-				end:   argumentEnd,
-				text:  redactionMarker,
-			})
+			replacements = append(replacements, textReplacement{spans[argumentSpanIndex].start, argumentEnd, redactionMarker})
 		}
 		index = argumentSpanIndex
 		for index+1 < len(spans) && spans[index+1].start < argumentEnd {
@@ -4467,12 +4315,7 @@ func redactCommandCredentialOptionValues(command, subcommand string, options ...
 		}
 	}
 
-	result := command
-	for index := len(replacements) - 1; index >= 0; index-- {
-		replacement := replacements[index]
-		result = result[:replacement.start] + replacement.text + result[replacement.end:]
-	}
-	return result, len(replacements) > 0
+	return applyTextReplacements(command, replacements), len(replacements) > 0
 }
 
 func openSSLSubcommandOptionRequiresArgument(subcommand, option string) bool {
@@ -4563,38 +4406,35 @@ func openSSLOptionValueWithPrefix(prefixes ...string) func(string) bool {
 func openSSLCommand(command string) (int, string, bool) {
 	spans := splitCredentialShellWordSpans(command)
 	words := shellWordValues(spans)
-	for index, word := range words {
-		baseName := commandBaseName(word)
-		if (baseName != "openssl" && baseName != "openssl.exe") || !isCredentialCommandPrefix(words[:index]) {
+	index := credentialCommandIndex(words, "openssl", "openssl.exe")
+	if index < 0 {
+		return 0, "", false
+	}
+	if index+1 >= len(words) {
+		return 0, "", false
+	}
+	subcommandStart := index + 1
+	if index+3 < len(words) && strings.Trim(words[index+1], `"'`) == "--" && isLaunchctlSubmitExecutablePrefix(words[:index]) {
+		subcommandStart = index + 3
+	}
+	for subcommandIndex := subcommandStart; subcommandIndex < len(words); subcommandIndex++ {
+		option := strings.ToLower(strings.Trim(words[subcommandIndex], `"'`))
+		if option == "--" {
 			continue
 		}
-		if index+1 >= len(words) {
+		if !strings.HasPrefix(option, "-") || option == "-" {
+			return spans[subcommandIndex].start, option, true
+		}
+		requiresArgument, allowed := openSSLGlobalOption(option)
+		if !allowed {
 			return 0, "", false
 		}
-		subcommandStart := index + 1
-		if index+3 < len(words) && strings.Trim(words[index+1], `"'`) == "--" && isLaunchctlSubmitExecutablePrefix(words[:index]) {
-			subcommandStart = index + 3
-		}
-		for subcommandIndex := subcommandStart; subcommandIndex < len(words); subcommandIndex++ {
-			option := strings.ToLower(strings.Trim(words[subcommandIndex], `"'`))
-			if option == "--" {
-				continue
-			}
-			if !strings.HasPrefix(option, "-") || option == "-" {
-				return spans[subcommandIndex].start, option, true
-			}
-			requiresArgument, allowed := openSSLGlobalOption(option)
-			if !allowed {
+		if requiresArgument {
+			subcommandIndex++
+			if subcommandIndex >= len(words) {
 				return 0, "", false
 			}
-			if requiresArgument {
-				subcommandIndex++
-				if subcommandIndex >= len(words) {
-					return 0, "", false
-				}
-			}
 		}
-		return 0, "", false
 	}
 	return 0, "", false
 }
@@ -4636,49 +4476,46 @@ func redactOpenSSLPasswdPositionalArguments(value string) (string, bool) {
 }
 
 func openSSLPasswdPasswordWordIndex(words []string) (int, bool) {
-	for opensslIndex, word := range words {
-		baseName := commandBaseName(word)
-		if (baseName != "openssl" && baseName != "openssl.exe") || !isCredentialCommandPrefix(words[:opensslIndex]) {
-			continue
+	opensslIndex := credentialCommandIndex(words, "openssl", "openssl.exe")
+	if opensslIndex < 0 {
+		return 0, false
+	}
+	if opensslIndex+1 >= len(words) || strings.Trim(words[opensslIndex+1], `"'`) != "passwd" {
+		return 0, false
+	}
+	for index := opensslIndex + 2; index < len(words); index++ {
+		option := strings.Trim(words[index], `"'`)
+		if option == "--" {
+			if index+1 < len(words) && strings.Trim(words[index+1], `"'`) == redactionMarker {
+				return 0, false
+			}
+			return index + 1, index+1 < len(words)
 		}
-		if opensslIndex+1 >= len(words) || strings.Trim(words[opensslIndex+1], `"'`) != "passwd" {
+		if !strings.HasPrefix(option, "-") || option == "-" {
+			if strings.TrimRight(option, ")") == redactionMarker {
+				return 0, false
+			}
+			return index, true
+		}
+
+		name, _, attached := strings.Cut(option, "=")
+		switch name {
+		case "-help":
+			return 0, false
+		case "-noverify", "-stdin", "-quiet", "-table", "-reverse", "-6", "-5", "-apr1", "-1", "-aixmd5":
+			if attached {
+				return 0, false
+			}
+		case "-in", "-salt", "-rand", "-writerand", "-provider-path", "-provider", "-provparam", "-propquery":
+			if !attached {
+				index++
+				if index >= len(words) {
+					return 0, false
+				}
+			}
+		default:
 			return 0, false
 		}
-		for index := opensslIndex + 2; index < len(words); index++ {
-			option := strings.Trim(words[index], `"'`)
-			if option == "--" {
-				if index+1 < len(words) && strings.Trim(words[index+1], `"'`) == redactionMarker {
-					return 0, false
-				}
-				return index + 1, index+1 < len(words)
-			}
-			if !strings.HasPrefix(option, "-") || option == "-" {
-				if strings.TrimRight(option, ")") == redactionMarker {
-					return 0, false
-				}
-				return index, true
-			}
-
-			name, _, attached := strings.Cut(option, "=")
-			switch name {
-			case "-help":
-				return 0, false
-			case "-noverify", "-stdin", "-quiet", "-table", "-reverse", "-6", "-5", "-apr1", "-1", "-aixmd5":
-				if attached {
-					return 0, false
-				}
-			case "-in", "-salt", "-rand", "-writerand", "-provider-path", "-provider", "-provparam", "-propquery":
-				if !attached {
-					index++
-					if index >= len(words) {
-						return 0, false
-					}
-				}
-			default:
-				return 0, false
-			}
-		}
-		return 0, false
 	}
 	return 0, false
 }
@@ -4891,9 +4728,7 @@ func redactDockerLoginCredentialArguments(value string) (string, bool) {
 			return command, false
 		}
 		return redactCommandFrom(command, commandStart, func(command string) (string, bool) {
-			redacted, _ := redactAttachedShortCredentialArguments(command, "p")
-			redacted = dockerLoginCredentialFlagPattern.ReplaceAllString(redacted, `${1}${2}`+redactionMarker)
-			return redacted, redacted != command
+			return redactFlagArguments(command, "p", dockerLoginCredentialFlagPattern)
 		})
 	})
 }
@@ -4901,15 +4736,12 @@ func redactDockerLoginCredentialArguments(value string) (string, bool) {
 func dockerLoginCommandStart(command string) (int, bool) {
 	spans := splitCredentialShellWordSpans(command)
 	words := shellWordValues(spans)
-	for index, word := range words {
-		baseName := commandBaseName(word)
-		if (baseName != "docker" && baseName != "docker.exe") || !isCredentialCommandPrefix(words[:index]) {
-			continue
-		}
-		subcommand, ok := dockerSubcommand(words[index+1:])
-		return spans[index].start, ok && subcommand == "login"
+	index := credentialCommandIndex(words, "docker", "docker.exe")
+	if index < 0 {
+		return 0, false
 	}
-	return 0, false
+	subcommand, ok := dockerSubcommand(words[index+1:])
+	return spans[index].start, ok && subcommand == "login"
 }
 
 func dockerSubcommand(words []string) (string, bool) {
@@ -4918,6 +4750,14 @@ func dockerSubcommand(words []string) (string, bool) {
 		return "", false
 	}
 	return strings.Trim(words[0], `"'`), true
+}
+
+// redactFlagArguments redacts the values attached to the short flags in
+// attachedFlags (-pSECRET), then the values pattern matches.
+func redactFlagArguments(command, attachedFlags string, pattern *lazyRegexp) (string, bool) {
+	redacted, _ := redactAttachedShortCredentialArguments(command, attachedFlags)
+	redacted = pattern.ReplaceAllString(redacted, `${1}${2}`+redactionMarker)
+	return redacted, redacted != command
 }
 
 func redactAttachedShortCredentialArguments(command, flags string) (string, bool) {
@@ -4957,13 +4797,11 @@ func redactAttachedShortCredentialArguments(command, flags string) (string, bool
 func namedCredentialCommandStart(command, commandName string) (int, bool) {
 	spans := splitCredentialShellWordSpans(command)
 	words := shellWordValues(spans)
-	for index, word := range words {
-		baseName := commandBaseName(word)
-		if (baseName == commandName || baseName == commandName+".exe") && isCredentialCommandPrefix(words[:index]) {
-			return spans[index].start, true
-		}
+	index := credentialCommandIndex(words, commandName, commandName+".exe")
+	if index < 0 {
+		return 0, false
 	}
-	return 0, false
+	return spans[index].start, true
 }
 
 func redactSecurityCredentialArguments(value string) (string, bool) {
@@ -4974,9 +4812,7 @@ func redactSecurityCredentialArguments(value string) (string, bool) {
 			return command, false
 		}
 		return redactCommandFrom(command, commandStart, func(command string) (string, bool) {
-			redacted, _ := redactAttachedShortCredentialArguments(command, securityAttachedCredentialFlags[subcommand])
-			redacted = pattern.ReplaceAllString(redacted, `${1}${2}`+redactionMarker)
-			return redacted, redacted != command
+			return redactFlagArguments(command, securityAttachedCredentialFlags[subcommand], pattern)
 		})
 	})
 }
@@ -5566,12 +5402,7 @@ func consumeXcrunCredentialWrapper(words []string) ([]string, bool) {
 			words = words[2:]
 		case "--log", "--verbose", "--no-cache", "--kill-cache", "--run", "-log", "-verbose", "-no-cache", "-kill-cache", "-run", "-l", "-v", "-n", "-k", "-r":
 			words = words[1:]
-		case "--find", "--help", "--version", "-find", "-help", "-version", "-f", "-h":
-			return nil, false
 		default:
-			if strings.HasPrefix(option, "--show-sdk-") || strings.HasPrefix(option, "-show-sdk-") || option == "--show-toolchain-path" || option == "-show-toolchain-path" {
-				return nil, false
-			}
 			return nil, false
 		}
 	}
@@ -5831,95 +5662,57 @@ func credentialShellWordContentSpan(raw string) (int, int) {
 }
 
 func redactShellCommandSubstitutionContents(value string, depth int) (string, bool) {
-	result := value
-	changed := false
-	var quote byte
-	for index := 0; index < len(result); index++ {
-		switch quote {
-		case '\'':
-			if result[index] == '\'' {
-				quote = 0
-			}
-			continue
-		case '"':
-			if result[index] == '"' {
-				quote = 0
-				continue
-			}
-		}
-		if result[index] == '\\' {
-			index++
-			continue
-		}
-		if result[index] == '"' {
-			quote = '"'
-			continue
-		}
-		if quote == 0 && result[index] == '\'' {
-			quote = '\''
-			continue
-		}
+	return redactNestedShellCommands(value, depth, true, shellCommandSubstitutionStart)
+}
 
-		open := -1
-		contentStart := -1
-		switch {
-		case result[index] == '$' && index+1 < len(result) && result[index+1] == '(' &&
-			(index+2 >= len(result) || result[index+2] != '('):
-			open = index
-			contentStart = index + 2
-		case result[index] == '`' && isShellBacktickSubstitutionStart(result, index):
-			open = index
-			contentStart = index + 1
-		case (result[index] == '<' || result[index] == '>') && index+1 < len(result) && result[index+1] == '(':
-			open = index + 1
-			contentStart = index + 2
-		case result[index] == '(' && (index+1 >= len(result) || result[index+1] != '(') &&
-			(index == 0 || !strings.ContainsRune("$<>=()", rune(result[index-1]))) &&
-			!isWithinShellArithmeticExpression(result, index) && !isWithinShellArraySubscript(result, index):
-			open = index
-			contentStart = index + 1
-		}
-		if open < 0 {
-			continue
-		}
-
-		close := findShellCommandSubstitutionEnd(result, open)
-		if close < contentStart {
-			continue
-		}
-		inner := result[contentStart:close]
-		redacted, innerChanged := redactSensitiveTextDepth(inner, depth+1)
-		if innerChanged {
-			result = result[:contentStart] + redacted + result[close:]
-			close = contentStart + len(redacted)
-			changed = true
-		}
-		index = close
+// shellCommandSubstitutionStart returns the opening parenthesis or backtick of
+// a command or process substitution at index and the start of its command,
+// or -1 and -1.
+func shellCommandSubstitutionStart(value string, index int) (int, int) {
+	switch {
+	case value[index] == '$' && index+1 < len(value) && value[index+1] == '(' &&
+		(index+2 >= len(value) || value[index+2] != '('):
+		return index, index + 2
+	case value[index] == '`' && isShellBacktickSubstitutionStart(value, index):
+		return index, index + 1
+	case (value[index] == '<' || value[index] == '>') && index+1 < len(value) && value[index+1] == '(':
+		return index + 1, index + 2
+	case value[index] == '(' && (index+1 >= len(value) || value[index+1] != '(') &&
+		(index == 0 || !strings.ContainsRune("$<>=()", rune(value[index-1]))) &&
+		!isWithinShellArithmeticExpression(value, index) && !isWithinShellArraySubscript(value, index):
+		return index, index + 1
 	}
-	return result, changed
+	return -1, -1
+}
+
+// readShellQuoting reads value[index] while quote is the open quote, or 0. It
+// returns the index of the last byte read, which includes an escaped byte, the
+// open quote, and whether the byte was quoted, escaped or a quote.
+func readShellQuoting(value string, index int, quote byte) (int, byte, bool) {
+	switch {
+	case quote == '\'':
+		if value[index] == '\'' {
+			quote = 0
+		}
+		return index, quote, true
+	case value[index] == '\\':
+		return index + 1, quote, true
+	case quote != 0:
+		if value[index] == quote {
+			quote = 0
+		}
+		return index, quote, true
+	case value[index] == '\'' || value[index] == '"' || value[index] == '`':
+		return index, value[index], true
+	}
+	return index, quote, false
 }
 
 func isWithinShellArithmeticExpression(value string, position int) bool {
 	var quote byte
+	var quoting bool
 	for index := 0; index < position; index++ {
-		if quote == '\'' {
-			if value[index] == '\'' {
-				quote = 0
-			}
-			continue
-		}
-		if value[index] == '\\' {
-			index++
-			continue
-		}
-		if quote != 0 {
-			if value[index] == quote {
-				quote = 0
-			}
-			continue
-		}
-		if value[index] == '\'' || value[index] == '"' || value[index] == '`' {
-			quote = value[index]
+		if index, quote, quoting = readShellQuoting(value, index, quote); quoting {
 			continue
 		}
 
@@ -5950,25 +5743,9 @@ func isWithinShellArraySubscript(value string, position int) bool {
 	openers := make([]subscript, 0, 2)
 	closedFishSlice := make(map[int]bool)
 	var quote byte
+	var quoting bool
 	for index := 0; index < position; index++ {
-		if quote == '\'' {
-			if value[index] == '\'' {
-				quote = 0
-			}
-			continue
-		}
-		if value[index] == '\\' {
-			index++
-			continue
-		}
-		if quote != 0 {
-			if value[index] == quote {
-				quote = 0
-			}
-			continue
-		}
-		if value[index] == '\'' || value[index] == '"' || value[index] == '`' {
-			quote = value[index]
+		if index, quote, quoting = readShellQuoting(value, index, quote); quoting {
 			continue
 		}
 		switch value[index] {
@@ -6000,6 +5777,18 @@ func isWithinShellArraySubscript(value string, position int) bool {
 }
 
 func redactShellSubshellGroupContents(value string, depth int) (string, bool) {
+	return redactNestedShellCommands(value, depth, false, func(value string, index int) (int, int) {
+		if value[index] != '(' || !isShellSubshellGroupStart(value, index) {
+			return -1, -1
+		}
+		return index, index + 1
+	})
+}
+
+// redactNestedShellCommands redacts, one nesting level deeper, the command
+// inside each construct that start finds outside single quotes, and inside
+// double quotes when inDoubleQuotes is set.
+func redactNestedShellCommands(value string, depth int, inDoubleQuotes bool, start func(value string, index int) (open, contentStart int)) (string, bool) {
 	result := value
 	changed := false
 	var quote byte
@@ -6013,8 +5802,11 @@ func redactShellSubshellGroupContents(value string, depth int) (string, bool) {
 		case '"':
 			if result[index] == '"' {
 				quote = 0
+				continue
 			}
-			continue
+			if !inDoubleQuotes {
+				continue
+			}
 		}
 		if result[index] == '\\' {
 			index++
@@ -6028,17 +5820,15 @@ func redactShellSubshellGroupContents(value string, depth int) (string, bool) {
 			quote = '\''
 			continue
 		}
-		if quote != 0 || result[index] != '(' || !isShellSubshellGroupStart(result, index) {
+		open, contentStart := start(result, index)
+		if open < 0 {
 			continue
 		}
-
-		close := findShellCommandSubstitutionEnd(result, index)
-		if close <= index {
+		close := findShellCommandSubstitutionEnd(result, open)
+		if close < contentStart {
 			continue
 		}
-		contentStart := index + 1
-		inner := result[contentStart:close]
-		redacted, innerChanged := redactSensitiveTextDepth(inner, depth+1)
+		redacted, innerChanged := redactSensitiveTextDepth(result[contentStart:close], depth+1)
 		if innerChanged {
 			result = result[:contentStart] + redacted + result[close:]
 			close = contentStart + len(redacted)
@@ -6133,49 +5923,47 @@ func redactEnvSplitCommandStrings(value string, depth int) (string, bool) {
 func envSplitCommandStringSpan(command string) (int, int, bool) {
 	spans := splitCredentialShellWordSpans(command)
 	words := shellWordValues(spans)
-	for index, word := range words {
-		if commandBaseName(word) != "env" || !isCredentialCommandPrefix(words[:index]) {
+	index := credentialCommandIndex(words, "env")
+	if index < 0 {
+		return 0, 0, false
+	}
+	for optionIndex := index + 1; optionIndex < len(words); {
+		option := strings.Trim(words[optionIndex], `"'`)
+		if shellAssignmentWord.MatchString(option) {
+			optionIndex++
 			continue
 		}
-		for optionIndex := index + 1; optionIndex < len(words); {
-			option := strings.Trim(words[optionIndex], `"'`)
-			if shellAssignmentWord.MatchString(option) {
-				optionIndex++
-				continue
+		if option == "--split-string" {
+			if optionIndex+1 >= len(spans) {
+				return 0, 0, false
 			}
-			if option == "--split-string" {
-				if optionIndex+1 >= len(spans) {
-					return 0, 0, false
-				}
-				span := spans[optionIndex+1]
-				return span.contentStart, span.contentEnd, true
-			}
-			if strings.HasPrefix(option, "--split-string=") {
-				return attachedEnvSplitStringSpan(command, spans[optionIndex], "--split-string=")
-			}
-			if splitOption, _, attached := envSplitStringOption(option); splitOption != "" {
-				if attached {
-					return attachedEnvSplitStringSpan(command, spans[optionIndex], "S")
-				}
-				if optionIndex+1 >= len(spans) {
-					return 0, 0, false
-				}
-				span := spans[optionIndex+1]
-				return span.contentStart, span.contentEnd, true
-			}
-			if len(option) < 2 || option[0] != '-' || option == "-" {
-				break
-			}
-			_, _, requiresArgument, allowed := envOptions.option(option)
-			if !allowed {
-				break
-			}
-			optionIndex++
-			if requiresArgument {
-				optionIndex++
-			}
+			span := spans[optionIndex+1]
+			return span.contentStart, span.contentEnd, true
 		}
-		return 0, 0, false
+		if strings.HasPrefix(option, "--split-string=") {
+			return attachedEnvSplitStringSpan(command, spans[optionIndex], "--split-string=")
+		}
+		if splitOption, _, attached := envSplitStringOption(option); splitOption != "" {
+			if attached {
+				return attachedEnvSplitStringSpan(command, spans[optionIndex], "S")
+			}
+			if optionIndex+1 >= len(spans) {
+				return 0, 0, false
+			}
+			span := spans[optionIndex+1]
+			return span.contentStart, span.contentEnd, true
+		}
+		if len(option) < 2 || option[0] != '-' || option == "-" {
+			break
+		}
+		_, _, requiresArgument, allowed := envOptions.option(option)
+		if !allowed {
+			break
+		}
+		optionIndex++
+		if requiresArgument {
+			optionIndex++
+		}
 	}
 	return 0, 0, false
 }
@@ -6478,28 +6266,13 @@ func transformXcodeCloudEnvVarSetCommands(value string, transform func(string) (
 
 func findShellCommandEnd(value string, start int) int {
 	var quote byte
+	var quoting bool
 	parenDepth := 0
 	for i := start; i < len(value); i++ {
-		if quote == '\'' {
-			if value[i] == '\'' {
-				quote = 0
-			}
+		if i, quote, quoting = readShellQuoting(value, i, quote); quoting {
 			continue
 		}
-		if value[i] == '\\' {
-			i++
-			continue
-		}
-		if quote != 0 {
-			if value[i] == quote {
-				quote = 0
-			}
-			continue
-		}
-
 		switch value[i] {
-		case '\'', '"', '`':
-			quote = value[i]
 		case '(':
 			parenDepth++
 		case ')':
