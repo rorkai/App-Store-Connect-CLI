@@ -26,12 +26,5 @@ func (c *Client) updateGameCenterGroupToManyRelationship(ctx context.Context, gr
 	payload := RelationshipRequest{
 		Data: buildRelationshipData(resourceType, ids),
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterGroups/%s/relationships/%s", groupID, relationship)
-	_, err = c.do(ctx, http.MethodPatch, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterGroups/%s/relationships/%s", groupID, relationship), payload)
 }
