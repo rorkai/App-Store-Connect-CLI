@@ -154,7 +154,7 @@ func resolveSkippedImportPath(workDir, fastlaneDir, deliverfilePath, explicitPat
 		}, nil
 	}
 	if strings.TrimSpace(fastlaneDir) != "" {
-		return resolvedImportPath{path: filepath.Join(fastlaneDir, defaultDir), source: pathSourceFlag, label: defaultDir}, nil
+		return resolvedImportPath{path: filepath.Join(fastlaneDir, defaultDir), source: pathSourceDefault, label: defaultDir}, nil
 	}
 	return resolvedImportPath{path: filepath.Join(base, defaultDir), source: pathSourceDefault, label: defaultDir}, nil
 }
@@ -218,7 +218,7 @@ func resolveImportPath(workDir, fastlaneDir, deliverfilePath, explicitPath, deli
 		if err != nil {
 			return resolvedImportPath{}, err
 		}
-		return resolvedImportPath{path: resolved, source: pathSourceFlag, label: defaultDir}, nil
+		return resolvedImportPath{path: resolved, source: pathSourceDefault, label: defaultDir}, nil
 	}
 	return resolvedImportPath{path: filepath.Join(base, defaultDir), source: pathSourceDefault, label: defaultDir}, nil
 }

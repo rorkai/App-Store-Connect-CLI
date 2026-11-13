@@ -1518,7 +1518,10 @@ Examples:
 			}
 
 			metadataDir := inputs.MetadataDir
-			if inputs.DeliverfileConfig.SkipMetadata && metadataDir != "" {
+			if metadataDir == "" {
+				return fmt.Errorf("migrate validate: metadata directory not found: %s", filepath.Join(*fastlaneDir, "metadata"))
+			}
+			if inputs.DeliverfileConfig.SkipMetadata {
 				skipped = append(skipped, SkippedItem{
 					Path:   metadataDir,
 					Reason: "skip_metadata in Deliverfile",

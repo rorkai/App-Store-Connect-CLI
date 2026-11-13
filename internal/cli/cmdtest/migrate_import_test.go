@@ -888,6 +888,19 @@ func runMigrateImportWithOptions(t *testing.T, root string, options ...string) (
 	return stdout, stderr, runErr
 }
 
+func migrateImportDryRunPlan(t *testing.T, root string, options ...string) migrate.MigrateImportResult {
+	t.Helper()
+	stdout, stderr := runMigrateImportDryRun(t, append([]string{"--fastlane-dir", root}, options...)...)
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	var result migrate.MigrateImportResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	return result
+}
+
 func assertMigrateImportError(t *testing.T, stdout, stderr string, runErr error, wantError string) {
 	t.Helper()
 	if runErr == nil {
@@ -2136,6 +2149,20 @@ func TestMigrateImportDryRunConfigReleaseHints(t *testing.T) {
 				t.Fatalf("configuration hints = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestMigrateImportDryRunReportsMissingScreenshotsDirAsSkipped(t *testing.T) {
+	root := writeMigrateImportMetadata(t, validMigrateAppInfoMetadata())
+
+	result := migrateImportDryRunPlan(t, root)
+
+	if len(result.MetadataFiles) != 2 {
+		t.Fatalf("expected metadata plan to survive missing screenshots dir, got %+v", result.MetadataFiles)
+	}
+	want := migrate.SkippedItem{Path: filepath.Join(root, "screenshots"), Reason: "default screenshots directory not found"}
+	if !slices.Contains(result.Skipped, want) {
+		t.Fatalf("skipped = %+v, want %+v", result.Skipped, want)
 	}
 }
 
