@@ -25,7 +25,7 @@ func TestXCConfigImplicitLookupShadowsConditionalDefault(t *testing.T) {
 			if err := os.WriteFile(path, []byte(tc.contents), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			resolved, err := resolveXCConfigSettingWithBaseReaderAndIdentityAndLookup(path, tc.setting, xcconfigResolvedValue{}, os.ReadFile, os.Stat, nil, func(string) (string, bool) { return tc.implicit, true })
+			resolved, err := resolveXCConfigSetting(path, tc.setting, xcconfigResolveOptions{lookup: func(string) (string, bool) { return tc.implicit, true }})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -42,15 +42,7 @@ func TestXCConfigImplicitLookupPreservesExplicitConditional(t *testing.T) {
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := resolveXCConfigSettingWithBaseReaderAndIdentityAndLookup(
-		path,
-		"PROJECT_DIR",
-		xcconfigResolvedValue{},
-		os.ReadFile,
-		os.Stat,
-		nil,
-		func(string) (string, bool) { return "/project", true },
-	)
+	_, err := resolveXCConfigSetting(path, "PROJECT_DIR", xcconfigResolveOptions{lookup: func(string) (string, bool) { return "/project", true }})
 	if err == nil || !strings.Contains(err.Error(), "differing conditional") {
 		t.Fatalf("resolve implicit value error = %v, want divergent explicit conditional error", err)
 	}
@@ -62,10 +54,7 @@ func TestXCConfigConditionalAssignmentExpandsInheritedValue(t *testing.T) {
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	resolved, err := resolveXCConfigSettingWithBaseReaderAndIdentityAndLookup(
-		path, "OTHER", xcconfigResolvedValue{}, os.ReadFile, os.Stat, nil,
-		func(string) (string, bool) { return "base", true },
-	)
+	resolved, err := resolveXCConfigSetting(path, "OTHER", xcconfigResolveOptions{lookup: func(string) (string, bool) { return "base", true }})
 	if err != nil {
 		t.Fatalf("resolve conditional inherited value: %v", err)
 	}
@@ -80,15 +69,7 @@ func TestXCConfigImplicitLookupComposesInheritedConditional(t *testing.T) {
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	resolved, err := resolveXCConfigSettingWithBaseReaderAndIdentityAndLookup(
-		path,
-		"PROJECT_DIR",
-		xcconfigResolvedValue{},
-		os.ReadFile,
-		os.Stat,
-		nil,
-		func(string) (string, bool) { return "/project", true },
-	)
+	resolved, err := resolveXCConfigSetting(path, "PROJECT_DIR", xcconfigResolveOptions{lookup: func(string) (string, bool) { return "/project", true }})
 	if err != nil {
 		t.Fatalf("resolve implicit inherited value error = %v", err)
 	}
@@ -103,20 +84,14 @@ func TestXCConfigImplicitLookupExpandsConditionalReferences(t *testing.T) {
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	resolved, err := resolveXCConfigSettingWithBaseReaderAndIdentityAndLookup(
-		path,
-		"PROJECT_DIR",
-		xcconfigResolvedValue{},
-		os.ReadFile,
-		os.Stat,
-		nil,
-		func(name string) (string, bool) {
+	resolved, err := resolveXCConfigSetting(path, "PROJECT_DIR", xcconfigResolveOptions{
+		lookup: func(name string) (string, bool) {
 			if name == "SRCROOT" || name == "PROJECT_DIR" {
 				return "/project", true
 			}
 			return "", false
 		},
-	)
+	})
 	if err != nil {
 		t.Fatalf("resolve implicit conditional reference error = %v", err)
 	}
@@ -134,15 +109,7 @@ func TestXCConfigImplicitLookupComposesRepeatedConditionalInheritedValue(t *test
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	resolved, err := resolveXCConfigSettingWithBaseReaderAndIdentityAndLookup(
-		path,
-		"PROJECT_DIR",
-		xcconfigResolvedValue{},
-		os.ReadFile,
-		os.Stat,
-		nil,
-		func(string) (string, bool) { return "/implicit", true },
-	)
+	resolved, err := resolveXCConfigSetting(path, "PROJECT_DIR", xcconfigResolveOptions{lookup: func(string) (string, bool) { return "/implicit", true }})
 	if err != nil {
 		t.Fatalf("resolve repeated conditional inherited value error = %v", err)
 	}
@@ -162,14 +129,14 @@ func TestXCConfigRecursiveIncludesHandleCyclesOptionalFilesAndOrder(t *testing.T
 		t.Fatal(err)
 	}
 
-	files, err := collectXCConfigFiles(rootPath)
+	files, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{})
 	if err != nil {
 		t.Fatalf("collectXCConfigFiles() error = %v", err)
 	}
 	if len(files) != 2 {
 		t.Fatalf("files = %#v, want root and shared", files)
 	}
-	resolved, err := resolveXCConfigSetting(rootPath, marketingVersionSetting)
+	resolved, err := resolveXCConfigSetting(rootPath, marketingVersionSetting, xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 	if err != nil {
 		t.Fatalf("resolveXCConfigSetting() error = %v", err)
 	}
@@ -195,7 +162,7 @@ func TestXCConfigResolverRestoresStackAfterCyclicIncludeBeforeSibling(t *testing
 		}
 	}
 
-	resolved, err := resolveXCConfigSetting(rootPath, marketingVersionSetting)
+	resolved, err := resolveXCConfigSetting(rootPath, marketingVersionSetting, xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 	if err != nil {
 		t.Fatalf("resolveXCConfigSetting() error = %v", err)
 	}
@@ -218,15 +185,19 @@ func TestXCConfigCollectorBoundsSigningSourceGraph(t *testing.T) {
 			contents[path] = []byte("CODE_SIGN_STYLE = Manual")
 		}
 	}
-	_, err := collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimit(paths[0], func(path string) ([]byte, error) {
-		data, ok := contents[path]
-		if !ok {
-			return nil, os.ErrNotExist
-		}
-		return data, nil
-	}, func(string) error { return nil }, nil, nil, nil, nil, signingPlanMaxFiles, nil)
+	_, err := collectXCConfigFiles(paths[0], xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
+			data, ok := contents[path]
+			if !ok {
+				return nil, os.ErrNotExist
+			}
+			return data, nil
+		},
+		authorize: func(string) error { return nil },
+		maxFiles:  signingPlanMaxFiles,
+	})
 	if err == nil || !strings.Contains(err.Error(), "more than 4096 files") {
-		t.Fatalf("collectXCConfigFilesWithReader() error = %v, want aggregate source limit", err)
+		t.Fatalf("collectXCConfigFiles() error = %v, want aggregate source limit", err)
 	}
 }
 
@@ -261,9 +232,9 @@ func TestXCConfigDeepIncludeTraversalAllocationsScaleLinearly(t *testing.T) {
 			walk: func(depth int) func() {
 				root, read, identify := deepXCConfigIncludeChain(depth)
 				return func() {
-					files, err := collectXCConfigFilesWithHooksAndIdentity(root, read, identify)
+					files, err := collectXCConfigFiles(root, xcconfigCollectOptions{read: read, identify: identify})
 					if err != nil {
-						t.Fatalf("collectXCConfigFilesWithHooksAndIdentity() error = %v", err)
+						t.Fatalf("collectXCConfigFiles() error = %v", err)
 					}
 					if len(files) != depth {
 						t.Fatalf("files = %d, want %d", len(files), depth)
@@ -276,11 +247,9 @@ func TestXCConfigDeepIncludeTraversalAllocationsScaleLinearly(t *testing.T) {
 			walk: func(depth int) func() {
 				root, read, stat := deepXCConfigIncludeChain(depth)
 				return func() {
-					resolved, _, err := resolveXCConfigSettingStateWithReaderAndIdentity(
-						root, "CODE_SIGN_STYLE", xcconfigResolvedValue{}, read, stat, stat, nil, nil,
-					)
+					resolved, _, err := resolveXCConfigSettingState(root, "CODE_SIGN_STYLE", xcconfigResolveOptions{read: read, stat: stat, identify: stat})
 					if err != nil {
-						t.Fatalf("resolveXCConfigSettingStateWithReaderAndIdentity() error = %v", err)
+						t.Fatalf("resolveXCConfigSettingState() error = %v", err)
 					}
 					if resolved.value != "Manual" {
 						t.Fatalf("resolved value = %q, want Manual", resolved.value)
@@ -321,10 +290,14 @@ func TestXCConfigCollectorStopsWideGraphAtLimit(t *testing.T) {
 #include "Right.xcconfig"`), left: []byte("A = 1"), right: []byte("B = 2")}
 	readCount := make(map[string]int)
 	errorCount := 0
-	_, err := collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimit(root, func(path string) ([]byte, error) {
-		readCount[path]++
-		return contents[path], nil
-	}, nil, nil, func(string, error) { errorCount++ }, nil, nil, 2, nil)
+	_, err := collectXCConfigFiles(root, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
+			readCount[path]++
+			return contents[path], nil
+		},
+		onError:  func(string, error) { errorCount++ },
+		maxFiles: 2,
+	})
 	if err == nil || errorCount != 1 || readCount[right] != 0 {
 		t.Fatalf("wide graph err=%v errors=%d reads=%#v, want one overflow and no sibling read", err, errorCount, readCount)
 	}
@@ -353,9 +326,7 @@ func TestXCConfigCollectorSharesUniqueBudgetAcrossRoots(t *testing.T) {
 	}
 	budget := &xcconfigSourceBudget{}
 	collect := func(root string) ([]string, error) {
-		return collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
-			root, read, nil, nil, nil, nil, nil, 3, nil, budget,
-		)
+		return collectXCConfigFiles(root, xcconfigCollectOptions{read: read, maxFiles: 3, budget: budget})
 	}
 	if files, err := collect(firstRoot); err != nil || len(files) != 2 {
 		t.Fatalf("first collection files=%#v error=%v, want two sources", files, err)
@@ -400,9 +371,7 @@ func TestXCConfigCollectorReplaysCompletedRootWithoutRepeatedWork(t *testing.T) 
 	}
 	budget := &xcconfigSourceBudget{}
 	collect := func() ([]string, error) {
-		return collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
-			paths[0], read, nil, nil, nil, identify, nil, sourceCount, nil, budget,
-		)
+		return collectXCConfigFiles(paths[0], xcconfigCollectOptions{read: read, identify: identify, maxFiles: sourceCount, budget: budget})
 	}
 	for attempt := 0; attempt < 2; attempt++ {
 		files, err := collect()
@@ -485,9 +454,8 @@ func TestXCConfigCollectorSharedBudgetSkipsAbsentOptionalIncludeAtLimit(t *testi
 	var optionalMissing string
 	budget := &xcconfigSourceBudget{}
 	collect := func() ([]string, error) {
-		return collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
-			root,
-			func(path string) ([]byte, error) {
+		return collectXCConfigFiles(root, xcconfigCollectOptions{
+			read: func(path string) ([]byte, error) {
 				readCount[path]++
 				data, ok := contents[path]
 				if !ok {
@@ -495,18 +463,14 @@ func TestXCConfigCollectorSharedBudgetSkipsAbsentOptionalIncludeAtLimit(t *testi
 				}
 				return data, nil
 			},
-			nil,
-			nil,
-			nil,
-			nil,
-			func(path string) { optionalMissing = path },
-			2,
-			func(path string) (os.FileInfo, error) {
+			onOptionalMissing: func(path string) { optionalMissing = path },
+			maxFiles:          2,
+			optionalProbe: func(path string) (os.FileInfo, error) {
 				probeCount[path]++
 				return nil, os.ErrNotExist
 			},
-			budget,
-		)
+			budget: budget,
+		})
 	}
 	if files, err := collect(); err != nil || len(files) != 2 {
 		t.Fatalf("first collection files=%#v error=%v, want two sources", files, err)
@@ -534,9 +498,8 @@ func TestXCConfigCollectorSkipsAbsentOptionalIncludeAtLimit(t *testing.T) {
 	readCount := make(map[string]int)
 	probeCount := make(map[string]int)
 	var optionalMissing string
-	files, err := collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimit(
-		root,
-		func(path string) ([]byte, error) {
+	files, err := collectXCConfigFiles(root, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			readCount[path]++
 			data, ok := contents[path]
 			if !ok {
@@ -544,20 +507,16 @@ func TestXCConfigCollectorSkipsAbsentOptionalIncludeAtLimit(t *testing.T) {
 			}
 			return data, nil
 		},
-		nil,
-		nil,
-		nil,
-		nil,
-		func(path string) { optionalMissing = path },
-		2,
-		func(path string) (os.FileInfo, error) {
+		onOptionalMissing: func(path string) { optionalMissing = path },
+		maxFiles:          2,
+		optionalProbe: func(path string) (os.FileInfo, error) {
 			probeCount[path]++
 			if _, ok := contents[path]; !ok {
 				return nil, os.ErrNotExist
 			}
 			return fakeXCConfigFileInfo{}, nil
 		},
-	)
+	})
 	if err != nil {
 		t.Fatalf("collector error = %v, want absent optional include to be ignored", err)
 	}
@@ -580,23 +539,17 @@ func TestXCConfigCollectorRejectsPresentOptionalIncludeAtLimitBeforeRead(t *test
 	}
 	readCount := make(map[string]int)
 	probeCount := make(map[string]int)
-	_, err := collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimit(
-		root,
-		func(path string) ([]byte, error) {
+	_, err := collectXCConfigFiles(root, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			readCount[path]++
 			return contents[path], nil
 		},
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		2,
-		func(path string) (os.FileInfo, error) {
+		maxFiles: 2,
+		optionalProbe: func(path string) (os.FileInfo, error) {
 			probeCount[path]++
 			return fakeXCConfigFileInfo{}, nil
 		},
-	)
+	})
 	if err == nil || !isXCConfigSourceGraphLimitError(err) || !strings.Contains(err.Error(), "more than 2 files") {
 		t.Fatalf("collector error = %v, want typed source-graph limit", err)
 	}
@@ -633,7 +586,7 @@ func TestXCConfigStableCollectorAllowsLargeGraph(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	files, err := collectStableXCConfigFiles(paths[0])
+	files, err := collectXCConfigFiles(paths[0], xcconfigCollectOptions{identify: stableXCConfigIdentify()})
 	if err != nil || len(files) != count {
 		t.Fatalf("stable collector err=%v files=%d, want %d files with no signing bound", err, len(files), count)
 	}
@@ -663,11 +616,11 @@ func TestXCConfigInheritedValueAndExactPrecedence(t *testing.T) {
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	other, err := resolveXCConfigSetting(path, "OTHER")
+	other, err := resolveXCConfigSetting(path, "OTHER", xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 	if err != nil || other.value != "base-child" {
 		t.Fatalf("inherited resolution = %#v, err %v", other, err)
 	}
-	build, err := resolveXCConfigSetting(path, currentProjectSetting)
+	build, err := resolveXCConfigSetting(path, currentProjectSetting, xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 	if err != nil || build.value != "42" || !build.exact {
 		t.Fatalf("exact resolution = %#v, err %v", build, err)
 	}
@@ -679,7 +632,7 @@ func TestXCConfigResolverAcceptsSupersededSameSelectorConditional(t *testing.T) 
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	resolved, err := resolveXCConfigSetting(path, "DEVELOPMENT_TEAM")
+	resolved, err := resolveXCConfigSetting(path, "DEVELOPMENT_TEAM", xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 	if err != nil {
 		t.Fatalf("resolveXCConfigSetting() error = %v, want later same-selector assignment to replace OLDOLD1234", err)
 	}
@@ -694,7 +647,7 @@ func TestXCConfigResolverAcceptsSupersededReorderedSelectorConditional(t *testin
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	resolved, err := resolveXCConfigSetting(path, "DEVELOPMENT_TEAM")
+	resolved, err := resolveXCConfigSetting(path, "DEVELOPMENT_TEAM", xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 	if err != nil {
 		t.Fatalf("resolveXCConfigSetting() error = %v, want reordered same-selector assignment to replace OLDOLD1234", err)
 	}
@@ -723,7 +676,7 @@ func TestXCConfigResolverRejectsDivergentConditionalOverride(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			_, err := resolveXCConfigSetting(path, currentProjectSetting)
+			_, err := resolveXCConfigSetting(path, currentProjectSetting, xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 			if err == nil || !strings.Contains(err.Error(), "differing conditional") {
 				t.Fatalf("expected divergent conditional error, got %v", err)
 			}
@@ -740,7 +693,7 @@ func TestXCConfigResolverIgnoresShadowedConditionalDefaults(t *testing.T) {
 		if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
 			t.Fatalf("WriteFile(values) error = %v", err)
 		}
-		resolved, err := resolveXCConfigSetting(path, "CODE_SIGN_ENTITLEMENTS")
+		resolved, err := resolveXCConfigSetting(path, "CODE_SIGN_ENTITLEMENTS", xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 		if err != nil {
 			t.Fatalf("resolveXCConfigSetting() error = %v", err)
 		}
@@ -761,11 +714,11 @@ func TestXCConfigOperatorsQuotesAndIncludeOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	other, err := resolveXCConfigSetting(rootPath, "OTHER")
+	other, err := resolveXCConfigSetting(rootPath, "OTHER", xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 	if err != nil || other.value != "base child" {
 		t.Fatalf("operator/include resolution = %#v, err %v", other, err)
 	}
-	version, err := resolveXCConfigSetting(rootPath, marketingVersionSetting)
+	version, err := resolveXCConfigSetting(rootPath, marketingVersionSetting, xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 	if err != nil || version.value != "1.2.3" {
 		t.Fatalf("quoted/default resolution = %#v, err %v", version, err)
 	}
@@ -891,7 +844,7 @@ func TestXCConfigResolverRejectsConditionalOnlySetting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := resolveXCConfigSetting(path, currentProjectSetting)
+	_, err := resolveXCConfigSetting(path, currentProjectSetting, xcconfigResolveOptions{identify: stableXCConfigIdentify()})
 	if err == nil || !strings.Contains(err.Error(), "conditional") {
 		t.Fatalf("expected conditional-only setting error, got %v", err)
 	}
@@ -974,7 +927,7 @@ func TestXCConfigRequiredMissingIncludeFails(t *testing.T) {
 	if err := os.WriteFile(path, []byte("#include \"Missing.xcconfig\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := collectXCConfigFiles(path)
+	_, err := collectXCConfigFiles(path, xcconfigCollectOptions{})
 	if err == nil {
 		t.Fatal("expected required-include error")
 	}
@@ -993,15 +946,9 @@ func TestXCConfigOptionalIncludePropagatesMissingRequiredDescendant(t *testing.T
 	}
 
 	seen := make(map[string]bool)
-	_, err := collectXCConfigFilesWithHooks(
-		rootPath,
-		os.ReadFile,
-		nil,
-		func(path string) { seen[filepath.Clean(path)] = true },
-		nil,
-	)
+	_, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{onPath: func(path string) { seen[filepath.Clean(path)] = true }})
 	if err == nil || !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("collectXCConfigFilesWithHooks() error = %v, want descendant missing-include error", err)
+		t.Fatalf("collectXCConfigFiles() error = %v, want descendant missing-include error", err)
 	}
 	for _, path := range []string{rootPath, optionalPath, missingPath} {
 		if !seen[path] {
@@ -1021,26 +968,25 @@ func TestXCConfigCollectorRecordsMissingIncludeBeforeAccess(t *testing.T) {
 	seen := make(map[string]bool)
 	readPaths := make(map[string]bool)
 	var errorsByPath map[string]error
-	_, err := collectXCConfigFilesWithHooks(
-		rootPath,
-		func(path string) ([]byte, error) {
+	_, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			readPaths[filepath.Clean(path)] = true
 			return os.ReadFile(path)
 		},
-		func(path string) error {
+		authorize: func(path string) error {
 			if path == missingPath && !seen[path] {
 				t.Fatalf("missing include was authorized before path was recorded")
 			}
 			return nil
 		},
-		func(path string) { seen[filepath.Clean(path)] = true },
-		func(path string, collectionErr error) {
+		onPath: func(path string) { seen[filepath.Clean(path)] = true },
+		onError: func(path string, collectionErr error) {
 			if errorsByPath == nil {
 				errorsByPath = make(map[string]error)
 			}
 			errorsByPath[filepath.Clean(path)] = collectionErr
 		},
-	)
+	})
 	if err == nil {
 		t.Fatal("collector error = nil, want required missing include failure")
 	}
@@ -1065,18 +1011,13 @@ func TestXCConfigCollectorRecordsOptionalMissingIncludeAbsence(t *testing.T) {
 
 	var optionalMissing string
 	readPaths := make(map[string]bool)
-	_, err := collectXCConfigFilesWithHooksAndIdentityAndOptionalMissing(
-		rootPath,
-		func(path string) ([]byte, error) {
+	_, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			readPaths[filepath.Clean(path)] = true
 			return os.ReadFile(path)
 		},
-		nil,
-		nil,
-		nil,
-		nil,
-		func(path string) { optionalMissing = filepath.Clean(path) },
-	)
+		onOptionalMissing: func(path string) { optionalMissing = filepath.Clean(path) },
+	})
 	if err != nil {
 		t.Fatalf("collector error = %v, want optional absence to be ignored", err)
 	}
@@ -1123,21 +1064,19 @@ func TestXCConfigCollectorRejectsUnauthorizedSymlinkBeforeReader(t *testing.T) {
 
 	readCalls := 0
 	paths := make(map[string]bool)
-	_, err := collectXCConfigFilesWithHooks(
-		selectedPath,
-		func(path string) ([]byte, error) {
+	_, err := collectXCConfigFiles(selectedPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			readCalls++
 			return os.ReadFile(path)
 		},
-		func(path string) error {
+		authorize: func(path string) error {
 			if path != selectedPath {
 				t.Fatalf("authorization path = %q, want %q", path, selectedPath)
 			}
 			return errors.New("external path not authorized")
 		},
-		func(path string) { paths[path] = true },
-		nil,
-	)
+		onPath: func(path string) { paths[path] = true },
+	})
 	if err == nil {
 		t.Fatal("collector error = nil, want authorization refusal")
 	}
@@ -1163,21 +1102,19 @@ func TestXCConfigCollectorContinuesSiblingIncludesAfterAuthorizationFailure(t *t
 
 	paths := make(map[string]bool)
 	readPaths := make(map[string]bool)
-	_, err := collectXCConfigFilesWithHooks(
-		rootPath,
-		func(path string) ([]byte, error) {
+	_, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			readPaths[filepath.Clean(path)] = true
 			return os.ReadFile(path)
 		},
-		func(path string) error {
+		authorize: func(path string) error {
 			if filepath.Clean(path) == blockedPath {
 				return errors.New("blocked include")
 			}
 			return nil
 		},
-		func(path string) { paths[filepath.Clean(path)] = true },
-		nil,
-	)
+		onPath: func(path string) { paths[filepath.Clean(path)] = true },
+	})
 	if err == nil {
 		t.Fatal("collector error = nil, want blocked include failure")
 	}
@@ -1202,19 +1139,21 @@ func TestXCConfigCollectorUsesWindowsCaseInsensitiveTraversalKeys(t *testing.T) 
 	caseVariantPath := filepath.Join(root, "config.xcconfig")
 
 	readCalls := 0
-	files, err := collectXCConfigFilesWithReader(rootPath, func(path string) ([]byte, error) {
-		readCalls++
-		switch filepath.Clean(path) {
-		case rootPath:
-			return []byte("#include \"config.xcconfig\"\n"), nil
-		case caseVariantPath:
-			return []byte("CODE_SIGN_STYLE = Manual\n"), nil
-		default:
-			return nil, os.ErrNotExist
-		}
-	}, nil)
+	files, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
+			readCalls++
+			switch filepath.Clean(path) {
+			case rootPath:
+				return []byte("#include \"config.xcconfig\"\n"), nil
+			case caseVariantPath:
+				return []byte("CODE_SIGN_STYLE = Manual\n"), nil
+			default:
+				return nil, os.ErrNotExist
+			}
+		},
+	})
 	if err != nil {
-		t.Fatalf("collectXCConfigFilesWithReader() error = %v", err)
+		t.Fatalf("collectXCConfigFiles() error = %v", err)
 	}
 	if len(files) != 1 || files[0] != rootPath {
 		t.Fatalf("files = %#v, want one case-insensitive traversal", files)
@@ -1245,12 +1184,14 @@ func TestXCConfigCollectorKeepsCaseDistinctFilesOnCaseSensitiveHost(t *testing.T
 	}
 
 	readCalls := 0
-	files, err := collectXCConfigFilesWithReader(rootPath, func(path string) ([]byte, error) {
-		readCalls++
-		return os.ReadFile(path)
-	}, nil)
+	files, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
+			readCalls++
+			return os.ReadFile(path)
+		},
+	})
 	if err != nil {
-		t.Fatalf("collectXCConfigFilesWithReader() error = %v", err)
+		t.Fatalf("collectXCConfigFiles() error = %v", err)
 	}
 	if len(files) != 2 || files[0] != rootPath || files[1] != caseVariantPath {
 		t.Fatalf("files = %#v, want both case-distinct files", files)
@@ -1284,19 +1225,18 @@ func TestIdentityAwareDarwinCollectorDeduplicatesCaseVariantSameFile(t *testing.
 		t.Fatalf("Stat(identity) error = %v", err)
 	}
 	readCalls := 0
-	files, err := collectXCConfigFilesWithHooksAndIdentity(
-		rootPath,
-		func(path string) ([]byte, error) {
+	files, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			readCalls++
 			if filepath.Clean(path) == rootPath {
 				return []byte("#include \"config.xcconfig\"\n"), nil
 			}
 			return []byte("CODE_SIGN_STYLE = Manual\n"), nil
 		},
-		func(string) (os.FileInfo, error) { return identity, nil },
-	)
+		identify: func(string) (os.FileInfo, error) { return identity, nil },
+	})
 	if err != nil {
-		t.Fatalf("collectXCConfigFilesWithHooksAndIdentity() error = %v", err)
+		t.Fatalf("collectXCConfigFiles() error = %v", err)
 	}
 	if len(files) != 1 || files[0] != rootPath {
 		t.Fatalf("files = %#v, want one identity-equivalent path", files)
@@ -1328,19 +1268,18 @@ func TestIdentityAwareLinuxCollectorDeduplicatesCaseVariantSameFile(t *testing.T
 		t.Fatalf("Stat(identity) error = %v", err)
 	}
 	readCalls := 0
-	files, err := collectXCConfigFilesWithHooksAndIdentity(
-		rootPath,
-		func(path string) ([]byte, error) {
+	files, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			readCalls++
 			if filepath.Clean(path) == rootPath {
 				return []byte("#include \"config.xcconfig\"\n"), nil
 			}
 			return []byte("CODE_SIGN_STYLE = Manual\nCODE_SIGN_STYLE += Extra\n"), nil
 		},
-		func(string) (os.FileInfo, error) { return identity, nil },
-	)
+		identify: func(string) (os.FileInfo, error) { return identity, nil },
+	})
 	if err != nil {
-		t.Fatalf("collectXCConfigFilesWithHooksAndIdentity() error = %v", err)
+		t.Fatalf("collectXCConfigFiles() error = %v", err)
 	}
 	if len(files) != 1 || files[0] != rootPath {
 		t.Fatalf("files = %#v, want one identity-equivalent path on Linux", files)
@@ -1375,9 +1314,8 @@ func TestIdentityAwareWindowsCollectorKeepsCaseDistinctFilesOnCaseSensitiveDirec
 	if err != nil {
 		t.Fatalf("Stat(identity) error = %v", err)
 	}
-	files, err := collectXCConfigFilesWithHooksAndIdentity(
-		rootPath,
-		func(path string) ([]byte, error) {
+	files, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			switch filepath.Clean(path) {
 			case rootPath:
 				return []byte("#include \"First.xcconfig\"\n#include \"first.xcconfig\"\n"), nil
@@ -1387,10 +1325,10 @@ func TestIdentityAwareWindowsCollectorKeepsCaseDistinctFilesOnCaseSensitiveDirec
 				return nil, os.ErrNotExist
 			}
 		},
-		func(string) (os.FileInfo, error) { return identity, nil },
-	)
+		identify: func(string) (os.FileInfo, error) { return identity, nil },
+	})
 	if err != nil {
-		t.Fatalf("collectXCConfigFilesWithHooksAndIdentity() error = %v", err)
+		t.Fatalf("collectXCConfigFiles() error = %v", err)
 	}
 	if len(files) != 3 || files[0] != rootPath || files[1] != firstPath || files[2] != secondPath {
 		t.Fatalf("files = %#v, want both case-distinct Windows includes", files)
@@ -1419,9 +1357,8 @@ func TestIdentityAwareWindowsCollectorCoalescesCaseVariantOnCaseInsensitiveDirec
 	if err != nil {
 		t.Fatalf("Stat(identity) error = %v", err)
 	}
-	files, err := collectXCConfigFilesWithHooksAndIdentity(
-		rootPath,
-		func(path string) ([]byte, error) {
+	files, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			switch filepath.Clean(path) {
 			case rootPath:
 				return []byte("#include \"First.xcconfig\"\n#include \"first.xcconfig\"\n"), nil
@@ -1431,10 +1368,10 @@ func TestIdentityAwareWindowsCollectorCoalescesCaseVariantOnCaseInsensitiveDirec
 				return nil, os.ErrNotExist
 			}
 		},
-		func(string) (os.FileInfo, error) { return identity, nil },
-	)
+		identify: func(string) (os.FileInfo, error) { return identity, nil },
+	})
 	if err != nil {
-		t.Fatalf("collectXCConfigFilesWithHooksAndIdentity() error = %v", err)
+		t.Fatalf("collectXCConfigFiles() error = %v", err)
 	}
 	if len(files) != 2 || files[0] != rootPath || files[1] != firstPath {
 		t.Fatalf("files = %#v, want one case-insensitive Windows include", files)
@@ -1481,9 +1418,8 @@ func TestIdentityAwareCollectorKeepsCaseDistinctHardlinkedIncludesOnCaseSensitiv
 		t.Fatalf("Stat(identity) error = %v", err)
 	}
 
-	files, err := collectXCConfigFilesWithHooksAndIdentity(
-		rootPath,
-		func(path string) ([]byte, error) {
+	files, err := collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			switch filepath.Clean(path) {
 			case rootPath:
 				return []byte("#include \"First.xcconfig\"\n#include \"first.xcconfig\"\n"), nil
@@ -1493,12 +1429,12 @@ func TestIdentityAwareCollectorKeepsCaseDistinctHardlinkedIncludesOnCaseSensitiv
 				return nil, os.ErrNotExist
 			}
 		},
-		func(path string) (os.FileInfo, error) {
+		identify: func(path string) (os.FileInfo, error) {
 			return identity, nil
 		},
-	)
+	})
 	if err != nil {
-		t.Fatalf("collectXCConfigFilesWithHooksAndIdentity() error = %v", err)
+		t.Fatalf("collectXCConfigFiles() error = %v", err)
 	}
 	if len(files) != 3 || files[0] != rootPath || files[1] != firstPath || files[2] != secondPath {
 		t.Fatalf("files = %#v, want root and case-distinct include", files)
@@ -1562,16 +1498,9 @@ func TestStableVersionResolverUsesLaterCaseDistinctInclude(t *testing.T) {
 		}
 		return info, nil
 	}
-	resolved, err := resolveXCConfigSettingWithBaseReaderAndIdentity(
-		appPath,
-		marketingVersionSetting,
-		xcconfigResolvedValue{},
-		read,
-		stat,
-		stat,
-	)
+	resolved, err := resolveXCConfigSetting(appPath, marketingVersionSetting, xcconfigResolveOptions{read: read, stat: stat, identify: stat})
 	if err != nil {
-		t.Fatalf("resolveXCConfigSettingWithBaseReaderAndIdentity() error = %v", err)
+		t.Fatalf("resolveXCConfigSetting() error = %v", err)
 	}
 	if resolved.value != "2.0.0" || resolved.path != lowerBasePath {
 		t.Fatalf("resolved = %#v, want later case-distinct include", resolved)
@@ -1663,22 +1592,21 @@ func TestIdentityAwareWindowsCollectorReportsMissingRequiredCaseVariant(t *testi
 		t.Fatalf("Stat(root) error = %v", err)
 	}
 	readMissing := false
-	_, err = collectXCConfigFilesWithHooksAndIdentity(
-		rootPath,
-		func(path string) ([]byte, error) {
+	_, err = collectXCConfigFiles(rootPath, xcconfigCollectOptions{
+		read: func(path string) ([]byte, error) {
 			if filepath.Clean(path) == missingPath {
 				readMissing = true
 				return nil, os.ErrNotExist
 			}
 			return os.ReadFile(path)
 		},
-		func(path string) (os.FileInfo, error) {
+		identify: func(path string) (os.FileInfo, error) {
 			if filepath.Clean(path) == missingPath {
 				return nil, os.ErrNotExist
 			}
 			return rootInfo, nil
 		},
-	)
+	})
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("collector error = %v, want required include not-exist failure", err)
 	}

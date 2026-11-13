@@ -1749,7 +1749,7 @@ func (resolver *signingSettingResolver) resolveXCConfigSettingStateWithContext(
 			return resolver.identifyXCConfigFor(configuration, includePath)
 		}
 	}
-	return resolveXCConfigSettingStateWithReaderAndIdentity(path, setting, base, read, stat, identify, observe, nil)
+	return resolveXCConfigSettingState(path, setting, xcconfigResolveOptions{base: base, read: read, stat: stat, identify: identify, observe: observe})
 }
 
 func (resolver *signingSettingResolver) resolveConfigurationXCConfigWithContext(
@@ -1772,17 +1772,15 @@ func (resolver *signingSettingResolver) resolveConfigurationXCConfigWithContext(
 			return resolver.identifyXCConfigFor(configuration, includePath)
 		}
 	}
-	return resolveXCConfigSettingWithBaseReaderAndIdentityAndLookup(
-		path,
-		setting,
-		base,
-		read,
-		stat,
-		identify,
-		func(name string) (string, bool) {
+	return resolveXCConfigSetting(path, setting, xcconfigResolveOptions{
+		base:     base,
+		read:     read,
+		stat:     stat,
+		identify: identify,
+		lookup: func(name string) (string, bool) {
 			return signingImplicitSettingValue(resolver.project, expansionConfiguration, name)
 		},
-	)
+	})
 }
 
 // xcconfigDependsOnFallback distinguishes a target xcconfig that semantically
@@ -1797,21 +1795,13 @@ func (resolver *signingSettingResolver) xcconfigDependsOnFallback(configuration 
 	read := func(includePath string) ([]byte, error) {
 		return resolver.readXCConfigFor(configuration, includePath)
 	}
-	withoutBase, withoutErr := resolveXCConfigSettingWithBaseReader(
-		path,
-		setting,
-		xcconfigResolvedValue{},
-		read,
-		stat,
-	)
+	withoutBase, withoutErr := resolveXCConfigSetting(path, setting, xcconfigResolveOptions{read: read, stat: stat})
 	const sentinel = "__asc_signing_project_fallback_sentinel__"
-	withBase, withErr := resolveXCConfigSettingWithBaseReader(
-		path,
-		setting,
-		xcconfigResolvedValue{value: sentinel, path: resolver.project.projectFilePath, found: true, exact: true},
-		read,
-		stat,
-	)
+	withBase, withErr := resolveXCConfigSetting(path, setting, xcconfigResolveOptions{
+		base: xcconfigResolvedValue{value: sentinel, path: resolver.project.projectFilePath, found: true, exact: true},
+		read: read,
+		stat: stat,
+	})
 	if withoutErr != nil || withErr != nil {
 		// If one probe succeeds and the other does not, the base changes the
 		// result. When both fail, the target's own error is returned by the
