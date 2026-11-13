@@ -26,7 +26,7 @@ func TestCompletedReplacementCommandPreservesLiteralPOSIXArguments(t *testing.T)
 	fileName := "replacement image's $(printf FILE).png"
 	deleteCommand, createCommand := completedIAPReviewScreenshotReplacementCommands(screenshotID, iapID, fileName)
 	relationships := json.RawMessage(`{"inAppPurchaseV2":{"data":{"type":"inAppPurchases","id":"iap \"quoted\" value's"}}}`)
-	remediationErr := completedIAPReviewScreenshotReplacementError(screenshotID, relationships, fileName, true)
+	remediationErr := completedIAPReviewScreenshotReplacementError(screenshotID, relationships, fileName)
 	if remediationErr == nil || !strings.Contains(remediationErr.Error(), deleteCommand) || !strings.Contains(remediationErr.Error(), createCommand) {
 		t.Fatalf("replacement remediation = %v, want safe commands %q and %q", remediationErr, deleteCommand, createCommand)
 	}
@@ -57,7 +57,7 @@ func TestCompletedReplacementDiagnosticDoesNotExecuteCommandsWhenPasted(t *testi
 	screenshotID := "shot $(printf INJECTED)"
 	fileName := "replacement image's $(printf FILE).png"
 	relationships := json.RawMessage(`{"inAppPurchaseV2":{"data":{"type":"inAppPurchases","id":"iap \"quoted\" value's"}}}`)
-	diagnosticErr := completedIAPReviewScreenshotReplacementError(screenshotID, relationships, fileName, true)
+	diagnosticErr := completedIAPReviewScreenshotReplacementError(screenshotID, relationships, fileName)
 	if diagnosticErr == nil {
 		t.Fatal("replacement diagnostic is nil")
 	}
@@ -101,7 +101,7 @@ func TestCompletedReplacementCommandUsesSafePlaceholdersForUnrenderableValues(t 
 		t.Fatalf("replacement commands = %q and %q, want %q and %q", deleteCommand, createCommand, wantDelete, wantCreate)
 	}
 
-	err := completedIAPReviewScreenshotReplacementError(screenshotID, relationships, fileName, true)
+	err := completedIAPReviewScreenshotReplacementError(screenshotID, relationships, fileName)
 	if err == nil || !utf8.ValidString(err.Error()) || strings.ContainsAny(err.Error(), "\x00\x1b\n\r\u2028\u2029\u202e") {
 		t.Fatalf("replacement error contains unsafe data: %v", err)
 	}
