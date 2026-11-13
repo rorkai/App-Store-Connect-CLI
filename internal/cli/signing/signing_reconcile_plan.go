@@ -153,8 +153,8 @@ func getAllReconcileDevices(ctx context.Context, client *asc.Client) ([]asc.Reso
 			ctx,
 			asc.WithDevicesPlatforms([]string{string(asc.DevicePlatformIOS)}),
 			asc.WithDevicesFields([]string{"name", "udid", "platform", "status"}),
-			asc.WithDevicesLimit(200),
-			asc.WithDevicesNextURL(next),
+			asc.Limit[asc.DevicesOption](200),
+			asc.NextURL[asc.DevicesOption](next),
 		)
 		if err != nil {
 			return nil, err

@@ -78,9 +78,9 @@ func listEnabledProfileDeviceIDs(ctx context.Context, client *asc.Client, profil
 	page := 1
 	seenNext := make(map[string]struct{})
 	for {
-		options := []asc.DevicesOption{asc.WithDevicesNextURL(next)}
+		options := []asc.DevicesOption{asc.NextURL[asc.DevicesOption](next)}
 		if next == "" {
-			options = append(options, asc.WithDevicesFilterStatuses([]string{string(asc.DeviceStatusEnabled)}), asc.WithDevicesLimit(200))
+			options = append(options, asc.WithDevicesFilterStatuses([]string{string(asc.DeviceStatusEnabled)}), asc.Limit[asc.DevicesOption](200))
 		}
 		response, err := client.GetDevices(ctx, options...)
 		if err != nil {
