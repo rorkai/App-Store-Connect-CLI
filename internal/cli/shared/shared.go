@@ -966,7 +966,7 @@ func bearerTokenClient(timeout time.Duration) (client *asc.Client, ok bool, err 
 		return nil, true, missingAuthError{msg: err.Error(), cause: err}
 	}
 	if err != nil {
-		return nil, true, missingAuthError{msg: fmt.Sprintf("%s: %v", source, err), cause: err}
+		return nil, true, missingAuthError{msg: fmt.Sprintf("%s: %v", bearerTokenEnvVar, err), cause: err}
 	}
 	return client, true, nil
 }
