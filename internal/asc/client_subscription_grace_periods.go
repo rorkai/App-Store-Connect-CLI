@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -15,18 +14,7 @@ func (c *Client) GetSubscriptionGracePeriod(ctx context.Context, gracePeriodID s
 		return nil, fmt.Errorf("grace period ID is required")
 	}
 
-	path := fmt.Sprintf("/v1/subscriptionGracePeriods/%s", gracePeriodID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SubscriptionGracePeriodResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[SubscriptionGracePeriodResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptionGracePeriods/%s", gracePeriodID)})
 }
 
 // UpdateSubscriptionGracePeriod updates a subscription grace period by ID.
@@ -39,21 +27,9 @@ func (c *Client) UpdateSubscriptionGracePeriod(ctx context.Context, gracePeriodI
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/subscriptionGracePeriods/%s", strings.TrimSpace(gracePeriodID))
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SubscriptionGracePeriodResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[SubscriptionGracePeriodResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionGracePeriods/%s", strings.TrimSpace(gracePeriodID)),
+		Payload: payload,
+	})
 }
