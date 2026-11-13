@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -72,7 +73,8 @@ is attached to. For TestFlight What to Test notes use asc builds test-notes list
 Examples:
   asc build-localizations list --build-id "BUILD_ID"
   asc build-localizations list --build-id "BUILD_ID" --locale "en-US,ja"
-  asc build-localizations list --build-id "BUILD_ID" --paginate`,
+  asc build-localizations list --build-id "BUILD_ID" --paginate
+  asc build-localizations list --next "NEXT_URL"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -84,7 +86,8 @@ Examples:
 			}
 
 			build := strings.TrimSpace(*buildID)
-			if build == "" {
+			nextURL := strings.TrimSpace(*next)
+			if build == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return shared.MissingRequiredUsageError("--build-id")
 			}
@@ -102,12 +105,20 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			versionID, err := resolveBuildAppStoreVersion(requestCtx, client, "list", build)
-			if err != nil {
-				if shared.IsReportedUsageError(err) {
-					return err
+			// A links.next URL already names its version, so --build-id is
+			// only resolved when given, to reject a page of another version.
+			versionID := ""
+			if build != "" {
+				versionID, err = resolveBuildAppStoreVersion(requestCtx, client, "list", build)
+				if err != nil {
+					if shared.IsReportedUsageError(err) {
+						return err
+					}
+					return fmt.Errorf("build-localizations list: %w", err)
 				}
-				return fmt.Errorf("build-localizations list: %w", err)
+				if nextURL != "" && !isVersionLocalizationsPage(nextURL, versionID) {
+					return shared.UsageErrorf("build-localizations list: --next is not a page of the App Store version attached to --build-id %q", build)
+				}
 			}
 
 			opts := []asc.AppStoreVersionLocalizationsOption{
@@ -393,6 +404,14 @@ Examples:
 // a TestFlight-only build, so that case is reported as a usage error with
 // guidance instead of a generic failure. API errors, including an unknown build
 // ID, are returned unchanged so the service detail and classification survive.
+func isVersionLocalizationsPage(nextURL, versionID string) bool {
+	parsed, err := url.Parse(nextURL)
+	if err != nil {
+		return false
+	}
+	return parsed.Path == "/v1/appStoreVersions/"+url.PathEscape(versionID)+"/appStoreVersionLocalizations"
+}
+
 func resolveBuildAppStoreVersion(ctx context.Context, client *asc.Client, subcommand, buildID string) (string, error) {
 	resp, err := client.GetBuildAppStoreVersion(ctx, buildID)
 	if err != nil {
