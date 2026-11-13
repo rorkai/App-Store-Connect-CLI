@@ -8,6 +8,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -107,6 +108,13 @@ func TestCertificatesExport_JSONOutputAndPKCS12RoundTrip(t *testing.T) {
 	if !commandPublicKeysEqual(privateKey, artifacts.certificate.PublicKey) {
 		t.Fatal("decoded private key does not match fixture")
 	}
+	legacyBagOID, err := asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 12, 1, 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(p12Data, legacyBagOID) {
+		t.Fatal("default p12 uses the legacy encoding")
+	}
 
 	tableRoot := RootCommand("1.2.3")
 	tableRoot.FlagSet.SetOutput(io.Discard)
@@ -150,6 +158,7 @@ func TestCertificatesExport_JSONOutputAndPKCS12RoundTrip(t *testing.T) {
 			"--p12-out", p12Path,
 			"--force",
 			"--confirm",
+			"--p12-encoding", "legacy",
 			"--output", "markdown",
 		}); err != nil {
 			t.Fatalf("markdown parse error: %v", err)
@@ -168,6 +177,16 @@ func TestCertificatesExport_JSONOutputAndPKCS12RoundTrip(t *testing.T) {
 	}
 	if strings.Contains(markdownStdout, password) || strings.Contains(markdownStdout, "BEGIN") {
 		t.Fatalf("markdown output contains secret material: %q", markdownStdout)
+	}
+	legacyData, err := os.ReadFile(p12Path)
+	if err != nil {
+		t.Fatalf("read legacy p12: %v", err)
+	}
+	if _, _, err := modernpkcs12.Decode(legacyData, password); err != nil {
+		t.Fatalf("decode legacy p12: %v", err)
+	}
+	if !bytes.Contains(legacyData, legacyBagOID) {
+		t.Fatal("--p12-encoding legacy did not write a legacy-encoded p12")
 	}
 }
 
@@ -232,6 +251,11 @@ func TestCertificatesExport_RejectsInvalidOutputBeforeWriting(t *testing.T) {
 			name: "pretty with table",
 			args: []string{"--output", "table", "--pretty"},
 			want: "--pretty is only valid with JSON output",
+		},
+		{
+			name: "unsupported p12 encoding",
+			args: []string{"--p12-encoding", "rc2"},
+			want: `--p12-encoding must be one of: modern, legacy (got "rc2")`,
 		},
 	}
 

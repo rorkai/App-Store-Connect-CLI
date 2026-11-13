@@ -258,6 +258,12 @@ the PKCS#12 file. The certificate must currently be valid, and the output is
 written with restrictive permissions. Passwords and key material are never
 printed. Replacing an existing output requires both `--force` and `--confirm`.
 
+The PKCS#12 file uses the modern encoding (PBES2 with AES-256-CBC and an
+HMAC-SHA-256 MAC) by default. Some importers reject it with an error that looks
+like a wrong password. Add `--p12-encoding legacy` to write 3DES with a SHA-1
+MAC instead. The legacy algorithms are weak; use them only when an importer
+requires it.
+
 The public App Store Connect API does not issue Apple Push Services or Website
 Push ID certificates. Renewal therefore remains explicit: obtain a new
 certificate through Apple's Developer website and run this command again.

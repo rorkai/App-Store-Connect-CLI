@@ -183,7 +183,11 @@ The identity password must come from a protected 0600-or-more-restrictive file;
 it is never accepted as a flag value. One trailing LF or CRLF is removed, and
 the remaining password must not be empty. Use `--key-out`, `--csr-out`, or
 `--p12-out` to select different local paths, and `--force` only when replacing
-those three generated identity files is intentional. Each selected parent is
+those three generated identity files is intentional. The `.p12` uses the modern
+encoding by default. Some importers reject it with an error that looks like a
+wrong password; `--p12-encoding legacy` writes 3DES with a SHA-1 MAC instead.
+The legacy algorithms are weak; use them only when an importer requires it.
+Each selected parent is
 retained as a rooted filesystem anchor from preflight through publication, so
 the command refuses symlinked destinations and parent substitutions. It also
 refuses existing profile, certificate, or metadata output paths before creating
@@ -833,12 +837,13 @@ refuses a blocked or changed plan. `--export-options-out` writes an
 `ExportOptions.plist` with the inferred method, team, and per-bundle profile
 names; `--export-method` overrides the inferred method.
 
-`xcode signing plan` and `xcode signing apply` do not support Xcode's JSON
-project format (`project.xcproj`) yet. Both fail before writing anything, so
-manage signing for those projects in Xcode. `xcode version view`, `edit`, and
-`bump` do support it, as long as the project or a referenced xcconfig file
-defines the version settings. `edit` and `bump` change only the affected keys,
-and a value set for one configuration uses `[config=Name]` build setting keys.
+`xcode signing plan`, `xcode signing apply`, and `xcode version view`, `edit`,
+and `bump` also support Xcode's JSON project format (`project.xcproj`). Version
+commands need the project or a referenced xcconfig file to define the version
+settings. Edits change only the affected keys, and a value set for one
+configuration uses `[config=Name]` build setting keys. A signing change the
+format cannot express in place, such as removing a build setting, blocks the
+plan instead of failing during apply.
 
 Without a plan, manual export inspects the archive and matches locally installed profiles for the main app and embedded targets (`asc xcode export --signing-style manual --team-id TEAM_ID`). An explicit `--export-options` file is authoritative and cannot be combined with `--signing-style`, `--team-id`, or `--method`.
 

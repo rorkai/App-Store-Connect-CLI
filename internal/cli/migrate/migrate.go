@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -734,6 +735,8 @@ type FastlaneLocalization struct {
 	PromotionalText string `json:"promotionalText,omitempty"`
 	SupportURL      string `json:"supportUrl,omitempty"`
 	MarketingURL    string `json:"marketingUrl,omitempty"`
+
+	defaultFiles []string
 }
 
 // AppInfoFastlaneLocalization holds app-level metadata (name, subtitle) from fastlane.
@@ -742,6 +745,8 @@ type AppInfoFastlaneLocalization struct {
 	Name       string `json:"name,omitempty"`
 	Subtitle   string `json:"subtitle,omitempty"`
 	PrivacyURL string `json:"privacyUrl,omitempty"`
+
+	defaultFiles []string
 }
 
 // LocalizationUploadItem represents an uploaded localization.
@@ -1039,7 +1044,7 @@ func versionLocalizationFiles(loc FastlaneLocalization) []string {
 	if loc.MarketingURL != "" {
 		files = append(files, "marketing_url.txt")
 	}
-	return files
+	return markDefaultFiles(files, loc.defaultFiles)
 }
 
 func appInfoLocalizationFiles(loc AppInfoFastlaneLocalization) []string {
@@ -1052,6 +1057,17 @@ func appInfoLocalizationFiles(loc AppInfoFastlaneLocalization) []string {
 	}
 	if loc.PrivacyURL != "" {
 		files = append(files, "privacy_url.txt")
+	}
+	return markDefaultFiles(files, loc.defaultFiles)
+}
+
+// markDefaultFiles rewrites files whose value came from the default directory
+// as paths relative to the locale directory.
+func markDefaultFiles(files, defaultFiles []string) []string {
+	for i, file := range files {
+		if slices.Contains(defaultFiles, file) {
+			files[i] = "../" + defaultMetadataDirName + "/" + file
+		}
 	}
 	return files
 }
@@ -1080,6 +1096,16 @@ type MigrateValidateResult struct {
 type fastlaneLocaleDir struct {
 	DirName string
 	Locale  string
+	// Default marks the metadata directory's default folder, whose files fill
+	// fields that a locale directory leaves missing or empty.
+	Default bool
+}
+
+const defaultMetadataDirName = "default"
+
+var localeMetadataFiles = []string{
+	"description.txt", "keywords.txt", "release_notes.txt", "promotional_text.txt",
+	"support_url.txt", "marketing_url.txt", "name.txt", "subtitle.txt", "privacy_url.txt",
 }
 
 func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []SkippedItem, error) {
@@ -1113,7 +1139,11 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			continue
 		}
 
-		if dirName == "review_information" || dirName == "default" || dirName == "app_clip" {
+		if dirName == defaultMetadataDirName {
+			dirs = append(dirs, fastlaneLocaleDir{DirName: dirName, Default: true})
+			continue
+		}
+		if dirName == "review_information" || dirName == "app_clip" {
 			continue // Skip special directories
 		}
 
@@ -1142,7 +1172,77 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 		})
 	}
 
+	if len(dirs) == 1 && dirs[0].Default {
+		defaultDir := filepath.Join(metadataDir, defaultMetadataDirName)
+		defaultEntries, err := os.ReadDir(defaultDir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to read default metadata directory: %w", err)
+		}
+		for _, entry := range defaultEntries {
+			if slices.Contains(localeMetadataFiles, entry.Name()) {
+				skipped = append(skipped, SkippedItem{
+					Path:   defaultDir,
+					Reason: "default metadata not applied: no locale directories to fill",
+				})
+				break
+			}
+		}
+	}
+
 	return dirs, skipped, nil
+}
+
+// localeDirEntryNames lists the entry names directly inside a locale directory.
+func localeDirEntryNames(root rootfs.Root, dir string) (map[string]bool, error) {
+	directory, err := root.OpenDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := directory.ReadDir(-1)
+	directory.Close()
+	if err != nil {
+		return nil, err
+	}
+	names := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		names[entry.Name()] = true
+	}
+	return names, nil
+}
+
+// isAppClipOnlyLocaleDir reports whether a locale directory holds App Clip
+// files and none of the locale metadata files.
+func isAppClipOnlyLocaleDir(names map[string]bool) bool {
+	if !names["app_clip"] {
+		return false
+	}
+	for _, file := range localeMetadataFiles {
+		if names[file] {
+			return false
+		}
+	}
+	return true
+}
+
+// readLocaleMetadataFile reads a locale's metadata file and, when it is missing
+// or empty, the same file in the default directory. It reports whether the
+// value came from the default directory.
+func readLocaleMetadataFile(root rootfs.Root, prefix, dirName, defaultDir, file string) (string, bool, error) {
+	value, err := readMetadataFile(root, filepath.Join(prefix, dirName, file))
+	if err != nil || value != "" || defaultDir == "" {
+		return value, false, err
+	}
+	value, err = readMetadataFile(root, filepath.Join(prefix, defaultDir, file))
+	return value, value != "", err
+}
+
+func defaultLocaleDirName(localeDirs []fastlaneLocaleDir) string {
+	for _, ld := range localeDirs {
+		if ld.Default {
+			return ld.DirName
+		}
+	}
+	return ""
 }
 
 func readFastlaneMetadataFromLocaleDirs(metadataDir string, localeDirs []fastlaneLocaleDir) ([]FastlaneLocalization, error) {
@@ -1154,8 +1254,12 @@ func readFastlaneMetadataFromLocaleDirs(metadataDir string, localeDirs []fastlan
 		return nil, err
 	}
 
+	defaultDir := defaultLocaleDirName(localeDirs)
 	localizations := make([]FastlaneLocalization, 0, len(localeDirs))
 	for _, ld := range localeDirs {
+		if ld.Default {
+			continue
+		}
 		loc := FastlaneLocalization{Locale: ld.Locale}
 
 		// Read each metadata file (version-level localization fields only)
@@ -1171,36 +1275,29 @@ func readFastlaneMetadataFromLocaleDirs(metadataDir string, localeDirs []fastlan
 			{"marketing_url.txt", &loc.MarketingURL},
 		}
 		for _, field := range fields {
-			value, err := readMetadataFile(root, filepath.Join(prefix, ld.DirName, field.file))
+			value, fromDefault, err := readLocaleMetadataFile(root, prefix, ld.DirName, defaultDir, field.file)
 			if err != nil {
 				return nil, err
 			}
 			*field.field = value
+			if fromDefault {
+				loc.defaultFiles = append(loc.defaultFiles, field.file)
+			}
 		}
 
 		// A locale introduced only for App Clip files is not a request to
 		// create or patch an ordinary App Store version localization.
-		directory, err := root.OpenDir(filepath.Join(prefix, ld.DirName))
+		names, err := localeDirEntryNames(root, filepath.Join(prefix, ld.DirName))
 		if err != nil {
 			return nil, err
 		}
-		entries, readErr := directory.ReadDir(-1)
-		directory.Close()
-		if readErr != nil {
-			return nil, readErr
-		}
-		hasClip, hasVersionFile := false, false
-		for _, entry := range entries {
-			if entry.Name() == "app_clip" {
-				hasClip = true
-			}
-			for _, field := range fields {
-				if entry.Name() == field.file {
-					hasVersionFile = true
-				}
+		hasVersionFile := false
+		for _, field := range fields {
+			if names[field.file] {
+				hasVersionFile = true
 			}
 		}
-		if hasClip && !hasVersionFile {
+		if names["app_clip"] && !hasVersionFile && (len(loc.defaultFiles) == 0 || isAppClipOnlyLocaleDir(names)) {
 			continue
 		}
 		localizations = append(localizations, loc)
@@ -1217,29 +1314,44 @@ func readFastlaneAppInfoMetadataFromLocaleDirs(metadataDir string, localeDirs []
 		return nil, err
 	}
 
+	sharedDefaultDir := defaultLocaleDirName(localeDirs)
 	localizations := make([]AppInfoFastlaneLocalization, 0, len(localeDirs))
 	for _, ld := range localeDirs {
-		name, err := readMetadataFile(root, filepath.Join(prefix, ld.DirName, "name.txt"))
-		if err != nil {
-			return nil, err
+		if ld.Default {
+			continue
 		}
-		subtitle, err := readMetadataFile(root, filepath.Join(prefix, ld.DirName, "subtitle.txt"))
-		if err != nil {
-			return nil, err
+		defaultDir := sharedDefaultDir
+		if defaultDir != "" {
+			names, err := localeDirEntryNames(root, filepath.Join(prefix, ld.DirName))
+			if err != nil {
+				return nil, err
+			}
+			if isAppClipOnlyLocaleDir(names) {
+				defaultDir = ""
+			}
 		}
-		privacyURL, err := readMetadataFile(root, filepath.Join(prefix, ld.DirName, "privacy_url.txt"))
-		if err != nil {
-			return nil, err
+		loc := AppInfoFastlaneLocalization{Locale: ld.Locale}
+		for _, field := range []struct {
+			file  string
+			field *string
+		}{
+			{"name.txt", &loc.Name},
+			{"subtitle.txt", &loc.Subtitle},
+			{"privacy_url.txt", &loc.PrivacyURL},
+		} {
+			value, fromDefault, err := readLocaleMetadataFile(root, prefix, ld.DirName, defaultDir, field.file)
+			if err != nil {
+				return nil, err
+			}
+			*field.field = value
+			if fromDefault {
+				loc.defaultFiles = append(loc.defaultFiles, field.file)
+			}
 		}
 
 		// Only include if at least one field has content
-		if name != "" || subtitle != "" || privacyURL != "" {
-			localizations = append(localizations, AppInfoFastlaneLocalization{
-				Locale:     ld.Locale,
-				Name:       name,
-				Subtitle:   subtitle,
-				PrivacyURL: privacyURL,
-			})
+		if loc.Name != "" || loc.Subtitle != "" || loc.PrivacyURL != "" {
+			localizations = append(localizations, loc)
 		}
 	}
 	return localizations, nil

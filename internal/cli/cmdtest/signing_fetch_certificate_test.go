@@ -19,25 +19,47 @@ import (
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
-func TestSigningFetchCreateCertificateRequiresCreateMissingAtCommandBoundary(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{
-			"signing", "fetch",
-			"--bundle-id", "com.example.app",
-			"--profile-type", "IOS_APP_STORE",
-			"--create-missing-certificate",
-			"--identity-password-file", "password",
-		}, "test")
-	})
-	if code != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "--create-missing-certificate requires --create-missing") {
-		t.Fatalf("stderr = %q, want create-missing diagnostic", stderr)
+func TestSigningFetchCreateCertificateUsageErrorsAtCommandBoundary(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "create missing certificate without create missing",
+			args: []string{"--create-missing-certificate", "--identity-password-file", "password"},
+			want: "--create-missing-certificate requires --create-missing",
+		},
+		{
+			name: "p12 encoding without certificate creation",
+			args: []string{"--p12-encoding", "legacy"},
+			want: "--p12-encoding requires --create-missing-certificate",
+		},
+		{
+			name: "unsupported p12 encoding",
+			args: []string{"--create-missing", "--create-missing-certificate", "--identity-password-file", "password", "--p12-encoding", "rc2"},
+			want: `--p12-encoding must be one of: modern, legacy (got "rc2")`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var code int
+			stdout, stderr := captureOutput(t, func() {
+				code = rootcmd.Run(append([]string{
+					"signing", "fetch",
+					"--bundle-id", "com.example.app",
+					"--profile-type", "IOS_APP_STORE",
+				}, test.args...), "test")
+			})
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if !strings.Contains(stderr, test.want) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.want)
+			}
+		})
 	}
 }
 

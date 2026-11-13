@@ -18,9 +18,8 @@ import (
 	"strings"
 	"time"
 
-	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
-
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -40,6 +39,7 @@ type signingCertificateCreateRequest struct {
 	KeyPath         string
 	CSRPath         string
 	P12Path         string
+	P12Encoding     shared.PKCS12Encoding
 	Password        []byte
 	Force           bool
 }
@@ -116,7 +116,7 @@ func createMissingSigningCertificate(ctx context.Context, client *asc.Client, re
 	if err := signingCertificateMatchesKey(certificate, privateKey); err != nil {
 		return created.Data, identity, err
 	}
-	p12, err := modernpkcs12.Modern2023.WithRand(rand.Reader).Encode(privateKey, certificate, nil, string(request.Password))
+	p12, err := shared.EncodePKCS12Identity(request.P12Encoding, privateKey, certificate, string(request.Password))
 	if err != nil {
 		return created.Data, identity, fmt.Errorf("encode p12: %w", err)
 	}

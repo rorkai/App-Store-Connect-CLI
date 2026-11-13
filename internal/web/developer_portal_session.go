@@ -30,6 +30,7 @@ type developerPortalTeam struct {
 }
 
 type developerPortalTeamsResponse struct {
+	developerPortalLegacyResponse
 	Teams []developerPortalTeam `json:"teams"`
 	Data  struct {
 		Teams []developerPortalTeam `json:"teams"`
@@ -150,10 +151,16 @@ func (c *Client) fetchDeveloperPortalTeams(ctx context.Context) ([]developerPort
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, fmt.Errorf("failed to parse Developer Portal teams response: %w", err)
 	}
-	if len(payload.Teams) == 0 {
-		return payload.Data.Teams, nil
+	teams := payload.Teams
+	if len(teams) == 0 {
+		teams = payload.Data.Teams
 	}
-	return payload.Teams, nil
+	if len(teams) == 0 && payload.ResultCode != nil {
+		if err := validateDeveloperPortalLegacyResponse(payload.developerPortalLegacyResponse); err != nil {
+			return nil, err
+		}
+	}
+	return teams, nil
 }
 
 func resolveDeveloperPortalTeam(teams []developerPortalTeam, selection developerPortalTeamSelection) (developerPortalTeam, error) {

@@ -41,6 +41,8 @@ def main():
     env['LDFLAGS'] = ''
     cmake_flags = [f'-DCMAKE_INSTALL_PREFIX={prefix}', '-DCMAKE_INSTALL_LIBDIR=lib',
                    '-DCMAKE_BUILD_TYPE=Release', '-DBUILD_SHARED_LIBS=OFF',
+                   # Go rejects archives whose members are LTO bitcode.
+                   '-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=OFF',
                    f'-DCMAKE_PREFIX_PATH={prefix}']
     arch = 'x86_64' if args.arch == 'amd64' else 'arm64'
     env['MACOSX_DEPLOYMENT_TARGET'] = '13.0'
