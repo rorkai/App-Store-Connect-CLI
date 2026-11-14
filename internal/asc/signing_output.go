@@ -37,6 +37,21 @@ type ProfileDownloadResult struct {
 	OutputPath string `json:"outputPath"`
 }
 
+// ProfilesDownloadAllResult represents CLI output for bulk profile downloads.
+type ProfilesDownloadAllResult struct {
+	OutputDir string                         `json:"outputDir"`
+	Profiles  []ProfileDownloadAllItemResult `json:"profiles"`
+}
+
+// ProfileDownloadAllItemResult describes one profile written by a bulk download.
+type ProfileDownloadAllItemResult struct {
+	ID          string `json:"id"`
+	Name        string `json:"name,omitempty"`
+	UUID        string `json:"uuid"`
+	ProfileType string `json:"profileType,omitempty"`
+	OutputPath  string `json:"outputPath"`
+}
+
 func bundleIDsRows(resp *BundleIDsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Identifier", "Platform", "Seed ID"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -138,6 +153,15 @@ func profileDownloadResultRows(result *ProfileDownloadResult) ([]string, [][]str
 		compactWhitespace(result.Name),
 		result.OutputPath,
 	}}
+	return headers, rows
+}
+
+func profilesDownloadAllResultRows(result *ProfilesDownloadAllResult) ([]string, [][]string) {
+	headers := []string{"ID", "Name", "UUID", "Profile Type", "Output Path"}
+	rows := make([][]string, 0, len(result.Profiles))
+	for _, item := range result.Profiles {
+		rows = append(rows, []string{item.ID, compactWhitespace(item.Name), item.UUID, item.ProfileType, item.OutputPath})
+	}
 	return headers, rows
 }
 

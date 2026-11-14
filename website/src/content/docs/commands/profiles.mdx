@@ -186,6 +186,16 @@ asc profiles download --id "PROFILE_ID" \
   --output "./profile.mobileprovision"
 ```
 
+Download every ACTIVE profile on the team into a directory, one
+`<UUID>.mobileprovision` or `<UUID>.provisionprofile` file each:
+
+```bash
+asc profiles download --all --output-dir "./profiles"
+```
+
+`--profile-type`, `--profile-state`, and `--name` narrow the set. Existing files
+stop the run before anything is written unless you pass `--overwrite`.
+
 Native macOS profiles conventionally use `.provisionprofile`; iOS, tvOS, and
 legacy profiles use `.mobileprovision`. Both extensions can be:
 
