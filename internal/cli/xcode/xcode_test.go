@@ -225,6 +225,104 @@ func TestXcodeExportDirectUploadDoesNotRequireArtifactPath(t *testing.T) {
 	}
 }
 
+func TestXcodeExportExportDir(t *testing.T) {
+	tests := []struct {
+		name           string
+		directUpload   bool
+		populated      bool
+		sameAsIPA      bool
+		parentReadOnly bool
+		wantStderr     string
+		wantErr        string
+	}{
+		{name: "keeps outputs"},
+		{name: "non-empty directory", populated: true, wantStderr: "Error: --export-dir is not empty: "},
+		{name: "direct upload", directUpload: true, wantStderr: "Error: --export-dir cannot be used when ExportOptions.plist uses destination=upload"},
+		{name: "same path as IPA", sameAsIPA: true, wantStderr: "Error: --export-dir must not be the same path as --ipa-path"},
+		{name: "read-only parent", parentReadOnly: true, wantErr: "create export dir: "},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			restore := overrideXcodeCommandTestHooks(t)
+			defer restore()
+
+			ipaPath := filepath.Join(t.TempDir(), "Demo.ipa")
+			exportDir := filepath.Join(t.TempDir(), "outputs")
+			if test.sameAsIPA {
+				exportDir = filepath.Join(filepath.Dir(ipaPath), ".", "Demo.ipa")
+			}
+			if test.parentReadOnly {
+				parent := filepath.Dir(exportDir)
+				if err := os.Chmod(parent, 0o555); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = os.Chmod(parent, 0o755) })
+			}
+			if test.populated {
+				if err := os.MkdirAll(exportDir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(exportDir, "old.plist"), nil, 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			isDirectUploadExportOptionsFn = func(string) bool { return test.directUpload }
+			runExport = func(_ context.Context, opts localxcode.ExportOptions) (*localxcode.ExportResult, error) {
+				if test.wantStderr != "" || test.wantErr != "" {
+					t.Fatal("export must not run after a rejected --export-dir")
+				}
+				return &localxcode.ExportResult{ArchivePath: opts.ArchivePath, IPAPath: opts.IPAPath, ExportDir: opts.ExportDir, ExportFiles: []string{"manifest.plist"}}, nil
+			}
+
+			runGenerateExportOptions = func(context.Context, localxcode.ExportOptionsGenerateOptions) (*localxcode.ExportOptionsGenerateResult, error) {
+				t.Fatal("export options must not be generated after a rejected --export-dir")
+				return nil, nil
+			}
+
+			args := []string{"--archive-path", "Demo.xcarchive", "--ipa-path", ipaPath, "--export-dir", exportDir, "--output", "json"}
+			if !test.parentReadOnly {
+				args = append(args, "--export-options", "ExportOptions.plist")
+			}
+			cmd := XcodeExportCommand()
+			cmd.FlagSet.SetOutput(io.Discard)
+			if err := cmd.FlagSet.Parse(args); err != nil {
+				t.Fatalf("failed to parse flags: %v", err)
+			}
+
+			var runErr error
+			stdout, stderr := captureCommandOutput(t, func() error {
+				runErr = cmd.Exec(context.Background(), nil)
+				return runErr
+			})
+			if test.wantStderr != "" {
+				if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(stderr, test.wantStderr) {
+					t.Fatalf("Exec() error = %v stderr = %q, want usage error %q", runErr, stderr, test.wantStderr)
+				}
+				return
+			}
+			if test.wantErr != "" {
+				if runErr == nil || errors.Is(runErr, flag.ErrHelp) || !strings.Contains(runErr.Error(), test.wantErr) {
+					t.Fatalf("Exec() error = %v, want %q", runErr, test.wantErr)
+				}
+				return
+			}
+			if runErr != nil {
+				t.Fatalf("Exec() error: %v", runErr)
+			}
+			var payload struct {
+				ExportDir   string   `json:"exportDir"`
+				ExportFiles []string `json:"exportFiles"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+			}
+			if payload.ExportDir != exportDir || !reflect.DeepEqual(payload.ExportFiles, []string{"manifest.plist"}) {
+				t.Fatalf("payload = %+v, want exportDir %q with manifest.plist", payload, exportDir)
+			}
+		})
+	}
+}
+
 func TestXcodeInjectGeneratesPlistTextAndCopiesAsset(t *testing.T) {
 	dir := t.TempDir()
 	sourceAssetPath := filepath.Join(dir, "Assets", "AppIcon.appiconset", "Contents.json")
