@@ -1,10 +1,10 @@
 # Usage errors are printed once
 
 Changed in 7.0.0. A usage error prints one `Error:` line, then the command's
-usage page, and exits with code `2`. Four commands printed the `Error:` line
+usage page, and exits with code `2`. Five commands printed the `Error:` line
 twice for some mistakes, and `asc web xcode-cloud settings version-aliases
-update` printed two different `Error:` lines for one mistake. Each now prints
-the line once:
+update` also printed two different `Error:` lines for one mistake. Each now
+prints the line once:
 
 ```text
 $ asc web xcode-cloud settings next-build-number set --product-id PRODUCT_ID --value 0
