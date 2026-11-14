@@ -98,8 +98,7 @@ Examples:
 			versionValue := strings.TrimSpace(*versionID)
 			nextValue := strings.TrimSpace(*next)
 			if versionValue == "" && nextValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			if kind == relationshipSingle && (nextValue != "" || *paginate || *limit != 0) {
