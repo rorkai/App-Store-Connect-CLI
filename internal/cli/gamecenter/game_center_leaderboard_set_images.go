@@ -88,49 +88,26 @@ Examples:
 
 // GameCenterLeaderboardSetImagesDeleteCommand returns the images delete subcommand.
 func GameCenterLeaderboardSetImagesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSetImages", "Leaderboard set image ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center leaderboard-sets images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:  "Delete a leaderboard set image.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center leaderboard-sets images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:   "Delete a leaderboard set image.",
 		LongHelp: `Delete a leaderboard set image.
 
 Examples:
   asc game-center leaderboard-sets images delete --id "IMAGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*imageID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets images delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterLeaderboardSetImage(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center leaderboard-sets images delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterLeaderboardSetImageDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Leaderboard set image ID",
+		IDType:             "gameCenterLeaderboardSetImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboard-sets images delete",
+		DeleteErrorPrefix:  "game-center leaderboard-sets images delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterLeaderboardSetImage(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterLeaderboardSetImageDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
