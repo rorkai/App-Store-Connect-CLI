@@ -96,7 +96,7 @@ type TestSummary struct {
 }
 
 // Coverage is the line coverage of a whole run or, inside Targets, of one
-// target, decoded from the xccov JSON report with per-file data dropped.
+// target, as the xccov targets-only JSON report gives it.
 type Coverage struct {
 	Name            string     `json:"name,omitempty"`
 	LineCoverage    float64    `json:"lineCoverage"`
@@ -398,7 +398,7 @@ func readTestCoverageOrWarn(ctx context.Context, opts TestOptions) *Coverage {
 }
 
 func readTestCoverage(ctx context.Context, resultBundlePath string) (*Coverage, error) {
-	cmd, err := trustedXcodeCommand(ctx, "xcrun", []string{"xccov", "view", "--report", "--json", resultBundlePath}, nil)
+	cmd, err := trustedXcodeCommand(ctx, "xcrun", []string{"xccov", "view", "--report", "--only-targets", "--json", resultBundlePath}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -416,12 +416,17 @@ func readTestCoverage(ctx context.Context, resultBundlePath string) (*Coverage, 
 		return nil, fmt.Errorf("xccov report exceeds %d bytes", maxXcresulttoolOutputBytes)
 	}
 	var coverage Coverage
-	if err := json.Unmarshal(output.Bytes(), &coverage); err != nil {
+	if err := json.Unmarshal(output.Bytes(), &coverage.Targets); err != nil {
 		return nil, fmt.Errorf("decode xccov report: %w", err)
 	}
-	if coverage.ExecutableLines <= 0 && len(coverage.Targets) == 0 {
+	for _, target := range coverage.Targets {
+		coverage.CoveredLines += target.CoveredLines
+		coverage.ExecutableLines += target.ExecutableLines
+	}
+	if coverage.ExecutableLines <= 0 {
 		return nil, fmt.Errorf("result bundle has no code coverage data")
 	}
+	coverage.LineCoverage = float64(coverage.CoveredLines) / float64(coverage.ExecutableLines)
 	slices.SortFunc(coverage.Targets, func(a, b Coverage) int { return strings.Compare(a.Name, b.Name) })
 	return &coverage, nil
 }

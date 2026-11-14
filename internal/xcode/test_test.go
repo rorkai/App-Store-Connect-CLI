@@ -1101,7 +1101,7 @@ func TestTestRunsActionAndParsesResult(t *testing.T) {
 }
 
 func TestTestCodeCoverageReportsLineCoverageWithoutChangingOutcome(t *testing.T) {
-	report := `{"coveredLines":30,"executableLines":40,"lineCoverage":0.75,"targets":[{"name":"Demo.app","coveredLines":20,"executableLines":25,"lineCoverage":0.8,"files":[{"name":"A.swift"}]},{"name":"DemoKit.framework","coveredLines":10,"executableLines":15,"lineCoverage":0.6666}]}`
+	report := `[{"buildProductPath":"/x/DemoKit.framework/DemoKit","name":"DemoKit.framework","coveredLines":10,"executableLines":15,"lineCoverage":0.6666},{"buildProductPath":"/x/Demo.app/Demo","name":"Demo.app","coveredLines":20,"executableLines":25,"lineCoverage":0.8}]`
 	tests := []struct {
 		name         string
 		xccovScript  string
