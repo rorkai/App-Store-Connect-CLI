@@ -290,9 +290,10 @@ func isConfigOptionCall(rest string) bool {
 
 func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
 	items := make([]SkippedItem, 0, len(keys))
+	scheduled := slices.ContainsFunc(keys, func(key IgnoredConfigKey) bool { return key.Key == "auto_release_date" })
 	for _, ignored := range keys {
 		reason := fmt.Sprintf("line %d: %s is not applied by import", ignored.Line, ignored.Key)
-		if hint := ignoredConfigKeyHint(ignored); hint != "" {
+		if hint := ignoredConfigKeyHint(ignored, scheduled); hint != "" {
 			reason += "; to apply it, run: " + hint
 		}
 		items = append(items, SkippedItem{Path: path, Reason: reason})
@@ -300,9 +301,16 @@ func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
 	return items
 }
 
-func ignoredConfigKeyHint(ignored IgnoredConfigKey) string {
+// ignoredConfigKeyHint returns the command that applies an ignored option, or
+// "" when no single command does. scheduled means the file also sets a release
+// date, which decides the release type, so automatic_release gets no hint.
+func ignoredConfigKeyHint(ignored IgnoredConfigKey, scheduled bool) string {
 	value := strings.ToLower(strings.TrimSpace(ignored.Value))
 	switch {
+	case ignored.Key == "auto_release_date":
+		return "asc versions update --version-id VERSION_ID --release-type SCHEDULED --earliest-release-date DATE"
+	case ignored.Key == "automatic_release" && scheduled:
+		return ""
 	case ignored.Key == "submit_for_review" && value == "true":
 		return "asc review submit --app APP_ID --version-id VERSION_ID --build-id BUILD_ID --confirm"
 	case ignored.Key == "phased_release" && value == "true":
