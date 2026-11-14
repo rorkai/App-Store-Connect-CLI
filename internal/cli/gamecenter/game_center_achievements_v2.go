@@ -238,43 +238,24 @@ Examples:
 
 // GameCenterAchievementVersionsV2GetCommand returns the achievement versions v2 get subcommand.
 func GameCenterAchievementVersionsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementVersions", "Game Center achievement version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center achievements v2 versions view --id \"VERSION_ID\"",
-		ShortHelp:  "View a Game Center achievement version (v2) by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center achievements v2 versions view --id \"VERSION_ID\"",
+		ShortHelp:   "View a Game Center achievement version (v2) by ID.",
 		LongHelp: `View a Game Center achievement version (v2) by ID.
 
 Examples:
   asc game-center achievements v2 versions view --id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 versions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAchievementVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 versions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center achievement version ID",
+		IDType:             "gameCenterAchievementVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements v2 versions view",
+		FetchErrorPrefix:   "game-center achievements v2 versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAchievementVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAchievementVersionsV2CreateCommand returns the achievement versions v2 create subcommand.
@@ -422,43 +403,24 @@ Examples:
 
 // GameCenterAchievementLocalizationsV2GetCommand returns the achievement localizations v2 get subcommand.
 func GameCenterAchievementLocalizationsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center achievements v2 localizations view --id \"LOC_ID\"",
-		ShortHelp:  "View a Game Center achievement localization (v2) by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center achievements v2 localizations view --id \"LOC_ID\"",
+		ShortHelp:   "View a Game Center achievement localization (v2) by ID.",
 		LongHelp: `View a Game Center achievement localization (v2) by ID.
 
 Examples:
   asc game-center achievements v2 localizations view --id "LOC_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 localizations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAchievementLocalizationV2(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 localizations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center achievement localization ID",
+		IDType:             "gameCenterAchievementLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements v2 localizations view",
+		FetchErrorPrefix:   "game-center achievements v2 localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAchievementLocalizationV2(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAchievementLocalizationsV2CreateCommand returns the achievement localizations v2 create subcommand.
