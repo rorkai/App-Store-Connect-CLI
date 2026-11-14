@@ -135,43 +135,25 @@ Examples:
 
 // IAPOfferCodesGetCommand returns the offer codes get subcommand.
 func IAPOfferCodesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes view", flag.ExitOnError)
-
-	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc iap offer-codes view --offer-code-id \"CODE_ID\"",
-		ShortHelp:  "View an offer code by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "offer-codes view",
+		Name:        "view",
+		ShortUsage:  "asc iap offer-codes view --offer-code-id \"CODE_ID\"",
+		ShortHelp:   "View an offer code by ID.",
 		LongHelp: `View an offer code by ID.
 
 Examples:
   asc iap offer-codes view --offer-code-id "CODE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			offerCodeValue := strings.TrimSpace(*offerCodeID)
-			if offerCodeValue == "" {
-				return shared.RequiredFlag("--offer-code-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("iap offer-codes view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetInAppPurchaseOfferCode(requestCtx, offerCodeValue)
-			if err != nil {
-				return fmt.Errorf("iap offer-codes view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "offer-code-id",
+		IDUsage:            "Offer code ID",
+		IDType:             "inAppPurchaseOfferCodes",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "iap offer-codes view",
+		FetchErrorPrefix:   "iap offer-codes view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetInAppPurchaseOfferCode(ctx, id)
 		},
-	}
+	})
 }
 
 // IAPOfferCodesCreateCommand returns the offer codes create subcommand.
