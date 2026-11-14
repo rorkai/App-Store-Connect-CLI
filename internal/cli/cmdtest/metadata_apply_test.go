@@ -451,6 +451,16 @@ func metadataMutationCount(reg *asctest.Registry) int {
 	return mutations
 }
 
+func metadataRequestCount(reg *asctest.Registry, method, path string) int {
+	count := 0
+	for _, req := range reg.Requests() {
+		if req.Method == method && req.URL.Path == path {
+			count++
+		}
+	}
+	return count
+}
+
 func runMetadataReviewCommand(t *testing.T, args []string) string {
 	t.Helper()
 	stdout, stderr, runErr := runRootCommand(t, args)
