@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 type localizationImportReceipt struct {
@@ -68,35 +68,17 @@ func TestSubscriptionVersionLocalizationsImportCreatesUpdatesAndSkips(t *testing
   "fr-FR": {"name": "Premium FR", "description": "Toutes les fonctions"}
 }`)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	var calls []string
-	var bodies []string
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		calls = append(calls, req.Method+" "+req.URL.Path)
-		if req.Body != nil {
-			raw, _ := io.ReadAll(req.Body)
-			bodies = append(bodies, strings.TrimSpace(string(raw)))
-		}
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionVersions/ver-1/localizations":
-			if req.URL.Query().Get("limit") != "200" {
-				t.Fatalf("expected limit=200, got %q", req.URL.RawQuery)
-			}
-			return jsonResponse(http.StatusOK, `{"data":[
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptionVersions/ver-1/localizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
 				{"type":"subscriptionLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Premium","description":"All features"}},
 				{"type":"subscriptionLocalizations","id":"loc-de","attributes":{"locale":"de-DE","name":"Premium","description":"Alt"}}
-			]}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v2/subscriptionLocalizations/loc-de":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionLocalizations","id":"loc-de","attributes":{}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v2/subscriptionLocalizations":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionLocalizations","id":"loc-fr","attributes":{}}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+			]}`))
+	reg.Register(asctest.PATCH("/v2/subscriptionLocalizations/loc-de").JSONBody(`{"data":{"type":"subscriptionLocalizations","id":"loc-de","attributes":{"description":"Alle Funktionen"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"subscriptionLocalizations","id":"loc-de","attributes":{}}}`))
+	reg.Register(asctest.POST("/v2/subscriptionLocalizations").JSONBody(`{"data":{"type":"subscriptionLocalizations","attributes":{"name":"Premium FR","locale":"fr-FR","description":"Toutes les fonctions"},"relationships":{"version":{"data":{"type":"subscriptionVersions","id":"ver-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"subscriptionLocalizations","id":"loc-fr","attributes":{}}}`))
 
 	stdout, stderr, runErr := runIAPImport(t, []string{
 		"subscriptions", "versions", "localizations", "import",
@@ -113,6 +95,14 @@ func TestSubscriptionVersionLocalizationsImportCreatesUpdatesAndSkips(t *testing
 	}
 
 	wantCalls := "GET /v1/subscriptionVersions/ver-1/localizations\nPATCH /v2/subscriptionLocalizations/loc-de\nPOST /v2/subscriptionLocalizations"
+	var calls []string
+	var bodies []string
+	for _, req := range reg.Requests() {
+		calls = append(calls, req.Method+" "+req.URL.Path)
+		if len(req.Body) > 0 {
+			bodies = append(bodies, strings.TrimSpace(string(req.Body)))
+		}
+	}
 	if got := strings.Join(calls, "\n"); got != wantCalls {
 		t.Fatalf("unexpected calls:\ngot:\n%s\nwant:\n%s", got, wantCalls)
 	}
@@ -145,17 +135,12 @@ func TestIAPVersionLocalizationsImportDryRunMakesNoWrites(t *testing.T) {
   "ja": {"name": "コイン", "description": "コインの山"}
 }`)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method == http.MethodGet && req.URL.Path == "/v1/inAppPurchaseVersions/iap-ver/localizations" {
-			return jsonResponse(http.StatusOK, `{"data":[
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/inAppPurchaseVersions/iap-ver/localizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
 				{"type":"inAppPurchaseLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Gold","description":"A pile of coins"}}
-			]}`)
-		}
-		t.Fatalf("unexpected request during dry run: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+			]}`))
 
 	stdout, stderr, runErr := runIAPImport(t, []string{
 		"iap", "versions", "localizations", "import",
@@ -186,34 +171,18 @@ func TestSubscriptionGroupVersionLocalizationsImportReportsPartialFailure(t *tes
   "es-MX": {"name": "Premium MX"}
 }`)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	var calls []string
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		calls = append(calls, req.Method+" "+req.URL.Path)
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionGroupVersions/group-ver/localizations":
-			return jsonResponse(http.StatusOK, `{"data":[
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptionGroupVersions/group-ver/localizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
 				{"type":"subscriptionGroupLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Premium"}}
-			]}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v2/subscriptionGroupLocalizations/loc-en":
-			raw, _ := io.ReadAll(req.Body)
-			if !strings.Contains(string(raw), `"attributes":{"customAppName":"Premium App"}`) {
-				t.Fatalf("expected only customAppName in the update, got %s", raw)
-			}
-			return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionGroupLocalizations","id":"loc-en","attributes":{}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v2/subscriptionGroupLocalizations":
-			raw, _ := io.ReadAll(req.Body)
-			if strings.Contains(string(raw), `"locale":"it"`) {
-				return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR","title":"Conflict","detail":"locale rejected"}]}`)
-			}
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionGroupLocalizations","id":"loc-mx","attributes":{}}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+			]}`))
+	reg.Register(asctest.PATCH("/v2/subscriptionGroupLocalizations/loc-en").JSONBody(`{"data":{"type":"subscriptionGroupLocalizations","id":"loc-en","attributes":{"customAppName":"Premium App"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"subscriptionGroupLocalizations","id":"loc-en","attributes":{}}}`))
+	reg.Register(asctest.POST("/v2/subscriptionGroupLocalizations").JSONBody(`{"data":{"type":"subscriptionGroupLocalizations","attributes":{"name":"Premium","locale":"it"},"relationships":{"version":{"data":{"type":"subscriptionGroupVersions","id":"group-ver"}}}}}`),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR","title":"Conflict","detail":"locale rejected"}]}`))
+	reg.Register(asctest.POST("/v2/subscriptionGroupLocalizations").JSONBody(`{"data":{"type":"subscriptionGroupLocalizations","attributes":{"name":"Premium MX","locale":"es-MX"},"relationships":{"version":{"data":{"type":"subscriptionGroupVersions","id":"group-ver"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"subscriptionGroupLocalizations","id":"loc-mx","attributes":{}}}`))
 
 	stdout, stderr, runErr := runIAPImport(t, []string{
 		"subscriptions", "groups", "versions", "localizations", "import",
@@ -227,6 +196,10 @@ func TestSubscriptionGroupVersionLocalizationsImportReportsPartialFailure(t *tes
 	}
 	if !strings.Contains(stderr, "1 of 3 locales failed") {
 		t.Fatalf("expected the failure count on stderr, got %q", stderr)
+	}
+	var calls []string
+	for _, req := range reg.Requests() {
+		calls = append(calls, req.Method+" "+req.URL.Path)
 	}
 	if len(calls) != 4 {
 		t.Fatalf("expected every locale to be attempted after a failure, got calls %v", calls)
@@ -249,12 +222,7 @@ func TestVersionLocalizationsImportRequiresConfirm(t *testing.T) {
 	setupAuth(t)
 	filePath := writeLocalizationImportFile(t, `{"en-US": {"name": "Premium"}}`)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request without --confirm: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	stdout, stderr, runErr := runIAPImport(t, []string{
 		"subscriptions", "versions", "localizations", "import",
@@ -291,12 +259,7 @@ func TestVersionLocalizationsImportRejectsInvalidFilesBeforeAnyRequest(t *testin
 			setupAuth(t)
 			filePath := writeLocalizationImportFile(t, test.contents)
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected HTTP request for an invalid file: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			})
+			asctest.NewRegistry(t).Install()
 
 			stdout, stderr, runErr := runIAPImport(t, []string{
 				"iap", "versions", "localizations", "import",
@@ -325,17 +288,12 @@ func TestVersionLocalizationsImportRejectsCreateWithoutNameBeforeAnyWrite(t *tes
   "de-DE": {"description": "Alle Funktionen"}
 }`)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionVersions/ver-1/localizations" {
-			return jsonResponse(http.StatusOK, `{"data":[
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptionVersions/ver-1/localizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
 				{"type":"subscriptionLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Premium"}}
-			]}`)
-		}
-		t.Fatalf("unexpected write for an invalid plan: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+			]}`))
 
 	stdout, stderr, runErr := runIAPImport(t, []string{
 		"subscriptions", "versions", "localizations", "import",

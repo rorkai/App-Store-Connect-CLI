@@ -10,6 +10,7 @@ import (
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -71,34 +72,13 @@ func TestBuildLocalizationsAcceptsMultibyteWhatsNewAtLimit(t *testing.T) {
 		t.Fatalf("expected multibyte payload larger than the character limit, got %d bytes", len(whatsNew))
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	var sentWhatsNew string
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1/appStoreVersion":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1"}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			var payload struct {
-				Data struct {
-					Attributes struct {
-						WhatsNew string `json:"whatsNew"`
-					} `json:"attributes"`
-				} `json:"data"`
-			}
-			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-				t.Fatalf("decode payload: %v", err)
-			}
-			sentWhatsNew = payload.Data.Attributes.WhatsNew
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"ja"}}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/builds/build-1/appStoreVersion"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1"}}`))
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations"),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"ja"}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -117,6 +97,22 @@ func TestBuildLocalizationsAcceptsMultibyteWhatsNewAtLimit(t *testing.T) {
 		}
 	})
 
+	for _, req := range reg.Requests() {
+		if req.Method != http.MethodPost {
+			continue
+		}
+		var payload struct {
+			Data struct {
+				Attributes struct {
+					WhatsNew string `json:"whatsNew"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(req.Body, &payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		sentWhatsNew = payload.Data.Attributes.WhatsNew
+	}
 	if sentWhatsNew != whatsNew {
 		t.Fatalf("expected operator input to reach the API unchanged, got %d characters", len([]rune(sentWhatsNew)))
 	}

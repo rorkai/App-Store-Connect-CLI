@@ -11,6 +11,7 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -112,35 +113,18 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 				setupAuth(t)
 				t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-				originalTransport := http.DefaultTransport
-				t.Cleanup(func() {
-					http.DefaultTransport = originalTransport
-				})
-
-				requestCount := 0
-				http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					requestCount++
-					if req.URL.Path != test.path {
-						t.Fatalf("path = %q, want %q", req.URL.Path, test.path)
-					}
-					if req.URL.RawQuery != variant.query {
-						t.Fatalf("query = %q, want %q", req.URL.RawQuery, variant.query)
-					}
-					resource := `{"type":"appEventLocalizations","id":"loc-1","attributes":{}}`
-					if test.collection {
-						resource = "[" + resource + "]"
-					}
-					body := `{"data":` + resource + `,"links":{"self":"https://api.appstoreconnect.apple.com` + test.path + `"}`
-					if variant.wantIncluded {
-						body += "," + placementsIncludedJSON
-					}
-					body += "}"
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(body)),
-						Header:     http.Header{"Content-Type": []string{"application/json"}},
-					}, nil
-				})
+				resource := `{"type":"appEventLocalizations","id":"loc-1","attributes":{}}`
+				if test.collection {
+					resource = "[" + resource + "]"
+				}
+				body := `{"data":` + resource + `,"links":{"self":"https://api.appstoreconnect.apple.com` + test.path + `"}`
+				if variant.wantIncluded {
+					body += "," + placementsIncludedJSON
+				}
+				body += "}"
+				reg := asctest.NewRegistry(t)
+				reg.Install()
+				reg.Register(asctest.GET(test.path, strings.Split(variant.query, "&")...), asctest.JSON(http.StatusOK, body))
 
 				root := RootCommand("1.2.3")
 				root.FlagSet.SetOutput(io.Discard)
@@ -156,8 +140,12 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 					}
 				})
 
-				if requestCount != 1 {
+				requests := reg.Requests()
+				if requestCount := len(requests); requestCount != 1 {
 					t.Fatalf("requests = %d, want 1", requestCount)
+				}
+				if got := requests[0].URL.RawQuery; got != variant.query {
+					t.Fatalf("query = %q, want %q", got, variant.query)
 				}
 				if stderr != "" {
 					t.Fatalf("stderr = %q, want empty", stderr)
