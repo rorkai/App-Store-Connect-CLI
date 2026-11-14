@@ -1108,13 +1108,13 @@ const defaultMetadataDirName = "default"
 // appLevelMetadataFiles maps the metadata folder's app-level text files, which
 // import does not apply, to the command that sets each value.
 var appLevelMetadataFiles = map[string]string{
-	"copyright.txt":                     "asc versions update --copyright",
-	"primary_category.txt":              "asc app-setup categories set --primary",
-	"secondary_category.txt":            "asc app-setup categories set --secondary",
-	"primary_first_sub_category.txt":    "asc app-setup categories set --primary-subcategory-one",
-	"primary_second_sub_category.txt":   "asc app-setup categories set --primary-subcategory-two",
-	"secondary_first_sub_category.txt":  "asc app-setup categories set --secondary-subcategory-one",
-	"secondary_second_sub_category.txt": "asc app-setup categories set --secondary-subcategory-two",
+	"copyright.txt":                     "asc versions update --version-id VERSION_ID --copyright TEXT",
+	"primary_category.txt":              "asc app-setup categories set --app APP_ID --primary CATEGORY_ID",
+	"secondary_category.txt":            "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID",
+	"primary_first_sub_category.txt":    "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-one SUBCATEGORY_ID",
+	"primary_second_sub_category.txt":   "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-two SUBCATEGORY_ID",
+	"secondary_first_sub_category.txt":  "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID --secondary-subcategory-one SUBCATEGORY_ID",
+	"secondary_second_sub_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID --secondary-subcategory-two SUBCATEGORY_ID",
 }
 
 // localePrivacyPolicyTextFile is a locale folder's privacy policy text, which
@@ -1179,7 +1179,7 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 		if dirName == defaultMetadataDirName {
 			dirs = append(dirs, fastlaneLocaleDir{DirName: dirName, Default: true})
 			policyText := filepath.Join(dirName, localePrivacyPolicyTextFile)
-			if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, policyText), filepath.Join(metadataDir, policyText), "asc app-setup info set --privacy-policy-text"); ok {
+			if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, policyText), filepath.Join(metadataDir, policyText), "asc app-setup info set --app APP_ID --locale LOCALE --privacy-policy-text TEXT"); ok {
 				skipped = append(skipped, item)
 			}
 			continue
@@ -1212,7 +1212,7 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			Locale:  normalized,
 		})
 		policyText := filepath.Join(dirName, localePrivacyPolicyTextFile)
-		if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, policyText), filepath.Join(metadataDir, policyText), "asc app-setup info set --privacy-policy-text --locale "+normalized); ok {
+		if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, policyText), filepath.Join(metadataDir, policyText), "asc app-setup info set --app APP_ID --locale "+normalized+" --privacy-policy-text TEXT"); ok {
 			skipped = append(skipped, item)
 		}
 	}

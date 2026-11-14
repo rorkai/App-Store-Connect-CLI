@@ -257,15 +257,15 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 	if !found {
 		t.Fatalf("expected skipped to include %q (got %+v)", nonLocaleDir, result.Skipped)
 	}
-	if !strings.Contains(defaultPolicyReason, "not imported") || !strings.HasSuffix(defaultPolicyReason, "asc app-setup info set --privacy-policy-text") {
-		t.Fatalf("expected the default folder's policy text to be reported without a locale, got %q", defaultPolicyReason)
+	if !strings.Contains(defaultPolicyReason, "not imported") || !strings.HasSuffix(defaultPolicyReason, "asc app-setup info set --app APP_ID --locale LOCALE --privacy-policy-text TEXT") {
+		t.Fatalf("expected the default folder's policy text to be reported with a locale placeholder, got %q", defaultPolicyReason)
 	}
 	wantReasons := map[string]string{
-		"copyright.txt":        "asc versions update --copyright",
-		"primary_category.txt": "asc app-setup categories set --primary",
+		"copyright.txt":        "asc versions update --version-id VERSION_ID --copyright TEXT",
+		"primary_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID",
 		// Unreadable for a non-root user; it must still be reported, not abort the import.
-		"primary_first_sub_category.txt": "asc app-setup categories set --primary-subcategory-one",
-		"apple_tv_privacy_policy.txt":    "asc app-setup info set --privacy-policy-text --locale en-US",
+		"primary_first_sub_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-one SUBCATEGORY_ID",
+		"apple_tv_privacy_policy.txt":    "asc app-setup info set --app APP_ID --locale en-US --privacy-policy-text TEXT",
 	}
 	if len(appLevelReasons) != len(wantReasons) {
 		t.Fatalf("expected skipped app-level files %v, got %+v", wantReasons, result.Skipped)
