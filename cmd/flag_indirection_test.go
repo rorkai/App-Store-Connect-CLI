@@ -505,7 +505,7 @@ func TestRunHelpLeavesLiteralValueValidationUnchanged(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	if !strings.Contains(stderr, "for flag -limit") {
+	if !strings.Contains(stderr, "for flag --limit") {
 		t.Fatalf("stderr = %q, want the invalid-value error for --limit", stderr)
 	}
 }

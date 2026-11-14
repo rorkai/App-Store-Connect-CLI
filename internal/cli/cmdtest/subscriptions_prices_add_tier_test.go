@@ -629,7 +629,7 @@ func TestSubscriptionsPricesAdd_ForceRejectsInvalidBoolean(t *testing.T) {
 		"--subscription-id", "8000000003",
 		"--price-point", "PP_ID",
 		"--force=maybe",
-	}, `invalid boolean value "maybe" for -force`)
+	}, `invalid boolean value "maybe" for --force`)
 }
 
 func TestSubscriptionsPricesAddRefreshesContextAfterTierResolution(t *testing.T) {

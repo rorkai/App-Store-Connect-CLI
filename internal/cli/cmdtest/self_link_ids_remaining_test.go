@@ -457,7 +457,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
 			firstLine, _, _ := strings.Cut(stderr, "\n")
-			wantPrefix := fmt.Sprintf("Error: invalid value %q for flag -%s: ", test.value, test.flag)
+			wantPrefix := fmt.Sprintf("Error: invalid value %q for flag --%s: ", test.value, test.flag)
 			if !strings.HasPrefix(firstLine, wantPrefix) || !strings.Contains(firstLine, test.wantErr) {
 				t.Fatalf("first stderr line = %q, want prefix %q containing %q", firstLine, wantPrefix, test.wantErr)
 			}

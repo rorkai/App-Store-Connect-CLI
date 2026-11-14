@@ -251,7 +251,7 @@ func TestWebReviewIAPsAttachInvalidValueExitCodes(t *testing.T) {
 		{
 			name:       "invalid confirm value",
 			args:       []string{"web", "review", "iaps", "attach", "--app", "123456789", "--iap-id", "9000000001", "--confirm=maybe"},
-			wantStderr: `invalid boolean value "maybe" for -confirm`,
+			wantStderr: `invalid boolean value "maybe" for --confirm`,
 		},
 		{
 			name:       "blank iap selector",

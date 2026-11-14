@@ -337,7 +337,7 @@ func TestRun_ProfileAfterPositionalPreservesEarlierDiagnostics(t *testing.T) {
 				t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
 			}
 		})
-		if !strings.Contains(stderr, "flag provided but not defined: -bogus") ||
+		if !strings.Contains(stderr, "flag provided but not defined: --bogus") ||
 			strings.Contains(stderr, "must appear before positional arguments") {
 			t.Fatalf("stderr = %q, want the unknown-schema-flag diagnostic", stderr)
 		}

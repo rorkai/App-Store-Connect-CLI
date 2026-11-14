@@ -41,7 +41,7 @@ func ParseInterspersedFlags(fs *flag.FlagSet, args []string) ([]string, error) {
 			if name == RootProfileFlagName {
 				return nil, fmt.Errorf("`--profile` must appear before positional arguments")
 			}
-			return nil, fmt.Errorf("flag provided but not defined: -%s", name)
+			return nil, fmt.Errorf("flag provided but not defined: --%s", name)
 		}
 
 		if isBoolFlagValue(f) && !hasValue {

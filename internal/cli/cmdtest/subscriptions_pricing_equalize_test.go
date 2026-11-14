@@ -45,12 +45,12 @@ func TestSubscriptionsPricingEqualizeUsageErrors(t *testing.T) {
 		{
 			name:    "invalid auto start date",
 			args:    []string{"subscriptions", "pricing", "equalize", "--subscription-id", "8000000001", "--base-price", "3.49", "--dry-run", "--auto-start-date=maybe"},
-			wantErr: `invalid boolean value "maybe" for -auto-start-date`,
+			wantErr: `invalid boolean value "maybe" for --auto-start-date`,
 		},
 		{
 			name:    "invalid preserved",
 			args:    []string{"subscriptions", "pricing", "equalize", "--subscription-id", "8000000001", "--base-price", "3.49", "--dry-run", "--preserved=maybe"},
-			wantErr: `invalid boolean value "maybe" for -preserved`,
+			wantErr: `invalid boolean value "maybe" for --preserved`,
 		},
 		{
 			name:    "requires confirm unless dry run",

@@ -118,7 +118,7 @@ func (d *Deps) AppIDFlagValue(value string) (string, error) {
 func appIDFlagValueTo(stderr io.Writer, value string) (string, error) {
 	id, err := ResourceIDFromValue(value, "apps")
 	if err != nil {
-		message := SanitizeTerminal(fmt.Sprintf("invalid value %q for flag -app: %v", strings.TrimSpace(value), err))
+		message := SanitizeTerminal(fmt.Sprintf("invalid value %q for flag --app: %v", strings.TrimSpace(value), err))
 		fmt.Fprintf(stderr, "Error: %s\n", message)
 		return "", NewReportedUsageError(UsageErrorInvalidValue, message)
 	}

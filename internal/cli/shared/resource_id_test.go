@@ -196,7 +196,7 @@ func TestAppIDFlagValue(t *testing.T) {
 	if err == nil || !IsReportedUsageError(err) {
 		t.Fatalf("error = %v, want reported usage error", err)
 	}
-	want := `Error: invalid value "` + wrong + `" for flag -app: expected a self-link of type apps, got builds`
+	want := `Error: invalid value "` + wrong + `" for flag --app: expected a self-link of type apps, got builds`
 	if strings.TrimSpace(stderr) != want {
 		t.Fatalf("stderr = %q, want %q", stderr, want)
 	}
