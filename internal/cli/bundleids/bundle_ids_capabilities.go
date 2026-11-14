@@ -72,8 +72,7 @@ Examples:
 			}
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --bundle is required")
-				return shared.MissingRequiredUsageError("--bundle")
+				return shared.RequiredFlag("--bundle")
 			}
 
 			client, err := shared.GetASCClient()
@@ -153,13 +152,11 @@ the API cannot create, even when that capability is already enabled.`,
 		Exec: func(ctx context.Context, args []string) error {
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --bundle is required")
-				return shared.MissingRequiredUsageError("--bundle")
+				return shared.RequiredFlag("--bundle")
 			}
 			capabilityValue := strings.ToUpper(strings.TrimSpace(*capability))
 			if capabilityValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --capability is required")
-				return shared.MissingRequiredUsageError("--capability")
+				return shared.RequiredFlag("--capability")
 			}
 
 			settingsValue, err := parseCapabilitySettings(*settings)
@@ -243,8 +240,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			capabilityValue := strings.ToUpper(strings.TrimSpace(*capabilityType))
@@ -302,12 +298,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

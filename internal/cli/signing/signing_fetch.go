@@ -128,14 +128,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) (runErr error) {
 			bundle := strings.TrimSpace(*bundleID)
 			if bundle == "" {
-				fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
-				return shared.MissingRequiredUsageError("--bundle-id")
+				return shared.RequiredFlag("--bundle-id")
 			}
 
 			profType := strings.TrimSpace(*profileType)
 			if profType == "" {
-				fmt.Fprintln(os.Stderr, "Error: --profile-type is required")
-				return shared.MissingRequiredUsageError("--profile-type")
+				return shared.RequiredFlag("--profile-type")
 			}
 			profType = strings.ToUpper(profType)
 			if *matchExtensions && *strictMatch {
@@ -192,8 +190,7 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 			if *createMissingCertificate && strings.TrimSpace(*identityPasswordFile) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --identity-password-file is required")
-				return shared.MissingRequiredUsageError("--identity-password-file")
+				return shared.RequiredFlag("--identity-password-file")
 			}
 			if *createMissing && isDevelopmentProfile(profType) && strings.TrimSpace(*deviceIDs) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --device is required for development profiles")

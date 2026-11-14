@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 
@@ -69,18 +68,15 @@ func capabilityReconcileCommand(name string, apply bool) *ffcli.Command {
 				return shared.UsageError(err.Error())
 			}
 			if apply && !confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --bundle is required")
-				return shared.MissingRequiredUsageError("--bundle")
+				return shared.RequiredFlag("--bundle")
 			}
 			path := strings.TrimSpace(*entitlements)
 			if path == "" {
-				fmt.Fprintln(os.Stderr, "Error: --entitlements is required")
-				return shared.MissingRequiredUsageError("--entitlements")
+				return shared.RequiredFlag("--entitlements")
 			}
 			desired, err := readDesiredEntitlements(path, *ignoreUnknown)
 			if err != nil {
