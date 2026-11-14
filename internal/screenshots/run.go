@@ -45,7 +45,7 @@ func runPlanWithRoot(ctx context.Context, plan *Plan, outputRoot rootfs.Root) (*
 	return runPlan(ctx, plan, &outputRoot)
 }
 
-func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (*RunResult, error) {
+func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *RunResult, runErr error) {
 	if plan == nil {
 		return nil, fmt.Errorf("plan is required")
 	}
@@ -58,7 +58,7 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (*RunRe
 		udid = "booted"
 	}
 	for _, step := range plan.Steps {
-		if StepAction(strings.TrimSpace(strings.ToLower(string(step.Action)))) != ActionWait {
+		if plan.Defaults.StatusBar != "" || StepAction(strings.TrimSpace(strings.ToLower(string(step.Action)))) != ActionWait {
 			resolved, err := resolveSimulatorUDID(ctx, udid)
 			if err != nil {
 				return nil, err
@@ -92,6 +92,19 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (*RunRe
 		Steps:     make([]RunStepResult, 0, len(plan.Steps)),
 	}
 	terminateRunningProcess := plan.App.terminateRunningProcess
+
+	if preset := plan.Defaults.StatusBar; preset != "" {
+		if err := runExternal(ctx, "axe", "settings", "status-bar", "preset", preset, "--udid", udid); err != nil {
+			return nil, fmt.Errorf("apply status bar preset %q: %w", preset, err)
+		}
+		defer func() {
+			clearCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), matrixSubprocessTimeout)
+			defer cancel()
+			if clearErr := runExternal(clearCtx, "axe", "settings", "status-bar", "clear", "--udid", udid); clearErr != nil {
+				runErr = errors.Join(runErr, fmt.Errorf("clear status bar overrides: %w", clearErr))
+			}
+		}()
+	}
 
 	for i, step := range plan.Steps {
 		start := time.Now()

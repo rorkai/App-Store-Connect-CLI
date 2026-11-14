@@ -671,6 +671,17 @@ func TestValidateMatrixPlan_RejectsUnsafeAndConflictingValues(t *testing.T) {
 	}, &caseInsensitiveScreenshots, ""); err == nil || !strings.Contains(err.Error(), "unique") {
 		t.Fatalf("ValidateMatrixPlan() error = %v, want case-insensitive screenshot-name collision", err)
 	}
+	statusBar := *base
+	statusBar.Defaults.StatusBar = "screenshot"
+	if err := validateMatrixPlan(&MatrixPlan{
+		Version:         1,
+		Devices:         []MatrixDevice{{ID: "phone", UDID: "u"}},
+		Locales:         []string{"en-US"},
+		Appearances:     []string{"light"},
+		ContentVariants: []MatrixContentVariant{{ID: "default"}},
+	}, &statusBar, ""); err == nil || !strings.Contains(err.Error(), "defaults.status_bar is not supported in a matrix base plan") {
+		t.Fatalf("ValidateMatrixPlan() error = %v, want defaults.status_bar rejected", err)
+	}
 }
 
 func TestBuildLocaleLaunchArgumentsPreservesScriptSubtags(t *testing.T) {
