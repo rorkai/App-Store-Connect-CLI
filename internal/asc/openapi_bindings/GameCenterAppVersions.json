@@ -1,0 +1,17 @@
+{
+  "tag": "GameCenterAppVersions",
+  "file": "game_center_app_versions_gen.go",
+  "types": [
+    "GameCenterAppVersionAttributes",
+    "GameCenterAppVersionCreateRequest",
+    "GameCenterAppVersionResponse",
+    "GameCenterAppVersionUpdateAttributes",
+    "GameCenterAppVersionUpdateData",
+    "GameCenterAppVersionUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterAppVersions_appStoreVersion_getToOneRelated","name":"GetGameCenterAppVersionAppStoreVersion","params":["appVersionID"]},
+    {"operation":"gameCenterAppVersions_compatibilityVersions_getToManyRelated","name":"GetGameCenterAppVersionCompatibilityVersions","params":["appVersionID"],"check":"require","options":"GCAppVersionsOption","query":"buildGCAppVersionsQuery","nextContext":"game-center-app-version-compatibility"},
+    {"operation":"gameCenterAppVersions_getInstance","name":"GetGameCenterAppVersion","params":["appVersionID"]}
+  ]
+}

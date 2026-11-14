@@ -21,9 +21,6 @@ type GameCenterDetailPlayerAttributes struct {
 // GameCenterDetailPlayersResponse is a collection of players.
 type GameCenterDetailPlayersResponse = Response[GameCenterDetailPlayerAttributes]
 
-// GameCenterDetailPlayerResponse is a single player.
-type GameCenterDetailPlayerResponse = SingleResponse[GameCenterDetailPlayerAttributes]
-
 // GCBlockedPlayersQuery controls the blocked players collection endpoint.
 type GCBlockedPlayersQuery struct {
 	Fields  []string

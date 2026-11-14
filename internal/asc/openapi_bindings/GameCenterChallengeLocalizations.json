@@ -1,0 +1,17 @@
+{
+  "tag": "GameCenterChallengeLocalizations",
+  "file": "game_center_challenge_localizations_gen.go",
+  "types": [
+    "GameCenterChallengeLocalizationCreateRequest",
+    "GameCenterChallengeLocalizationResponse",
+    "GameCenterChallengeLocalizationUpdateAttributes",
+    "GameCenterChallengeLocalizationUpdateData",
+    "GameCenterChallengeLocalizationUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterChallengeLocalizations_deleteInstance","name":"DeleteGameCenterChallengeLocalization","params":["localizationID"]},
+    {"operation":"gameCenterChallengeLocalizations_getInstance","name":"GetGameCenterChallengeLocalization","params":["localizationID"]},
+    {"operation":"gameCenterChallengeLocalizations_image_getToOneRelated","name":"GetGameCenterChallengeLocalizationImage","params":["localizationID"]},
+    {"operation":"gameCenterChallengeLocalizations_updateInstance","name":"UpdateGameCenterChallengeLocalization","params":["localizationID"]}
+  ]
+}
