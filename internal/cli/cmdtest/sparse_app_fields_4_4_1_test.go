@@ -91,7 +91,6 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 		wantPath  string
 		wantQuery map[string]string
 		response  string
-		deps      bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name: "apps shorthand", args: []string{"apps", "--app-info-fields", "kidsAgeBand", "--output", "json"},
@@ -133,13 +132,11 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 			name: "age rating kids age band remains valid", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--output", "json"},
 			wantPath: "/v1/appInfos/info-1/ageRatingDeclaration", response: `{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{"kidsAgeBand":"FIVE_AND_UNDER"}}}`,
 			wantQuery: map[string]string{},
-			deps:      true,
 		},
 		{
 			name: "age rating view", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "socialMedia,socialMediaAgeRestricted", "--output", "json"},
 			wantPath: "/v1/appInfos/info-1/ageRatingDeclaration", response: `{"data":{"type":"ageRatingDeclarations","id":"age-1"}}`,
 			wantQuery: map[string]string{"fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted"},
-			deps:      true,
 		},
 		{
 			name: "app info localizations", args: []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--app-info-fields", "kidsAgeBand", "--output", "json"},
@@ -156,16 +153,10 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
+			reg.Install()
 			reg.Register(asctest.GET(test.wantPath, queryPairs(test.wantQuery)...), asctest.JSON(http.StatusOK, test.response))
 
-			var stdout, stderr string
-			var err error
-			if test.deps {
-				stdout, stderr, err = runRootWithDeps(t, stubClient(t, reg), test.args...)
-			} else {
-				reg.Install()
-				stdout, stderr, err = runCommand(t, test.args)
-			}
+			stdout, stderr, err := runCommand(t, test.args)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

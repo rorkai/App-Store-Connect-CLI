@@ -16,12 +16,11 @@ func TestGRACAgeRatingSparseFields(t *testing.T) {
 		args       []string
 		path, body string
 		included   bool
-		deps       bool // the command is built on shared.Deps: run it on test deps
 	}{
-		{"direct age rating", []string{"age-rating", "view", "--app-info-id", "info-45", "--fields", "gracRatingClassificationNumber"}, "/v1/appInfos/info-45/ageRatingDeclaration", `{"data":` + rating + `}`, false, true},
-		{"direct age rating self link", []string{"age-rating", "view", "--app-info-id", "https://api.appstoreconnect.apple.com/v1/appInfos/info-45", "--fields", "gracRatingClassificationNumber"}, "/v1/appInfos/info-45/ageRatingDeclaration", `{"data":` + rating + `}`, false, true},
-		{"app info view", []string{"apps", "info", "view", "--info-id", "info-45", "--age-rating-fields", "gracRatingClassificationNumber"}, "/v1/appInfos/info-45", `{"data":` + info + `,"included":[` + rating + `]}`, true, false},
-		{"app info list", []string{"apps", "info", "list", "--app", "app-45", "--age-rating-fields", "gracRatingClassificationNumber"}, "/v1/apps/app-45/appInfos", `{"data":[` + info + `],"included":[` + rating + `]}`, true, false},
+		{"direct age rating", []string{"age-rating", "view", "--app-info-id", "info-45", "--fields", "gracRatingClassificationNumber"}, "/v1/appInfos/info-45/ageRatingDeclaration", `{"data":` + rating + `}`, false},
+		{"direct age rating self link", []string{"age-rating", "view", "--app-info-id", "https://api.appstoreconnect.apple.com/v1/appInfos/info-45", "--fields", "gracRatingClassificationNumber"}, "/v1/appInfos/info-45/ageRatingDeclaration", `{"data":` + rating + `}`, false},
+		{"app info view", []string{"apps", "info", "view", "--info-id", "info-45", "--age-rating-fields", "gracRatingClassificationNumber"}, "/v1/appInfos/info-45", `{"data":` + info + `,"included":[` + rating + `]}`, true},
+		{"app info list", []string{"apps", "info", "list", "--app", "app-45", "--age-rating-fields", "gracRatingClassificationNumber"}, "/v1/apps/app-45/appInfos", `{"data":[` + info + `],"included":[` + rating + `]}`, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
@@ -30,16 +29,10 @@ func TestGRACAgeRatingSparseFields(t *testing.T) {
 				query = append(query, "include=ageRatingDeclaration")
 			}
 			reg := asctest.NewRegistry(t)
+			reg.Install()
 			reg.Register(asctest.GET(tt.path, query...), asctest.JSON(http.StatusOK, tt.body))
 
-			var out, stderr string
-			var runErr error
-			if tt.deps {
-				out, stderr, runErr = runRootWithDeps(t, stubClient(t, reg), append(tt.args, "--output", "json")...)
-			} else {
-				reg.Install()
-				out, stderr, runErr = runCommand(t, append(tt.args, "--output", "json"))
-			}
+			out, stderr, runErr := runCommand(t, append(tt.args, "--output", "json"))
 			calls := len(reg.Requests())
 			if runErr != nil || stderr != "" || calls != 1 || !strings.Contains(out, `"gracRatingClassificationNumber":"GRAC-45"`) {
 				t.Fatalf("run=%v calls=%d stdout=%s stderr=%s", runErr, calls, out, stderr)

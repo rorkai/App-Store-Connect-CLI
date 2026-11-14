@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -37,20 +38,28 @@ func TestAgeRatingEditSendsSocialMediaFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse server URL: %v", err)
 	}
-	client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		cloned := req.Clone(req.Context())
 		cloned.URL.Scheme = serverURL.Scheme
 		cloned.URL.Host = serverURL.Host
 		return server.Client().Transport.RoundTrip(cloned)
 	}))
 
-	stdout, stderr, runErr := runRootWithDeps(t, client,
-		"age-rating", "edit",
-		"--id", "age-441",
-		"--social-media", "true",
-		"--social-media-age-restricted", "false",
-		"--output", "json",
-	)
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"age-rating", "edit",
+			"--id", "age-441",
+			"--social-media", "true",
+			"--social-media-age-restricted", "false",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
 	if runErr != nil {
 		t.Fatalf("run: %v; stderr=%q", runErr, stderr)
 	}
@@ -70,7 +79,7 @@ func TestAgeRatingEditSendsSocialMediaFields(t *testing.T) {
 }
 
 func TestAgeRatingEditInvalidSocialMediaReturnsUsageExit(t *testing.T) {
-	assertUsageExitWithDeps(t, nil, []string{
+	assertUsageExit(t, []string{
 		"age-rating", "edit", "--id", "age-441", "--social-media", "sometimes",
 	}, "--social-media must be true or false")
 }
@@ -130,7 +139,7 @@ func TestAgeRatingEditRejectsExplicitDependencyContradictions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+			assertUsageExit(t, test.args, test.wantErr)
 		})
 	}
 }

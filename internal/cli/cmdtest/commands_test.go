@@ -1792,13 +1792,9 @@ func TestAgeRatingValidationErrors(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
-		})
-	}
+	runValidationTests(t, tests)
 	t.Run("age-rating edit invalid enum", func(t *testing.T) {
-		assertUsageExitWithDeps(t, nil, []string{"age-rating", "edit", "--id", "AGE_ID", "--gambling-simulated", "BAD"}, "Error: --gambling-simulated must be one of: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, FREQUENT")
+		assertExitStderr(t, []string{"age-rating", "edit", "--id", "AGE_ID", "--gambling-simulated", "BAD"}, rootcmd.ExitUsage, "Error: --gambling-simulated must be one of: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, FREQUENT")
 	})
 }
 

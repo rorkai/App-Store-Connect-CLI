@@ -55,10 +55,9 @@ var kidsAgeBandValues = []string{
 	"NINE_TO_ELEVEN",
 }
 
-// NewAgeRatingCommand returns the age rating command with subcommands, built on
-// d.
-func NewAgeRatingCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("age-rating", flag.ExitOnError)
+// AgeRatingCommand returns the age rating command with subcommands.
+func AgeRatingCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("age-rating", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "age-rating",
@@ -73,9 +72,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			newAgeRatingViewCommand(d),
-			newAgeRatingEditCommand(d),
-			newAgeRatingAuditCommand(d),
+			AgeRatingViewCommand(),
+			AgeRatingEditCommand(),
+			AgeRatingAuditCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -83,15 +82,15 @@ Examples:
 	}
 }
 
-// newAgeRatingViewCommand returns the age-rating view subcommand.
-func newAgeRatingViewCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("age-rating view", flag.ExitOnError)
+// AgeRatingViewCommand returns the age-rating view subcommand.
+func AgeRatingViewCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("age-rating view", flag.ExitOnError)
 
 	appID := fs.String("app", os.Getenv("ASC_APP_ID"), "App ID (required unless --app-info-id or --version-id is provided)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info-id", "appInfos", "App info ID (optional)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional)")
 	fields := fs.String("fields", "", "Sparse fields: "+strings.Join(shared.AgeRatingDeclarationSparseFields, ", "))
-	output := d.BindOutputFlags(fs)
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -112,43 +111,43 @@ Examples:
 			appValue := strings.TrimSpace(shared.ResolveAppID(strings.TrimSpace(*appID)))
 
 			if appInfoValue != "" && versionValue != "" {
-				return shared.WithDiagnostic(d.UsageError("only one of --app-info-id or --version-id is allowed"), shared.DiagnosticConflictingInput, "--version-id")
+				return shared.WithDiagnostic(shared.UsageError("only one of --app-info-id or --version-id is allowed"), shared.DiagnosticConflictingInput, "--version-id")
 			}
 			if appInfoValue == "" && versionValue == "" && appValue == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			fieldValues, err := shared.NormalizeSelection(*fields, shared.AgeRatingDeclarationSparseFields, "--fields")
 			if err != nil {
-				return d.UsageError(err.Error())
+				return shared.UsageError(err.Error())
 			}
 			fieldsProvided := false
 			fs.Visit(func(f *flag.Flag) { fieldsProvided = fieldsProvided || f.Name == "fields" })
 			if fieldsProvided && len(fieldValues) == 0 {
-				return d.UsageError("--fields must not be empty")
+				return shared.UsageError("--fields must not be empty")
 			}
 
-			client, err := d.Client()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("age-rating view: %w", err)
 			}
 
-			requestCtx, cancel := d.Timeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := fetchAgeRatingDeclaration(requestCtx, d, client, appValue, appInfoValue, versionValue, fieldValues)
+			resp, err := fetchAgeRatingDeclaration(requestCtx, client, appValue, appInfoValue, versionValue, fieldValues)
 			if err != nil {
 				return fmt.Errorf("age-rating view: %w", err)
 			}
 
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// newAgeRatingEditCommand returns the age-rating edit subcommand.
-func newAgeRatingEditCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("age-rating edit", flag.ExitOnError)
+// AgeRatingEditCommand returns the age-rating edit subcommand.
+func AgeRatingEditCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("age-rating edit", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "ageRatingDeclarations", "Age rating declaration ID (optional)")
 	appID := fs.String("app", os.Getenv("ASC_APP_ID"), "App ID (required unless --id, --app-info-id, or --version-id is provided)")
@@ -193,7 +192,7 @@ func newAgeRatingEditCommand(d *shared.Deps) *ffcli.Command {
 	clearGracNumber := fs.Bool("clear-grac-rating-classification-number", false, "Clear the Korea GRAC rating classification number")
 	developerAgeRatingInfoURL := fs.String("developer-age-rating-info-url", "", "Developer age rating information URL")
 
-	output := d.BindOutputFlags(fs)
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "edit",
@@ -219,7 +218,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
-				return d.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
+				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
 			}
 
 			idValue := strings.TrimSpace(*id)
@@ -229,10 +228,10 @@ Examples:
 
 			if idValue == "" {
 				if appInfoValue != "" && versionValue != "" {
-					return shared.WithDiagnostic(d.UsageError("only one of --app-info-id or --version-id is allowed"), shared.DiagnosticConflictingInput, "--version-id")
+					return shared.WithDiagnostic(shared.UsageError("only one of --app-info-id or --version-id is allowed"), shared.DiagnosticConflictingInput, "--version-id")
 				}
 				if appInfoValue == "" && versionValue == "" && appValue == "" {
-					fmt.Fprintln(d.IO.ErrOut, "Error: --id or --app is required (or set ASC_APP_ID)")
+					fmt.Fprintln(os.Stderr, "Error: --id or --app is required (or set ASC_APP_ID)")
 					return shared.MissingRequiredUsageError("")
 				}
 			}
@@ -279,17 +278,17 @@ Examples:
 			gracProvided := false
 			fs.Visit(func(f *flag.Flag) { gracProvided = gracProvided || f.Name == "grac-rating-classification-number" })
 			if gracProvided && *clearGracNumber {
-				return d.UsageError("--grac-rating-classification-number cannot be combined with --clear-grac-rating-classification-number")
+				return shared.UsageError("--grac-rating-classification-number cannot be combined with --clear-grac-rating-classification-number")
 			}
 			gracValue := strings.TrimSpace(*gracNumber)
 			if gracProvided && gracValue == "" {
-				return d.UsageError("--grac-rating-classification-number must not be empty")
+				return shared.UsageError("--grac-rating-classification-number must not be empty")
 			}
 			attributes, err := buildAgeRatingAttributes(values)
 			if err != nil {
-				return d.UsageError(err.Error())
+				return shared.UsageError(err.Error())
 			}
-			if err := validateAgeRatingDependencies(d, attributes); err != nil {
+			if err := validateAgeRatingDependencies(attributes); err != nil {
 				return err
 			}
 
@@ -301,19 +300,19 @@ Examples:
 			}
 
 			if !hasAgeRatingUpdates(attributes) {
-				return d.UsageError("age-rating edit: at least one update flag is required")
+				return shared.UsageError("age-rating edit: at least one update flag is required")
 			}
 
-			client, err := d.Client()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("age-rating edit: %w", err)
 			}
 
-			requestCtx, cancel := d.Timeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if idValue == "" {
-				idValue, err = resolveAgeRatingDeclarationID(requestCtx, d, client, appValue, appInfoValue, versionValue)
+				idValue, err = resolveAgeRatingDeclarationID(requestCtx, client, appValue, appInfoValue, versionValue)
 				if err != nil {
 					return fmt.Errorf("age-rating edit: %w", err)
 				}
@@ -324,23 +323,23 @@ Examples:
 				return fmt.Errorf("age-rating edit: %w", err)
 			}
 
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func validateAgeRatingDependencies(d *shared.Deps, attrs asc.AgeRatingDeclarationAttributes) error {
+func validateAgeRatingDependencies(attrs asc.AgeRatingDeclarationAttributes) error {
 	if boolIsTrue(nullableBoolValue(attrs.SocialMedia)) && boolIsFalse(attrs.UserGeneratedContent) {
-		return d.UsageError("--social-media true cannot be combined with --user-generated-content false")
+		return shared.UsageError("--social-media true cannot be combined with --user-generated-content false")
 	}
 	if boolIsTrue(nullableBoolValue(attrs.SocialMediaAgeRestricted)) && boolIsFalse(attrs.AgeAssurance) {
-		return d.UsageError("--social-media-age-restricted true cannot be combined with --age-assurance false")
+		return shared.UsageError("--social-media-age-restricted true cannot be combined with --age-assurance false")
 	}
 	if boolIsTrue(nullableBoolValue(attrs.SocialMediaAgeRestricted)) && boolIsFalse(nullableBoolValue(attrs.SocialMedia)) {
-		return d.UsageError("--social-media-age-restricted true cannot be combined with --social-media false")
+		return shared.UsageError("--social-media-age-restricted true cannot be combined with --social-media false")
 	}
 	if boolIsTrue(nullableBoolValue(attrs.SocialMediaAgeRestricted)) && boolIsFalse(attrs.UserGeneratedContent) {
-		return d.UsageError("--social-media-age-restricted true cannot be combined with --user-generated-content false")
+		return shared.UsageError("--social-media-age-restricted true cannot be combined with --user-generated-content false")
 	}
 	return nil
 }
@@ -360,7 +359,7 @@ func nullableBoolValue(value *asc.NullableBool) *bool {
 	return value.Value
 }
 
-func fetchAgeRatingDeclaration(ctx context.Context, d *shared.Deps, client *asc.Client, appID, appInfoID, versionID string, fields []string) (*asc.AgeRatingDeclarationResponse, error) {
+func fetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, appInfoID, versionID string, fields []string) (*asc.AgeRatingDeclarationResponse, error) {
 	opts := []asc.AgeRatingDeclarationOption{asc.WithAgeRatingDeclarationFields(fields)}
 	switch {
 	case appInfoID != "":
@@ -368,7 +367,7 @@ func fetchAgeRatingDeclaration(ctx context.Context, d *shared.Deps, client *asc.
 	case versionID != "":
 		return client.GetAgeRatingDeclarationForAppStoreVersion(ctx, versionID, opts...)
 	default:
-		appInfoID, err := resolveAppInfoIDForApp(ctx, d, client, appID)
+		appInfoID, err := resolveAppInfoIDForApp(ctx, client, appID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve current app info: %w", err)
 		}
@@ -379,7 +378,7 @@ func fetchAgeRatingDeclaration(ctx context.Context, d *shared.Deps, client *asc.
 // While a new version is being prepared, an app has a live and an editable app
 // info; like shared.ResolveAppInfoIDWithFlag, select the editable one. Unlike it,
 // read every page.
-func resolveAppInfoIDForApp(ctx context.Context, d *shared.Deps, client *asc.Client, appID string) (string, error) {
+func resolveAppInfoIDForApp(ctx context.Context, client *asc.Client, appID string) (string, error) {
 	candidates, err := client.ListAppInfoCandidatesForApp(ctx, appID)
 	if err != nil {
 		return "", err
@@ -397,14 +396,14 @@ func resolveAppInfoIDForApp(ctx context.Context, d *shared.Deps, client *asc.Cli
 		return current[0].ID, nil
 	}
 	if editableID, ok := asc.AutoResolveAppInfoIDByVersionState(current, "PREPARE_FOR_SUBMISSION"); ok {
-		fmt.Fprintf(d.IO.ErrOut, "Multiple app infos found for app %s, auto-selected %s (PREPARE_FOR_SUBMISSION).\n", appID, editableID)
+		fmt.Fprintf(os.Stderr, "Multiple app infos found for app %s, auto-selected %s (PREPARE_FOR_SUBMISSION).\n", appID, editableID)
 		return editableID, nil
 	}
 	return "", shared.WithDiagnostic(shared.AmbiguousUsageError(shared.AmbiguousAppInfoError(appID, "--app-info-id", current)), shared.DiagnosticConflictingInput, "--app-info-id")
 }
 
-func resolveAgeRatingDeclarationID(ctx context.Context, d *shared.Deps, client *asc.Client, appID, appInfoID, versionID string) (string, error) {
-	resp, err := fetchAgeRatingDeclaration(ctx, d, client, appID, appInfoID, versionID, nil)
+func resolveAgeRatingDeclarationID(ctx context.Context, client *asc.Client, appID, appInfoID, versionID string) (string, error) {
+	resp, err := fetchAgeRatingDeclaration(ctx, client, appID, appInfoID, versionID, nil)
 	if err != nil {
 		return "", err
 	}

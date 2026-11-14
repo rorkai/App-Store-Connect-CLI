@@ -16,9 +16,6 @@ func TestAgeRatingViewResolvesAppInfoWhileNewVersionIsPrepared(t *testing.T) {
 		wantStdout   string
 		wantStderr   string
 		wantErrParts []string
-		// deps runs the command on test deps. The ambiguity case stays on the
-		// process streams: shared.AmbiguousUsageError writes to os.Stderr.
-		deps bool
 	}{
 		{
 			name:       "selects the editable app info",
@@ -26,7 +23,6 @@ func TestAgeRatingViewResolvesAppInfoWhileNewVersionIsPrepared(t *testing.T) {
 			appInfoID:  "info-edit",
 			wantStdout: `"id":"decl-info-edit"`,
 			wantStderr: "auto-selected info-edit (PREPARE_FOR_SUBMISSION)",
-			deps:       true,
 		},
 		{
 			name:         "names --app-info-id when no editable app info exists",
@@ -38,7 +34,6 @@ func TestAgeRatingViewResolvesAppInfoWhileNewVersionIsPrepared(t *testing.T) {
 			appInfos:   `{"data":[{"type":"appInfos","id":"info-old","attributes":{"state":"REPLACED_WITH_NEW_INFO"}},{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`,
 			appInfoID:  "info-live",
 			wantStdout: `"id":"decl-info-live"`,
-			deps:       true,
 		},
 	}
 
@@ -46,21 +41,14 @@ func TestAgeRatingViewResolvesAppInfoWhileNewVersionIsPrepared(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
+			reg.Install()
 			reg.Register(asctest.GET("/v1/apps/app-1/appInfos", "fields[appInfos]=state", "limit=200"), asctest.JSON(http.StatusOK, test.appInfos))
 			if test.appInfoID != "" {
 				reg.Register(asctest.GET("/v1/appInfos/"+test.appInfoID+"/ageRatingDeclaration"),
 					asctest.JSON(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-`+test.appInfoID+`","attributes":{}}}`))
 			}
 
-			args := []string{"age-rating", "view", "--app", "app-1", "--output", "json"}
-			var stdout, stderr string
-			var runErr error
-			if test.deps {
-				stdout, stderr, runErr = runRootWithDeps(t, stubClient(t, reg), args...)
-			} else {
-				reg.Install()
-				stdout, stderr, runErr = runCommand(t, args)
-			}
+			stdout, stderr, runErr := runCommand(t, []string{"age-rating", "view", "--app", "app-1", "--output", "json"})
 
 			if len(test.wantErrParts) > 0 {
 				if runErr == nil {

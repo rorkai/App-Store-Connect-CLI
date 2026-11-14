@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -13,10 +14,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// NewNominationsCommand returns the nominations command with subcommands, built
-// on d.
-func NewNominationsCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("nominations", flag.ExitOnError)
+// NominationsCommand returns the nominations command with subcommands.
+func NominationsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("nominations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "nominations",
@@ -33,11 +33,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			newNominationsListCommand(d),
-			newNominationsGetCommand(d),
-			newNominationsCreateCommand(d),
-			newNominationsUpdateCommand(d),
-			newNominationsDeleteCommand(d),
+			NominationsListCommand(),
+			NominationsGetCommand(),
+			NominationsCreateCommand(),
+			NominationsUpdateCommand(),
+			NominationsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -45,9 +45,9 @@ Examples:
 	}
 }
 
-// newNominationsListCommand returns the nominations list subcommand.
-func newNominationsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("nominations list", flag.ExitOnError)
+// NominationsListCommand returns the nominations list subcommand.
+func NominationsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("nominations list", flag.ExitOnError)
 
 	appIDs := fs.String("app", "", "Filter by related app ID(s), comma-separated")
 	status := fs.String("status", "", "Filter by status/state(s), comma-separated: "+strings.Join(nominationStateList(), ", "))
@@ -62,7 +62,7 @@ func newNominationsListCommand(d *shared.Deps) *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -79,48 +79,48 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("nominations list: --limit must be between 1 and 200")
+				return shared.UsageError("nominations list: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
+				return shared.UsageErrorf("nominations list: %v", err)
 			}
-			if err := d.RejectNextFlagConflicts(fs, *next, "nominations list", "app", "status", "type", "sort", "fields", "include", "in-app-events-limit", "related-apps-limit", "supported-territories-limit"); err != nil {
+			if err := shared.RejectNextFlagConflicts(fs, *next, "nominations list", "app", "status", "type", "sort", "fields", "include", "in-app-events-limit", "related-apps-limit", "supported-territories-limit"); err != nil {
 				return err
 			}
 			if err := shared.ValidateSort(*sort, nominationSortList()...); err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
+				return shared.UsageErrorf("nominations list: %v", err)
 			}
 			if *inAppEventsLimit != 0 && (*inAppEventsLimit < 1 || *inAppEventsLimit > 50) {
-				return d.UsageError("nominations list: --in-app-events-limit must be between 1 and 50")
+				return shared.UsageError("nominations list: --in-app-events-limit must be between 1 and 50")
 			}
 			if *relatedAppsLimit != 0 && (*relatedAppsLimit < 1 || *relatedAppsLimit > 50) {
-				return d.UsageError("nominations list: --related-apps-limit must be between 1 and 50")
+				return shared.UsageError("nominations list: --related-apps-limit must be between 1 and 50")
 			}
 			if *supportedTerritoriesLimit != 0 && (*supportedTerritoriesLimit < 1 || *supportedTerritoriesLimit > 200) {
-				return d.UsageError("nominations list: --supported-territories-limit must be between 1 and 200")
+				return shared.UsageError("nominations list: --supported-territories-limit must be between 1 and 200")
 			}
 
 			statusValues, err := normalizeNominationStates(shared.SplitCSVUpper(*status))
 			if err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
+				return shared.UsageErrorf("nominations list: %v", err)
 			}
 			if len(statusValues) == 0 && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--status")
+				return shared.RequiredFlag("--status")
 			}
 
 			typeValues, err := normalizeNominationTypes(shared.SplitCSVUpper(*nomType))
 			if err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
+				return shared.UsageErrorf("nominations list: %v", err)
 			}
 
 			fieldsValue, err := normalizeNominationFields(*fields)
 			if err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
+				return shared.UsageErrorf("nominations list: %v", err)
 			}
 
 			includeValues, err := normalizeNominationInclude(*include)
 			if err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
+				return shared.UsageErrorf("nominations list: %v", err)
 			}
 			included, err := includedFields.Resolve("nominations list", *next, includeValues)
 			if err != nil {
@@ -128,24 +128,24 @@ Examples:
 			}
 
 			if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
-				fmt.Fprintf(d.IO.ErrOut, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
+				fmt.Fprintf(os.Stderr, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
 				return flag.ErrHelp
 			}
 			if *relatedAppsLimit != 0 && !shared.HasInclude(includeValues, "relatedApps") {
-				fmt.Fprintf(d.IO.ErrOut, "Error: --related-apps-limit requires --include relatedApps\n\n")
+				fmt.Fprintf(os.Stderr, "Error: --related-apps-limit requires --include relatedApps\n\n")
 				return flag.ErrHelp
 			}
 			if *supportedTerritoriesLimit != 0 && !shared.HasInclude(includeValues, "supportedTerritories") {
-				fmt.Fprintf(d.IO.ErrOut, "Error: --supported-territories-limit requires --include supportedTerritories\n\n")
+				fmt.Fprintf(os.Stderr, "Error: --supported-territories-limit requires --include supportedTerritories\n\n")
 				return flag.ErrHelp
 			}
 
-			client, err := d.Client()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("nominations list: %w", err)
 			}
 
-			requestCtx, cancel := d.Timeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.NominationsOption{
@@ -189,7 +189,7 @@ Examples:
 					return fmt.Errorf("nominations list: %w", err)
 				}
 
-				return d.PrintOutput(nominations, *output.Output, *output.Pretty)
+				return shared.PrintOutput(nominations, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetNominations(requestCtx, opts...)
@@ -197,13 +197,13 @@ Examples:
 				return fmt.Errorf("nominations list: failed to fetch: %w", err)
 			}
 
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// newNominationsGetCommand returns the nominations view subcommand.
-func newNominationsGetCommand(d *shared.Deps) *ffcli.Command {
+// NominationsGetCommand returns the nominations view subcommand.
+func NominationsGetCommand() *ffcli.Command {
 	var (
 		inAppEventsLimit, relatedAppsLimit, supportedTerritoriesLimit *int
 		fieldsValue, includeValues                                    []string
@@ -232,33 +232,33 @@ Examples:
 			supportedTerritoriesLimit = fs.Int("supported-territories-limit", 0, "Maximum included supported territories (1-200)")
 			return func() (err error) {
 				if *inAppEventsLimit != 0 && (*inAppEventsLimit < 1 || *inAppEventsLimit > 50) {
-					return d.UsageError("nominations view: --in-app-events-limit must be between 1 and 50")
+					return shared.UsageError("nominations view: --in-app-events-limit must be between 1 and 50")
 				}
 				if *relatedAppsLimit != 0 && (*relatedAppsLimit < 1 || *relatedAppsLimit > 50) {
-					return d.UsageError("nominations view: --related-apps-limit must be between 1 and 50")
+					return shared.UsageError("nominations view: --related-apps-limit must be between 1 and 50")
 				}
 				if *supportedTerritoriesLimit != 0 && (*supportedTerritoriesLimit < 1 || *supportedTerritoriesLimit > 200) {
-					return d.UsageError("nominations view: --supported-territories-limit must be between 1 and 200")
+					return shared.UsageError("nominations view: --supported-territories-limit must be between 1 and 200")
 				}
 				if fieldsValue, err = normalizeNominationFields(*fields); err != nil {
-					return d.UsageErrorf("nominations view: %v", err)
+					return shared.UsageErrorf("nominations view: %v", err)
 				}
 				if includeValues, err = normalizeNominationInclude(*include); err != nil {
-					return d.UsageErrorf("nominations view: %v", err)
+					return shared.UsageErrorf("nominations view: %v", err)
 				}
 				if included, err = includedFields.Resolve("nominations view", "", includeValues); err != nil {
 					return err
 				}
 				if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
-					fmt.Fprintf(d.IO.ErrOut, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
+					fmt.Fprintf(os.Stderr, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
 					return flag.ErrHelp
 				}
 				if *relatedAppsLimit != 0 && !shared.HasInclude(includeValues, "relatedApps") {
-					fmt.Fprintf(d.IO.ErrOut, "Error: --related-apps-limit requires --include relatedApps\n\n")
+					fmt.Fprintf(os.Stderr, "Error: --related-apps-limit requires --include relatedApps\n\n")
 					return flag.ErrHelp
 				}
 				if *supportedTerritoriesLimit != 0 && !shared.HasInclude(includeValues, "supportedTerritories") {
-					fmt.Fprintf(d.IO.ErrOut, "Error: --supported-territories-limit requires --include supportedTerritories\n\n")
+					fmt.Fprintf(os.Stderr, "Error: --supported-territories-limit requires --include supportedTerritories\n\n")
 					return flag.ErrHelp
 				}
 				return nil
@@ -266,7 +266,6 @@ Examples:
 		},
 		ErrorPrefix:      "nominations view",
 		FetchErrorPrefix: "nominations view: failed to fetch",
-		Deps:             d,
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			opts := []asc.NominationsOption{asc.WithIncludedFields[asc.NominationsOption](included)}
 			if len(fieldsValue) > 0 {
@@ -289,9 +288,9 @@ Examples:
 	})
 }
 
-// newNominationsCreateCommand returns the nominations create subcommand.
-func newNominationsCreateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("nominations create", flag.ExitOnError)
+// NominationsCreateCommand returns the nominations create subcommand.
+func NominationsCreateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("nominations create", flag.ExitOnError)
 
 	appID := shared.BindOnceCSVFlag(fs, "app", "Related app ID(s), comma-separated (or ASC_APP_ID)")
 	name := fs.String("name", "", "Nomination name (required)")
@@ -309,7 +308,7 @@ func newNominationsCreateCommand(d *shared.Deps) *ffcli.Command {
 	preOrderEnabled := fs.Bool("pre-order-enabled", false, "Enable pre-order")
 	inAppEvents := shared.BindOnceCSVFlag(fs, "in-app-events", "In-app event IDs, comma-separated")
 	supportedTerritories := shared.BindOnceCSVFlag(fs, "supported-territories", "Supported territory IDs, comma-separated")
-	output := d.BindOutputFlags(fs)
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -330,58 +329,58 @@ Examples:
 
 			relatedApps := shared.SplitCSV(shared.ResolveAppID(appID.String()))
 			if len(relatedApps) == 0 {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			trimmedName := strings.TrimSpace(*name)
 			if trimmedName == "" {
-				return d.RequiredFlag("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			trimmedDescription := strings.TrimSpace(*description)
 			if trimmedDescription == "" {
-				return d.RequiredFlag("--description")
+				return shared.RequiredFlag("--description")
 			}
 
 			if !visited["submitted"] {
-				return d.RequiredFlag("--submitted")
+				return shared.RequiredFlag("--submitted")
 			}
 
 			if strings.TrimSpace(*nomType) == "" {
-				return d.RequiredFlag("--type")
+				return shared.RequiredFlag("--type")
 			}
 
 			normalizedType, err := normalizeNominationType(*nomType)
 			if err != nil {
-				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
+				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
 			}
 
 			normalizedPublishStart, err := normalizeNominationPublishDate("--publish-start-date", *publishStartDate, true)
 			if err != nil {
-				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
+				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
 			}
 
 			deviceFamilyValues, err := normalizeNominationDeviceFamilies(shared.SplitCSVUpper(deviceFamilies.String()))
 			if err != nil {
-				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
+				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
 			}
 
 			normalizedPublishEnd, err := normalizeNominationPublishDate("--publish-end-date", *publishEndDate, false)
 			if err != nil {
-				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
+				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
 			}
 
-			client, err := d.Client()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("nominations create: %w", err)
 			}
 
-			requestCtx, cancel := d.Timeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.NominationCreateAttributes{
@@ -435,14 +434,14 @@ Examples:
 				return fmt.Errorf("nominations create: failed to create: %w", err)
 			}
 
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// newNominationsUpdateCommand returns the nominations update subcommand.
-func newNominationsUpdateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("nominations update", flag.ExitOnError)
+// NominationsUpdateCommand returns the nominations update subcommand.
+func NominationsUpdateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("nominations update", flag.ExitOnError)
 
 	nominationID := shared.BindResourceIDFlag(fs, "id", "nominations", "Nomination ID (required)")
 	name := fs.String("name", "", "Nomination name")
@@ -462,7 +461,7 @@ func newNominationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	appIDs := shared.BindOnceCSVFlag(fs, "app", "Replace related app ID(s), comma-separated")
 	inAppEvents := shared.BindOnceCSVFlag(fs, "in-app-events", "Replace in-app event IDs, comma-separated")
 	supportedTerritories := shared.BindOnceCSVFlag(fs, "supported-territories", "Replace supported territory IDs, comma-separated")
-	output := d.BindOutputFlags(fs)
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -481,7 +480,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*nominationID)
 			if trimmedID == "" {
-				return d.RequiredFlag("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			visited := map[string]bool{}
@@ -506,11 +505,11 @@ Examples:
 			hasRelationshipUpdates := visited["app"] || visited["in-app-events"] || visited["supported-territories"]
 
 			if !hasAttributeUpdates && !hasRelationshipUpdates {
-				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update flag is required")
+				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if !visited["submitted"] && !visited["archived"] {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --submitted or --archived is required by Apple's live API")
+				fmt.Fprintln(os.Stderr, "Error: --submitted or --archived is required by Apple's live API")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -523,11 +522,11 @@ Examples:
 				}
 				if visited["type"] {
 					if strings.TrimSpace(*nomType) == "" {
-						return d.RequiredFlag("--type")
+						return shared.RequiredFlag("--type")
 					}
 					normalized, err := normalizeNominationType(*nomType)
 					if err != nil {
-						fmt.Fprintln(d.IO.ErrOut, "Error:", err)
+						fmt.Fprintln(os.Stderr, "Error:", err)
 						return flag.ErrHelp
 					}
 					nomTypeValue := asc.NominationType(normalized)
@@ -548,7 +547,7 @@ Examples:
 				if visited["publish-start-date"] {
 					normalized, err := normalizeNominationPublishDate("--publish-start-date", *publishStartDate, true)
 					if err != nil {
-						fmt.Fprintln(d.IO.ErrOut, "Error:", err)
+						fmt.Fprintln(os.Stderr, "Error:", err)
 						return flag.ErrHelp
 					}
 					attrsValue.PublishStartDate = &normalized
@@ -556,7 +555,7 @@ Examples:
 				if visited["publish-end-date"] {
 					normalized, err := normalizeNominationPublishDate("--publish-end-date", *publishEndDate, true)
 					if err != nil {
-						fmt.Fprintln(d.IO.ErrOut, "Error:", err)
+						fmt.Fprintln(os.Stderr, "Error:", err)
 						return flag.ErrHelp
 					}
 					attrsValue.PublishEndDate = &normalized
@@ -564,25 +563,25 @@ Examples:
 				if visited["device-families"] {
 					deviceFamilyValues, err := normalizeNominationDeviceFamilies(shared.SplitCSVUpper(deviceFamilies.String()))
 					if err != nil {
-						fmt.Fprintln(d.IO.ErrOut, "Error:", err)
+						fmt.Fprintln(os.Stderr, "Error:", err)
 						return flag.ErrHelp
 					}
 					if len(deviceFamilyValues) == 0 {
-						return d.UsageError("nominations update: --device-families is required")
+						return shared.UsageError("nominations update: --device-families is required")
 					}
 					attrsValue.DeviceFamilies = normalizeNominationDeviceFamilyAttributes(deviceFamilyValues)
 				}
 				if visited["locales"] {
 					localesValue := shared.SplitCSV(locales.String())
 					if len(localesValue) == 0 {
-						return d.UsageError("nominations update: --locales is required")
+						return shared.UsageError("nominations update: --locales is required")
 					}
 					attrsValue.Locales = localesValue
 				}
 				if visited["supplemental-materials-uris"] {
 					supplementalValue := shared.SplitCSV(supplementalMaterialsURIs.String())
 					if len(supplementalValue) == 0 {
-						return d.UsageError("nominations update: --supplemental-materials-uris is required")
+						return shared.UsageError("nominations update: --supplemental-materials-uris is required")
 					}
 					attrsValue.SupplementalMaterialsURIs = supplementalValue
 				}
@@ -611,33 +610,33 @@ Examples:
 				if visited["app"] {
 					appValues := shared.SplitCSV(appIDs.String())
 					if len(appValues) == 0 {
-						return d.UsageError("nominations update: --app is required")
+						return shared.UsageError("nominations update: --app is required")
 					}
 					relationshipValue.RelatedApps = buildNominationRelationshipList(asc.ResourceTypeApps, appValues)
 				}
 				if visited["in-app-events"] {
 					eventValues := shared.SplitCSV(inAppEvents.String())
 					if len(eventValues) == 0 {
-						return d.UsageError("nominations update: --in-app-events is required")
+						return shared.UsageError("nominations update: --in-app-events is required")
 					}
 					relationshipValue.InAppEvents = buildNominationRelationshipList(asc.ResourceTypeAppEvents, eventValues)
 				}
 				if visited["supported-territories"] {
 					territoryValues := shared.SplitCSV(supportedTerritories.String())
 					if len(territoryValues) == 0 {
-						return d.UsageError("nominations update: --supported-territories is required")
+						return shared.UsageError("nominations update: --supported-territories is required")
 					}
 					relationshipValue.SupportedTerritories = buildNominationRelationshipList(asc.ResourceTypeTerritories, territoryValues)
 				}
 				relationships = &relationshipValue
 			}
 
-			client, err := d.Client()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("nominations update: %w", err)
 			}
 
-			requestCtx, cancel := d.Timeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateNomination(requestCtx, trimmedID, attrs, relationships)
@@ -645,13 +644,13 @@ Examples:
 				return fmt.Errorf("nominations update: failed to update: %w", err)
 			}
 
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// newNominationsDeleteCommand returns the nominations delete subcommand.
-func newNominationsDeleteCommand(d *shared.Deps) *ffcli.Command {
+// NominationsDeleteCommand returns the nominations delete subcommand.
+func NominationsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		FlagSetName: "nominations delete",
 		Name:        "delete",
@@ -668,7 +667,6 @@ Examples:
 		ConfirmRequiredMessage: "--confirm is required to delete",
 		ErrorPrefix:            "nominations delete",
 		DeleteErrorPrefix:      "nominations delete: failed to delete",
-		Deps:                   d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteNomination(ctx, id)
 		},

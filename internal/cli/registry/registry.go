@@ -155,9 +155,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		}),
 		commandFactory("alternative-distribution", "Manage alternative distribution resources.", alternativedistribution.Command),
 		commandFactory("webhooks", "Manage webhooks in App Store Connect.", webhooks.WebhooksCommand),
-		commandFactory("nominations", "Manage featuring nominations.", func() *ffcli.Command {
-			return nominations.NewNominationsCommand(d)
-		}),
+		commandFactory("nominations", "Manage featuring nominations.", nominations.NominationsCommand),
 		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", bundleids.BundleIDsCommand),
 		commandFactory("merchant-ids", "Manage merchant IDs and certificates.", merchantids.MerchantIDsCommand),
 		commandFactory("certificates", "Manage signing certificates.", certificates.CertificatesCommand),
@@ -205,9 +203,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("validate", "Canonical App Store submission readiness report.", validate.ValidateCommand),
 		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", xcodecloud.XcodeCloudCommand),
 		commandFactory("categories", "Manage App Store categories.", categories.CategoriesCommand),
-		commandFactory("age-rating", "Manage App Store age rating declarations.", func() *ffcli.Command {
-			return agerating.NewAgeRatingCommand(d)
-		}),
+		commandFactory("age-rating", "Manage App Store age rating declarations.", agerating.AgeRatingCommand),
 		commandFactory("accessibility", "Manage accessibility declarations.", func() *ffcli.Command {
 			return accessibility.NewAccessibilityCommand(d)
 		}),
