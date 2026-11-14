@@ -1,0 +1,18 @@
+{
+  "tag": "GameCenterLeaderboardImages",
+  "file": "game_center_leaderboard_images_gen.go",
+  "types": [
+    "GameCenterLeaderboardImageCreateRequest",
+    "GameCenterLeaderboardImageResponse",
+    "GameCenterLeaderboardImageUpdateAttributes",
+    "GameCenterLeaderboardImageUpdateData",
+    "GameCenterLeaderboardImageUpdateRequest",
+    "GameCenterLeaderboardImageV2CreateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterLeaderboardImagesV2_deleteInstance","name":"DeleteGameCenterLeaderboardImageV2","params":["imageID"]},
+    {"operation":"gameCenterLeaderboardImagesV2_getInstance","name":"GetGameCenterLeaderboardImageV2","params":["imageID"],"response":"GameCenterLeaderboardImageResponse"},
+    {"operation":"gameCenterLeaderboardImages_deleteInstance","name":"DeleteGameCenterLeaderboardImage","params":["imageID"]},
+    {"operation":"gameCenterLeaderboardImages_getInstance","name":"GetGameCenterLeaderboardImage","params":["imageID"]}
+  ]
+}

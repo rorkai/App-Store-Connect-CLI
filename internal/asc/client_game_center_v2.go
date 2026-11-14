@@ -248,22 +248,6 @@ func (c *Client) GetGameCenterLeaderboardsV2(ctx context.Context, gcDetailID, gr
 	})
 }
 
-// GetGameCenterLeaderboardVersions retrieves versions for a v2 leaderboard.
-func (c *Client) GetGameCenterLeaderboardVersions(ctx context.Context, leaderboardID string, opts ...GCLeaderboardVersionsOption) (*GameCenterLeaderboardVersionsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardVersionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/gameCenterLeaderboards/%s/versions", strings.TrimSpace(leaderboardID)),
-		Query:       buildGCLeaderboardVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-versions",
-	})
-}
-
-// GetGameCenterLeaderboardVersion retrieves a v2 leaderboard version by ID.
-func (c *Client) GetGameCenterLeaderboardVersion(ctx context.Context, versionID string) (*GameCenterLeaderboardVersionResponse, error) {
-	return getJSON[GameCenterLeaderboardVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterLeaderboardVersions/%s", strings.TrimSpace(versionID))})
-}
-
 // CreateGameCenterLeaderboardVersion creates a new v2 leaderboard version.
 func (c *Client) CreateGameCenterLeaderboardVersion(ctx context.Context, leaderboardID string) (*GameCenterLeaderboardVersionResponse, error) {
 	payload := GameCenterLeaderboardVersionCreateRequest{
@@ -285,22 +269,6 @@ func (c *Client) CreateGameCenterLeaderboardVersion(ctx context.Context, leaderb
 		Path:    "/v2/gameCenterLeaderboardVersions",
 		Payload: payload,
 	})
-}
-
-// GetGameCenterLeaderboardVersionLocalizations retrieves localizations for a v2 leaderboard version.
-func (c *Client) GetGameCenterLeaderboardVersionLocalizations(ctx context.Context, versionID string, opts ...GCLeaderboardLocalizationsOption) (*GameCenterLeaderboardLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/gameCenterLeaderboardVersions/%s/localizations", strings.TrimSpace(versionID)),
-		Query:       buildGCLeaderboardLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-version-localizations",
-	})
-}
-
-// GetGameCenterLeaderboardLocalizationV2 retrieves a v2 leaderboard localization by ID.
-func (c *Client) GetGameCenterLeaderboardLocalizationV2(ctx context.Context, localizationID string) (*GameCenterLeaderboardLocalizationResponse, error) {
-	return getJSON[GameCenterLeaderboardLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterLeaderboardLocalizations/%s", strings.TrimSpace(localizationID))})
 }
 
 // CreateGameCenterLeaderboardLocalizationV2 creates a new v2 leaderboard localization.
@@ -342,21 +310,6 @@ func (c *Client) UpdateGameCenterLeaderboardLocalizationV2(ctx context.Context, 
 		Path:    fmt.Sprintf("/v2/gameCenterLeaderboardLocalizations/%s", strings.TrimSpace(localizationID)),
 		Payload: payload,
 	})
-}
-
-// DeleteGameCenterLeaderboardLocalizationV2 deletes a v2 leaderboard localization.
-func (c *Client) DeleteGameCenterLeaderboardLocalizationV2(ctx context.Context, localizationID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterLeaderboardLocalizations/%s", strings.TrimSpace(localizationID)), nil)
-}
-
-// GetGameCenterLeaderboardLocalizationImageV2 retrieves the image for a v2 leaderboard localization.
-func (c *Client) GetGameCenterLeaderboardLocalizationImageV2(ctx context.Context, localizationID string) (*GameCenterLeaderboardImageResponse, error) {
-	return getJSON[GameCenterLeaderboardImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterLeaderboardLocalizations/%s/image", strings.TrimSpace(localizationID))})
-}
-
-// GetGameCenterLeaderboardImageV2 retrieves a v2 leaderboard image by ID.
-func (c *Client) GetGameCenterLeaderboardImageV2(ctx context.Context, imageID string) (*GameCenterLeaderboardImageResponse, error) {
-	return getJSON[GameCenterLeaderboardImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID))})
 }
 
 // CreateGameCenterLeaderboardImageV2 reserves a new v2 leaderboard image upload.
@@ -403,11 +356,6 @@ func (c *Client) UpdateGameCenterLeaderboardImageV2(ctx context.Context, imageID
 		Path:    fmt.Sprintf("/v2/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID)),
 		Payload: payload,
 	})
-}
-
-// DeleteGameCenterLeaderboardImageV2 deletes a v2 leaderboard image.
-func (c *Client) DeleteGameCenterLeaderboardImageV2(ctx context.Context, imageID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID)), nil)
 }
 
 // UploadGameCenterLeaderboardImageV2 performs the full upload flow for a v2 leaderboard image.
@@ -471,11 +419,6 @@ func (c *Client) GetGameCenterLeaderboardSetsV2(ctx context.Context, gcDetailID,
 		Next:        query.nextURL,
 		NextContext: "game-center-leaderboard-sets-v2",
 	})
-}
-
-// GetGameCenterLeaderboardSetV2 retrieves a v2 leaderboard set by ID.
-func (c *Client) GetGameCenterLeaderboardSetV2(ctx context.Context, setID string) (*GameCenterLeaderboardSetResponse, error) {
-	return getJSON[GameCenterLeaderboardSetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterLeaderboardSets/%s", strings.TrimSpace(setID))})
 }
 
 // CreateGameCenterLeaderboardSetV2 creates a new v2 leaderboard set.
@@ -543,22 +486,6 @@ func (c *Client) UpdateGameCenterLeaderboardSetV2(ctx context.Context, setID str
 	})
 }
 
-// DeleteGameCenterLeaderboardSetV2 deletes a v2 leaderboard set.
-func (c *Client) DeleteGameCenterLeaderboardSetV2(ctx context.Context, setID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterLeaderboardSets/%s", strings.TrimSpace(setID)), nil)
-}
-
-// GetGameCenterLeaderboardSetMembersV2 retrieves the leaderboards in a v2 leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetMembersV2(ctx context.Context, setID string, opts ...GCLeaderboardSetMembersOption) (*GameCenterLeaderboardsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/gameCenterLeaderboardSets/%s/gameCenterLeaderboards", strings.TrimSpace(setID)),
-		Query:       buildGCLeaderboardSetMembersQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-set-members-v2",
-	})
-}
-
 // UpdateGameCenterLeaderboardSetMembersV2 replaces all leaderboard members in a v2 leaderboard set.
 func (c *Client) UpdateGameCenterLeaderboardSetMembersV2(ctx context.Context, setID string, leaderboardIDs []string) error {
 	leaderboardIDs = normalizeList(leaderboardIDs)
@@ -586,22 +513,6 @@ func (c *Client) SetGameCenterLeaderboardSetMembersV2(ctx context.Context, setID
 	})
 }
 
-// GetGameCenterLeaderboardSetVersions retrieves versions for a v2 leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetVersions(ctx context.Context, setID string, opts ...GCLeaderboardSetVersionsOption) (*GameCenterLeaderboardSetVersionsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardSetVersionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/gameCenterLeaderboardSets/%s/versions", strings.TrimSpace(setID)),
-		Query:       buildGCLeaderboardSetVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-set-versions",
-	})
-}
-
-// GetGameCenterLeaderboardSetVersion retrieves a v2 leaderboard set version by ID.
-func (c *Client) GetGameCenterLeaderboardSetVersion(ctx context.Context, versionID string) (*GameCenterLeaderboardSetVersionResponse, error) {
-	return getJSON[GameCenterLeaderboardSetVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterLeaderboardSetVersions/%s", strings.TrimSpace(versionID))})
-}
-
 // CreateGameCenterLeaderboardSetVersion creates a new v2 leaderboard set version.
 func (c *Client) CreateGameCenterLeaderboardSetVersion(ctx context.Context, setID string) (*GameCenterLeaderboardSetVersionResponse, error) {
 	payload := GameCenterLeaderboardSetVersionCreateRequest{
@@ -623,22 +534,6 @@ func (c *Client) CreateGameCenterLeaderboardSetVersion(ctx context.Context, setI
 		Path:    "/v2/gameCenterLeaderboardSetVersions",
 		Payload: payload,
 	})
-}
-
-// GetGameCenterLeaderboardSetVersionLocalizations retrieves localizations for a v2 leaderboard set version.
-func (c *Client) GetGameCenterLeaderboardSetVersionLocalizations(ctx context.Context, versionID string, opts ...GCLeaderboardSetLocalizationsOption) (*GameCenterLeaderboardSetLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardSetLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/gameCenterLeaderboardSetVersions/%s/localizations", strings.TrimSpace(versionID)),
-		Query:       buildGCLeaderboardSetLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-set-version-localizations",
-	})
-}
-
-// GetGameCenterLeaderboardSetLocalizationV2 retrieves a v2 leaderboard set localization by ID.
-func (c *Client) GetGameCenterLeaderboardSetLocalizationV2(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetLocalizationResponse, error) {
-	return getJSON[GameCenterLeaderboardSetLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterLeaderboardSetLocalizations/%s", strings.TrimSpace(localizationID))})
 }
 
 // CreateGameCenterLeaderboardSetLocalizationV2 creates a new v2 leaderboard set localization.
@@ -680,21 +575,6 @@ func (c *Client) UpdateGameCenterLeaderboardSetLocalizationV2(ctx context.Contex
 		Path:    fmt.Sprintf("/v2/gameCenterLeaderboardSetLocalizations/%s", strings.TrimSpace(localizationID)),
 		Payload: payload,
 	})
-}
-
-// DeleteGameCenterLeaderboardSetLocalizationV2 deletes a v2 leaderboard set localization.
-func (c *Client) DeleteGameCenterLeaderboardSetLocalizationV2(ctx context.Context, localizationID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterLeaderboardSetLocalizations/%s", strings.TrimSpace(localizationID)), nil)
-}
-
-// GetGameCenterLeaderboardSetLocalizationImageV2 retrieves the image for a v2 leaderboard set localization.
-func (c *Client) GetGameCenterLeaderboardSetLocalizationImageV2(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetImageResponse, error) {
-	return getJSON[GameCenterLeaderboardSetImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterLeaderboardSetLocalizations/%s/image", strings.TrimSpace(localizationID))})
-}
-
-// GetGameCenterLeaderboardSetImageV2 retrieves a v2 leaderboard set image by ID.
-func (c *Client) GetGameCenterLeaderboardSetImageV2(ctx context.Context, imageID string) (*GameCenterLeaderboardSetImageResponse, error) {
-	return getJSON[GameCenterLeaderboardSetImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID))})
 }
 
 // CreateGameCenterLeaderboardSetImageV2 reserves a new v2 leaderboard set image upload.
@@ -741,11 +621,6 @@ func (c *Client) UpdateGameCenterLeaderboardSetImageV2(ctx context.Context, imag
 		Path:    fmt.Sprintf("/v2/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID)),
 		Payload: payload,
 	})
-}
-
-// DeleteGameCenterLeaderboardSetImageV2 deletes a v2 leaderboard set image.
-func (c *Client) DeleteGameCenterLeaderboardSetImageV2(ctx context.Context, imageID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID)), nil)
 }
 
 // UploadGameCenterLeaderboardSetImageV2 performs the full upload flow for a v2 leaderboard set image.

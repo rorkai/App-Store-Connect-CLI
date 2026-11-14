@@ -26,9 +26,6 @@ type GameCenterScoreModerationAttributes struct {
 // GameCenterScoreModerationsResponse is a collection of submitted scores.
 type GameCenterScoreModerationsResponse = Response[GameCenterScoreModerationAttributes]
 
-// GameCenterScoreModerationResponse is a single submitted score.
-type GameCenterScoreModerationResponse = SingleResponse[GameCenterScoreModerationAttributes]
-
 // GCScoreModerationsQuery controls the score moderation collection endpoint.
 type GCScoreModerationsQuery struct {
 	ExistsBlocked *bool
