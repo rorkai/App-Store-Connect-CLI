@@ -46,10 +46,9 @@ func newMarketplaceSearchDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 	var fieldsValue []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc marketplace search-details view --app \"APP_ID\" [flags]",
-		ShortHelp:   "View marketplace search details for an app.",
+		Name:       "view",
+		ShortUsage: "asc marketplace search-details view --app \"APP_ID\" [flags]",
+		ShortHelp:  "View marketplace search details for an app.",
 		LongHelp: `View marketplace search details for an app.
 
 Examples:
@@ -67,9 +66,7 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "marketplace search-details view",
-		FetchErrorPrefix: "marketplace search-details view: failed to fetch",
-		Deps:             d,
+		Deps: d,
 		Fetch: func(ctx context.Context, client *asc.Client, appID string) (any, error) {
 			return client.GetMarketplaceSearchDetailForApp(ctx, appID, fieldsValue)
 		},
@@ -185,10 +182,9 @@ Examples:
 // newMarketplaceSearchDetailsDeleteCommand returns the search details delete subcommand.
 func newMarketplaceSearchDetailsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc marketplace search-details delete --search-detail-id \"DETAIL_ID\" --confirm",
-		ShortHelp:   "Delete marketplace search details.",
+		Name:       "delete",
+		ShortUsage: "asc marketplace search-details delete --search-detail-id \"DETAIL_ID\" --confirm",
+		ShortHelp:  "Delete marketplace search details.",
 		LongHelp: `Delete marketplace search details.
 
 Examples:
@@ -197,8 +193,6 @@ Examples:
 		IDUsage:            "Marketplace search detail ID",
 		IDType:             "marketplaceSearchDetails",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "marketplace search-details delete",
-		DeleteErrorPrefix:  "marketplace search-details delete: failed to delete",
 		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteMarketplaceSearchDetail(ctx, id)

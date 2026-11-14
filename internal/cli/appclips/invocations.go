@@ -307,10 +307,9 @@ func AppClipInvocationsDeleteCommand() *ffcli.Command {
 	d.Client = func() (*asc.Client, error) { return appClipsClientFactory() }
 
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc app-clips invocations delete --invocation-id \"INVOCATION_ID\" --confirm",
-		ShortHelp:   "Delete a beta App Clip invocation.",
+		Name:       "delete",
+		ShortUsage: "asc app-clips invocations delete --invocation-id \"INVOCATION_ID\" --confirm",
+		ShortHelp:  "Delete a beta App Clip invocation.",
 		LongHelp: `Delete a beta App Clip invocation.
 
 Examples:
@@ -320,8 +319,6 @@ Examples:
 		IDType:                 "betaAppClipInvocations",
 		RequiredDiagnostic:     true,
 		ConfirmRequiredMessage: "--confirm is required to delete",
-		ErrorPrefix:            "app-clips invocations delete",
-		DeleteErrorPrefix:      "app-clips invocations delete: failed to delete",
 		Deps:                   d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteBetaAppClipInvocation(ctx, id)

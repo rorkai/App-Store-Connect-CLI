@@ -53,8 +53,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "app-events localizations screenshots list",
-		FetchErrorPrefix:     "app-events localizations screenshots list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, parentID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetAppEventScreenshots(ctx, parentID,
 				asc.Limit[asc.AppEventScreenshotsOption](limit),
@@ -105,8 +103,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "app-events localizations video-clips list",
-		FetchErrorPrefix:     "app-events localizations video-clips list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, parentID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetAppEventVideoClips(ctx, parentID,
 				asc.Limit[asc.AppEventVideoClipsOption](limit),

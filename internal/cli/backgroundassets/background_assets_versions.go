@@ -166,10 +166,9 @@ Examples:
 // BackgroundAssetsVersionsGetCommand returns the versions get subcommand.
 func BackgroundAssetsVersionsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc background-assets versions view --version-id \"VERSION_ID\"",
-		ShortHelp:   "View a background asset version by ID.",
+		Name:       "view",
+		ShortUsage: "asc background-assets versions view --version-id \"VERSION_ID\"",
+		ShortHelp:  "View a background asset version by ID.",
 		LongHelp: `View a background asset version by ID.
 
 Examples:
@@ -178,8 +177,6 @@ Examples:
 		IDUsage:            "Background asset version ID",
 		IDType:             "backgroundAssetVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "background-assets versions view",
-		FetchErrorPrefix:   "background-assets versions view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBackgroundAssetVersion(ctx, id)
 		},

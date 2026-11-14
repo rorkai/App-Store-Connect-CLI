@@ -262,8 +262,6 @@ func IAPVersionLocalizationsDeleteCommand() *ffcli.Command {
 		IDUsage:            "Localization ID",
 		IDType:             "inAppPurchaseLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "iap versions localizations delete",
-		DeleteErrorPrefix:  "iap versions localizations delete: failed to delete",
 		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteInAppPurchaseLocalizationV2(ctx, id)

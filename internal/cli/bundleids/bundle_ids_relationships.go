@@ -39,10 +39,9 @@ Examples:
 // BundleIDsAppGetCommand returns the bundle ID app get subcommand.
 func BundleIDsAppGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc bundle-ids app view --id \"BUNDLE_ID\"",
-		ShortHelp:   "View the app linked to a bundle ID.",
+		Name:       "view",
+		ShortUsage: "asc bundle-ids app view --id \"BUNDLE_ID\"",
+		ShortHelp:  "View the app linked to a bundle ID.",
 		LongHelp: `View the app linked to a bundle ID.
 
 Examples:
@@ -50,8 +49,6 @@ Examples:
 		IDUsage:            "Bundle ID",
 		IDType:             "bundleIds",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "bundle-ids app view",
-		FetchErrorPrefix:   "bundle-ids app view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBundleIDApp(ctx, id)
 		},

@@ -49,8 +49,6 @@ Examples:
 		IDUsage:            "Pre-release version ID",
 		IDType:             "preReleaseVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "pre-release-versions app view",
-		FetchErrorPrefix:   "pre-release-versions app view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetPreReleaseVersionApp(ctx, id)
 		},

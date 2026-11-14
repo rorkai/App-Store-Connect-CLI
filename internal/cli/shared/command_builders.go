@@ -13,6 +13,8 @@ import (
 
 // IDGetCommandConfig configures a standard "get by ID" command.
 type IDGetCommandConfig struct {
+	// FlagSetName names the flag set, which parse errors show. It defaults
+	// to Name.
 	FlagSetName string
 	Name        string
 	ShortUsage  string
@@ -32,9 +34,11 @@ type IDGetCommandConfig struct {
 	// diagnostic instead of a plain usage error.
 	RequiredDiagnostic bool
 
+	// ErrorPrefix wraps the client error. It defaults to the command path in
+	// ShortUsage without "asc ".
 	ErrorPrefix string
 	// FetchErrorPrefix wraps errors returned by Fetch. It defaults to
-	// ErrorPrefix.
+	// ErrorPrefix followed by ": failed to fetch".
 	FetchErrorPrefix string
 
 	// Flags registers command-specific flags and returns their validation,
@@ -52,7 +56,7 @@ type IDGetCommandConfig struct {
 // BuildIDGetCommand builds a standard "get by ID" command.
 func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 	d := builderDeps(config.Deps)
-	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
+	fs := d.NewFlagSet(builderDefault(config.FlagSetName, config.Name), flag.ExitOnError)
 
 	idFlagName := strings.TrimSpace(config.IDFlag)
 	if idFlagName == "" {
@@ -68,7 +72,8 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 	validate := bindBuilderFlags(fs, config.Flags)
 
 	timeout := builderTimeout(d, config.ContextTimeout)
-	fetchErrorPrefix := builderFetchErrorPrefix(config.FetchErrorPrefix, config.ErrorPrefix)
+	errorPrefix := builderDefault(config.ErrorPrefix, commandErrorPrefixFromUsage(config.ShortUsage))
+	fetchErrorPrefix := builderDefault(config.FetchErrorPrefix, errorPrefix+": failed to fetch")
 
 	return &ffcli.Command{
 		Name:       config.Name,
@@ -88,7 +93,7 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 
 			client, err := d.Client()
 			if err != nil {
-				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
 			requestCtx, cancel := timeout(ctx)
@@ -108,6 +113,8 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 // --limit/--next/--paginate and, unless TopLevel is set, a required parent
 // resource ID.
 type PaginatedListCommandConfig struct {
+	// FlagSetName names the flag set, which parse errors show. It defaults
+	// to Name.
 	FlagSetName string
 	Name        string
 	ShortUsage  string
@@ -153,9 +160,12 @@ type PaginatedListCommandConfig struct {
 	// function may be nil.
 	Flags func(*flag.FlagSet) func() error
 
+	// ErrorPrefix wraps the client error and the error of a --paginate
+	// request after its first page. It defaults to the command path in
+	// ShortUsage without "asc ".
 	ErrorPrefix string
 	// FetchErrorPrefix wraps the error of a single-page request. It defaults
-	// to ErrorPrefix.
+	// to ErrorPrefix followed by ": failed to fetch".
 	FetchErrorPrefix string
 
 	// Deps supplies the client, streams and timeout. It defaults to
@@ -170,7 +180,7 @@ type PaginatedListCommandConfig struct {
 // --paginate semantics shared by many resources.
 func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command {
 	d := builderDeps(config.Deps)
-	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
+	fs := d.NewFlagSet(builderDefault(config.FlagSetName, config.Name), flag.ExitOnError)
 
 	parentFlagName := strings.TrimSpace(config.ParentFlag)
 	if parentFlagName == "" {
@@ -196,7 +206,8 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	validate := bindBuilderFlags(fs, config.Flags)
 
 	timeout := builderTimeout(d, config.ContextTimeout)
-	fetchErrorPrefix := builderFetchErrorPrefix(config.FetchErrorPrefix, config.ErrorPrefix)
+	errorPrefix := builderDefault(config.ErrorPrefix, commandErrorPrefixFromUsage(config.ShortUsage))
+	fetchErrorPrefix := builderDefault(config.FetchErrorPrefix, errorPrefix+": failed to fetch")
 
 	cmd := &ffcli.Command{
 		Name:       config.Name,
@@ -211,7 +222,7 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 		if prefix := commandErrorPrefixFromUsage(cmd.ShortUsage); prefix != "" {
 			return prefix
 		}
-		return config.ErrorPrefix
+		return errorPrefix
 	}
 
 	cmd.Exec = func(ctx context.Context, args []string) error {
@@ -246,7 +257,7 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 
 		client, err := d.Client()
 		if err != nil {
-			return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+			return fmt.Errorf("%s: %w", errorPrefix, err)
 		}
 
 		requestCtx, cancel := timeout(ctx)
@@ -282,12 +293,12 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 				}
 				resp, err = asc.PaginateAll(requestCtx, firstPage, fetchNext)
 				if err != nil {
-					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+					return fmt.Errorf("%s: %w", errorPrefix, err)
 				}
 			} else {
 				resp, err = PaginateWithSpinner(requestCtx, fetchFirst, fetchNext)
 				if err != nil {
-					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+					return fmt.Errorf("%s: %w", errorPrefix, err)
 				}
 			}
 
@@ -397,13 +408,14 @@ Examples:
   %s --limit 175
   %s --paginate
   %s --next "NEXT_URL"`, subject, baseExample, baseExample, baseExample, baseExample, commandPath),
-		ParentFlag:     config.ParentFlag,
-		ParentUsage:    config.ParentUsage,
-		ParentType:     config.ParentType,
-		LimitMax:       config.LimitMax,
-		ErrorPrefix:    config.ErrorPrefix,
-		ContextTimeout: config.ContextTimeout,
-		Deps:           d,
+		ParentFlag:       config.ParentFlag,
+		ParentUsage:      config.ParentUsage,
+		ParentType:       config.ParentType,
+		LimitMax:         config.LimitMax,
+		ErrorPrefix:      config.ErrorPrefix,
+		FetchErrorPrefix: config.ErrorPrefix,
+		ContextTimeout:   config.ContextTimeout,
+		Deps:             d,
 		FetchPage: func(ctx context.Context, client *asc.Client, parentID string, limit int, next string) (asc.PaginatedResponse, error) {
 			var values []string
 			if strings.TrimSpace(next) == "" {
@@ -441,6 +453,8 @@ Examples:
 // ConfirmDeleteCommandConfig configures a standard delete command requiring
 // --id and --confirm.
 type ConfirmDeleteCommandConfig struct {
+	// FlagSetName names the flag set, which parse errors show. It defaults
+	// to Name.
 	FlagSetName string
 	Name        string
 	ShortUsage  string
@@ -462,9 +476,11 @@ type ConfirmDeleteCommandConfig struct {
 	// "--confirm is required".
 	ConfirmRequiredMessage string
 
+	// ErrorPrefix wraps the client error. It defaults to the command path in
+	// ShortUsage without "asc ".
 	ErrorPrefix string
 	// DeleteErrorPrefix wraps errors returned by Delete. It defaults to
-	// ErrorPrefix.
+	// ErrorPrefix followed by ": failed to delete".
 	DeleteErrorPrefix string
 
 	// Deps supplies the client, streams and timeout. It defaults to
@@ -480,7 +496,7 @@ type ConfirmDeleteCommandConfig struct {
 // --confirm and printing a caller-provided result payload.
 func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command {
 	d := builderDeps(config.Deps)
-	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
+	fs := d.NewFlagSet(builderDefault(config.FlagSetName, config.Name), flag.ExitOnError)
 
 	idFlagName := strings.TrimSpace(config.IDFlag)
 	if idFlagName == "" {
@@ -504,7 +520,8 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 	output := d.BindOutputFlags(fs)
 
 	timeout := builderTimeout(d, config.ContextTimeout)
-	deleteErrorPrefix := builderFetchErrorPrefix(config.DeleteErrorPrefix, config.ErrorPrefix)
+	errorPrefix := builderDefault(config.ErrorPrefix, commandErrorPrefixFromUsage(config.ShortUsage))
+	deleteErrorPrefix := builderDefault(config.DeleteErrorPrefix, errorPrefix+": failed to delete")
 
 	return &ffcli.Command{
 		Name:       config.Name,
@@ -524,7 +541,7 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 
 			client, err := d.Client()
 			if err != nil {
-				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
 			requestCtx, cancel := timeout(ctx)
@@ -554,11 +571,11 @@ func builderTimeout(d *Deps, timeout func(context.Context) (context.Context, con
 	return d.Timeout
 }
 
-func builderFetchErrorPrefix(fetchErrorPrefix, errorPrefix string) string {
-	if fetchErrorPrefix != "" {
-		return fetchErrorPrefix
+func builderDefault(value, fallback string) string {
+	if value != "" {
+		return value
 	}
-	return errorPrefix
+	return fallback
 }
 
 func bindBuilderFlags(fs *flag.FlagSet, bind func(*flag.FlagSet) func() error) func() error {

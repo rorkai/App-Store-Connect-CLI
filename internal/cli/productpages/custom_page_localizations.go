@@ -300,7 +300,6 @@ Examples:
 		IDType:             "appCustomProductPageLocalizations",
 		RequiredDiagnostic: true,
 		ErrorPrefix:        "custom-pages localizations delete",
-		DeleteErrorPrefix:  "custom-pages localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppCustomProductPageLocalization(ctx, id)
 		},

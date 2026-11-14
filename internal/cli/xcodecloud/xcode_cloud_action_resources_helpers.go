@@ -109,15 +109,15 @@ type xcodeCloudActionResourceGetConfig struct {
 
 func newXcodeCloudActionResourceGetCommand(config xcodeCloudActionResourceGetConfig) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  config.ShortUsage,
-		ShortHelp:   config.ShortHelp,
-		LongHelp:    config.LongHelp,
-		IDFlag:      "id",
-		IDUsage:     config.IDUsage,
-		IDType:      config.IDType,
-		ErrorPrefix: config.ErrorPrefix,
+		Name:             "view",
+		ShortUsage:       config.ShortUsage,
+		ShortHelp:        config.ShortHelp,
+		LongHelp:         config.LongHelp,
+		IDFlag:           "id",
+		IDUsage:          config.IDUsage,
+		IDType:           config.IDType,
+		ErrorPrefix:      config.ErrorPrefix,
+		FetchErrorPrefix: config.ErrorPrefix,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},

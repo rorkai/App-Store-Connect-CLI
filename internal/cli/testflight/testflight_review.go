@@ -299,8 +299,6 @@ Examples:
 		IDUsage:            "Beta app review detail ID",
 		IDType:             "betaAppReviewDetails",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "testflight review app view",
-		FetchErrorPrefix:   "testflight review app view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBetaAppReviewDetailApp(ctx, id)
 		},
@@ -428,8 +426,6 @@ Examples:
 		IDUsage:            "Beta app review submission ID",
 		IDType:             "betaAppReviewSubmissions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "testflight review submissions view",
-		FetchErrorPrefix:   "testflight review submissions view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBetaAppReviewSubmission(ctx, id)
 		},
@@ -603,8 +599,6 @@ Examples:
 		IDUsage:            "Build beta detail ID",
 		IDType:             "buildBetaDetails",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "testflight beta-details build view",
-		FetchErrorPrefix:   "testflight beta-details build view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBuildBetaDetailBuild(ctx, id)
 		},
@@ -702,10 +696,9 @@ Examples:
 // TestFlightRecruitmentDeleteCommand deletes recruitment criteria by ID.
 func TestFlightRecruitmentDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc testflight recruitment delete --id \"CRITERIA_ID\" --confirm",
-		ShortHelp:   "Delete recruitment criteria.",
+		Name:       "delete",
+		ShortUsage: "asc testflight recruitment delete --id \"CRITERIA_ID\" --confirm",
+		ShortHelp:  "Delete recruitment criteria.",
 		LongHelp: `Delete recruitment criteria.
 
 Examples:
@@ -714,8 +707,6 @@ Examples:
 		IDUsage:            "Recruitment criteria ID",
 		IDType:             "betaRecruitmentCriteria",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "testflight recruitment delete",
-		DeleteErrorPrefix:  "testflight recruitment delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteBetaRecruitmentCriteria(ctx, id)
 		},

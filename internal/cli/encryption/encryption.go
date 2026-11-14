@@ -232,8 +232,6 @@ Examples:
 				return err
 			}
 		},
-		ErrorPrefix:      "encryption declarations view",
-		FetchErrorPrefix: "encryption declarations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppEncryptionDeclaration(
 				ctx, id,
@@ -628,8 +626,6 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "encryption documents view",
-		FetchErrorPrefix: "encryption documents view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppEncryptionDeclarationDocument(ctx, id, fieldsValue)
 		},

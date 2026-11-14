@@ -190,8 +190,6 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "apps view",
-		FetchErrorPrefix: "apps view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			includeValues := []string{}
 			if len(appInfoFieldValues) > 0 {

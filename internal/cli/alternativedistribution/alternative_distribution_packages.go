@@ -50,11 +50,10 @@ Examples:
 // newAlternativeDistributionPackagesGetCommand returns the packages get subcommand.
 func newAlternativeDistributionPackagesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps:        d,
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc alternative-distribution packages view --package-id \"PACKAGE_ID\"",
-		ShortHelp:   "View an alternative distribution package.",
+		Deps:       d,
+		Name:       "view",
+		ShortUsage: "asc alternative-distribution packages view --package-id \"PACKAGE_ID\"",
+		ShortHelp:  "View an alternative distribution package.",
 		LongHelp: `View an alternative distribution package.
 
 Examples:
@@ -63,8 +62,6 @@ Examples:
 		IDUsage:            "Alternative distribution package ID",
 		IDType:             "alternativeDistributionPackages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "alternative-distribution packages view",
-		FetchErrorPrefix:   "alternative-distribution packages view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAlternativeDistributionPackage(ctx, id)
 		},

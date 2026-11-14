@@ -224,8 +224,6 @@ Examples:
 		IDUsage:            "App event screenshot ID",
 		IDType:             "appEventScreenshots",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-events screenshots view",
-		FetchErrorPrefix:   "app-events screenshots view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppEventScreenshot(ctx, id)
 		},
@@ -334,8 +332,6 @@ Examples:
 		IDUsage:            "App event screenshot ID",
 		IDType:             "appEventScreenshots",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-events screenshots delete",
-		DeleteErrorPrefix:  "app-events screenshots delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppEventScreenshot(ctx, id)
 		},

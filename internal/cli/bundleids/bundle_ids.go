@@ -256,10 +256,9 @@ func bundleIDsListFlagWasSet(fs *flag.FlagSet, name string) bool {
 // BundleIDsGetCommand returns the bundle IDs get subcommand.
 func BundleIDsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc bundle-ids view --id \"BUNDLE_ID\"",
-		ShortHelp:   "View a bundle ID by ID.",
+		Name:       "view",
+		ShortUsage: "asc bundle-ids view --id \"BUNDLE_ID\"",
+		ShortHelp:  "View a bundle ID by ID.",
 		LongHelp: `View a bundle ID by ID.
 
 Examples:
@@ -267,8 +266,6 @@ Examples:
 		IDUsage:            "Bundle ID",
 		IDType:             "bundleIds",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "bundle-ids view",
-		FetchErrorPrefix:   "bundle-ids view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBundleID(ctx, id)
 		},
@@ -394,10 +391,9 @@ Examples:
 // BundleIDsDeleteCommand returns the bundle IDs delete subcommand.
 func BundleIDsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc bundle-ids delete --id \"BUNDLE_ID\" --confirm",
-		ShortHelp:   "Delete a bundle ID.",
+		Name:       "delete",
+		ShortUsage: "asc bundle-ids delete --id \"BUNDLE_ID\" --confirm",
+		ShortHelp:  "Delete a bundle ID.",
 		LongHelp: `Delete a bundle ID.
 
 Examples:
@@ -406,8 +402,6 @@ Examples:
 		IDUsage:            "Bundle ID",
 		IDType:             "bundleIds",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "bundle-ids delete",
-		DeleteErrorPrefix:  "bundle-ids delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteBundleID(ctx, id)
 		},

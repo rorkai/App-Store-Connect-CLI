@@ -62,10 +62,9 @@ func UsersListCommand() *ffcli.Command {
 	)
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc users list [flags]",
-		ShortHelp:   "List users in App Store Connect.",
+		Name:       "list",
+		ShortUsage: "asc users list [flags]",
+		ShortHelp:  "List users in App Store Connect.",
 		LongHelp: `List users in App Store Connect.
 
 Examples:
@@ -142,8 +141,6 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "users list",
-		FetchErrorPrefix: "users list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetUsers(ctx,
 				asc.WithUsersEmail(*email),
@@ -169,10 +166,9 @@ func UsersGetCommand() *ffcli.Command {
 	)
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc users view --id USER_ID",
-		ShortHelp:   "View a user by ID.",
+		Name:       "view",
+		ShortUsage: "asc users view --id USER_ID",
+		ShortHelp:  "View a user by ID.",
 		LongHelp: `View a user by ID.
 
 Examples:
@@ -196,8 +192,6 @@ Examples:
 				return err
 			}
 		},
-		ErrorPrefix:      "users view",
-		FetchErrorPrefix: "users view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			opts := []asc.UsersOption{asc.WithIncludedFields[asc.UsersOption](included)}
 			if len(includeValues) > 0 {
@@ -508,10 +502,9 @@ Examples:
 // UsersInvitesListCommand returns the users invites list subcommand.
 func UsersInvitesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc users invites list [flags]",
-		ShortHelp:   "List user invitations.",
+		Name:       "list",
+		ShortUsage: "asc users invites list [flags]",
+		ShortHelp:  "List user invitations.",
 		LongHelp: `List user invitations.
 
 Examples:
@@ -521,8 +514,6 @@ Examples:
 		TopLevel:             true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "users invites list",
-		FetchErrorPrefix:     "users invites list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetUserInvitations(ctx,
 				asc.Limit[asc.UserInvitationsOption](limit),
@@ -535,10 +526,9 @@ Examples:
 // UsersInvitesGetCommand returns the users invites view subcommand.
 func UsersInvitesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc users invites view --id INVITE_ID",
-		ShortHelp:   "View a user invitation by ID.",
+		Name:       "view",
+		ShortUsage: "asc users invites view --id INVITE_ID",
+		ShortHelp:  "View a user invitation by ID.",
 		LongHelp: `View a user invitation by ID.
 
 Examples:
@@ -546,8 +536,6 @@ Examples:
 		IDUsage:            "Invitation ID",
 		IDType:             "userInvitations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "users invites view",
-		FetchErrorPrefix:   "users invites view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetUserInvitation(ctx, id)
 		},

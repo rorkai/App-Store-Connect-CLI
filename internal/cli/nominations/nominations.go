@@ -264,8 +264,6 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "nominations view",
-		FetchErrorPrefix: "nominations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			opts := []asc.NominationsOption{asc.WithIncludedFields[asc.NominationsOption](included)}
 			if len(fieldsValue) > 0 {
@@ -665,8 +663,6 @@ Examples:
 		IDType:                 "nominations",
 		RequiredDiagnostic:     true,
 		ConfirmRequiredMessage: "--confirm is required to delete",
-		ErrorPrefix:            "nominations delete",
-		DeleteErrorPrefix:      "nominations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteNomination(ctx, id)
 		},

@@ -140,10 +140,9 @@ Examples:
 // AppClipsGetCommand returns the app clips get subcommand.
 func AppClipsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc app-clips view --id \"CLIP_ID\"",
-		ShortHelp:   "View App Clip details by ID.",
+		Name:       "view",
+		ShortUsage: "asc app-clips view --id \"CLIP_ID\"",
+		ShortHelp:  "View App Clip details by ID.",
 		LongHelp: `View App Clip details by ID.
 
 Examples:
@@ -151,8 +150,6 @@ Examples:
 		IDUsage:            "App Clip ID",
 		IDType:             "appClips",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-clips view",
-		FetchErrorPrefix:   "app-clips view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClip(ctx, id)
 		},

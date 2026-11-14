@@ -72,11 +72,10 @@ func newDevicesListCommand(d *shared.Deps) *ffcli.Command {
 	)
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		Deps:        d,
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc devices list [flags]",
-		ShortHelp:   "List devices in App Store Connect.",
+		Deps:       d,
+		Name:       "list",
+		ShortUsage: "asc devices list [flags]",
+		ShortHelp:  "List devices in App Store Connect.",
 		LongHelp: `List devices in App Store Connect.
 
 Examples:
@@ -117,8 +116,6 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "devices list",
-		FetchErrorPrefix: "devices list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.DevicesOption{
 				asc.WithDevicesNames(shared.SplitCSV(*name)),
@@ -149,11 +146,10 @@ func newDevicesGetCommand(d *shared.Deps) *ffcli.Command {
 	var fieldsValue []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps:        d,
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc devices view --id DEVICE_ID",
-		ShortHelp:   "View a device by ID.",
+		Deps:       d,
+		Name:       "view",
+		ShortUsage: "asc devices view --id DEVICE_ID",
+		ShortHelp:  "View a device by ID.",
 		LongHelp: `View a device by ID.
 
 Examples:
@@ -171,8 +167,6 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "devices view",
-		FetchErrorPrefix: "devices view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetDevice(ctx, id, fieldsValue)
 		},

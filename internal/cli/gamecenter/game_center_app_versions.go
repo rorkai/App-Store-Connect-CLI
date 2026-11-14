@@ -49,10 +49,9 @@ Examples:
 // GameCenterAppVersionsListCommand returns the app versions list subcommand.
 func GameCenterAppVersionsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center app-versions list [flags]",
-		ShortHelp:   "List Game Center app versions.",
+		Name:       "list",
+		ShortUsage: "asc game-center app-versions list [flags]",
+		ShortHelp:  "List Game Center app versions.",
 		LongHelp: `List Game Center app versions.
 
 Examples:
@@ -65,8 +64,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center app-versions list",
-		FetchErrorPrefix:     "game-center app-versions list: failed to fetch",
 		LookupParent:         gameCenterDetailParent("game-center app-versions list"),
 		FetchPage: func(ctx context.Context, client *asc.Client, detailID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailGameCenterAppVersions(ctx, detailID, asc.Limit[asc.GCAppVersionsOption](limit), asc.NextURL[asc.GCAppVersionsOption](next))
@@ -77,10 +74,9 @@ Examples:
 // GameCenterAppVersionsGetCommand returns the app versions get subcommand.
 func GameCenterAppVersionsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center app-versions view --id \"GC_APP_VERSION_ID\"",
-		ShortHelp:   "View a Game Center app version by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center app-versions view --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:  "View a Game Center app version by ID.",
 		LongHelp: `View a Game Center app version by ID.
 
 Examples:
@@ -88,8 +84,6 @@ Examples:
 		IDUsage:            "Game Center app version ID",
 		IDType:             "gameCenterAppVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center app-versions view",
-		FetchErrorPrefix:   "game-center app-versions view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterAppVersion(ctx, id)
 		},
@@ -225,10 +219,9 @@ Examples:
 // GameCenterAppVersionCompatibilityListCommand returns the compatibility list subcommand.
 func GameCenterAppVersionCompatibilityListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center app-versions compatibility list --id \"GC_APP_VERSION_ID\"",
-		ShortHelp:   "List compatible Game Center app versions.",
+		Name:       "list",
+		ShortUsage: "asc game-center app-versions compatibility list --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:  "List compatible Game Center app versions.",
 		LongHelp: `List compatible Game Center app versions.
 
 Examples:
@@ -241,8 +234,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center app-versions compatibility list",
-		FetchErrorPrefix:     "game-center app-versions compatibility list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterAppVersionCompatibilityVersions(ctx, id, asc.Limit[asc.GCAppVersionsOption](limit), asc.NextURL[asc.GCAppVersionsOption](next))
 		},
@@ -275,10 +266,9 @@ Examples:
 // GameCenterAppVersionAppStoreVersionGetCommand returns the app store version get subcommand.
 func GameCenterAppVersionAppStoreVersionGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center app-versions app-store-version view --id \"GC_APP_VERSION_ID\"",
-		ShortHelp:   "View the App Store version for a Game Center app version.",
+		Name:       "view",
+		ShortUsage: "asc game-center app-versions app-store-version view --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:  "View the App Store version for a Game Center app version.",
 		LongHelp: `View the App Store version for a Game Center app version.
 
 Examples:
@@ -286,8 +276,6 @@ Examples:
 		IDUsage:            "Game Center app version ID",
 		IDType:             "gameCenterAppVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center app-versions app-store-version view",
-		FetchErrorPrefix:   "game-center app-versions app-store-version view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterAppVersionAppStoreVersion(ctx, id)
 		},

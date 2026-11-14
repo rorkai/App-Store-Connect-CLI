@@ -81,19 +81,18 @@ Examples:
 
 func XcodeCloudBuildRunsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc xcode-cloud build-runs view --id \"BUILD_RUN_ID\"",
-		ShortHelp:   "View details for a build run.",
+		Name:       "view",
+		ShortUsage: "asc xcode-cloud build-runs view --id \"BUILD_RUN_ID\"",
+		ShortHelp:  "View details for a build run.",
 		LongHelp: `View details for a build run.
 
 Examples:
   asc xcode-cloud build-runs view --id "BUILD_RUN_ID"
   asc xcode-cloud build-runs view --id "BUILD_RUN_ID" --output table`,
-		IDFlag:      "id",
-		IDUsage:     "Build run ID",
-		IDType:      "ciBuildRuns",
-		ErrorPrefix: "xcode-cloud build-runs view",
+		IDFlag:           "id",
+		IDUsage:          "Build run ID",
+		IDType:           "ciBuildRuns",
+		FetchErrorPrefix: "xcode-cloud build-runs view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},

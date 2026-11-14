@@ -42,10 +42,9 @@ func newActorsListCommand(d *shared.Deps) *ffcli.Command {
 	var fieldsValue []string
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc actors list --id ACTOR_ID[,ACTOR_ID...] [flags]",
-		ShortHelp:   "List actors by ID.",
+		Name:       "list",
+		ShortUsage: "asc actors list --id ACTOR_ID[,ACTOR_ID...] [flags]",
+		ShortHelp:  "List actors by ID.",
 		LongHelp: `List actors by ID.
 
 Examples:
@@ -67,9 +66,7 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "actors list",
-		FetchErrorPrefix: "actors list: failed to fetch",
-		Deps:             d,
+		Deps: d,
 		FetchPage: func(ctx context.Context, client *asc.Client, ids string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.ActorsOption{
 				asc.WithActorsIDs(shared.SplitCSV(ids)),
@@ -89,10 +86,9 @@ func newActorsViewCommand(d *shared.Deps) *ffcli.Command {
 	var fieldsValue []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc actors view --id ACTOR_ID [flags]",
-		ShortHelp:   "View an actor by ID.",
+		Name:       "view",
+		ShortUsage: "asc actors view --id ACTOR_ID [flags]",
+		ShortHelp:  "View an actor by ID.",
 		LongHelp: `View an actor by ID.
 
 Examples:
@@ -110,9 +106,7 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "actors view",
-		FetchErrorPrefix: "actors view: failed to fetch",
-		Deps:             d,
+		Deps: d,
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetActor(ctx, id, fieldsValue)
 		},

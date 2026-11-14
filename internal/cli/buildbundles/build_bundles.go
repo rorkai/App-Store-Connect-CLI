@@ -246,19 +246,16 @@ Examples:
 // newBuildBundlesAppClipCacheStatusGetCommand returns the cache-status get subcommand built on d.
 func newBuildBundlesAppClipCacheStatusGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps:        d,
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc build-bundles app-clip cache-status view --id \"BUILD_BUNDLE_ID\"",
-		ShortHelp:   "View App Clip domain cache status for a build bundle.",
+		Deps:       d,
+		Name:       "view",
+		ShortUsage: "asc build-bundles app-clip cache-status view --id \"BUILD_BUNDLE_ID\"",
+		ShortHelp:  "View App Clip domain cache status for a build bundle.",
 		LongHelp: `View App Clip domain cache status for a build bundle.
 
 Examples:
   asc build-bundles app-clip cache-status view --id "BUILD_BUNDLE_ID"`,
 		IDUsage:            "Build bundle ID",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "build-bundles app-clip cache-status view",
-		FetchErrorPrefix:   "build-bundles app-clip cache-status view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			resp, err := client.GetBuildBundleAppClipDomainCacheStatus(ctx, id)
 			if err != nil {
@@ -298,19 +295,16 @@ Examples:
 // newBuildBundlesAppClipDebugStatusGetCommand returns the debug-status get subcommand built on d.
 func newBuildBundlesAppClipDebugStatusGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps:        d,
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc build-bundles app-clip debug-status view --id \"BUILD_BUNDLE_ID\"",
-		ShortHelp:   "View App Clip domain debug status for a build bundle.",
+		Deps:       d,
+		Name:       "view",
+		ShortUsage: "asc build-bundles app-clip debug-status view --id \"BUILD_BUNDLE_ID\"",
+		ShortHelp:  "View App Clip domain debug status for a build bundle.",
 		LongHelp: `View App Clip domain debug status for a build bundle.
 
 Examples:
   asc build-bundles app-clip debug-status view --id "BUILD_BUNDLE_ID"`,
 		IDUsage:            "Build bundle ID",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "build-bundles app-clip debug-status view",
-		FetchErrorPrefix:   "build-bundles app-clip debug-status view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			resp, err := client.GetBuildBundleAppClipDomainDebugStatus(ctx, id)
 			if err != nil {

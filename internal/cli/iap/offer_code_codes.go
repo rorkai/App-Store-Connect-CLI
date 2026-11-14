@@ -61,8 +61,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "iap offer-codes custom-codes list",
-		FetchErrorPrefix:     "iap offer-codes custom-codes list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, offerCodeID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetInAppPurchaseOfferCodeCustomCodes(ctx, offerCodeID,
 				asc.Limit[asc.IAPOfferCodeCustomCodesOption](limit),
@@ -87,8 +85,6 @@ Examples:
 		IDUsage:            "Custom code ID",
 		IDType:             "inAppPurchaseOfferCodeCustomCodes",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "iap offer-codes custom-codes view",
-		FetchErrorPrefix:   "iap offer-codes custom-codes view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetInAppPurchaseOfferCodeCustomCode(ctx, id)
 		},
@@ -249,8 +245,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "iap offer-codes one-time-codes list",
-		FetchErrorPrefix:     "iap offer-codes one-time-codes list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, offerCodeID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetInAppPurchaseOfferCodeOneTimeUseCodes(ctx, offerCodeID,
 				asc.Limit[asc.IAPOfferCodeOneTimeUseCodesOption](limit),
@@ -275,8 +269,6 @@ Examples:
 		IDUsage:            "One-time use code batch ID",
 		IDType:             "inAppPurchaseOfferCodeOneTimeUseCodes",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "iap offer-codes one-time-codes view",
-		FetchErrorPrefix:   "iap offer-codes one-time-codes view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetInAppPurchaseOfferCodeOneTimeUseCode(ctx, id)
 		},

@@ -283,8 +283,6 @@ func SubscriptionsGroupsVersionLocalizationsDeleteCommand() *ffcli.Command {
 		IDUsage:            "Subscription group localization ID",
 		IDType:             "subscriptionGroupLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions groups versions localizations delete",
-		DeleteErrorPrefix:  "subscriptions groups versions localizations delete: failed to delete",
 		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteSubscriptionGroupLocalizationV2(ctx, id)

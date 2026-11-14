@@ -59,10 +59,9 @@ Examples:
 // GameCenterGroupsListCommand returns the groups list subcommand.
 func GameCenterGroupsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center groups list [flags]",
-		ShortHelp:   "List Game Center groups.",
+		Name:       "list",
+		ShortUsage: "asc game-center groups list [flags]",
+		ShortHelp:  "List Game Center groups.",
 		LongHelp: `List Game Center groups.
 
 Examples:
@@ -75,8 +74,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center groups list",
-		FetchErrorPrefix:     "game-center groups list: failed to fetch",
 		LookupParent:         gameCenterDetailParent("game-center groups list"),
 		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.GCGroupsOption{
@@ -94,10 +91,9 @@ Examples:
 // GameCenterGroupsGetCommand returns the groups get subcommand.
 func GameCenterGroupsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center groups view --id \"GROUP_ID\"",
-		ShortHelp:   "View a Game Center group by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center groups view --id \"GROUP_ID\"",
+		ShortHelp:  "View a Game Center group by ID.",
 		LongHelp: `View a Game Center group by ID.
 
 Examples:
@@ -105,8 +101,6 @@ Examples:
 		IDUsage:            "Game Center group ID",
 		IDType:             "gameCenterGroups",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center groups view",
-		FetchErrorPrefix:   "game-center groups view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterGroup(ctx, id)
 		},
@@ -205,10 +199,9 @@ Examples:
 // GameCenterGroupsDeleteCommand returns the groups delete subcommand.
 func GameCenterGroupsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center groups delete --id \"GROUP_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center group.",
+		Name:       "delete",
+		ShortUsage: "asc game-center groups delete --id \"GROUP_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center group.",
 		LongHelp: `Delete a Game Center group.
 
 Examples:
@@ -217,8 +210,6 @@ Examples:
 		IDUsage:            "Game Center group ID",
 		IDType:             "gameCenterGroups",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center groups delete",
-		DeleteErrorPrefix:  "game-center groups delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterGroup(ctx, id)
 		},
@@ -258,10 +249,9 @@ func GameCenterGroupAchievementsListCommand() *ffcli.Command {
 	var v2 *bool
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center groups achievements list --group-id \"GROUP_ID\"",
-		ShortHelp:   "List achievements for a Game Center group.",
+		Name:       "list",
+		ShortUsage: "asc game-center groups achievements list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List achievements for a Game Center group.",
 		LongHelp: `List achievements for a Game Center group.
 
 Examples:
@@ -279,8 +269,6 @@ Examples:
 			v2 = fs.Bool("v2", false, "Use v2 achievements endpoint")
 			return nil
 		},
-		ErrorPrefix:      "game-center groups achievements list",
-		FetchErrorPrefix: "game-center groups achievements list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupID string, limit int, next string) (asc.PaginatedResponse, error) {
 			if *v2 {
 				return client.GetGameCenterGroupAchievementsV2(ctx, groupID, asc.Limit[asc.GCAchievementsOption](limit), asc.NextURL[asc.GCAchievementsOption](next))
@@ -380,10 +368,9 @@ func GameCenterGroupLeaderboardsListCommand() *ffcli.Command {
 	var v2 *bool
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center groups leaderboards list --group-id \"GROUP_ID\"",
-		ShortHelp:   "List leaderboards for a Game Center group.",
+		Name:       "list",
+		ShortUsage: "asc game-center groups leaderboards list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List leaderboards for a Game Center group.",
 		LongHelp: `List leaderboards for a Game Center group.
 
 Examples:
@@ -401,8 +388,6 @@ Examples:
 			v2 = fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 			return nil
 		},
-		ErrorPrefix:      "game-center groups leaderboards list",
-		FetchErrorPrefix: "game-center groups leaderboards list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupID string, limit int, next string) (asc.PaginatedResponse, error) {
 			if *v2 {
 				return client.GetGameCenterGroupLeaderboardsV2(ctx, groupID, asc.Limit[asc.GCLeaderboardsOption](limit), asc.NextURL[asc.GCLeaderboardsOption](next))
@@ -500,10 +485,9 @@ func GameCenterGroupLeaderboardSetsListCommand() *ffcli.Command {
 	var v2 *bool
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center groups leaderboard-sets list --group-id \"GROUP_ID\"",
-		ShortHelp:   "List leaderboard sets for a Game Center group.",
+		Name:       "list",
+		ShortUsage: "asc game-center groups leaderboard-sets list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List leaderboard sets for a Game Center group.",
 		LongHelp: `List leaderboard sets for a Game Center group.
 
 Examples:
@@ -521,8 +505,6 @@ Examples:
 			v2 = fs.Bool("v2", false, "Use v2 leaderboard sets endpoint")
 			return nil
 		},
-		ErrorPrefix:      "game-center groups leaderboard-sets list",
-		FetchErrorPrefix: "game-center groups leaderboard-sets list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupID string, limit int, next string) (asc.PaginatedResponse, error) {
 			if *v2 {
 				return client.GetGameCenterGroupLeaderboardSetsV2(ctx, groupID, asc.Limit[asc.GCLeaderboardSetsOption](limit), asc.NextURL[asc.GCLeaderboardSetsOption](next))
@@ -558,10 +540,9 @@ Examples:
 // GameCenterGroupActivitiesListCommand returns the group activities list subcommand.
 func GameCenterGroupActivitiesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center groups activities list --group-id \"GROUP_ID\"",
-		ShortHelp:   "List activities for a Game Center group.",
+		Name:       "list",
+		ShortUsage: "asc game-center groups activities list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List activities for a Game Center group.",
 		LongHelp: `List activities for a Game Center group.
 
 Examples:
@@ -574,8 +555,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center groups activities list",
-		FetchErrorPrefix:     "game-center groups activities list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterGroupActivities(ctx, groupId, asc.Limit[asc.GCActivitiesOption](limit), asc.NextURL[asc.GCActivitiesOption](next))
 		},
@@ -612,10 +591,9 @@ Examples:
 // GameCenterGroupChallengesListCommand returns the group challenges list subcommand.
 func GameCenterGroupChallengesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center groups challenges list --group-id \"GROUP_ID\"",
-		ShortHelp:   "List challenges for a Game Center group.",
+		Name:       "list",
+		ShortUsage: "asc game-center groups challenges list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List challenges for a Game Center group.",
 		LongHelp: `List challenges for a Game Center group.
 
 Examples:
@@ -628,8 +606,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center groups challenges list",
-		FetchErrorPrefix:     "game-center groups challenges list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterGroupChallenges(ctx, groupId, asc.Limit[asc.GCChallengesOption](limit), asc.NextURL[asc.GCChallengesOption](next))
 		},
@@ -662,10 +638,9 @@ Examples:
 // GameCenterGroupDetailsListCommand returns the group details list subcommand.
 func GameCenterGroupDetailsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center groups details list --group-id \"GROUP_ID\"",
-		ShortHelp:   "List Game Center details for a group.",
+		Name:       "list",
+		ShortUsage: "asc game-center groups details list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List Game Center details for a group.",
 		LongHelp: `List Game Center details for a group.
 
 Examples:
@@ -678,8 +653,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center groups details list",
-		FetchErrorPrefix:     "game-center groups details list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterGroupGameCenterDetails(ctx, groupId, asc.Limit[asc.GCDetailsOption](limit), asc.NextURL[asc.GCDetailsOption](next))
 		},

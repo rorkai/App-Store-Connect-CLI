@@ -40,10 +40,9 @@ Examples:
 // GameCenterEnabledVersionsListCommand returns the enabled versions list subcommand.
 func GameCenterEnabledVersionsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center enabled-versions list [flags]",
-		ShortHelp:   "List Game Center enabled versions for an app.",
+		Name:       "list",
+		ShortUsage: "asc game-center enabled-versions list [flags]",
+		ShortHelp:  "List Game Center enabled versions for an app.",
 		LongHelp: `List Game Center enabled versions for an app.
 
 Examples:
@@ -56,8 +55,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center enabled-versions list",
-		FetchErrorPrefix:     "game-center enabled-versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetAppGameCenterEnabledVersions(ctx, appID, asc.Limit[asc.GCEnabledVersionsOption](limit), asc.NextURL[asc.GCEnabledVersionsOption](next))
 		},

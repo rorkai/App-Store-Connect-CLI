@@ -42,10 +42,9 @@ Examples:
 // AppClipHeaderImagesGetCommand retrieves a header image by ID.
 func AppClipHeaderImagesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc app-clips header-images view --id \"IMAGE_ID\"",
-		ShortHelp:   "View a header image by ID.",
+		Name:       "view",
+		ShortUsage: "asc app-clips header-images view --id \"IMAGE_ID\"",
+		ShortHelp:  "View a header image by ID.",
 		LongHelp: `View a header image by ID.
 
 Examples:
@@ -53,8 +52,6 @@ Examples:
 		IDUsage:            "Header image ID",
 		IDType:             "appClipHeaderImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-clips header-images view",
-		FetchErrorPrefix:   "app-clips header-images view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipHeaderImage(ctx, id)
 		},
@@ -113,10 +110,9 @@ Examples:
 // AppClipHeaderImagesDeleteCommand deletes a header image.
 func AppClipHeaderImagesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc app-clips header-images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:   "Delete a header image.",
+		Name:       "delete",
+		ShortUsage: "asc app-clips header-images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:  "Delete a header image.",
 		LongHelp: `Delete a header image.
 
 Examples:
@@ -126,8 +122,6 @@ Examples:
 		IDType:                 "appClipHeaderImages",
 		RequiredDiagnostic:     true,
 		ConfirmRequiredMessage: "--confirm is required to delete",
-		ErrorPrefix:            "app-clips header-images delete",
-		DeleteErrorPrefix:      "app-clips header-images delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppClipHeaderImage(ctx, id)
 		},

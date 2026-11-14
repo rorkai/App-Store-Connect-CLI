@@ -132,10 +132,9 @@ Examples:
 // AppClipDefaultExperienceLocalizationsGetCommand gets a localization by ID.
 func AppClipDefaultExperienceLocalizationsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc app-clips default-experiences localizations view --localization-id \"LOC_ID\"",
-		ShortHelp:   "View a localization by ID.",
+		Name:       "view",
+		ShortUsage: "asc app-clips default-experiences localizations view --localization-id \"LOC_ID\"",
+		ShortHelp:  "View a localization by ID.",
 		LongHelp: `View a localization by ID.
 
 Examples:
@@ -144,8 +143,6 @@ Examples:
 		IDUsage:            "Localization ID",
 		IDType:             "appClipDefaultExperienceLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-clips default-experiences localizations view",
-		FetchErrorPrefix:   "app-clips default-experiences localizations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipDefaultExperienceLocalization(ctx, id)
 		},
@@ -274,10 +271,9 @@ Examples:
 // AppClipDefaultExperienceLocalizationsDeleteCommand deletes a localization.
 func AppClipDefaultExperienceLocalizationsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc app-clips default-experiences localizations delete --localization-id \"LOC_ID\" --confirm",
-		ShortHelp:   "Delete a localization.",
+		Name:       "delete",
+		ShortUsage: "asc app-clips default-experiences localizations delete --localization-id \"LOC_ID\" --confirm",
+		ShortHelp:  "Delete a localization.",
 		LongHelp: `Delete a localization.
 
 Examples:
@@ -287,8 +283,6 @@ Examples:
 		IDType:                 "appClipDefaultExperienceLocalizations",
 		RequiredDiagnostic:     true,
 		ConfirmRequiredMessage: "--confirm is required to delete",
-		ErrorPrefix:            "app-clips default-experiences localizations delete",
-		DeleteErrorPrefix:      "app-clips default-experiences localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppClipDefaultExperienceLocalization(ctx, id)
 		},

@@ -345,11 +345,10 @@ Examples:
 // newBuildLocalizationsDeleteCommand returns the delete subcommand built on d.
 func newBuildLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		Deps:        d,
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc build-localizations delete [flags]",
-		ShortHelp:   "Delete a localization by ID.",
+		Deps:       d,
+		Name:       "delete",
+		ShortUsage: "asc build-localizations delete [flags]",
+		ShortHelp:  "Delete a localization by ID.",
 		LongHelp: `Delete a localization by ID.
 
 Examples:
@@ -358,7 +357,7 @@ Examples:
 		IDUsage:            "Localization ID",
 		IDType:             "appStoreVersionLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "build-localizations delete",
+		DeleteErrorPrefix:  "build-localizations delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppStoreVersionLocalization(ctx, id)
 		},

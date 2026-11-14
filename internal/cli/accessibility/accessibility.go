@@ -167,10 +167,9 @@ func newAccessibilityGetCommand(d *shared.Deps) *ffcli.Command {
 	var fieldsValue []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc accessibility view --id DECLARATION_ID",
-		ShortHelp:   "View an accessibility declaration by ID.",
+		Name:       "view",
+		ShortUsage: "asc accessibility view --id DECLARATION_ID",
+		ShortHelp:  "View an accessibility declaration by ID.",
 		LongHelp: `View an accessibility declaration by ID.
 
 Examples:
@@ -188,9 +187,7 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "accessibility view",
-		FetchErrorPrefix: "accessibility view: failed to fetch",
-		Deps:             d,
+		Deps: d,
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAccessibilityDeclaration(ctx, id, fieldsValue)
 		},
@@ -350,10 +347,9 @@ Examples:
 // newAccessibilityDeleteCommand returns the accessibility delete subcommand.
 func newAccessibilityDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc accessibility delete --id DECLARATION_ID --confirm",
-		ShortHelp:   "Delete an accessibility declaration.",
+		Name:       "delete",
+		ShortUsage: "asc accessibility delete --id DECLARATION_ID --confirm",
+		ShortHelp:  "Delete an accessibility declaration.",
 		LongHelp: `Delete an accessibility declaration.
 
 Examples:
@@ -362,8 +358,6 @@ Examples:
 		IDUsage:            "Accessibility declaration ID (required)",
 		IDType:             "accessibilityDeclarations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "accessibility delete",
-		DeleteErrorPrefix:  "accessibility delete: failed to delete",
 		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAccessibilityDeclaration(ctx, id)

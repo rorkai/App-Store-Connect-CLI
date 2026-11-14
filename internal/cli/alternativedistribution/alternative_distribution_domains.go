@@ -44,11 +44,10 @@ Examples:
 // newAlternativeDistributionDomainsListCommand returns the domains list subcommand.
 func newAlternativeDistributionDomainsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		Deps:        d,
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc alternative-distribution domains list [flags]",
-		ShortHelp:   "List alternative distribution domains.",
+		Deps:       d,
+		Name:       "list",
+		ShortUsage: "asc alternative-distribution domains list [flags]",
+		ShortHelp:  "List alternative distribution domains.",
 		LongHelp: `List alternative distribution domains.
 
 Examples:
@@ -59,8 +58,6 @@ Examples:
 		LimitMax:             alternativeDistributionMaxLimit,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "alternative-distribution domains list",
-		FetchErrorPrefix:     "alternative-distribution domains list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetAlternativeDistributionDomains(ctx,
 				asc.Limit[asc.AlternativeDistributionDomainsOption](limit),
@@ -73,11 +70,10 @@ Examples:
 // newAlternativeDistributionDomainsGetCommand returns the domains get subcommand.
 func newAlternativeDistributionDomainsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps:        d,
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc alternative-distribution domains view --domain-id \"DOMAIN_ID\"",
-		ShortHelp:   "View an alternative distribution domain.",
+		Deps:       d,
+		Name:       "view",
+		ShortUsage: "asc alternative-distribution domains view --domain-id \"DOMAIN_ID\"",
+		ShortHelp:  "View an alternative distribution domain.",
 		LongHelp: `View an alternative distribution domain.
 
 Examples:
@@ -86,8 +82,6 @@ Examples:
 		IDUsage:            "Alternative distribution domain ID",
 		IDType:             "alternativeDistributionDomains",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "alternative-distribution domains view",
-		FetchErrorPrefix:   "alternative-distribution domains view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAlternativeDistributionDomain(ctx, id)
 		},
@@ -144,11 +138,10 @@ Examples:
 // newAlternativeDistributionDomainsDeleteCommand returns the domains delete subcommand.
 func newAlternativeDistributionDomainsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		Deps:        d,
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc alternative-distribution domains delete --domain-id \"DOMAIN_ID\" --confirm",
-		ShortHelp:   "Delete an alternative distribution domain.",
+		Deps:       d,
+		Name:       "delete",
+		ShortUsage: "asc alternative-distribution domains delete --domain-id \"DOMAIN_ID\" --confirm",
+		ShortHelp:  "Delete an alternative distribution domain.",
 		LongHelp: `Delete an alternative distribution domain.
 
 Examples:
@@ -157,8 +150,6 @@ Examples:
 		IDUsage:            "Alternative distribution domain ID",
 		IDType:             "alternativeDistributionDomains",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "alternative-distribution domains delete",
-		DeleteErrorPrefix:  "alternative-distribution domains delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAlternativeDistributionDomain(ctx, id)
 		},

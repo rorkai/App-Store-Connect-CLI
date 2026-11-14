@@ -435,10 +435,9 @@ func ProfilesGetCommand() *ffcli.Command {
 	)
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc profiles view --id \"PROFILE_ID\"",
-		ShortHelp:   "View a profile by ID.",
+		Name:       "view",
+		ShortUsage: "asc profiles view --id \"PROFILE_ID\"",
+		ShortHelp:  "View a profile by ID.",
 		LongHelp: `View a profile by ID.
 
 Examples:
@@ -458,8 +457,6 @@ Examples:
 				return err
 			}
 		},
-		ErrorPrefix:      "profiles view",
-		FetchErrorPrefix: "profiles view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			opts := []asc.ProfilesOption{asc.WithIncludedFields[asc.ProfilesOption](included)}
 			if len(includeValues) > 0 {
@@ -540,10 +537,9 @@ Examples:
 // ProfilesDeleteCommand returns the profiles delete subcommand.
 func ProfilesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc profiles delete --id \"PROFILE_ID\" --confirm",
-		ShortHelp:   "Delete a provisioning profile.",
+		Name:       "delete",
+		ShortUsage: "asc profiles delete --id \"PROFILE_ID\" --confirm",
+		ShortHelp:  "Delete a provisioning profile.",
 		LongHelp: `Delete a provisioning profile.
 
 Examples:
@@ -552,8 +548,6 @@ Examples:
 		IDUsage:            "Profile ID",
 		IDType:             "profiles",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "profiles delete",
-		DeleteErrorPrefix:  "profiles delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteProfile(ctx, id)
 		},

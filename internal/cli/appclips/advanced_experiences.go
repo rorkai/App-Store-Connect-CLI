@@ -201,10 +201,9 @@ Examples:
 // AppClipAdvancedExperiencesGetCommand gets an advanced experience by ID.
 func AppClipAdvancedExperiencesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc app-clips advanced-experiences view --experience-id \"EXP_ID\"",
-		ShortHelp:   "View an advanced experience by ID.",
+		Name:       "view",
+		ShortUsage: "asc app-clips advanced-experiences view --experience-id \"EXP_ID\"",
+		ShortHelp:  "View an advanced experience by ID.",
 		LongHelp: `View an advanced experience by ID.
 
 Examples:
@@ -213,8 +212,6 @@ Examples:
 		IDUsage:            "Advanced experience ID",
 		IDType:             "appClipAdvancedExperiences",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-clips advanced-experiences view",
-		FetchErrorPrefix:   "app-clips advanced-experiences view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipAdvancedExperience(ctx, id)
 		},
@@ -503,10 +500,9 @@ Examples:
 // AppClipAdvancedExperiencesDeleteCommand deletes an advanced experience.
 func AppClipAdvancedExperiencesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc app-clips advanced-experiences delete --experience-id \"EXP_ID\" --confirm",
-		ShortHelp:   "Remove an advanced experience.",
+		Name:       "delete",
+		ShortUsage: "asc app-clips advanced-experiences delete --experience-id \"EXP_ID\" --confirm",
+		ShortHelp:  "Remove an advanced experience.",
 		LongHelp: `Remove an advanced experience by setting its removed attribute to true.
 
 Examples:
@@ -517,7 +513,6 @@ Examples:
 		RequiredDiagnostic:     true,
 		ConfirmUsage:           "Confirm removal",
 		ConfirmRequiredMessage: "--confirm is required to remove",
-		ErrorPrefix:            "app-clips advanced-experiences delete",
 		DeleteErrorPrefix:      "app-clips advanced-experiences delete: failed to remove",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppClipAdvancedExperience(ctx, id)

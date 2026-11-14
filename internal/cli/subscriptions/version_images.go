@@ -235,8 +235,6 @@ func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
 				return err
 			}
 		},
-		ErrorPrefix:      "subscriptions versions images view",
-		FetchErrorPrefix: "subscriptions versions images view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetSubscriptionImageV2(ctx, id, asc.WithSubscriptionImageV2Fields(fieldValues))
 		},
@@ -341,8 +339,6 @@ func SubscriptionsVersionImagesDeleteCommand() *ffcli.Command {
 		IDUsage:            "Subscription image ID",
 		IDType:             "subscriptionImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions versions images delete",
-		DeleteErrorPrefix:  "subscriptions versions images delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteSubscriptionImageV2(ctx, id)
 		},

@@ -166,10 +166,9 @@ Examples:
 // GameCenterLeaderboardVersionsV2ListCommand returns the leaderboard versions v2 list subcommand.
 func GameCenterLeaderboardVersionsV2ListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center leaderboards v2 versions list --leaderboard-id \"LB_ID\"",
-		ShortHelp:   "List versions for a Game Center leaderboard (v2).",
+		Name:       "list",
+		ShortUsage: "asc game-center leaderboards v2 versions list --leaderboard-id \"LB_ID\"",
+		ShortHelp:  "List versions for a Game Center leaderboard (v2).",
 		LongHelp: `List versions for a Game Center leaderboard (v2).
 
 Examples:
@@ -181,8 +180,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center leaderboards v2 versions list",
-		FetchErrorPrefix:     "game-center leaderboards v2 versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, leaderboardId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterLeaderboardVersions(ctx, leaderboardId, asc.Limit[asc.GCLeaderboardVersionsOption](limit), asc.NextURL[asc.GCLeaderboardVersionsOption](next))
 		},
@@ -192,10 +189,9 @@ Examples:
 // GameCenterLeaderboardVersionsV2GetCommand returns the leaderboard versions v2 get subcommand.
 func GameCenterLeaderboardVersionsV2GetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboards v2 versions view --id \"VERSION_ID\"",
-		ShortHelp:   "View a Game Center leaderboard version (v2) by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboards v2 versions view --id \"VERSION_ID\"",
+		ShortHelp:  "View a Game Center leaderboard version (v2) by ID.",
 		LongHelp: `View a Game Center leaderboard version (v2) by ID.
 
 Examples:
@@ -203,8 +199,6 @@ Examples:
 		IDUsage:            "Game Center leaderboard version ID",
 		IDType:             "gameCenterLeaderboardVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboards v2 versions view",
-		FetchErrorPrefix:   "game-center leaderboards v2 versions view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardVersion(ctx, id)
 		},
@@ -283,10 +277,9 @@ Examples:
 // GameCenterLeaderboardLocalizationsV2ListCommand returns the leaderboard localizations v2 list subcommand.
 func GameCenterLeaderboardLocalizationsV2ListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center leaderboards v2 localizations list --version-id \"VER_ID\"",
-		ShortHelp:   "List localizations for a leaderboard version (v2).",
+		Name:       "list",
+		ShortUsage: "asc game-center leaderboards v2 localizations list --version-id \"VER_ID\"",
+		ShortHelp:  "List localizations for a leaderboard version (v2).",
 		LongHelp: `List localizations for a leaderboard version (v2).
 
 Examples:
@@ -298,8 +291,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center leaderboards v2 localizations list",
-		FetchErrorPrefix:     "game-center leaderboards v2 localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterLeaderboardVersionLocalizations(ctx, versionId, asc.Limit[asc.GCLeaderboardLocalizationsOption](limit), asc.NextURL[asc.GCLeaderboardLocalizationsOption](next))
 		},
@@ -309,10 +300,9 @@ Examples:
 // GameCenterLeaderboardLocalizationsV2GetCommand returns the leaderboard localizations v2 get subcommand.
 func GameCenterLeaderboardLocalizationsV2GetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboards v2 localizations view --id \"LOC_ID\"",
-		ShortHelp:   "View a Game Center leaderboard localization (v2) by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboards v2 localizations view --id \"LOC_ID\"",
+		ShortHelp:  "View a Game Center leaderboard localization (v2) by ID.",
 		LongHelp: `View a Game Center leaderboard localization (v2) by ID.
 
 Examples:
@@ -320,8 +310,6 @@ Examples:
 		IDUsage:            "Game Center leaderboard localization ID",
 		IDType:             "gameCenterLeaderboardLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboards v2 localizations view",
-		FetchErrorPrefix:   "game-center leaderboards v2 localizations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardLocalizationV2(ctx, id)
 		},
@@ -503,10 +491,9 @@ Examples:
 // GameCenterLeaderboardLocalizationsV2DeleteCommand returns the leaderboard localizations v2 delete subcommand.
 func GameCenterLeaderboardLocalizationsV2DeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center leaderboards v2 localizations delete --id \"LOC_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center leaderboard localization (v2).",
+		Name:       "delete",
+		ShortUsage: "asc game-center leaderboards v2 localizations delete --id \"LOC_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center leaderboard localization (v2).",
 		LongHelp: `Delete a Game Center leaderboard localization (v2).
 
 Examples:
@@ -515,8 +502,6 @@ Examples:
 		IDUsage:            "Game Center leaderboard localization ID",
 		IDType:             "gameCenterLeaderboardLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboards v2 localizations delete",
-		DeleteErrorPrefix:  "game-center leaderboards v2 localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterLeaderboardLocalizationV2(ctx, id)
 		},
@@ -663,10 +648,9 @@ Examples:
 // GameCenterLeaderboardImagesV2DeleteCommand returns the leaderboard images v2 delete subcommand.
 func GameCenterLeaderboardImagesV2DeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center leaderboards v2 images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center leaderboard image (v2).",
+		Name:       "delete",
+		ShortUsage: "asc game-center leaderboards v2 images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center leaderboard image (v2).",
 		LongHelp: `Delete a Game Center leaderboard image (v2).
 
 Examples:
@@ -675,8 +659,6 @@ Examples:
 		IDUsage:            "Game Center leaderboard image ID",
 		IDType:             "gameCenterLeaderboardImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboards v2 images delete",
-		DeleteErrorPrefix:  "game-center leaderboards v2 images delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterLeaderboardImageV2(ctx, id)
 		},

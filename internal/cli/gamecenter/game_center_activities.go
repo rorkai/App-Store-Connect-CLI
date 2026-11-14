@@ -61,10 +61,9 @@ Examples:
 // GameCenterActivitiesListCommand returns the activities list subcommand.
 func GameCenterActivitiesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center activities list [flags]",
-		ShortHelp:   "List Game Center activities for an app.",
+		Name:       "list",
+		ShortUsage: "asc game-center activities list [flags]",
+		ShortHelp:  "List Game Center activities for an app.",
 		LongHelp: `List Game Center activities for an app.
 
 Examples:
@@ -77,8 +76,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center activities list",
-		FetchErrorPrefix:     "game-center activities list: failed to fetch",
 		LookupParent:         gameCenterDetailParent("game-center activities list"),
 		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterActivities(ctx, gcDetailID, asc.Limit[asc.GCActivitiesOption](limit), asc.NextURL[asc.GCActivitiesOption](next))
@@ -89,10 +86,9 @@ Examples:
 // GameCenterActivitiesGetCommand returns the activities get subcommand.
 func GameCenterActivitiesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center activities view --id \"ACTIVITY_ID\"",
-		ShortHelp:   "View a Game Center activity by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center activities view --id \"ACTIVITY_ID\"",
+		ShortHelp:  "View a Game Center activity by ID.",
 		LongHelp: `View a Game Center activity by ID.
 
 Examples:
@@ -100,8 +96,6 @@ Examples:
 		IDUsage:            "Game Center activity ID",
 		IDType:             "gameCenterActivities",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center activities view",
-		FetchErrorPrefix:   "game-center activities view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivity(ctx, id)
 		},
@@ -354,10 +348,9 @@ Examples:
 // GameCenterActivitiesDeleteCommand returns the activities delete subcommand.
 func GameCenterActivitiesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center activities delete --id \"ACTIVITY_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center activity.",
+		Name:       "delete",
+		ShortUsage: "asc game-center activities delete --id \"ACTIVITY_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center activity.",
 		LongHelp: `Delete a Game Center activity.
 
 Examples:
@@ -366,8 +359,6 @@ Examples:
 		IDUsage:            "Game Center activity ID",
 		IDType:             "gameCenterActivities",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center activities delete",
-		DeleteErrorPrefix:  "game-center activities delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterActivity(ctx, id)
 		},
@@ -601,10 +592,9 @@ Examples:
 // GameCenterActivityVersionsListCommand returns the activity versions list subcommand.
 func GameCenterActivityVersionsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center activities versions list --activity-id \"ACTIVITY_ID\"",
-		ShortHelp:   "List versions for a Game Center activity.",
+		Name:       "list",
+		ShortUsage: "asc game-center activities versions list --activity-id \"ACTIVITY_ID\"",
+		ShortHelp:  "List versions for a Game Center activity.",
 		LongHelp: `List versions for a Game Center activity.
 
 Examples:
@@ -617,8 +607,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center activities versions list",
-		FetchErrorPrefix:     "game-center activities versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, activityId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterActivityVersions(ctx, activityId, asc.Limit[asc.GCActivityVersionsOption](limit), asc.NextURL[asc.GCActivityVersionsOption](next))
 		},
@@ -628,10 +616,9 @@ Examples:
 // GameCenterActivityVersionsGetCommand returns the activity versions get subcommand.
 func GameCenterActivityVersionsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center activities versions view --id \"VERSION_ID\"",
-		ShortHelp:   "View a Game Center activity version by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center activities versions view --id \"VERSION_ID\"",
+		ShortHelp:  "View a Game Center activity version by ID.",
 		LongHelp: `View a Game Center activity version by ID.
 
 Examples:
@@ -639,8 +626,6 @@ Examples:
 		IDUsage:            "Game Center activity version ID",
 		IDType:             "gameCenterActivityVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center activities versions view",
-		FetchErrorPrefix:   "game-center activities versions view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivityVersion(ctx, id)
 		},
@@ -773,10 +758,9 @@ Examples:
 // GameCenterActivityLocalizationsListCommand returns the activity localizations list subcommand.
 func GameCenterActivityLocalizationsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center activities localizations list --version-id \"VERSION_ID\"",
-		ShortHelp:   "List localizations for an activity version.",
+		Name:       "list",
+		ShortUsage: "asc game-center activities localizations list --version-id \"VERSION_ID\"",
+		ShortHelp:  "List localizations for an activity version.",
 		LongHelp: `List localizations for an activity version.
 
 Examples:
@@ -789,8 +773,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center activities localizations list",
-		FetchErrorPrefix:     "game-center activities localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterActivityLocalizations(ctx, versionId, asc.Limit[asc.GCActivityLocalizationsOption](limit), asc.NextURL[asc.GCActivityLocalizationsOption](next))
 		},
@@ -800,10 +782,9 @@ Examples:
 // GameCenterActivityLocalizationsGetCommand returns the activity localizations get subcommand.
 func GameCenterActivityLocalizationsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center activities localizations view --id \"LOCALIZATION_ID\"",
-		ShortHelp:   "View an activity localization by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center activities localizations view --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View an activity localization by ID.",
 		LongHelp: `View an activity localization by ID.
 
 Examples:
@@ -811,8 +792,6 @@ Examples:
 		IDUsage:            "Game Center activity localization ID",
 		IDType:             "gameCenterActivityLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center activities localizations view",
-		FetchErrorPrefix:   "game-center activities localizations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivityLocalization(ctx, id)
 		},
@@ -946,10 +925,9 @@ Examples:
 // GameCenterActivityLocalizationsDeleteCommand returns the activity localizations delete subcommand.
 func GameCenterActivityLocalizationsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center activities localizations delete --id \"LOCALIZATION_ID\" --confirm",
-		ShortHelp:   "Delete an activity localization.",
+		Name:       "delete",
+		ShortUsage: "asc game-center activities localizations delete --id \"LOCALIZATION_ID\" --confirm",
+		ShortHelp:  "Delete an activity localization.",
 		LongHelp: `Delete an activity localization.
 
 Examples:
@@ -958,8 +936,6 @@ Examples:
 		IDUsage:            "Game Center activity localization ID",
 		IDType:             "gameCenterActivityLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center activities localizations delete",
-		DeleteErrorPrefix:  "game-center activities localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterActivityLocalization(ctx, id)
 		},
@@ -1052,10 +1028,9 @@ Examples:
 // GameCenterActivityImagesGetCommand returns the activity images get subcommand.
 func GameCenterActivityImagesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center activities images view --id \"IMAGE_ID\"",
-		ShortHelp:   "View an activity image by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center activities images view --id \"IMAGE_ID\"",
+		ShortHelp:  "View an activity image by ID.",
 		LongHelp: `View an activity image by ID.
 
 Examples:
@@ -1063,8 +1038,6 @@ Examples:
 		IDUsage:            "Activity image ID",
 		IDType:             "gameCenterActivityImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center activities images view",
-		FetchErrorPrefix:   "game-center activities images view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivityImage(ctx, id)
 		},
@@ -1074,10 +1047,9 @@ Examples:
 // GameCenterActivityImagesDeleteCommand returns the activity images delete subcommand.
 func GameCenterActivityImagesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center activities images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:   "Delete an activity image.",
+		Name:       "delete",
+		ShortUsage: "asc game-center activities images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:  "Delete an activity image.",
 		LongHelp: `Delete an activity image.
 
 Examples:
@@ -1086,8 +1058,6 @@ Examples:
 		IDUsage:            "Activity image ID",
 		IDType:             "gameCenterActivityImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center activities images delete",
-		DeleteErrorPrefix:  "game-center activities images delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterActivityImage(ctx, id)
 		},
@@ -1254,10 +1224,9 @@ Examples:
 // GameCenterActivityReleasesDeleteCommand returns the activity releases delete subcommand.
 func GameCenterActivityReleasesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center activities releases delete --id \"RELEASE_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center activity release.",
+		Name:       "delete",
+		ShortUsage: "asc game-center activities releases delete --id \"RELEASE_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center activity release.",
 		LongHelp: `Delete a Game Center activity release.
 
 Examples:
@@ -1266,8 +1235,6 @@ Examples:
 		IDUsage:            "Game Center activity release ID",
 		IDType:             "gameCenterActivityVersionReleases",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center activities releases delete",
-		DeleteErrorPrefix:  "game-center activities releases delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterActivityVersionRelease(ctx, id)
 		},
@@ -1303,10 +1270,9 @@ Examples:
 // GameCenterActivityLocalizationImageGetCommand returns the activity localization image get subcommand.
 func GameCenterActivityLocalizationImageGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center activities localizations image view --id \"LOC_ID\"",
-		ShortHelp:   "View an activity localization image.",
+		Name:       "view",
+		ShortUsage: "asc game-center activities localizations image view --id \"LOC_ID\"",
+		ShortHelp:  "View an activity localization image.",
 		LongHelp: `View an activity localization image.
 
 Examples:
@@ -1314,8 +1280,6 @@ Examples:
 		IDUsage:            "Game Center activity localization ID",
 		IDType:             "gameCenterActivityLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center activities localizations image view",
-		FetchErrorPrefix:   "game-center activities localizations image view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivityLocalizationImage(ctx, id)
 		},
@@ -1348,10 +1312,9 @@ Examples:
 // GameCenterActivityVersionDefaultImageGetCommand returns the activity version default image get subcommand.
 func GameCenterActivityVersionDefaultImageGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center activities versions default-image view --id \"VERSION_ID\"",
-		ShortHelp:   "View a default image for an activity version.",
+		Name:       "view",
+		ShortUsage: "asc game-center activities versions default-image view --id \"VERSION_ID\"",
+		ShortHelp:  "View a default image for an activity version.",
 		LongHelp: `View a default image for an activity version.
 
 Examples:
@@ -1359,8 +1322,6 @@ Examples:
 		IDUsage:            "Game Center activity version ID",
 		IDType:             "gameCenterActivityVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center activities versions default-image view",
-		FetchErrorPrefix:   "game-center activities versions default-image view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivityVersionDefaultImage(ctx, id)
 		},

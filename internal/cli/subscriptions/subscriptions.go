@@ -417,8 +417,6 @@ Examples:
 		IDUsage:            "Subscription group ID",
 		IDType:             "subscriptionGroups",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions groups delete",
-		DeleteErrorPrefix:  "subscriptions groups delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteSubscriptionGroup(ctx, id)
 		},
@@ -948,10 +946,9 @@ func (i optionalInt) Value() int {
 // SubscriptionsDeleteCommand returns the subscriptions delete subcommand.
 func SubscriptionsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc subscriptions delete --id \"SUB_ID\" --confirm",
-		ShortHelp:   "Delete a subscription.",
+		Name:       "delete",
+		ShortUsage: "asc subscriptions delete --id \"SUB_ID\" --confirm",
+		ShortHelp:  "Delete a subscription.",
 		LongHelp: `Delete a subscription.
 
 Examples:
@@ -960,8 +957,6 @@ Examples:
 		IDUsage:            "Subscription ID",
 		IDType:             "subscriptions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions delete",
-		DeleteErrorPrefix:  "subscriptions delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteSubscription(ctx, id)
 		},
@@ -1543,8 +1538,6 @@ Examples:
 		IDUsage:            "Subscription price ID",
 		IDType:             "subscriptionPrices",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions prices delete",
-		DeleteErrorPrefix:  "subscriptions prices delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteSubscriptionPrice(ctx, id)
 		},

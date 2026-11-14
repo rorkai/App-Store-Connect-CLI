@@ -957,7 +957,7 @@ Examples:
 		RequiredDiagnostic:     true,
 		ConfirmUsage:           "Confirm deletion (required)",
 		ConfirmRequiredMessage: "--confirm is required to delete a version",
-		ErrorPrefix:            "versions delete",
+		DeleteErrorPrefix:      "versions delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppStoreVersion(ctx, id)
 		},

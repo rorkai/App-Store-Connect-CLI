@@ -268,8 +268,6 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "apps search-keywords list",
-		FetchErrorPrefix: "apps search-keywords list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.AppSearchKeywordsOption{
 				asc.Limit[asc.AppSearchKeywordsOption](limit),

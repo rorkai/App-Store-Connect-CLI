@@ -44,10 +44,9 @@ Examples:
 func newMarketplaceWebhooksListCommand(d *shared.Deps) *ffcli.Command {
 	var fieldsValue []string
 	cmd := shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc marketplace webhooks list [flags]",
-		ShortHelp:   "List marketplace webhooks.",
+		Name:       "list",
+		ShortUsage: "asc marketplace webhooks list [flags]",
+		ShortHelp:  "List marketplace webhooks.",
 		LongHelp: `List marketplace webhooks.
 
 Examples:
@@ -67,9 +66,7 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "marketplace webhooks list",
-		FetchErrorPrefix: "marketplace webhooks list: failed to fetch",
-		Deps:             d,
+		Deps: d,
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.MarketplaceWebhooksOption{
 				asc.Limit[asc.MarketplaceWebhooksOption](limit),
@@ -87,10 +84,9 @@ Examples:
 // newMarketplaceWebhooksGetCommand returns the webhooks view subcommand.
 func newMarketplaceWebhooksGetCommand(d *shared.Deps) *ffcli.Command {
 	cmd := shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc marketplace webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
-		ShortHelp:   "View a marketplace webhook by ID.",
+		Name:       "view",
+		ShortUsage: "asc marketplace webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
+		ShortHelp:  "View a marketplace webhook by ID.",
 		LongHelp: `View a marketplace webhook by ID.
 
 Examples:
@@ -99,8 +95,6 @@ Examples:
 		IDUsage:            "Marketplace webhook ID",
 		IDType:             "marketplaceWebhooks",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "marketplace webhooks view",
-		FetchErrorPrefix:   "marketplace webhooks view: failed to fetch",
 		Deps:               d,
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetMarketplaceWebhook(ctx, id)
