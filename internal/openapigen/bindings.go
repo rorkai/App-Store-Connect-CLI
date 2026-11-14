@@ -52,15 +52,19 @@ type OpBind struct {
 // LoadBindings reads every family file in a bindings directory. A missing
 // directory holds no families.
 func LoadBindings(dir string) (*Bindings, error) {
-	if info, err := os.Stat(dir); err == nil && !info.IsDir() {
-		return nil, fmt.Errorf("bindings %s is not a directory", dir)
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return &Bindings{}, nil
 	}
-	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
 	if err != nil {
 		return nil, err
 	}
 	b := &Bindings{}
-	for _, path := range paths {
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil, err
