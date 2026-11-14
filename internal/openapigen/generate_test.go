@@ -129,3 +129,20 @@ func TestDefaultName(t *testing.T) {
 		t.Errorf("versioned collection without a schema: got %q", got)
 	}
 }
+
+// TestCheckedInClientIsUpToDate fails when a generated file in internal/asc
+// differs from what the snapshot and the bindings produce, or no binding
+// produces it any more.
+func TestCheckedInClientIsUpToDate(t *testing.T) {
+	spec, err := LoadSpec(filepath.Join("..", "..", "docs", "openapi", "latest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := LoadBindings(filepath.Join("..", "asc", "openapi_bindings"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAll(spec, bindings, filepath.Join("..", "asc"), true); err != nil {
+		t.Fatal(err)
+	}
+}
