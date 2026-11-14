@@ -132,7 +132,7 @@ func TestPrivatePublishStopsAfterS3HeadMatchesButFetchedBodyIsCorrupt(t *testing
 	t.Setenv("AWS_SESSION_TOKEN", "")
 	synctest.Test(t, func(t *testing.T) {
 		var operations []string
-		server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			operations = append(operations, request.Method)
 			switch request.Method {
 			case http.MethodHead:
@@ -152,9 +152,8 @@ func TestPrivatePublishStopsAfterS3HeadMatchesButFetchedBodyIsCorrupt(t *testing
 				writer.WriteHeader(http.StatusMethodNotAllowed)
 			}
 		}))
-		defer server.Close()
 		store, _, err := NewS3Store(context.Background(), S3StoreConfig{
-			Endpoint: server.URL, Region: "auto", Bucket: "bucket", AddressingStyle: "path", HTTPClient: server.Client(),
+			Endpoint: "https://s3.example.com", Region: "auto", Bucket: "bucket", AddressingStyle: "path", HTTPClient: server.Client(),
 		})
 		if err != nil {
 			t.Fatal(err)
