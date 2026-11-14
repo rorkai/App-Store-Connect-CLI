@@ -6,31 +6,6 @@ import (
 	"strings"
 )
 
-// GetAlternativeDistributionDomains retrieves alternative distribution domains.
-func (c *Client) GetAlternativeDistributionDomains(ctx context.Context, opts ...AlternativeDistributionDomainsOption) (*AlternativeDistributionDomainsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[AlternativeDistributionDomainsResponse](ctx, c, readRequest{
-		Path:        "/v1/alternativeDistributionDomains",
-		Query:       buildAlternativeDistributionDomainsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "alternativeDistributionDomains",
-		ParseErr:    "failed to parse alternative distribution domains response",
-	})
-}
-
-// GetAlternativeDistributionDomain retrieves a single alternative distribution domain by ID.
-func (c *Client) GetAlternativeDistributionDomain(ctx context.Context, domainID string) (*AlternativeDistributionDomainResponse, error) {
-	domainID = strings.TrimSpace(domainID)
-	if domainID == "" {
-		return nil, fmt.Errorf("domainID is required")
-	}
-
-	return getJSON[AlternativeDistributionDomainResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/alternativeDistributionDomains/%s", domainID),
-		ParseErr: "failed to parse alternative distribution domain response",
-	})
-}
-
 // CreateAlternativeDistributionDomain creates an alternative distribution domain.
 func (c *Client) CreateAlternativeDistributionDomain(ctx context.Context, domain, referenceName string) (*AlternativeDistributionDomainResponse, error) {
 	domain = strings.TrimSpace(domain)
@@ -58,16 +33,6 @@ func (c *Client) CreateAlternativeDistributionDomain(ctx context.Context, domain
 		Payload:  payload,
 		ParseErr: "failed to parse alternative distribution domain response",
 	})
-}
-
-// DeleteAlternativeDistributionDomain deletes an alternative distribution domain by ID.
-func (c *Client) DeleteAlternativeDistributionDomain(ctx context.Context, domainID string) error {
-	domainID = strings.TrimSpace(domainID)
-	if domainID == "" {
-		return fmt.Errorf("domainID is required")
-	}
-
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/alternativeDistributionDomains/%s", domainID), nil)
 }
 
 // GetAlternativeDistributionKeys retrieves alternative distribution keys.

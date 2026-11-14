@@ -93,72 +93,6 @@ func (c *Client) DeleteGameCenterMatchmakingQueue(ctx context.Context, queueID s
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterMatchmakingQueues/%s", strings.TrimSpace(queueID)), nil)
 }
 
-// GetGameCenterMatchmakingRuleSets retrieves the list of matchmaking rule sets.
-func (c *Client) GetGameCenterMatchmakingRuleSets(ctx context.Context, opts ...GCMatchmakingRuleSetsOption) (*GameCenterMatchmakingRuleSetsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterMatchmakingRuleSetsResponse](ctx, c, readRequest{
-		Path:        "/v1/gameCenterMatchmakingRuleSets",
-		Query:       buildGCMatchmakingRuleSetsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-matchmaking-rule-sets",
-	})
-}
-
-// GetGameCenterMatchmakingRuleSet retrieves a matchmaking rule set by ID.
-func (c *Client) GetGameCenterMatchmakingRuleSet(ctx context.Context, ruleSetID string) (*GameCenterMatchmakingRuleSetResponse, error) {
-	return getJSON[GameCenterMatchmakingRuleSetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterMatchmakingRuleSets/%s", strings.TrimSpace(ruleSetID))})
-}
-
-// GetGameCenterMatchmakingRuleSetQueues retrieves the queues for a rule set.
-func (c *Client) GetGameCenterMatchmakingRuleSetQueues(ctx context.Context, ruleSetID string, opts ...GCMatchmakingQueuesOption) (*GameCenterMatchmakingQueuesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterMatchmakingQueuesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterMatchmakingRuleSets/%s/matchmakingQueues", strings.TrimSpace(ruleSetID)),
-		Query:       buildGCMatchmakingQueuesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-matchmaking-rule-set-queues",
-	})
-}
-
-// CreateGameCenterMatchmakingRuleSet creates a new matchmaking rule set.
-func (c *Client) CreateGameCenterMatchmakingRuleSet(ctx context.Context, attrs GameCenterMatchmakingRuleSetCreateAttributes) (*GameCenterMatchmakingRuleSetResponse, error) {
-	payload := GameCenterMatchmakingRuleSetCreateRequest{
-		Data: GameCenterMatchmakingRuleSetCreateData{
-			Type:       ResourceTypeGameCenterMatchmakingRuleSets,
-			Attributes: attrs,
-		},
-	}
-	return sendJSON[GameCenterMatchmakingRuleSetResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterMatchmakingRuleSets", Payload: payload})
-}
-
-// UpdateGameCenterMatchmakingRuleSet updates a matchmaking rule set.
-func (c *Client) UpdateGameCenterMatchmakingRuleSet(ctx context.Context, ruleSetID string, attrs GameCenterMatchmakingRuleSetUpdateAttributes) (*GameCenterMatchmakingRuleSetResponse, error) {
-	payload := GameCenterMatchmakingRuleSetUpdateRequest{
-		Data: GameCenterMatchmakingRuleSetUpdateData{
-			Type:       ResourceTypeGameCenterMatchmakingRuleSets,
-			ID:         strings.TrimSpace(ruleSetID),
-			Attributes: &attrs,
-		},
-	}
-	return sendJSON[GameCenterMatchmakingRuleSetResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterMatchmakingRuleSets/%s", strings.TrimSpace(ruleSetID)), Payload: payload})
-}
-
-// DeleteGameCenterMatchmakingRuleSet deletes a matchmaking rule set.
-func (c *Client) DeleteGameCenterMatchmakingRuleSet(ctx context.Context, ruleSetID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterMatchmakingRuleSets/%s", strings.TrimSpace(ruleSetID)), nil)
-}
-
-// GetGameCenterMatchmakingRules retrieves the list of rules for a rule set.
-func (c *Client) GetGameCenterMatchmakingRules(ctx context.Context, ruleSetID string, opts ...GCMatchmakingRulesOption) (*GameCenterMatchmakingRulesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterMatchmakingRulesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterMatchmakingRuleSets/%s/rules", strings.TrimSpace(ruleSetID)),
-		Query:       buildGCMatchmakingRulesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-matchmaking-rules",
-	})
-}
-
 // CreateGameCenterMatchmakingRule creates a new rule for a rule set.
 func (c *Client) CreateGameCenterMatchmakingRule(ctx context.Context, ruleSetID string, attrs GameCenterMatchmakingRuleCreateAttributes) (*GameCenterMatchmakingRuleResponse, error) {
 	payload := GameCenterMatchmakingRuleCreateRequest{
@@ -193,17 +127,6 @@ func (c *Client) UpdateGameCenterMatchmakingRule(ctx context.Context, ruleID str
 // DeleteGameCenterMatchmakingRule deletes a matchmaking rule.
 func (c *Client) DeleteGameCenterMatchmakingRule(ctx context.Context, ruleID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterMatchmakingRules/%s", strings.TrimSpace(ruleID)), nil)
-}
-
-// GetGameCenterMatchmakingTeams retrieves the list of teams for a rule set.
-func (c *Client) GetGameCenterMatchmakingTeams(ctx context.Context, ruleSetID string, opts ...GCMatchmakingTeamsOption) (*GameCenterMatchmakingTeamsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterMatchmakingTeamsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterMatchmakingRuleSets/%s/teams", strings.TrimSpace(ruleSetID)),
-		Query:       buildGCMatchmakingTeamsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-matchmaking-teams",
-	})
 }
 
 // CreateGameCenterMatchmakingTeam creates a new team for a rule set.
