@@ -47,6 +47,16 @@ type OpBind struct {
 	ParseErr    string   `json:"parseErr,omitempty"`    // default "failed to parse response"
 	Response    string   `json:"response,omitempty"`    // Go decode type; default the spec schema name
 	IDs         string   `json:"ids,omitempty"`         // ID list parameter of a relationship change
+	// Deviations are known differences from the schema that the contract test
+	// in internal/asc pins. They change no generated code.
+	Deviations []Deviation `json:"deviations,omitempty"`
+}
+
+// Deviation is one problem text of the contract test that the method is known
+// to produce, and why it is kept.
+type Deviation struct {
+	Problem string `json:"problem"`
+	Reason  string `json:"reason"`
 }
 
 // LoadBindings reads every family file in a bindings directory. A missing

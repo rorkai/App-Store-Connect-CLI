@@ -133,13 +133,36 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 }
 
 func TestAdoptIntoAnExistingFamilyLeavesItUpToDate(t *testing.T) {
-	existing := `{"tag": "Widgets", "file": "widgets_gen.go", "operations": [{"operation": "widgets_updateInstance", "name": "UpdateWidget", "params": ["widgetID"]}]}`
+	deviation := `{"problem":"sent query parameters [filter[x]] that the operation does not define","reason":"kept on purpose"}`
+	existing := `{"tag": "Widgets", "file": "widgets_gen.go", "operations": [{"operation": "widgets_updateInstance", "name": "UpdateWidget", "params": ["widgetID"], "deviations": [` + deviation + `]}]}`
 	dir := writeHandWritten(t, map[string]string{"client.go": handWrittenClient, "bindings/Widgets.json": existing})
 	if err := runAdopt(dir, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, true, "", false, io.Discard); err != nil {
 		t.Fatalf("check right after adopt: %v", err)
+	}
+	if got := readFile(t, filepath.Join(dir, "bindings", "Widgets.json")); !strings.Contains(got, `"name":"UpdateWidget","params":["widgetID"],"deviations":[`+deviation+`]}`) {
+		t.Errorf("adopt dropped the recorded deviation of UpdateWidget:\n%s", got)
+	}
+
+	spec, err := LoadSpec(filepath.Join("testdata", "spec.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, op := range bindings.Families[0].Operations {
+		op.Deviations = nil
+	}
+	without, err := Generate(spec, bindings.Families[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(without) != readFile(t, filepath.Join(dir, "widgets_gen.go")) {
+		t.Error("a recorded deviation changed the generated code")
 	}
 }
 
