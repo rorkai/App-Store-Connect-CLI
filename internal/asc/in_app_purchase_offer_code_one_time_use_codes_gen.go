@@ -9,6 +9,15 @@ import (
 	"strings"
 )
 
+// InAppPurchaseOfferCodeOneTimeUseCodeAttributes is the attributes object of the InAppPurchaseOfferCodeOneTimeUseCode schema.
+type InAppPurchaseOfferCodeOneTimeUseCodeAttributes struct {
+	NumberOfCodes  int    `json:"numberOfCodes,omitempty"`
+	CreatedDate    string `json:"createdDate,omitempty"`
+	ExpirationDate string `json:"expirationDate,omitempty"`
+	Active         bool   `json:"active,omitempty"`
+	Environment    string `json:"environment,omitempty"`
+}
+
 // InAppPurchaseOfferCodeOneTimeUseCodeCreateData is the data object of the InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest schema.
 type InAppPurchaseOfferCodeOneTimeUseCodeCreateData struct {
 	Type          ResourceType                                            `json:"type"`

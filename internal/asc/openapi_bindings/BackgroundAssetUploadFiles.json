@@ -6,6 +6,7 @@
     "BackgroundAssetUploadFileCreateRelationships",
     "BackgroundAssetUploadFileCreateRequest",
     "BackgroundAssetUploadFileResponse",
+    "BackgroundAssetUploadFileUpdateAttributes",
     "BackgroundAssetUploadFileUpdateData",
     "BackgroundAssetUploadFileUpdateRequest"
   ],

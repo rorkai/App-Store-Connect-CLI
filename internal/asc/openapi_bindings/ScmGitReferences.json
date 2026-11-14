@@ -1,7 +1,13 @@
 {
   "tag": "ScmGitReferences",
   "file": "scm_git_references_gen.go",
+  "types": [
+    "ScmGitReferenceAttributes"
+  ],
   "operations": [
     {"operation":"scmGitReferences_getInstance","name":"GetScmGitReference","params":["referenceID"]}
+  ],
+  "refTypes": [
+    {"schema":"CiGitRefKind","type":"string"}
   ]
 }

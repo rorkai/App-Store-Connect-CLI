@@ -1,0 +1,13 @@
+{
+  "tag": "Yoyos",
+  "file": "yoyos_gen.go",
+  "types": [
+    "YoyoAttributes",
+    "YoyoCreateAttributes",
+    "YoyoUpdateAttributes"
+  ],
+  "refTypes": [
+    {"schema":"YoyoKind","type":"string"},
+    {"schema":"YoyoState","type":"YoyoStatus"}
+  ]
+}

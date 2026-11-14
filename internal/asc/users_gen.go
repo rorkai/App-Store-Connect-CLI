@@ -13,6 +13,13 @@ import (
 // UserResponse is the UserResponse schema.
 type UserResponse = SingleResponse[UserAttributes]
 
+// UserUpdateAttributes is the data.attributes object of the UserUpdateRequest schema.
+type UserUpdateAttributes struct {
+	Roles               []string `json:"roles,omitempty"`
+	AllAppsVisible      *bool    `json:"allAppsVisible,omitempty"`
+	ProvisioningAllowed *bool    `json:"provisioningAllowed,omitempty"`
+}
+
 // UserUpdateRequest is the UserUpdateRequest schema.
 type UserUpdateRequest struct {
 	Data UserUpdateData `json:"data"`

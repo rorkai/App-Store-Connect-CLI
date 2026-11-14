@@ -22,31 +22,35 @@ func loadTestdata(t *testing.T) (*Spec, *Bindings) {
 
 func TestGenerateMatchesGolden(t *testing.T) {
 	spec, bindings := loadTestdata(t)
-	got, err := Generate(spec, bindings.Families[0])
-	if err != nil {
-		t.Fatal(err)
-	}
-	want, err := os.ReadFile(filepath.Join("testdata", "widgets_gen.go.golden"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != string(want) {
-		t.Errorf("generated file differs from testdata/widgets_gen.go.golden:\n%s", got)
+	for _, fam := range bindings.Families {
+		got, err := Generate(spec, fam)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := os.ReadFile(filepath.Join("testdata", fam.File+".golden"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != string(want) {
+			t.Errorf("generated file differs from testdata/%s.golden:\n%s", fam.File, got)
+		}
 	}
 }
 
 func TestBindingsEncodeIsCanonical(t *testing.T) {
 	_, bindings := loadTestdata(t)
-	got, err := bindings.Families[0].Encode()
-	if err != nil {
-		t.Fatal(err)
-	}
-	want, err := os.ReadFile(filepath.Join("testdata", "bindings", "Widgets.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != string(want) {
-		t.Errorf("Encode differs from testdata/bindings/Widgets.json:\n%s", got)
+	for _, fam := range bindings.Families {
+		got, err := fam.Encode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := os.ReadFile(bindingsFile(filepath.Join("testdata", "bindings"), fam.Tag))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != string(want) {
+			t.Errorf("Encode differs from testdata/bindings/%s.json:\n%s", fam.Tag, got)
+		}
 	}
 }
 
@@ -126,6 +130,13 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"two args for one attribute", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Args: []ArgBind{{Name: "fileName"}, {Name: "name", Attribute: "fileName"}}}}}},
 		{"int64 arg with a generated attributes type", &Family{Types: []string{"WrenchCreateAttributes"}, Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Args: []ArgBind{{Name: "fileName"}, {Name: "fileSize", Type: "int64"}}}}}},
 		{"args with an attributes style", &Family{Operations: []*OpBind{{Operation: "wrenches_updateInstance", Name: "X", Params: []string{"id"}, Attrs: attrsValue, Args: []ArgBind{{Name: "uploaded"}}}}}},
+		{"reference to a schema that is neither an enum nor an object", &Family{Types: []string{"YoyoPlainAttributes"}}},
+		{"reference to an object without properties", &Family{Types: []string{"YoyoOddAttributes"}}},
+		{"record of a schema the spec lacks", &Family{Types: []string{"YoyoAttributes"}, RefTypes: []*RefType{{Schema: "YoyoMissing", Type: "Yoyo"}}}},
+		{"record that is not a type name", &Family{Types: []string{"YoyoAttributes"}, RefTypes: []*RefType{{Schema: "YoyoState", Type: "*YoyoStatus"}}}},
+		{"record of an object as a string", &Family{Types: []string{"YoyoAttributes"}, RefTypes: []*RefType{{Schema: "YoyoImage", Type: "string"}}}},
+		{"record of a schema that is neither an enum nor an object", &Family{RefTypes: []*RefType{{Schema: "YoyoNote", Type: "YoyoText"}}}},
+		{"schema recorded twice", &Family{Types: []string{"YoyoAttributes"}, RefTypes: []*RefType{{Schema: "YoyoState", Type: "YoyoStatus"}, {Schema: "YoyoState", Type: "YoyoPhase"}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

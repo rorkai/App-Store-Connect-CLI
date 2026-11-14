@@ -2,6 +2,7 @@
   "tag": "AlternativeDistributionPackages",
   "file": "alternative_distribution_packages_gen.go",
   "types": [
+    "AlternativeDistributionPackageAttributes",
     "AlternativeDistributionPackageCreateData",
     "AlternativeDistributionPackageCreateRelationships",
     "AlternativeDistributionPackageCreateRequest",

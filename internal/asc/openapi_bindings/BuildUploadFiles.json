@@ -4,6 +4,7 @@
   "types": [
     "BuildUploadFileCreateRequest",
     "BuildUploadFileRelationships",
+    "BuildUploadFileUpdateAttributes",
     "BuildUploadFileUpdateData",
     "BuildUploadFileUpdateRequest"
   ],

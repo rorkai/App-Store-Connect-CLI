@@ -39,21 +39,6 @@ type AppStoreVersionExperimentV2Attributes struct {
 // AppStoreVersionExperimentsV2Response is the response from experiment list endpoints (v2).
 type AppStoreVersionExperimentsV2Response = Response[AppStoreVersionExperimentV2Attributes]
 
-// AppStoreVersionExperimentV2CreateAttributes describes create payload attributes (v2).
-type AppStoreVersionExperimentV2CreateAttributes struct {
-	Name              string   `json:"name"`
-	Platform          Platform `json:"platform"`
-	TrafficProportion int      `json:"trafficProportion"`
-}
-
-// AppStoreVersionExperimentTreatmentAttributes describes treatment attributes.
-type AppStoreVersionExperimentTreatmentAttributes struct {
-	Name         string      `json:"name,omitempty"`
-	AppIcon      *ImageAsset `json:"appIcon,omitempty"`
-	AppIconName  string      `json:"appIconName,omitempty"`
-	PromotedDate string      `json:"promotedDate,omitempty"`
-}
-
 // AppStoreVersionExperimentTreatmentsResponse is the response from treatment list endpoints.
 type AppStoreVersionExperimentTreatmentsResponse = Response[AppStoreVersionExperimentTreatmentAttributes]
 

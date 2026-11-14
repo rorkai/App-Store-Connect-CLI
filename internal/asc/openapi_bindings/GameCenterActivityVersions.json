@@ -2,6 +2,7 @@
   "tag": "GameCenterActivityVersions",
   "file": "game_center_activity_versions_gen.go",
   "types": [
+    "GameCenterActivityVersionAttributes",
     "GameCenterActivityVersionCreateAttributes",
     "GameCenterActivityVersionCreateData",
     "GameCenterActivityVersionCreateRequest",

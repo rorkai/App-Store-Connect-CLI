@@ -9,8 +9,24 @@ import (
 	"strings"
 )
 
+// SubscriptionGracePeriodAttributes is the attributes object of the SubscriptionGracePeriod schema.
+type SubscriptionGracePeriodAttributes struct {
+	OptIn        bool   `json:"optIn,omitempty"`
+	SandboxOptIn bool   `json:"sandboxOptIn,omitempty"`
+	Duration     string `json:"duration,omitempty"`
+	RenewalType  string `json:"renewalType,omitempty"`
+}
+
 // SubscriptionGracePeriodResponse is the SubscriptionGracePeriodResponse schema.
 type SubscriptionGracePeriodResponse = SingleResponse[SubscriptionGracePeriodAttributes]
+
+// SubscriptionGracePeriodUpdateAttributes is the data.attributes object of the SubscriptionGracePeriodUpdateRequest schema.
+type SubscriptionGracePeriodUpdateAttributes struct {
+	OptIn        *bool   `json:"optIn,omitempty"`
+	SandboxOptIn *bool   `json:"sandboxOptIn,omitempty"`
+	Duration     *string `json:"duration,omitempty"`
+	RenewalType  *string `json:"renewalType,omitempty"`
+}
 
 // SubscriptionGracePeriodUpdateRequest is the SubscriptionGracePeriodUpdateRequest schema.
 type SubscriptionGracePeriodUpdateRequest struct {

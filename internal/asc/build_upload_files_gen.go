@@ -18,6 +18,12 @@ type BuildUploadFileRelationships struct {
 	BuildUpload *Relationship `json:"buildUpload"`
 }
 
+// BuildUploadFileUpdateAttributes is the data.attributes object of the BuildUploadFileUpdateRequest schema.
+type BuildUploadFileUpdateAttributes struct {
+	SourceFileChecksums *Checksums `json:"sourceFileChecksums,omitempty"`
+	Uploaded            *bool      `json:"uploaded,omitempty"`
+}
+
 // BuildUploadFileUpdateData is the data object of the BuildUploadFileUpdateRequest schema.
 type BuildUploadFileUpdateData struct {
 	Type       ResourceType                     `json:"type"`

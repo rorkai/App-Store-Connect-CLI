@@ -10,6 +10,16 @@ import (
 	"strings"
 )
 
+// AppClipDefaultExperienceAttributes is the attributes object of the AppClipDefaultExperience schema.
+type AppClipDefaultExperienceAttributes struct {
+	Action AppClipAction `json:"action,omitempty"`
+}
+
+// AppClipDefaultExperienceCreateAttributes is the data.attributes object of the AppClipDefaultExperienceCreateRequest schema.
+type AppClipDefaultExperienceCreateAttributes struct {
+	Action *AppClipAction `json:"action,omitempty"`
+}
+
 // AppClipDefaultExperienceCreateData is the data object of the AppClipDefaultExperienceCreateRequest schema.
 type AppClipDefaultExperienceCreateData struct {
 	Type          ResourceType                                 `json:"type"`
@@ -27,6 +37,11 @@ type AppClipDefaultExperienceCreateRelationships struct {
 // AppClipDefaultExperienceCreateRequest is the AppClipDefaultExperienceCreateRequest schema.
 type AppClipDefaultExperienceCreateRequest struct {
 	Data AppClipDefaultExperienceCreateData `json:"data"`
+}
+
+// AppClipDefaultExperienceUpdateAttributes is the data.attributes object of the AppClipDefaultExperienceUpdateRequest schema.
+type AppClipDefaultExperienceUpdateAttributes struct {
+	Action *AppClipAction `json:"action,omitempty"`
 }
 
 // AppClipDefaultExperienceUpdateRequest is the AppClipDefaultExperienceUpdateRequest schema.
