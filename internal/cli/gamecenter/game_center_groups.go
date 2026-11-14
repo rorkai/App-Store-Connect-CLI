@@ -112,22 +112,22 @@ Examples:
 			}
 
 			opts := []asc.GCGroupsOption{
-				asc.WithGCGroupsLimit(*limit),
-				asc.WithGCGroupsNextURL(*next),
+				asc.Limit[asc.GCGroupsOption](*limit),
+				asc.NextURL[asc.GCGroupsOption](*next),
 			}
 			if gcDetailID != "" {
 				opts = append(opts, asc.WithGCGroupsGameCenterDetailIDs([]string{gcDetailID}))
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCGroupsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCGroupsOption](200))
 				firstPage, err := client.GetGameCenterGroups(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center groups list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterGroups(ctx, asc.WithGCGroupsNextURL(nextURL))
+					return client.GetGameCenterGroups(ctx, asc.NextURL[asc.GCGroupsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center groups list: %w", err)
@@ -361,9 +361,9 @@ Examples:
 		FetchErrorPrefix: "game-center groups achievements list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupID string, limit int, next string) (asc.PaginatedResponse, error) {
 			if *v2 {
-				return client.GetGameCenterGroupAchievementsV2(ctx, groupID, asc.WithGCAchievementsLimit(limit), asc.WithGCAchievementsNextURL(next))
+				return client.GetGameCenterGroupAchievementsV2(ctx, groupID, asc.Limit[asc.GCAchievementsOption](limit), asc.NextURL[asc.GCAchievementsOption](next))
 			}
-			return client.GetGameCenterGroupAchievements(ctx, groupID, asc.WithGCAchievementsLimit(limit), asc.WithGCAchievementsNextURL(next))
+			return client.GetGameCenterGroupAchievements(ctx, groupID, asc.Limit[asc.GCAchievementsOption](limit), asc.NextURL[asc.GCAchievementsOption](next))
 		},
 	})
 }
@@ -483,9 +483,9 @@ Examples:
 		FetchErrorPrefix: "game-center groups leaderboards list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupID string, limit int, next string) (asc.PaginatedResponse, error) {
 			if *v2 {
-				return client.GetGameCenterGroupLeaderboardsV2(ctx, groupID, asc.WithGCLeaderboardsLimit(limit), asc.WithGCLeaderboardsNextURL(next))
+				return client.GetGameCenterGroupLeaderboardsV2(ctx, groupID, asc.Limit[asc.GCLeaderboardsOption](limit), asc.NextURL[asc.GCLeaderboardsOption](next))
 			}
-			return client.GetGameCenterGroupLeaderboards(ctx, groupID, asc.WithGCLeaderboardsLimit(limit), asc.WithGCLeaderboardsNextURL(next))
+			return client.GetGameCenterGroupLeaderboards(ctx, groupID, asc.Limit[asc.GCLeaderboardsOption](limit), asc.NextURL[asc.GCLeaderboardsOption](next))
 		},
 	})
 }
@@ -603,9 +603,9 @@ Examples:
 		FetchErrorPrefix: "game-center groups leaderboard-sets list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupID string, limit int, next string) (asc.PaginatedResponse, error) {
 			if *v2 {
-				return client.GetGameCenterGroupLeaderboardSetsV2(ctx, groupID, asc.WithGCLeaderboardSetsLimit(limit), asc.WithGCLeaderboardSetsNextURL(next))
+				return client.GetGameCenterGroupLeaderboardSetsV2(ctx, groupID, asc.Limit[asc.GCLeaderboardSetsOption](limit), asc.NextURL[asc.GCLeaderboardSetsOption](next))
 			}
-			return client.GetGameCenterGroupLeaderboardSets(ctx, groupID, asc.WithGCLeaderboardSetsLimit(limit), asc.WithGCLeaderboardSetsNextURL(next))
+			return client.GetGameCenterGroupLeaderboardSets(ctx, groupID, asc.Limit[asc.GCLeaderboardSetsOption](limit), asc.NextURL[asc.GCLeaderboardSetsOption](next))
 		},
 	})
 }
@@ -655,7 +655,7 @@ Examples:
 		ErrorPrefix:          "game-center groups activities list",
 		FetchErrorPrefix:     "game-center groups activities list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterGroupActivities(ctx, groupId, asc.WithGCActivitiesLimit(limit), asc.WithGCActivitiesNextURL(next))
+			return client.GetGameCenterGroupActivities(ctx, groupId, asc.Limit[asc.GCActivitiesOption](limit), asc.NextURL[asc.GCActivitiesOption](next))
 		},
 	})
 }
@@ -709,7 +709,7 @@ Examples:
 		ErrorPrefix:          "game-center groups challenges list",
 		FetchErrorPrefix:     "game-center groups challenges list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterGroupChallenges(ctx, groupId, asc.WithGCChallengesLimit(limit), asc.WithGCChallengesNextURL(next))
+			return client.GetGameCenterGroupChallenges(ctx, groupId, asc.Limit[asc.GCChallengesOption](limit), asc.NextURL[asc.GCChallengesOption](next))
 		},
 	})
 }
@@ -759,7 +759,7 @@ Examples:
 		ErrorPrefix:          "game-center groups details list",
 		FetchErrorPrefix:     "game-center groups details list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, groupId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterGroupGameCenterDetails(ctx, groupId, asc.WithGCDetailsLimit(limit), asc.WithGCDetailsNextURL(next))
+			return client.GetGameCenterGroupGameCenterDetails(ctx, groupId, asc.Limit[asc.GCDetailsOption](limit), asc.NextURL[asc.GCDetailsOption](next))
 		},
 	})
 }

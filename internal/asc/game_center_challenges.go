@@ -3,7 +3,6 @@ package asc
 import (
 	"encoding/json"
 	"net/url"
-	"strings"
 )
 
 // GameCenterChallengeAttributes represents a Game Center challenge resource.
@@ -97,24 +96,6 @@ type gcChallengesQuery struct {
 	listQuery
 }
 
-// WithGCChallengesLimit sets the max number of challenges to return.
-func WithGCChallengesLimit(limit int) GCChallengesOption {
-	return func(q *gcChallengesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCChallengesNextURL uses a next page URL directly.
-func WithGCChallengesNextURL(next string) GCChallengesOption {
-	return func(q *gcChallengesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildGCChallengesQuery(query *gcChallengesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -154,24 +135,6 @@ type GCChallengeVersionsOption func(*gcChallengeVersionsQuery)
 
 type gcChallengeVersionsQuery struct {
 	listQuery
-}
-
-// WithGCChallengeVersionsLimit sets the max number of versions to return.
-func WithGCChallengeVersionsLimit(limit int) GCChallengeVersionsOption {
-	return func(q *gcChallengeVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCChallengeVersionsNextURL uses a next page URL directly.
-func WithGCChallengeVersionsNextURL(next string) GCChallengeVersionsOption {
-	return func(q *gcChallengeVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCChallengeVersionsQuery(query *gcChallengeVersionsQuery) string {
@@ -246,24 +209,6 @@ type GCChallengeLocalizationsOption func(*gcChallengeLocalizationsQuery)
 
 type gcChallengeLocalizationsQuery struct {
 	listQuery
-}
-
-// WithGCChallengeLocalizationsLimit sets the max number of localizations to return.
-func WithGCChallengeLocalizationsLimit(limit int) GCChallengeLocalizationsOption {
-	return func(q *gcChallengeLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCChallengeLocalizationsNextURL uses a next page URL directly.
-func WithGCChallengeLocalizationsNextURL(next string) GCChallengeLocalizationsOption {
-	return func(q *gcChallengeLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCChallengeLocalizationsQuery(query *gcChallengeLocalizationsQuery) string {
@@ -389,24 +334,6 @@ type GCChallengeVersionReleasesOption func(*gcChallengeVersionReleasesQuery)
 
 type gcChallengeVersionReleasesQuery struct {
 	listQuery
-}
-
-// WithGCChallengeVersionReleasesLimit sets the max number of releases to return.
-func WithGCChallengeVersionReleasesLimit(limit int) GCChallengeVersionReleasesOption {
-	return func(q *gcChallengeVersionReleasesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCChallengeVersionReleasesNextURL uses a next page URL directly.
-func WithGCChallengeVersionReleasesNextURL(next string) GCChallengeVersionReleasesOption {
-	return func(q *gcChallengeVersionReleasesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCChallengeVersionReleasesQuery(query *gcChallengeVersionReleasesQuery) string {

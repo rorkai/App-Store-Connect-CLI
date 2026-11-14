@@ -111,19 +111,19 @@ Examples:
 			}
 
 			opts := []asc.GCLeaderboardSetsOption{
-				asc.WithGCLeaderboardSetsLimit(*limit),
-				asc.WithGCLeaderboardSetsNextURL(*next),
+				asc.Limit[asc.GCLeaderboardSetsOption](*limit),
+				asc.NextURL[asc.GCLeaderboardSetsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardSetsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetsOption](200))
 				firstPage, err := client.GetGameCenterLeaderboardSetsV2(requestCtx, gcDetailID, group, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetsV2(ctx, gcDetailID, group, asc.WithGCLeaderboardSetsNextURL(nextURL))
+					return client.GetGameCenterLeaderboardSetsV2(ctx, gcDetailID, group, asc.NextURL[asc.GCLeaderboardSetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 list: %w", err)
@@ -423,7 +423,7 @@ Examples:
 		ErrorPrefix:          "game-center leaderboard-sets v2 members list",
 		FetchErrorPrefix:     "game-center leaderboard-sets v2 members list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterLeaderboardSetMembersV2(ctx, setId, asc.WithGCLeaderboardSetMembersLimit(limit), asc.WithGCLeaderboardSetMembersNextURL(next))
+			return client.GetGameCenterLeaderboardSetMembersV2(ctx, setId, asc.Limit[asc.GCLeaderboardSetMembersOption](limit), asc.NextURL[asc.GCLeaderboardSetMembersOption](next))
 		},
 	})
 }
@@ -539,7 +539,7 @@ Examples:
 		ErrorPrefix:          "game-center leaderboard-sets v2 versions list",
 		FetchErrorPrefix:     "game-center leaderboard-sets v2 versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterLeaderboardSetVersions(ctx, setId, asc.WithGCLeaderboardSetVersionsLimit(limit), asc.WithGCLeaderboardSetVersionsNextURL(next))
+			return client.GetGameCenterLeaderboardSetVersions(ctx, setId, asc.Limit[asc.GCLeaderboardSetVersionsOption](limit), asc.NextURL[asc.GCLeaderboardSetVersionsOption](next))
 		},
 	})
 }
@@ -656,7 +656,7 @@ Examples:
 		ErrorPrefix:          "game-center leaderboard-sets v2 localizations list",
 		FetchErrorPrefix:     "game-center leaderboard-sets v2 localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterLeaderboardSetVersionLocalizations(ctx, versionId, asc.WithGCLeaderboardSetLocalizationsLimit(limit), asc.WithGCLeaderboardSetLocalizationsNextURL(next))
+			return client.GetGameCenterLeaderboardSetVersionLocalizations(ctx, versionId, asc.Limit[asc.GCLeaderboardSetLocalizationsOption](limit), asc.NextURL[asc.GCLeaderboardSetLocalizationsOption](next))
 		},
 	})
 }

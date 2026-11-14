@@ -25,7 +25,7 @@ func TestGetGameCenterMatchmakingQueues_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterMatchmakingQueues(context.Background(), WithGCMatchmakingQueuesLimit(10)); err != nil {
+	if _, err := client.GetGameCenterMatchmakingQueues(context.Background(), Limit[GCMatchmakingQueuesOption](10)); err != nil {
 		t.Fatalf("GetGameCenterMatchmakingQueues() error: %v", err)
 	}
 }
@@ -40,7 +40,7 @@ func TestGetGameCenterMatchmakingQueues_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterMatchmakingQueues(context.Background(), WithGCMatchmakingQueuesNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterMatchmakingQueues(context.Background(), NextURL[GCMatchmakingQueuesOption](next)); err != nil {
 		t.Fatalf("GetGameCenterMatchmakingQueues() error: %v", err)
 	}
 }
@@ -163,7 +163,7 @@ func TestGetGameCenterMatchmakingRuleSets_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterMatchmakingRuleSets(context.Background(), WithGCMatchmakingRuleSetsLimit(5)); err != nil {
+	if _, err := client.GetGameCenterMatchmakingRuleSets(context.Background(), Limit[GCMatchmakingRuleSetsOption](5)); err != nil {
 		t.Fatalf("GetGameCenterMatchmakingRuleSets() error: %v", err)
 	}
 }
@@ -279,7 +279,7 @@ func TestGetGameCenterMatchmakingRules_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterMatchmakingRules(context.Background(), "rule-set-1", WithGCMatchmakingRulesLimit(4)); err != nil {
+	if _, err := client.GetGameCenterMatchmakingRules(context.Background(), "rule-set-1", Limit[GCMatchmakingRulesOption](4)); err != nil {
 		t.Fatalf("GetGameCenterMatchmakingRules() error: %v", err)
 	}
 }
@@ -378,7 +378,7 @@ func TestGetGameCenterMatchmakingTeams_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterMatchmakingTeams(context.Background(), "rule-set-1", WithGCMatchmakingTeamsLimit(8)); err != nil {
+	if _, err := client.GetGameCenterMatchmakingTeams(context.Background(), "rule-set-1", Limit[GCMatchmakingTeamsOption](8)); err != nil {
 		t.Fatalf("GetGameCenterMatchmakingTeams() error: %v", err)
 	}
 }
@@ -492,7 +492,7 @@ func TestGetGameCenterMatchmakingQueueRequests_WithFilters(t *testing.T) {
 		WithGCMatchmakingMetricsFilterResult("MATCHED"),
 		WithGCMatchmakingMetricsFilterGameCenterDetail("gc-1"),
 		WithGCMatchmakingMetricsSort([]string{"-count"}),
-		WithGCMatchmakingMetricsLimit(30),
+		Limit[GCMatchmakingMetricsOption](30),
 	}
 	if _, err := client.GetGameCenterMatchmakingQueueRequests(context.Background(), "queue-1", opts...); err != nil {
 		t.Fatalf("GetGameCenterMatchmakingQueueRequests() error: %v", err)
@@ -630,7 +630,7 @@ func TestGetGameCenterMatchmakingRuleSetQueues_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterMatchmakingRuleSetQueues(context.Background(), "rules-1", WithGCMatchmakingQueuesLimit(22)); err != nil {
+	if _, err := client.GetGameCenterMatchmakingRuleSetQueues(context.Background(), "rules-1", Limit[GCMatchmakingQueuesOption](22)); err != nil {
 		t.Fatalf("GetGameCenterMatchmakingRuleSetQueues() error: %v", err)
 	}
 }
@@ -645,7 +645,7 @@ func TestGetGameCenterMatchmakingRuleSetQueues_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterMatchmakingRuleSetQueues(context.Background(), "rules-1", WithGCMatchmakingQueuesNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterMatchmakingRuleSetQueues(context.Background(), "rules-1", NextURL[GCMatchmakingQueuesOption](next)); err != nil {
 		t.Fatalf("GetGameCenterMatchmakingRuleSetQueues() error: %v", err)
 	}
 }
@@ -671,11 +671,11 @@ func TestGameCenterMetricsResponseAccessors(t *testing.T) {
 
 func TestGCMatchmakingQueuesOptions(t *testing.T) {
 	query := &gcMatchmakingQueuesQuery{}
-	WithGCMatchmakingQueuesLimit(12)(query)
+	Limit[GCMatchmakingQueuesOption](12)(query)
 	if query.limit != 12 {
 		t.Fatalf("expected limit 12, got %d", query.limit)
 	}
-	WithGCMatchmakingQueuesNextURL("next")(query)
+	NextURL[GCMatchmakingQueuesOption]("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}
@@ -690,11 +690,11 @@ func TestGCMatchmakingQueuesOptions(t *testing.T) {
 
 func TestGCMatchmakingRuleSetsOptions(t *testing.T) {
 	query := &gcMatchmakingRuleSetsQuery{}
-	WithGCMatchmakingRuleSetsLimit(3)(query)
+	Limit[GCMatchmakingRuleSetsOption](3)(query)
 	if query.limit != 3 {
 		t.Fatalf("expected limit 3, got %d", query.limit)
 	}
-	WithGCMatchmakingRuleSetsNextURL("next")(query)
+	NextURL[GCMatchmakingRuleSetsOption]("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}
@@ -709,11 +709,11 @@ func TestGCMatchmakingRuleSetsOptions(t *testing.T) {
 
 func TestGCMatchmakingRulesOptions(t *testing.T) {
 	query := &gcMatchmakingRulesQuery{}
-	WithGCMatchmakingRulesLimit(7)(query)
+	Limit[GCMatchmakingRulesOption](7)(query)
 	if query.limit != 7 {
 		t.Fatalf("expected limit 7, got %d", query.limit)
 	}
-	WithGCMatchmakingRulesNextURL("next")(query)
+	NextURL[GCMatchmakingRulesOption]("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}
@@ -728,11 +728,11 @@ func TestGCMatchmakingRulesOptions(t *testing.T) {
 
 func TestGCMatchmakingTeamsOptions(t *testing.T) {
 	query := &gcMatchmakingTeamsQuery{}
-	WithGCMatchmakingTeamsLimit(9)(query)
+	Limit[GCMatchmakingTeamsOption](9)(query)
 	if query.limit != 9 {
 		t.Fatalf("expected limit 9, got %d", query.limit)
 	}
-	WithGCMatchmakingTeamsNextURL("next")(query)
+	NextURL[GCMatchmakingTeamsOption]("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}
@@ -753,8 +753,8 @@ func TestGCMatchmakingMetricsOptionsAndQueries(t *testing.T) {
 	WithGCMatchmakingMetricsFilterResult("MATCHED")(query)
 	WithGCMatchmakingMetricsFilterGameCenterDetail("gc-1")(query)
 	WithGCMatchmakingMetricsFilterQueue("queue-1")(query)
-	WithGCMatchmakingMetricsLimit(20)(query)
-	WithGCMatchmakingMetricsNextURL("next")(query)
+	Limit[GCMatchmakingMetricsOption](20)(query)
+	NextURL[GCMatchmakingMetricsOption]("next")(query)
 
 	if query.granularity != "P1D" {
 		t.Fatalf("expected granularity P1D, got %q", query.granularity)

@@ -97,7 +97,7 @@ Examples:
 		ErrorPrefix:          "game-center matchmaking queues list",
 		FetchErrorPrefix:     "game-center matchmaking queues list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterMatchmakingQueues(ctx, asc.WithGCMatchmakingQueuesLimit(limit), asc.WithGCMatchmakingQueuesNextURL(next))
+			return client.GetGameCenterMatchmakingQueues(ctx, asc.Limit[asc.GCMatchmakingQueuesOption](limit), asc.NextURL[asc.GCMatchmakingQueuesOption](next))
 		},
 	})
 }
@@ -336,7 +336,7 @@ Examples:
 		ErrorPrefix:          "game-center matchmaking rule-sets list",
 		FetchErrorPrefix:     "game-center matchmaking rule-sets list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterMatchmakingRuleSets(ctx, asc.WithGCMatchmakingRuleSetsLimit(limit), asc.WithGCMatchmakingRuleSetsNextURL(next))
+			return client.GetGameCenterMatchmakingRuleSets(ctx, asc.Limit[asc.GCMatchmakingRuleSetsOption](limit), asc.NextURL[asc.GCMatchmakingRuleSetsOption](next))
 		},
 	})
 }
@@ -578,7 +578,7 @@ Examples:
 		ErrorPrefix:          "game-center matchmaking rule-sets queues list",
 		FetchErrorPrefix:     "game-center matchmaking rule-sets queues list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterMatchmakingRuleSetQueues(ctx, ruleSetId, asc.WithGCMatchmakingQueuesLimit(limit), asc.WithGCMatchmakingQueuesNextURL(next))
+			return client.GetGameCenterMatchmakingRuleSetQueues(ctx, ruleSetId, asc.Limit[asc.GCMatchmakingQueuesOption](limit), asc.NextURL[asc.GCMatchmakingQueuesOption](next))
 		},
 	})
 }
@@ -634,7 +634,7 @@ Examples:
 		ErrorPrefix:          "game-center matchmaking rules list",
 		FetchErrorPrefix:     "game-center matchmaking rules list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterMatchmakingRules(ctx, ruleSetId, asc.WithGCMatchmakingRulesLimit(limit), asc.WithGCMatchmakingRulesNextURL(next))
+			return client.GetGameCenterMatchmakingRules(ctx, ruleSetId, asc.Limit[asc.GCMatchmakingRulesOption](limit), asc.NextURL[asc.GCMatchmakingRulesOption](next))
 		},
 	})
 }
@@ -899,7 +899,7 @@ Examples:
 		ErrorPrefix:          "game-center matchmaking teams list",
 		FetchErrorPrefix:     "game-center matchmaking teams list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterMatchmakingTeams(ctx, ruleSetId, asc.WithGCMatchmakingTeamsLimit(limit), asc.WithGCMatchmakingTeamsNextURL(next))
+			return client.GetGameCenterMatchmakingTeams(ctx, ruleSetId, asc.Limit[asc.GCMatchmakingTeamsOption](limit), asc.NextURL[asc.GCMatchmakingTeamsOption](next))
 		},
 	})
 }
@@ -1384,8 +1384,8 @@ func runMetricsQueue(ctx context.Context, name string, fs *flag.FlagSet, queueID
 	opts := []asc.GCMatchmakingMetricsOption{
 		asc.WithGCMatchmakingMetricsGranularity(gran),
 		asc.WithGCMatchmakingMetricsSort(shared.SplitCSV(*sort)),
-		asc.WithGCMatchmakingMetricsLimit(*limit),
-		asc.WithGCMatchmakingMetricsNextURL(*next),
+		asc.Limit[asc.GCMatchmakingMetricsOption](*limit),
+		asc.NextURL[asc.GCMatchmakingMetricsOption](*next),
 	}
 	if strings.TrimSpace(groupBy) != "" {
 		opts = append(opts, asc.WithGCMatchmakingMetricsGroupBy(shared.SplitCSV(groupBy)))
@@ -1398,7 +1398,7 @@ func runMetricsQueue(ctx context.Context, name string, fs *flag.FlagSet, queueID
 	}
 
 	if *paginate {
-		paginateOpts := append(opts, asc.WithGCMatchmakingMetricsLimit(200))
+		paginateOpts := append(opts, asc.Limit[asc.GCMatchmakingMetricsOption](200))
 		var firstPage asc.PaginatedResponse
 		var err error
 		if fetchRequests != nil {
@@ -1412,9 +1412,9 @@ func runMetricsQueue(ctx context.Context, name string, fs *flag.FlagSet, queueID
 
 		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 			if fetchRequests != nil {
-				return fetchRequests(client, ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
+				return fetchRequests(client, ctx, id, asc.NextURL[asc.GCMatchmakingMetricsOption](nextURL))
 			}
-			return fetchSizes(client, ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
+			return fetchSizes(client, ctx, id, asc.NextURL[asc.GCMatchmakingMetricsOption](nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
@@ -1474,22 +1474,22 @@ func runMetricsRule(ctx context.Context, name string, fs *flag.FlagSet, support 
 		asc.WithGCMatchmakingMetricsGroupBy(dimensions),
 		asc.WithGCMatchmakingMetricsFilterQueue(strings.TrimSpace(*filterQueue)),
 		asc.WithGCMatchmakingMetricsSort(shared.SplitCSV(*sort)),
-		asc.WithGCMatchmakingMetricsLimit(*limit),
-		asc.WithGCMatchmakingMetricsNextURL(*next),
+		asc.Limit[asc.GCMatchmakingMetricsOption](*limit),
+		asc.NextURL[asc.GCMatchmakingMetricsOption](*next),
 	}
 	if support.filterResult && strings.TrimSpace(*filterResult) != "" {
 		opts = append(opts, asc.WithGCMatchmakingMetricsFilterResult(strings.TrimSpace(*filterResult)))
 	}
 
 	if *paginate {
-		paginateOpts := append(opts, asc.WithGCMatchmakingMetricsLimit(200))
+		paginateOpts := append(opts, asc.Limit[asc.GCMatchmakingMetricsOption](200))
 		firstPage, err := fetch(client, requestCtx, id, paginateOpts...)
 		if err != nil {
 			return fmt.Errorf("game-center matchmaking metrics %s: failed to fetch: %w", name, err)
 		}
 
 		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return fetch(client, ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
+			return fetch(client, ctx, id, asc.NextURL[asc.GCMatchmakingMetricsOption](nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)

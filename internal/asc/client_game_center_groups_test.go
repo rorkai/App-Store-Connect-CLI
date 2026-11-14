@@ -27,7 +27,7 @@ func TestGetGameCenterGroups_WithLimitAndFilter(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroups(context.Background(), WithGCGroupsLimit(15), WithGCGroupsGameCenterDetailIDs([]string{"gc-1", "gc-2"})); err != nil {
+	if _, err := client.GetGameCenterGroups(context.Background(), Limit[GCGroupsOption](15), WithGCGroupsGameCenterDetailIDs([]string{"gc-1", "gc-2"})); err != nil {
 		t.Fatalf("GetGameCenterGroups() error: %v", err)
 	}
 }
@@ -42,7 +42,7 @@ func TestGetGameCenterGroups_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroups(context.Background(), WithGCGroupsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterGroups(context.Background(), NextURL[GCGroupsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterGroups() error: %v", err)
 	}
 }
@@ -238,11 +238,11 @@ func TestUpdateGameCenterGroupLeaderboardsV2(t *testing.T) {
 
 func TestGCGroupsOptions(t *testing.T) {
 	query := &gcGroupsQuery{}
-	WithGCGroupsLimit(10)(query)
+	Limit[GCGroupsOption](10)(query)
 	if query.limit != 10 {
 		t.Fatalf("expected limit 10, got %d", query.limit)
 	}
-	WithGCGroupsNextURL("next")(query)
+	NextURL[GCGroupsOption]("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}
@@ -277,7 +277,7 @@ func TestGetGameCenterGroupAchievements_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroupAchievements(context.Background(), "group-1", WithGCAchievementsLimit(10)); err != nil {
+	if _, err := client.GetGameCenterGroupAchievements(context.Background(), "group-1", Limit[GCAchievementsOption](10)); err != nil {
 		t.Fatalf("GetGameCenterGroupAchievements() error: %v", err)
 	}
 }
@@ -292,7 +292,7 @@ func TestGetGameCenterGroupAchievements_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroupAchievements(context.Background(), "group-1", WithGCAchievementsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterGroupAchievements(context.Background(), "group-1", NextURL[GCAchievementsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterGroupAchievements() error: %v", err)
 	}
 }
@@ -309,7 +309,7 @@ func TestGetGameCenterGroupAchievementsV2_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroupAchievementsV2(context.Background(), "group-1", WithGCAchievementsLimit(15)); err != nil {
+	if _, err := client.GetGameCenterGroupAchievementsV2(context.Background(), "group-1", Limit[GCAchievementsOption](15)); err != nil {
 		t.Fatalf("GetGameCenterGroupAchievementsV2() error: %v", err)
 	}
 }
@@ -326,7 +326,7 @@ func TestGetGameCenterGroupActivities_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroupActivities(context.Background(), "group-1", WithGCActivitiesLimit(20)); err != nil {
+	if _, err := client.GetGameCenterGroupActivities(context.Background(), "group-1", Limit[GCActivitiesOption](20)); err != nil {
 		t.Fatalf("GetGameCenterGroupActivities() error: %v", err)
 	}
 }
@@ -343,7 +343,7 @@ func TestGetGameCenterGroupChallenges_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroupChallenges(context.Background(), "group-1", WithGCChallengesLimit(25)); err != nil {
+	if _, err := client.GetGameCenterGroupChallenges(context.Background(), "group-1", Limit[GCChallengesOption](25)); err != nil {
 		t.Fatalf("GetGameCenterGroupChallenges() error: %v", err)
 	}
 }
@@ -360,7 +360,7 @@ func TestGetGameCenterGroupLeaderboards_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroupLeaderboards(context.Background(), "group-1", WithGCLeaderboardsLimit(30)); err != nil {
+	if _, err := client.GetGameCenterGroupLeaderboards(context.Background(), "group-1", Limit[GCLeaderboardsOption](30)); err != nil {
 		t.Fatalf("GetGameCenterGroupLeaderboards() error: %v", err)
 	}
 }
@@ -377,7 +377,7 @@ func TestGetGameCenterGroupLeaderboardsV2_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroupLeaderboardsV2(context.Background(), "group-1", WithGCLeaderboardsLimit(35)); err != nil {
+	if _, err := client.GetGameCenterGroupLeaderboardsV2(context.Background(), "group-1", Limit[GCLeaderboardsOption](35)); err != nil {
 		t.Fatalf("GetGameCenterGroupLeaderboardsV2() error: %v", err)
 	}
 }
@@ -394,7 +394,7 @@ func TestGetGameCenterGroupLeaderboardSets_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroupLeaderboardSets(context.Background(), "group-1", WithGCLeaderboardSetsLimit(40)); err != nil {
+	if _, err := client.GetGameCenterGroupLeaderboardSets(context.Background(), "group-1", Limit[GCLeaderboardSetsOption](40)); err != nil {
 		t.Fatalf("GetGameCenterGroupLeaderboardSets() error: %v", err)
 	}
 }
@@ -411,7 +411,7 @@ func TestGetGameCenterGroupLeaderboardSetsV2_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterGroupLeaderboardSetsV2(context.Background(), "group-1", WithGCLeaderboardSetsLimit(45)); err != nil {
+	if _, err := client.GetGameCenterGroupLeaderboardSetsV2(context.Background(), "group-1", Limit[GCLeaderboardSetsOption](45)); err != nil {
 		t.Fatalf("GetGameCenterGroupLeaderboardSetsV2() error: %v", err)
 	}
 }

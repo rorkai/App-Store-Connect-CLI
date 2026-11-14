@@ -22,7 +22,7 @@ func TestGetGameCenterAchievementsV2_WithDetailLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterAchievementsV2(context.Background(), "gc-detail-1", "", WithGCAchievementsLimit(50)); err != nil {
+	if _, err := client.GetGameCenterAchievementsV2(context.Background(), "gc-detail-1", "", Limit[GCAchievementsOption](50)); err != nil {
 		t.Fatalf("GetGameCenterAchievementsV2() error: %v", err)
 	}
 }
@@ -59,7 +59,7 @@ func TestGetGameCenterAchievementVersions_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterAchievementVersions(context.Background(), "ach-1", WithGCAchievementVersionsLimit(10)); err != nil {
+	if _, err := client.GetGameCenterAchievementVersions(context.Background(), "ach-1", Limit[GCAchievementVersionsOption](10)); err != nil {
 		t.Fatalf("GetGameCenterAchievementVersions() error: %v", err)
 	}
 }
@@ -77,7 +77,7 @@ func TestGetGameCenterAchievementVersions_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterAchievementVersions(context.Background(), "ach-1", WithGCAchievementVersionsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterAchievementVersions(context.Background(), "ach-1", NextURL[GCAchievementVersionsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterAchievementVersions() error: %v", err)
 	}
 }
@@ -379,7 +379,7 @@ func TestGetGameCenterLeaderboardVersions_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterLeaderboardVersions(context.Background(), "lb-1", WithGCLeaderboardVersionsLimit(10)); err != nil {
+	if _, err := client.GetGameCenterLeaderboardVersions(context.Background(), "lb-1", Limit[GCLeaderboardVersionsOption](10)); err != nil {
 		t.Fatalf("GetGameCenterLeaderboardVersions() error: %v", err)
 	}
 }
@@ -397,7 +397,7 @@ func TestGetGameCenterLeaderboardVersions_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterLeaderboardVersions(context.Background(), "lb-1", WithGCLeaderboardVersionsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterLeaderboardVersions(context.Background(), "lb-1", NextURL[GCLeaderboardVersionsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterLeaderboardVersions() error: %v", err)
 	}
 }
@@ -674,7 +674,7 @@ func TestGetGameCenterLeaderboardSetsV2_WithDetailLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterLeaderboardSetsV2(context.Background(), "gc-detail-1", "", WithGCLeaderboardSetsLimit(25)); err != nil {
+	if _, err := client.GetGameCenterLeaderboardSetsV2(context.Background(), "gc-detail-1", "", Limit[GCLeaderboardSetsOption](25)); err != nil {
 		t.Fatalf("GetGameCenterLeaderboardSetsV2() error: %v", err)
 	}
 }
