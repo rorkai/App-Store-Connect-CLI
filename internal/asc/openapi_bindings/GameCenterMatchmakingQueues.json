@@ -1,0 +1,22 @@
+{
+  "tag": "GameCenterMatchmakingQueues",
+  "file": "game_center_matchmaking_queues_gen.go",
+  "types": [
+    "GameCenterMatchmakingQueueCreateAttributes",
+    "GameCenterMatchmakingQueueCreateRequest",
+    "GameCenterMatchmakingQueueResponse",
+    "GameCenterMatchmakingQueueUpdateAttributes",
+    "GameCenterMatchmakingQueueUpdateRequest",
+    "GameCenterMatchmakingQueuesResponse"
+  ],
+  "operations": [
+    {"operation":"gameCenterMatchmakingQueues_deleteInstance","name":"DeleteGameCenterMatchmakingQueue","params":["queueID"]},
+    {"operation":"gameCenterMatchmakingQueues_experimentMatchmakingQueueSizes_getMetrics","name":"GetGameCenterMatchmakingQueueExperimentSizes","params":["queueID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingQueueSizesQuery","nextContext":"game-center-matchmaking-experiment-queue-sizes","response":"GameCenterMatchmakingQueueExperimentSizesResponse"},
+    {"operation":"gameCenterMatchmakingQueues_experimentMatchmakingRequests_getMetrics","name":"GetGameCenterMatchmakingQueueExperimentRequests","params":["queueID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingQueueRequestsQuery","nextContext":"game-center-matchmaking-experiment-requests","response":"GameCenterMatchmakingQueueExperimentRequestsResponse"},
+    {"operation":"gameCenterMatchmakingQueues_getCollection","name":"GetGameCenterMatchmakingQueues","options":"GCMatchmakingQueuesOption","query":"buildGCMatchmakingQueuesQuery","nextContext":"game-center-matchmaking-queues"},
+    {"operation":"gameCenterMatchmakingQueues_getInstance","name":"GetGameCenterMatchmakingQueue","params":["queueID"]},
+    {"operation":"gameCenterMatchmakingQueues_matchmakingQueueSizes_getMetrics","name":"GetGameCenterMatchmakingQueueSizes","params":["queueID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingQueueSizesQuery","nextContext":"game-center-matchmaking-queue-sizes","response":"GameCenterMatchmakingQueueSizesResponse"},
+    {"operation":"gameCenterMatchmakingQueues_matchmakingRequests_getMetrics","name":"GetGameCenterMatchmakingQueueRequests","params":["queueID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingQueueRequestsQuery","nextContext":"game-center-matchmaking-queue-requests","response":"GameCenterMatchmakingQueueRequestsResponse"},
+    {"operation":"gameCenterMatchmakingQueues_matchmakingSessions_getMetrics","name":"GetGameCenterMatchmakingQueueSessions","params":["queueID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingQueueSessionsQuery","nextContext":"game-center-matchmaking-queue-sessions","response":"GameCenterMatchmakingQueueSessionsResponse"}
+  ]
+}

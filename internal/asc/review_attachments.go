@@ -20,9 +20,6 @@ type AppStoreReviewAttachmentAttributes struct {
 // AppStoreReviewAttachmentsResponse is the response for attachment lists.
 type AppStoreReviewAttachmentsResponse = Response[AppStoreReviewAttachmentAttributes]
 
-// AppStoreReviewAttachmentResponse is the response for attachment detail.
-type AppStoreReviewAttachmentResponse = SingleResponse[AppStoreReviewAttachmentAttributes]
-
 // AppStoreReviewAttachmentCreateAttributes describes create attributes.
 type AppStoreReviewAttachmentCreateAttributes struct {
 	FileSize int64  `json:"fileSize"`
@@ -39,29 +36,6 @@ type AppStoreReviewAttachmentCreateData struct {
 	Type          ResourceType                             `json:"type"`
 	Attributes    AppStoreReviewAttachmentCreateAttributes `json:"attributes"`
 	Relationships *AppStoreReviewAttachmentRelationships   `json:"relationships"`
-}
-
-// AppStoreReviewAttachmentCreateRequest is a request to create an attachment.
-type AppStoreReviewAttachmentCreateRequest struct {
-	Data AppStoreReviewAttachmentCreateData `json:"data"`
-}
-
-// AppStoreReviewAttachmentUpdateAttributes describes update attributes.
-type AppStoreReviewAttachmentUpdateAttributes struct {
-	SourceFileChecksum *string `json:"sourceFileChecksum,omitempty"`
-	Uploaded           *bool   `json:"uploaded,omitempty"`
-}
-
-// AppStoreReviewAttachmentUpdateData is the data portion of an update request.
-type AppStoreReviewAttachmentUpdateData struct {
-	Type       ResourceType                              `json:"type"`
-	ID         string                                    `json:"id"`
-	Attributes *AppStoreReviewAttachmentUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// AppStoreReviewAttachmentUpdateRequest is a request to update an attachment.
-type AppStoreReviewAttachmentUpdateRequest struct {
-	Data AppStoreReviewAttachmentUpdateData `json:"data"`
 }
 
 // AppStoreReviewAttachmentDeleteResult represents CLI output for deletions.
@@ -174,14 +148,4 @@ func (c *Client) UpdateAppStoreReviewAttachment(ctx context.Context, attachmentI
 		payload.Data.Attributes = &attrs
 	}
 	return sendJSON[AppStoreReviewAttachmentResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID), Payload: payload})
-}
-
-// DeleteAppStoreReviewAttachment deletes an attachment by ID.
-func (c *Client) DeleteAppStoreReviewAttachment(ctx context.Context, attachmentID string) error {
-	attachmentID = strings.TrimSpace(attachmentID)
-	if attachmentID == "" {
-		return fmt.Errorf("attachmentID is required")
-	}
-
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID), nil)
 }

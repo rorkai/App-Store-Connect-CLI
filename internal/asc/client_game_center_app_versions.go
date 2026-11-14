@@ -62,8 +62,3 @@ func (c *Client) UpdateGameCenterAppVersion(ctx context.Context, appVersionID st
 
 	return sendJSON[GameCenterAppVersionResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterAppVersions/%s", appVersionID), Payload: payload})
 }
-
-// GetAppStoreVersionGameCenterAppVersion retrieves the related Game Center app version.
-func (c *Client) GetAppStoreVersionGameCenterAppVersion(ctx context.Context, versionID string) (*GameCenterAppVersionResponse, error) {
-	return getJSON[GameCenterAppVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/gameCenterAppVersion", strings.TrimSpace(versionID))})
-}

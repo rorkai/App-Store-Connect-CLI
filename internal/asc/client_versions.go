@@ -58,11 +58,6 @@ type AppStoreVersionUpdateData struct {
 	Relationships *AppStoreVersionUpdateRelationships `json:"relationships,omitempty"`
 }
 
-// AppStoreVersionUpdateRequest is a request to update an app store version.
-type AppStoreVersionUpdateRequest struct {
-	Data AppStoreVersionUpdateData `json:"data"`
-}
-
 // AppStoreVersionCreateRelationships describes relationships for app store version create requests.
 type AppStoreVersionCreateRelationships struct {
 	App   *Relationship `json:"app"`
@@ -76,16 +71,8 @@ type AppStoreVersionCreateData struct {
 	Relationships *AppStoreVersionCreateRelationships `json:"relationships"`
 }
 
-// AppStoreVersionCreateRequest is a request to create an app store version.
-type AppStoreVersionCreateRequest struct {
-	Data AppStoreVersionCreateData `json:"data"`
-}
-
 // AppStoreVersionsResponse is the response from app store versions endpoints.
 type AppStoreVersionsResponse = Response[AppStoreVersionAttributes]
-
-// AppStoreVersionResponse is the response from app store version detail.
-type AppStoreVersionResponse = SingleResponse[AppStoreVersionAttributes]
 
 // PreReleaseVersionAttributes describes TestFlight pre-release version metadata.
 type PreReleaseVersionAttributes struct {
@@ -240,12 +227,6 @@ func (c *Client) UpdateAppStoreVersionWithBuild(ctx context.Context, versionID, 
 		}
 	}
 	return sendJSON[AppStoreVersionResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appStoreVersions/%s", strings.TrimSpace(versionID)), Payload: payload})
-}
-
-// DeleteAppStoreVersion deletes an app store version.
-// Only versions in PREPARE_FOR_SUBMISSION state can be deleted.
-func (c *Client) DeleteAppStoreVersion(ctx context.Context, versionID string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersions/%s", strings.TrimSpace(versionID)), nil)
 }
 
 // AttachBuildToVersion attaches a build to an app store version.
