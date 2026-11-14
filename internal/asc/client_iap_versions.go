@@ -427,15 +427,3 @@ func (c *Client) GetInAppPurchaseImageV2(ctx context.Context, imageID string, op
 	q := applyOptions(opts)
 	return getJSON[InAppPurchaseImageV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID), Query: buildIAPImageFieldsQuery(q)})
 }
-
-func (c *Client) UpdateInAppPurchaseImageV2(ctx context.Context, imageID string, attrs InAppPurchaseImageV2UpdateAttributes) (*InAppPurchaseImageV2Response, error) {
-	imageID = strings.TrimSpace(imageID)
-	if imageID == "" {
-		return nil, fmt.Errorf("imageID is required")
-	}
-	payload := InAppPurchaseImageV2UpdateRequest{Data: InAppPurchaseImageV2UpdateData{Type: ResourceTypeInAppPurchaseImages, ID: imageID}}
-	if attrs.Uploaded != nil {
-		payload.Data.Attributes = &attrs
-	}
-	return sendJSON[InAppPurchaseImageV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID), Payload: payload})
-}

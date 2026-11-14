@@ -33,6 +33,13 @@ const (
 	checkRaw     = "raw"     // use the parameter as given
 )
 
+// Ways an optional attributes object reaches the data of a create or update
+// request. The default takes the argument by value and sends its address.
+const (
+	attrsValue   = "value"   // send the value; the data type holds it by value
+	attrsPointer = "pointer" // take a pointer argument and send it as given
+)
+
 // OpBind binds one spec operation to one client method. Empty fields take the
 // default rule documented next to each field.
 type OpBind struct {
@@ -55,7 +62,10 @@ type OpBind struct {
 	// Single marks a read of one resource that sends a query and follows no
 	// next URL. Its builder takes the options, or a fields []string argument
 	// when there is no option type.
-	Single bool `json:"single,omitempty"`
+	Single bool   `json:"single,omitempty"`
+	Attrs  string `json:"attrs,omitempty"` // "", attrsValue or attrsPointer
+	// SkipEmptyAttributes sends the attributes only when one of them is set.
+	SkipEmptyAttributes bool `json:"skipEmptyAttributes,omitempty"`
 	// Args are parameters after the path parameters that a create or update
 	// sets as body attributes, in signature order, which is also the order
 	// the attributes literal lists them in.

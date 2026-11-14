@@ -50,3 +50,19 @@ func (c *Client) GetWinBackOfferPricesRelationships(ctx context.Context, offerID
 		NextContext: "winBackOfferPrices relationships",
 	})
 }
+
+// UpdateWinBackOffer sends PATCH /v1/winBackOffers/{id} (winBackOffers_updateInstance).
+func (c *Client) UpdateWinBackOffer(ctx context.Context, offerID string, attrs WinBackOfferUpdateAttributes) (*WinBackOfferResponse, error) {
+	payload := WinBackOfferUpdateRequest{
+		Data: WinBackOfferUpdateData{
+			Type:       ResourceTypeWinBackOffers,
+			ID:         strings.TrimSpace(offerID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[WinBackOfferResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/winBackOffers/%s", strings.TrimSpace(offerID)),
+		Payload: payload,
+	})
+}

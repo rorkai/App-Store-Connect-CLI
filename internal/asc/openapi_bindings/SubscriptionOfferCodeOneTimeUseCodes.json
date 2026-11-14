@@ -8,6 +8,7 @@
     "SubscriptionOfferCodeOneTimeUseCodeUpdateRequest"
   ],
   "operations": [
-    {"operation":"subscriptionOfferCodeOneTimeUseCodes_getInstance","name":"GetSubscriptionOfferCodeOneTimeUseCode","params":["oneTimeUseCodeID"],"check":"trim"}
+    {"operation":"subscriptionOfferCodeOneTimeUseCodes_getInstance","name":"GetSubscriptionOfferCodeOneTimeUseCode","params":["oneTimeUseCodeID"],"check":"trim"},
+    {"operation":"subscriptionOfferCodeOneTimeUseCodes_updateInstance","name":"UpdateSubscriptionOfferCodeOneTimeUseCode","params":["oneTimeUseCodeID"],"attrs":"value"}
   ]
 }

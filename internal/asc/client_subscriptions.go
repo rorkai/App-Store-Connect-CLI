@@ -52,23 +52,6 @@ func (c *Client) GetSubscriptionGroup(ctx context.Context, groupID string, opts 
 	})
 }
 
-// UpdateSubscriptionGroup updates a subscription group.
-func (c *Client) UpdateSubscriptionGroup(ctx context.Context, groupID string, attrs SubscriptionGroupUpdateAttributes) (*SubscriptionGroupResponse, error) {
-	payload := SubscriptionGroupUpdateRequest{
-		Data: SubscriptionGroupUpdateData{
-			Type:       ResourceTypeSubscriptionGroups,
-			ID:         strings.TrimSpace(groupID),
-			Attributes: attrs,
-		},
-	}
-
-	return sendJSON[SubscriptionGroupResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/subscriptionGroups/%s", strings.TrimSpace(groupID)),
-		Payload: payload,
-	})
-}
-
 // CreateSubscription creates a subscription within a group.
 func (c *Client) CreateSubscription(ctx context.Context, groupID string, attrs SubscriptionCreateAttributes) (*SubscriptionResponse, error) {
 	payload := SubscriptionCreateRequest{

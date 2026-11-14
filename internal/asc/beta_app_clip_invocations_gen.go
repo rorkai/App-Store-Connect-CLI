@@ -52,3 +52,23 @@ func (c *Client) GetBetaAppClipInvocation(ctx context.Context, invocationID stri
 		Query: buildBetaAppClipInvocationQuery(query),
 	})
 }
+
+// UpdateBetaAppClipInvocation sends PATCH /v1/betaAppClipInvocations/{id} (betaAppClipInvocations_updateInstance).
+func (c *Client) UpdateBetaAppClipInvocation(ctx context.Context, invocationID string, attrs *BetaAppClipInvocationUpdateAttributes) (*BetaAppClipInvocationResponse, error) {
+	invocationID = strings.TrimSpace(invocationID)
+	if invocationID == "" {
+		return nil, fmt.Errorf("invocationID is required")
+	}
+	payload := BetaAppClipInvocationUpdateRequest{
+		Data: BetaAppClipInvocationUpdateData{
+			Type:       ResourceTypeBetaAppClipInvocations,
+			ID:         invocationID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[BetaAppClipInvocationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID),
+		Payload: payload,
+	})
+}
