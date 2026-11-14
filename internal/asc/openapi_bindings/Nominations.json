@@ -9,6 +9,7 @@
   ],
   "operations": [
     {"operation":"nominations_deleteInstance","name":"DeleteNomination","params":["nominationID"],"check":"require"},
-    {"operation":"nominations_getCollection","name":"GetNominations","options":"NominationsOption","query":"buildNominationsQuery","nextContext":"nominations"}
+    {"operation":"nominations_getCollection","name":"GetNominations","options":"NominationsOption","query":"buildNominationsQuery","nextContext":"nominations"},
+    {"operation":"nominations_getInstance","name":"GetNomination","params":["nominationID"],"check":"require","checkFirst":true,"options":"NominationsOption","query":"buildNominationsDetailQuery","single":true}
   ]
 }

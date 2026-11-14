@@ -47,6 +47,19 @@ func (c *Client) DeleteAppClipDefaultExperience(ctx context.Context, experienceI
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID), nil)
 }
 
+// GetAppClipDefaultExperience sends GET /v1/appClipDefaultExperiences/{id} (appClipDefaultExperiences_getInstance).
+func (c *Client) GetAppClipDefaultExperience(ctx context.Context, experienceID string, opts ...AppClipDefaultExperienceOption) (*AppClipDefaultExperienceResponse, error) {
+	query := applyOptions(opts)
+	experienceID = strings.TrimSpace(experienceID)
+	if experienceID == "" {
+		return nil, fmt.Errorf("experienceID is required")
+	}
+	return getJSON[AppClipDefaultExperienceResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID),
+		Query: buildAppClipDefaultExperienceQuery(query),
+	})
+}
+
 // GetAppClipDefaultExperienceReleaseWithAppStoreVersion sends GET /v1/appClipDefaultExperiences/{id}/releaseWithAppStoreVersion (appClipDefaultExperiences_releaseWithAppStoreVersion_getToOneRelated).
 func (c *Client) GetAppClipDefaultExperienceReleaseWithAppStoreVersion(ctx context.Context, experienceID string) (*AppStoreVersionResponse, error) {
 	experienceID = strings.TrimSpace(experienceID)

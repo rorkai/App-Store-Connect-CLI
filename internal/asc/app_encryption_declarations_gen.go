@@ -48,3 +48,16 @@ func (c *Client) GetAppEncryptionDeclarationApp(ctx context.Context, declaration
 		Path: fmt.Sprintf("/v1/appEncryptionDeclarations/%s/app", declarationID),
 	})
 }
+
+// GetAppEncryptionDeclaration sends GET /v1/appEncryptionDeclarations/{id} (appEncryptionDeclarations_getInstance).
+func (c *Client) GetAppEncryptionDeclaration(ctx context.Context, declarationID string, opts ...AppEncryptionDeclarationsOption) (*AppEncryptionDeclarationResponse, error) {
+	declarationID = strings.TrimSpace(declarationID)
+	if declarationID == "" {
+		return nil, fmt.Errorf("declarationID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[AppEncryptionDeclarationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appEncryptionDeclarations/%s", declarationID),
+		Query: buildAppEncryptionDeclarationsQuery(query),
+	})
+}

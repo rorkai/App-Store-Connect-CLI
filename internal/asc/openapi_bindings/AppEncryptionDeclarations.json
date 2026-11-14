@@ -9,6 +9,7 @@
   ],
   "operations": [
     {"operation":"appEncryptionDeclarations_appEncryptionDeclarationDocument_getToOneRelated","name":"GetAppEncryptionDeclarationDocumentForDeclaration","params":["declarationID"],"check":"require"},
-    {"operation":"appEncryptionDeclarations_app_getToOneRelated","name":"GetAppEncryptionDeclarationApp","params":["declarationID"],"check":"require","response":"AppResponse"}
+    {"operation":"appEncryptionDeclarations_app_getToOneRelated","name":"GetAppEncryptionDeclarationApp","params":["declarationID"],"check":"require","response":"AppResponse"},
+    {"operation":"appEncryptionDeclarations_getInstance","name":"GetAppEncryptionDeclaration","params":["declarationID"],"check":"require","checkFirst":true,"options":"AppEncryptionDeclarationsOption","query":"buildAppEncryptionDeclarationsQuery","single":true,"deviations":[{"problem":"sent query parameters [filter[app] filter[builds] limit] that the operation does not define","reason":"Shares its option type and query builder with GetAppEncryptionDeclarations (GET /v1/appEncryptionDeclarations), which defines these. asc encryption declarations view, the only caller, sets fields, document fields, include, included fields and the builds limit, never a filter or limit."}]}
   ]
 }

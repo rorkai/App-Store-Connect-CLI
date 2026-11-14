@@ -37,3 +37,16 @@ func (c *Client) DeleteBuildUpload(ctx context.Context, id string) error {
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/buildUploads/%s", id), nil)
 }
+
+// GetBuildUpload sends GET /v1/buildUploads/{id} (buildUploads_getInstance).
+func (c *Client) GetBuildUpload(ctx context.Context, id string, opts ...BuildUploadOption) (*BuildUploadResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[BuildUploadResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/buildUploads/%s", id),
+		Query: buildBuildUploadQuery(query),
+	})
+}

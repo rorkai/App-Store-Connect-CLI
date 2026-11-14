@@ -7,12 +7,6 @@ import (
 	"strings"
 )
 
-// GetAccessibilityDeclaration retrieves a single accessibility declaration by ID.
-func (c *Client) GetAccessibilityDeclaration(ctx context.Context, declarationID string, fields []string) (*AccessibilityDeclarationResponse, error) {
-	declarationID = strings.TrimSpace(declarationID)
-	return getJSON[AccessibilityDeclarationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID), Query: buildAccessibilityDeclarationsFieldsQuery(fields)})
-}
-
 // CreateAccessibilityDeclaration creates a new accessibility declaration.
 func (c *Client) CreateAccessibilityDeclaration(ctx context.Context, appID string, attrs AccessibilityDeclarationCreateAttributes) (*AccessibilityDeclarationResponse, error) {
 	payload := AccessibilityDeclarationCreateRequest{

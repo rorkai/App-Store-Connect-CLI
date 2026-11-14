@@ -7,5 +7,8 @@
     "AppEncryptionDeclarationDocumentUpdateAttributes",
     "AppEncryptionDeclarationDocumentUpdateData",
     "AppEncryptionDeclarationDocumentUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appEncryptionDeclarationDocuments_getInstance","name":"GetAppEncryptionDeclarationDocument","params":["documentID"],"check":"require","query":"buildAppEncryptionDeclarationDocumentFieldsQuery","single":true}
   ]
 }

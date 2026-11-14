@@ -9,6 +9,7 @@
   "operations": [
     {"operation":"users_deleteInstance","name":"DeleteUser","params":["userID"],"check":"trim"},
     {"operation":"users_getCollection","name":"GetUsers","options":"UsersOption","query":"buildUsersQuery","nextContext":"users"},
+    {"operation":"users_getInstance","name":"GetUser","params":["userID"],"check":"trim","checkFirst":true,"options":"UsersOption","query":"buildUsersQuery","single":true,"deviations":[{"problem":"sent query parameters [filter[roles] filter[username] filter[visibleApps] limit sort] that the operation does not define","reason":"Shares its option type and query builder with GetUsers (GET /v1/users), which defines these. asc users view sets include and included fields; asc users update and the web app access check pass no options."}]},
     {"operation":"users_visibleApps_getToManyRelated","name":"GetUserVisibleApps","params":["userID"],"check":"trim","checkFirst":true,"options":"UserVisibleAppsOption","query":"buildUserVisibleAppsQuery","nextContext":"userVisibleApps","response":"AppsResponse"}
   ]
 }

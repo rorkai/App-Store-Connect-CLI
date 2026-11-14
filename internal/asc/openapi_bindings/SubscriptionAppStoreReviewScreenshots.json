@@ -7,6 +7,7 @@
     "SubscriptionAppStoreReviewScreenshotUpdateRequest"
   ],
   "operations": [
-    {"operation":"subscriptionAppStoreReviewScreenshots_deleteInstance","name":"DeleteSubscriptionAppStoreReviewScreenshot","params":["screenshotID"]}
+    {"operation":"subscriptionAppStoreReviewScreenshots_deleteInstance","name":"DeleteSubscriptionAppStoreReviewScreenshot","params":["screenshotID"]},
+    {"operation":"subscriptionAppStoreReviewScreenshots_getInstance","name":"GetSubscriptionAppStoreReviewScreenshot","params":["screenshotID"],"options":"SubscriptionAppStoreReviewScreenshotOption","query":"buildSubscriptionAppStoreReviewScreenshotQuery","single":true}
   ]
 }

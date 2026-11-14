@@ -3,5 +3,8 @@
   "file": "in_app_purchase_contents_gen.go",
   "types": [
     "InAppPurchaseContentResponse"
+  ],
+  "operations": [
+    {"operation":"inAppPurchaseContents_getInstance","name":"GetInAppPurchaseContentByID","params":["contentID"],"check":"require","checkFirst":true,"options":"IAPContentOption","query":"buildIAPContentQuery","single":true}
   ]
 }

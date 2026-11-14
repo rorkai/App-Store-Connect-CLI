@@ -39,3 +39,16 @@ func (c *Client) DeleteBetaAppClipInvocation(ctx context.Context, invocationID s
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), nil)
 }
+
+// GetBetaAppClipInvocation sends GET /v1/betaAppClipInvocations/{id} (betaAppClipInvocations_getInstance).
+func (c *Client) GetBetaAppClipInvocation(ctx context.Context, invocationID string, opts ...BetaAppClipInvocationOption) (*BetaAppClipInvocationResponse, error) {
+	query := applyOptions(opts)
+	invocationID = strings.TrimSpace(invocationID)
+	if invocationID == "" {
+		return nil, fmt.Errorf("invocationID is required")
+	}
+	return getJSON[BetaAppClipInvocationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID),
+		Query: buildBetaAppClipInvocationQuery(query),
+	})
+}

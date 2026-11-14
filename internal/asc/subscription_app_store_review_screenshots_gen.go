@@ -29,3 +29,12 @@ type SubscriptionAppStoreReviewScreenshotUpdateRequest struct {
 func (c *Client) DeleteSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)), nil)
 }
+
+// GetSubscriptionAppStoreReviewScreenshot sends GET /v1/subscriptionAppStoreReviewScreenshots/{id} (subscriptionAppStoreReviewScreenshots_getInstance).
+func (c *Client) GetSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string, opts ...SubscriptionAppStoreReviewScreenshotOption) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
+		Query: buildSubscriptionAppStoreReviewScreenshotQuery(query),
+	})
+}

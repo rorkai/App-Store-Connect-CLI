@@ -37,6 +37,16 @@ func (c *Client) GetUsers(ctx context.Context, opts ...UsersOption) (*UsersRespo
 	})
 }
 
+// GetUser sends GET /v1/users/{id} (users_getInstance).
+func (c *Client) GetUser(ctx context.Context, userID string, opts ...UsersOption) (*UserResponse, error) {
+	userID = strings.TrimSpace(userID)
+	query := applyOptions(opts)
+	return getJSON[UserResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/users/%s", userID),
+		Query: buildUsersQuery(query),
+	})
+}
+
 // GetUserVisibleApps sends GET /v1/users/{id}/visibleApps (users_visibleApps_getToManyRelated).
 func (c *Client) GetUserVisibleApps(ctx context.Context, userID string, opts ...UserVisibleAppsOption) (*AppsResponse, error) {
 	userID = strings.TrimSpace(userID)
