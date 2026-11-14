@@ -214,8 +214,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			declarationValue := strings.TrimSpace(*declarationID)
 			if declarationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
 				return shared.UsageError("encryption declarations view: --build-limit must be between 1 and 50")
@@ -298,20 +297,16 @@ Examples:
 
 			descriptionValue := strings.TrimSpace(*appDescription)
 			if descriptionValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app-description is required")
-				return shared.MissingRequiredUsageError("--app-description")
+				return shared.RequiredFlag("--app-description")
 			}
 			if !visited["contains-proprietary-cryptography"] {
-				fmt.Fprintln(os.Stderr, "Error: --contains-proprietary-cryptography is required")
-				return shared.MissingRequiredUsageError("--contains-proprietary-cryptography")
+				return shared.RequiredFlag("--contains-proprietary-cryptography")
 			}
 			if !visited["contains-third-party-cryptography"] {
-				fmt.Fprintln(os.Stderr, "Error: --contains-third-party-cryptography is required")
-				return shared.MissingRequiredUsageError("--contains-third-party-cryptography")
+				return shared.RequiredFlag("--contains-third-party-cryptography")
 			}
 			if !visited["available-on-french-store"] {
-				fmt.Fprintln(os.Stderr, "Error: --available-on-french-store is required")
-				return shared.MissingRequiredUsageError("--available-on-french-store")
+				return shared.RequiredFlag("--available-on-french-store")
 			}
 
 			client, err := shared.GetASCClient()
@@ -569,14 +564,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			declarationValue := strings.TrimSpace(*declarationID)
 			if declarationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			buildIDs := shared.SplitCSV(builds.String())
 			if len(buildIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
-				return shared.MissingRequiredUsageError("--build-id")
+				return shared.RequiredFlag("--build-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -646,8 +639,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			documentValue := strings.TrimSpace(*documentID)
 			if documentValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			fieldsValue, err := normalizeEncryptionDocumentFields(*fields, "--fields")
@@ -694,14 +686,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			declarationValue := strings.TrimSpace(*declarationID)
 			if declarationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --declaration is required")
-				return shared.MissingRequiredUsageError("--declaration")
+				return shared.RequiredFlag("--declaration")
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			info, err := os.Lstat(pathValue)
