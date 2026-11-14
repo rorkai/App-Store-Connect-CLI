@@ -87,7 +87,7 @@ func TestInferScreenshotDisplayType_FromFilenameAndDimensions(t *testing.T) {
 	path := filepath.Join(dir, "iphone_65_screen.png")
 	writePNG(t, path, 1242, 2688)
 
-	displayType, err := inferScreenshotDisplayType(path)
+	displayType, err := inferScreenshotDisplayTypeFromDimensions(path, 1242, 2688)
 	if err != nil {
 		t.Fatalf("inferScreenshotDisplayType() error: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestInferScreenshotDisplayType_FromDimensionsOnly(t *testing.T) {
 	path := filepath.Join(dir, "screen.png")
 	writePNG(t, path, 1242, 2688)
 
-	displayType, err := inferScreenshotDisplayType(path)
+	displayType, err := inferScreenshotDisplayTypeFromDimensions(path, 1242, 2688)
 	if err != nil {
 		t.Fatalf("inferScreenshotDisplayType() error: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestInferScreenshotDisplayType_IgnoresPathSegments(t *testing.T) {
 	path := filepath.Join(nestedDir, "screen.png")
 	writePNG(t, path, 1242, 2688)
 
-	displayType, err := inferScreenshotDisplayType(path)
+	displayType, err := inferScreenshotDisplayTypeFromDimensions(path, 1242, 2688)
 	if err != nil {
 		t.Fatalf("inferScreenshotDisplayType() error: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestInferScreenshotDisplayType_ProMaxDimensions(t *testing.T) {
 			path := filepath.Join(dir, "screen.png")
 			writePNG(t, path, test.width, test.height)
 
-			displayType, err := inferScreenshotDisplayType(path)
+			displayType, err := inferScreenshotDisplayTypeFromDimensions(path, test.width, test.height)
 			if err != nil {
 				t.Fatalf("inferScreenshotDisplayType() error: %v", err)
 			}
@@ -179,7 +179,7 @@ func TestInferScreenshotDisplayType_ModernDimensions(t *testing.T) {
 			path := filepath.Join(dir, "screen.png")
 			writePNG(t, path, test.width, test.height)
 
-			displayType, err := inferScreenshotDisplayType(path)
+			displayType, err := inferScreenshotDisplayTypeFromDimensions(path, test.width, test.height)
 			if err != nil {
 				t.Fatalf("inferScreenshotDisplayType() error: %v", err)
 			}
@@ -195,7 +195,7 @@ func TestInferScreenshotDisplayType_FromFilenameHintNoSpace(t *testing.T) {
 	path := filepath.Join(dir, "iphone6.9_screen.png")
 	writePNG(t, path, 1242, 2688)
 
-	displayType, err := inferScreenshotDisplayType(path)
+	displayType, err := inferScreenshotDisplayTypeFromDimensions(path, 1242, 2688)
 	if err != nil {
 		t.Fatalf("inferScreenshotDisplayType() error: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestInferScreenshotDisplayType_UnknownSize(t *testing.T) {
 	path := filepath.Join(dir, "screen.png")
 	writePNG(t, path, 120, 240)
 
-	_, err := inferScreenshotDisplayType(path)
+	_, err := inferScreenshotDisplayTypeFromDimensions(path, 120, 240)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -223,7 +223,7 @@ func TestDiscoverScreenshotPlan_NormalizesLocale(t *testing.T) {
 	}
 	writePNG(t, filepath.Join(localeDir, "iphone_65_screen.png"), 1242, 2688)
 
-	plans, _, err := discoverScreenshotPlan(root)
+	plans, _, err := discoverScreenshotPlanWithOpenFiles(root, false)
 	if err != nil {
 		t.Fatalf("discoverScreenshotPlan() error: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestDiscoverScreenshotPlan_SkipsHiddenAndNonImageFiles(t *testing.T) {
 		t.Fatalf("write notes file: %v", err)
 	}
 
-	plans, skipped, err := discoverScreenshotPlan(root)
+	plans, skipped, err := discoverScreenshotPlanWithOpenFiles(root, false)
 	if err != nil {
 		t.Fatalf("discoverScreenshotPlan() error: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestDiscoverScreenshotPlan_IgnoresEmptyLocaleDirectories(t *testing.T) {
 	}
 	writePNG(t, filepath.Join(localeDir, "iphone_65_screen.png"), 1242, 2688)
 
-	plans, skipped, err := discoverScreenshotPlan(root)
+	plans, skipped, err := discoverScreenshotPlanWithOpenFiles(root, false)
 	if err != nil {
 		t.Fatalf("discoverScreenshotPlan() error: %v", err)
 	}

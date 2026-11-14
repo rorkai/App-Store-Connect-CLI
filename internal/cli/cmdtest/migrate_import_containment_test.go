@@ -2,13 +2,13 @@ package cmdtest
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestMigrateImportRejectsSymlinkedMetadataBeforeAnyRequest(t *testing.T) {
@@ -31,16 +31,8 @@ func TestMigrateImportRejectsSymlinkedMetadataBeforeAnyRequest(t *testing.T) {
 		t.Fatalf("symlink description.txt: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)
@@ -65,7 +57,7 @@ func TestMigrateImportRejectsSymlinkedMetadataBeforeAnyRequest(t *testing.T) {
 	if !strings.Contains(runErr.Error(), "symlink") {
 		t.Fatalf("expected symlink rejection, got %v", runErr)
 	}
-	if requests != 0 {
+	if requests := len(reg.Requests()); requests != 0 {
 		t.Fatalf("expected no App Store Connect requests, got %d", requests)
 	}
 	if stdout != "" {

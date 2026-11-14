@@ -1,12 +1,11 @@
 package cmdtest
 
 import (
-	"errors"
-	"net/http"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // TestUnknownFlagSuggestsTheIntendedFlag covers the unknown flag spellings
@@ -15,10 +14,7 @@ import (
 // invocation still fails as a usage error before any HTTP request.
 func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 	setupUsageExitCodeEnv(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unknown flags must fail before HTTP: %s %s", req.Method, req.URL.String())
-		return nil, errors.New("unexpected request")
-	}))
+	asctest.NewRegistry(t).Install()
 
 	tests := []struct {
 		name string

@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSparseAppFieldFlagsValidateBeforeAuth(t *testing.T) {
@@ -148,43 +150,16 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 		},
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			calls := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				calls++
-				if req.Method != http.MethodGet || req.URL.Path != test.wantPath {
-					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, test.wantPath)
-				}
-				query := req.URL.Query()
-				for key, want := range test.wantQuery {
-					got, ok := query[key]
-					if !ok {
-						t.Errorf("query is missing %s", key)
-						continue
-					}
-					if len(got) != 1 || got[0] != want {
-						t.Errorf("query %s = %q, want exactly [%q]", key, got, want)
-					}
-				}
-				if len(query) != len(test.wantQuery) {
-					t.Errorf("query = %v, want exactly %v", query, test.wantQuery)
-				}
-				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(test.response)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.wantPath, queryPairs(test.wantQuery)...), asctest.JSON(http.StatusOK, test.response))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, test.args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			wantStderr := ""
 			if strings.Contains(test.wantQuery["fields[appInfos]"], "kidsAgeBand") {
 				wantStderr = "Warning: AppInfo.kidsAgeBand is deprecated and was removed from the API 4.5 schema; use asc age-rating view --app-info-id ID. This selector is still forwarded for compatibility.\n"
@@ -196,7 +171,7 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 				t.Fatalf("age rating kidsAgeBand lost: %s", stdout)
 			}
 
-			if calls != 1 {
+			if calls := len(reg.Requests()); calls != 1 {
 				t.Fatalf("calls = %d, want 1", calls)
 			}
 		})

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestVersionsListReadyForDistributionUsesAppVersionStateFilter(t *testing.T) {
@@ -14,44 +16,15 @@ func TestVersionsListReadyForDistributionUsesAppVersionStateFilter(t *testing.T)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-live","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"READY_FOR_DISTRIBUTION"}}]}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/123456789/appStoreVersions" {
-			t.Fatalf("expected app versions path, got %s", req.URL.Path)
-		}
-		query := req.URL.Query()
-		if got := query.Get("filter[appVersionState]"); got != "READY_FOR_DISTRIBUTION" {
-			t.Fatalf("expected filter[appVersionState]=READY_FOR_DISTRIBUTION, got %q", got)
-		}
-		if got := query.Get("filter[appStoreState]"); got != "" {
-			t.Fatalf("expected no deprecated app store state filter, got %q", got)
-		}
-		body := `{"data":[{"type":"appStoreVersions","id":"version-live","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"READY_FOR_DISTRIBUTION"}}]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "list", "--app", "123456789", "--state", "READY_FOR_DISTRIBUTION"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"versions", "list", "--app", "123456789", "--state", "READY_FOR_DISTRIBUTION"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -66,38 +39,15 @@ func TestVersionsListMixedReadyStatesUsesSingleAppVersionStateFilter(t *testing.
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appVersionState]=READY_FOR_REVIEW,READY_FOR_DISTRIBUTION"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-review","attributes":{"versionString":"1.1","platform":"IOS","appVersionState":"READY_FOR_REVIEW"}},{"type":"appStoreVersions","id":"version-live","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"READY_FOR_DISTRIBUTION"}}]}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		query := req.URL.Query()
-		if got := query.Get("filter[appVersionState]"); got != "READY_FOR_REVIEW,READY_FOR_DISTRIBUTION" {
-			t.Fatalf("expected filter[appVersionState]=READY_FOR_REVIEW,READY_FOR_DISTRIBUTION, got %q", got)
-		}
-		if got := query.Get("filter[appStoreState]"); got != "" {
-			t.Fatalf("expected no deprecated app store state filter, got %q", got)
-		}
-		body := `{"data":[{"type":"appStoreVersions","id":"version-review","attributes":{"versionString":"1.1","platform":"IOS","appVersionState":"READY_FOR_REVIEW"}},{"type":"appStoreVersions","id":"version-live","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"READY_FOR_DISTRIBUTION"}}]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "list", "--app", "123456789", "--state", "READY_FOR_REVIEW,READY_FOR_DISTRIBUTION"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"versions", "list", "--app", "123456789", "--state", "READY_FOR_REVIEW,READY_FOR_DISTRIBUTION"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

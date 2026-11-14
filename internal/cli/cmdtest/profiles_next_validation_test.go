@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestProfilesListProfileStateFilter(t *testing.T) {
@@ -43,20 +45,9 @@ func TestProfilesListProfileStateFilter(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != "/v1/profiles" {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				}
-				if got := req.URL.Query().Get("filter[profileState]"); got != test.wantFilter {
-					t.Fatalf("filter[profileState] = %q, want %q", got, test.wantFilter)
-				}
-				return jsonHTTPResponse(http.StatusOK, test.response), nil
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/profiles", "filter[profileState]="+test.wantFilter), asctest.JSON(http.StatusOK, test.response))
 
 			args := append([]string{"profiles", "list"}, test.args...)
 			stdout, stderr, runErr := runRootCommand(t, append(args, "--output", "json"))
@@ -90,17 +81,8 @@ func TestProfilesListProfileStateFilter(t *testing.T) {
 }
 
 func TestProfilesListProfileStateInvalidValueReturnsUsageError(t *testing.T) {
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected HTTP request for invalid profile-state: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -122,7 +104,7 @@ func TestProfilesListProfileStateInvalidValueReturnsUsageError(t *testing.T) {
 	if !strings.Contains(stderr, "--profile-state must be one of: ACTIVE, INVALID") {
 		t.Fatalf("expected profile-state usage error, got %q", stderr)
 	}
-	if requestCount != 0 {
+	if requestCount := len(reg.Requests()); requestCount != 0 {
 		t.Fatalf("expected 0 requests, got %d", requestCount)
 	}
 }

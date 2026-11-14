@@ -15,6 +15,7 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -52,15 +53,9 @@ func TestVersionsViewSendsExactSupportedIncludeQuery(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			include := test.include
-			stubTransport(t, func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreVersions/version-1" {
-					t.Fatalf("request = %s %s, want GET /v1/appStoreVersions/version-1", req.Method, req.URL.Path)
-				}
-				if got := req.URL.Query().Get("include"); got != include {
-					t.Fatalf("include query = %q, want %q", got, include)
-				}
-				return jsonResponse(http.StatusOK, body)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include="+include), asctest.JSON(http.StatusOK, body))
 
 			root := RootCommand("test")
 			root.FlagSet.SetOutput(io.Discard)
@@ -85,29 +80,10 @@ func TestVersionsViewResolvesVersionFromAppAndVersionString(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	requests := make([]string, 0, 2)
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.Path)
-		switch req.URL.Path {
-		case "/v1/apps/app-1/appStoreVersions":
-			query := req.URL.Query()
-			if got := query.Get("filter[versionString]"); got != "1.2.3" {
-				t.Fatalf("version filter = %q, want 1.2.3", got)
-			}
-			if got := query.Get("filter[platform]"); got != "IOS" {
-				t.Fatalf("platform filter = %q, want IOS", got)
-			}
-			if got := query.Get("limit"); got != "10" {
-				t.Fatalf("limit = %q, want 10", got)
-			}
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`)
-		case "/v1/appStoreVersions/version-1":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1"), asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}}`))
 
 	root := RootCommand("test")
 	root.FlagSet.SetOutput(io.Discard)
@@ -138,6 +114,10 @@ func TestVersionsViewResolvesVersionFromAppAndVersionString(t *testing.T) {
 	wantRequests := []string{
 		"GET /v1/apps/app-1/appStoreVersions",
 		"GET /v1/appStoreVersions/version-1",
+	}
+	requests := make([]string, 0, 2)
+	for _, req := range reg.Requests() {
+		requests = append(requests, req.Method+" "+req.URL.Path)
 	}
 	if fmt.Sprint(requests) != fmt.Sprint(wantRequests) {
 		t.Fatalf("requests = %v, want %v", requests, wantRequests)
@@ -440,12 +420,9 @@ func TestVersionsViewPreservesDownloadable(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			body := fmt.Sprintf(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS",%s}}}`, test.attributes)
-			stubTransport(t, func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreVersions/version-1" {
-					t.Fatalf("request = %s %s, want GET /v1/appStoreVersions/version-1", req.Method, req.URL.Path)
-				}
-				return jsonResponse(http.StatusOK, body)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1"), asctest.JSON(http.StatusOK, body))
 
 			root := RootCommand("test")
 			root.FlagSet.SetOutput(io.Discard)
@@ -494,6 +471,7 @@ func TestVersionsReadsPrintAppleEnvelope(t *testing.T) {
 		name       string
 		args       []string
 		path       string
+		query      []string
 		body       string
 		wantStdout string
 		wantStderr string
@@ -505,10 +483,11 @@ func TestVersionsReadsPrintAppleEnvelope(t *testing.T) {
 			body: `{"data":` + resource + `,"links":{"self":"https://example.test/v1/appStoreVersions/version-1"}}`,
 		},
 		{
-			name: "view with include",
-			args: []string{"versions", "view", "--version-id", "version-1", "--include", "build", "--output", "json"},
-			path: "/v1/appStoreVersions/version-1",
-			body: `{"data":` + resource + `,"included":[{"type":"builds","id":"build-1","attributes":{"version":"42"}}],"links":{"self":"https://example.test/v1/appStoreVersions/version-1"}}`,
+			name:  "view with include",
+			args:  []string{"versions", "view", "--version-id", "version-1", "--include", "build", "--output", "json"},
+			path:  "/v1/appStoreVersions/version-1",
+			query: []string{"include=build"},
+			body:  `{"data":` + resource + `,"included":[{"type":"builds","id":"build-1","attributes":{"version":"42"}}],"links":{"self":"https://example.test/v1/appStoreVersions/version-1"}}`,
 		},
 		{
 			name:       "view table output has no envelope warning",
@@ -523,12 +502,9 @@ func TestVersionsReadsPrintAppleEnvelope(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			stubTransport(t, func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != test.path {
-					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, test.path)
-				}
-				return jsonResponse(http.StatusOK, test.body)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.path, test.query...), asctest.JSON(http.StatusOK, test.body))
 
 			root := RootCommand("test")
 			root.FlagSet.SetOutput(io.Discard)
@@ -563,12 +539,9 @@ func TestVersionsPhasedReleaseViewPrintsNullData(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const body = `{"data":null,"links":{"self":"https://example.test/v1/appStoreVersions/version-1/appStoreVersionPhasedRelease"}}`
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreVersions/version-1/appStoreVersionPhasedRelease" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		return jsonResponse(http.StatusOK, body)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionPhasedRelease"), asctest.JSON(http.StatusOK, body))
 
 	root := RootCommand("test")
 	root.FlagSet.SetOutput(io.Discard)
@@ -640,22 +613,24 @@ func TestVersionsReleaseReadsStateAfterAmbiguousFailure(t *testing.T) {
 			t.Setenv("ASC_BASE_DELAY", "1ms")
 			t.Setenv("ASC_MAX_DELAY", "1ms")
 
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.POST("/v1/appStoreVersionReleaseRequests").JSONBody(`{"data":{"type":"appStoreVersionReleaseRequests","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`),
+				asctest.JSON(test.status, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"An unexpected error occurred."}]}`))
+			for range test.wantReads {
+				reg.Register(asctest.GET("/v1/appStoreVersions/ver-1"), asctest.JSON(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appStoreVersions","id":"ver-1","attributes":%s}}`, test.attributes)))
+			}
+
+			stdout, stderr, err := runRootCommand(t, []string{"versions", "release", "--version-id", "ver-1", "--confirm", "--output", "json"})
 			posts, reads := 0, 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			for _, req := range reg.Requests() {
 				switch {
 				case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionReleaseRequests":
 					posts++
-					return jsonResponse(test.status, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"An unexpected error occurred."}]}`)
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1":
 					reads++
-					return jsonResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appStoreVersions","id":"ver-1","attributes":%s}}`, test.attributes))
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
 				}
-			}))
-
-			stdout, stderr, err := runRootCommand(t, []string{"versions", "release", "--version-id", "ver-1", "--confirm", "--output", "json"})
+			}
 			if posts != 1 || reads != test.wantReads {
 				t.Fatalf("posts = %d, reads = %d; want 1 and %d", posts, reads, test.wantReads)
 			}

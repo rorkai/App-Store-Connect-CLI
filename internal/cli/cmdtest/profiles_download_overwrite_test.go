@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -45,12 +46,12 @@ func TestProfilesDownloadExistingOutput(t *testing.T) {
 				}
 			}
 
-			calls := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				calls++
-				body := `{"data":{"type":"profiles","id":"PROFILE_ID","attributes":{"name":"Dev","profileContent":"` + base64.StdEncoding.EncodeToString(newContent) + `"}}}`
-				return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			if tt.wantCalls > 0 {
+				reg.Register(asctest.GET("/v1/profiles/PROFILE_ID"),
+					asctest.JSON(http.StatusOK, `{"data":{"type":"profiles","id":"PROFILE_ID","attributes":{"name":"Dev","profileContent":"`+base64.StdEncoding.EncodeToString(newContent)+`"}}}`))
+			}
 
 			args := []string{"profiles", "download", "--id", "PROFILE_ID", "--output", outputPath, "--output-format", "json"}
 			if tt.overwrite {
@@ -66,7 +67,7 @@ func TestProfilesDownloadExistingOutput(t *testing.T) {
 				runErr = root.Run(context.Background())
 			})
 
-			if calls != tt.wantCalls {
+			if calls := len(reg.Requests()); calls != tt.wantCalls {
 				t.Fatalf("requests = %d, want %d", calls, tt.wantCalls)
 			}
 			if tt.wantErr == "" {

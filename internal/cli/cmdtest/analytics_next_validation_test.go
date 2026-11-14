@@ -1,16 +1,14 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -46,33 +44,11 @@ func TestAnalyticsReportsRelationshipsAcceptsPrefixedReportID(t *testing.T) {
 	const reportID = "r39-11111111-1111-1111-1111-111111111111"
 	const expectedPath = "/v1/analyticsReports/" + reportID + "/relationships/instances"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET(expectedPath), asctest.JSON(http.StatusOK, `{"data":[{"type":"analyticsReportInstances","id":"inst-1"}],"links":{}}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != expectedPath {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		body := `{"data":[{"type":"analyticsReportInstances","id":"inst-1"}],"links":{}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"analytics", "reports", "links", "--report-id", reportID}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runCommand(t, []string{"analytics", "reports", "links", "--report-id", reportID})
 
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
@@ -114,28 +90,16 @@ func testAnalyticsViewPaginateFromNext(t *testing.T, requestArgs ...string) {
 		secondInstancesURL: `{"data":[{"type":"analyticsReportInstances","id":"analytics-instance-next-2","attributes":{"reportDate":"2024-01-03","processingDate":"2024-01-04T00:00:00Z","granularity":"DAILY","version":"1"}}],"links":{"next":""}}`,
 	}
 
-	var requestMu sync.Mutex
-	requestCount := 0
-	seen := make(map[string]int, len(bodies))
-	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("unexpected method %s", req.Method)
-		}
-		body, ok := bodies[req.URL.String()]
-		if !ok {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		requestMu.Lock()
-		requestCount++
-		seen[req.URL.String()]++
-		requestMu.Unlock()
-		return analyticsViewJSONResponse(body), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/analyticsReportRequests/"+analyticsUsageExitRequestID+"/reports", "cursor=AQ", "limit=200"), asctest.JSON(http.StatusOK, bodies[firstReportsURL]))
+	reg.Register(asctest.GET("/v1/analyticsReportRequests/"+analyticsUsageExitRequestID+"/reports", "cursor=BQ", "limit=200"), asctest.JSON(http.StatusOK, bodies[secondReportsURL]))
+	reg.Register(asctest.GET("/v1/analyticsReports/analytics-report-next-1/instances", "limit=200"), asctest.JSON(http.StatusOK, bodies[firstInstancesURL]))
+	reg.Register(asctest.GET("/v1/analyticsReports/analytics-report-next-2/instances", "limit=200"), asctest.JSON(http.StatusOK, bodies[secondInstancesURL]))
 	client, err := asc.NewClientWithHTTPClient(
 		"TEST_KEY",
 		"TEST_ISSUER",
 		os.Getenv("ASC_PRIVATE_KEY_PATH"),
-		&http.Client{Transport: transport},
+		&http.Client{Transport: reg},
 	)
 	if err != nil {
 		t.Fatalf("create analytics pagination test client: %v", err)
@@ -144,23 +108,21 @@ func testAnalyticsViewPaginateFromNext(t *testing.T, requestArgs ...string) {
 		return client, nil
 	}))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(append([]string{"analytics", "view", "--paginate", "--next", firstReportsURL}, requestArgs...)); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, append([]string{"analytics", "view", "--paginate", "--next", firstReportsURL}, requestArgs...))
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount != 4 {
+	requests := reg.Requests()
+	if requestCount := len(requests); requestCount != 4 {
 		t.Fatalf("request count = %d, want 4", requestCount)
+	}
+	seen := make(map[string]int, len(requests))
+	for _, req := range requests {
+		seen[req.URL.String()]++
 	}
 	for url, count := range seen {
 		if count != 1 {

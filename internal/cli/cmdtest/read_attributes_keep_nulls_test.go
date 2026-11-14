@@ -1,12 +1,13 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
@@ -81,8 +82,8 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 			name: "builds test-notes list",
 			args: []string{"builds", "test-notes", "list", "--build-id", "build-1"},
 			responses: map[string]string{
-				"/v1/builds/build-1":         `{"data":{"type":"builds","id":"build-1","attributes":{}}}`,
-				"/v1/betaBuildLocalizations": `{"data":[{"type":"betaBuildLocalizations","id":"note-1","attributes":{"locale":"en-US","whatsNew":null}}],"links":{}}`,
+				"/v1/builds/build-1": `{"data":{"type":"builds","id":"build-1","attributes":{}}}`,
+				"/v1/betaBuildLocalizations?filter[build]=build-1": `{"data":[{"type":"betaBuildLocalizations","id":"note-1","attributes":{"locale":"en-US","whatsNew":null}}],"links":{}}`,
 			},
 			attrs: map[string]string{
 				"whatsNew": "null",
@@ -115,24 +116,17 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			stubTransport(t, func(req *http.Request) (*http.Response, error) {
-				body, ok := test.responses[req.URL.Path]
-				if req.Method != http.MethodGet || !ok {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				return jsonResponse(http.StatusOK, body)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			for request, body := range test.responses {
+				path, query, _ := strings.Cut(request, "?")
+				reg.Register(asctest.GET(path, query), asctest.JSON(http.StatusOK, body))
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, _ := captureOutput(t, func() {
-				if err := root.Parse(append(test.args, "--output", "json")); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, _, err := runCommand(t, append(test.args, "--output", "json"))
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			var envelope struct {
 				Data json.RawMessage `json:"data"`

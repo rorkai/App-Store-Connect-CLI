@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 type reviewSubmissionsSurfaceResult struct {
@@ -30,6 +32,8 @@ func TestReviewSubmissionsNestedListMatchesFlatSurface(t *testing.T) {
 		{"review", "submissions-list"},
 		{"review", "submissions", "list"},
 	}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 	results := make([]reviewSubmissionsSurfaceResult, 0, len(surfaces))
 	for _, surface := range surfaces {
 		args := append(
@@ -42,7 +46,9 @@ func TestReviewSubmissionsNestedListMatchesFlatSurface(t *testing.T) {
 			"--output", "json",
 		)
 		results = append(results, runReviewSubmissionsSurface(
-			t, args, http.StatusOK,
+			t, reg, args,
+			[]string{"filter[platform]=IOS", "filter[state]=READY_FOR_REVIEW", "fields[reviewSubmissionItems]=state", "include=items"},
+			http.StatusOK,
 			`{"data":[{"type":"reviewSubmissions","id":"submission-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`,
 		))
 	}
@@ -74,15 +80,19 @@ func TestReviewSubmissionsNestedListMatchesFlatTableOutput(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	response := `{"data":[{"type":"reviewSubmissions","id":"submission-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 	flat := runReviewSubmissionsSurface(
-		t,
+		t, reg,
 		[]string{"review", "submissions-list", "--app", "app-1", "--output", "table"},
+		nil,
 		http.StatusOK,
 		response,
 	)
 	nested := runReviewSubmissionsSurface(
-		t,
+		t, reg,
 		[]string{"review", "submissions", "list", "--output", "table", "--app", "app-1"},
+		nil,
 		http.StatusOK,
 		response,
 	)
@@ -103,15 +113,19 @@ func TestReviewSubmissionsNestedListMatchesFlatAPIError(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	response := `{"errors":[{"status":"403","code":"FORBIDDEN_ERROR","title":"Forbidden","detail":"Not allowed."}]}`
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 	flat := runReviewSubmissionsSurface(
-		t,
+		t, reg,
 		[]string{"review", "submissions-list", "--app", "app-1"},
+		nil,
 		http.StatusForbidden,
 		response,
 	)
 	nested := runReviewSubmissionsSurface(
-		t,
+		t, reg,
 		[]string{"review", "submissions", "list", "--app", "app-1"},
+		nil,
 		http.StatusForbidden,
 		response,
 	)
@@ -168,31 +182,22 @@ func TestReviewSubmissionsNestedListValidatesBeforeAuth(t *testing.T) {
 	}
 }
 
-func runReviewSubmissionsSurface(t *testing.T, args []string, status int, body string) reviewSubmissionsSurfaceResult {
+func runReviewSubmissionsSurface(t *testing.T, reg *asctest.Registry, args, query []string, status int, body string) reviewSubmissionsSurfaceResult {
 	t.Helper()
 
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", query...), asctest.JSON(status, body))
+	before := len(reg.Requests())
 	result := reviewSubmissionsSurfaceResult{}
-	originalTransport := http.DefaultTransport
-	defer func() { http.DefaultTransport = originalTransport }()
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		result.method = req.Method
-		result.path = req.URL.Path
-		result.rawQuery = req.URL.RawQuery
-		return &http.Response{
-			StatusCode: status,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	result.stdout, result.stderr = captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			result.err = err.Error()
-		}
-	})
+	var err error
+	result.stdout, result.stderr, err = runCommand(t, args)
+	if err != nil {
+		result.err = err.Error()
+	}
+	if requests := reg.Requests(); len(requests) > before {
+		last := requests[len(requests)-1]
+		result.method = last.Method
+		result.path = last.URL.Path
+		result.rawQuery = last.URL.RawQuery
+	}
 	return result
 }
