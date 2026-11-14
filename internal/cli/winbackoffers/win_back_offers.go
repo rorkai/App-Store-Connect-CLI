@@ -395,7 +395,7 @@ Examples:
 				}
 				freeTrialTerritories, err = shared.NormalizeASCTerritoryCSV(territories.String())
 				if err != nil {
-					return shared.UsageError(fmt.Sprintf("win-back-offers create: %v", err))
+					return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 				}
 				if len(freeTrialTerritories) == 0 {
 					fmt.Fprintln(os.Stderr, "Error: --territory is required when --offer-mode is FREE_TRIAL")
@@ -467,7 +467,7 @@ Examples:
 				for _, priceID := range prices {
 					territory, err := territoryFromPricePointID(priceID)
 					if err != nil {
-						return shared.UsageError(fmt.Sprintf("win-back-offers create: %v", err))
+						return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 					}
 					appendInlinePrice(&asc.WinBackOfferPriceRelationships{
 						Territory: asc.Relationship{
