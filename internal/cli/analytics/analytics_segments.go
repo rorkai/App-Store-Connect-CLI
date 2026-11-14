@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -56,8 +55,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*segmentID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --segment-id is required")
-				return shared.MissingRequiredUsageError("--segment-id")
+				return shared.RequiredFlag("--segment-id")
 			}
 			var err error
 			id, err = asc.ValidateResourcePathSegment(id)
