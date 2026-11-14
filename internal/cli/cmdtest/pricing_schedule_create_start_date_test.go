@@ -12,6 +12,7 @@ import (
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -208,17 +209,8 @@ func TestPricingScheduleCreateExplicitStartDateStaysAuthoritative(t *testing.T) 
 func TestPricingScheduleCreateMalformedStartDateIsUsageError(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	var requests int
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -242,7 +234,7 @@ func TestPricingScheduleCreateMalformedStartDateIsUsageError(t *testing.T) {
 		}
 	})
 
-	if requests != 0 {
+	if requests := len(reg.Requests()); requests != 0 {
 		t.Fatalf("expected no HTTP requests, got %d", requests)
 	}
 	if stdout != "" {
