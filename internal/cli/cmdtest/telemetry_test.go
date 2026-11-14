@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestTelemetryStatusIsEnabledByDefault(t *testing.T) {
@@ -14,11 +12,10 @@ func TestTelemetryStatusIsEnabledByDefault(t *testing.T) {
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{"telemetry", "status", "--output", "json"}, "1.2.3"); code != 0 {
-			t.Fatalf("status exit code = %d", code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "telemetry", "status", "--output", "json")
+	if code != 0 {
+		t.Fatalf("status exit code = %d", code)
+	}
 	if stderr != "" {
 		t.Fatalf("status stderr = %q", stderr)
 	}
@@ -40,12 +37,10 @@ func TestTelemetryCommands(t *testing.T) {
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{"telemetry", "disable"}, "1.2.3")
-		if code != 0 {
-			t.Fatalf("disable exit code = %d", code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "telemetry", "disable")
+	if code != 0 {
+		t.Fatalf("disable exit code = %d", code)
+	}
 	if stderr != "" {
 		t.Fatalf("disable stderr = %q", stderr)
 	}
@@ -53,12 +48,10 @@ func TestTelemetryCommands(t *testing.T) {
 		t.Fatalf("disable stdout = %q", stdout)
 	}
 
-	stdout, stderr = captureOutput(t, func() {
-		code := rootcmd.Run([]string{"telemetry", "status", "--output", "json"}, "1.2.3")
-		if code != 0 {
-			t.Fatalf("status exit code = %d", code)
-		}
-	})
+	stdout, stderr, code = runWithDeps(t, nil, "telemetry", "status", "--output", "json")
+	if code != 0 {
+		t.Fatalf("status exit code = %d", code)
+	}
 	if stderr != "" {
 		t.Fatalf("status stderr = %q", stderr)
 	}
@@ -77,12 +70,10 @@ func TestTelemetryCommands(t *testing.T) {
 		t.Fatalf("expected status path under home %q, got %q", home, status.Path)
 	}
 
-	stdout, stderr = captureOutput(t, func() {
-		code := rootcmd.Run([]string{"telemetry", "enable"}, "1.2.3")
-		if code != 0 {
-			t.Fatalf("enable exit code = %d", code)
-		}
-	})
+	stdout, stderr, code = runWithDeps(t, nil, "telemetry", "enable")
+	if code != 0 {
+		t.Fatalf("enable exit code = %d", code)
+	}
 	if stderr != "" {
 		t.Fatalf("enable stderr = %q", stderr)
 	}
@@ -90,12 +81,10 @@ func TestTelemetryCommands(t *testing.T) {
 		t.Fatalf("enable stdout = %q", stdout)
 	}
 
-	stdout, stderr = captureOutput(t, func() {
-		code := rootcmd.Run([]string{"telemetry", "reset-id"}, "1.2.3")
-		if code != 0 {
-			t.Fatalf("reset-id exit code = %d", code)
-		}
-	})
+	stdout, stderr, code = runWithDeps(t, nil, "telemetry", "reset-id")
+	if code != 0 {
+		t.Fatalf("reset-id exit code = %d", code)
+	}
 	if stderr != "" {
 		t.Fatalf("reset-id stderr = %q", stderr)
 	}
@@ -119,11 +108,10 @@ func TestTelemetryStatusUsesDefaultOutput(t *testing.T) {
 			setCmdtestHome(t)
 			t.Setenv("ASC_DEFAULT_OUTPUT", test.defaultOutput)
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run([]string{"telemetry", "status"}, "1.2.3"); code != 0 {
-					t.Fatalf("status exit code = %d", code)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, "telemetry", "status")
+			if code != 0 {
+				t.Fatalf("status exit code = %d", code)
+			}
 			if stderr != "" {
 				t.Fatalf("status stderr = %q", stderr)
 			}
@@ -144,10 +132,7 @@ func TestTelemetryStatusUsesDefaultOutput(t *testing.T) {
 func TestTelemetryStatusRejectsInvalidOutput(t *testing.T) {
 	setCmdtestHome(t)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"telemetry", "status", "--output", "yaml"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "telemetry", "status", "--output", "yaml")
 	if code != 2 {
 		t.Fatalf("status exit code = %d, want 2", code)
 	}

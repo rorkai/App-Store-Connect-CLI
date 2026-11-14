@@ -240,7 +240,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return schema.NewSchemaCommand(d)
 		}),
 		commandFactory("api", "Send an authenticated raw request to the App Store Connect API.", apicmd.Command),
-		commandFactory("telemetry", "Manage CLI telemetry settings.", telemetrycmd.TelemetryCommand),
+		commandFactory("telemetry", "Manage CLI telemetry settings.", func() *ffcli.Command {
+			return telemetrycmd.NewTelemetryCommand(d)
+		}),
 		commandFactory("search", "Search asc commands and examples for agent-oriented command discovery.", func() *ffcli.Command {
 			return searchcmd.SearchCommand(catalog.All)
 		}),
