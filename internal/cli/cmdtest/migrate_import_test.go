@@ -1840,7 +1840,7 @@ func TestMigrateImportDryRunDeliverfileSkipScreenshotsAllowsMissingFastlaneScree
 	}
 	writeFile(t, filepath.Join(metadataDir, "description.txt"), "English description")
 	configPath := filepath.Join(fastlaneDir, "Deliverfile")
-	writeFile(t, configPath, "submit_for_review true\nskip_screenshots true\nphased_release true\nmetadata_path \"./metadata\"\nprice_tier 0\n")
+	writeFile(t, configPath, "submit_for_review true\nskip_screenshots true\nphased_release false\nmetadata_path \"./metadata\"\nprice_tier 0\n")
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)
@@ -1886,7 +1886,7 @@ func TestMigrateImportDryRunDeliverfileSkipScreenshotsAllowsMissingFastlaneScree
 	}
 	wantIgnored := []migrate.SkippedItem{
 		{Path: configPath, Reason: "line 1: submit_for_review is not applied by import; to apply it, run: asc review submit --app APP_ID --version-id VERSION_ID --build-id BUILD_ID --confirm"},
-		{Path: configPath, Reason: "line 3: phased_release is not applied by import; to apply it, run: asc versions phased-release create --version-id VERSION_ID"},
+		{Path: configPath, Reason: "line 3: phased_release is not applied by import"},
 		{Path: configPath, Reason: "line 5: price_tier is not applied by import"},
 	}
 	var gotIgnored []migrate.SkippedItem

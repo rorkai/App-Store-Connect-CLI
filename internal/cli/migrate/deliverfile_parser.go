@@ -249,18 +249,16 @@ func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
 }
 
 func ignoredConfigKeyHint(ignored IgnoredConfigKey) string {
-	switch ignored.Key {
-	case "submit_for_review":
+	value := strings.ToLower(strings.TrimSpace(ignored.Value))
+	switch {
+	case ignored.Key == "submit_for_review" && value == "true":
 		return "asc review submit --app APP_ID --version-id VERSION_ID --build-id BUILD_ID --confirm"
-	case "phased_release":
+	case ignored.Key == "phased_release" && value == "true":
 		return "asc versions phased-release create --version-id VERSION_ID"
-	case "automatic_release":
-		switch strings.ToLower(ignored.Value) {
-		case "true":
-			return "asc versions update --version-id VERSION_ID --release-type AFTER_APPROVAL"
-		case "false":
-			return "asc versions update --version-id VERSION_ID --release-type MANUAL"
-		}
+	case ignored.Key == "automatic_release" && value == "true":
+		return "asc versions update --version-id VERSION_ID --release-type AFTER_APPROVAL"
+	case ignored.Key == "automatic_release" && value == "false":
+		return "asc versions update --version-id VERSION_ID --release-type MANUAL"
 	}
 	return ""
 }
