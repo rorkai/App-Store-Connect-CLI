@@ -432,7 +432,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		// Bare --id flags and other single-resource flags.
 		{args: []string{"accessibility", "view"}, flag: "id", wantType: "accessibilityDeclarations"},
 		{args: []string{"actors", "view"}, flag: "id", wantType: "actors", deps: true},
-		{args: []string{"age-rating", "edit"}, flag: "id", wantType: "ageRatingDeclarations"},
+		{args: []string{"age-rating", "edit"}, flag: "id", wantType: "ageRatingDeclarations", deps: true},
 		{args: []string{"agreements", "territories", "list"}, flag: "id", wantType: "endUserLicenseAgreements", deps: true},
 		{args: []string{"app-clips", "view"}, flag: "id", wantType: "appClips"},
 		{args: []string{"app-clips", "header-images", "view"}, flag: "id", wantType: "appClipHeaderImages"},

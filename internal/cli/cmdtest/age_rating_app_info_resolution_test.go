@@ -39,16 +39,14 @@ func TestAgeRatingViewResolvesAppInfoWhileNewVersionIsPrepared(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/apps/app-1/appInfos", "fields[appInfos]=state", "limit=200"), asctest.JSON(http.StatusOK, test.appInfos))
 			if test.appInfoID != "" {
 				reg.Register(asctest.GET("/v1/appInfos/"+test.appInfoID+"/ageRatingDeclaration"),
 					asctest.JSON(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-`+test.appInfoID+`","attributes":{}}}`))
 			}
 
-			stdout, stderr, runErr := runCommand(t, []string{"age-rating", "view", "--app", "app-1", "--output", "json"})
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "age-rating", "view", "--app", "app-1", "--output", "json")
 
 			if len(test.wantErrParts) > 0 {
 				if runErr == nil {

@@ -215,7 +215,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("validate", "Canonical App Store submission readiness report.", validate.ValidateCommand),
 		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", xcodecloud.XcodeCloudCommand),
 		commandFactory("categories", "Manage App Store categories.", categories.CategoriesCommand),
-		commandFactory("age-rating", "Manage App Store age rating declarations.", agerating.AgeRatingCommand),
+		commandFactory("age-rating", "Manage App Store age rating declarations.", func() *ffcli.Command {
+			return agerating.NewAgeRatingCommand(d)
+		}),
 		commandFactory("accessibility", "Manage accessibility declarations.", accessibility.AccessibilityCommand),
 		commandFactory("encryption", "Manage app encryption declarations and documents.", encryption.EncryptionCommand),
 		commandFactory("migrate", "Migrate metadata from/to fastlane format.", migrate.MigrateCommand),

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	authcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -1782,9 +1783,22 @@ func TestAgeRatingValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, stubClient(t, asctest.NewRegistry(t)), test.args, test.wantErr)
+		})
+	}
 	t.Run("age-rating edit invalid enum", func(t *testing.T) {
-		assertExitStderr(t, []string{"age-rating", "edit", "--id", "AGE_ID", "--gambling-simulated", "BAD"}, rootcmd.ExitUsage, "Error: --gambling-simulated must be one of: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, FREQUENT")
+		stdout, stderr, code := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "age-rating", "edit", "--id", "AGE_ID", "--gambling-simulated", "BAD")
+		if code != rootcmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", rootcmd.ExitUsage, code)
+		}
+		if stdout != "" {
+			t.Fatalf("expected empty stdout, got %q", stdout)
+		}
+		if want := "Error: --gambling-simulated must be one of: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, FREQUENT"; !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
 	})
 }
 

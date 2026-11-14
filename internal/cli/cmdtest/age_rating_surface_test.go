@@ -13,7 +13,6 @@ func TestAgeRatingSetAllNoneUsesSafeDefaultsAndPreservesOverrides(t *testing.T) 
 	t.Setenv("ASC_PROFILE", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.PATCH("/v1/ageRatingDeclarations/age-1").JSONBody(`{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{
 		"advertising":false,"gambling":true,"healthOrWellnessTopics":false,"lootBox":false,"messagingAndChat":false,
 		"parentalControls":false,"ageAssurance":false,"socialMedia":false,"socialMediaAgeRestricted":false,
@@ -35,14 +34,14 @@ func TestAgeRatingSetAllNoneUsesSafeDefaultsAndPreservesOverrides(t *testing.T) 
 			}
 		}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{
 		"age-rating", "edit",
 		"--id", "age-1",
 		"--all-none",
 		"--gambling", "true",
 		"--violence-realistic", "FREQUENT_OR_INTENSE",
 		"--output", "json",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

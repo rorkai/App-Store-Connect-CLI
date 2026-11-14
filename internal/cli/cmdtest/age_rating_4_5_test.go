@@ -1,19 +1,19 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestAgeRatingEditKorea45(t *testing.T) {
 	for _, rating := range []string{"ALL", "TWELVE_PLUS", ""} {
 		t.Run(rating, func(t *testing.T) {
-			setupAuth(t)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				if req.Method != http.MethodPatch || req.URL.Path != "/v1/ageRatingDeclarations/age-45" {
 					t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
@@ -34,19 +34,17 @@ func TestAgeRatingEditKorea45(t *testing.T) {
 			}))
 			defer server.Close()
 			serverURL, _ := url.Parse(server.URL)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				cloned := req.Clone(req.Context())
 				cloned.URL.Scheme = serverURL.Scheme
 				cloned.URL.Host = serverURL.Host
 				return server.Client().Transport.RoundTrip(cloned)
 			}))
-			root := RootCommand("test")
-			var runErr error
 			args := []string{"age-rating", "edit", "--id", "age-45", "--grac-rating-classification-number", "CC-2026-123", "--output", "json"}
 			if rating != "" {
 				args = append(args, "--korea-age-rating-override", rating)
 			}
-			stdout, stderr := captureOutput(t, func() { runErr = root.ParseAndRun(context.Background(), args) })
+			stdout, stderr, runErr := runRootWithDeps(t, client, args...)
 			if runErr != nil {
 				t.Fatalf("run: %v; stderr=%s", runErr, stderr)
 			}
@@ -66,12 +64,11 @@ func TestAgeRatingEditKorea45(t *testing.T) {
 }
 
 func TestAgeRatingEditInvalidKorea45(t *testing.T) {
-	assertUsageExit(t, []string{"age-rating", "edit", "--id", "age-45", "--korea-age-rating-override", "TEN_PLUS"}, "--korea-age-rating-override must be one of:")
-	assertUsageExit(t, []string{"age-rating", "edit", "--id", "age-45", "--grac-rating-classification-number", " "}, "--grac-rating-classification-number must not be empty")
+	assertUsageExitWithDeps(t, stubClient(t, asctest.NewRegistry(t)), []string{"age-rating", "edit", "--id", "age-45", "--korea-age-rating-override", "TEN_PLUS"}, "--korea-age-rating-override must be one of:")
+	assertUsageExitWithDeps(t, stubClient(t, asctest.NewRegistry(t)), []string{"age-rating", "edit", "--id", "age-45", "--grac-rating-classification-number", " "}, "--grac-rating-classification-number must not be empty")
 }
 
 func TestAgeRatingEditClearGRAC(t *testing.T) {
-	setupAuth(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPatch || req.URL.Path != "/v1/ageRatingDeclarations/age-45" {
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
@@ -92,23 +89,19 @@ func TestAgeRatingEditClearGRAC(t *testing.T) {
 	}))
 	defer server.Close()
 	serverURL, _ := url.Parse(server.URL)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		cloned := req.Clone(req.Context())
 		cloned.URL.Scheme = serverURL.Scheme
 		cloned.URL.Host = serverURL.Host
 		return server.Client().Transport.RoundTrip(cloned)
 	}))
-	root := RootCommand("test")
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = root.ParseAndRun(context.Background(), []string{"age-rating", "edit", "--id", "age-45", "--clear-grac-rating-classification-number", "--output", "json"})
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, client, "age-rating", "edit", "--id", "age-45", "--clear-grac-rating-classification-number", "--output", "json")
 	if runErr != nil || stderr != "" || !json.Valid([]byte(stdout)) {
 		t.Fatalf("run: %v; stdout=%s; stderr=%s", runErr, stdout, stderr)
 	}
 }
 
 func TestAgeRatingEditClearGRACUsage(t *testing.T) {
-	assertUsageExit(t, []string{"age-rating", "edit", "--id", "age-45", "--clear-grac-rating-classification-number", "--grac-rating-classification-number", "CC-2026-123"}, "--grac-rating-classification-number cannot be combined with --clear-grac-rating-classification-number")
-	assertUsageExit(t, []string{"age-rating", "edit", "--id", "age-45", "--clear-grac-rating-classification-number=false"}, "at least one update flag is required")
+	assertUsageExitWithDeps(t, stubClient(t, asctest.NewRegistry(t)), []string{"age-rating", "edit", "--id", "age-45", "--clear-grac-rating-classification-number", "--grac-rating-classification-number", "CC-2026-123"}, "--grac-rating-classification-number cannot be combined with --clear-grac-rating-classification-number")
+	assertUsageExitWithDeps(t, stubClient(t, asctest.NewRegistry(t)), []string{"age-rating", "edit", "--id", "age-45", "--clear-grac-rating-classification-number=false"}, "at least one update flag is required")
 }
