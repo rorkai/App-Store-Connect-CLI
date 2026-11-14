@@ -8,7 +8,6 @@
     "InAppPurchaseOfferCodeOneTimeUseCodeUpdateRequest"
   ],
   "operations": [
-    {"operation":"inAppPurchaseOfferCodeOneTimeUseCodes_getInstance","name":"GetInAppPurchaseOfferCodeOneTimeUseCode","params":["oneTimeUseCodeID"],"check":"require"},
-    {"operation":"inAppPurchaseOfferCodeOneTimeUseCodes_updateInstance","name":"UpdateInAppPurchaseOfferCodeOneTimeUseCode","params":["oneTimeUseCodeID"],"check":"require","skipEmptyAttributes":true}
+    {"operation":"inAppPurchaseOfferCodeOneTimeUseCodes_getInstance","name":"GetInAppPurchaseOfferCodeOneTimeUseCode","params":["oneTimeUseCodeID"],"check":"require"}
   ]
 }

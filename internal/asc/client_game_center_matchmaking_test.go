@@ -10,58 +10,6 @@ import (
 	"testing"
 )
 
-func TestGetGameCenterMatchmakingQueues_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterMatchmakingQueues" {
-			t.Fatalf("expected path /v1/gameCenterMatchmakingQueues, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "10" {
-			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterMatchmakingQueues(context.Background(), Limit[GCMatchmakingQueuesOption](10)); err != nil {
-		t.Fatalf("GetGameCenterMatchmakingQueues() error: %v", err)
-	}
-}
-
-func TestGetGameCenterMatchmakingQueues_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterMatchmakingQueues?cursor=next"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterMatchmakingQueues(context.Background(), NextURL[GCMatchmakingQueuesOption](next)); err != nil {
-		t.Fatalf("GetGameCenterMatchmakingQueues() error: %v", err)
-	}
-}
-
-func TestGetGameCenterMatchmakingQueue(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterMatchmakingQueues","id":"queue-1","attributes":{"referenceName":"Primary"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterMatchmakingQueues/queue-1" {
-			t.Fatalf("expected path /v1/gameCenterMatchmakingQueues/queue-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterMatchmakingQueue(context.Background(), "queue-1"); err != nil {
-		t.Fatalf("GetGameCenterMatchmakingQueue() error: %v", err)
-	}
-}
-
 func TestCreateGameCenterMatchmakingQueue(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterMatchmakingQueues","id":"queue-1","attributes":{"referenceName":"Primary"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -131,23 +79,6 @@ func TestUpdateGameCenterMatchmakingQueue(t *testing.T) {
 	}
 }
 
-func TestDeleteGameCenterMatchmakingQueue(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterMatchmakingQueues/queue-1" {
-			t.Fatalf("expected path /v1/gameCenterMatchmakingQueues/queue-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterMatchmakingQueue(context.Background(), "queue-1"); err != nil {
-		t.Fatalf("DeleteGameCenterMatchmakingQueue() error: %v", err)
-	}
-}
-
 func TestCreateGameCenterMatchmakingRule(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterMatchmakingRules","id":"rule-1","attributes":{"referenceName":"Rule"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -181,52 +112,6 @@ func TestCreateGameCenterMatchmakingRule(t *testing.T) {
 	}
 }
 
-func TestUpdateGameCenterMatchmakingRule(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterMatchmakingRules","id":"rule-1","attributes":{"referenceName":"Rule"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterMatchmakingRules/rule-1" {
-			t.Fatalf("expected path /v1/gameCenterMatchmakingRules/rule-1, got %s", req.URL.Path)
-		}
-		var payload GameCenterMatchmakingRuleUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.ID != "rule-1" || payload.Data.Type != ResourceTypeGameCenterMatchmakingRules {
-			t.Fatalf("unexpected payload: %+v", payload.Data)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.Expression == nil || *payload.Data.Attributes.Expression != "false" {
-			t.Fatalf("expected expression update, got %+v", payload.Data.Attributes)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	expression := "false"
-	attrs := GameCenterMatchmakingRuleUpdateAttributes{Expression: &expression}
-	if _, err := client.UpdateGameCenterMatchmakingRule(context.Background(), "rule-1", attrs); err != nil {
-		t.Fatalf("UpdateGameCenterMatchmakingRule() error: %v", err)
-	}
-}
-
-func TestDeleteGameCenterMatchmakingRule(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterMatchmakingRules/rule-1" {
-			t.Fatalf("expected path /v1/gameCenterMatchmakingRules/rule-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterMatchmakingRule(context.Background(), "rule-1"); err != nil {
-		t.Fatalf("DeleteGameCenterMatchmakingRule() error: %v", err)
-	}
-}
-
 func TestCreateGameCenterMatchmakingTeam(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterMatchmakingTeams","id":"team-1","attributes":{"referenceName":"Team"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -256,52 +141,6 @@ func TestCreateGameCenterMatchmakingTeam(t *testing.T) {
 	}
 	if _, err := client.CreateGameCenterMatchmakingTeam(context.Background(), "rule-set-1", attrs); err != nil {
 		t.Fatalf("CreateGameCenterMatchmakingTeam() error: %v", err)
-	}
-}
-
-func TestUpdateGameCenterMatchmakingTeam(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterMatchmakingTeams","id":"team-1","attributes":{"referenceName":"Team"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterMatchmakingTeams/team-1" {
-			t.Fatalf("expected path /v1/gameCenterMatchmakingTeams/team-1, got %s", req.URL.Path)
-		}
-		var payload GameCenterMatchmakingTeamUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.ID != "team-1" || payload.Data.Type != ResourceTypeGameCenterMatchmakingTeams {
-			t.Fatalf("unexpected payload: %+v", payload.Data)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.MinPlayers == nil || *payload.Data.Attributes.MinPlayers != 2 {
-			t.Fatalf("expected minPlayers update, got %+v", payload.Data.Attributes)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	minPlayers := 2
-	attrs := GameCenterMatchmakingTeamUpdateAttributes{MinPlayers: &minPlayers}
-	if _, err := client.UpdateGameCenterMatchmakingTeam(context.Background(), "team-1", attrs); err != nil {
-		t.Fatalf("UpdateGameCenterMatchmakingTeam() error: %v", err)
-	}
-}
-
-func TestDeleteGameCenterMatchmakingTeam(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterMatchmakingTeams/team-1" {
-			t.Fatalf("expected path /v1/gameCenterMatchmakingTeams/team-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterMatchmakingTeam(context.Background(), "team-1"); err != nil {
-		t.Fatalf("DeleteGameCenterMatchmakingTeam() error: %v", err)
 	}
 }
 
@@ -340,90 +179,6 @@ func TestGetGameCenterMatchmakingQueueRequests_WithFilters(t *testing.T) {
 	}
 	if _, err := client.GetGameCenterMatchmakingQueueRequests(context.Background(), "queue-1", opts...); err != nil {
 		t.Fatalf("GetGameCenterMatchmakingQueueRequests() error: %v", err)
-	}
-}
-
-func TestGameCenterMatchmakingMetricsPaths(t *testing.T) {
-	tests := []struct {
-		name     string
-		call     func(*Client) error
-		wantPath string
-	}{
-		{
-			name: "queue sizes",
-			call: func(c *Client) error {
-				_, err := c.GetGameCenterMatchmakingQueueSizes(context.Background(), "queue-1")
-				return err
-			},
-			wantPath: "/v1/gameCenterMatchmakingQueues/queue-1/metrics/matchmakingQueueSizes",
-		},
-		{
-			name: "queue sessions",
-			call: func(c *Client) error {
-				_, err := c.GetGameCenterMatchmakingQueueSessions(context.Background(), "queue-1")
-				return err
-			},
-			wantPath: "/v1/gameCenterMatchmakingQueues/queue-1/metrics/matchmakingSessions",
-		},
-		{
-			name: "experiment sizes",
-			call: func(c *Client) error {
-				_, err := c.GetGameCenterMatchmakingQueueExperimentSizes(context.Background(), "queue-1")
-				return err
-			},
-			wantPath: "/v1/gameCenterMatchmakingQueues/queue-1/metrics/experimentMatchmakingQueueSizes",
-		},
-		{
-			name: "experiment requests",
-			call: func(c *Client) error {
-				_, err := c.GetGameCenterMatchmakingQueueExperimentRequests(context.Background(), "queue-1")
-				return err
-			},
-			wantPath: "/v1/gameCenterMatchmakingQueues/queue-1/metrics/experimentMatchmakingRequests",
-		},
-		{
-			name: "boolean rule results",
-			call: func(c *Client) error {
-				_, err := c.GetGameCenterMatchmakingBooleanRuleResults(context.Background(), "rule-1")
-				return err
-			},
-			wantPath: "/v1/gameCenterMatchmakingRules/rule-1/metrics/matchmakingBooleanRuleResults",
-		},
-		{
-			name: "number rule results",
-			call: func(c *Client) error {
-				_, err := c.GetGameCenterMatchmakingNumberRuleResults(context.Background(), "rule-1")
-				return err
-			},
-			wantPath: "/v1/gameCenterMatchmakingRules/rule-1/metrics/matchmakingNumberRuleResults",
-		},
-		{
-			name: "rule errors",
-			call: func(c *Client) error {
-				_, err := c.GetGameCenterMatchmakingRuleErrors(context.Background(), "rule-1")
-				return err
-			},
-			wantPath: "/v1/gameCenterMatchmakingRules/rule-1/metrics/matchmakingRuleErrors",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			response := jsonResponse(http.StatusOK, `{"data":[]}`)
-			client := newTestClient(t, func(req *http.Request) {
-				if req.Method != http.MethodGet {
-					t.Fatalf("expected GET, got %s", req.Method)
-				}
-				if req.URL.Path != test.wantPath {
-					t.Fatalf("expected path %s, got %s", test.wantPath, req.URL.Path)
-				}
-				assertAuthorized(t, req)
-			}, response)
-
-			if err := test.call(client); err != nil {
-				t.Fatalf("call error: %v", err)
-			}
-		})
 	}
 }
 

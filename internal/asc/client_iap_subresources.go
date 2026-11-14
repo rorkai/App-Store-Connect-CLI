@@ -324,6 +324,26 @@ func (c *Client) CreateInAppPurchaseOfferCodeCustomCode(ctx context.Context, req
 	return sendJSON[InAppPurchaseOfferCodeCustomCodeResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseOfferCodeCustomCodes", Payload: req})
 }
 
+// UpdateInAppPurchaseOfferCodeCustomCode updates a custom code by ID.
+func (c *Client) UpdateInAppPurchaseOfferCodeCustomCode(ctx context.Context, customCodeID string, attrs InAppPurchaseOfferCodeCustomCodeUpdateAttributes) (*InAppPurchaseOfferCodeCustomCodeResponse, error) {
+	customCodeID = strings.TrimSpace(customCodeID)
+	if customCodeID == "" {
+		return nil, fmt.Errorf("customCodeID is required")
+	}
+
+	payload := InAppPurchaseOfferCodeCustomCodeUpdateRequest{
+		Data: InAppPurchaseOfferCodeCustomCodeUpdateData{
+			Type: ResourceTypeInAppPurchaseOfferCodeCustomCodes,
+			ID:   customCodeID,
+		},
+	}
+	if attrs.Active != nil {
+		payload.Data.Attributes = &attrs
+	}
+
+	return sendJSON[InAppPurchaseOfferCodeCustomCodeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeCustomCodes/%s", customCodeID), Payload: payload})
+}
+
 // CreateInAppPurchaseOfferCodeOneTimeUseCode generates a new one-time use code batch.
 func (c *Client) CreateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context, req InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest) (*InAppPurchaseOfferCodeOneTimeUseCodeResponse, error) {
 	offerCodeID := strings.TrimSpace(req.Data.Relationships.OfferCode.Data.ID)
@@ -343,6 +363,26 @@ func (c *Client) CreateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context,
 	req.Data.Attributes.Environment = environment
 
 	return sendJSON[InAppPurchaseOfferCodeOneTimeUseCodeResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseOfferCodeOneTimeUseCodes", Payload: req})
+}
+
+// UpdateInAppPurchaseOfferCodeOneTimeUseCode updates a one-time use code batch by ID.
+func (c *Client) UpdateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context, oneTimeUseCodeID string, attrs InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes) (*InAppPurchaseOfferCodeOneTimeUseCodeResponse, error) {
+	oneTimeUseCodeID = strings.TrimSpace(oneTimeUseCodeID)
+	if oneTimeUseCodeID == "" {
+		return nil, fmt.Errorf("oneTimeUseCodeID is required")
+	}
+
+	payload := InAppPurchaseOfferCodeOneTimeUseCodeUpdateRequest{
+		Data: InAppPurchaseOfferCodeOneTimeUseCodeUpdateData{
+			Type: ResourceTypeInAppPurchaseOfferCodeOneTimeUseCodes,
+			ID:   oneTimeUseCodeID,
+		},
+	}
+	if attrs.Active != nil {
+		payload.Data.Attributes = &attrs
+	}
+
+	return sendJSON[InAppPurchaseOfferCodeOneTimeUseCodeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID), Payload: payload})
 }
 
 // CreateInAppPurchaseOfferCode creates an offer code.
@@ -424,4 +464,24 @@ func (c *Client) CreateInAppPurchaseOfferCode(ctx context.Context, iapID string,
 	}
 
 	return sendJSON[InAppPurchaseOfferCodeResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseOfferCodes", Payload: payload})
+}
+
+// UpdateInAppPurchaseOfferCode updates an offer code by ID.
+func (c *Client) UpdateInAppPurchaseOfferCode(ctx context.Context, offerCodeID string, attrs InAppPurchaseOfferCodeUpdateAttributes) (*InAppPurchaseOfferCodeResponse, error) {
+	offerCodeID = strings.TrimSpace(offerCodeID)
+	if offerCodeID == "" {
+		return nil, fmt.Errorf("offerCodeID is required")
+	}
+
+	payload := InAppPurchaseOfferCodeUpdateRequest{
+		Data: InAppPurchaseOfferCodeUpdateData{
+			Type: ResourceTypeInAppPurchaseOfferCodes,
+			ID:   offerCodeID,
+		},
+	}
+	if attrs.Active != nil {
+		payload.Data.Attributes = &attrs
+	}
+
+	return sendJSON[InAppPurchaseOfferCodeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s", offerCodeID), Payload: payload})
 }

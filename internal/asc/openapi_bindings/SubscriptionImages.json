@@ -6,7 +6,6 @@
     "SubscriptionImageV2UpdateRequest"
   ],
   "operations": [
-    {"operation":"subscriptionImagesV2_deleteInstance","name":"DeleteSubscriptionImageV2","params":["imageID"],"check":"require","messages":["image ID is required"]},
-    {"operation":"subscriptionImagesV2_updateInstance","name":"UpdateSubscriptionImageV2","params":["imageID"],"check":"require","messages":["image ID is required"],"attrs":"value"}
+    {"operation":"subscriptionImagesV2_deleteInstance","name":"DeleteSubscriptionImageV2","params":["imageID"],"check":"require","messages":["image ID is required"]}
   ]
 }

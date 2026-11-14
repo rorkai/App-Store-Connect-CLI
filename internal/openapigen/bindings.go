@@ -58,12 +58,31 @@ type OpBind struct {
 	ParseErr    string   `json:"parseErr,omitempty"`    // default "failed to parse response"
 	Response    string   `json:"response,omitempty"`    // Go decode type; default the spec schema name
 	IDs         string   `json:"ids,omitempty"`         // ID list parameter of a relationship change
+	IDList      *IDList  `json:"idList,omitempty"`      // how a relationship change handles its ID list
 	Attrs       string   `json:"attrs,omitempty"`       // "", attrsValue or attrsPointer
 	// SkipEmptyAttributes sends the attributes only when one of them is set.
 	SkipEmptyAttributes bool `json:"skipEmptyAttributes,omitempty"`
 	// Deviations are known differences from the schema that the contract test
 	// in internal/asc pins. They change no generated code.
 	Deviations []Deviation `json:"deviations,omitempty"`
+}
+
+// Payload styles of a relationship change.
+const (
+	payloadDefault      = ""             // RelationshipRequest{Data: buildRelationshipData(...)}
+	payloadAppend       = "append"       // append to RelationshipRequest.Data in a loop over Item
+	payloadIndex        = "index"        // assign RelationshipRequest.Data[i] in a loop over i, id
+	payloadResourceList = "resourceList" // RelationshipList of ResourceData, in a loop over Item
+	payloadNonNil       = "nonNil"       // buildRelationshipData, with nil replaced by an empty list
+)
+
+// IDList is how a relationship change prepares its ID list. Without it the
+// list goes to buildRelationshipData as given.
+type IDList struct {
+	Normalize bool   `json:"normalize,omitempty"` // normalizeList after the path parameter trims
+	Message   string `json:"message,omitempty"`   // error for an empty list after normalizing; none allows it
+	Payload   string `json:"payload,omitempty"`   // one of the payload styles
+	Item      string `json:"item,omitempty"`      // loop variable of the append and resourceList styles
 }
 
 // Deviation is one problem text of the contract test that the method is known

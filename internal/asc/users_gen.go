@@ -37,6 +37,50 @@ func (c *Client) GetUsers(ctx context.Context, opts ...UsersOption) (*UsersRespo
 	})
 }
 
+// AddUserVisibleApps sends POST /v1/users/{id}/relationships/visibleApps (users_visibleApps_createToManyRelationship).
+func (c *Client) AddUserVisibleApps(ctx context.Context, userID string, appIDs []string) error {
+	userID = strings.TrimSpace(userID)
+	appIDs = normalizeList(appIDs)
+	if userID == "" {
+		return fmt.Errorf("userID is required")
+	}
+	if len(appIDs) == 0 {
+		return fmt.Errorf("appIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(appIDs)),
+	}
+	for _, id := range appIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeApps,
+			ID:   id,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID), payload)
+}
+
+// RemoveUserVisibleApps sends DELETE /v1/users/{id}/relationships/visibleApps (users_visibleApps_deleteToManyRelationship).
+func (c *Client) RemoveUserVisibleApps(ctx context.Context, userID string, appIDs []string) error {
+	userID = strings.TrimSpace(userID)
+	appIDs = normalizeList(appIDs)
+	if userID == "" {
+		return fmt.Errorf("userID is required")
+	}
+	if len(appIDs) == 0 {
+		return fmt.Errorf("appIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(appIDs)),
+	}
+	for _, id := range appIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeApps,
+			ID:   id,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID), payload)
+}
+
 // GetUserVisibleApps sends GET /v1/users/{id}/visibleApps (users_visibleApps_getToManyRelated).
 func (c *Client) GetUserVisibleApps(ctx context.Context, userID string, opts ...UserVisibleAppsOption) (*AppsResponse, error) {
 	userID = strings.TrimSpace(userID)

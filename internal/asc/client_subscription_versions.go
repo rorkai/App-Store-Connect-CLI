@@ -114,6 +114,20 @@ func (c *Client) GetSubscriptionLocalizationV2(ctx context.Context, localization
 	})
 }
 
+// UpdateSubscriptionLocalizationV2 updates a version-scoped localization.
+func (c *Client) UpdateSubscriptionLocalizationV2(ctx context.Context, localizationID string, attrs SubscriptionLocalizationV2UpdateAttributes) (*SubscriptionLocalizationV2Response, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localization ID is required")
+	}
+	payload := SubscriptionLocalizationV2UpdateRequest{Data: SubscriptionLocalizationV2UpdateData{
+		Type:       ResourceTypeSubscriptionLocalizations,
+		ID:         localizationID,
+		Attributes: attrs,
+	}}
+	return sendJSON[SubscriptionLocalizationV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID), Payload: payload})
+}
+
 // CreateSubscriptionImageV2 reserves a version-scoped image upload.
 func (c *Client) CreateSubscriptionImageV2(ctx context.Context, versionID, fileName string, fileSize int64) (*SubscriptionImageV2Response, error) {
 	versionID = strings.TrimSpace(versionID)
@@ -152,4 +166,18 @@ func (c *Client) GetSubscriptionImageV2(ctx context.Context, imageID string, opt
 		Path:  fmt.Sprintf("/v2/subscriptionImages/%s", imageID),
 		Query: buildSubscriptionImageV2Query(query),
 	})
+}
+
+// UpdateSubscriptionImageV2 commits or updates a version-scoped image.
+func (c *Client) UpdateSubscriptionImageV2(ctx context.Context, imageID string, attrs SubscriptionImageV2UpdateAttributes) (*SubscriptionImageV2Response, error) {
+	imageID = strings.TrimSpace(imageID)
+	if imageID == "" {
+		return nil, fmt.Errorf("image ID is required")
+	}
+	payload := SubscriptionImageV2UpdateRequest{Data: SubscriptionImageV2UpdateData{
+		Type:       ResourceTypeSubscriptionImages,
+		ID:         imageID,
+		Attributes: attrs,
+	}}
+	return sendJSON[SubscriptionImageV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/subscriptionImages/%s", imageID), Payload: payload})
 }

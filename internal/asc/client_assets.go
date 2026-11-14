@@ -144,21 +144,6 @@ func (c *Client) GetAppScreenshots(ctx context.Context, setID string, opts ...Ap
 	})
 }
 
-// UpdateAppScreenshotSetAppScreenshotsRelationship replaces the screenshots on a screenshot set.
-func (c *Client) UpdateAppScreenshotSetAppScreenshotsRelationship(ctx context.Context, setID string, screenshotIDs []string) error {
-	setID = strings.TrimSpace(setID)
-	if setID == "" {
-		return fmt.Errorf("setID is required")
-	}
-
-	data := buildRelationshipData(ResourceTypeAppScreenshots, screenshotIDs)
-	if data == nil {
-		data = []RelationshipData{}
-	}
-	payload := RelationshipRequest{Data: data}
-	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", setID), payload)
-}
-
 // CreateAppScreenshot creates a screenshot reservation.
 func (c *Client) CreateAppScreenshot(ctx context.Context, setID string, fileName string, fileSize int64) (*AppScreenshotResponse, error) {
 	payload := AppScreenshotCreateRequest{
@@ -290,21 +275,6 @@ func (c *Client) GetAppPreviews(ctx context.Context, setID string, opts ...AppPr
 		Next:        query.nextURL,
 		NextContext: "appPreviews",
 	})
-}
-
-// UpdateAppPreviewSetAppPreviewsRelationship replaces the previews on a preview set.
-func (c *Client) UpdateAppPreviewSetAppPreviewsRelationship(ctx context.Context, setID string, previewIDs []string) error {
-	setID = strings.TrimSpace(setID)
-	if setID == "" {
-		return fmt.Errorf("setID is required")
-	}
-
-	data := buildRelationshipData(ResourceTypeAppPreviews, previewIDs)
-	if data == nil {
-		data = []RelationshipData{}
-	}
-	payload := RelationshipRequest{Data: data}
-	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appPreviewSets/%s/relationships/appPreviews", setID), payload)
 }
 
 // CreateAppPreview creates a preview reservation.

@@ -131,30 +131,6 @@ func (c *Client) CreateAppEncryptionDeclaration(ctx context.Context, appID strin
 	return sendJSON[AppEncryptionDeclarationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appEncryptionDeclarations", Payload: payload})
 }
 
-// AddBuildsToAppEncryptionDeclaration assigns builds to a declaration.
-func (c *Client) AddBuildsToAppEncryptionDeclaration(ctx context.Context, declarationID string, buildIDs []string) error {
-	declarationID = strings.TrimSpace(declarationID)
-	buildIDs = normalizeList(buildIDs)
-	if declarationID == "" {
-		return fmt.Errorf("declarationID is required")
-	}
-	if len(buildIDs) == 0 {
-		return fmt.Errorf("buildIDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, len(buildIDs)),
-	}
-	for i, id := range buildIDs {
-		payload.Data[i] = RelationshipData{
-			Type: ResourceTypeBuilds,
-			ID:   id,
-		}
-	}
-
-	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/appEncryptionDeclarations/%s/relationships/builds", declarationID), payload)
-}
-
 // GetAppEncryptionDeclarationDocument retrieves a document by ID.
 func (c *Client) GetAppEncryptionDeclarationDocument(ctx context.Context, documentID string, fields []string) (*AppEncryptionDeclarationDocumentResponse, error) {
 	documentID = strings.TrimSpace(documentID)
@@ -201,4 +177,24 @@ func (c *Client) CreateAppEncryptionDeclarationDocument(ctx context.Context, dec
 	}
 
 	return sendJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appEncryptionDeclarationDocuments", Payload: payload})
+}
+
+// UpdateAppEncryptionDeclarationDocument updates a document by ID.
+func (c *Client) UpdateAppEncryptionDeclarationDocument(ctx context.Context, documentID string, attrs AppEncryptionDeclarationDocumentUpdateAttributes) (*AppEncryptionDeclarationDocumentResponse, error) {
+	documentID = strings.TrimSpace(documentID)
+	if documentID == "" {
+		return nil, fmt.Errorf("documentID is required")
+	}
+
+	payload := AppEncryptionDeclarationDocumentUpdateRequest{
+		Data: AppEncryptionDeclarationDocumentUpdateData{
+			Type: ResourceTypeAppEncryptionDeclarationDocuments,
+			ID:   documentID,
+		},
+	}
+	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
+		payload.Data.Attributes = &attrs
+	}
+
+	return sendJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appEncryptionDeclarationDocuments/%s", documentID), Payload: payload})
 }

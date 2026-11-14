@@ -51,23 +51,3 @@ func (c *Client) DeleteBetaAppClipInvocationLocalization(ctx context.Context, lo
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaAppClipInvocationLocalizations/%s", localizationID), nil)
 }
-
-// UpdateBetaAppClipInvocationLocalization sends PATCH /v1/betaAppClipInvocationLocalizations/{id} (betaAppClipInvocationLocalizations_updateInstance).
-func (c *Client) UpdateBetaAppClipInvocationLocalization(ctx context.Context, localizationID string, attrs *BetaAppClipInvocationLocalizationUpdateAttributes) (*BetaAppClipInvocationLocalizationResponse, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	payload := BetaAppClipInvocationLocalizationUpdateRequest{
-		Data: BetaAppClipInvocationLocalizationUpdateData{
-			Type:       ResourceTypeBetaAppClipInvocationLocalizations,
-			ID:         localizationID,
-			Attributes: attrs,
-		},
-	}
-	return sendJSON[BetaAppClipInvocationLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/betaAppClipInvocationLocalizations/%s", localizationID),
-		Payload: payload,
-	})
-}

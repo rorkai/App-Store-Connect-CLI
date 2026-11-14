@@ -183,6 +183,25 @@ func (c *Client) CreateAppCustomProductPage(ctx context.Context, appID, name str
 	return sendJSON[AppCustomProductPageResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appCustomProductPages", Payload: payload})
 }
 
+// UpdateAppCustomProductPage updates a custom product page.
+func (c *Client) UpdateAppCustomProductPage(ctx context.Context, pageID string, attrs AppCustomProductPageUpdateAttributes) (*AppCustomProductPageResponse, error) {
+	pageID = strings.TrimSpace(pageID)
+	if pageID == "" {
+		return nil, fmt.Errorf("pageID is required")
+	}
+
+	payload := AppCustomProductPageUpdateRequest{
+		Data: AppCustomProductPageUpdateData{
+			Type: ResourceTypeAppCustomProductPages,
+			ID:   pageID,
+		},
+	}
+	if attrs.Name != nil || attrs.Visible != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppCustomProductPageResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appCustomProductPages/%s", pageID), Payload: payload})
+}
+
 // CreateAppCustomProductPageVersion creates a custom product page version.
 func (c *Client) CreateAppCustomProductPageVersion(ctx context.Context, pageID, deepLink string) (*AppCustomProductPageVersionResponse, error) {
 	pageID = strings.TrimSpace(pageID)
@@ -206,6 +225,25 @@ func (c *Client) CreateAppCustomProductPageVersion(ctx context.Context, pageID, 
 		},
 	}
 	return sendJSON[AppCustomProductPageVersionResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appCustomProductPageVersions", Payload: payload})
+}
+
+// UpdateAppCustomProductPageVersion updates a custom product page version.
+func (c *Client) UpdateAppCustomProductPageVersion(ctx context.Context, versionID string, attrs AppCustomProductPageVersionUpdateAttributes) (*AppCustomProductPageVersionResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+
+	payload := AppCustomProductPageVersionUpdateRequest{
+		Data: AppCustomProductPageVersionUpdateData{
+			Type: ResourceTypeAppCustomProductPageVersions,
+			ID:   versionID,
+		},
+	}
+	if attrs.DeepLink != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppCustomProductPageVersionResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID), Payload: payload})
 }
 
 // GetAppCustomProductPageLocalization retrieves a custom product page localization by ID.
@@ -246,48 +284,21 @@ func (c *Client) CreateAppCustomProductPageLocalization(ctx context.Context, ver
 	return sendJSON[AppCustomProductPageLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appCustomProductPageLocalizations", Payload: payload})
 }
 
-// AddAppCustomProductPageLocalizationSearchKeywords adds search keywords to a localization.
-func (c *Client) AddAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
+// UpdateAppCustomProductPageLocalization updates a custom product page localization.
+func (c *Client) UpdateAppCustomProductPageLocalization(ctx context.Context, localizationID string, attrs AppCustomProductPageLocalizationUpdateAttributes) (*AppCustomProductPageLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
-	keywords = normalizeList(keywords)
 	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	if len(keywords) == 0 {
-		return fmt.Errorf("keywords are required")
+		return nil, fmt.Errorf("localizationID is required")
 	}
 
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(keywords)),
+	payload := AppCustomProductPageLocalizationUpdateRequest{
+		Data: AppCustomProductPageLocalizationUpdateData{
+			Type: ResourceTypeAppCustomProductPageLocalizations,
+			ID:   localizationID,
+		},
 	}
-	for _, keyword := range keywords {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeAppKeywords,
-			ID:   keyword,
-		})
+	if attrs.PromotionalText != nil {
+		payload.Data.Attributes = &attrs
 	}
-	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID), payload)
-}
-
-// DeleteAppCustomProductPageLocalizationSearchKeywords removes search keywords from a localization.
-func (c *Client) DeleteAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	keywords = normalizeList(keywords)
-	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	if len(keywords) == 0 {
-		return fmt.Errorf("keywords are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(keywords)),
-	}
-	for _, keyword := range keywords {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeAppKeywords,
-			ID:   keyword,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID), payload)
+	return sendJSON[AppCustomProductPageLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), Payload: payload})
 }

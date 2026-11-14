@@ -2,6 +2,8 @@ package asc
 
 import (
 	"context"
+	"fmt"
+	"strings"
 )
 
 // AppTagsResponse is the response from app tags endpoints.
@@ -12,6 +14,22 @@ type AppTagTerritoriesLinkagesResponse = LinkagesResponse
 
 // AppAppTagsLinkagesResponse is the response from app app tag linkages endpoints.
 type AppAppTagsLinkagesResponse = LinkagesResponse
+
+// UpdateAppTag updates an app tag by ID.
+func (c *Client) UpdateAppTag(ctx context.Context, tagID string, attrs AppTagUpdateAttributes) (*AppTagResponse, error) {
+	tagID = strings.TrimSpace(tagID)
+	payload := AppTagUpdateRequest{
+		Data: AppTagUpdateData{
+			Type: ResourceTypeAppTags,
+			ID:   tagID,
+		},
+	}
+	if attrs.VisibleInAppStore != nil {
+		payload.Data.Attributes = &attrs
+	}
+
+	return sendJSON[AppTagResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appTags/%s", tagID), Payload: payload})
+}
 
 // GetAppTagTerritoriesRelationships retrieves territory linkages for an app tag.
 func (c *Client) GetAppTagTerritoriesRelationships(ctx context.Context, tagID string, opts ...LinkagesOption) (*AppTagTerritoriesLinkagesResponse, error) {
