@@ -1370,6 +1370,32 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			},
 		},
 		{
+			name: "GetAppEncryptionDeclarationsForAppResource",
+			path: "/v1/apps/app-1/appEncryptionDeclarations",
+			query: map[string]string{
+				"filter[app]":                               "",
+				"filter[builds]":                            "build-1,build-2",
+				"fields[appEncryptionDeclarations]":         "appDescription,exempt",
+				"fields[appEncryptionDeclarationDocuments]": "fileName,fileSize",
+				"include":       "appEncryptionDeclarationDocument",
+				"limit":         "5",
+				"limit[builds]": "10",
+			},
+			body: `{"data":[{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appDescription":"Uses TLS"}}]}`,
+			call: func(c *Client) error {
+				return discardResult(c.GetAppEncryptionDeclarationsForApp(
+					ctx,
+					"app-1",
+					WithAppEncryptionDeclarationsBuildIDs([]string{"build-1", "build-2"}),
+					WithAppEncryptionDeclarationsFields([]string{"appDescription", "exempt"}),
+					WithAppEncryptionDeclarationsDocumentFields([]string{"fileName", "fileSize"}),
+					WithAppEncryptionDeclarationsInclude([]string{"appEncryptionDeclarationDocument"}),
+					Limit[AppEncryptionDeclarationsOption](5),
+					WithAppEncryptionDeclarationsBuildLimit(10),
+				))
+			},
+		},
+		{
 			name: "GetDiagnosticSignaturesForBuild",
 			path: "/v1/builds/build-1/diagnosticSignatures",
 			query: map[string]string{
@@ -1705,6 +1731,12 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			call: func(c *Client) error {
 				return discardResult(c.GetUser(ctx, "user-1", WithUsersInclude([]string{"visibleApps"})))
 			},
+		},
+		{
+			name: "GetBetaAppReviewDetail",
+			path: "/v1/betaAppReviewDetails/detail-1",
+			body: `{"data":{"type":"betaAppReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}}`,
+			call: func(c *Client) error { return discardResult(c.GetBetaAppReviewDetail(ctx, "detail-1")) },
 		},
 		{
 			name: "GetBetaAppReviewSubmission",

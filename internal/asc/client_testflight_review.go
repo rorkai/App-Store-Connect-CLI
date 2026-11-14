@@ -18,16 +18,6 @@ func (c *Client) GetBetaAppReviewDetails(ctx context.Context, appID string, opts
 	})
 }
 
-// GetBetaAppReviewDetailApp retrieves the app for a beta app review detail.
-func (c *Client) GetBetaAppReviewDetailApp(ctx context.Context, detailID string) (*AppResponse, error) {
-	detailID = strings.TrimSpace(detailID)
-	if detailID == "" {
-		return nil, fmt.Errorf("detailID is required")
-	}
-
-	return getJSON[AppResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaAppReviewDetails/%s/app", detailID)})
-}
-
 // UpdateBetaAppReviewDetail updates beta app review details by ID.
 func (c *Client) UpdateBetaAppReviewDetail(ctx context.Context, detailID string, attrs BetaAppReviewDetailUpdateAttributes) (*BetaAppReviewDetailResponse, error) {
 	detailID = strings.TrimSpace(detailID)
@@ -64,17 +54,6 @@ func (c *Client) UpdateBetaAppReviewDetail(ctx context.Context, detailID string,
 	return &response, nil
 }
 
-// GetBetaAppReviewSubmissions retrieves beta app review submissions.
-func (c *Client) GetBetaAppReviewSubmissions(ctx context.Context, opts ...BetaAppReviewSubmissionsOption) (*BetaAppReviewSubmissionsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BetaAppReviewSubmissionsResponse](ctx, c, readRequest{
-		Path:        "/v1/betaAppReviewSubmissions",
-		Query:       buildBetaAppReviewSubmissionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "betaAppReviewSubmissions",
-	})
-}
-
 // CreateBetaAppReviewSubmission submits a build for beta app review.
 func (c *Client) CreateBetaAppReviewSubmission(ctx context.Context, buildID string) (*BetaAppReviewSubmissionResponse, error) {
 	buildID = strings.TrimSpace(buildID)
@@ -101,26 +80,6 @@ func (c *Client) CreateBetaAppReviewSubmission(ctx context.Context, buildID stri
 		Path:    "/v1/betaAppReviewSubmissions",
 		Payload: payload,
 	})
-}
-
-// GetBetaAppReviewSubmission retrieves a beta app review submission by ID.
-func (c *Client) GetBetaAppReviewSubmission(ctx context.Context, submissionID string) (*BetaAppReviewSubmissionResponse, error) {
-	submissionID = strings.TrimSpace(submissionID)
-	if submissionID == "" {
-		return nil, fmt.Errorf("submissionID is required")
-	}
-
-	return getJSON[BetaAppReviewSubmissionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaAppReviewSubmissions/%s", submissionID)})
-}
-
-// GetBetaAppReviewSubmissionBuild retrieves the build for a beta app review submission.
-func (c *Client) GetBetaAppReviewSubmissionBuild(ctx context.Context, submissionID string) (*BuildResponse, error) {
-	submissionID = strings.TrimSpace(submissionID)
-	if submissionID == "" {
-		return nil, fmt.Errorf("submissionID is required")
-	}
-
-	return getJSON[BuildResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaAppReviewSubmissions/%s/build", submissionID)})
 }
 
 // CreateBetaRecruitmentCriteria creates beta recruitment criteria for a group.

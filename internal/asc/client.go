@@ -95,18 +95,6 @@ type CustomerReviewResponse = SingleResponse[ReviewAttributes]
 // AppStoreVersionLocalizationsResponse is the response from app store version localizations endpoints.
 type AppStoreVersionLocalizationsResponse = Response[AppStoreVersionLocalizationAttributes]
 
-// BetaAppLocalizationsResponse is the response from beta app localization endpoints.
-type BetaAppLocalizationsResponse = Response[BetaAppLocalizationAttributes]
-
-// BetaAppLocalizationResponse is the response from beta app localization detail/creates.
-type BetaAppLocalizationResponse = SingleResponse[BetaAppLocalizationAttributes]
-
-// BetaBuildLocalizationsResponse is the response from beta build localization endpoints.
-type BetaBuildLocalizationsResponse = Response[BetaBuildLocalizationAttributes]
-
-// BetaBuildLocalizationResponse is the response from beta build localization detail/creates.
-type BetaBuildLocalizationResponse = SingleResponse[BetaBuildLocalizationAttributes]
-
 // AppInfoLocalizationsResponse is the response from app info localizations endpoints.
 type AppInfoLocalizationsResponse = Response[AppInfoLocalizationAttributes]
 
@@ -485,11 +473,6 @@ type BetaAppLocalizationCreateData struct {
 	Relationships *BetaAppLocalizationRelationships `json:"relationships"`
 }
 
-// BetaAppLocalizationCreateRequest is a request to create a beta app localization.
-type BetaAppLocalizationCreateRequest struct {
-	Data BetaAppLocalizationCreateData `json:"data"`
-}
-
 // BetaAppLocalizationUpdateAttributes describes attributes for updating beta app localizations.
 type BetaAppLocalizationUpdateAttributes struct {
 	FeedbackEmail     *string `json:"feedbackEmail,omitempty"`
@@ -497,18 +480,6 @@ type BetaAppLocalizationUpdateAttributes struct {
 	PrivacyPolicyURL  *string `json:"privacyPolicyUrl,omitempty"`
 	TvOsPrivacyPolicy *string `json:"tvOsPrivacyPolicy,omitempty"`
 	Description       *string `json:"description,omitempty"`
-}
-
-// BetaAppLocalizationUpdateData is the data portion of a beta app localization update request.
-type BetaAppLocalizationUpdateData struct {
-	Type       ResourceType                         `json:"type"`
-	ID         string                               `json:"id"`
-	Attributes *BetaAppLocalizationUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// BetaAppLocalizationUpdateRequest is a request to update a beta app localization.
-type BetaAppLocalizationUpdateRequest struct {
-	Data BetaAppLocalizationUpdateData `json:"data"`
 }
 
 // BetaAppLocalizationRelationships describes relationships for beta app localizations.
@@ -523,21 +494,11 @@ type BetaBuildLocalizationCreateData struct {
 	Relationships *BetaBuildLocalizationRelationships `json:"relationships"`
 }
 
-// BetaBuildLocalizationCreateRequest is a request to create a beta build localization.
-type BetaBuildLocalizationCreateRequest struct {
-	Data BetaBuildLocalizationCreateData `json:"data"`
-}
-
 // BetaBuildLocalizationUpdateData is the data portion of a beta build localization update request.
 type BetaBuildLocalizationUpdateData struct {
 	Type       ResourceType                    `json:"type"`
 	ID         string                          `json:"id"`
 	Attributes BetaBuildLocalizationAttributes `json:"attributes"`
-}
-
-// BetaBuildLocalizationUpdateRequest is a request to update a beta build localization.
-type BetaBuildLocalizationUpdateRequest struct {
-	Data BetaBuildLocalizationUpdateData `json:"data"`
 }
 
 // BetaBuildLocalizationRelationships describes relationships for beta build localizations.
@@ -1063,17 +1024,6 @@ func (c *Client) GetBetaBuildLocalizations(ctx context.Context, buildID string, 
 	query := applyOptions(opts)
 	return getJSON[BetaBuildLocalizationsResponse](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/builds/%s/betaBuildLocalizations", buildID),
-		Query:       buildBetaBuildLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "betaBuildLocalizations",
-	})
-}
-
-// ListBetaBuildLocalizations retrieves beta build localizations using the top-level /v1/betaBuildLocalizations endpoint (global list).
-func (c *Client) ListBetaBuildLocalizations(ctx context.Context, opts ...BetaBuildLocalizationsOption) (*BetaBuildLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BetaBuildLocalizationsResponse](ctx, c, readRequest{
-		Path:        "/v1/betaBuildLocalizations",
 		Query:       buildBetaBuildLocalizationsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "betaBuildLocalizations",

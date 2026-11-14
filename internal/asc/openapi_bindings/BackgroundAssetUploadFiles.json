@@ -1,0 +1,13 @@
+{
+  "tag": "BackgroundAssetUploadFiles",
+  "file": "background_asset_upload_files_gen.go",
+  "types": [
+    "BackgroundAssetUploadFileCreateRequest",
+    "BackgroundAssetUploadFileResponse",
+    "BackgroundAssetUploadFileUpdateData",
+    "BackgroundAssetUploadFileUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"backgroundAssetUploadFiles_getInstance","name":"GetBackgroundAssetUploadFile","params":["uploadFileID"],"check":"require","messages":["background asset upload file ID is required"]}
+  ]
+}

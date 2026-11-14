@@ -151,6 +151,9 @@ type BuildIconsOption func(*listQuery)
 // PreReleaseVersionsOption is a functional option for GetPreReleaseVersions.
 type PreReleaseVersionsOption func(*preReleaseVersionsQuery)
 
+// AppPreReleaseVersionsOption is a functional option for GetAppPreReleaseVersions.
+type AppPreReleaseVersionsOption func(*listQuery)
+
 // PreReleaseVersionBuildsOption is a functional option for GetPreReleaseVersionBuilds.
 type PreReleaseVersionBuildsOption func(*listQuery)
 

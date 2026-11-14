@@ -1,0 +1,12 @@
+{
+  "tag": "BackgroundAssetVersions",
+  "file": "background_asset_versions_gen.go",
+  "types": [
+    "BackgroundAssetVersionCreateRequest",
+    "BackgroundAssetVersionResponse"
+  ],
+  "operations": [
+    {"operation":"backgroundAssetVersions_backgroundAssetUploadFiles_getToManyRelated","name":"GetBackgroundAssetUploadFiles","params":["versionID"],"options":"BackgroundAssetUploadFilesOption","query":"buildBackgroundAssetUploadFilesQuery","nextContext":"backgroundAssetUploadFiles"},
+    {"operation":"backgroundAssetVersions_getInstance","name":"GetBackgroundAssetVersion","params":["versionID"],"check":"require","messages":["background asset version ID is required"]}
+  ]
+}

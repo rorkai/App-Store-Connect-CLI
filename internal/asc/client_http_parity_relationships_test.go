@@ -91,6 +91,14 @@ func TestParityRelatedGETs(t *testing.T) {
 			},
 		},
 		{
+			name: "GetBetaBuildLocalizationBuild",
+			path: "/v1/betaBuildLocalizations/loc-1/build",
+			call: func(client *Client) error {
+				_, err := client.GetBetaBuildLocalizationBuild(ctx, "loc-1")
+				return err
+			},
+		},
+		{
 			name: "GetBetaAppReviewDetailApp",
 			path: "/v1/betaAppReviewDetails/detail-1/app",
 			call: func(client *Client) error {
@@ -229,6 +237,24 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 		call  func(*Client) error
 	}{
 		{
+			name:  "GetAppBetaAppLocalizations",
+			path:  "/v1/apps/app-1/betaAppLocalizations",
+			limit: "10",
+			call: func(client *Client) error {
+				_, err := client.GetAppBetaAppLocalizations(ctx, "app-1", Limit[AppBetaAppLocalizationsOption](10))
+				return err
+			},
+		},
+		{
+			name:  "GetAppPreReleaseVersions",
+			path:  "/v1/apps/app-1/preReleaseVersions",
+			limit: "5",
+			call: func(client *Client) error {
+				_, err := client.GetAppPreReleaseVersions(ctx, "app-1", Limit[AppPreReleaseVersionsOption](5))
+				return err
+			},
+		},
+		{
 			name:  "GetBetaTesterApps",
 			path:  "/v1/betaTesters/tester-1/apps",
 			limit: "3",
@@ -290,6 +316,22 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 		next string
 		call func(*Client) error
 	}{
+		{
+			name: "GetAppBetaAppLocalizations",
+			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/betaAppLocalizations?cursor=next",
+			call: func(client *Client) error {
+				_, err := client.GetAppBetaAppLocalizations(ctx, "app-1", NextURL[AppBetaAppLocalizationsOption]("https://api.appstoreconnect.apple.com/v1/apps/app-1/betaAppLocalizations?cursor=next"))
+				return err
+			},
+		},
+		{
+			name: "GetAppPreReleaseVersions",
+			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/preReleaseVersions?cursor=next",
+			call: func(client *Client) error {
+				_, err := client.GetAppPreReleaseVersions(ctx, "app-1", NextURL[AppPreReleaseVersionsOption]("https://api.appstoreconnect.apple.com/v1/apps/app-1/preReleaseVersions?cursor=next"))
+				return err
+			},
+		},
 		{
 			name: "GetBetaTesterApps",
 			next: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/apps?cursor=next",
