@@ -227,8 +227,6 @@ Examples:
 		IDUsage:            "App event video clip ID",
 		IDType:             "appEventVideoClips",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-events video-clips view",
-		FetchErrorPrefix:   "app-events video-clips view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppEventVideoClip(ctx, id)
 		},
@@ -428,8 +426,6 @@ Examples:
 		IDUsage:            "App event video clip ID",
 		IDType:             "appEventVideoClips",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-events video-clips delete",
-		DeleteErrorPrefix:  "app-events video-clips delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppEventVideoClip(ctx, id)
 		},

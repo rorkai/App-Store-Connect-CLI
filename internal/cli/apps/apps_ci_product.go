@@ -35,10 +35,9 @@ Examples:
 // AppsCIProductGetCommand returns the ci-product get subcommand.
 func AppsCIProductGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc apps ci-product view --id \"APP_ID\"",
-		ShortHelp:   "View the CI product for an app.",
+		Name:       "view",
+		ShortUsage: "asc apps ci-product view --id \"APP_ID\"",
+		ShortHelp:  "View the CI product for an app.",
 		LongHelp: `View the CI product for an app.
 
 Examples:
@@ -46,8 +45,6 @@ Examples:
 		IDUsage:            "App Store Connect app ID",
 		IDType:             "apps",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "apps ci-product view",
-		FetchErrorPrefix:   "apps ci-product view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppCiProduct(ctx, id)
 		},

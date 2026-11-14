@@ -149,8 +149,6 @@ Examples:
 		IDUsage:            "Pre-release version ID",
 		IDType:             "preReleaseVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "pre-release-versions view",
-		FetchErrorPrefix:   "pre-release-versions view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetPreReleaseVersion(ctx, id)
 		},

@@ -46,8 +46,6 @@ Examples:
 		IDUsage:            "Encryption declaration ID (required)",
 		IDType:             "appEncryptionDeclarations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "encryption declarations app view",
-		FetchErrorPrefix:   "encryption declarations app view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppEncryptionDeclarationApp(ctx, id)
 		},
@@ -91,8 +89,6 @@ Examples:
 		IDUsage:            "Encryption declaration ID (required)",
 		IDType:             "appEncryptionDeclarations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "encryption declarations app-encryption-declaration-document view",
-		FetchErrorPrefix:   "encryption declarations app-encryption-declaration-document view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppEncryptionDeclarationDocumentForDeclaration(ctx, id)
 		},

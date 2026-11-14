@@ -423,8 +423,6 @@ Examples:
 		IDUsage:            "Review screenshot ID",
 		IDType:             "inAppPurchaseAppStoreReviewScreenshots",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "iap review-screenshots delete",
-		DeleteErrorPrefix:  "iap review-screenshots delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteInAppPurchaseAppStoreReviewScreenshot(ctx, id)
 		},

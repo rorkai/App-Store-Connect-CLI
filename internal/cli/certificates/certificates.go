@@ -237,10 +237,9 @@ func CertificatesGetCommand() *ffcli.Command {
 	)
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc certificates view --id \"CERT_ID\" [flags]",
-		ShortHelp:   "View a signing certificate by ID.",
+		Name:       "view",
+		ShortUsage: "asc certificates view --id \"CERT_ID\" [flags]",
+		ShortHelp:  "View a signing certificate by ID.",
 		LongHelp: `View a signing certificate by ID.
 
 Examples:
@@ -260,8 +259,6 @@ Examples:
 				return err
 			}
 		},
-		ErrorPrefix:      "certificates view",
-		FetchErrorPrefix: "certificates view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			opts := []asc.CertificatesOption{asc.WithIncludedFields[asc.CertificatesOption](included)}
 			if len(includeValues) > 0 {

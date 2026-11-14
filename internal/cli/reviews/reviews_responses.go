@@ -90,10 +90,9 @@ Examples:
 // ReviewsResponseGetCommand returns the reviews response view subcommand.
 func ReviewsResponseGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc reviews response view [flags]",
-		ShortHelp:   "View a customer review response by ID.",
+		Name:       "view",
+		ShortUsage: "asc reviews response view [flags]",
+		ShortHelp:  "View a customer review response by ID.",
 		LongHelp: `View a customer review response by ID.
 
 Examples:
@@ -102,8 +101,6 @@ Examples:
 		IDUsage:            "Customer review response ID (required)",
 		IDType:             "customerReviewResponses",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "reviews response view",
-		FetchErrorPrefix:   "reviews response view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetCustomerReviewResponse(ctx, id)
 		},
@@ -113,10 +110,9 @@ Examples:
 // ReviewsResponseDeleteCommand returns the reviews response delete subcommand.
 func ReviewsResponseDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc reviews response delete [flags]",
-		ShortHelp:   "Delete a customer review response.",
+		Name:       "delete",
+		ShortUsage: "asc reviews response delete [flags]",
+		ShortHelp:  "Delete a customer review response.",
 		LongHelp: `Delete a customer review response.
 
 This action removes your response from the review and cannot be undone.
@@ -127,8 +123,6 @@ Examples:
 		IDUsage:            "Customer review response ID (required)",
 		IDType:             "customerReviewResponses",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "reviews response delete",
-		DeleteErrorPrefix:  "reviews response delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteCustomerReviewResponse(ctx, id)
 		},

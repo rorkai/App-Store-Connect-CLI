@@ -194,10 +194,10 @@ func retentionOffersLinksCommand(path, shortHelp string, fetch retentionOfferLin
 Examples:
   asc ` + command + ` --subscription-id "SUB_ID"
   asc ` + command + ` --subscription-id "SUB_ID" --paginate`,
-		ParentFlag:  "subscription-id",
-		ParentUsage: "Subscription ID",
-		ParentType:  "subscriptions",
-		ErrorPrefix: command,
+		ParentFlag:       "subscription-id",
+		ParentUsage:      "Subscription ID",
+		ParentType:       "subscriptions",
+		FetchErrorPrefix: command,
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return fetch(client, ctx, id, asc.Limit[asc.LinkagesOption](limit), asc.NextURL[asc.LinkagesOption](next))
 		},
@@ -507,19 +507,16 @@ func validateRetentionOfferEligibility(command string, paidMonths, waitMonths op
 func SubscriptionsRetentionOffersDeleteCommand() *ffcli.Command {
 	const command = "subscriptions offers retention delete"
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc " + command + " --id OFFER_ID --confirm",
-		ShortHelp:   "Delete a retention offer.",
+		Name:       "delete",
+		ShortUsage: "asc " + command + " --id OFFER_ID --confirm",
+		ShortHelp:  "Delete a retention offer.",
 		LongHelp: `Delete a retention offer.
 
 Examples:
   asc subscriptions offers retention delete --id "OFFER_ID" --confirm`,
-		IDFlag:            "id",
-		IDUsage:           "Retention offer ID",
-		IDType:            "retentionOffers",
-		ErrorPrefix:       command,
-		DeleteErrorPrefix: command + ": failed to delete",
+		IDFlag:  "id",
+		IDUsage: "Retention offer ID",
+		IDType:  "retentionOffers",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteRetentionOffer(ctx, id)
 		},
@@ -556,10 +553,10 @@ Examples:
 Examples:
   asc subscriptions offers retention prices links --id "OFFER_ID"
   asc subscriptions offers retention prices links --id "OFFER_ID" --paginate`,
-				ParentFlag:  "id",
-				ParentUsage: "Retention offer ID",
-				ParentType:  "retentionOffers",
-				ErrorPrefix: "subscriptions offers retention prices links",
+				ParentFlag:       "id",
+				ParentUsage:      "Retention offer ID",
+				ParentType:       "retentionOffers",
+				FetchErrorPrefix: "subscriptions offers retention prices links",
 				FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 					return client.GetRetentionOfferPricesRelationships(ctx, id, asc.Limit[asc.LinkagesOption](limit), asc.NextURL[asc.LinkagesOption](next))
 				},

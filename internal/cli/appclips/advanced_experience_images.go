@@ -41,10 +41,9 @@ Examples:
 // AppClipAdvancedExperienceImagesGetCommand retrieves an image by ID.
 func AppClipAdvancedExperienceImagesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc app-clips advanced-experiences images view --id \"IMAGE_ID\"",
-		ShortHelp:   "View an advanced experience image by ID.",
+		Name:       "view",
+		ShortUsage: "asc app-clips advanced-experiences images view --id \"IMAGE_ID\"",
+		ShortHelp:  "View an advanced experience image by ID.",
 		LongHelp: `View an advanced experience image by ID.
 
 Examples:
@@ -52,8 +51,6 @@ Examples:
 		IDUsage:            "Image ID",
 		IDType:             "appClipAdvancedExperienceImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-clips advanced-experiences images view",
-		FetchErrorPrefix:   "app-clips advanced-experiences images view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipAdvancedExperienceImage(ctx, id)
 		},

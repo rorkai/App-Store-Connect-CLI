@@ -12,10 +12,9 @@ import (
 // AssetsScreenshotsDeleteCommand returns the screenshot delete subcommand.
 func AssetsScreenshotsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc screenshots delete --id \"SCREENSHOT_ID\" --confirm",
-		ShortHelp:   "Delete a screenshot by ID.",
+		Name:       "delete",
+		ShortUsage: "asc screenshots delete --id \"SCREENSHOT_ID\" --confirm",
+		ShortHelp:  "Delete a screenshot by ID.",
 		LongHelp: `Delete a screenshot by ID.
 
 Examples:
@@ -25,7 +24,7 @@ Examples:
 		IDType:                 "appScreenshots",
 		RequiredDiagnostic:     true,
 		ConfirmRequiredMessage: "--confirm is required to delete",
-		ErrorPrefix:            "screenshots delete",
+		DeleteErrorPrefix:      "screenshots delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppScreenshot(ctx, id)
 		},

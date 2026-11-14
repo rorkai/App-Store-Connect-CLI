@@ -50,11 +50,11 @@ func LocalizationsPreviewSetsListCommand() *ffcli.Command {
 
 Examples:
   asc localizations preview-sets list --localization-id "LOCALIZATION_ID"`,
-		ParentFlag:  "localization-id",
-		ParentUsage: "App Store version localization ID",
-		ParentType:  "appStoreVersionLocalizations",
-		LimitMax:    200,
-		ErrorPrefix: "localizations preview-sets list",
+		ParentFlag:       "localization-id",
+		ParentUsage:      "App Store version localization ID",
+		ParentType:       "appStoreVersionLocalizations",
+		LimitMax:         200,
+		FetchErrorPrefix: "localizations preview-sets list",
 		FetchPage: func(ctx context.Context, client *asc.Client, localizationID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.AppStoreVersionLocalizationPreviewSetsOption{
 				asc.Limit[asc.AppStoreVersionLocalizationPreviewSetsOption](limit),
@@ -80,10 +80,10 @@ func LocalizationsPreviewSetsGetCommand() *ffcli.Command {
 
 Examples:
   asc localizations preview-sets view --id "PREVIEW_SET_ID"`,
-		IDFlag:      "id",
-		IDUsage:     "App preview set ID",
-		IDType:      "appPreviewSets",
-		ErrorPrefix: "localizations preview-sets view",
+		IDFlag:           "id",
+		IDUsage:          "App preview set ID",
+		IDType:           "appPreviewSets",
+		FetchErrorPrefix: "localizations preview-sets view",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppPreviewSet(ctx, id)
 		},
@@ -101,11 +101,11 @@ func LocalizationsPreviewSetsRelationshipsCommand() *ffcli.Command {
 
 Examples:
   asc localizations preview-sets links --localization-id "LOCALIZATION_ID"`,
-		ParentFlag:  "localization-id",
-		ParentUsage: "App Store version localization ID",
-		ParentType:  "appStoreVersionLocalizations",
-		LimitMax:    200,
-		ErrorPrefix: "localizations preview-sets links",
+		ParentFlag:       "localization-id",
+		ParentUsage:      "App Store version localization ID",
+		ParentType:       "appStoreVersionLocalizations",
+		LimitMax:         200,
+		FetchErrorPrefix: "localizations preview-sets links",
 		FetchPage: func(ctx context.Context, client *asc.Client, localizationID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.LinkagesOption{
 				asc.Limit[asc.LinkagesOption](limit),
@@ -160,10 +160,10 @@ func LocalizationsScreenshotSetsGetCommand() *ffcli.Command {
 
 Examples:
   asc localizations screenshot-sets view --id "SCREENSHOT_SET_ID"`,
-		IDFlag:      "id",
-		IDUsage:     "App screenshot set ID",
-		IDType:      "appScreenshotSets",
-		ErrorPrefix: "localizations screenshot-sets view",
+		IDFlag:           "id",
+		IDUsage:          "App screenshot set ID",
+		IDType:           "appScreenshotSets",
+		FetchErrorPrefix: "localizations screenshot-sets view",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppScreenshotSet(ctx, id)
 		},
@@ -186,7 +186,7 @@ Examples:
 		IDType:                 "appScreenshotSets",
 		RequiredDiagnostic:     true,
 		ConfirmRequiredMessage: "--confirm is required to delete",
-		ErrorPrefix:            "localizations screenshot-sets delete",
+		DeleteErrorPrefix:      "localizations screenshot-sets delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppScreenshotSet(ctx, id)
 		},
@@ -213,11 +213,11 @@ func LocalizationsScreenshotSetsListCommand() *ffcli.Command {
 Examples:
   asc localizations screenshot-sets list --localization-id "LOCALIZATION_ID"
   asc localizations screenshot-sets list --localization-id "LOCALIZATION_ID" --include appScreenshots`,
-		ParentFlag:  "localization-id",
-		ParentUsage: "App Store version localization ID",
-		ParentType:  "appStoreVersionLocalizations",
-		LimitMax:    200,
-		ErrorPrefix: "localizations screenshot-sets list",
+		ParentFlag:       "localization-id",
+		ParentUsage:      "App Store version localization ID",
+		ParentType:       "appStoreVersionLocalizations",
+		LimitMax:         200,
+		FetchErrorPrefix: "localizations screenshot-sets list",
 		FetchPage: func(ctx context.Context, client *asc.Client, localizationID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.AppStoreVersionLocalizationScreenshotSetsOption{
 				asc.Limit[asc.AppStoreVersionLocalizationScreenshotSetsOption](limit),
@@ -265,11 +265,11 @@ func LocalizationsScreenshotSetsRelationshipsCommand() *ffcli.Command {
 
 Examples:
   asc localizations screenshot-sets links --localization-id "LOCALIZATION_ID"`,
-		ParentFlag:  "localization-id",
-		ParentUsage: "App Store version localization ID",
-		ParentType:  "appStoreVersionLocalizations",
-		LimitMax:    200,
-		ErrorPrefix: "localizations screenshot-sets links",
+		ParentFlag:       "localization-id",
+		ParentUsage:      "App Store version localization ID",
+		ParentType:       "appStoreVersionLocalizations",
+		LimitMax:         200,
+		FetchErrorPrefix: "localizations screenshot-sets links",
 		FetchPage: func(ctx context.Context, client *asc.Client, localizationID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.LinkagesOption{
 				asc.Limit[asc.LinkagesOption](limit),

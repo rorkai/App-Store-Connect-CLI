@@ -95,19 +95,18 @@ Examples:
 // XcodeCloudArtifactsGetCommand returns the xcode-cloud artifacts view subcommand.
 func XcodeCloudArtifactsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc xcode-cloud artifacts view --id \"ARTIFACT_ID\"",
-		ShortHelp:   "View details for a build artifact.",
+		Name:       "view",
+		ShortUsage: "asc xcode-cloud artifacts view --id \"ARTIFACT_ID\"",
+		ShortHelp:  "View details for a build artifact.",
 		LongHelp: `View details for a build artifact.
 
 Examples:
   asc xcode-cloud artifacts view --id "ARTIFACT_ID"
   asc xcode-cloud artifacts view --id "ARTIFACT_ID" --output table`,
-		IDFlag:      "id",
-		IDUsage:     "Artifact ID",
-		IDType:      "ciArtifacts",
-		ErrorPrefix: "xcode-cloud artifacts view",
+		IDFlag:           "id",
+		IDUsage:          "Artifact ID",
+		IDType:           "ciArtifacts",
+		FetchErrorPrefix: "xcode-cloud artifacts view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},

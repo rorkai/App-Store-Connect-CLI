@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
@@ -913,6 +915,90 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 			}
 			if got := stdout.String(); got != tt.wantStdout {
 				t.Fatalf("stdout = %q, want %q", got, tt.wantStdout)
+			}
+		})
+	}
+}
+
+func TestBuildersDeriveOmittedNamesAndErrorPrefixes(t *testing.T) {
+	t.Parallel()
+
+	errClient := errors.New("no client")
+	errRequest := errors.New("boom")
+	builders := map[string]func(*Deps) *ffcli.Command{
+		"view": func(d *Deps) *ffcli.Command {
+			return BuildIDGetCommand(IDGetCommandConfig{
+				Name:       "view",
+				ShortUsage: "asc items view --id ITEM_ID [flags]",
+				Deps:       d,
+				Fetch:      func(context.Context, *asc.Client, string) (any, error) { return nil, errRequest },
+			})
+		},
+		"list": func(d *Deps) *ffcli.Command {
+			return BuildPaginatedListCommand(PaginatedListCommandConfig{
+				Name:       "list",
+				ShortUsage: "asc items list [flags]",
+				TopLevel:   true,
+				NoSpinner:  true,
+				Deps:       d,
+				FetchPage: func(_ context.Context, _ *asc.Client, _ string, limit int, _ string) (asc.PaginatedResponse, error) {
+					if limit == 200 {
+						return &testPaginatedResponse{Links: asc.Links{Next: "https://api.appstoreconnect.apple.com/v1/items?cursor=BB"}}, nil
+					}
+					return nil, errRequest
+				},
+			})
+		},
+		"delete": func(d *Deps) *ffcli.Command {
+			return BuildConfirmDeleteCommand(ConfirmDeleteCommandConfig{
+				Name:       "delete",
+				ShortUsage: "asc items delete --id ITEM_ID --confirm",
+				Deps:       d,
+				Delete:     func(context.Context, *asc.Client, string) error { return errRequest },
+				Result:     func(id string) any { return id },
+			})
+		},
+	}
+	tests := []struct {
+		command   string
+		args      []string
+		clientErr bool
+		wantErr   string
+	}{
+		{command: "view", args: []string{"--id", "item-1"}, clientErr: true, wantErr: "items view: no client"},
+		{command: "view", args: []string{"--id", "item-1"}, wantErr: "items view: failed to fetch: boom"},
+		{command: "list", clientErr: true, wantErr: "items list: no client"},
+		{command: "list", wantErr: "items list: failed to fetch: boom"},
+		{command: "list", args: []string{"--paginate"}, wantErr: "items list: page 2: boom"},
+		{command: "delete", args: []string{"--id", "item-1", "--confirm"}, clientErr: true, wantErr: "items delete: no client"},
+		{command: "delete", args: []string{"--id", "item-1", "--confirm"}, wantErr: "items delete: failed to delete: boom"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.wantErr, func(t *testing.T) {
+			t.Parallel()
+
+			var stdout, stderr bytes.Buffer
+			d := newBuilderTestDeps(&stdout, &stderr)
+			wantWraps := errRequest
+			if tt.clientErr {
+				d.Client = func() (*asc.Client, error) { return nil, errClient }
+				wantWraps = errClient
+			}
+			cmd := builders[tt.command](d)
+			if got := cmd.FlagSet.Name(); got != tt.command {
+				t.Fatalf("flag set name = %q, want %q", got, tt.command)
+			}
+			if err := cmd.FlagSet.Parse(tt.args); err != nil {
+				t.Fatalf("parse flags: %v", err)
+			}
+
+			err := cmd.Exec(context.Background(), nil)
+			if !errors.Is(err, wantWraps) {
+				t.Fatalf("Exec() error = %v, want it to wrap %v", err, wantWraps)
+			}
+			if err.Error() != tt.wantErr {
+				t.Fatalf("Exec() error = %q, want %q", err.Error(), tt.wantErr)
 			}
 		})
 	}

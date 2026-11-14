@@ -304,7 +304,6 @@ Examples:
 		IDType:             "appStoreVersionExperimentTreatments",
 		RequiredDiagnostic: true,
 		ErrorPrefix:        "experiments treatments delete",
-		DeleteErrorPrefix:  "experiments treatments delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppStoreVersionExperimentTreatment(ctx, id)
 		},

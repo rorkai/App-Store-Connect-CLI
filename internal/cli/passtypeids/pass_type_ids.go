@@ -369,10 +369,9 @@ Examples:
 // newPassTypeIDsDeleteCommand returns the pass type IDs delete subcommand.
 func newPassTypeIDsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc pass-type-ids delete --pass-type-id \"PASS_ID\" --confirm",
-		ShortHelp:   "Delete a pass type ID.",
+		Name:       "delete",
+		ShortUsage: "asc pass-type-ids delete --pass-type-id \"PASS_ID\" --confirm",
+		ShortHelp:  "Delete a pass type ID.",
 		LongHelp: `Delete a pass type ID.
 
 Examples:
@@ -381,8 +380,6 @@ Examples:
 		IDUsage:            "Pass type ID",
 		IDType:             "passTypeIds",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "pass-type-ids delete",
-		DeleteErrorPrefix:  "pass-type-ids delete: failed to delete",
 		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeletePassTypeID(ctx, id)

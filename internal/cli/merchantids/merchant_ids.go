@@ -354,10 +354,9 @@ Examples:
 // MerchantIDsDeleteCommand returns the merchant IDs delete subcommand.
 func MerchantIDsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc merchant-ids delete --merchant-id \"MERCHANT_ID\" --confirm",
-		ShortHelp:   "Delete a merchant ID.",
+		Name:       "delete",
+		ShortUsage: "asc merchant-ids delete --merchant-id \"MERCHANT_ID\" --confirm",
+		ShortHelp:  "Delete a merchant ID.",
 		LongHelp: `Delete a merchant ID.
 
 Examples:
@@ -366,8 +365,6 @@ Examples:
 		IDUsage:            "Merchant ID",
 		IDType:             "merchantIds",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "merchant-ids delete",
-		DeleteErrorPrefix:  "merchant-ids delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteMerchantID(ctx, id)
 		},

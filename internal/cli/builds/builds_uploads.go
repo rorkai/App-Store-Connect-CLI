@@ -159,8 +159,6 @@ Examples:
 		IDUsage:            "Build upload ID",
 		IDType:             "buildUploads",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "builds uploads view",
-		FetchErrorPrefix:   "builds uploads view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBuildUpload(ctx, id)
 		},
@@ -182,8 +180,6 @@ Examples:
 		IDUsage:            "Build upload ID",
 		IDType:             "buildUploads",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "builds uploads delete",
-		DeleteErrorPrefix:  "builds uploads delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteBuildUpload(ctx, id)
 		},
@@ -312,8 +308,6 @@ Examples:
 		IDUsage:            "Build upload file ID",
 		IDType:             "buildUploadFiles",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "builds uploads files view",
-		FetchErrorPrefix:   "builds uploads files view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBuildUploadFile(ctx, id)
 		},

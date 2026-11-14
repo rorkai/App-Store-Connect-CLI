@@ -51,8 +51,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "versions experiments-v2 list",
-		FetchErrorPrefix:     "versions experiments-v2 list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, parentID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetAppStoreVersionExperimentsV2ForVersion(ctx, parentID,
 				asc.Limit[asc.AppStoreVersionExperimentsV2Option](limit),

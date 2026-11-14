@@ -653,10 +653,9 @@ func renderPreviewDownloadResult(result *previewDownloadResult, markdown bool) e
 // AssetsPreviewsDeleteCommand returns the preview delete subcommand.
 func AssetsPreviewsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc video-previews delete --id \"PREVIEW_ID\" --confirm",
-		ShortHelp:   "Delete a preview by ID.",
+		Name:       "delete",
+		ShortUsage: "asc video-previews delete --id \"PREVIEW_ID\" --confirm",
+		ShortHelp:  "Delete a preview by ID.",
 		LongHelp: `Delete a preview by ID.
 
 Examples:
@@ -666,7 +665,7 @@ Examples:
 		IDType:                 "appPreviews",
 		RequiredDiagnostic:     true,
 		ConfirmRequiredMessage: "--confirm is required to delete",
-		ErrorPrefix:            "video-previews delete",
+		DeleteErrorPrefix:      "video-previews delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppPreview(ctx, id)
 		},

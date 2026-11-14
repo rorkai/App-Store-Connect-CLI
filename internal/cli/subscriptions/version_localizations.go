@@ -207,8 +207,6 @@ func SubscriptionsVersionLocalizationsViewCommand() *ffcli.Command {
 				return err
 			}
 		},
-		ErrorPrefix:      "subscriptions versions localizations view",
-		FetchErrorPrefix: "subscriptions versions localizations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetSubscriptionLocalizationV2(
 				ctx, id,
@@ -331,8 +329,6 @@ func SubscriptionsVersionLocalizationsDeleteCommand() *ffcli.Command {
 		IDUsage:            "Subscription localization ID",
 		IDType:             "subscriptionLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions versions localizations delete",
-		DeleteErrorPrefix:  "subscriptions versions localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteSubscriptionLocalizationV2(ctx, id)
 		},

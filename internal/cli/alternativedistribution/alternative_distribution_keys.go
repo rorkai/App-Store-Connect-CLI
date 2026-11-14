@@ -46,11 +46,10 @@ Examples:
 // newAlternativeDistributionKeysListCommand returns the keys list subcommand.
 func newAlternativeDistributionKeysListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		Deps:        d,
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc alternative-distribution keys list [flags]",
-		ShortHelp:   "List alternative distribution keys.",
+		Deps:       d,
+		Name:       "list",
+		ShortUsage: "asc alternative-distribution keys list [flags]",
+		ShortHelp:  "List alternative distribution keys.",
 		LongHelp: `List alternative distribution keys.
 
 Examples:
@@ -61,8 +60,6 @@ Examples:
 		LimitMax:             alternativeDistributionMaxLimit,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "alternative-distribution keys list",
-		FetchErrorPrefix:     "alternative-distribution keys list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetAlternativeDistributionKeys(ctx,
 				asc.Limit[asc.AlternativeDistributionKeysOption](limit),
@@ -75,11 +72,10 @@ Examples:
 // newAlternativeDistributionKeysGetCommand returns the keys get subcommand.
 func newAlternativeDistributionKeysGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps:        d,
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc alternative-distribution keys view --key-id \"KEY_ID\"",
-		ShortHelp:   "View an alternative distribution key.",
+		Deps:       d,
+		Name:       "view",
+		ShortUsage: "asc alternative-distribution keys view --key-id \"KEY_ID\"",
+		ShortHelp:  "View an alternative distribution key.",
 		LongHelp: `View an alternative distribution key.
 
 Examples:
@@ -88,8 +84,6 @@ Examples:
 		IDUsage:            "Alternative distribution key ID",
 		IDType:             "alternativeDistributionKeys",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "alternative-distribution keys view",
-		FetchErrorPrefix:   "alternative-distribution keys view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAlternativeDistributionKey(ctx, id)
 		},
@@ -161,11 +155,10 @@ Examples:
 // newAlternativeDistributionKeysDeleteCommand returns the keys delete subcommand.
 func newAlternativeDistributionKeysDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		Deps:        d,
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc alternative-distribution keys delete --key-id \"KEY_ID\" --confirm",
-		ShortHelp:   "Delete an alternative distribution key.",
+		Deps:       d,
+		Name:       "delete",
+		ShortUsage: "asc alternative-distribution keys delete --key-id \"KEY_ID\" --confirm",
+		ShortHelp:  "Delete an alternative distribution key.",
 		LongHelp: `Delete an alternative distribution key.
 
 Examples:
@@ -174,8 +167,6 @@ Examples:
 		IDUsage:            "Alternative distribution key ID",
 		IDType:             "alternativeDistributionKeys",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "alternative-distribution keys delete",
-		DeleteErrorPrefix:  "alternative-distribution keys delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAlternativeDistributionKey(ctx, id)
 		},

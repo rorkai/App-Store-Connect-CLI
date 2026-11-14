@@ -83,19 +83,18 @@ Examples:
 
 func XcodeCloudActionsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc xcode-cloud actions view --id \"ACTION_ID\"",
-		ShortHelp:   "View details for a build action.",
+		Name:       "view",
+		ShortUsage: "asc xcode-cloud actions view --id \"ACTION_ID\"",
+		ShortHelp:  "View details for a build action.",
 		LongHelp: `View details for a build action.
 
 Examples:
   asc xcode-cloud actions view --id "ACTION_ID"
   asc xcode-cloud actions view --id "ACTION_ID" --output table`,
-		IDFlag:      "id",
-		IDUsage:     "Build action ID",
-		IDType:      "ciBuildActions",
-		ErrorPrefix: "xcode-cloud actions view",
+		IDFlag:           "id",
+		IDUsage:          "Build action ID",
+		IDType:           "ciBuildActions",
+		FetchErrorPrefix: "xcode-cloud actions view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -107,19 +106,18 @@ Examples:
 
 func XcodeCloudActionsBuildRunCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "build-run",
-		Name:        "build-run",
-		ShortUsage:  "asc xcode-cloud actions build-run --id \"ACTION_ID\"",
-		ShortHelp:   "Get the build run for a build action.",
+		Name:       "build-run",
+		ShortUsage: "asc xcode-cloud actions build-run --id \"ACTION_ID\"",
+		ShortHelp:  "Get the build run for a build action.",
 		LongHelp: `Get the build run for a build action.
 
 Examples:
   asc xcode-cloud actions build-run --id "ACTION_ID"
   asc xcode-cloud actions build-run --id "ACTION_ID" --output table`,
-		IDFlag:      "id",
-		IDUsage:     "Build action ID",
-		IDType:      "ciBuildActions",
-		ErrorPrefix: "xcode-cloud actions build-run",
+		IDFlag:           "id",
+		IDUsage:          "Build action ID",
+		IDType:           "ciBuildActions",
+		FetchErrorPrefix: "xcode-cloud actions build-run",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},

@@ -41,10 +41,9 @@ Examples:
 // AnalyticsReportsGetCommand retrieves a specific analytics report.
 func AnalyticsReportsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc analytics reports view --report-id \"REPORT_ID\" [flags]",
-		ShortHelp:   "View an analytics report by ID.",
+		Name:       "view",
+		ShortUsage: "asc analytics reports view --report-id \"REPORT_ID\" [flags]",
+		ShortHelp:  "View an analytics report by ID.",
 		LongHelp: `View an analytics report by ID.
 
 Examples:
@@ -53,8 +52,6 @@ Examples:
 		IDUsage:            "Analytics report ID",
 		IDType:             "analyticsReports",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "analytics reports view",
-		FetchErrorPrefix:   "analytics reports view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAnalyticsReport(ctx, id)
 		},

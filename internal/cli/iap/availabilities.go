@@ -52,7 +52,6 @@ Examples:
 		IDType:             "inAppPurchaseAvailabilities",
 		RequiredDiagnostic: true,
 		ErrorPrefix:        "iap availabilities view",
-		FetchErrorPrefix:   "iap availabilities view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetInAppPurchaseAvailabilityByID(ctx, id)
 		},

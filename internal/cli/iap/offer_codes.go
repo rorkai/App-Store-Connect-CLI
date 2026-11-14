@@ -148,8 +148,6 @@ Examples:
 		IDUsage:            "Offer code ID",
 		IDType:             "inAppPurchaseOfferCodes",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "iap offer-codes view",
-		FetchErrorPrefix:   "iap offer-codes view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetInAppPurchaseOfferCode(ctx, id)
 		},

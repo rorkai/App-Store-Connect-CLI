@@ -745,11 +745,11 @@ Examples:
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID" --limit 175
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID" --paginate
   asc pricing availability territory-availabilities --next "NEXT_URL"`,
-		ParentFlag:  "availability",
-		ParentUsage: "App availability ID",
-		ParentType:  "appAvailabilities",
-		LimitMax:    territoryAvailabilitiesLimitMax,
-		ErrorPrefix: "pricing availability territory-availabilities",
+		ParentFlag:       "availability",
+		ParentUsage:      "App availability ID",
+		ParentType:       "appAvailabilities",
+		LimitMax:         territoryAvailabilitiesLimitMax,
+		FetchErrorPrefix: "pricing availability territory-availabilities",
 		FetchPage: func(ctx context.Context, client *asc.Client, availabilityID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := make([]asc.TerritoryAvailabilitiesOption, 0, 2)
 			if limit > 0 {

@@ -807,8 +807,6 @@ Examples:
 		IDUsage:            "Introductory offer ID",
 		IDType:             "subscriptionIntroductoryOffers",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions introductory-offers delete",
-		DeleteErrorPrefix:  "subscriptions introductory-offers delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteSubscriptionIntroductoryOffer(ctx, id)
 		},

@@ -263,11 +263,10 @@ Examples:
 // newEULADeleteCommand returns the eula delete subcommand built on d.
 func newEULADeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		Deps:        d,
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc eula delete --id \"EULA_ID\" --confirm",
-		ShortHelp:   "Delete an EULA.",
+		Deps:       d,
+		Name:       "delete",
+		ShortUsage: "asc eula delete --id \"EULA_ID\" --confirm",
+		ShortHelp:  "Delete an EULA.",
 		LongHelp: `Delete an End User License Agreement (EULA).
 
 Examples:
@@ -276,8 +275,6 @@ Examples:
 		IDUsage:            "EULA ID",
 		IDType:             "endUserLicenseAgreements",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "eula delete",
-		DeleteErrorPrefix:  "eula delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteEndUserLicenseAgreement(ctx, id)
 		},

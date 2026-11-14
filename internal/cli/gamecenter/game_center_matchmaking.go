@@ -81,10 +81,9 @@ Examples:
 // GameCenterMatchmakingQueuesListCommand returns the matchmaking queues list subcommand.
 func GameCenterMatchmakingQueuesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center matchmaking queues list [flags]",
-		ShortHelp:   "List matchmaking queues.",
+		Name:       "list",
+		ShortUsage: "asc game-center matchmaking queues list [flags]",
+		ShortHelp:  "List matchmaking queues.",
 		LongHelp: `List matchmaking queues.
 
 Examples:
@@ -94,8 +93,6 @@ Examples:
 		TopLevel:             true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center matchmaking queues list",
-		FetchErrorPrefix:     "game-center matchmaking queues list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterMatchmakingQueues(ctx, asc.Limit[asc.GCMatchmakingQueuesOption](limit), asc.NextURL[asc.GCMatchmakingQueuesOption](next))
 		},
@@ -105,10 +102,9 @@ Examples:
 // GameCenterMatchmakingQueuesGetCommand returns the matchmaking queues get subcommand.
 func GameCenterMatchmakingQueuesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center matchmaking queues view --id \"QUEUE_ID\"",
-		ShortHelp:   "View a matchmaking queue by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center matchmaking queues view --id \"QUEUE_ID\"",
+		ShortHelp:  "View a matchmaking queue by ID.",
 		LongHelp: `View a matchmaking queue by ID.
 
 Examples:
@@ -116,8 +112,6 @@ Examples:
 		IDUsage:            "Matchmaking queue ID",
 		IDType:             "gameCenterMatchmakingQueues",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center matchmaking queues view",
-		FetchErrorPrefix:   "game-center matchmaking queues view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterMatchmakingQueue(ctx, id)
 		},
@@ -238,10 +232,9 @@ Examples:
 // GameCenterMatchmakingQueuesDeleteCommand returns the matchmaking queues delete subcommand.
 func GameCenterMatchmakingQueuesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center matchmaking queues delete --id \"QUEUE_ID\" --confirm",
-		ShortHelp:   "Delete a matchmaking queue.",
+		Name:       "delete",
+		ShortUsage: "asc game-center matchmaking queues delete --id \"QUEUE_ID\" --confirm",
+		ShortHelp:  "Delete a matchmaking queue.",
 		LongHelp: `Delete a matchmaking queue.
 
 Examples:
@@ -250,8 +243,6 @@ Examples:
 		IDUsage:            "Matchmaking queue ID",
 		IDType:             "gameCenterMatchmakingQueues",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center matchmaking queues delete",
-		DeleteErrorPrefix:  "game-center matchmaking queues delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterMatchmakingQueue(ctx, id)
 		},
@@ -297,10 +288,9 @@ Examples:
 // GameCenterMatchmakingRuleSetsListCommand returns the rule sets list subcommand.
 func GameCenterMatchmakingRuleSetsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center matchmaking rule-sets list [flags]",
-		ShortHelp:   "List matchmaking rule sets.",
+		Name:       "list",
+		ShortUsage: "asc game-center matchmaking rule-sets list [flags]",
+		ShortHelp:  "List matchmaking rule sets.",
 		LongHelp: `List matchmaking rule sets.
 
 Examples:
@@ -310,8 +300,6 @@ Examples:
 		TopLevel:             true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center matchmaking rule-sets list",
-		FetchErrorPrefix:     "game-center matchmaking rule-sets list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterMatchmakingRuleSets(ctx, asc.Limit[asc.GCMatchmakingRuleSetsOption](limit), asc.NextURL[asc.GCMatchmakingRuleSetsOption](next))
 		},
@@ -321,10 +309,9 @@ Examples:
 // GameCenterMatchmakingRuleSetsGetCommand returns the rule sets get subcommand.
 func GameCenterMatchmakingRuleSetsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center matchmaking rule-sets view --id \"RULE_SET_ID\"",
-		ShortHelp:   "View a matchmaking rule set by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center matchmaking rule-sets view --id \"RULE_SET_ID\"",
+		ShortHelp:  "View a matchmaking rule set by ID.",
 		LongHelp: `View a matchmaking rule set by ID.
 
 Examples:
@@ -332,8 +319,6 @@ Examples:
 		IDUsage:            "Matchmaking rule set ID",
 		IDType:             "gameCenterMatchmakingRuleSets",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center matchmaking rule-sets view",
-		FetchErrorPrefix:   "game-center matchmaking rule-sets view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterMatchmakingRuleSet(ctx, id)
 		},
@@ -464,10 +449,9 @@ Examples:
 // GameCenterMatchmakingRuleSetsDeleteCommand returns the rule sets delete subcommand.
 func GameCenterMatchmakingRuleSetsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center matchmaking rule-sets delete --id \"RULE_SET_ID\" --confirm",
-		ShortHelp:   "Delete a matchmaking rule set.",
+		Name:       "delete",
+		ShortUsage: "asc game-center matchmaking rule-sets delete --id \"RULE_SET_ID\" --confirm",
+		ShortHelp:  "Delete a matchmaking rule set.",
 		LongHelp: `Delete a matchmaking rule set.
 
 Examples:
@@ -476,8 +460,6 @@ Examples:
 		IDUsage:            "Matchmaking rule set ID",
 		IDType:             "gameCenterMatchmakingRuleSets",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center matchmaking rule-sets delete",
-		DeleteErrorPrefix:  "game-center matchmaking rule-sets delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterMatchmakingRuleSet(ctx, id)
 		},
@@ -513,10 +495,9 @@ Examples:
 // GameCenterMatchmakingRuleSetQueuesListCommand returns the rule set queues list subcommand.
 func GameCenterMatchmakingRuleSetQueuesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center matchmaking rule-sets queues list --rule-set-id \"RULE_SET_ID\"",
-		ShortHelp:   "List queues for a matchmaking rule set.",
+		Name:       "list",
+		ShortUsage: "asc game-center matchmaking rule-sets queues list --rule-set-id \"RULE_SET_ID\"",
+		ShortHelp:  "List queues for a matchmaking rule set.",
 		LongHelp: `List queues for a matchmaking rule set.
 
 Examples:
@@ -529,8 +510,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center matchmaking rule-sets queues list",
-		FetchErrorPrefix:     "game-center matchmaking rule-sets queues list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterMatchmakingRuleSetQueues(ctx, ruleSetId, asc.Limit[asc.GCMatchmakingQueuesOption](limit), asc.NextURL[asc.GCMatchmakingQueuesOption](next))
 		},
@@ -569,10 +548,9 @@ Examples:
 // GameCenterMatchmakingRulesListCommand returns the rules list subcommand.
 func GameCenterMatchmakingRulesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center matchmaking rules list --rule-set-id \"RULE_SET_ID\"",
-		ShortHelp:   "List matchmaking rules for a rule set.",
+		Name:       "list",
+		ShortUsage: "asc game-center matchmaking rules list --rule-set-id \"RULE_SET_ID\"",
+		ShortHelp:  "List matchmaking rules for a rule set.",
 		LongHelp: `List matchmaking rules for a rule set.
 
 Examples:
@@ -585,8 +563,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center matchmaking rules list",
-		FetchErrorPrefix:     "game-center matchmaking rules list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterMatchmakingRules(ctx, ruleSetId, asc.Limit[asc.GCMatchmakingRulesOption](limit), asc.NextURL[asc.GCMatchmakingRulesOption](next))
 		},
@@ -756,10 +732,9 @@ func parseMatchmakingRuleWeight(value string) (float64, error) {
 // GameCenterMatchmakingRulesDeleteCommand returns the rules delete subcommand.
 func GameCenterMatchmakingRulesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center matchmaking rules delete --id \"RULE_ID\" --confirm",
-		ShortHelp:   "Delete a matchmaking rule.",
+		Name:       "delete",
+		ShortUsage: "asc game-center matchmaking rules delete --id \"RULE_ID\" --confirm",
+		ShortHelp:  "Delete a matchmaking rule.",
 		LongHelp: `Delete a matchmaking rule.
 
 Examples:
@@ -768,8 +743,6 @@ Examples:
 		IDUsage:            "Matchmaking rule ID",
 		IDType:             "gameCenterMatchmakingRules",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center matchmaking rules delete",
-		DeleteErrorPrefix:  "game-center matchmaking rules delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterMatchmakingRule(ctx, id)
 		},
@@ -811,10 +784,9 @@ Examples:
 // GameCenterMatchmakingTeamsListCommand returns the teams list subcommand.
 func GameCenterMatchmakingTeamsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center matchmaking teams list --rule-set-id \"RULE_SET_ID\"",
-		ShortHelp:   "List matchmaking teams for a rule set.",
+		Name:       "list",
+		ShortUsage: "asc game-center matchmaking teams list --rule-set-id \"RULE_SET_ID\"",
+		ShortHelp:  "List matchmaking teams for a rule set.",
 		LongHelp: `List matchmaking teams for a rule set.
 
 Examples:
@@ -827,8 +799,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center matchmaking teams list",
-		FetchErrorPrefix:     "game-center matchmaking teams list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterMatchmakingTeams(ctx, ruleSetId, asc.Limit[asc.GCMatchmakingTeamsOption](limit), asc.NextURL[asc.GCMatchmakingTeamsOption](next))
 		},
@@ -957,10 +927,9 @@ Examples:
 // GameCenterMatchmakingTeamsDeleteCommand returns the teams delete subcommand.
 func GameCenterMatchmakingTeamsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center matchmaking teams delete --id \"TEAM_ID\" --confirm",
-		ShortHelp:   "Delete a matchmaking team.",
+		Name:       "delete",
+		ShortUsage: "asc game-center matchmaking teams delete --id \"TEAM_ID\" --confirm",
+		ShortHelp:  "Delete a matchmaking team.",
 		LongHelp: `Delete a matchmaking team.
 
 Examples:
@@ -969,8 +938,6 @@ Examples:
 		IDUsage:            "Matchmaking team ID",
 		IDType:             "gameCenterMatchmakingTeams",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center matchmaking teams delete",
-		DeleteErrorPrefix:  "game-center matchmaking teams delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterMatchmakingTeam(ctx, id)
 		},
