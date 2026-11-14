@@ -326,7 +326,7 @@ func TestSigningSyncImportPlanCountsExistingPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	certificates, profiles, err := loadOpenSSLImportSource(root, importSourcePassword)
+	certificates, profiles, _, err := loadOpenSSLImportSource(root, importSourcePassword)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -28,6 +28,13 @@ type SigningSyncStorage struct {
 	Branch   string `json:"branch,omitempty"`
 }
 
+// SigningSyncSkippedEntry is a source entry that a signing sync operation did
+// not use, with the reason.
+type SigningSyncSkippedEntry struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
 // SigningSyncResult is the structured output for signing sync operations.
 // The singular BundleID field is retained for the historical single-target
 // and pull JSON shape. Batch output marks itself explicitly so that an empty
@@ -53,6 +60,8 @@ type SigningSyncResult struct {
 	// --force-for-new-devices when an existing profile was evaluated. Batch
 	// results report it per target.
 	ProfileLifecycle *SigningSyncProfileLifecycle `json:"profileLifecycle,omitempty"`
+	SourceFormat     string                       `json:"sourceFormat,omitempty"`
+	Skipped          []SigningSyncSkippedEntry    `json:"skipped,omitempty"`
 	batch            bool
 }
 
@@ -89,6 +98,8 @@ func (result SigningSyncResult) MarshalJSON() ([]byte, error) {
 		PublicationState         string                       `json:"publicationState,omitempty"`
 		Partial                  bool                         `json:"partial,omitempty"`
 		ProfileLifecycle         *SigningSyncProfileLifecycle `json:"profileLifecycle,omitempty"`
+		SourceFormat             string                       `json:"sourceFormat,omitempty"`
+		Skipped                  []SigningSyncSkippedEntry    `json:"skipped,omitempty"`
 	}
 	return json.Marshal(signingSyncResultJSON{
 		Operation:                result.Operation,
@@ -108,6 +119,8 @@ func (result SigningSyncResult) MarshalJSON() ([]byte, error) {
 		PublicationState:         result.PublicationState,
 		Partial:                  result.Partial,
 		ProfileLifecycle:         result.ProfileLifecycle,
+		SourceFormat:             result.SourceFormat,
+		Skipped:                  result.Skipped,
 	})
 }
 
