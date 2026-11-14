@@ -620,7 +620,7 @@ func TestBuildSigningResignEntitlementsReplacesIdentity(t *testing.T) {
 		"get-task-allow":                        false,
 		"com.apple.security.application-groups": []any{"group.com.example", "group.other"},
 	}
-	got, err := buildSigningResignEntitlements(existing, profile)
+	got, err := buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if err != nil {
 		t.Fatalf("buildSigningResignEntitlements() error = %v", err)
 	}
@@ -916,7 +916,7 @@ func TestBuildSigningResignEntitlementsKeepsConcreteValuesForWildcardProfileClai
 		"com.apple.developer.parent-application-identifiers": []any{"NEWTEAM.*"},
 	}
 
-	got, err := buildSigningResignEntitlements(existing, profile)
+	got, err := buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if err != nil {
 		t.Fatalf("buildSigningResignEntitlements() error = %v", err)
 	}
@@ -1032,7 +1032,7 @@ func TestSigningResignExistingOtherTeamCanBeReplaced(t *testing.T) {
 		"com.apple.developer.team-identifier": "NEWTEAM",
 		"get-task-allow":                      false,
 	}
-	got, err := buildSigningResignEntitlements(existing, profile)
+	got, err := buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if err != nil {
 		t.Fatalf("buildSigningResignEntitlements() error = %v", err)
 	}
@@ -1152,15 +1152,12 @@ func TestValidateSigningResignProfileForTarget(t *testing.T) {
 }
 
 func TestBuildSigningResignEntitlementsRejectsUnpermittedCapability(t *testing.T) {
-	_, err := buildSigningResignEntitlements(
-		map[string]any{"com.apple.security.application-groups": []string{"group.not-permitted"}},
-		map[string]any{
-			"application-identifier":                "TEAM.com.example.app",
-			"com.apple.developer.team-identifier":   "TEAM",
-			"get-task-allow":                        false,
-			"com.apple.security.application-groups": []any{"group.allowed"},
-		},
-	)
+	_, err := buildSigningResignEntitlementsWithClass(map[string]any{"com.apple.security.application-groups": []string{"group.not-permitted"}}, map[string]any{
+		"application-identifier":                "TEAM.com.example.app",
+		"com.apple.developer.team-identifier":   "TEAM",
+		"get-task-allow":                        false,
+		"com.apple.security.application-groups": []any{"group.allowed"},
+	}, "")
 	if err == nil || !strings.Contains(err.Error(), "not authorized by the replacement profile") {
 		t.Fatalf("buildSigningResignEntitlements() error = %v, want unpermitted capability", err)
 	}
@@ -1813,7 +1810,7 @@ func TestValidateSigningResignEntitlementsAgainstDocumentRequiresExactGeneratedD
 		"get-task-allow":                      false,
 		"keychain-access-groups":              []any{"NEWTEAM.*"},
 	}
-	want, err := buildSigningResignEntitlements(existing, profile)
+	want, err := buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1826,7 +1823,7 @@ func TestValidateSigningResignEntitlementsAgainstDocumentRequiresExactGeneratedD
 		t.Fatal(err)
 	}
 	subject := "target com.example.app signed entitlements"
-	if err := validateSigningResignEntitlementsAgainstDocument(want, documentPath, subject); err != nil {
+	if err := validateSigningResignEntitlementsAgainstDocumentAtStage(want, documentPath, subject, signingResignStagePreparation); err != nil {
 		t.Fatalf("validateSigningResignEntitlementsAgainstDocument() error = %v, want exact document accepted", err)
 	}
 	actual := make(map[string]any, len(want))
@@ -1837,7 +1834,7 @@ func TestValidateSigningResignEntitlementsAgainstDocumentRequiresExactGeneratedD
 	if !signingResignEntitlementValuePermits(profile["keychain-access-groups"], actual["keychain-access-groups"]) {
 		t.Fatal("test setup does not exercise the profile wildcard subset case")
 	}
-	err = validateSigningResignEntitlementsAgainstDocument(actual, documentPath, subject)
+	err = validateSigningResignEntitlementsAgainstDocumentAtStage(actual, documentPath, subject, signingResignStagePreparation)
 	if err == nil || !strings.Contains(err.Error(), "exactly match the generated document") {
 		t.Fatalf("validateSigningResignEntitlementsAgainstDocument() error = %v, want exact-document rejection", err)
 	}
@@ -2806,7 +2803,7 @@ func TestBuildSigningResignEntitlementsPreservesConcreteIdentitySubsets(t *testi
 		"get-task-allow":                      false,
 		"keychain-access-groups":              []any{"NEWTEAM.com.example.app", "NEWTEAM.com.example.shared"},
 	}
-	got, err := buildSigningResignEntitlements(existing, profile)
+	got, err := buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if err != nil {
 		t.Fatalf("buildSigningResignEntitlements() error = %v", err)
 	}
@@ -2831,7 +2828,7 @@ func TestBuildSigningResignEntitlementsOmitsOptionalWildcardOnlyProfileClaims(t 
 		"get-task-allow":                      false,
 		"keychain-access-groups":              []any{"NEWTEAM.*"},
 	}
-	got, err := buildSigningResignEntitlements(existing, profile)
+	got, err := buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if err != nil {
 		t.Fatalf("buildSigningResignEntitlements() error = %v, want wildcard-only optional claim omitted", err)
 	}
@@ -2843,7 +2840,7 @@ func TestBuildSigningResignEntitlementsOmitsOptionalWildcardOnlyProfileClaims(t 
 		"com.apple.developer.team-identifier": "NEWTEAM",
 		"get-task-allow":                      false,
 	}
-	if _, err := buildSigningResignEntitlements(map[string]any{}, wildcardProfile); err == nil {
+	if _, err := buildSigningResignEntitlementsWithClass(map[string]any{}, wildcardProfile, ""); err == nil {
 		t.Fatal("buildSigningResignEntitlements() accepted a wildcard-only required identity claim with no existing concrete value")
 	}
 }
@@ -2885,13 +2882,13 @@ func TestInspectSigningResignTargetRequiresOwnerExecutableBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tree.Close()
-	if _, err := inspectSigningResignTarget(context.Background(), tree, "Payload/App.app", "application"); err == nil || !strings.Contains(err.Error(), "owner-execute") {
+	if _, err := inspectSigningResignTargetWithEntitlements(context.Background(), tree, "Payload/App.app", "application", true); err == nil || !strings.Contains(err.Error(), "owner-execute") {
 		t.Fatalf("inspectSigningResignTarget() error = %v, want owner-execute rejection for a 0644 executable", err)
 	}
 	if err := os.Chmod(filepath.Join(appDir, "App"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := inspectSigningResignTarget(context.Background(), tree, "Payload/App.app", "application"); err != nil {
+	if _, err := inspectSigningResignTargetWithEntitlements(context.Background(), tree, "Payload/App.app", "application", true); err != nil {
 		t.Fatalf("inspectSigningResignTarget() error = %v, want executable target accepted", err)
 	}
 }
@@ -3097,7 +3094,7 @@ func TestBuildSigningResignEntitlementsOmitsAbsentOptionalConcreteClaims(t *test
 		"get-task-allow":                      false,
 		"keychain-access-groups":              []any{"NEWTEAM.com.example.shared"},
 	}
-	got, err := buildSigningResignEntitlements(existing, profile)
+	got, err := buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if err != nil {
 		t.Fatalf("buildSigningResignEntitlements() error = %v", err)
 	}
@@ -3128,7 +3125,7 @@ func TestBuildSigningResignEntitlementsListsEveryUnauthorizedCrossTeamClaim(t *t
 		"keychain-access-groups":                          []any{"NEWTEAM.*"},
 		"com.apple.developer.ubiquity-kvstore-identifier": "NEWTEAM.*",
 	}
-	_, err := buildSigningResignEntitlements(existing, profile)
+	_, err := buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if err == nil {
 		t.Fatal("buildSigningResignEntitlements() accepted cross-team claims, want fail-closed refusal")
 	}
@@ -3216,7 +3213,7 @@ func TestBuildSigningResignEntitlementsDerivesProfileRequiredDistributionClaims(
 		"get-task-allow":                      false,
 		"beta-reports-active":                 true,
 	}
-	got, err := buildSigningResignEntitlements(existing, profile)
+	got, err := buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if err != nil {
 		t.Fatalf("buildSigningResignEntitlements() error = %v", err)
 	}
@@ -3225,7 +3222,7 @@ func TestBuildSigningResignEntitlementsDerivesProfileRequiredDistributionClaims(
 	}
 
 	delete(profile, "beta-reports-active")
-	got, err = buildSigningResignEntitlements(existing, profile)
+	got, err = buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if err != nil {
 		t.Fatalf("buildSigningResignEntitlements() error = %v", err)
 	}
@@ -3234,7 +3231,7 @@ func TestBuildSigningResignEntitlementsDerivesProfileRequiredDistributionClaims(
 	}
 
 	profile["beta-reports-active"] = "yes"
-	if _, err := buildSigningResignEntitlements(existing, profile); err == nil {
+	if _, err := buildSigningResignEntitlementsWithClass(existing, profile, ""); err == nil {
 		t.Fatal("buildSigningResignEntitlements() accepted a non-boolean profile-required claim")
 	}
 }
@@ -3253,7 +3250,7 @@ func TestSigningResignUnauthorizedClaimsRefusalSurvivesPublicBoundary(t *testing
 		"get-task-allow":                      false,
 		"keychain-access-groups":              []any{"NEWTEAM.*"},
 	}
-	_, refusal := buildSigningResignEntitlements(existing, profile)
+	_, refusal := buildSigningResignEntitlementsWithClass(existing, profile, "")
 	if refusal == nil {
 		t.Fatal("buildSigningResignEntitlements() accepted an unauthorized claim")
 	}
