@@ -3,12 +3,20 @@
   "file": "subscription_localizations_gen.go",
   "types": [
     "SubscriptionLocalizationAttributes",
+    "SubscriptionLocalizationCreateData",
     "SubscriptionLocalizationCreateRequest",
+    "SubscriptionLocalizationRelationships",
     "SubscriptionLocalizationV2Attributes",
+    "SubscriptionLocalizationV2CreateData",
     "SubscriptionLocalizationV2CreateRequest",
     "SubscriptionLocalizationV2UpdateRequest"
   ],
+  "relationships": [
+    {"data":"SubscriptionLocalizationCreateData","type":"*SubscriptionLocalizationRelationships","omitempty":true},
+    {"data":"SubscriptionLocalizationV2CreateData","type":"*SubscriptionVersionRelationship"}
+  ],
   "operations": [
-    {"operation":"subscriptionLocalizationsV2_deleteInstance","name":"DeleteSubscriptionLocalizationV2","params":["localizationID"],"check":"require","messages":["localization ID is required"]}
+    {"operation":"subscriptionLocalizationsV2_deleteInstance","name":"DeleteSubscriptionLocalizationV2","params":["localizationID"],"check":"require","messages":["localization ID is required"]},
+    {"operation":"subscriptionLocalizations_createInstance","name":"CreateSubscriptionLocalization","params":["subscriptionID"],"check":"require","messages":["subscription ID is required"],"links":["subscription"]}
   ]
 }

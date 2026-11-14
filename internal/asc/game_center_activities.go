@@ -39,20 +39,6 @@ type GameCenterActivityUpdateAttributes struct {
 	Properties          map[string]string `json:"properties,omitzero"`
 }
 
-// GameCenterActivityRelationships describes relationships for activities.
-type GameCenterActivityRelationships struct {
-	GameCenterDetail *Relationship     `json:"gameCenterDetail,omitempty"`
-	GameCenterGroup  *Relationship     `json:"gameCenterGroup,omitempty"`
-	Versions         *RelationshipList `json:"versions,omitempty"`
-}
-
-// GameCenterActivityCreateData is the data portion of an activity create request.
-type GameCenterActivityCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    GameCenterActivityCreateAttributes `json:"attributes"`
-	Relationships *GameCenterActivityRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterActivityCreateRequest is a request to create an activity.
 type GameCenterActivityCreateRequest struct {
 	Data     GameCenterActivityCreateData            `json:"data"`
@@ -101,13 +87,6 @@ type GameCenterActivityVersionRelationships struct {
 	Activity *Relationship `json:"activity,omitempty"`
 }
 
-// GameCenterActivityVersionCreateData is the data portion of a version create request.
-type GameCenterActivityVersionCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Attributes    *GameCenterActivityVersionCreateAttributes `json:"attributes,omitempty"`
-	Relationships *GameCenterActivityVersionRelationships    `json:"relationships,omitempty"`
-}
-
 // GameCenterActivityVersionsResponse is the response from version list endpoints.
 type GameCenterActivityVersionsResponse = Response[GameCenterActivityVersionAttributes]
 
@@ -136,18 +115,6 @@ type GameCenterActivityLocalizationCreateAttributes struct {
 	Locale      string `json:"locale"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-}
-
-// GameCenterActivityLocalizationRelationships describes relationships for activity localizations.
-type GameCenterActivityLocalizationRelationships struct {
-	Version *Relationship `json:"version"`
-}
-
-// GameCenterActivityLocalizationCreateData is the data portion of a localization create request.
-type GameCenterActivityLocalizationCreateData struct {
-	Type          ResourceType                                   `json:"type"`
-	Attributes    GameCenterActivityLocalizationCreateAttributes `json:"attributes"`
-	Relationships *GameCenterActivityLocalizationRelationships   `json:"relationships,omitempty"`
 }
 
 // GameCenterActivityLocalizationsResponse is the response from localization list endpoints.
@@ -187,19 +154,6 @@ type GameCenterActivityImageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-// GameCenterActivityImageRelationships describes relationships for activity images.
-type GameCenterActivityImageRelationships struct {
-	Localization *Relationship `json:"localization,omitempty"`
-	Version      *Relationship `json:"version,omitempty"`
-}
-
-// GameCenterActivityImageCreateData is the data portion of an image create request.
-type GameCenterActivityImageCreateData struct {
-	Type          ResourceType                            `json:"type"`
-	Attributes    GameCenterActivityImageCreateAttributes `json:"attributes"`
-	Relationships *GameCenterActivityImageRelationships   `json:"relationships"`
-}
-
 // GameCenterActivityImagesResponse is the response from activity image list endpoints.
 type GameCenterActivityImagesResponse = Response[GameCenterActivityImageAttributes]
 
@@ -234,12 +188,6 @@ type GameCenterActivityVersionReleaseAttributes struct{}
 // GameCenterActivityVersionReleaseRelationships describes relationships for activity version releases.
 type GameCenterActivityVersionReleaseRelationships struct {
 	Version *Relationship `json:"version,omitempty"`
-}
-
-// GameCenterActivityVersionReleaseCreateData is the data portion of a release create request.
-type GameCenterActivityVersionReleaseCreateData struct {
-	Type          ResourceType                                   `json:"type"`
-	Relationships *GameCenterActivityVersionReleaseRelationships `json:"relationships,omitempty"`
 }
 
 // GameCenterActivityVersionReleasesResponse is the response from release list endpoints.

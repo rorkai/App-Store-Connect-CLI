@@ -2,9 +2,14 @@
   "tag": "BetaTesters",
   "file": "beta_testers_gen.go",
   "types": [
+    "BetaTesterCreateData",
+    "BetaTesterCreateRelationships",
     "BetaTesterCreateRequest",
     "BetaTesterResponse",
     "BetaTestersResponse"
+  ],
+  "relationships": [
+    {"data":"BetaTesterCreateData","type":"*BetaTesterCreateRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"betaTesters_apps_getToManyRelated","name":"GetBetaTesterApps","params":["testerID"],"check":"require","options":"BetaTesterAppsOption","query":"buildListQuery","nextContext":"betaTesterApps","response":"AppsResponse"},

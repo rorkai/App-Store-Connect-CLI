@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -14,9 +15,46 @@ type InAppPurchaseVersionAttributes struct {
 	State   string `json:"state,omitempty"`
 }
 
+// InAppPurchaseVersionCreateData is the data object of the InAppPurchaseVersionCreateRequest schema.
+type InAppPurchaseVersionCreateData struct {
+	Type          ResourceType                            `json:"type"`
+	Relationships InAppPurchaseVersionCreateRelationships `json:"relationships"`
+}
+
+// InAppPurchaseVersionCreateRelationships is the data.relationships object of the InAppPurchaseVersionCreateRequest schema.
+type InAppPurchaseVersionCreateRelationships struct {
+	InAppPurchase Relationship `json:"inAppPurchase"`
+}
+
 // InAppPurchaseVersionCreateRequest is the InAppPurchaseVersionCreateRequest schema.
 type InAppPurchaseVersionCreateRequest struct {
 	Data InAppPurchaseVersionCreateData `json:"data"`
+}
+
+// CreateInAppPurchaseVersion sends POST /v1/inAppPurchaseVersions (inAppPurchaseVersions_createInstance).
+func (c *Client) CreateInAppPurchaseVersion(ctx context.Context, iapID string) (*InAppPurchaseVersionResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+	payload := InAppPurchaseVersionCreateRequest{
+		Data: InAppPurchaseVersionCreateData{
+			Type: ResourceTypeInAppPurchaseVersions,
+			Relationships: InAppPurchaseVersionCreateRelationships{
+				InAppPurchase: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeInAppPurchases,
+						ID:   iapID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[InAppPurchaseVersionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/inAppPurchaseVersions",
+		Payload: payload,
+	})
 }
 
 // GetInAppPurchaseVersionImageRelationship sends GET /v1/inAppPurchaseVersions/{id}/relationships/image (inAppPurchaseVersions_image_getToOneRelationship).

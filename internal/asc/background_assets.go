@@ -64,46 +64,11 @@ type BackgroundAssetVersionExternalBetaReleaseAttributes struct {
 // BackgroundAssetUploadFilesResponse represents a background asset upload files list response.
 type BackgroundAssetUploadFilesResponse = Response[BackgroundAssetUploadFileAttributes]
 
-// BackgroundAssetCreateRelationships describes relationships for creating a background asset.
-type BackgroundAssetCreateRelationships struct {
-	App Relationship `json:"app"`
-}
-
-// BackgroundAssetCreateData is the data portion of a create request.
-type BackgroundAssetCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    BackgroundAssetCreateAttributes    `json:"attributes"`
-	Relationships BackgroundAssetCreateRelationships `json:"relationships"`
-}
-
-// BackgroundAssetVersionCreateRelationships describes relationships for creating a version.
-type BackgroundAssetVersionCreateRelationships struct {
-	BackgroundAsset Relationship `json:"backgroundAsset"`
-}
-
-// BackgroundAssetVersionCreateData is the data portion of a version create request.
-type BackgroundAssetVersionCreateData struct {
-	Type          ResourceType                              `json:"type"`
-	Relationships BackgroundAssetVersionCreateRelationships `json:"relationships"`
-}
-
 // BackgroundAssetUploadFileCreateAttributes describes attributes for creating upload files.
 type BackgroundAssetUploadFileCreateAttributes struct {
 	AssetType BackgroundAssetUploadFileAssetType `json:"assetType"`
 	FileName  string                             `json:"fileName"`
 	FileSize  int64                              `json:"fileSize"`
-}
-
-// BackgroundAssetUploadFileCreateRelationships describes relationships for creating upload files.
-type BackgroundAssetUploadFileCreateRelationships struct {
-	BackgroundAssetVersion Relationship `json:"backgroundAssetVersion"`
-}
-
-// BackgroundAssetUploadFileCreateData is the data portion of an upload file create request.
-type BackgroundAssetUploadFileCreateData struct {
-	Type          ResourceType                                 `json:"type"`
-	Attributes    BackgroundAssetUploadFileCreateAttributes    `json:"attributes"`
-	Relationships BackgroundAssetUploadFileCreateRelationships `json:"relationships"`
 }
 
 // BackgroundAssetUploadFileUpdateAttributes describes fields for updating upload files.

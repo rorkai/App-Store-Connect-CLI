@@ -2,10 +2,14 @@
   "tag": "AndroidToIosAppMappingDetails",
   "file": "android_to_ios_app_mapping_details_gen.go",
   "types": [
+    "AndroidToIosAppMappingDetailCreateData",
     "AndroidToIosAppMappingDetailCreateRequest",
     "AndroidToIosAppMappingDetailResponse",
     "AndroidToIosAppMappingDetailUpdateData",
     "AndroidToIosAppMappingDetailUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"AndroidToIosAppMappingDetailCreateData","type":"AndroidToIosAppMappingDetailCreateRelationships"}
   ],
   "operations": [
     {"operation":"androidToIosAppMappingDetails_deleteInstance","name":"DeleteAndroidToIosAppMappingDetail","params":["id"],"check":"require","messages":["mapping ID is required"]}

@@ -3,9 +3,13 @@
   "file": "beta_app_clip_invocations_gen.go",
   "types": [
     "BetaAppClipInvocationCreateAttributes",
+    "BetaAppClipInvocationCreateData",
     "BetaAppClipInvocationUpdateAttributes",
     "BetaAppClipInvocationUpdateData",
     "BetaAppClipInvocationUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"BetaAppClipInvocationCreateData","type":"*BetaAppClipInvocationRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"betaAppClipInvocations_deleteInstance","name":"DeleteBetaAppClipInvocation","params":["invocationID"],"check":"require"}

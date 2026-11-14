@@ -18,6 +18,13 @@ type AppClipAppStoreReviewDetailCreateAttributes struct {
 	InvocationURLs []string `json:"invocationUrls,omitempty"`
 }
 
+// AppClipAppStoreReviewDetailCreateData is the data object of the AppClipAppStoreReviewDetailCreateRequest schema.
+type AppClipAppStoreReviewDetailCreateData struct {
+	Type          ResourceType                                 `json:"type"`
+	Attributes    *AppClipAppStoreReviewDetailCreateAttributes `json:"attributes,omitempty"`
+	Relationships *AppClipAppStoreReviewDetailRelationships    `json:"relationships"`
+}
+
 // AppClipAppStoreReviewDetailCreateRequest is the AppClipAppStoreReviewDetailCreateRequest schema.
 type AppClipAppStoreReviewDetailCreateRequest struct {
 	Data AppClipAppStoreReviewDetailCreateData `json:"data"`

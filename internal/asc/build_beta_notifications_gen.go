@@ -2,7 +2,18 @@
 
 package asc
 
+// BuildBetaNotificationCreateData is the data object of the BuildBetaNotificationCreateRequest schema.
+type BuildBetaNotificationCreateData struct {
+	Type          ResourceType                       `json:"type"`
+	Relationships BuildBetaNotificationRelationships `json:"relationships"`
+}
+
 // BuildBetaNotificationCreateRequest is the BuildBetaNotificationCreateRequest schema.
 type BuildBetaNotificationCreateRequest struct {
 	Data BuildBetaNotificationCreateData `json:"data"`
+}
+
+// BuildBetaNotificationRelationships is the data.relationships object of the BuildBetaNotificationCreateRequest schema.
+type BuildBetaNotificationRelationships struct {
+	Build Relationship `json:"build"`
 }

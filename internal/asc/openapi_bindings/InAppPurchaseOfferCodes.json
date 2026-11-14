@@ -3,9 +3,13 @@
   "file": "in_app_purchase_offer_codes_gen.go",
   "types": [
     "InAppPurchaseOfferCodeAttributes",
+    "InAppPurchaseOfferCodeCreateRelationships",
     "InAppPurchaseOfferCodeUpdateAttributes",
     "InAppPurchaseOfferCodeUpdateData",
     "InAppPurchaseOfferCodeUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"InAppPurchaseOfferCodeCreateData","type":"InAppPurchaseOfferCodeCreateRelationships"}
   ],
   "operations": [
     {"operation":"inAppPurchaseOfferCodes_customCodes_getToManyRelated","name":"GetInAppPurchaseOfferCodeCustomCodes","params":["offerCodeID"],"check":"require","options":"IAPOfferCodeCustomCodesOption","query":"buildIAPOfferCodeCustomCodesQuery","nextContext":"in-app-purchase-offer-code-custom-codes"},

@@ -2,11 +2,16 @@
   "tag": "AppStoreVersionExperimentTreatments",
   "file": "app_store_version_experiment_treatments_gen.go",
   "types": [
+    "AppStoreVersionExperimentTreatmentCreateData",
+    "AppStoreVersionExperimentTreatmentCreateRelationships",
     "AppStoreVersionExperimentTreatmentCreateRequest",
     "AppStoreVersionExperimentTreatmentResponse",
     "AppStoreVersionExperimentTreatmentUpdateAttributes",
     "AppStoreVersionExperimentTreatmentUpdateData",
     "AppStoreVersionExperimentTreatmentUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"AppStoreVersionExperimentTreatmentCreateData","type":"*AppStoreVersionExperimentTreatmentCreateRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"appStoreVersionExperimentTreatments_appStoreVersionExperimentTreatmentLocalizations_getToManyRelated","name":"GetAppStoreVersionExperimentTreatmentLocalizations","params":["treatmentID"],"check":"require","options":"AppStoreVersionExperimentTreatmentLocalizationsOption","query":"buildAppStoreVersionExperimentTreatmentLocalizationsQuery","nextContext":"appStoreVersionExperimentTreatmentLocalizations"},

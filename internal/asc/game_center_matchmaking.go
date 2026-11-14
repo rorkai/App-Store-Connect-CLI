@@ -18,13 +18,6 @@ type GameCenterMatchmakingQueueRelationships struct {
 	ExperimentRuleSet *Relationship `json:"experimentRuleSet,omitempty"`
 }
 
-// GameCenterMatchmakingQueueCreateData is the data portion of a queue create request.
-type GameCenterMatchmakingQueueCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Attributes    GameCenterMatchmakingQueueCreateAttributes `json:"attributes"`
-	Relationships *GameCenterMatchmakingQueueRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterMatchmakingQueueUpdateData is the data portion of a queue update request.
 type GameCenterMatchmakingQueueUpdateData struct {
 	Type          ResourceType                                `json:"type"`
@@ -93,13 +86,6 @@ type GameCenterMatchmakingRuleRelationships struct {
 	RuleSet *Relationship `json:"ruleSet,omitempty"`
 }
 
-// GameCenterMatchmakingRuleCreateData is the data portion of a rule create request.
-type GameCenterMatchmakingRuleCreateData struct {
-	Type          ResourceType                              `json:"type"`
-	Attributes    GameCenterMatchmakingRuleCreateAttributes `json:"attributes"`
-	Relationships *GameCenterMatchmakingRuleRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterMatchmakingRulesResponse is the response from rule list endpoints.
 type GameCenterMatchmakingRulesResponse = Response[GameCenterMatchmakingRuleAttributes]
 
@@ -132,13 +118,6 @@ type GameCenterMatchmakingTeamAttributes struct {
 // GameCenterMatchmakingTeamRelationships describes relationships for matchmaking teams.
 type GameCenterMatchmakingTeamRelationships struct {
 	RuleSet *Relationship `json:"ruleSet,omitempty"`
-}
-
-// GameCenterMatchmakingTeamCreateData is the data portion of a team create request.
-type GameCenterMatchmakingTeamCreateData struct {
-	Type          ResourceType                              `json:"type"`
-	Attributes    GameCenterMatchmakingTeamCreateAttributes `json:"attributes"`
-	Relationships *GameCenterMatchmakingTeamRelationships   `json:"relationships,omitempty"`
 }
 
 // GameCenterMatchmakingTeamsResponse is the response from team list endpoints.

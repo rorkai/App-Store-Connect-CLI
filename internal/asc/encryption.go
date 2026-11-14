@@ -37,18 +37,6 @@ type AppEncryptionDeclarationAttributes struct {
 	CodeValue                       string                        `json:"codeValue,omitempty"`
 }
 
-// AppEncryptionDeclarationRelationships describes declaration relationships.
-type AppEncryptionDeclarationRelationships struct {
-	App *Relationship `json:"app"`
-}
-
-// AppEncryptionDeclarationCreateData is the data portion of a create request.
-type AppEncryptionDeclarationCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    AppEncryptionDeclarationCreateAttributes `json:"attributes"`
-	Relationships *AppEncryptionDeclarationRelationships   `json:"relationships"`
-}
-
 // AppEncryptionDeclarationBuildsUpdateResult represents CLI output for build assignments.
 type AppEncryptionDeclarationBuildsUpdateResult struct {
 	DeclarationID string   `json:"declarationId"`
@@ -71,18 +59,6 @@ type AppEncryptionDeclarationDocumentAttributes struct {
 type AppEncryptionDeclarationDocumentCreateAttributes struct {
 	FileSize int64  `json:"fileSize"`
 	FileName string `json:"fileName"`
-}
-
-// AppEncryptionDeclarationDocumentRelationships describes document relationships.
-type AppEncryptionDeclarationDocumentRelationships struct {
-	AppEncryptionDeclaration *Relationship `json:"appEncryptionDeclaration"`
-}
-
-// AppEncryptionDeclarationDocumentCreateData is the data portion of a create request.
-type AppEncryptionDeclarationDocumentCreateData struct {
-	Type          ResourceType                                     `json:"type"`
-	Attributes    AppEncryptionDeclarationDocumentCreateAttributes `json:"attributes"`
-	Relationships *AppEncryptionDeclarationDocumentRelationships   `json:"relationships"`
 }
 
 // GetAppEncryptionDeclarations retrieves encryption declarations for an app.
@@ -109,26 +85,6 @@ func (c *Client) GetAppEncryptionDeclaration(ctx context.Context, declarationID 
 		Path:  fmt.Sprintf("/v1/appEncryptionDeclarations/%s", declarationID),
 		Query: buildAppEncryptionDeclarationsQuery(query),
 	})
-}
-
-// CreateAppEncryptionDeclaration creates a new encryption declaration.
-func (c *Client) CreateAppEncryptionDeclaration(ctx context.Context, appID string, attrs AppEncryptionDeclarationCreateAttributes) (*AppEncryptionDeclarationResponse, error) {
-	payload := AppEncryptionDeclarationCreateRequest{
-		Data: AppEncryptionDeclarationCreateData{
-			Type:       ResourceTypeAppEncryptionDeclarations,
-			Attributes: attrs,
-			Relationships: &AppEncryptionDeclarationRelationships{
-				App: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   strings.TrimSpace(appID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[AppEncryptionDeclarationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appEncryptionDeclarations", Payload: payload})
 }
 
 // AddBuildsToAppEncryptionDeclaration assigns builds to a declaration.

@@ -381,19 +381,6 @@ type CertificateCreateAttributes struct {
 	CSRContent      string `json:"csrContent"`
 }
 
-// CertificateCreateRelationships describes relationships for certificate creation.
-type CertificateCreateRelationships struct {
-	MerchantID *Relationship `json:"merchantId,omitempty"`
-	PassTypeID *Relationship `json:"passTypeId,omitempty"`
-}
-
-// CertificateCreateData is the data portion of a certificate create request.
-type CertificateCreateData struct {
-	Type          ResourceType                    `json:"type"`
-	Attributes    CertificateCreateAttributes     `json:"attributes"`
-	Relationships *CertificateCreateRelationships `json:"relationships,omitempty"`
-}
-
 // ProfileState represents profile state values.
 type ProfileState string
 
@@ -444,13 +431,6 @@ type ProfileCreateRelationships struct {
 	BundleID     *Relationship     `json:"bundleId"`
 	Certificates *RelationshipList `json:"certificates"`
 	Devices      *RelationshipList `json:"devices,omitempty"`
-}
-
-// ProfileCreateData is the data portion of a profile create request.
-type ProfileCreateData struct {
-	Type          ResourceType                `json:"type"`
-	Attributes    ProfileCreateAttributes     `json:"attributes"`
-	Relationships *ProfileCreateRelationships `json:"relationships"`
 }
 
 // ProfilesResponse is the response from profiles list endpoint.

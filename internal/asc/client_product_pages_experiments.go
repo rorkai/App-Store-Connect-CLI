@@ -19,18 +19,6 @@ type AppStoreVersionExperimentAttributes struct {
 // AppStoreVersionExperimentsResponse is the response from experiment list endpoints (v1).
 type AppStoreVersionExperimentsResponse = Response[AppStoreVersionExperimentAttributes]
 
-// AppStoreVersionExperimentCreateRelationships describes create relationships (v1).
-type AppStoreVersionExperimentCreateRelationships struct {
-	AppStoreVersion *Relationship `json:"appStoreVersion"`
-}
-
-// AppStoreVersionExperimentCreateData is the data payload for create requests (v1).
-type AppStoreVersionExperimentCreateData struct {
-	Type          ResourceType                                  `json:"type"`
-	Attributes    AppStoreVersionExperimentCreateAttributes     `json:"attributes"`
-	Relationships *AppStoreVersionExperimentCreateRelationships `json:"relationships"`
-}
-
 // AppStoreVersionExperimentDeleteResult represents CLI output for experiment deletions.
 type AppStoreVersionExperimentDeleteResult struct {
 	ID      string `json:"id"`
@@ -58,18 +46,6 @@ type AppStoreVersionExperimentV2CreateAttributes struct {
 	TrafficProportion int      `json:"trafficProportion"`
 }
 
-// AppStoreVersionExperimentV2CreateRelationships describes create relationships (v2).
-type AppStoreVersionExperimentV2CreateRelationships struct {
-	App *Relationship `json:"app"`
-}
-
-// AppStoreVersionExperimentV2CreateData is the data payload for create requests (v2).
-type AppStoreVersionExperimentV2CreateData struct {
-	Type          ResourceType                                    `json:"type"`
-	Attributes    AppStoreVersionExperimentV2CreateAttributes     `json:"attributes"`
-	Relationships *AppStoreVersionExperimentV2CreateRelationships `json:"relationships"`
-}
-
 // AppStoreVersionExperimentTreatmentAttributes describes treatment attributes.
 type AppStoreVersionExperimentTreatmentAttributes struct {
 	Name         string      `json:"name,omitempty"`
@@ -87,19 +63,6 @@ type AppStoreVersionExperimentTreatmentCreateAttributes struct {
 	AppIconName string `json:"appIconName,omitempty"`
 }
 
-// AppStoreVersionExperimentTreatmentCreateRelationships describes create relationships.
-type AppStoreVersionExperimentTreatmentCreateRelationships struct {
-	AppStoreVersionExperiment   *Relationship `json:"appStoreVersionExperiment,omitempty"`
-	AppStoreVersionExperimentV2 *Relationship `json:"appStoreVersionExperimentV2,omitempty"`
-}
-
-// AppStoreVersionExperimentTreatmentCreateData is the data payload for create requests.
-type AppStoreVersionExperimentTreatmentCreateData struct {
-	Type          ResourceType                                           `json:"type"`
-	Attributes    AppStoreVersionExperimentTreatmentCreateAttributes     `json:"attributes"`
-	Relationships *AppStoreVersionExperimentTreatmentCreateRelationships `json:"relationships,omitempty"`
-}
-
 // AppStoreVersionExperimentTreatmentDeleteResult represents CLI output for treatment deletions.
 type AppStoreVersionExperimentTreatmentDeleteResult struct {
 	ID      string `json:"id"`
@@ -112,13 +75,6 @@ type AppStoreVersionExperimentTreatmentLocalizationsResponse = Response[AppStore
 // AppStoreVersionExperimentTreatmentLocalizationCreateRelationships describes create relationships.
 type AppStoreVersionExperimentTreatmentLocalizationCreateRelationships struct {
 	AppStoreVersionExperimentTreatment *Relationship `json:"appStoreVersionExperimentTreatment"`
-}
-
-// AppStoreVersionExperimentTreatmentLocalizationCreateData is the data payload for create requests.
-type AppStoreVersionExperimentTreatmentLocalizationCreateData struct {
-	Type          ResourceType                                                       `json:"type"`
-	Attributes    AppStoreVersionExperimentTreatmentLocalizationCreateAttributes     `json:"attributes"`
-	Relationships *AppStoreVersionExperimentTreatmentLocalizationCreateRelationships `json:"relationships"`
 }
 
 // AppStoreVersionExperimentTreatmentLocalizationDeleteResult represents CLI output for treatment localization deletions.

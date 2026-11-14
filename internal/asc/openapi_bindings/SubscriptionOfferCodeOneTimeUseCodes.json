@@ -2,10 +2,15 @@
   "tag": "SubscriptionOfferCodeOneTimeUseCodes",
   "file": "subscription_offer_code_one_time_use_codes_gen.go",
   "types": [
+    "SubscriptionOfferCodeOneTimeUseCodeCreateData",
+    "SubscriptionOfferCodeOneTimeUseCodeCreateRelationships",
     "SubscriptionOfferCodeOneTimeUseCodeCreateRequest",
     "SubscriptionOfferCodeOneTimeUseCodeResponse",
     "SubscriptionOfferCodeOneTimeUseCodeUpdateAttributes",
     "SubscriptionOfferCodeOneTimeUseCodeUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"SubscriptionOfferCodeOneTimeUseCodeCreateData","type":"SubscriptionOfferCodeOneTimeUseCodeCreateRelationships"}
   ],
   "operations": [
     {"operation":"subscriptionOfferCodeOneTimeUseCodes_getInstance","name":"GetSubscriptionOfferCodeOneTimeUseCode","params":["oneTimeUseCodeID"],"check":"trim"}

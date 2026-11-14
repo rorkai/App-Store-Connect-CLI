@@ -12,9 +12,21 @@ import (
 // InAppPurchaseResponse is the InAppPurchaseResponse schema.
 type InAppPurchaseResponse = SingleResponse[InAppPurchaseAttributes]
 
+// InAppPurchaseV2CreateData is the data object of the InAppPurchaseV2CreateRequest schema.
+type InAppPurchaseV2CreateData struct {
+	Type          ResourceType                    `json:"type"`
+	Attributes    InAppPurchaseV2CreateAttributes `json:"attributes"`
+	Relationships *InAppPurchaseV2Relationships   `json:"relationships,omitempty"`
+}
+
 // InAppPurchaseV2CreateRequest is the InAppPurchaseV2CreateRequest schema.
 type InAppPurchaseV2CreateRequest struct {
 	Data InAppPurchaseV2CreateData `json:"data"`
+}
+
+// InAppPurchaseV2Relationships is the data.relationships object of the InAppPurchaseV2CreateRequest schema.
+type InAppPurchaseV2Relationships struct {
+	App *Relationship `json:"app"`
 }
 
 // InAppPurchaseV2Response is the InAppPurchaseV2Response schema.
@@ -30,6 +42,29 @@ type InAppPurchaseV2UpdateData struct {
 // InAppPurchaseV2UpdateRequest is the InAppPurchaseV2UpdateRequest schema.
 type InAppPurchaseV2UpdateRequest struct {
 	Data InAppPurchaseV2UpdateData `json:"data"`
+}
+
+// CreateInAppPurchaseV2 sends POST /v2/inAppPurchases (inAppPurchasesV2_createInstance).
+func (c *Client) CreateInAppPurchaseV2(ctx context.Context, appID string, attrs InAppPurchaseV2CreateAttributes) (*InAppPurchaseV2Response, error) {
+	payload := InAppPurchaseV2CreateRequest{
+		Data: InAppPurchaseV2CreateData{
+			Type:       ResourceTypeInAppPurchases,
+			Attributes: attrs,
+			Relationships: &InAppPurchaseV2Relationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   strings.TrimSpace(appID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[InAppPurchaseV2Response](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v2/inAppPurchases",
+		Payload: payload,
+	})
 }
 
 // DeleteInAppPurchaseV2 sends DELETE /v2/inAppPurchases/{id} (inAppPurchasesV2_deleteInstance).

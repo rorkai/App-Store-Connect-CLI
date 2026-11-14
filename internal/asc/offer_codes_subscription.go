@@ -1,17 +1,5 @@
 package asc
 
-// SubscriptionOfferCodeCustomCodeCreateRelationships describes relationships for creating custom codes.
-type SubscriptionOfferCodeCustomCodeCreateRelationships struct {
-	OfferCode Relationship `json:"offerCode"`
-}
-
-// SubscriptionOfferCodeCustomCodeCreateData is the data portion of a create request.
-type SubscriptionOfferCodeCustomCodeCreateData struct {
-	Type          ResourceType                                       `json:"type"`
-	Attributes    SubscriptionOfferCodeCustomCodeCreateAttributes    `json:"attributes"`
-	Relationships SubscriptionOfferCodeCustomCodeCreateRelationships `json:"relationships"`
-}
-
 // SubscriptionOfferCodeCustomCodeUpdateData is the data portion of an update request.
 type SubscriptionOfferCodeCustomCodeUpdateData struct {
 	Type       ResourceType                                    `json:"type"`

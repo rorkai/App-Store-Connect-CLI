@@ -21,18 +21,6 @@ type AppStoreReviewDetailAttributes struct {
 	api apiAttributes
 }
 
-// AppStoreReviewDetailCreateRelationships describes relationships for create requests.
-type AppStoreReviewDetailCreateRelationships struct {
-	AppStoreVersion *Relationship `json:"appStoreVersion"`
-}
-
-// AppStoreReviewDetailCreateData is the data portion of a create request.
-type AppStoreReviewDetailCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    *AppStoreReviewDetailCreateAttributes    `json:"attributes,omitempty"`
-	Relationships *AppStoreReviewDetailCreateRelationships `json:"relationships"`
-}
-
 // CreateAppStoreReviewDetail creates review details for a version.
 func (c *Client) CreateAppStoreReviewDetail(ctx context.Context, versionID string, attrs *AppStoreReviewDetailCreateAttributes) (*AppStoreReviewDetailResponse, error) {
 	versionID = strings.TrimSpace(versionID)

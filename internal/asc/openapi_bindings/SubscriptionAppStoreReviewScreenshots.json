@@ -2,9 +2,14 @@
   "tag": "SubscriptionAppStoreReviewScreenshots",
   "file": "subscription_app_store_review_screenshots_gen.go",
   "types": [
+    "SubscriptionAppStoreReviewScreenshotCreateData",
     "SubscriptionAppStoreReviewScreenshotCreateRequest",
+    "SubscriptionAppStoreReviewScreenshotRelationships",
     "SubscriptionAppStoreReviewScreenshotUpdateAttributes",
     "SubscriptionAppStoreReviewScreenshotUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"SubscriptionAppStoreReviewScreenshotCreateData","type":"*SubscriptionAppStoreReviewScreenshotRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"subscriptionAppStoreReviewScreenshots_deleteInstance","name":"DeleteSubscriptionAppStoreReviewScreenshot","params":["screenshotID"]}

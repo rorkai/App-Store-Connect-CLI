@@ -8,30 +8,6 @@ import (
 	"strings"
 )
 
-// CreateSubscriptionGroup creates a subscription group for an app.
-func (c *Client) CreateSubscriptionGroup(ctx context.Context, appID string, attrs SubscriptionGroupCreateAttributes) (*SubscriptionGroupResponse, error) {
-	payload := SubscriptionGroupCreateRequest{
-		Data: SubscriptionGroupCreateData{
-			Type:       ResourceTypeSubscriptionGroups,
-			Attributes: attrs,
-			Relationships: &SubscriptionGroupRelationships{
-				App: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   strings.TrimSpace(appID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[SubscriptionGroupResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/subscriptionGroups",
-		Payload: payload,
-	})
-}
-
 // GetSubscriptionGroup retrieves a subscription group by ID.
 func (c *Client) GetSubscriptionGroup(ctx context.Context, groupID string, opts ...SubscriptionGroupsOption) (*SubscriptionGroupResponse, error) {
 	groupID = strings.TrimSpace(groupID)
@@ -65,30 +41,6 @@ func (c *Client) UpdateSubscriptionGroup(ctx context.Context, groupID string, at
 	return sendJSON[SubscriptionGroupResponse](ctx, c, writeRequest{
 		Method:  http.MethodPatch,
 		Path:    fmt.Sprintf("/v1/subscriptionGroups/%s", strings.TrimSpace(groupID)),
-		Payload: payload,
-	})
-}
-
-// CreateSubscription creates a subscription within a group.
-func (c *Client) CreateSubscription(ctx context.Context, groupID string, attrs SubscriptionCreateAttributes) (*SubscriptionResponse, error) {
-	payload := SubscriptionCreateRequest{
-		Data: SubscriptionCreateData{
-			Type:       ResourceTypeSubscriptions,
-			Attributes: attrs,
-			Relationships: &SubscriptionRelationships{
-				Group: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeSubscriptionGroups,
-						ID:   strings.TrimSpace(groupID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[SubscriptionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/subscriptions",
 		Payload: payload,
 	})
 }

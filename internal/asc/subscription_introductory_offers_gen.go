@@ -9,9 +9,23 @@ import (
 	"strings"
 )
 
+// SubscriptionIntroductoryOfferCreateData is the data object of the SubscriptionIntroductoryOfferCreateRequest schema.
+type SubscriptionIntroductoryOfferCreateData struct {
+	Type          ResourceType                                  `json:"type"`
+	Attributes    SubscriptionIntroductoryOfferCreateAttributes `json:"attributes"`
+	Relationships *SubscriptionIntroductoryOfferRelationships   `json:"relationships,omitempty"`
+}
+
 // SubscriptionIntroductoryOfferCreateRequest is the SubscriptionIntroductoryOfferCreateRequest schema.
 type SubscriptionIntroductoryOfferCreateRequest struct {
 	Data SubscriptionIntroductoryOfferCreateData `json:"data"`
+}
+
+// SubscriptionIntroductoryOfferRelationships is the data.relationships object of the SubscriptionIntroductoryOfferCreateRequest schema.
+type SubscriptionIntroductoryOfferRelationships struct {
+	Subscription           *Relationship `json:"subscription"`
+	Territory              *Relationship `json:"territory,omitempty"`
+	SubscriptionPricePoint *Relationship `json:"subscriptionPricePoint,omitempty"`
 }
 
 // SubscriptionIntroductoryOfferUpdateAttributes is the data.attributes object of the SubscriptionIntroductoryOfferUpdateRequest schema.

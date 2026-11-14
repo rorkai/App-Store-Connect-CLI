@@ -3,8 +3,12 @@
   "file": "build_upload_files_gen.go",
   "types": [
     "BuildUploadFileCreateRequest",
+    "BuildUploadFileRelationships",
     "BuildUploadFileUpdateData",
     "BuildUploadFileUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"BuildUploadFileCreateData","type":"*BuildUploadFileRelationships"}
   ],
   "operations": [
     {"operation":"buildUploadFiles_getInstance","name":"GetBuildUploadFile","params":["id"],"check":"require"}

@@ -9,6 +9,19 @@ import (
 	"strings"
 )
 
+// AppStoreVersionExperimentTreatmentCreateData is the data object of the AppStoreVersionExperimentTreatmentCreateRequest schema.
+type AppStoreVersionExperimentTreatmentCreateData struct {
+	Type          ResourceType                                           `json:"type"`
+	Attributes    AppStoreVersionExperimentTreatmentCreateAttributes     `json:"attributes"`
+	Relationships *AppStoreVersionExperimentTreatmentCreateRelationships `json:"relationships,omitempty"`
+}
+
+// AppStoreVersionExperimentTreatmentCreateRelationships is the data.relationships object of the AppStoreVersionExperimentTreatmentCreateRequest schema.
+type AppStoreVersionExperimentTreatmentCreateRelationships struct {
+	AppStoreVersionExperiment   *Relationship `json:"appStoreVersionExperiment,omitempty"`
+	AppStoreVersionExperimentV2 *Relationship `json:"appStoreVersionExperimentV2,omitempty"`
+}
+
 // AppStoreVersionExperimentTreatmentCreateRequest is the AppStoreVersionExperimentTreatmentCreateRequest schema.
 type AppStoreVersionExperimentTreatmentCreateRequest struct {
 	Data AppStoreVersionExperimentTreatmentCreateData `json:"data"`

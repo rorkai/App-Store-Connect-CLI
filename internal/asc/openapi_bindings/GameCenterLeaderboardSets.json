@@ -3,11 +3,17 @@
   "file": "game_center_leaderboard_sets_gen.go",
   "types": [
     "GameCenterLeaderboardSetCreateAttributes",
+    "GameCenterLeaderboardSetCreateData",
     "GameCenterLeaderboardSetCreateRequest",
     "GameCenterLeaderboardSetResponse",
     "GameCenterLeaderboardSetUpdateAttributes",
     "GameCenterLeaderboardSetUpdateData",
-    "GameCenterLeaderboardSetUpdateRequest"
+    "GameCenterLeaderboardSetUpdateRequest",
+    "GameCenterLeaderboardSetV2Relationships"
+  ],
+  "relationships": [
+    {"data":"GameCenterLeaderboardSetCreateData","type":"*GameCenterLeaderboardSetRelationships","omitempty":true},
+    {"data":"GameCenterLeaderboardSetV2CreateData","type":"*GameCenterLeaderboardSetV2Relationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterLeaderboardSetsV2_deleteInstance","name":"DeleteGameCenterLeaderboardSetV2","params":["setID"]},
