@@ -6,5 +6,9 @@
     "AppScreenshotUpdateAttributes",
     "AppScreenshotUpdateData",
     "AppScreenshotUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appScreenshots_deleteInstance","name":"DeleteAppScreenshot","params":["screenshotID"],"check":"raw"},
+    {"operation":"appScreenshots_getInstance","name":"GetAppScreenshot","params":["screenshotID"],"check":"raw"}
   ]
 }

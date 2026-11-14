@@ -266,6 +266,7 @@ CSV formats accepted:
   3) Legacy headerless fastlane rows:
      First,Last,Email[,Groups]
 
+Installed Version and Install Date columns are accepted and ignored.
 Groups are semicolon-delimited in canonical import/export files.
 For compatibility, comma-delimited groups are also accepted when no semicolon is present.
 Exports that neutralize spreadsheet formulas include an _asc_formula_escaping
@@ -895,6 +896,16 @@ func readBetaTestersCSV(path string) ([]betaTestersCSVRow, error) {
 			return nil, rowErr
 		}
 		rows = append(rows, row)
+	} else {
+		ignored := make([]string, 0, 2)
+		for _, raw := range header {
+			if canonical, _ := canonicalBetaTestersCSVColumn(raw); canonical == "installed_version" || canonical == "install_date" {
+				ignored = append(ignored, strings.TrimSpace(raw))
+			}
+		}
+		if len(ignored) > 0 {
+			fmt.Fprintf(os.Stderr, "Note: ignoring CSV columns: %s\n", strings.Join(ignored, ", "))
+		}
 	}
 
 	for {
@@ -955,7 +966,7 @@ func validateBetaTestersCSVHeader(header []string) (map[string]int, error) {
 		canonical, ok := canonicalBetaTestersCSVColumn(col)
 		if !ok {
 			return nil, shared.WithDiagnostic(
-				shared.UsageErrorf("unknown CSV column %q (allowed: email, first_name, last_name, groups, %s)", col, betaTestersFormulaEscapingColumn),
+				shared.UsageErrorf("unknown CSV column %q (allowed: email, first_name, last_name, groups, %s; installed_version and install_date are ignored)", col, betaTestersFormulaEscapingColumn),
 				shared.DiagnosticFileInvalidFormat,
 				"--input",
 			)
@@ -1037,6 +1048,10 @@ func canonicalBetaTestersCSVColumn(col string) (string, bool) {
 		return "groups", true
 	case betaTestersFormulaEscapingColumn:
 		return betaTestersFormulaEscapingColumn, true
+	case "installed_version", "installed version":
+		return "installed_version", true
+	case "install_date", "install date":
+		return "install_date", true
 	default:
 		return "", false
 	}

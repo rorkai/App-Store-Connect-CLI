@@ -3,7 +3,6 @@ package cmdtest
 import (
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -32,6 +31,7 @@ func TestLocalizationsListsPaginateFromNext(t *testing.T) {
 			args:     []string{"build-localizations", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-1/appStoreVersionLocalizations?cursor=AQ&limit=200",
 			dataType: "appStoreVersionLocalizations",
+			deps:     true,
 		},
 		{
 			args:     []string{"localizations", "preview-sets", "list"},
@@ -86,12 +86,8 @@ func TestBuildLocalizationsListNextWithBuildID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			setupAuth(t)
-			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
 			wantRequests := append([]string{"https://api.appstoreconnect.apple.com/v1/builds/build-1/appStoreVersion"}, tc.wantPages...)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			for _, want := range wantRequests {
 				body := `{"data":{"type":"appStoreVersions","id":"version-1"}}`
 				switch want {
@@ -107,7 +103,7 @@ func TestBuildLocalizationsListNextWithBuildID(t *testing.T) {
 				reg.Register(asctest.GET(wantURL.EscapedPath(), strings.Split(wantURL.RawQuery, "&")...), asctest.JSON(http.StatusOK, body))
 			}
 
-			stdout, stderr, runErr := runCommand(t, []string{"build-localizations", "list", "--build-id", "build-1", "--paginate", "--next", tc.next})
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "build-localizations", "list", "--build-id", "build-1", "--paginate", "--next", tc.next)
 
 			if tc.wantErr != "" {
 				if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {

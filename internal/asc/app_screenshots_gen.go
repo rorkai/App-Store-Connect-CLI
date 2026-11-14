@@ -2,6 +2,12 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+	"net/http"
+)
+
 // AppScreenshotCreateRequest is the AppScreenshotCreateRequest schema.
 type AppScreenshotCreateRequest struct {
 	Data AppScreenshotCreateData `json:"data"`
@@ -23,4 +29,16 @@ type AppScreenshotUpdateData struct {
 // AppScreenshotUpdateRequest is the AppScreenshotUpdateRequest schema.
 type AppScreenshotUpdateRequest struct {
 	Data AppScreenshotUpdateData `json:"data"`
+}
+
+// DeleteAppScreenshot sends DELETE /v1/appScreenshots/{id} (appScreenshots_deleteInstance).
+func (c *Client) DeleteAppScreenshot(ctx context.Context, screenshotID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appScreenshots/%s", screenshotID), nil)
+}
+
+// GetAppScreenshot sends GET /v1/appScreenshots/{id} (appScreenshots_getInstance).
+func (c *Client) GetAppScreenshot(ctx context.Context, screenshotID string) (*AppScreenshotResponse, error) {
+	return getJSON[AppScreenshotResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/appScreenshots/%s", screenshotID),
+	})
 }

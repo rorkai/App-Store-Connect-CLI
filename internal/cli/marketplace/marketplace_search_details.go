@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// MarketplaceSearchDetailsCommand returns the marketplace search details command group.
-func MarketplaceSearchDetailsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("search-details", flag.ExitOnError)
+// newMarketplaceSearchDetailsCommand returns the marketplace search details command group.
+func newMarketplaceSearchDetailsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("search-details", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "search-details",
@@ -31,10 +30,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			MarketplaceSearchDetailsGetCommand(),
-			MarketplaceSearchDetailsCreateCommand(),
-			MarketplaceSearchDetailsUpdateCommand(),
-			MarketplaceSearchDetailsDeleteCommand(),
+			newMarketplaceSearchDetailsGetCommand(d),
+			newMarketplaceSearchDetailsCreateCommand(d),
+			newMarketplaceSearchDetailsUpdateCommand(d),
+			newMarketplaceSearchDetailsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -42,8 +41,8 @@ Examples:
 	}
 }
 
-// MarketplaceSearchDetailsGetCommand returns the search details get subcommand.
-func MarketplaceSearchDetailsGetCommand() *ffcli.Command {
+// newMarketplaceSearchDetailsGetCommand returns the search details get subcommand.
+func newMarketplaceSearchDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 	var fieldsValue []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
@@ -63,26 +62,27 @@ Examples:
 			fields := fs.String("fields", "", "Fields to include: "+strings.Join(marketplaceSearchDetailFieldsList(), ", "))
 			return func() (err error) {
 				if fieldsValue, err = normalizeMarketplaceSearchDetailFields(*fields); err != nil {
-					return shared.UsageErrorf("marketplace search-details view: %v", err)
+					return d.UsageErrorf("marketplace search-details view: %v", err)
 				}
 				return nil
 			}
 		},
 		ErrorPrefix:      "marketplace search-details view",
 		FetchErrorPrefix: "marketplace search-details view: failed to fetch",
+		Deps:             d,
 		Fetch: func(ctx context.Context, client *asc.Client, appID string) (any, error) {
 			return client.GetMarketplaceSearchDetailForApp(ctx, appID, fieldsValue)
 		},
 	})
 }
 
-// MarketplaceSearchDetailsCreateCommand returns the search details create subcommand.
-func MarketplaceSearchDetailsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newMarketplaceSearchDetailsCreateCommand returns the search details create subcommand.
+func newMarketplaceSearchDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	catalogURL := fs.String("catalog-url", "", "Marketplace catalog URL")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -97,21 +97,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			catalogURLValue := strings.TrimSpace(*catalogURL)
 			if catalogURLValue == "" {
-				return shared.RequiredFlag("--catalog-url")
+				return d.RequiredFlag("--catalog-url")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("marketplace search-details create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			detail, err := client.CreateMarketplaceSearchDetail(requestCtx, resolvedAppID, catalogURLValue)
@@ -119,18 +119,18 @@ Examples:
 				return fmt.Errorf("marketplace search-details create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(detail, *output.Output, *output.Pretty)
+			return d.PrintOutput(detail, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// MarketplaceSearchDetailsUpdateCommand returns the search details update subcommand.
-func MarketplaceSearchDetailsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newMarketplaceSearchDetailsUpdateCommand returns the search details update subcommand.
+func newMarketplaceSearchDetailsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	detailID := shared.BindResourceIDFlag(fs, "search-detail-id", "marketplaceSearchDetails", "Marketplace search detail ID")
 	catalogURL := fs.String("catalog-url", "", "Marketplace catalog URL")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -145,7 +145,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*detailID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--search-detail-id")
+				return d.RequiredFlag("--search-detail-id")
 			}
 
 			visited := map[string]bool{}
@@ -154,7 +154,7 @@ Examples:
 			})
 
 			if !visited["catalog-url"] {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -164,12 +164,12 @@ Examples:
 				attrs.CatalogURL = &value
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("marketplace search-details update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			detail, err := client.UpdateMarketplaceSearchDetail(requestCtx, trimmedID, attrs)
@@ -177,13 +177,13 @@ Examples:
 				return fmt.Errorf("marketplace search-details update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(detail, *output.Output, *output.Pretty)
+			return d.PrintOutput(detail, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// MarketplaceSearchDetailsDeleteCommand returns the search details delete subcommand.
-func MarketplaceSearchDetailsDeleteCommand() *ffcli.Command {
+// newMarketplaceSearchDetailsDeleteCommand returns the search details delete subcommand.
+func newMarketplaceSearchDetailsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		FlagSetName: "delete",
 		Name:        "delete",
@@ -199,6 +199,7 @@ Examples:
 		RequiredDiagnostic: true,
 		ErrorPrefix:        "marketplace search-details delete",
 		DeleteErrorPrefix:  "marketplace search-details delete: failed to delete",
+		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteMarketplaceSearchDetail(ctx, id)
 		},

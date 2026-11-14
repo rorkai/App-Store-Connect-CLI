@@ -582,28 +582,6 @@ type BetaTesterInvitationCreateData struct {
 	Relationships *BetaTesterInvitationCreateRelationships `json:"relationships"`
 }
 
-// GetFeedback retrieves TestFlight feedback
-func (c *Client) GetFeedback(ctx context.Context, appID string, opts ...FeedbackOption) (*FeedbackResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[FeedbackResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/betaFeedbackScreenshotSubmissions", appID),
-		Query:       buildFeedbackQuery(query),
-		Next:        query.nextURL,
-		NextContext: "feedback",
-	})
-}
-
-// GetCrashes retrieves TestFlight crash reports
-func (c *Client) GetCrashes(ctx context.Context, appID string, opts ...CrashOption) (*CrashesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[CrashesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/betaFeedbackCrashSubmissions", appID),
-		Query:       buildCrashQuery(query),
-		Next:        query.nextURL,
-		NextContext: "crashes",
-	})
-}
-
 // GetReviews retrieves App Store reviews
 func (c *Client) GetReviews(ctx context.Context, appID string, opts ...ReviewOption) (*ReviewsResponse, error) {
 	query := applyOptions(opts)
@@ -625,39 +603,6 @@ func (c *Client) GetCustomerReview(ctx context.Context, reviewID string, opts ..
 	return getJSON[CustomerReviewResponse](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v1/customerReviews/%s", reviewID),
 		Query: buildCustomerReviewQuery(opts),
-	})
-}
-
-// GetBetaGroups retrieves the list of beta groups for an app.
-func (c *Client) GetBetaGroups(ctx context.Context, appID string, opts ...BetaGroupsOption) (*BetaGroupsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BetaGroupsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/betaGroups", appID),
-		Query:       buildBetaGroupsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "betaGroups",
-	})
-}
-
-// GetBetaGroupBuilds retrieves builds assigned to a beta group.
-func (c *Client) GetBetaGroupBuilds(ctx context.Context, groupID string, opts ...BetaGroupBuildsOption) (*BuildsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BuildsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/betaGroups/%s/builds", groupID),
-		Query:       buildBetaGroupBuildsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "betaGroupBuilds",
-	})
-}
-
-// GetBetaGroupTesters retrieves beta testers assigned to a beta group.
-func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts ...BetaGroupTestersOption) (*BetaTestersResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BetaTestersResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/betaGroups/%s/betaTesters", groupID),
-		Query:       buildBetaGroupTestersQuery(query),
-		Next:        query.nextURL,
-		NextContext: "betaGroupTesters",
 	})
 }
 
@@ -684,63 +629,9 @@ func (c *Client) CreateBetaGroupWithAttributes(ctx context.Context, appID string
 	return sendJSON[BetaGroupResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaGroups", Payload: payload})
 }
 
-// GetBetaGroup retrieves a beta group by ID.
-func (c *Client) GetBetaGroup(ctx context.Context, groupID string) (*BetaGroupResponse, error) {
-	return getJSON[BetaGroupResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaGroups/%s", groupID)})
-}
-
 // UpdateBetaGroup updates a beta group by ID.
 func (c *Client) UpdateBetaGroup(ctx context.Context, groupID string, req BetaGroupUpdateRequest) (*BetaGroupResponse, error) {
 	return sendJSON[BetaGroupResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/betaGroups/%s", groupID), Payload: req})
-}
-
-// DeleteBetaGroup deletes a beta group by ID.
-func (c *Client) DeleteBetaGroup(ctx context.Context, groupID string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaGroups/%s", groupID), nil)
-}
-
-// AddBetaTestersToGroup adds testers to a beta group.
-func (c *Client) AddBetaTestersToGroup(ctx context.Context, groupID string, testerIDs []string) error {
-	groupID = strings.TrimSpace(groupID)
-	testerIDs = normalizeList(testerIDs)
-	if groupID == "" {
-		return fmt.Errorf("groupID is required")
-	}
-	if len(testerIDs) == 0 {
-		return fmt.Errorf("testerIDs are required")
-	}
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(testerIDs)),
-	}
-	for _, testerID := range testerIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeBetaTesters,
-			ID:   testerID,
-		})
-	}
-	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
-}
-
-// RemoveBetaTestersFromGroup removes testers from a beta group.
-func (c *Client) RemoveBetaTestersFromGroup(ctx context.Context, groupID string, testerIDs []string) error {
-	groupID = strings.TrimSpace(groupID)
-	testerIDs = normalizeList(testerIDs)
-	if groupID == "" {
-		return fmt.Errorf("groupID is required")
-	}
-	if len(testerIDs) == 0 {
-		return fmt.Errorf("testerIDs are required")
-	}
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(testerIDs)),
-	}
-	for _, testerID := range testerIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeBetaTesters,
-			ID:   testerID,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
 }
 
 // GetBetaTesters retrieves beta testers for an app.
@@ -757,11 +648,6 @@ func (c *Client) GetBetaTesters(ctx context.Context, appID string, opts ...BetaT
 		}
 	}
 	return getJSON[BetaTestersResponse](ctx, c, readRequest{Path: path, Next: query.nextURL, NextContext: "betaTesters"})
-}
-
-// GetBetaTester retrieves a beta tester by ID.
-func (c *Client) GetBetaTester(ctx context.Context, testerID string) (*BetaTesterResponse, error) {
-	return getJSON[BetaTesterResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaTesters/%s", testerID)})
 }
 
 // CreateBetaTester creates a beta tester, attaching any beta groups and builds
@@ -788,139 +674,6 @@ func (c *Client) CreateBetaTester(ctx context.Context, email, firstName, lastNam
 	return sendJSON[BetaTesterResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaTesters", Payload: payload})
 }
 
-// AddBetaTesterToGroups adds a tester to multiple beta groups.
-func (c *Client) AddBetaTesterToGroups(ctx context.Context, testerID string, groupIDs []string) error {
-	testerID = strings.TrimSpace(testerID)
-	groupIDs = normalizeList(groupIDs)
-	if testerID == "" {
-		return fmt.Errorf("tester ID is required")
-	}
-	if len(groupIDs) == 0 {
-		return fmt.Errorf("group IDs are required")
-	}
-
-	relData := make([]ResourceData, 0, len(groupIDs))
-	for _, groupID := range groupIDs {
-		relData = append(relData, ResourceData{
-			Type: ResourceTypeBetaGroups,
-			ID:   groupID,
-		})
-	}
-	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID), RelationshipList{Data: relData})
-}
-
-// RemoveBetaTesterFromGroups removes a tester from multiple beta groups.
-func (c *Client) RemoveBetaTesterFromGroups(ctx context.Context, testerID string, groupIDs []string) error {
-	testerID = strings.TrimSpace(testerID)
-	groupIDs = normalizeList(groupIDs)
-	if testerID == "" {
-		return fmt.Errorf("tester ID is required")
-	}
-	if len(groupIDs) == 0 {
-		return fmt.Errorf("group IDs are required")
-	}
-
-	relData := make([]ResourceData, 0, len(groupIDs))
-	for _, groupID := range groupIDs {
-		relData = append(relData, ResourceData{
-			Type: ResourceTypeBetaGroups,
-			ID:   groupID,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID), RelationshipList{Data: relData})
-}
-
-// RemoveBetaTesterFromApps removes a tester from multiple apps.
-func (c *Client) RemoveBetaTesterFromApps(ctx context.Context, testerID string, appIDs []string) error {
-	testerID = strings.TrimSpace(testerID)
-	appIDs = normalizeList(appIDs)
-	if testerID == "" {
-		return fmt.Errorf("tester ID is required")
-	}
-	if len(appIDs) == 0 {
-		return fmt.Errorf("app IDs are required")
-	}
-
-	relData := make([]ResourceData, 0, len(appIDs))
-	for _, appID := range appIDs {
-		relData = append(relData, ResourceData{
-			Type: ResourceTypeApps,
-			ID:   appID,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s/relationships/apps", testerID), RelationshipList{Data: relData})
-}
-
-// AddBuildsToBetaTester adds builds to a beta tester.
-func (c *Client) AddBuildsToBetaTester(ctx context.Context, testerID string, buildIDs []string) error {
-	testerID = strings.TrimSpace(testerID)
-	buildIDs = normalizeList(buildIDs)
-	if testerID == "" {
-		return fmt.Errorf("tester ID is required")
-	}
-	if len(buildIDs) == 0 {
-		return fmt.Errorf("build IDs are required")
-	}
-
-	relData := make([]ResourceData, 0, len(buildIDs))
-	for _, buildID := range buildIDs {
-		relData = append(relData, ResourceData{
-			Type: ResourceTypeBuilds,
-			ID:   buildID,
-		})
-	}
-	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID), RelationshipList{Data: relData})
-}
-
-// RemoveBuildsFromBetaTester removes builds from a beta tester.
-func (c *Client) RemoveBuildsFromBetaTester(ctx context.Context, testerID string, buildIDs []string) error {
-	testerID = strings.TrimSpace(testerID)
-	buildIDs = normalizeList(buildIDs)
-	if testerID == "" {
-		return fmt.Errorf("tester ID is required")
-	}
-	if len(buildIDs) == 0 {
-		return fmt.Errorf("build IDs are required")
-	}
-
-	relData := make([]ResourceData, 0, len(buildIDs))
-	for _, buildID := range buildIDs {
-		relData = append(relData, ResourceData{
-			Type: ResourceTypeBuilds,
-			ID:   buildID,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID), RelationshipList{Data: relData})
-}
-
-// RemoveBetaTestersFromApp removes beta testers from an app.
-func (c *Client) RemoveBetaTestersFromApp(ctx context.Context, appID string, testerIDs []string) error {
-	appID = strings.TrimSpace(appID)
-	testerIDs = normalizeList(testerIDs)
-	if appID == "" {
-		return fmt.Errorf("app ID is required")
-	}
-	if len(testerIDs) == 0 {
-		return fmt.Errorf("tester IDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(testerIDs)),
-	}
-	for _, testerID := range testerIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeBetaTesters,
-			ID:   testerID,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/apps/%s/relationships/betaTesters", appID), payload)
-}
-
-// DeleteBetaTester deletes a beta tester by ID.
-func (c *Client) DeleteBetaTester(ctx context.Context, testerID string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s", testerID), nil)
-}
-
 // CreateBetaTesterInvitation creates a beta tester invitation.
 func (c *Client) CreateBetaTesterInvitation(ctx context.Context, appID, testerID string) (*BetaTesterInvitationResponse, error) {
 	payload := BetaTesterInvitationCreateRequest{
@@ -943,22 +696,6 @@ func (c *Client) CreateBetaTesterInvitation(ctx context.Context, appID, testerID
 		},
 	}
 	return sendJSON[BetaTesterInvitationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaTesterInvitations", Payload: payload})
-}
-
-// GetAppStoreVersionLocalizations retrieves localizations for an app store version.
-func (c *Client) GetAppStoreVersionLocalizations(ctx context.Context, versionID string, opts ...AppStoreVersionLocalizationsOption) (*AppStoreVersionLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[AppStoreVersionLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID),
-		Query:       buildAppStoreVersionLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appStoreVersionLocalizations",
-	})
-}
-
-// GetAppStoreVersionLocalization retrieves a single app store version localization by ID.
-func (c *Client) GetAppStoreVersionLocalization(ctx context.Context, localizationID string) (*AppStoreVersionLocalizationResponse, error) {
-	return getJSON[AppStoreVersionLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID)})
 }
 
 // CreateAppStoreVersionLocalization creates a localization for an app store version.
@@ -1014,27 +751,6 @@ func (c *Client) UpdateAppStoreVersionLocalizationNullableFields(ctx context.Con
 	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID), Payload: payload})
 }
 
-// DeleteAppStoreVersionLocalization deletes a localization by ID.
-func (c *Client) DeleteAppStoreVersionLocalization(ctx context.Context, localizationID string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID), nil)
-}
-
-// GetBetaBuildLocalizations retrieves beta build localizations for a build.
-func (c *Client) GetBetaBuildLocalizations(ctx context.Context, buildID string, opts ...BetaBuildLocalizationsOption) (*BetaBuildLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BetaBuildLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/builds/%s/betaBuildLocalizations", buildID),
-		Query:       buildBetaBuildLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "betaBuildLocalizations",
-	})
-}
-
-// GetBetaBuildLocalization retrieves a single beta build localization by ID.
-func (c *Client) GetBetaBuildLocalization(ctx context.Context, localizationID string) (*BetaBuildLocalizationResponse, error) {
-	return getJSON[BetaBuildLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID)})
-}
-
 // CreateBetaBuildLocalization creates a beta build localization for a build.
 func (c *Client) CreateBetaBuildLocalization(ctx context.Context, buildID string, attributes BetaBuildLocalizationAttributes) (*BetaBuildLocalizationResponse, error) {
 	attributes.api = apiAttributes{}
@@ -1066,22 +782,6 @@ func (c *Client) UpdateBetaBuildLocalization(ctx context.Context, localizationID
 		},
 	}
 	return sendJSON[BetaBuildLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID), Payload: payload})
-}
-
-// DeleteBetaBuildLocalization deletes a beta build localization by ID.
-func (c *Client) DeleteBetaBuildLocalization(ctx context.Context, localizationID string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID), nil)
-}
-
-// GetAppInfoLocalizations retrieves localizations for an app info resource.
-func (c *Client) GetAppInfoLocalizations(ctx context.Context, appInfoID string, opts ...AppInfoLocalizationsOption) (*AppInfoLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[AppInfoLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appInfos/%s/appInfoLocalizations", appInfoID),
-		Query:       buildAppInfoLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appInfoLocalizations",
-	})
 }
 
 // CreateAppInfoLocalization creates a localization for an app info resource.
@@ -1135,17 +835,6 @@ func (c *Client) UpdateAppInfoLocalizationNullableFields(ctx context.Context, lo
 		Attributes: fields,
 	}}
 	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), Payload: payload})
-}
-
-// GetAppInfos retrieves app info records for an app.
-func (c *Client) GetAppInfos(ctx context.Context, appID string, opts ...AppInfoOption) (*AppInfosResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[AppInfosResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/appInfos", appID),
-		Query:       buildAppInfoQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appInfos",
-	})
 }
 
 // GetAppInfo retrieves an app info record by ID.

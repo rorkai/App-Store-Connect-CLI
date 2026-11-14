@@ -4,6 +4,7 @@ package asc
 
 import (
 	"context"
+	"fmt"
 )
 
 // GetCiXcodeVersions sends GET /v1/ciXcodeVersions (ciXcodeVersions_getCollection).
@@ -14,5 +15,23 @@ func (c *Client) GetCiXcodeVersions(ctx context.Context, opts ...CiXcodeVersions
 		Query:       buildCiXcodeVersionsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "ciXcodeVersions",
+	})
+}
+
+// GetCiXcodeVersion sends GET /v1/ciXcodeVersions/{id} (ciXcodeVersions_getInstance).
+func (c *Client) GetCiXcodeVersion(ctx context.Context, xcodeVersionID string) (*CiXcodeVersionResponse, error) {
+	return getJSON[CiXcodeVersionResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/ciXcodeVersions/%s", xcodeVersionID),
+	})
+}
+
+// GetCiXcodeVersionMacOsVersions sends GET /v1/ciXcodeVersions/{id}/macOsVersions (ciXcodeVersions_macOsVersions_getToManyRelated).
+func (c *Client) GetCiXcodeVersionMacOsVersions(ctx context.Context, xcodeVersionID string, opts ...CiMacOsVersionsOption) (*CiMacOsVersionsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[CiMacOsVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciXcodeVersions/%s/macOsVersions", xcodeVersionID),
+		Query:       buildCiMacOsVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciXcodeVersionMacOsVersions",
 	})
 }

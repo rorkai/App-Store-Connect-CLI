@@ -1194,6 +1194,85 @@ func TestRun_ErrorHook(t *testing.T) {
 	}
 }
 
+func TestRun_ErrorHookReceivesFailureContext(t *testing.T) {
+	const record = `printf %s "$ASC_WORKFLOW_NAME" > "$OUT/name"; printf %s "$ASC_WORKFLOW_FAILED_STEP" > "$OUT/step"; printf %s "$ASC_WORKFLOW_ERROR" > "$OUT/error"`
+	const ordinary = `printf %s "${ASC_WORKFLOW_NAME-unset} ${ASC_WORKFLOW_FAILED_STEP-unset} ${ASC_WORKFLOW_ERROR-unset}" > "$OUT/ordinary"`
+	hostile := "it's \"quoted\"\nline two $(exit 9) `exit 9`"
+
+	tests := []struct {
+		name           string
+		workflow       string
+		beforeAll      string
+		env            map[string]string
+		steps          []Step
+		wantFailedStep string
+	}{
+		{
+			name:           "failing named step",
+			workflow:       "release",
+			steps:          []Step{{Run: ordinary}, {Name: "upload", Run: "exit 3"}},
+			wantFailedStep: "upload",
+		},
+		{
+			name:           "failing before_all replaces a stale user value",
+			workflow:       "release",
+			beforeAll:      "exit 1",
+			env:            map[string]string{"ASC_WORKFLOW_FAILED_STEP": "stale"},
+			steps:          []Step{{Run: "echo should-not-run"}},
+			wantFailedStep: "before_all",
+		},
+		{
+			name:           "workflow name and error with quotes and a newline",
+			workflow:       hostile,
+			steps:          []Step{{Run: "exit 1"}},
+			wantFailedStep: hostile + "[1]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := t.TempDir()
+			def := &Definition{
+				Env:       mergeEnv(map[string]string{"OUT": out}, tt.env),
+				BeforeAll: tt.beforeAll,
+				Error:     record,
+				Workflows: map[string]Workflow{tt.workflow: {Steps: tt.steps}},
+			}
+
+			result, err := Run(context.Background(), def, runOpts(tt.workflow))
+			if err == nil {
+				t.Fatal("expected run to fail")
+			}
+			if result.Hooks == nil || result.Hooks.Error == nil || result.Hooks.Error.Status != "ok" {
+				t.Fatalf("expected error hook status=ok, got %+v", result.Hooks)
+			}
+
+			read := func(name string) string {
+				t.Helper()
+				data, err := os.ReadFile(filepath.Join(out, name))
+				if err != nil {
+					t.Fatalf("read %s: %v", name, err)
+				}
+				return string(data)
+			}
+			if got := read("name"); got != tt.workflow {
+				t.Fatalf("ASC_WORKFLOW_NAME = %q, want %q", got, tt.workflow)
+			}
+			if got := read("step"); got != tt.wantFailedStep || got != result.FailedStep {
+				t.Fatalf("ASC_WORKFLOW_FAILED_STEP = %q, want %q (result failed_step %q)", got, tt.wantFailedStep, result.FailedStep)
+			}
+			if got := read("error"); got != err.Error() || got != result.Error {
+				t.Fatalf("ASC_WORKFLOW_ERROR = %q, want %q (result error %q)", got, err.Error(), result.Error)
+			}
+			if tt.steps[0].Run == ordinary {
+				if got := read("ordinary"); got != "unset unset unset" {
+					t.Fatalf("ordinary step saw failure context %q", got)
+				}
+			}
+		})
+	}
+}
+
 func TestRun_HooksDryRun(t *testing.T) {
 	def := &Definition{
 		BeforeAll: "echo should-not-execute",

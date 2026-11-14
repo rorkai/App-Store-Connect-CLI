@@ -401,7 +401,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"video-previews", "download"}, flag: "id", wantType: "appPreviews"},
 		{args: []string{"video-previews", "delete"}, flag: "id", wantType: "appPreviews"},
 		{args: []string{"video-previews", "set-poster-frame"}, flag: "id", wantType: "appPreviews"},
-		{args: []string{"build-localizations", "view"}, flag: "id", wantType: "appStoreVersionLocalizations"},
+		{args: []string{"build-localizations", "view"}, flag: "id", wantType: "appStoreVersionLocalizations", deps: true},
 		{args: []string{"diff", "localizations"}, flag: "from-version", wantType: "appStoreVersions"},
 		{args: []string{"diff", "localizations"}, flag: "to-version", wantType: "appStoreVersions"},
 		{args: []string{"app-setup", "localizations", "upload"}, flag: "version", wantType: "appStoreVersions"},
@@ -430,7 +430,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"pricing", "schedule", "automatic-prices"}, flag: "schedule", wantType: "appPriceSchedules"},
 		{args: []string{"pre-orders", "list"}, flag: "availability", wantType: "appAvailabilities"},
 		// Bare --id flags and other single-resource flags.
-		{args: []string{"accessibility", "view"}, flag: "id", wantType: "accessibilityDeclarations"},
+		{args: []string{"accessibility", "view"}, flag: "id", wantType: "accessibilityDeclarations", deps: true},
 		{args: []string{"actors", "view"}, flag: "id", wantType: "actors", deps: true},
 		{args: []string{"age-rating", "edit"}, flag: "id", wantType: "ageRatingDeclarations", deps: true},
 		{args: []string{"agreements", "territories", "list"}, flag: "id", wantType: "endUserLicenseAgreements", deps: true},

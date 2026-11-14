@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -46,6 +47,21 @@ func (c *Client) GetAppAlternativeDistributionKey(ctx context.Context, appID str
 	return getJSON[AlternativeDistributionKeyResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/apps/%s/alternativeDistributionKey", appID),
 		ParseErr: "failed to parse alternative distribution key response",
+	})
+}
+
+// GetAndroidToIosAppMappingDetails sends GET /v1/apps/{id}/androidToIosAppMappingDetails (apps_androidToIosAppMappingDetails_getToManyRelated).
+func (c *Client) GetAndroidToIosAppMappingDetails(ctx context.Context, appID string, opts ...AndroidToIosAppMappingDetailsOption) (*AndroidToIosAppMappingDetailsResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("app ID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[AndroidToIosAppMappingDetailsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/androidToIosAppMappingDetails", appID),
+		Query:       buildAndroidToIosAppMappingDetailsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "androidToIosAppMappingDetails",
 	})
 }
 
@@ -103,6 +119,17 @@ func (c *Client) GetAppEvents(ctx context.Context, appID string, opts ...AppEven
 	})
 }
 
+// GetAppInfos sends GET /v1/apps/{id}/appInfos (apps_appInfos_getToManyRelated).
+func (c *Client) GetAppInfos(ctx context.Context, appID string, opts ...AppInfoOption) (*AppInfosResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[AppInfosResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appInfos", appID),
+		Query:       buildAppInfoQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appInfos",
+	})
+}
+
 // GetAppPricePoints sends GET /v1/apps/{id}/appPricePoints (apps_appPricePoints_getToManyRelated).
 func (c *Client) GetAppPricePoints(ctx context.Context, appID string, opts ...PricePointsOption) (*AppPricePointsV3Response, error) {
 	query := applyOptions(opts)
@@ -137,6 +164,17 @@ func (c *Client) GetAppStoreVersionExperimentsV2(ctx context.Context, appID stri
 		Query:       buildAppStoreVersionExperimentsV2Query(query),
 		Next:        query.nextURL,
 		NextContext: "appStoreVersionExperimentsV2",
+	})
+}
+
+// GetAppStoreVersions sends GET /v1/apps/{id}/appStoreVersions (apps_appStoreVersions_getToManyRelated).
+func (c *Client) GetAppStoreVersions(ctx context.Context, appID string, opts ...AppStoreVersionsOption) (*AppStoreVersionsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[AppStoreVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appStoreVersions", appID),
+		Query:       buildAppStoreVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersions",
 	})
 }
 
@@ -187,6 +225,61 @@ func (c *Client) GetAppBetaAppReviewDetail(ctx context.Context, appID string) (*
 	return getJSON[BetaAppReviewDetailResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/apps/%s/betaAppReviewDetail", appID),
 	})
+}
+
+// GetCrashes sends GET /v1/apps/{id}/betaFeedbackCrashSubmissions (apps_betaFeedbackCrashSubmissions_getToManyRelated).
+func (c *Client) GetCrashes(ctx context.Context, appID string, opts ...CrashOption) (*CrashesResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[CrashesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/betaFeedbackCrashSubmissions", appID),
+		Query:       buildCrashQuery(query),
+		Next:        query.nextURL,
+		NextContext: "crashes",
+	})
+}
+
+// GetFeedback sends GET /v1/apps/{id}/betaFeedbackScreenshotSubmissions (apps_betaFeedbackScreenshotSubmissions_getToManyRelated).
+func (c *Client) GetFeedback(ctx context.Context, appID string, opts ...FeedbackOption) (*FeedbackResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[FeedbackResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/betaFeedbackScreenshotSubmissions", appID),
+		Query:       buildFeedbackQuery(query),
+		Next:        query.nextURL,
+		NextContext: "feedback",
+	})
+}
+
+// GetBetaGroups sends GET /v1/apps/{id}/betaGroups (apps_betaGroups_getToManyRelated).
+func (c *Client) GetBetaGroups(ctx context.Context, appID string, opts ...BetaGroupsOption) (*BetaGroupsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[BetaGroupsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/betaGroups", appID),
+		Query:       buildBetaGroupsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroups",
+	})
+}
+
+// RemoveBetaTestersFromApp sends DELETE /v1/apps/{id}/relationships/betaTesters (apps_betaTesters_deleteToManyRelationship).
+func (c *Client) RemoveBetaTestersFromApp(ctx context.Context, appID string, testerIDs []string) error {
+	appID = strings.TrimSpace(appID)
+	testerIDs = normalizeList(testerIDs)
+	if appID == "" {
+		return fmt.Errorf("app ID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("tester IDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/apps/%s/relationships/betaTesters", appID), payload)
 }
 
 // GetAppCiProduct sends GET /v1/apps/{id}/ciProduct (apps_ciProduct_getToOneRelated).
@@ -271,6 +364,25 @@ func (c *Client) GetAppPromotedPurchases(ctx context.Context, appID string, opts
 		NextContext: "promotedPurchases",
 		ParseErr:    "failed to parse promoted purchases response",
 	})
+}
+
+// SetAppPromotedPurchases sends PATCH /v1/apps/{id}/relationships/promotedPurchases (apps_promotedPurchases_replaceToManyRelationship).
+func (c *Client) SetAppPromotedPurchases(ctx context.Context, appID string, promotedPurchaseIDs []string) error {
+	appID = strings.TrimSpace(appID)
+	promotedPurchaseIDs = normalizeList(promotedPurchaseIDs)
+	if appID == "" {
+		return fmt.Errorf("appID is required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(promotedPurchaseIDs)),
+	}
+	for _, id := range promotedPurchaseIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypePromotedPurchases,
+			ID:   id,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/apps/%s/relationships/promotedPurchases", appID), payload)
 }
 
 // GetAppSearchKeywords sends GET /v1/apps/{id}/searchKeywords (apps_searchKeywords_getToManyRelated).

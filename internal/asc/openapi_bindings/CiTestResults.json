@@ -1,0 +1,7 @@
+{
+  "tag": "CiTestResults",
+  "file": "ci_test_results_gen.go",
+  "operations": [
+    {"operation":"ciTestResults_getInstance","name":"GetCiTestResult","params":["testResultID"],"check":"raw"}
+  ]
+}

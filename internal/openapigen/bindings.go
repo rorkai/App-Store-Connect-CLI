@@ -30,6 +30,7 @@ const (
 	checkInline  = ""        // strings.TrimSpace inside the path expression
 	checkTrim    = "trim"    // trim the parameter before use
 	checkRequire = "require" // trim, then reject a blank value
+	checkRaw     = "raw"     // use the parameter as given
 )
 
 // OpBind binds one spec operation to one client method. Empty fields take the
@@ -38,7 +39,10 @@ type OpBind struct {
 	Operation string   `json:"operation"`
 	Name      string   `json:"name"`
 	Params    []string `json:"params,omitempty"` // Go names of the path parameters, in path order
-	Check     string   `json:"check,omitempty"`  // checkInline, checkTrim or checkRequire
+	Check     string   `json:"check,omitempty"`  // checkInline, checkTrim, checkRequire or checkRaw
+	// CheckFirst runs the trim and require checks of a paged read before its
+	// options, so a next URL does not lift the require check.
+	CheckFirst bool `json:"checkFirst,omitempty"`
 	// Messages are the errors for blank parameters; default "<param> is required".
 	Messages    []string `json:"messages,omitempty"`
 	Options     string   `json:"options,omitempty"`     // option type of a paged read
@@ -47,9 +51,28 @@ type OpBind struct {
 	ParseErr    string   `json:"parseErr,omitempty"`    // default "failed to parse response"
 	Response    string   `json:"response,omitempty"`    // Go decode type; default the spec schema name
 	IDs         string   `json:"ids,omitempty"`         // ID list parameter of a relationship change
+	IDList      *IDList  `json:"idList,omitempty"`      // how a relationship change handles its ID list
 	// Deviations are known differences from the schema that the contract test
 	// in internal/asc pins. They change no generated code.
 	Deviations []Deviation `json:"deviations,omitempty"`
+}
+
+// Payload styles of a relationship change.
+const (
+	payloadDefault      = ""             // RelationshipRequest{Data: buildRelationshipData(...)}
+	payloadAppend       = "append"       // append to RelationshipRequest.Data in a loop over Item
+	payloadIndex        = "index"        // assign RelationshipRequest.Data[i] in a loop over i, id
+	payloadResourceList = "resourceList" // RelationshipList of ResourceData, in a loop over Item
+	payloadNonNil       = "nonNil"       // buildRelationshipData, with nil replaced by an empty list
+)
+
+// IDList is how a relationship change prepares its ID list. Without it the
+// list goes to buildRelationshipData as given.
+type IDList struct {
+	Normalize bool   `json:"normalize,omitempty"` // normalizeList after the path parameter trims
+	Message   string `json:"message,omitempty"`   // error for an empty list after normalizing; none allows it
+	Payload   string `json:"payload,omitempty"`   // one of the payload styles
+	Item      string `json:"item,omitempty"`      // loop variable of the append and resourceList styles
 }
 
 // Deviation is one problem text of the contract test that the method is known

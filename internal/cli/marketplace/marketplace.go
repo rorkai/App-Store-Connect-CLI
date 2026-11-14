@@ -8,9 +8,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// MarketplaceCommand returns the marketplace command with subcommands.
-func MarketplaceCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("marketplace", flag.ExitOnError)
+// NewMarketplaceCommand returns the marketplace command with subcommands, built
+// on d.
+func NewMarketplaceCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("marketplace", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "marketplace",
@@ -24,8 +25,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			MarketplaceSearchDetailsCommand(),
-			MarketplaceWebhooksCommand(),
+			newMarketplaceSearchDetailsCommand(d),
+			newMarketplaceWebhooksCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

@@ -110,7 +110,22 @@ func TestSigningFetchValidationErrors(t *testing.T) {
 		{
 			name:    "missing device for development profile",
 			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_DEVELOPMENT", "--create-missing"},
-			wantErr: "Error: --device is required for development profiles",
+			wantErr: "Error: --device or --all-devices is required for development and ad hoc profiles",
+		},
+		{
+			name:    "all devices with device",
+			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_ADHOC", "--create-missing", "--all-devices", "--device", "DEVICE1"},
+			wantErr: "Error: --all-devices and --device are mutually exclusive",
+		},
+		{
+			name:    "all devices without create missing",
+			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_ADHOC", "--all-devices"},
+			wantErr: "Error: --all-devices requires --create-missing because devices are only applied to profiles this command creates",
+		},
+		{
+			name:    "all devices on a profile type without devices",
+			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE", "--create-missing", "--all-devices"},
+			wantErr: "Error: --all-devices requires a development or ad hoc profile type; IOS_APP_STORE profiles have no device list",
 		},
 	}
 

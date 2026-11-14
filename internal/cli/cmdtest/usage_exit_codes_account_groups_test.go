@@ -141,26 +141,31 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "android-ios-mapping list limit",
 			args:    []string{"android-ios-mapping", "list", "--app", "123456789", "--limit", "201"},
 			wantErr: "android-ios-mapping list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "android-ios-mapping list next",
 			args:    []string{"android-ios-mapping", "list", "--app", "123456789", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "android-ios-mapping list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "android-ios-mapping list invalid fields",
 			args:    []string{"android-ios-mapping", "list", "--app", "APP_ID", "--fields", "bad"},
 			wantErr: "android-ios-mapping list: --fields must be one of: packageName, appSigningKeyPublicCertificateSha256Fingerprints",
+			deps:    true,
 		},
 		{
 			name:    "android-ios-mapping view invalid fields",
 			args:    []string{"android-ios-mapping", "view", "--mapping-id", "MAP_ID", "--fields", "bad"},
 			wantErr: "android-ios-mapping view: --fields must be one of: packageName, appSigningKeyPublicCertificateSha256Fingerprints",
+			deps:    true,
 		},
 		{
 			name:    "android-ios-mapping update conflicting package name flags",
 			args:    []string{"android-ios-mapping", "update", "--mapping-id", "MAP_ID", "--android-package-name", "com.example", "--clear-android-package-name"},
 			wantErr: "android-ios-mapping update: --android-package-name cannot be used with --clear-android-package-name",
+			deps:    true,
 		},
 		{
 			name:    "background-assets list limit",
@@ -348,6 +353,7 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "marketplace search-details view invalid fields",
 			args:    []string{"marketplace", "search-details", "view", "--app", "APP_ID", "--fields", "bad"},
 			wantErr: "marketplace search-details view: --fields must be one of: catalogUrl",
+			deps:    true,
 		},
 		{
 			name:    "nominations list invalid status",
@@ -363,31 +369,37 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "pass-type-ids certificates list limit",
 			args:    []string{"pass-type-ids", "certificates", "list", "--pass-type-id", "P", "--limit", "201"},
 			wantErr: "pass-type-ids certificates list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids certificates view limit",
 			args:    []string{"pass-type-ids", "certificates", "view", "--pass-type-id", "P", "--limit", "201"},
 			wantErr: "pass-type-ids certificates view: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids list limit",
 			args:    []string{"pass-type-ids", "list", "--limit", "201"},
 			wantErr: "pass-type-ids list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids list limit-certificates",
 			args:    []string{"pass-type-ids", "list", "--limit-certificates", "51"},
 			wantErr: "pass-type-ids list: --limit-certificates must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids list next",
 			args:    []string{"pass-type-ids", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "pass-type-ids list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids view limit-certificates",
 			args:    []string{"pass-type-ids", "view", "--pass-type-id", "P", "--limit-certificates", "51"},
 			wantErr: "pass-type-ids view: --limit-certificates must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "profiles links certificates limit",
@@ -684,7 +696,7 @@ func TestMarketplaceWebhooksInputValidationReturnsUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, runErr := runCommand(t, test.args)
+			stdout, stderr, runErr := runRootWithDeps(t, nil, test.args...)
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")

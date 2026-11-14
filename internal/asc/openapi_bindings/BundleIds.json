@@ -3,6 +3,7 @@
   "file": "bundle_ids_gen.go",
   "operations": [
     {"operation":"bundleIds_app_getToOneRelated","name":"GetBundleIDApp","params":["bundleID"],"check":"trim","response":"AppResponse"},
+    {"operation":"bundleIds_bundleIdCapabilities_getToManyRelated","name":"GetBundleIDCapabilities","params":["bundleID"],"check":"trim","checkFirst":true,"options":"BundleIDCapabilitiesOption","query":"buildBundleIDCapabilitiesQuery","nextContext":"bundleIdCapabilities","response":"BundleIDCapabilitiesResponse","deviations":[{"problem":"sent limit=\"\" with a limit option of 7","reason":"buildBundleIDCapabilitiesQuery drops limit on purpose because the live endpoint rejects it although the schema defines it (commit dd733e112). asc bundle-ids capabilities list has no --limit flag, and it and the capability reconcile commands page with next URLs only."}]},
     {"operation":"bundleIds_deleteInstance","name":"DeleteBundleID","params":["id"],"check":"trim"},
     {"operation":"bundleIds_getInstance","name":"GetBundleID","params":["id"],"check":"trim","response":"BundleIDResponse"},
     {"operation":"bundleIds_profiles_getToManyRelated","name":"GetBundleIDProfiles","params":["bundleID"],"options":"BundleIDProfilesOption","query":"buildBundleIDProfilesQuery","nextContext":"bundleIdProfiles","response":"ProfilesResponse"}

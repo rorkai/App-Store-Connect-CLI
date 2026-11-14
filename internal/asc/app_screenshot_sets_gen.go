@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -25,5 +26,31 @@ func (c *Client) GetAppScreenshotSetAppScreenshotsRelationships(ctx context.Cont
 		Query:       buildLinkagesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appScreenshotsRelationships",
+	})
+}
+
+// UpdateAppScreenshotSetAppScreenshotsRelationship sends PATCH /v1/appScreenshotSets/{id}/relationships/appScreenshots (appScreenshotSets_appScreenshots_replaceToManyRelationship).
+func (c *Client) UpdateAppScreenshotSetAppScreenshotsRelationship(ctx context.Context, setID string, screenshotIDs []string) error {
+	setID = strings.TrimSpace(setID)
+	if setID == "" {
+		return fmt.Errorf("setID is required")
+	}
+	data := buildRelationshipData(ResourceTypeAppScreenshots, screenshotIDs)
+	if data == nil {
+		data = []RelationshipData{}
+	}
+	payload := RelationshipRequest{Data: data}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", setID), payload)
+}
+
+// DeleteAppScreenshotSet sends DELETE /v1/appScreenshotSets/{id} (appScreenshotSets_deleteInstance).
+func (c *Client) DeleteAppScreenshotSet(ctx context.Context, setID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appScreenshotSets/%s", setID), nil)
+}
+
+// GetAppScreenshotSet sends GET /v1/appScreenshotSets/{id} (appScreenshotSets_getInstance).
+func (c *Client) GetAppScreenshotSet(ctx context.Context, setID string) (*AppScreenshotSetResponse, error) {
+	return getJSON[AppScreenshotSetResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/appScreenshotSets/%s", setID),
 	})
 }

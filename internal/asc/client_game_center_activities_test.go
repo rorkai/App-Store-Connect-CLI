@@ -13,58 +13,6 @@ import (
 	"testing"
 )
 
-func TestGetGameCenterActivities_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterDetails/gc-detail-1/gameCenterActivities" {
-			t.Fatalf("expected path /v1/gameCenterDetails/gc-detail-1/gameCenterActivities, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "25" {
-			t.Fatalf("expected limit=25, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivities(context.Background(), "gc-detail-1", Limit[GCActivitiesOption](25)); err != nil {
-		t.Fatalf("GetGameCenterActivities() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivities_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/gc-detail-1/gameCenterActivities?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivities(context.Background(), "gc-detail-1", NextURL[GCActivitiesOption](next)); err != nil {
-		t.Fatalf("GetGameCenterActivities() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivity(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivities","id":"act-1","attributes":{"referenceName":"Seasonal"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivities/act-1" {
-			t.Fatalf("expected path /v1/gameCenterActivities/act-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivity(context.Background(), "act-1"); err != nil {
-		t.Fatalf("GetGameCenterActivity() error: %v", err)
-	}
-}
-
 func TestCreateGameCenterActivity_WithDetail(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterActivities","id":"act-1","attributes":{"referenceName":"Seasonal"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -213,23 +161,6 @@ func TestUpdateGameCenterActivity(t *testing.T) {
 	}
 }
 
-func TestDeleteGameCenterActivity(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivities/act-1" {
-			t.Fatalf("expected path /v1/gameCenterActivities/act-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterActivity(context.Background(), "act-1"); err != nil {
-		t.Fatalf("DeleteGameCenterActivity() error: %v", err)
-	}
-}
-
 func TestAddGameCenterActivityAchievements(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, "")
 	client := newTestClient(t, func(req *http.Request) {
@@ -332,58 +263,6 @@ func TestRemoveGameCenterActivityLeaderboards(t *testing.T) {
 	}
 }
 
-func TestGetGameCenterActivityVersions_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivities/act-1/versions" {
-			t.Fatalf("expected path /v1/gameCenterActivities/act-1/versions, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "5" {
-			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityVersions(context.Background(), "act-1", Limit[GCActivityVersionsOption](5)); err != nil {
-		t.Fatalf("GetGameCenterActivityVersions() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivityVersions_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterActivities/act-1/versions?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityVersions(context.Background(), "act-1", NextURL[GCActivityVersionsOption](next)); err != nil {
-		t.Fatalf("GetGameCenterActivityVersions() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivityVersion(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivityVersions","id":"ver-1","attributes":{"version":1}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityVersions/ver-1" {
-			t.Fatalf("expected path /v1/gameCenterActivityVersions/ver-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityVersion(context.Background(), "ver-1"); err != nil {
-		t.Fatalf("GetGameCenterActivityVersion() error: %v", err)
-	}
-}
-
 func TestCreateGameCenterActivityVersion(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterActivityVersions","id":"ver-2","attributes":{"version":2}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -408,58 +287,6 @@ func TestCreateGameCenterActivityVersion(t *testing.T) {
 
 	if _, err := client.CreateGameCenterActivityVersion(context.Background(), "act-1", ""); err != nil {
 		t.Fatalf("CreateGameCenterActivityVersion() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivityLocalizations_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityVersions/ver-1/localizations" {
-			t.Fatalf("expected path /v1/gameCenterActivityVersions/ver-1/localizations, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "10" {
-			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityLocalizations(context.Background(), "ver-1", Limit[GCActivityLocalizationsOption](10)); err != nil {
-		t.Fatalf("GetGameCenterActivityLocalizations() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivityLocalizations_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterActivityVersions/ver-1/localizations?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityLocalizations(context.Background(), "ver-1", NextURL[GCActivityLocalizationsOption](next)); err != nil {
-		t.Fatalf("GetGameCenterActivityLocalizations() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivityLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivityLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Weekly","description":"Desc"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/gameCenterActivityLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityLocalization(context.Background(), "loc-1"); err != nil {
-		t.Fatalf("GetGameCenterActivityLocalization() error: %v", err)
 	}
 }
 
@@ -492,69 +319,6 @@ func TestCreateGameCenterActivityLocalization(t *testing.T) {
 	}
 	if _, err := client.CreateGameCenterActivityLocalization(context.Background(), "ver-1", attrs); err != nil {
 		t.Fatalf("CreateGameCenterActivityLocalization() error: %v", err)
-	}
-}
-
-func TestUpdateGameCenterActivityLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivityLocalizations","id":"loc-1","attributes":{"name":"Updated","description":"Desc"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/gameCenterActivityLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		var payload GameCenterActivityLocalizationUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.ID != "loc-1" || payload.Data.Type != ResourceTypeGameCenterActivityLocalizations {
-			t.Fatalf("unexpected payload: %+v", payload.Data)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.Name == nil || *payload.Data.Attributes.Name != "Updated" {
-			t.Fatalf("expected name update, got %+v", payload.Data.Attributes)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	name := "Updated"
-	attrs := GameCenterActivityLocalizationUpdateAttributes{Name: &name}
-	if _, err := client.UpdateGameCenterActivityLocalization(context.Background(), "loc-1", attrs); err != nil {
-		t.Fatalf("UpdateGameCenterActivityLocalization() error: %v", err)
-	}
-}
-
-func TestDeleteGameCenterActivityLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/gameCenterActivityLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterActivityLocalization(context.Background(), "loc-1"); err != nil {
-		t.Fatalf("DeleteGameCenterActivityLocalization() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivityImage(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivityImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityImages/img-1" {
-			t.Fatalf("expected path /v1/gameCenterActivityImages/img-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityImage(context.Background(), "img-1"); err != nil {
-		t.Fatalf("GetGameCenterActivityImage() error: %v", err)
 	}
 }
 
@@ -615,23 +379,6 @@ func TestUpdateGameCenterActivityImage(t *testing.T) {
 	}
 }
 
-func TestDeleteGameCenterActivityImage(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityImages/img-1" {
-			t.Fatalf("expected path /v1/gameCenterActivityImages/img-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterActivityImage(context.Background(), "img-1"); err != nil {
-		t.Fatalf("DeleteGameCenterActivityImage() error: %v", err)
-	}
-}
-
 func TestUploadGameCenterActivityImage(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "activity.png")
@@ -687,58 +434,6 @@ func TestUploadGameCenterActivityImage(t *testing.T) {
 	}
 }
 
-func TestGetGameCenterActivityVersionRelease(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivityVersionReleases","id":"rel-1","attributes":{"live":true}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityVersionReleases/rel-1" {
-			t.Fatalf("expected path /v1/gameCenterActivityVersionReleases/rel-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityVersionRelease(context.Background(), "rel-1"); err != nil {
-		t.Fatalf("GetGameCenterActivityVersionRelease() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivityVersionReleases_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterDetails/gc-detail-1/activityReleases" {
-			t.Fatalf("expected path /v1/gameCenterDetails/gc-detail-1/activityReleases, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "30" {
-			t.Fatalf("expected limit=30, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityVersionReleases(context.Background(), "gc-detail-1", Limit[GCActivityVersionReleasesOption](30)); err != nil {
-		t.Fatalf("GetGameCenterActivityVersionReleases() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivityVersionReleases_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/gc-detail-1/activityReleases?cursor=next"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityVersionReleases(context.Background(), "gc-detail-1", NextURL[GCActivityVersionReleasesOption](next)); err != nil {
-		t.Fatalf("GetGameCenterActivityVersionReleases() error: %v", err)
-	}
-}
-
 func TestCreateGameCenterActivityVersionRelease(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterActivityVersionReleases","id":"rel-2","attributes":{"live":false}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -763,57 +458,6 @@ func TestCreateGameCenterActivityVersionRelease(t *testing.T) {
 
 	if _, err := client.CreateGameCenterActivityVersionRelease(context.Background(), "ver-1"); err != nil {
 		t.Fatalf("CreateGameCenterActivityVersionRelease() error: %v", err)
-	}
-}
-
-func TestDeleteGameCenterActivityVersionRelease(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityVersionReleases/rel-1" {
-			t.Fatalf("expected path /v1/gameCenterActivityVersionReleases/rel-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterActivityVersionRelease(context.Background(), "rel-1"); err != nil {
-		t.Fatalf("DeleteGameCenterActivityVersionRelease() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivityLocalizationImage(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivityImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityLocalizations/loc-1/image" {
-			t.Fatalf("expected path /v1/gameCenterActivityLocalizations/loc-1/image, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityLocalizationImage(context.Background(), "loc-1"); err != nil {
-		t.Fatalf("GetGameCenterActivityLocalizationImage() error: %v", err)
-	}
-}
-
-func TestGetGameCenterActivityVersionDefaultImage(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivityImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityVersions/ver-1/defaultImage" {
-			t.Fatalf("expected path /v1/gameCenterActivityVersions/ver-1/defaultImage, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityVersionDefaultImage(context.Background(), "ver-1"); err != nil {
-		t.Fatalf("GetGameCenterActivityVersionDefaultImage() error: %v", err)
 	}
 }
 

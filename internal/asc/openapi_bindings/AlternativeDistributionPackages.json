@@ -6,6 +6,7 @@
     "AlternativeDistributionPackageResponse"
   ],
   "operations": [
-    {"operation":"alternativeDistributionPackages_getInstance","name":"GetAlternativeDistributionPackage","params":["packageID"],"check":"require","parseErr":"failed to parse alternative distribution package response"}
+    {"operation":"alternativeDistributionPackages_getInstance","name":"GetAlternativeDistributionPackage","params":["packageID"],"check":"require","parseErr":"failed to parse alternative distribution package response"},
+    {"operation":"alternativeDistributionPackages_versions_getToManyRelated","name":"GetAlternativeDistributionPackageVersions","params":["packageID"],"check":"require","checkFirst":true,"options":"AlternativeDistributionPackageVersionsOption","query":"buildAlternativeDistributionPackageVersionsQuery","nextContext":"alternativeDistributionPackageVersions","parseErr":"failed to parse alternative distribution package versions response"}
   ]
 }

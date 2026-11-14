@@ -33,10 +33,34 @@ func (c *Client) GetProfileBundleIDRelationship(ctx context.Context, profileID s
 	})
 }
 
+// GetProfileCertificates sends GET /v1/profiles/{id}/certificates (profiles_certificates_getToManyRelated).
+func (c *Client) GetProfileCertificates(ctx context.Context, profileID string, opts ...ProfileCertificatesOption) (*CertificatesResponse, error) {
+	profileID = strings.TrimSpace(profileID)
+	query := applyOptions(opts)
+	return getJSON[CertificatesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/profiles/%s/certificates", profileID),
+		Query:       buildProfileCertificatesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "profileCertificates",
+	})
+}
+
 // DeleteProfile sends DELETE /v1/profiles/{id} (profiles_deleteInstance).
 func (c *Client) DeleteProfile(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/profiles/%s", id), nil)
+}
+
+// GetProfileDevices sends GET /v1/profiles/{id}/devices (profiles_devices_getToManyRelated).
+func (c *Client) GetProfileDevices(ctx context.Context, profileID string, opts ...ProfileDevicesOption) (*DevicesResponse, error) {
+	profileID = strings.TrimSpace(profileID)
+	query := applyOptions(opts)
+	return getJSON[DevicesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/profiles/%s/devices", profileID),
+		Query:       buildProfileDevicesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "profileDevices",
+	})
 }
 
 // GetProfiles sends GET /v1/profiles (profiles_getCollection).

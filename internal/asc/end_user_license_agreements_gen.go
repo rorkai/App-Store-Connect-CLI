@@ -53,3 +53,15 @@ func (c *Client) GetEndUserLicenseAgreement(ctx context.Context, id string) (*En
 		Path: fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id),
 	})
 }
+
+// GetEndUserLicenseAgreementTerritories sends GET /v1/endUserLicenseAgreements/{id}/territories (endUserLicenseAgreements_territories_getToManyRelated).
+func (c *Client) GetEndUserLicenseAgreementTerritories(ctx context.Context, id string, opts ...EndUserLicenseAgreementTerritoriesOption) (*TerritoriesResponse, error) {
+	id = strings.TrimSpace(id)
+	query := applyOptions(opts)
+	return getJSON[TerritoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/endUserLicenseAgreements/%s/territories", id),
+		Query:       buildEndUserLicenseAgreementTerritoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "endUserLicenseAgreementTerritories",
+	})
+}

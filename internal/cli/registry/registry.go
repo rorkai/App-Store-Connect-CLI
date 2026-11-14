@@ -147,10 +147,14 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("finance", "Download payments and financial reports.", finance.FinanceCommand),
 		commandFactory("apps", "List and manage apps in App Store Connect.", apps.AppsCommand),
 		commandFactory("app-clips", "Manage App Clip experiences and invocations.", appclips.AppClipsCommand),
-		commandFactory("android-ios-mapping", "Manage Android-to-iOS app mapping details.", androidiosmapping.AndroidIosMappingCommand),
+		commandFactory("android-ios-mapping", "Manage Android-to-iOS app mapping details.", func() *ffcli.Command {
+			return androidiosmapping.NewAndroidIosMappingCommand(d)
+		}),
 		commandFactory("app-setup", "Post-create app setup automation.", apps.AppSetupCommand),
 		commandFactory("app-tags", "Inspect Apple-generated App Store discoverability tags.", apps.AppTagsCommand),
-		commandFactory("marketplace", "Manage marketplace resources.", marketplace.MarketplaceCommand),
+		commandFactory("marketplace", "Manage marketplace resources.", func() *ffcli.Command {
+			return marketplace.NewMarketplaceCommand(d)
+		}),
 		commandFactory("alternative-distribution", "Manage alternative distribution resources.", func() *ffcli.Command {
 			return alternativedistribution.NewAlternativeDistributionCommand(d)
 		}),
@@ -159,7 +163,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", bundleids.BundleIDsCommand),
 		commandFactory("merchant-ids", "Manage merchant IDs and certificates.", merchantids.MerchantIDsCommand),
 		commandFactory("certificates", "Manage signing certificates.", certificates.CertificatesCommand),
-		commandFactory("pass-type-ids", "Manage pass type IDs.", passtypeids.PassTypeIDsCommand),
+		commandFactory("pass-type-ids", "Manage pass type IDs.", func() *ffcli.Command {
+			return passtypeids.NewPassTypeIDsCommand(d)
+		}),
 		commandFactory("profiles", "Manage provisioning profiles.", profiles.ProfilesCommand),
 		commandFactory("users", "Manage users and invitations in App Store Connect.", users.UsersCommand),
 		commandFactory("actors", "Lookup actors (users, API keys) by ID.", func() *ffcli.Command {
@@ -170,7 +176,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		}),
 		commandFactory("testflight", "Manage TestFlight workflows.", testflight.TestFlightCommand),
 		commandFactory("builds", "Manage builds in App Store Connect.", builds.BuildsCommand),
-		commandFactory("build-bundles", "Manage build bundles and App Clip data.", buildbundles.BuildBundlesCommand),
+		commandFactory("build-bundles", "Manage build bundles and App Clip data.", func() *ffcli.Command {
+			return buildbundles.NewBuildBundlesCommand(d)
+		}),
 		commandFactory("publish", "High-level publish workflows for TestFlight and App Store.", publish.PublishCommand),
 		commandFactory("release", "Run high-level App Store release workflows.", release.ReleaseCommand),
 		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
@@ -201,7 +209,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("video-previews", "Manage App Store app preview videos.", videopreviews.VideoPreviewsCommand),
 		commandFactory("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.", assetlibrary.Command),
 		commandFactory("background-assets", "Manage background assets.", backgroundassets.BackgroundAssetsCommand),
-		commandFactory("build-localizations", "Manage build release notes localizations.", buildlocalizations.BuildLocalizationsCommand),
+		commandFactory("build-localizations", "Manage build release notes localizations.", func() *ffcli.Command {
+			return buildlocalizations.NewBuildLocalizationsCommand(d)
+		}),
 		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", func() *ffcli.Command {
 			return sandbox.NewSandboxCommand(d)
 		}),
@@ -218,7 +228,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("age-rating", "Manage App Store age rating declarations.", func() *ffcli.Command {
 			return agerating.NewAgeRatingCommand(d)
 		}),
-		commandFactory("accessibility", "Manage accessibility declarations.", accessibility.AccessibilityCommand),
+		commandFactory("accessibility", "Manage accessibility declarations.", func() *ffcli.Command {
+			return accessibility.NewAccessibilityCommand(d)
+		}),
 		commandFactory("encryption", "Manage app encryption declarations and documents.", encryption.EncryptionCommand),
 		commandFactory("migrate", "Migrate metadata from/to fastlane format.", migrate.MigrateCommand),
 		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),

@@ -272,43 +272,53 @@ asc screenshots delete --id "SCREENSHOT_ID" --confirm
 
 ### Screenshot Plan Automation
 
-Define a complete screenshot plan in `.asc/screenshots.json`:
+Describe a capture sequence in `.asc/screenshots.json`. A plan launches the app on
+a booted simulator, drives it one step at a time, and saves a PNG for each
+`screenshot` step:
 
 ```json
 {
-  "bundle_id": "com.example.myapp",
-  "device_types": ["iphone-air", "ipad-pro-129"],
-  "locales": ["en-US", "es-ES", "ja"],
-  "screenshots": [
-    {
-      "name": "home",
-      "description": "Home screen showing main features",
-      "device_type": "iphone-air"
-    },
-    {
-      "name": "feature-detail",
-      "description": "Detailed feature view",
-      "device_type": "iphone-air"
-    },
-    {
-      "name": "settings",
-      "description": "Settings and customization",
-      "device_type": "iphone-air"
-    }
-  ],
-  "output_dirs": {
-    "raw": "./screenshots/raw",
-    "framed": "./screenshots/framed",
-    "review": "./screenshots/review"
-  }
+  "version": 1,
+  "app": {
+    "bundle_id": "com.example.myapp",
+    "udid": "SIMULATOR_UDID",
+    "output_dir": "./screenshots/raw"
+  },
+  "defaults": {
+    "post_action_delay_ms": 300
+  },
+  "steps": [
+    { "action": "launch" },
+    { "action": "wait_for", "label": "Home", "timeout_ms": 15000 },
+    { "action": "screenshot", "name": "home" },
+    { "action": "tap", "label": "Settings" },
+    { "action": "wait_for", "contains": "Notifications" },
+    { "action": "screenshot", "name": "settings" }
+  ]
 }
 ```
 
-Run the entire workflow:
+Set `udid` to the simulator's UDID, which `xcrun simctl list devices booted`
+prints. The app must already be installed on that simulator.
+
+| Action | Fields |
+| --- | --- |
+| `launch` | none; launches `app.bundle_id` |
+| `tap` | `label`, `id`, or `x` and `y` |
+| `type` | `text` |
+| `key_sequence` | `keycodes` |
+| `wait` | `duration_ms` |
+| `wait_for` | `label`, `id`, or `contains`; optional `timeout_ms` and `poll_interval_ms` |
+| `screenshot` | `name`, the file name without `.png` |
+
+Run the plan:
 
 ```bash
-asc screenshots run --plan .asc/screenshots.json
+asc screenshots run --plan .asc/screenshots.json --output json
 ```
+
+The result lists each step with its status and duration. A failed step stops
+the run and names the step.
 
 ### Available Frame Devices
 

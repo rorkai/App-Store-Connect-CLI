@@ -38,6 +38,7 @@ const (
 type TestOptions struct {
 	WorkspacePath    string
 	ProjectPath      string
+	PackagePath      string
 	Scheme           string
 	Action           string
 	Configuration    string
@@ -58,6 +59,7 @@ type TestOptions struct {
 type TestResult struct {
 	WorkspacePath    string       `json:"workspace,omitempty"`
 	ProjectPath      string       `json:"project,omitempty"`
+	PackagePath      string       `json:"package_path,omitempty"`
 	Scheme           string       `json:"scheme,omitempty"`
 	Action           string       `json:"action"`
 	Configuration    string       `json:"configuration,omitempty"`
@@ -107,7 +109,7 @@ type TestFailure struct {
 }
 
 var (
-	runXcodeTestCommand     = runXcodebuildForBuild
+	runXcodeTestCommand     = runXcodebuildForTest
 	readTestResultSummaryFn = readTestResultSummary
 	testNowFn               = time.Now
 )
@@ -121,8 +123,8 @@ func ValidateTestOptions(opts TestOptions) error {
 	}
 	switch TestAction(opts.Action) {
 	case TestActionTest, TestActionBuildForTesting:
-		if err := validateWorkspaceProjectPair(opts.WorkspacePath, opts.ProjectPath); err != nil {
-			return err
+		if countNonEmpty(opts.WorkspacePath, opts.ProjectPath, opts.PackagePath) != 1 {
+			return fmt.Errorf("exactly one of --workspace, --project, or --package-path is required")
 		}
 		if opts.Scheme == "" {
 			return fmt.Errorf("--scheme is required")
@@ -139,6 +141,9 @@ func ValidateTestOptions(opts TestOptions) error {
 	case TestActionTestWithoutBuilding:
 		if opts.ProjectPath != "" || opts.WorkspacePath != "" {
 			return fmt.Errorf("--project and --workspace cannot be used with --action test-without-building")
+		}
+		if opts.PackagePath != "" {
+			return fmt.Errorf("--package-path cannot be used with --action test-without-building")
 		}
 		if opts.Scheme != "" {
 			return fmt.Errorf("--scheme cannot be used with --action test-without-building")
@@ -214,6 +219,7 @@ func Test(ctx context.Context, opts TestOptions) (*TestResult, error) {
 	result := &TestResult{
 		WorkspacePath: opts.WorkspacePath,
 		ProjectPath:   opts.ProjectPath,
+		PackagePath:   opts.PackagePath,
 		Scheme:        opts.Scheme,
 		Action:        opts.Action,
 		Configuration: opts.Configuration,
@@ -274,7 +280,7 @@ func Test(ctx context.Context, opts TestOptions) (*TestResult, error) {
 	}
 
 	command := buildTestCommand(opts)
-	processErr := runXcodeTestCommand(ctx, command, opts.LogWriter)
+	processErr := runXcodeTestCommand(ctx, opts.PackagePath, command, opts.LogWriter)
 	if processErr != nil {
 		setTestExitStatus(result, processErr)
 		if opts.Action != string(TestActionBuildForTesting) && validateTestResultBundlePathComponents(opts.ResultBundlePath) == nil && existingDirectory(opts.ResultBundlePath) {
@@ -348,6 +354,7 @@ func readPartialTestResultSummary(ctx context.Context, resultBundlePath string) 
 func normalizeTestOptions(opts TestOptions) TestOptions {
 	opts.WorkspacePath = normalizeDirectoryPath(opts.WorkspacePath)
 	opts.ProjectPath = normalizeDirectoryPath(opts.ProjectPath)
+	opts.PackagePath = normalizeDirectoryPath(opts.PackagePath)
 	opts.Scheme = strings.TrimSpace(opts.Scheme)
 	opts.Action = strings.TrimSpace(opts.Action)
 	opts.Configuration = strings.TrimSpace(opts.Configuration)
@@ -387,10 +394,40 @@ func validateTestInputPaths(opts TestOptions) error {
 	if opts.Action == string(TestActionTestWithoutBuilding) {
 		return validateExistingFile(opts.XctestrunPath, "--xctestrun")
 	}
+	if opts.PackagePath != "" {
+		return ValidateTestPackagePath(opts.PackagePath)
+	}
 	if opts.WorkspacePath != "" {
 		return validateExistingPath(opts.WorkspacePath, ".xcworkspace", "--workspace")
 	}
 	return validateExistingPath(opts.ProjectPath, ".xcodeproj", "--project")
+}
+
+// ValidateTestPackagePath checks that pathValue is a directory that contains a
+// Package.swift manifest.
+func ValidateTestPackagePath(pathValue string) error {
+	info, err := statInputPath(pathValue, "--package-path")
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("--package-path must point to a directory")
+	}
+	manifest, err := os.Stat(filepath.Join(pathValue, "Package.swift"))
+	if err != nil || !manifest.Mode().IsRegular() {
+		return fmt.Errorf("--package-path must contain a Package.swift file: %s", pathValue)
+	}
+	return nil
+}
+
+func countNonEmpty(values ...string) int {
+	count := 0
+	for _, value := range values {
+		if value != "" {
+			count++
+		}
+	}
+	return count
 }
 
 func resolveTestDerivedDataPath(opts TestOptions) (string, error) {
@@ -404,6 +441,9 @@ func resolveTestDerivedDataPath(opts TestOptions) (string, error) {
 	selector := opts.ProjectPath
 	if selector == "" {
 		selector = opts.WorkspacePath
+	}
+	if selector == "" {
+		selector = opts.PackagePath
 	}
 	absoluteSelector, err := filepath.Abs(selector)
 	if err != nil {
@@ -448,6 +488,9 @@ func resolveTestResultBundlePath(opts TestOptions) (string, error) {
 	selector := opts.ProjectPath
 	if selector == "" {
 		selector = opts.WorkspacePath
+	}
+	if selector == "" {
+		selector = opts.PackagePath
 	}
 	if selector == "" {
 		selector = opts.XctestrunPath

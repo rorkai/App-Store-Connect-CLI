@@ -119,38 +119,6 @@ func (c *Client) GetBuildBundlesForBuild(ctx context.Context, buildID string, op
 	return &BuildBundlesResponse{Data: bundles}, nil
 }
 
-// GetBuildBundleFileSizes retrieves build bundle file sizes by build bundle ID.
-func (c *Client) GetBuildBundleFileSizes(ctx context.Context, buildBundleID string, opts ...BuildBundleFileSizesOption) (*BuildBundleFileSizesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BuildBundleFileSizesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/buildBundles/%s/buildBundleFileSizes", buildBundleID),
-		Query:       buildBuildBundleFileSizesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "build bundle file sizes",
-	})
-}
-
-// GetBuildBundleAppClipDomainCacheStatus retrieves App Clip domain cache status for a build bundle.
-func (c *Client) GetBuildBundleAppClipDomainCacheStatus(ctx context.Context, buildBundleID string) (*AppClipDomainStatusResponse, error) {
-	return getJSON[AppClipDomainStatusResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildBundles/%s/appClipDomainCacheStatus", buildBundleID)})
-}
-
-// GetBuildBundleAppClipDomainDebugStatus retrieves App Clip domain debug status for a build bundle.
-func (c *Client) GetBuildBundleAppClipDomainDebugStatus(ctx context.Context, buildBundleID string) (*AppClipDomainStatusResponse, error) {
-	return getJSON[AppClipDomainStatusResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildBundles/%s/appClipDomainDebugStatus", buildBundleID)})
-}
-
-// GetBuildBundleBetaAppClipInvocations retrieves beta app clip invocations for a build bundle.
-func (c *Client) GetBuildBundleBetaAppClipInvocations(ctx context.Context, buildBundleID string, opts ...BetaAppClipInvocationsOption) (*BetaAppClipInvocationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BetaAppClipInvocationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/buildBundles/%s/betaAppClipInvocations", buildBundleID),
-		Query:       buildBetaAppClipInvocationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "build bundle app clip invocations",
-	})
-}
-
 func extractBuildBundles(included json.RawMessage) ([]Resource[BuildBundleAttributes], error) {
 	if len(included) == 0 {
 		return []Resource[BuildBundleAttributes]{}, nil

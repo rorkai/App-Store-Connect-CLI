@@ -64,7 +64,11 @@ func TestShotsCapturePreservesWhitespaceOutputDirectory(t *testing.T) {
 	writeFramePNG(t, fixturePath, makeRawImage(390, 844))
 	outputDir := filepath.Join(baseDir, "raw ")
 	binDir := t.TempDir()
-	writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), "#!/bin/sh\nexit 0\n")
+	writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","name":"iPhone 17","state":"Booted","isAvailable":true}]}}'
+fi
+`)
 	writeShotsMatrixExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu
 out=""
@@ -97,9 +101,13 @@ cp "$CAPTURE_FIXTURE" "$out"
 	}
 	var result struct {
 		Path string `json:"path"`
+		UDID string `json:"udid"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("unmarshal capture output: %v\nstdout=%q", err, stdout)
+	}
+	if result.UDID != "SIM-UDID" {
+		t.Fatalf("capture udid = %q, want the booted simulator's UDID", result.UDID)
 	}
 	wantPath := filepath.Join(outputDir, "home.png")
 	wantPath, err := filepath.Abs(wantPath)

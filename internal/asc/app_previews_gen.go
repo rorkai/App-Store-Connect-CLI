@@ -2,6 +2,12 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+	"net/http"
+)
+
 // AppPreviewCreateRequest is the AppPreviewCreateRequest schema.
 type AppPreviewCreateRequest struct {
 	Data AppPreviewCreateData `json:"data"`
@@ -17,4 +23,16 @@ type AppPreviewUpdateData struct {
 // AppPreviewUpdateRequest is the AppPreviewUpdateRequest schema.
 type AppPreviewUpdateRequest struct {
 	Data AppPreviewUpdateData `json:"data"`
+}
+
+// DeleteAppPreview sends DELETE /v1/appPreviews/{id} (appPreviews_deleteInstance).
+func (c *Client) DeleteAppPreview(ctx context.Context, previewID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appPreviews/%s", previewID), nil)
+}
+
+// GetAppPreview sends GET /v1/appPreviews/{id} (appPreviews_getInstance).
+func (c *Client) GetAppPreview(ctx context.Context, previewID string) (*AppPreviewResponse, error) {
+	return getJSON[AppPreviewResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/appPreviews/%s", previewID),
+	})
 }

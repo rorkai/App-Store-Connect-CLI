@@ -111,17 +111,6 @@ type AppStoreVersionBuildRelationshipUpdateRequest struct {
 	Data ResourceData `json:"data"`
 }
 
-// GetAppStoreVersions retrieves app store versions for an app.
-func (c *Client) GetAppStoreVersions(ctx context.Context, appID string, opts ...AppStoreVersionsOption) (*AppStoreVersionsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[AppStoreVersionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/appStoreVersions", appID),
-		Query:       buildAppStoreVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appStoreVersions",
-	})
-}
-
 // GetPreReleaseVersions retrieves TestFlight pre-release versions for an app.
 func (c *Client) GetPreReleaseVersions(ctx context.Context, appID string, opts ...PreReleaseVersionsOption) (*PreReleaseVersionsResponse, error) {
 	query := applyOptions(opts)
@@ -209,19 +198,4 @@ func (c *Client) AttachBuildToVersion(ctx context.Context, versionID, buildID st
 		},
 	}
 	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appStoreVersions/%s/relationships/build", versionID), request)
-}
-
-// GetAppStoreVersionBuild retrieves the build attached to a version.
-func (c *Client) GetAppStoreVersionBuild(ctx context.Context, versionID string) (*BuildResponse, error) {
-	return getJSON[BuildResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/build", versionID)})
-}
-
-// GetAppStoreVersionSubmissionForVersion retrieves a submission by version ID.
-func (c *Client) GetAppStoreVersionSubmissionForVersion(ctx context.Context, versionID string) (*AppStoreVersionSubmissionResourceResponse, error) {
-	return getJSON[AppStoreVersionSubmissionResourceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionSubmission", versionID)})
-}
-
-// DeleteAppStoreVersionSubmission deletes an app store version submission.
-func (c *Client) DeleteAppStoreVersionSubmission(ctx context.Context, id string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", id), nil)
 }

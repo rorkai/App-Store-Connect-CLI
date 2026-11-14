@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -25,5 +26,31 @@ func (c *Client) GetAppPreviewSetAppPreviewsRelationships(ctx context.Context, s
 		Query:       buildLinkagesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appPreviewsRelationships",
+	})
+}
+
+// UpdateAppPreviewSetAppPreviewsRelationship sends PATCH /v1/appPreviewSets/{id}/relationships/appPreviews (appPreviewSets_appPreviews_replaceToManyRelationship).
+func (c *Client) UpdateAppPreviewSetAppPreviewsRelationship(ctx context.Context, setID string, previewIDs []string) error {
+	setID = strings.TrimSpace(setID)
+	if setID == "" {
+		return fmt.Errorf("setID is required")
+	}
+	data := buildRelationshipData(ResourceTypeAppPreviews, previewIDs)
+	if data == nil {
+		data = []RelationshipData{}
+	}
+	payload := RelationshipRequest{Data: data}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/appPreviewSets/%s/relationships/appPreviews", setID), payload)
+}
+
+// DeleteAppPreviewSet sends DELETE /v1/appPreviewSets/{id} (appPreviewSets_deleteInstance).
+func (c *Client) DeleteAppPreviewSet(ctx context.Context, setID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appPreviewSets/%s", setID), nil)
+}
+
+// GetAppPreviewSet sends GET /v1/appPreviewSets/{id} (appPreviewSets_getInstance).
+func (c *Client) GetAppPreviewSet(ctx context.Context, setID string) (*AppPreviewSetResponse, error) {
+	return getJSON[AppPreviewSetResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/appPreviewSets/%s", setID),
 	})
 }
