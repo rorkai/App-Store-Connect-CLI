@@ -2,7 +2,9 @@ package shared
 
 import (
 	"flag"
+	"io"
 	"maps"
+	"os"
 	"slices"
 	"strings"
 
@@ -137,11 +139,20 @@ func BindIncludedFieldFlagsExcept(fs *flag.FlagSet, relationships map[string]str
 // Resolve validates the provided flags against --next and the resolved
 // includes, and returns the requested fields per resource type.
 func (f *IncludedFieldFlags) Resolve(command, next string, includes []string) (asc.IncludedFields, error) {
+	return f.resolveTo(os.Stderr, command, next, includes)
+}
+
+// ResolveWith is Resolve with the "Error:" line written to d's stderr.
+func (f *IncludedFieldFlags) ResolveWith(d *Deps, command, next string, includes []string) (asc.IncludedFields, error) {
+	return f.resolveTo(d.IO.ErrOut, command, next, includes)
+}
+
+func (f *IncludedFieldFlags) resolveTo(stderr io.Writer, command, next string, includes []string) (asc.IncludedFields, error) {
 	names := make([]string, 0, len(f.flags))
 	for _, field := range f.flags {
 		names = append(names, field.name)
 	}
-	if err := RejectNextFlagConflicts(f.fs, next, command, names...); err != nil {
+	if err := rejectNextFlagConflicts(stderr, f.fs, next, command, names...); err != nil {
 		return nil, err
 	}
 
@@ -156,13 +167,13 @@ func (f *IncludedFieldFlags) Resolve(command, next string, includes []string) (a
 		flagName := "--" + field.name
 		values, err := NormalizeSelection(*field.value, field.fields, flagName)
 		if err != nil {
-			return nil, WithDiagnostic(UsageErrorf("%s: %v", command, err), DiagnosticInvalidInput, flagName)
+			return nil, WithDiagnostic(usageErrorfTo(stderr, "%s: %v", command, err), DiagnosticInvalidInput, flagName)
 		}
 		if len(values) == 0 {
-			return nil, WithDiagnostic(UsageErrorf("%s: %s must not be empty", command, flagName), DiagnosticInvalidInput, flagName)
+			return nil, WithDiagnostic(usageErrorfTo(stderr, "%s: %s must not be empty", command, flagName), DiagnosticInvalidInput, flagName)
 		}
 		if !slices.ContainsFunc(field.includes, func(include string) bool { return HasInclude(includes, include) }) {
-			return nil, WithDiagnostic(UsageErrorf("%s: %s requires --include %s", command, flagName, strings.Join(field.includes, " or ")), DiagnosticInvalidInput, flagName)
+			return nil, WithDiagnostic(usageErrorfTo(stderr, "%s: %s requires --include %s", command, flagName, strings.Join(field.includes, " or ")), DiagnosticInvalidInput, flagName)
 		}
 		resolved[field.resourceType] = values
 	}
