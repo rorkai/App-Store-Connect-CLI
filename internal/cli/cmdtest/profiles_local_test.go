@@ -24,6 +24,7 @@ import (
 	"go.mozilla.org/pkcs7"
 	"howett.net/plist"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
@@ -636,33 +637,14 @@ func TestProfilesLocalList_SkipsUnreadableProfilesAndReports(t *testing.T) {
 func TestProfilesLocalInstall_ByID_DownloadsAndInstalls(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	uuid := "00000000-0000-0000-0000-0000000000AA"
 	content := buildMobileprovision(t, uuid, "Downloaded Profile", time.Now().Add(24*time.Hour))
 	b64 := base64.StdEncoding.EncodeToString(content)
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Host != "api.appstoreconnect.apple.com" {
-			t.Fatalf("unexpected host: %s", req.URL.Host)
-		}
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/profiles/p1" {
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-		}
-
-		body := `{"data":{"type":"profiles","id":"p1","attributes":{"profileContent":"` + b64 + `"}}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/profiles/p1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"profiles","id":"p1","attributes":{"profileContent":"`+b64+`"}}}`))
 
 	installDir := t.TempDir()
 

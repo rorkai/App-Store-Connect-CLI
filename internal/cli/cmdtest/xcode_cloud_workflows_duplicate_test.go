@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/handlertest"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 const duplicateSourceWorkflow = `{
@@ -64,34 +64,12 @@ func TestXcodeCloudWorkflowsDuplicateValidationErrors(t *testing.T) {
 
 func TestXcodeCloudWorkflowsDuplicateCopiesSourceConfiguration(t *testing.T) {
 	setupAuth(t)
-	fixture := handlertest.New(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	var created json.RawMessage
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/ciWorkflows/wf-source":
-			include := req.URL.Query().Get("include")
-			for _, want := range []string{"product", "repository", "xcodeVersion", "macOsVersion"} {
-				if !strings.Contains(include, want) {
-					return nil, fixture.Errorf("expected include to request %q relationship linkages, got %q", want, include)
-				}
-			}
-			return jsonHTTPResponse(http.StatusOK, duplicateSourceWorkflow), nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/ciWorkflows":
-			body, err := io.ReadAll(req.Body)
-			if err != nil {
-				return nil, fixture.Errorf("read POST body: %w", err)
-			}
-			created = json.RawMessage(body)
-			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"ciWorkflows","id":"wf-copy","attributes":{"name":"TestFlight Deploy Copy","isEnabled":false,"unknownFutureField":true}}}`), nil
-		default:
-			return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/ciWorkflows/wf-source", "include=product,repository,xcodeVersion,macOsVersion"), asctest.JSON(http.StatusOK, duplicateSourceWorkflow))
+	reg.Register(asctest.POST("/v1/ciWorkflows").JSONBody(`{"data":{"attributes":{"actions":[{"actionType":"ARCHIVE","isRequiredToPass":true,"name":"Archive","platform":"IOS","scheme":"MyApp"}],"branchStartCondition":{"autoCancel":true,"source":{"patterns":[{"pattern":"main"}]}},"clean":true,"containerFilePath":"MyApp.xcodeproj","description":"Build and archive","isEnabled":false,"name":"TestFlight Deploy Copy"},"relationships":{"macOsVersion":{"data":{"id":"macos-1","type":"ciMacOsVersions"}},"product":{"data":{"id":"prod-1","type":"ciProducts"}},"repository":{"data":{"id":"repo-1","type":"scmRepositories"}},"xcodeVersion":{"data":{"id":"xcode-1","type":"ciXcodeVersions"}}},"type":"ciWorkflows"}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"ciWorkflows","id":"wf-copy","attributes":{"name":"TestFlight Deploy Copy","isEnabled":false,"unknownFutureField":true}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -154,6 +132,7 @@ func TestXcodeCloudWorkflowsDuplicateCopiesSourceConfiguration(t *testing.T) {
 			} `json:"relationships"`
 		} `json:"data"`
 	}
+	created := json.RawMessage(reg.Requests()[1].Body)
 	if err := json.Unmarshal(created, &payload); err != nil {
 		t.Fatalf("decode create payload %q: %v", created, err)
 	}
@@ -214,28 +193,12 @@ func TestXcodeCloudWorkflowsDuplicateCopiesSourceConfiguration(t *testing.T) {
 
 func TestXcodeCloudWorkflowsDuplicateEnabledAndDescriptionOverrides(t *testing.T) {
 	setupAuth(t)
-	fixture := handlertest.New(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	var created json.RawMessage
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/ciWorkflows/wf-source":
-			return jsonHTTPResponse(http.StatusOK, duplicateSourceWorkflow), nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/ciWorkflows":
-			body, err := io.ReadAll(req.Body)
-			if err != nil {
-				return nil, fixture.Errorf("read POST body: %w", err)
-			}
-			created = json.RawMessage(body)
-			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"ciWorkflows","id":"wf-copy"}}`), nil
-		default:
-			return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/ciWorkflows/wf-source", "include=product,repository,xcodeVersion,macOsVersion"), asctest.JSON(http.StatusOK, duplicateSourceWorkflow))
+	reg.Register(asctest.POST("/v1/ciWorkflows").JSONBody(`{"data":{"attributes":{"actions":[{"actionType":"ARCHIVE","isRequiredToPass":true,"name":"Archive","platform":"IOS","scheme":"MyApp"}],"branchStartCondition":{"autoCancel":true,"source":{"patterns":[{"pattern":"main"}]}},"clean":true,"containerFilePath":"MyApp.xcodeproj","description":"Nightly copy","isEnabled":true,"name":"Nightly"},"relationships":{"macOsVersion":{"data":{"id":"macos-1","type":"ciMacOsVersions"}},"product":{"data":{"id":"prod-1","type":"ciProducts"}},"repository":{"data":{"id":"repo-1","type":"scmRepositories"}},"xcodeVersion":{"data":{"id":"xcode-1","type":"ciXcodeVersions"}}},"type":"ciWorkflows"}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"ciWorkflows","id":"wf-copy"}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -261,6 +224,7 @@ func TestXcodeCloudWorkflowsDuplicateEnabledAndDescriptionOverrides(t *testing.T
 			} `json:"attributes"`
 		} `json:"data"`
 	}
+	created := json.RawMessage(reg.Requests()[1].Body)
 	if err := json.Unmarshal(created, &payload); err != nil {
 		t.Fatalf("decode create payload %q: %v", created, err)
 	}
@@ -274,23 +238,14 @@ func TestXcodeCloudWorkflowsDuplicateEnabledAndDescriptionOverrides(t *testing.T
 
 func TestXcodeCloudWorkflowsDuplicateMissingRelationshipFails(t *testing.T) {
 	setupAuth(t)
-	fixture := handlertest.New(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
 	// Apple answers GET /v1/ciWorkflows/{id} without include with links-only relationships,
 	// which cannot satisfy the required linkages of CiWorkflowCreateRequest.
 	source := `{"data":{"type":"ciWorkflows","id":"wf-source","attributes":{"name":"A","description":"","actions":[],"isEnabled":true,"clean":false,"containerFilePath":"App.xcodeproj"},"relationships":{"repository":{"links":{"related":"https://example.com/repository"}},"buildRuns":{"links":{"related":"https://example.com/buildRuns"}}}}}`
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/ciWorkflows/wf-source":
-			return jsonHTTPResponse(http.StatusOK, source), nil
-		default:
-			return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/ciWorkflows/wf-source", "include=product,repository,xcodeVersion,macOsVersion"), asctest.JSON(http.StatusOK, source))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

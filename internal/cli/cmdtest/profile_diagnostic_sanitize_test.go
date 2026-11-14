@@ -1,12 +1,12 @@
 package cmdtest
 
 import (
-	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
@@ -26,15 +26,11 @@ func TestMissingProfileDiagnosticSanitizesConfiguredValues(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			calls := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				calls++
-				t.Errorf("unexpected HTTP %s %s", req.Method, req.URL.Path)
-				return nil, nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
 			code := -1
 			stdout, stderr := captureOutput(t, func() { code = cmd.Run([]string{"apps", "list", "--profile", "missing"}, "test") })
-			if code != cmd.ExitAuth || stdout != "" || calls != 0 {
+			if calls := len(reg.Requests()); code != cmd.ExitAuth || stdout != "" || calls != 0 {
 				t.Fatalf("code=%d stdout=%q calls=%d stderr=%q", code, stdout, calls, stderr)
 			}
 			if !strings.Contains(stderr, "credentials not found for profile") {
