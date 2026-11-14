@@ -7,19 +7,19 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 const dsymErrorPrefix = "builds dsyms: "
 
 func TestBuildsDSYMNoLiveVersionErrorNamesTheCommandOnce(t *testing.T) {
 	setupAuth(t)
-	restoreTransport(t)
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/apps/123456789/appStoreVersions" {
-			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-		}
-		return dsymJSON(`{"data":[],"links":{}}`), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,PREORDER_READY_FOR_SALE", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
@@ -40,82 +40,59 @@ func TestBuildsDSYMNoLiveVersionErrorNamesTheCommandOnce(t *testing.T) {
 // crosses the command's error wrapping, including errors raised after an inner
 // step already named the command and errors from helpers that do not.
 func TestBuildsDSYMErrorsNameTheCommandOnce(t *testing.T) {
-	forbidden := func() (*http.Response, error) {
-		return jsonResponse(http.StatusForbidden, apiErrorJSONForStatus(http.StatusForbidden))
-	}
-	emptyBuilds := `{"data":[],"included":[],"links":{}}`
+	forbidden := asctest.JSON(http.StatusForbidden, apiErrorJSONForStatus(http.StatusForbidden))
+	buildsList := asctest.GET("/v1/builds", "filter[app]=123456789", "include=preReleaseVersion", "limit=200", "sort=-uploadedDate")
+	buildFound := asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"7"}}}`)
 
 	tests := []struct {
 		name      string
 		args      []string
-		respond   func(req *http.Request) (*http.Response, error)
+		register  func(reg *asctest.Registry)
 		wantExact string
 	}{
 		{
 			name: "no builds match a range",
 			args: []string{"--app", "123456789", "--min-version", "9.0"},
-			respond: func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path == "/v1/builds" {
-					return dsymJSON(emptyBuilds), nil
-				}
-				return nil, nil
+			register: func(reg *asctest.Registry) {
+				reg.Register(buildsList, asctest.JSON(http.StatusOK, `{"data":[],"included":[],"links":{}}`))
 			},
 			wantExact: "builds dsyms: no builds matched",
 		},
 		{
 			name: "live version lookup fails",
 			args: []string{"--app", "123456789", "--version", "live"},
-			respond: func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path == "/v1/apps/123456789/appStoreVersions" {
-					return forbidden()
-				}
-				return nil, nil
+			register: func(reg *asctest.Registry) {
+				reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,PREORDER_READY_FOR_SALE", "limit=200"), forbidden)
 			},
 		},
 		{
 			name: "build listing fails",
 			args: []string{"--app", "123456789", "--min-version", "1.0"},
-			respond: func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path == "/v1/builds" {
-					return forbidden()
-				}
-				return nil, nil
+			register: func(reg *asctest.Registry) {
+				reg.Register(buildsList, forbidden)
 			},
 		},
 		{
 			name: "build lookup fails",
 			args: []string{"--build-id", "build-1"},
-			respond: func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path == "/v1/builds/build-1" {
-					return forbidden()
-				}
-				return nil, nil
+			register: func(reg *asctest.Registry) {
+				reg.Register(asctest.GET("/v1/builds/build-1"), forbidden)
 			},
 		},
 		{
 			name: "bundle lookup fails",
 			args: []string{"--build-id", "build-1"},
-			respond: func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path != "/v1/builds/build-1" {
-					return nil, nil
-				}
-				if req.URL.Query().Get("include") == "buildBundles" {
-					return forbidden()
-				}
-				return dsymJSON(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"7"}}}`), nil
+			register: func(reg *asctest.Registry) {
+				reg.Register(asctest.GET("/v1/builds/build-1"), buildFound)
+				reg.Register(asctest.GET("/v1/builds/build-1", "include=buildBundles"), forbidden)
 			},
 		},
 		{
 			name: "bundle lookup fails while waiting",
 			args: []string{"--build-id", "build-1", "--wait", "--poll-interval", "1ms", "--timeout", "5s"},
-			respond: func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path != "/v1/builds/build-1" {
-					return nil, nil
-				}
-				if req.URL.Query().Get("include") == "buildBundles" {
-					return forbidden()
-				}
-				return dsymJSON(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"7"}}}`), nil
+			register: func(reg *asctest.Registry) {
+				reg.Register(asctest.GET("/v1/builds/build-1"), buildFound)
+				reg.Register(asctest.GET("/v1/builds/build-1", "include=buildBundles"), forbidden)
 			},
 		},
 	}
@@ -123,14 +100,9 @@ func TestBuildsDSYMErrorsNameTheCommandOnce(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
-			restoreTransport(t)
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				resp, err := test.respond(req)
-				if resp == nil && err == nil {
-					t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-				}
-				return resp, err
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			test.register(reg)
 
 			args := append([]string{"builds", "dsyms"}, test.args...)
 			args = append(args, "--output-dir", filepath.Join(t.TempDir(), "dsyms"), "--output", "json")

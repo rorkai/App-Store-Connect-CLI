@@ -1,104 +1,64 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
+
+const addGroupsExternalQABody = `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`
+
+func registerAddGroupsExternalPreflight(reg *asctest.Registry, externalBuildState string) {
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`))
+	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"`+externalBuildState+`"}}}`))
+}
+
+func registerAddGroupsPost(reg *asctest.Registry, groupID string) {
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"`+groupID+`"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
+}
+
+var addGroupsSubmitArgs = []string{
+	"builds", "add-groups",
+	"--build-id", "build-1",
+	"--group", "group-external",
+	"--submit",
+	"--confirm",
+}
 
 func TestBuildsAddGroupsSubmitCreatesBetaReviewSubmissionForExternalGroups(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerAddGroupsLookups(reg, addGroupsExternalQABody)
+	registerAddGroupsExternalPreflight(reg, "READY_FOR_BETA_SUBMISSION")
+	registerAddGroupsPost(reg, "group-external")
+	reg.Register(asctest.GET("/v1/builds/build-1/betaAppReviewSubmission"),
+		asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.POST("/v1/betaAppReviewSubmissions").JSONBody(`{"data":{"type":"betaAppReviewSubmissions","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaAppReviewSubmissions","id":"submission-1"}}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/app" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`), nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`), nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`), nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"READY_FOR_BETA_SUBMISSION"}}}`), nil
-		case 5:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read request body: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-external"`) {
-				t.Fatalf("expected beta group add payload to include group-external, got %s", string(payload))
-			}
-			return jsonHTTPResponse(http.StatusNoContent, ``), nil
-		case 6:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/betaAppReviewSubmission" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`), nil
-		case 7:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/betaAppReviewSubmissions" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read request body: %v", err)
-			}
-			bodyText := string(payload)
-			if !strings.Contains(bodyText, `"type":"betaAppReviewSubmissions"`) || !strings.Contains(bodyText, `"id":"build-1"`) {
-				t.Fatalf("expected beta review submission payload for build-1, got %s", bodyText)
-			}
-			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"betaAppReviewSubmissions","id":"submission-1"}}`), nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"builds", "add-groups",
-			"--build-id", "build-1",
-			"--group", "group-external",
-			"--submit",
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if requestCount != 7 {
-		t.Fatalf("expected app/group lookup, build preflight, add request, submission lookup, and submission create; got %d requests", requestCount)
+	stdout, stderr, err := runCommand(t, addGroupsSubmitArgs)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
+
+	assertBuildsRequestOrder(t, reg,
+		"GET /v1/builds/build-1/app",
+		"GET /v1/apps/app-1/betaGroups",
+		"GET /v1/builds/build-1",
+		"GET /v1/builds/build-1/buildBetaDetail",
+		"POST /v1/builds/build-1/relationships/betaGroups",
+		"GET /v1/builds/build-1/betaAppReviewSubmission",
+		"POST /v1/betaAppReviewSubmissions",
+	)
 	if !strings.Contains(stdout, `"groupIds":["group-external"]`) {
 		t.Fatalf("expected external group in output, got %q", stdout)
 	}
@@ -114,69 +74,30 @@ func TestBuildsAddGroupsSubmitSkipsBetaReviewSubmissionForInternalGroups(t *test
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerAddGroupsLookups(reg, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Friends & Family","isInternalGroup":true}}]}`)
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false}}}`))
+	registerAddGroupsPost(reg, "group-internal")
+
+	stdout, stderr, err := runCommand(t, []string{
+		"builds", "add-groups",
+		"--build-id", "build-1",
+		"--group", "group-internal",
+		"--submit",
+		"--confirm",
 	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/app" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`), nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Friends & Family","isInternalGroup":true}}]}`), nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false}}}`), nil
-		case 4:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read request body: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-internal"`) {
-				t.Fatalf("expected beta group add payload to include group-internal, got %s", string(payload))
-			}
-			return jsonHTTPResponse(http.StatusNoContent, ``), nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"builds", "add-groups",
-			"--build-id", "build-1",
-			"--group", "group-internal",
-			"--submit",
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if requestCount != 4 {
-		t.Fatalf("expected app lookup, group lookup, build preflight, and add request; got %d requests", requestCount)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
+
+	assertBuildsRequestOrder(t, reg,
+		"GET /v1/builds/build-1/app",
+		"GET /v1/apps/app-1/betaGroups",
+		"GET /v1/builds/build-1",
+		"POST /v1/builds/build-1/relationships/betaGroups",
+	)
 	if !strings.Contains(stdout, `"groupIds":["group-internal"]`) {
 		t.Fatalf("expected internal group in output, got %q", stdout)
 	}
@@ -192,72 +113,27 @@ func TestBuildsAddGroupsSubmitTreatsExistingSubmissionAsAlreadyDone(t *testing.T
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerAddGroupsLookups(reg, addGroupsExternalQABody)
+	registerAddGroupsExternalPreflight(reg, "READY_FOR_BETA_TESTING")
+	registerAddGroupsPost(reg, "group-external")
+	reg.Register(asctest.GET("/v1/builds/build-1/betaAppReviewSubmission"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"betaAppReviewSubmissions","id":"submission-existing"}}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/app" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`), nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`), nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`), nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"READY_FOR_BETA_TESTING"}}}`), nil
-		case 5:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusNoContent, ``), nil
-		case 6:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/betaAppReviewSubmission" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"betaAppReviewSubmissions","id":"submission-existing"}}`), nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"builds", "add-groups",
-			"--build-id", "build-1",
-			"--group", "group-external",
-			"--submit",
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if requestCount != 6 {
-		t.Fatalf("expected app/group lookup, build preflight, add request, and submission lookup; got %d requests", requestCount)
+	stdout, stderr, err := runCommand(t, addGroupsSubmitArgs)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
+
+	assertBuildsRequestOrder(t, reg,
+		"GET /v1/builds/build-1/app",
+		"GET /v1/apps/app-1/betaGroups",
+		"GET /v1/builds/build-1",
+		"GET /v1/builds/build-1/buildBetaDetail",
+		"POST /v1/builds/build-1/relationships/betaGroups",
+		"GET /v1/builds/build-1/betaAppReviewSubmission",
+	)
 	if !strings.Contains(stdout, `"groupIds":["group-external"]`) {
 		t.Fatalf("expected external group in output, got %q", stdout)
 	}
@@ -270,76 +146,30 @@ func TestBuildsAddGroupsSubmitPreservesPartialSuccessWhenSubmissionFails(t *test
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerAddGroupsLookups(reg, addGroupsExternalQABody)
+	registerAddGroupsExternalPreflight(reg, "READY_FOR_BETA_TESTING")
+	registerAddGroupsPost(reg, "group-external")
+	reg.Register(asctest.GET("/v1/builds/build-1/betaAppReviewSubmission"),
+		asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.POST("/v1/betaAppReviewSubmissions").JSONBody(`{"data":{"type":"betaAppReviewSubmissions","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
+		asctest.JSON(http.StatusServiceUnavailable, `{"errors":[{"status":"503","code":"SERVICE_UNAVAILABLE","title":"Service unavailable","detail":"beta review temporarily unavailable"}]}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/app" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`), nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`), nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`), nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"READY_FOR_BETA_TESTING"}}}`), nil
-		case 5:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusNoContent, ``), nil
-		case 6:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/betaAppReviewSubmission" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`), nil
-		case 7:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/betaAppReviewSubmissions" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusServiceUnavailable, `{"errors":[{"status":"503","code":"SERVICE_UNAVAILABLE","title":"Service unavailable","detail":"beta review temporarily unavailable"}]}`), nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"builds", "add-groups",
-			"--build-id", "build-1",
-			"--group", "group-external",
-			"--submit",
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runCommand(t, addGroupsSubmitArgs)
 
 	if runErr == nil {
 		t.Fatal("expected error")
 	}
+	assertBuildsRequestOrder(t, reg,
+		"GET /v1/builds/build-1/app",
+		"GET /v1/apps/app-1/betaGroups",
+		"GET /v1/builds/build-1",
+		"GET /v1/builds/build-1/buildBetaDetail",
+		"POST /v1/builds/build-1/relationships/betaGroups",
+		"GET /v1/builds/build-1/betaAppReviewSubmission",
+		"POST /v1/betaAppReviewSubmissions",
+	)
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
