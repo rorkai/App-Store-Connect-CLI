@@ -42,17 +42,17 @@ func (c *Client) UpdateBackgroundAsset(ctx context.Context, id string, attrs Bac
 		return nil, fmt.Errorf("background asset ID is required")
 	}
 
-	request := BackgroundAssetUpdateRequest{
+	payload := BackgroundAssetUpdateRequest{
 		Data: BackgroundAssetUpdateData{
 			Type: ResourceTypeBackgroundAssets,
 			ID:   id,
 		},
 	}
 	if attrs.Archived != nil {
-		request.Data.Attributes = &attrs
+		payload.Data.Attributes = &attrs
 	}
 
-	return sendJSON[BackgroundAssetResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/backgroundAssets/%s", id), Payload: request})
+	return sendJSON[BackgroundAssetResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/backgroundAssets/%s", id), Payload: payload})
 }
 
 // CreateBackgroundAssetVersion creates a new background asset version.
@@ -62,7 +62,7 @@ func (c *Client) CreateBackgroundAssetVersion(ctx context.Context, backgroundAss
 		return nil, fmt.Errorf("background asset ID is required")
 	}
 
-	request := BackgroundAssetVersionCreateRequest{
+	payload := BackgroundAssetVersionCreateRequest{
 		Data: BackgroundAssetVersionCreateData{
 			Type: ResourceTypeBackgroundAssetVersions,
 			Relationships: BackgroundAssetVersionCreateRelationships{
@@ -76,7 +76,7 @@ func (c *Client) CreateBackgroundAssetVersion(ctx context.Context, backgroundAss
 		},
 	}
 
-	return sendJSON[BackgroundAssetVersionResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/backgroundAssetVersions", Payload: request})
+	return sendJSON[BackgroundAssetVersionResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/backgroundAssetVersions", Payload: payload})
 }
 
 // CreateBackgroundAssetUploadFile creates a background asset upload file.
@@ -122,15 +122,15 @@ func (c *Client) UpdateBackgroundAssetUploadFile(ctx context.Context, uploadFile
 		return nil, fmt.Errorf("background asset upload file ID is required")
 	}
 
-	request := BackgroundAssetUploadFileUpdateRequest{
+	payload := BackgroundAssetUploadFileUpdateRequest{
 		Data: BackgroundAssetUploadFileUpdateData{
 			Type: ResourceTypeBackgroundAssetUploadFiles,
 			ID:   uploadFileID,
 		},
 	}
 	if attrs.SourceFileChecksum != nil || attrs.SourceFileChecksums != nil || attrs.Uploaded != nil {
-		request.Data.Attributes = &attrs
+		payload.Data.Attributes = &attrs
 	}
 
-	return sendJSON[BackgroundAssetUploadFileResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/backgroundAssetUploadFiles/%s", uploadFileID), Payload: request})
+	return sendJSON[BackgroundAssetUploadFileResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/backgroundAssetUploadFiles/%s", uploadFileID), Payload: payload})
 }

@@ -549,14 +549,14 @@ func (c *Client) CreateCertificate(ctx context.Context, csrContent string, certT
 // UpdateCertificate updates a certificate's attributes.
 func (c *Client) UpdateCertificate(ctx context.Context, id string, attrs CertificateUpdateAttributes) (*CertificateResponse, error) {
 	id = strings.TrimSpace(id)
-	request := CertificateUpdateRequest{
+	payload := CertificateUpdateRequest{
 		Data: CertificateUpdateData{
 			Type:       ResourceTypeCertificates,
 			ID:         id,
 			Attributes: &attrs,
 		},
 	}
-	return sendJSON[CertificateResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/certificates/%s", id), Payload: request})
+	return sendJSON[CertificateResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/certificates/%s", id), Payload: payload})
 }
 
 // GetProfileCertificatesRelationships retrieves certificate linkages for a profile.

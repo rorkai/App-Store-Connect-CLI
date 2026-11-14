@@ -38,7 +38,7 @@ func (c *Client) UpdateAndroidToIosAppMappingDetail(ctx context.Context, id stri
 		return nil, fmt.Errorf("mapping ID is required")
 	}
 
-	request := AndroidToIosAppMappingDetailUpdateRequest{
+	payload := AndroidToIosAppMappingDetailUpdateRequest{
 		Data: AndroidToIosAppMappingDetailUpdateData{
 			Type:       ResourceTypeAndroidToIosAppMappingDetails,
 			ID:         id,
@@ -46,5 +46,5 @@ func (c *Client) UpdateAndroidToIosAppMappingDetail(ctx context.Context, id stri
 		},
 	}
 
-	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id), Payload: request})
+	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id), Payload: payload})
 }

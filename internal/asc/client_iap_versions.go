@@ -257,8 +257,8 @@ func (c *Client) GetInAppPurchaseVersion(ctx context.Context, versionID string, 
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	q := applyOptions(opts)
-	return getJSON[InAppPurchaseVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseVersions/%s", versionID), Query: buildIAPVersionGetQuery(q)})
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseVersions/%s", versionID), Query: buildIAPVersionGetQuery(query)})
 }
 
 func (c *Client) GetInAppPurchaseVersions(ctx context.Context, iapID string, opts ...IAPVersionsOption) (*InAppPurchaseVersionsResponse, error) {
@@ -313,20 +313,20 @@ func (c *Client) GetInAppPurchaseVersionImage(ctx context.Context, versionID str
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	q := applyOptions(opts)
-	return getJSON[InAppPurchaseImageV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseVersions/%s/image", versionID), Query: buildIAPImageFieldsQuery(q)})
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseImageV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseVersions/%s/image", versionID), Query: buildIAPImageFieldsQuery(query)})
 }
 
 func (c *Client) GetInAppPurchaseVersionImages(ctx context.Context, versionID string, opts ...IAPVersionImagesOption) (*InAppPurchaseImagesV2Response, error) {
-	q := applyOptions(opts)
+	query := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
-	if q.nextURL == "" && versionID == "" {
+	if query.nextURL == "" && versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
 	return getJSON[InAppPurchaseImagesV2Response](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/inAppPurchaseVersions/%s/images", versionID),
-		Query:       buildIAPVersionImagesQuery(q),
-		Next:        q.nextURL,
+		Query:       buildIAPVersionImagesQuery(query),
+		Next:        query.nextURL,
 		NextContext: "in-app-purchase-version-images",
 	})
 }
@@ -336,15 +336,15 @@ func (c *Client) GetInAppPurchaseVersionImagesRelationships(ctx context.Context,
 }
 
 func (c *Client) GetInAppPurchaseVersionLocalizations(ctx context.Context, versionID string, opts ...IAPVersionLocalizationsOption) (*InAppPurchaseLocalizationsResponse, error) {
-	q := applyOptions(opts)
+	query := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
-	if q.nextURL == "" && versionID == "" {
+	if query.nextURL == "" && versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
 	return getJSON[InAppPurchaseLocalizationsResponse](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/inAppPurchaseVersions/%s/localizations", versionID),
-		Query:       buildIAPVersionLocalizationsQuery(q),
-		Next:        q.nextURL,
+		Query:       buildIAPVersionLocalizationsQuery(query),
+		Next:        query.nextURL,
 		NextContext: "in-app-purchase-version-localizations",
 	})
 }
@@ -375,8 +375,8 @@ func (c *Client) GetInAppPurchaseLocalizationV2(ctx context.Context, localizatio
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	q := applyOptions(opts)
-	return getJSON[InAppPurchaseLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchaseLocalizations/%s", localizationID), Query: buildIAPLocalizationV2Query(q)})
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchaseLocalizations/%s", localizationID), Query: buildIAPLocalizationV2Query(query)})
 }
 
 func (c *Client) UpdateInAppPurchaseLocalizationV2(ctx context.Context, localizationID string, attrs InAppPurchaseLocalizationUpdateAttributes) (*InAppPurchaseLocalizationResponse, error) {
@@ -412,6 +412,6 @@ func (c *Client) GetInAppPurchaseImageV2(ctx context.Context, imageID string, op
 	if imageID == "" {
 		return nil, fmt.Errorf("imageID is required")
 	}
-	q := applyOptions(opts)
-	return getJSON[InAppPurchaseImageV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID), Query: buildIAPImageFieldsQuery(q)})
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseImageV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID), Query: buildIAPImageFieldsQuery(query)})
 }
