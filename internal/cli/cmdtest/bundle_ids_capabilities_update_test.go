@@ -29,12 +29,12 @@ func TestBundleIDCapabilitiesSettingsValidationStopsBeforeHTTP(t *testing.T) {
 		{
 			name:    "update requires an update field",
 			args:    []string{"bundle-ids", "capabilities", "update", "--id", "cap1"},
-			wantErr: "at least one update field is required",
+			wantErr: "at least one update flag is required (--capability, --settings)",
 		},
 		{
 			name:    "update rejects empty settings array",
 			args:    []string{"bundle-ids", "capabilities", "update", "--id", "cap1", "--settings", "[]"},
-			wantErr: "at least one update field is required",
+			wantErr: "at least one update flag is required (--capability, --settings)",
 		},
 		{
 			name:    "update rejects invalid settings JSON",

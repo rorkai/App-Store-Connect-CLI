@@ -383,8 +383,7 @@ Examples:
 				attrs.Visible = &value
 			}
 			if attrs.Name == nil && attrs.Visible == nil {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --name or --visible is required")
-				return shared.MissingRequiredUsageError("")
+				return d.UpdateFlagRequired(fs, name, &visible)
 			}
 
 			client, err := d.Client()

@@ -238,8 +238,7 @@ Examples:
 				return d.UsageError(err.Error())
 			}
 			if agreementValue == nil && len(territoryIDs) == 0 {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --agreement-text or --territory is required")
-				return shared.MissingRequiredUsageError("")
+				return d.UpdateFlagRequired(fs, agreementText, territories)
 			}
 
 			client, err := d.Client()

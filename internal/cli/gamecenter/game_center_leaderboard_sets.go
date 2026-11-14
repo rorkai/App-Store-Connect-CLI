@@ -232,8 +232,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (--name)")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.UpdateFlagRequired(fs, name)
 			}
 
 			client, err := shared.GetASCClient()
@@ -505,8 +504,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("--reference-name")
+				return shared.UpdateFlagRequired(fs, referenceName)
 			}
 
 			client, err := shared.GetASCClient()
@@ -969,8 +967,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (--name)")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.UpdateFlagRequired(fs, name)
 			}
 
 			client, err := shared.GetASCClient()

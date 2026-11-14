@@ -98,8 +98,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if !optIn.IsSet() && !sandboxOptIn.IsSet() && durationValue == "" && renewalTypeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, &optIn, &sandboxOptIn, duration, renewalType)
 			}
 
 			client, err := shared.GetASCClient()

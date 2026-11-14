@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -217,8 +216,7 @@ func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 				return shared.UsageError("iap versions localizations update: --description and --clear-description are mutually exclusive")
 			}
 			if !nameSet && !descriptionSet && !*clearName && !*clearDescription {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, name, clearName, description, clearDescription)
 			}
 			attrs := asc.InAppPurchaseLocalizationUpdateAttributes{}
 			if nameSet {

@@ -57,7 +57,7 @@ func TestCategoriesAndAppSetupInfoSetResolveConfiguredAppID(t *testing.T) {
 	}{
 		{name: "categories set uses config app_id", args: []string{"categories", "set"}, withConfig: true, wantStderr: "Error: categories set: --primary is required"},
 		{name: "app-setup categories set uses config app_id", args: []string{"app-setup", "categories", "set"}, withConfig: true, wantStderr: "Error: app-setup categories set: --primary is required"},
-		{name: "app-setup info set uses config app_id", args: []string{"app-setup", "info", "set"}, withConfig: true, wantStderr: "Error: provide at least one update flag"},
+		{name: "app-setup info set uses config app_id", args: []string{"app-setup", "info", "set"}, withConfig: true, wantStderr: "Error: at least one update flag is required (--bundle-id, --primary-locale, --name, --subtitle, --privacy-policy-url, --privacy-choices-url, --privacy-policy-text, --content-rights)"},
 		{name: "categories set without app is a usage error", args: []string{"categories", "set", "--primary", "GAMES"}, wantStderr: "Error: categories set: --app is required (or set ASC_APP_ID)"},
 	}
 	for _, test := range tests {

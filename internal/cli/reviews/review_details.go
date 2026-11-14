@@ -379,8 +379,7 @@ Examples:
 			})
 
 			if !hasReviewDetailUpdates(visited) {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, contactFirstName, contactLastName, contactEmail, contactPhone, demoAccountName, demoAccountPassword, demoAccountRequired, notes)
 			}
 			if visited["demo-account-password"] {
 				if err := validateReviewDetailDemoPasswordLength(strings.TrimSpace(*demoAccountPassword)); err != nil {

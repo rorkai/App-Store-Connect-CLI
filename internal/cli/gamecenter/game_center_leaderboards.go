@@ -611,8 +611,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, referenceName, archived, formatter, sortType, submissionType, scoreRangeStart, scoreRangeEnd, fs.Lookup("recurrence-start-date").Value, fs.Lookup("recurrence-duration").Value, fs.Lookup("recurrence-rule").Value, fs.Lookup("visibility").Value, fs.Lookup("activity-properties").Value)
 			}
 
 			client, err := shared.GetASCClient()

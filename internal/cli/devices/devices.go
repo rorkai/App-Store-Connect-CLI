@@ -468,8 +468,7 @@ Examples:
 			nameValue := strings.TrimSpace(*name)
 			statusRaw := strings.TrimSpace(*status)
 			if nameValue == "" && statusRaw == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return d.UpdateFlagRequired(fs, name, status)
 			}
 
 			statusValue, err := normalizeDeviceStatus(statusRaw)

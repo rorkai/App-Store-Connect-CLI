@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -238,8 +237,7 @@ Examples:
 			})
 
 			if !visited["subtitle"] {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, subtitle)
 			}
 
 			var attrs *asc.AppClipDefaultExperienceLocalizationUpdateAttributes

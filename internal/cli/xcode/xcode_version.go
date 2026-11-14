@@ -271,7 +271,7 @@ Examples:
 				return shared.UsageError("remote build-number flags require --next-build-number")
 			}
 			if v == "" && b == "" && !*remote.next {
-				return shared.UsageError("--version or --build-number is required")
+				return shared.UpdateFlagRequired(fs, version, buildNumber, remote.next)
 			}
 
 			projectInput := selectedProjectInput(*projectDir, *project)

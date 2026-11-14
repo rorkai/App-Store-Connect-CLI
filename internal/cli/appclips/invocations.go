@@ -276,8 +276,7 @@ Examples:
 				visited[f.Name] = true
 			})
 			if !visited["url"] {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, url)
 			}
 
 			urlValue := strings.TrimSpace(*url)

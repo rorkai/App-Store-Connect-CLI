@@ -19,7 +19,7 @@ func TestReviewSubmissionsUpdateValidatesSchemaAndConfirmationBeforeAuth(t *test
 		wantCode  shared.DiagnosticCode
 		wantParam string
 	}{
-		{name: "missing update", args: []string{"--id", "sub-1"}, want: "at least one update flag is required", wantCode: shared.DiagnosticRequiredInputMissing},
+		{name: "missing update", args: []string{"--id", "sub-1"}, want: "at least one update flag is required (--platform, --submitted, --canceled, --clear-platform, --clear-submitted, --clear-canceled)", wantCode: shared.DiagnosticRequiredInputMissing},
 		{name: "invalid platform", args: []string{"--id", "sub-1", "--platform", "NOPE"}, want: "--platform must be one of", wantCode: shared.DiagnosticInvalidInput, wantParam: "--platform"},
 		{name: "platform clear conflict", args: []string{"--id", "sub-1", "--platform", "IOS", "--clear-platform"}, want: "--platform cannot be combined with --clear-platform", wantCode: shared.DiagnosticConflictingInput},
 		{name: "submitted clear conflict", args: []string{"--id", "sub-1", "--submitted=false", "--clear-submitted"}, want: "--submitted cannot be combined with --clear-submitted", wantCode: shared.DiagnosticConflictingInput},
@@ -37,9 +37,12 @@ func TestReviewSubmissionsUpdateValidatesSchemaAndConfirmationBeforeAuth(t *test
 			})
 			defer restore()
 
-			err := ReviewSubmissionsUpdateCommand().ParseAndRun(context.Background(), test.args)
-			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("error = %v, want usage error containing %q", err, test.want)
+			var err error
+			stderr := captureReviewDiagnosticStderr(t, func() {
+				err = ReviewSubmissionsUpdateCommand().ParseAndRun(context.Background(), test.args)
+			})
+			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, "Error: "+test.want) {
+				t.Fatalf("error = %v, stderr = %q, want usage error printing %q", err, stderr, test.want)
 			}
 			diagnostic, ok := shared.DiagnosticFromError(err)
 			if !ok {

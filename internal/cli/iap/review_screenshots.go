@@ -269,8 +269,7 @@ Examples:
 				return shared.UsageError("--confirm can only be used with --file")
 			}
 			if !fileProvided && checksumValue == "" && !uploaded.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, checksum, &uploaded, filePath)
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())

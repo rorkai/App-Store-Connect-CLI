@@ -47,7 +47,7 @@ func TestSubscriptionsGroupUpdateMissingReferenceNameExposesStructuredDiagnostic
 	if got, want := err.Error(), "--reference-name"; got != want {
 		t.Fatalf("error = %q, want %q", got, want)
 	}
-	if want := "Error: at least one update flag is required\n"; !strings.Contains(stderr, want) {
+	if want := "Error: at least one update flag is required (--reference-name)\n"; !strings.Contains(stderr, want) {
 		t.Fatalf("stderr = %q, want diagnostic %q", stderr, want)
 	}
 

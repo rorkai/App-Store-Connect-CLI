@@ -185,8 +185,7 @@ Examples:
 			})
 
 			if !visited["url"] && !visited["secret"] {
-				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return d.UpdateFlagRequired(fs, url, secret)
 			}
 
 			attrs := asc.MarketplaceWebhookUpdateAttributes{}

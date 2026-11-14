@@ -321,8 +321,7 @@ Examples:
 			}
 
 			if !hasUpdate && strings.TrimSpace(*leaderboardID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, referenceName, repeatable, archived, leaderboardID)
 			}
 
 			client, err := shared.GetASCClient()
@@ -656,8 +655,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, name, description)
 			}
 
 			client, err := shared.GetASCClient()

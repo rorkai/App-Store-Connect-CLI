@@ -221,8 +221,7 @@ Examples:
 
 			trimmedEncryption := strings.TrimSpace(strings.ToLower(*usesNonExemptEncryption))
 			if trimmedEncryption == "" {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (e.g. --uses-non-exempt-encryption)")
-				return shared.MissingRequiredUsageError("--uses-non-exempt-encryption")
+				return shared.UpdateFlagRequired(fs, usesNonExemptEncryption)
 			}
 
 			attrs := asc.BuildUpdateAttributes{}

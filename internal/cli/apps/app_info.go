@@ -376,8 +376,7 @@ Examples:
 				return shared.UsageError("--from-dir cannot be used with inline update flags")
 			}
 			if fromDirValue == "" && !hasInlineUpdates && copyFromLocaleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, copyFromLocale, fromDir, description, keywords, supportURL, marketingURL, promotionalText, whatsNew)
 			}
 			if err := shared.ValidateVersionLocalizationAttributes(inlineAttrs); err != nil {
 				return shared.UsageError(err.Error())

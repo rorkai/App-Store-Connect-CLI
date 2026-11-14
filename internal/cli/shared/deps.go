@@ -97,6 +97,12 @@ func (d *Deps) RequiredFlag(name string) error {
 	return requiredFlagTo(d.IO.ErrOut, name)
 }
 
+// UpdateFlagRequired is UpdateFlagRequired with the "Error:" line written to
+// d's stderr.
+func (d *Deps) UpdateFlagRequired(fs *flag.FlagSet, updateFlags ...any) error {
+	return updateFlagRequiredTo(d.IO.ErrOut, fs, updateFlags...)
+}
+
 // RejectNextFlagConflicts is RejectNextFlagConflicts with the "Error:" line
 // written to d's stderr.
 func (d *Deps) RejectNextFlagConflicts(fs *flag.FlagSet, next, command string, names ...string) error {

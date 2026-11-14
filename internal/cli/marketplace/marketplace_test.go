@@ -61,7 +61,7 @@ func TestMarketplaceSearchDetailsUpdateCommand_MissingID(t *testing.T) {
 }
 
 func TestMarketplaceSearchDetailsUpdateCommand_MissingUpdates(t *testing.T) {
-	assertMarketplaceUsageError(t, newMarketplaceSearchDetailsUpdateCommand, []string{"--search-detail-id", "DETAIL_ID"}, "Error: at least one update flag is required\n")
+	assertMarketplaceUsageError(t, newMarketplaceSearchDetailsUpdateCommand, []string{"--search-detail-id", "DETAIL_ID"}, "Error: at least one update flag is required (--catalog-url)\n")
 }
 
 func TestMarketplaceSearchDetailsDeleteCommand_MissingID(t *testing.T) {
@@ -101,7 +101,7 @@ func TestMarketplaceWebhooksUpdateCommand_MissingID(t *testing.T) {
 }
 
 func TestMarketplaceWebhooksUpdateCommand_MissingUpdates(t *testing.T) {
-	assertMarketplaceUsageError(t, newMarketplaceWebhooksUpdateCommand, []string{"--webhook-id", "WEBHOOK_ID"}, "Warning: marketplace webhooks endpoints are deprecated in App Store Connect API.\nError: at least one update flag is required\n")
+	assertMarketplaceUsageError(t, newMarketplaceWebhooksUpdateCommand, []string{"--webhook-id", "WEBHOOK_ID"}, "Warning: marketplace webhooks endpoints are deprecated in App Store Connect API.\nError: at least one update flag is required (--url, --secret)\n")
 }
 
 func TestMarketplaceWebhooksDeleteCommand_MissingID(t *testing.T) {

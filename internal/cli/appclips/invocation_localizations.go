@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -177,8 +176,7 @@ Examples:
 				visited[f.Name] = true
 			})
 			if !visited["title"] {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, title)
 			}
 
 			titleValue := strings.TrimSpace(*title)

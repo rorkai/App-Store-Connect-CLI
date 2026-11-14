@@ -207,7 +207,7 @@ func TestSubscriptionsRetentionOffersUsageErrors(t *testing.T) {
 		{"create rejects undocumented paid months", with(create, "--price", "PP", "--eligibility-paid-months", "25"), "--eligibility-paid-months must be 1-24, 36, 48, or 60"},
 		{"create rejects wait months below two", with(create, "--price", "PP", "--eligibility-wait-months", "1"), "--eligibility-wait-months must be between 2 and 24"},
 		{"create rejects unknown duration", with(create, "--price", "PP", "--duration", "TEN_DAYS"), "--duration must be one of"},
-		{"update requires a change", []string{"update", "--id", "ro-1"}, "at least one of --eligibility-paid-months"},
+		{"update requires a change", []string{"update", "--id", "ro-1"}, "at least one update flag is required (--eligibility-paid-months, --eligibility-wait-months)"},
 		{"delete requires confirm", []string{"delete", "--id", "ro-1"}, "--confirm is required"},
 		{"presented remove requires confirm", []string{"presented", "remove", "--subscription-id", "6446671421", "--retention-offer-id", "ro-1"}, "--confirm is required"},
 		{"list prices limit requires prices include", []string{"list", "--subscription-id", "6446671421", "--prices-limit", "5"}, "--prices-limit requires --include prices"},

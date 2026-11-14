@@ -876,8 +876,7 @@ Examples:
 
 			// Check that at least one update field is provided
 			if *copyright == "" && normalizedReleaseType == "" && normalizedReviewType == "" && *earliestReleaseDate == "" && *versionString == "" && !downloadable.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: at least one of --copyright, --release-type, --review-type, --earliest-release-date, --version, or --downloadable is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, copyright, releaseType, reviewType, earliestReleaseDate, versionString, &downloadable)
 			}
 
 			// --confirm is tracked rather than read as a plain bool so an

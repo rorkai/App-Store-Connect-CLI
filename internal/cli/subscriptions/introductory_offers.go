@@ -760,8 +760,7 @@ Examples:
 				return shared.RequiredFlag("--id")
 			}
 			if strings.TrimSpace(*endDate) == "" {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("--end-date")
+				return shared.UpdateFlagRequired(fs, endDate)
 			}
 
 			normalizedEndDate, err := shared.NormalizeDate(*endDate, "--end-date")

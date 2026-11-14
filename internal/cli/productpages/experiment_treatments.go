@@ -257,8 +257,7 @@ Examples:
 			nameValue := strings.TrimSpace(*name)
 			appIconValue := strings.TrimSpace(*appIconName)
 			if nameValue == "" && appIconValue == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --name or --app-icon-name is required")
-				return shared.MissingRequiredUsageError("")
+				return d.UpdateFlagRequired(fs, name, appIconName)
 			}
 
 			attrs := asc.AppStoreVersionExperimentTreatmentUpdateAttributes{}

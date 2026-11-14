@@ -140,7 +140,7 @@ At least one field flag must be provided.`,
 
 			switch normalizedType {
 			case shared.LocalizationTypeAppInfo:
-				return updateAppInfoLocalization(ctx, updateAppInfoParams{
+				params := updateAppInfoParams{
 					localizationID:        localizationIDValue,
 					appID:                 *appID,
 					appInfoID:             *appInfoID,
@@ -153,9 +153,13 @@ At least one field flag must be provided.`,
 					clearSubtitle:         *clearSubtitle,
 					clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
 					output:                output,
-				})
+				}
+				if !hasAnyAppInfoField(params) {
+					return shared.UpdateFlagRequired(fs, name, subtitle, clearSubtitle, privacyPolicyURL, clearPrivacyPolicyURL, privacyChoicesURL, privacyPolicyText)
+				}
+				return updateAppInfoLocalization(ctx, params)
 			case shared.LocalizationTypeVersion:
-				return updateVersionLocalization(ctx, updateVersionParams{
+				params := updateVersionParams{
 					localizationID:       localizationIDValue,
 					versionID:            *versionID,
 					appID:                *appID,
@@ -169,7 +173,11 @@ At least one field flag must be provided.`,
 					marketingURL:         *marketingURL,
 					clearPromotionalText: *clearPromotionalText,
 					output:               output,
-				})
+				}
+				if !hasAnyVersionField(params) {
+					return shared.UpdateFlagRequired(fs, description, keywords, whatsNew, promotionalText, clearPromotionalText, supportURL, marketingURL)
+				}
+				return updateVersionLocalization(ctx, params)
 			default:
 				return fmt.Errorf("localizations update: unsupported type %q", normalizedType)
 			}
@@ -235,11 +243,6 @@ type updateAppInfoParams struct {
 }
 
 func updateAppInfoLocalization(ctx context.Context, p updateAppInfoParams) error {
-	if !hasAnyAppInfoField(p) {
-		fmt.Fprintln(os.Stderr, "Error: at least one app-info field is required (--name, --subtitle, --privacy-policy-url, --privacy-choices-url, --privacy-policy-text, --clear-subtitle, --clear-privacy-policy-url)")
-		return shared.MissingRequiredUsageError("")
-	}
-
 	localizationID := strings.TrimSpace(p.localizationID)
 	resolvedAppID := ""
 	if localizationID == "" {
@@ -356,11 +359,6 @@ type updateVersionParams struct {
 }
 
 func updateVersionLocalization(ctx context.Context, p updateVersionParams) error {
-	if !hasAnyVersionField(p) {
-		fmt.Fprintln(os.Stderr, "Error: at least one version field is required (--description, --keywords, --whats-new, --promotional-text, --support-url, --marketing-url, --clear-promotional-text)")
-		return shared.MissingRequiredUsageError("")
-	}
-
 	localizationID := strings.TrimSpace(p.localizationID)
 	vid := strings.TrimSpace(p.versionID)
 	if localizationID == "" && vid == "" {

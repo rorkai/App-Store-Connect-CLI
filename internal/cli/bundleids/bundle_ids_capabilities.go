@@ -250,8 +250,7 @@ Examples:
 
 			// Treat empty settings arrays as no-op updates.
 			if capabilityValue == "" && len(settingsValue) == 0 {
-				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update field is required (--capability or --settings)")
-				return shared.MissingRequiredUsageError("")
+				return d.UpdateFlagRequired(fs, capabilityType, settings)
 			}
 
 			client, err := d.Client()

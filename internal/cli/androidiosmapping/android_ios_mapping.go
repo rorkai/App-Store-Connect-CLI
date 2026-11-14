@@ -252,7 +252,7 @@ Examples:
 				seen[f.Name] = true
 			})
 			if !seen["android-package-name"] && !seen["fingerprints"] && !*clearPackageName && !*clearFingerprints {
-				return d.UsageError("android-ios-mapping update: at least one update flag is required")
+				return d.UpdateFlagRequired(fs, packageName, fingerprints, clearPackageName, clearFingerprints)
 			}
 			if seen["android-package-name"] && *clearPackageName {
 				return d.UsageError("android-ios-mapping update: --android-package-name cannot be used with --clear-android-package-name")

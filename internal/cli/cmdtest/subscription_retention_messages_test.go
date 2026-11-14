@@ -229,7 +229,7 @@ func TestRetentionMessagesValidationBeforeClient(t *testing.T) {
 		{"localization create requires locale", []string{"localizations", "create", "--version-id", "ver-1"}, "Error: --locale is required"},
 		{"localization create limits header", []string{"localizations", "create", "--version-id", "ver-1", "--locale", "en-US", "--header", strings.Repeat("a", 67)}, "--header must be at most 66 characters"},
 		{"localization update limits body", []string{"localizations", "update", "--id", "loc-1", "--body", strings.Repeat("a", 145)}, "--body must be at most 144 characters"},
-		{"localization update requires a change", []string{"localizations", "update", "--id", "loc-1"}, "Error: --header, --body, --clear-header, or --clear-body is required"},
+		{"localization update requires a change", []string{"localizations", "update", "--id", "loc-1"}, "Error: at least one update flag is required (--header, --body, --clear-header, --clear-body)"},
 		{"localization update rejects set and clear", []string{"localizations", "update", "--id", "loc-1", "--header", "Stay", "--clear-header"}, "--header cannot be used with --clear-header"},
 		{"localization delete requires confirm", []string{"localizations", "delete", "--id", "loc-1"}, "Error: --confirm is required"},
 		{"next rejects owner", []string{"versions", "list", "--message-id", "msg-2", "--next", next}, "--next cannot be combined with --message-id"},

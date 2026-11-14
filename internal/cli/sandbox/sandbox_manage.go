@@ -110,8 +110,7 @@ Examples:
 			}
 
 			if !interruptPurchases.IsSet() && normalizedTerritory == "" && normalizedRate == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --territory, --interrupt-purchases, or --subscription-renewal-rate is required")
-				return shared.MissingRequiredUsageError("")
+				return d.UpdateFlagRequired(fs, territory, subscriptionRenewalRate, &interruptPurchases)
 			}
 
 			client, err := d.Client()

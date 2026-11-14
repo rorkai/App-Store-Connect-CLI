@@ -382,8 +382,7 @@ Examples:
 			return d.RequiredFlag("--promoted-purchase-id")
 		}
 		if !visibleForAllUsersSet && !enabledSet {
-			fmt.Fprintln(d.IO.ErrOut, "Error: at least one update flag is required")
-			return shared.MissingRequiredUsageError("")
+			return d.UpdateFlagRequired(cmd.FlagSet, cmd.FlagSet.Lookup("visible-for-all-users").Value, cmd.FlagSet.Lookup("enabled").Value)
 		}
 
 		client, err := d.Client()

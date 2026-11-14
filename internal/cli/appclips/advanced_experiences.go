@@ -433,8 +433,7 @@ Examples:
 
 			hasUpdate := visited["action"] || visited["category"] || visited["place"] || visited["default-language"] || visited["is-powered-by"] || visited["removed"] || visited["header-image-id"] || visited["localization-id"] || visited["app-clip-id"]
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, appClipID, action, category, place, defaultLanguage, isPoweredBy, removed, headerImageID, localizationIDs)
 			}
 
 			var attrs *asc.AppClipAdvancedExperienceUpdateAttributes

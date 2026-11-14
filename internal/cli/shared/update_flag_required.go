@@ -1,0 +1,65 @@
+package shared
+
+import (
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"reflect"
+	"strings"
+)
+
+// UpdateFlagRequired reports an update command run without any of its update
+// flags. It prints "Error: at least one update flag is required (--a, --b)" to
+// stderr and returns MissingRequiredUsageError.
+//
+// updateFlags are the variables the command's flags in fs are bound to (the
+// pointers fs.String and friends return, or the flag.Value passed to fs.Var),
+// the same ones the command checks. The message names their flags in the order
+// given, so it always matches the flags the command has. A variable that no
+// flag in fs is bound to is a programming error and panics, as redefining a
+// flag does in the flag package.
+func UpdateFlagRequired(fs *flag.FlagSet, updateFlags ...any) error {
+	return updateFlagRequiredTo(os.Stderr, fs, updateFlags...)
+}
+
+func updateFlagRequiredTo(stderr io.Writer, fs *flag.FlagSet, updateFlags ...any) error {
+	names := make([]string, 0, len(updateFlags))
+	for _, value := range updateFlags {
+		names = append(names, "--"+boundFlagName(fs, value))
+	}
+	fmt.Fprintf(stderr, "Error: at least one update flag is required (%s)\n", strings.Join(names, ", "))
+	parameter := ""
+	if len(names) == 1 {
+		parameter = names[0]
+	}
+	return MissingRequiredUsageError(parameter)
+}
+
+// wrappingValue is a flag.Value that stores the parsed value in a separate
+// variable, the one its Bind function returns.
+type wrappingValue interface {
+	storage() any
+}
+
+func boundFlagName(fs *flag.FlagSet, value any) string {
+	target := reflect.ValueOf(value)
+	if target.Kind() != reflect.Pointer || target.IsNil() {
+		panic(fmt.Sprintf("shared: update flag variable %T is not a pointer", value))
+	}
+	var names []string
+	fs.VisitAll(func(f *flag.Flag) {
+		var storage any = f.Value
+		if wrapper, ok := f.Value.(wrappingValue); ok {
+			storage = wrapper.storage()
+		}
+		bound := reflect.ValueOf(storage)
+		if bound.Kind() == reflect.Pointer && bound.Pointer() == target.Pointer() {
+			names = append(names, f.Name)
+		}
+	})
+	if len(names) != 1 {
+		panic(fmt.Sprintf("shared: %d flags in %q are bound to update flag variable %T, want 1", len(names), fs.Name(), value))
+	}
+	return names[0]
+}

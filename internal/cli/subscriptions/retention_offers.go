@@ -461,7 +461,7 @@ Examples:
 				return shared.UsageError("--id is required")
 			}
 			if !paidMonths.set && !waitMonths.set {
-				return shared.UsageError("at least one of --eligibility-paid-months or --eligibility-wait-months is required")
+				return shared.UpdateFlagRequired(fs, &paidMonths, &waitMonths)
 			}
 			if err := validateRetentionOfferEligibility(command, paidMonths, waitMonths); err != nil {
 				return err

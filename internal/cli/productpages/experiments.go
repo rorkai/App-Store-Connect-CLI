@@ -360,8 +360,7 @@ Examples:
 			}
 
 			if attrsName == "" && trafficPtr == nil && !started.IsSet() {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --name, --traffic-proportion, or --started is required")
-				return shared.MissingRequiredUsageError("")
+				return d.UpdateFlagRequired(fs, name, trafficProportion, &started)
 			}
 
 			client, err := d.Client()
