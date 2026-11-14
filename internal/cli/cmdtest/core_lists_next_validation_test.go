@@ -181,7 +181,7 @@ func TestCoreListsPaginateFromNext(t *testing.T) {
 		},
 		{
 			args:     []string{"nominations", "list"},
-			deps: true,
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/nominations?cursor=AQ&limit=200",
 			dataType: "nominations",
 		},

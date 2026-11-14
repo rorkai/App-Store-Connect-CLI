@@ -73,7 +73,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 		{
 			name:     "categories view",
 			args:     []string{"categories", "view", "--category-id", selfLinkTestBase + "/v1/appCategories/GAMES"},
-			deps: true,
+			deps:     true,
 			wantPath: "GET /v1/appCategories/GAMES",
 			wantID:   "GAMES",
 			bodies: map[string]string{
@@ -302,7 +302,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "categories view rejects apps link",
 			args:    []string{"categories", "view"},
-			deps: true,
+			deps:    true,
 			flag:    "category-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type appCategories, got apps",
