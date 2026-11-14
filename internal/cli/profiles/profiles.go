@@ -498,7 +498,6 @@ Examples:
 				return shared.RequiredFlag("--name")
 			}
 			if err := signing.ValidateProfileNameLength(nameValue); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 				return shared.UsageError(err.Error())
 			}
 			profileTypeValue := strings.ToUpper(strings.TrimSpace(*profileType))
