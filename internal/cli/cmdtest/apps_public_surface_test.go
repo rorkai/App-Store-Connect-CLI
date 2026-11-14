@@ -11,6 +11,7 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
 )
 
@@ -192,14 +193,7 @@ func TestAppsPublicValidationErrors(t *testing.T) {
 func TestAppsPublicRankRejectsTVStorefrontWithoutNumericIDBeforeRequest(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request for unsupported TV storefront: %s", req.URL.String())
-		return nil, errors.New("unexpected request")
-	})
+	asctest.NewRegistry(t).Install()
 
 	stdout, stderr, runErr := runCommand(t, []string{
 		"apps", "public", "rank",
@@ -397,15 +391,7 @@ func TestAppsPublicRankNotFoundOutputs(t *testing.T) {
 func TestAppsPublicRejectsUnsupportedTwoLetterCountryBeforeRequest(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request for unsupported country: %s", req.URL.String())
-		return nil, errors.New("unexpected request")
-	})
+	asctest.NewRegistry(t).Install()
 
 	tests := []struct {
 		name string
@@ -448,15 +434,7 @@ func TestAppsPublicRejectsUnsupportedTwoLetterCountryBeforeRequest(t *testing.T)
 func TestAppsPublicRejectsSignedAppIDsBeforeRequest(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request for signed app ID: %s", req.URL.String())
-		return nil, errors.New("unexpected request")
-	})
+	asctest.NewRegistry(t).Install()
 
 	tests := []struct {
 		name string
@@ -495,14 +473,7 @@ func TestAppsPublicRejectsSignedAppIDsBeforeRequest(t *testing.T) {
 func TestAppsPublicLegacyIDFlagIsUnknown(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("removed --id alias must fail before any request: %s", req.URL.String())
-		return nil, errors.New("unexpected request")
-	})
+	asctest.NewRegistry(t).Install()
 
 	root := RootCommand("1.2.3")
 	for _, name := range []string{"view", "prices", "descriptions"} {
