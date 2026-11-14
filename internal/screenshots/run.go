@@ -57,6 +57,16 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (*RunRe
 	if udid == "" {
 		udid = "booted"
 	}
+	for _, step := range plan.Steps {
+		if StepAction(strings.TrimSpace(strings.ToLower(string(step.Action)))) != ActionWait {
+			resolved, err := resolveSimulatorUDID(ctx, udid)
+			if err != nil {
+				return nil, err
+			}
+			udid = resolved
+			break
+		}
+	}
 	outputDir := plan.App.OutputDir
 	if strings.TrimSpace(outputDir) == "" {
 		outputDir = "./screenshots/raw"

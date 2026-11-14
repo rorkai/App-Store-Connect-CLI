@@ -243,3 +243,112 @@ printf '%s\n' "$*" >> "$XCRUN_LOG"
 		t.Fatalf("launches = %q, want %q", launches, want)
 	}
 }
+
+func TestRunPlanResolvesBootedSimulatorWhenUDIDOmitted(t *testing.T) {
+	tests := []struct {
+		name    string
+		devices string
+		wantErr []string
+	}{
+		{
+			name:    "one booted",
+			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Booted","isAvailable":true},{"udid":"SHUTDOWN-1","name":"iPad Air","state":"Shutdown","isAvailable":true}]`,
+		},
+		{
+			name:    "none booted",
+			devices: `[{"udid":"SHUTDOWN-1","name":"iPad Air","state":"Shutdown","isAvailable":true}]`,
+			wantErr: []string{"no simulator is booted", "--udid"},
+		},
+		{
+			name:    "several booted",
+			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Booted","isAvailable":true},{"udid":"BOOTED-2","name":"iPad Air","state":"Booted","isAvailable":true}]`,
+			wantErr: []string{"2 simulators are booted", "iPhone 17 (BOOTED-1)", "iPad Air (BOOTED-2)", "--udid"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			binDir := t.TempDir()
+			logDir := t.TempDir()
+			xcrunLog := filepath.Join(logDir, "xcrun.log")
+			axeLog := filepath.Join(logDir, "axe.log")
+			templatePNG := filepath.Join(logDir, "template.png")
+			writeMinimalPNG(t, templatePNG, 10, 10)
+			writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+set -eu
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '{"devices":{"runtime":%s}}\n' "$SIMCTL_DEVICES"
+  exit 0
+fi
+printf '%s\n' "$*" >> "$XCRUN_LOG"
+`)
+			writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$AXE_LOG"
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--output" ]; then out="$2"; break; fi
+  shift
+done
+if [ -n "$out" ]; then cp "$AXE_TEMPLATE_PNG" "$out"; fi
+`)
+			t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+			t.Setenv("SIMCTL_DEVICES", test.devices)
+			t.Setenv("XCRUN_LOG", xcrunLog)
+			t.Setenv("AXE_LOG", axeLog)
+			t.Setenv("AXE_TEMPLATE_PNG", templatePNG)
+
+			text := "hello"
+			name := "home"
+			plan := &Plan{
+				Version: 1,
+				App:     PlanApp{BundleID: "com.example.app", OutputDir: t.TempDir()},
+				Steps: []PlanStep{
+					{Action: ActionLaunch},
+					{Action: ActionType, Text: &text},
+					{Action: ActionScreenshot, Name: &name},
+				},
+			}
+			result, err := RunPlan(context.Background(), plan)
+			if test.wantErr != nil {
+				if err == nil {
+					t.Fatalf("RunPlan() error = nil, want %q", test.wantErr)
+				}
+				for _, want := range test.wantErr {
+					if !strings.Contains(err.Error(), want) {
+						t.Fatalf("RunPlan() error = %q, want it to contain %q", err, want)
+					}
+				}
+				if _, statErr := os.Stat(axeLog); !os.IsNotExist(statErr) {
+					t.Fatalf("axe ran before the simulator was resolved")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("RunPlan() error = %v", err)
+			}
+			axeArgs, err := os.ReadFile(axeLog)
+			if err != nil {
+				t.Fatalf("read axe log: %v", err)
+			}
+			calls := strings.Split(strings.TrimSpace(string(axeArgs)), "\n")
+			if len(calls) != 2 {
+				t.Fatalf("axe calls = %q, want type and screenshot", calls)
+			}
+			for _, call := range calls {
+				if !strings.HasSuffix(call, "--udid BOOTED-1") {
+					t.Fatalf("axe call %q does not target BOOTED-1", call)
+				}
+			}
+			launch, err := os.ReadFile(xcrunLog)
+			if err != nil {
+				t.Fatalf("read xcrun log: %v", err)
+			}
+			if got := strings.TrimSpace(string(launch)); got != "simctl launch BOOTED-1 com.example.app" {
+				t.Fatalf("launch args = %q", got)
+			}
+			if result.UDID != "BOOTED-1" {
+				t.Fatalf("RunResult.UDID = %q, want BOOTED-1", result.UDID)
+			}
+		})
+	}
+}

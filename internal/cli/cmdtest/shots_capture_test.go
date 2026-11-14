@@ -64,7 +64,11 @@ func TestShotsCapturePreservesWhitespaceOutputDirectory(t *testing.T) {
 	writeFramePNG(t, fixturePath, makeRawImage(390, 844))
 	outputDir := filepath.Join(baseDir, "raw ")
 	binDir := t.TempDir()
-	writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), "#!/bin/sh\nexit 0\n")
+	writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
+fi
+`)
 	writeShotsMatrixExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
 set -eu
 out=""

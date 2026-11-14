@@ -15,7 +15,7 @@ func TestAXeProvider_MissingBinary(t *testing.T) {
 
 	provider := &AXeProvider{}
 	_, err := provider.Capture(context.Background(), CaptureRequest{
-		UDID:      "booted",
+		UDID:      "SIM-UDID-123",
 		Name:      "home",
 		OutputDir: t.TempDir(),
 	})
