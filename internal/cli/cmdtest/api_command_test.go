@@ -3,7 +3,6 @@ package cmdtest
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -243,18 +243,9 @@ func TestAPIGetPrintsEnvelopeUnmodified(t *testing.T) {
 	setupAuth(t)
 
 	const body = `{"data":[{"type":"apps","id":"123","attributes":{"name":"Demo"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps?limit=1"},"meta":{"paging":{"total":1,"limit":1}}}`
-	requests := newRequestLog(1)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(req.Method + " " + req.URL.RequestURI())
-		if got := req.Header.Get("Authorization"); !strings.HasPrefix(got, "Bearer ") {
-			t.Errorf("Authorization = %q, want bearer token", got)
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "fields[apps]=name", "limit=1"), asctest.JSON(http.StatusOK, body))
 
 	stdout, stderr := captureOutput(t, func() {
 		args := []string{"api", "get", "/v1/apps", "--query", "limit=1", "--query", "fields[apps]=name"}
@@ -269,7 +260,14 @@ func TestAPIGetPrintsEnvelopeUnmodified(t *testing.T) {
 		t.Fatalf("stdout = %q, want unmodified envelope", stdout)
 	}
 	want := []string{"GET /v1/apps?fields%5Bapps%5D=name&limit=1"}
-	if got := requests.Snapshot(); strings.Join(got, ",") != strings.Join(want, ",") {
+	var got []string
+	for _, req := range reg.Requests() {
+		got = append(got, req.Method+" "+req.URL.RequestURI())
+		if auth := req.Header.Get("Authorization"); !strings.HasPrefix(auth, "Bearer ") {
+			t.Errorf("Authorization = %q, want bearer token", auth)
+		}
+	}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("requests = %v, want %v", got, want)
 	}
 }
@@ -277,15 +275,9 @@ func TestAPIGetPrintsEnvelopeUnmodified(t *testing.T) {
 func TestAPIGetAcceptsFullURLWithQueryAndPretty(t *testing.T) {
 	setupAuth(t)
 
-	requests := newRequestLog(1)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(req.Method + " " + req.URL.RequestURI())
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "limit=2", "sort=name"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		args := []string{"api", "--pretty", "GET", "https://api.appstoreconnect.apple.com/v1/apps?limit=2", "--query", "sort=name"}
@@ -299,7 +291,7 @@ func TestAPIGetAcceptsFullURLWithQueryAndPretty(t *testing.T) {
 	if stdout != "{\n  \"data\": []\n}\n" {
 		t.Fatalf("stdout = %q, want pretty JSON", stdout)
 	}
-	if got := requests.Snapshot(); len(got) != 1 || got[0] != "GET /v1/apps?limit=2&sort=name" {
+	if got := reg.Requests(); len(got) != 1 || got[0].Method+" "+got[0].URL.RequestURI() != "GET /v1/apps?limit=2&sort=name" {
 		t.Fatalf("requests = %v, want merged query", got)
 	}
 }
@@ -307,24 +299,12 @@ func TestAPIGetAcceptsFullURLWithQueryAndPretty(t *testing.T) {
 func TestAPIPaginateMergesCollectionPages(t *testing.T) {
 	setupAuth(t)
 
-	pages := map[string]string{
-		"/v1/apps?limit=1":            `{"data":[{"type":"apps","id":"1"}],"included":[{"type":"builds","id":"b1"}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps?limit=1","next":"https://api.appstoreconnect.apple.com/v1/apps?cursor=two&limit=1"},"meta":{"paging":{"total":2,"limit":1}}}`,
-		"/v1/apps?cursor=two&limit=1": `{"data":[{"type":"apps","id":"2"}],"included":[{"type":"builds","id":"b1"},{"type":"builds","id":"b2"}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps?cursor=two&limit=1"},"meta":{"paging":{"total":2,"limit":1}}}`,
-	}
-	requests := newRequestLog(2)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(req.URL.RequestURI())
-		body, ok := pages[req.URL.RequestURI()]
-		if !ok {
-			t.Errorf("unexpected request %s", req.URL.RequestURI())
-			body = `{"errors":[{"status":"404"}]}`
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"1"}],"included":[{"type":"builds","id":"b1"}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps?limit=1","next":"https://api.appstoreconnect.apple.com/v1/apps?cursor=two&limit=1"},"meta":{"paging":{"total":2,"limit":1}}}`))
+	reg.Register(asctest.GET("/v1/apps", "cursor=two", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"2"}],"included":[{"type":"builds","id":"b1"},{"type":"builds","id":"b2"}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps?cursor=two&limit=1"},"meta":{"paging":{"total":2,"limit":1}}}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		args := []string{"api", "GET", "/v1/apps", "--query", "limit=1", "--paginate"}
@@ -335,7 +315,7 @@ func TestAPIPaginateMergesCollectionPages(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
-	if got := requests.Snapshot(); len(got) != 2 {
+	if got := reg.Requests(); len(got) != 2 {
 		t.Fatalf("requests = %v, want two pages", got)
 	}
 
@@ -368,13 +348,9 @@ func TestAPIPaginateMergesCollectionPages(t *testing.T) {
 func TestAPIPaginateRejectsNonCollectionResponse(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(`{"data":{"type":"apps","id":"1"}}`)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/1"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"1"}}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		args := []string{"api", "GET", "/v1/apps/1", "--paginate"}
@@ -400,13 +376,9 @@ func TestAPIRejectsMalformedJSONResponse(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(`{"data":[`)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps"), asctest.JSON(http.StatusOK, `{"data":[`))
 
 			args := []string{"api", "GET", "/v1/apps"}
 			if pretty {
@@ -432,21 +404,9 @@ func TestAPIPostSendsBodyWithConfirm(t *testing.T) {
 
 	const requestBody = `{"data":{"type":"betaGroups","attributes":{"name":"QA"},"relationships":{"app":{"data":{"type":"apps","id":"123"}}}}}`
 	const responseBody = `{"data":{"type":"betaGroups","id":"g1"}}`
-	var gotBody string
-	var gotContentType string
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost || req.URL.RequestURI() != "/v1/betaGroups" {
-			t.Errorf("request = %s %s, want POST /v1/betaGroups", req.Method, req.URL.RequestURI())
-		}
-		data, _ := io.ReadAll(req.Body)
-		gotBody = string(data)
-		gotContentType = req.Header.Get("Content-Type")
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(responseBody)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/betaGroups").JSONBody(requestBody), asctest.JSON(http.StatusCreated, responseBody))
 
 	stdout, stderr := captureOutput(t, func() {
 		args := []string{"api", "POST", "/v1/betaGroups", "--confirm", "--body", requestBody}
@@ -460,10 +420,11 @@ func TestAPIPostSendsBodyWithConfirm(t *testing.T) {
 	if stdout != responseBody+"\n" {
 		t.Fatalf("stdout = %q, want response body", stdout)
 	}
-	if gotBody != requestBody {
+	sent := reg.Requests()[0]
+	if gotBody := string(sent.Body); gotBody != requestBody {
 		t.Fatalf("request body = %q, want %q", gotBody, requestBody)
 	}
-	if gotContentType != "application/json" {
+	if gotContentType := sent.Header.Get("Content-Type"); gotContentType != "application/json" {
 		t.Fatalf("content type = %q, want application/json", gotContentType)
 	}
 }
@@ -474,20 +435,9 @@ func TestAPIPostPreservesDocumentedMutationURLQuery(t *testing.T) {
 	const requestBody = `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","attributes":{"placementGroup":"IPHONE_65"},"relationships":{"orderedPlacements":{"data":[{"type":"appAssetLibraryPlacements","id":"placement-1"}]},"appStoreVersionLocalization":{"data":{"type":"appStoreVersionLocalizations","id":"locale-1"}}}}}`
 	const responseBody = `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","id":"request-1"},"included":[{"type":"appAssetLibraryPlacements","id":"placement-1"}]}`
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost || req.URL.RequestURI() != path+"?include=orderedPlacements" {
-			t.Errorf("request = %s %s, want POST %s?include=orderedPlacements", req.Method, req.URL.RequestURI(), path)
-		}
-		data, err := io.ReadAll(req.Body)
-		if err != nil || string(data) != requestBody {
-			t.Errorf("request body = %q, error = %v, want %q", data, err, requestBody)
-		}
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(responseBody)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST(path, "include=orderedPlacements").JSONBody(requestBody), asctest.JSON(http.StatusCreated, responseBody))
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
@@ -495,6 +445,9 @@ func TestAPIPostPreservesDocumentedMutationURLQuery(t *testing.T) {
 	})
 	if code != rootcmd.ExitSuccess || stdout != responseBody+"\n" || stderr != "" {
 		t.Fatalf("exit = %d, stdout = %q, stderr = %q, want success and Apple's envelope", code, stdout, stderr)
+	}
+	if data := reg.Requests()[0].Body; string(data) != requestBody {
+		t.Errorf("request body = %q, want %q", data, requestBody)
 	}
 }
 
@@ -516,16 +469,9 @@ func TestAPIPatchReadsBodyFromFile(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var gotBody string
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				data, _ := io.ReadAll(req.Body)
-				gotBody = string(data)
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(`{"data":{"type":"apps","id":"123"}}`)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH("/v1/apps/123").JSONBody(requestBody), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 
 			_, stderr := captureOutput(t, func() {
 				if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitSuccess {
@@ -535,7 +481,7 @@ func TestAPIPatchReadsBodyFromFile(t *testing.T) {
 			if stderr != "" {
 				t.Fatalf("stderr = %q, want empty", stderr)
 			}
-			if gotBody != requestBody {
+			if gotBody := string(reg.Requests()[0].Body); gotBody != requestBody {
 				t.Fatalf("request body = %q, want %q", gotBody, requestBody)
 			}
 		})
@@ -545,16 +491,9 @@ func TestAPIPatchReadsBodyFromFile(t *testing.T) {
 func TestAPIDeleteEmptyResponsePrintsNothing(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodDelete || req.URL.RequestURI() != "/v1/betaGroups/g1" {
-			t.Errorf("request = %s %s, want DELETE /v1/betaGroups/g1", req.Method, req.URL.RequestURI())
-		}
-		return &http.Response{
-			StatusCode: http.StatusNoContent,
-			Body:       io.NopCloser(strings.NewReader("")),
-			Header:     http.Header{},
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.DELETE("/v1/betaGroups/g1"), asctest.JSON(http.StatusNoContent, ""))
 
 	stdout, stderr := captureOutput(t, func() {
 		if code := rootcmd.Run([]string{"api", "DELETE", "/v1/betaGroups/g1", "--confirm"}, "1.2.3"); code != rootcmd.ExitSuccess {
@@ -569,15 +508,9 @@ func TestAPIDeleteEmptyResponsePrintsNothing(t *testing.T) {
 func TestAPIAllowUnknownPathSkipsSchemaCheck(t *testing.T) {
 	setupAuth(t)
 
-	requests := newRequestLog(1)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(req.Method + " " + req.URL.RequestURI())
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/notYetIndexed"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	_, stderr := captureOutput(t, func() {
 		args := []string{"api", "GET", "/v1/notYetIndexed", "--allow-unknown-path"}
@@ -588,7 +521,7 @@ func TestAPIAllowUnknownPathSkipsSchemaCheck(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
-	if got := requests.Snapshot(); len(got) != 1 || got[0] != "GET /v1/notYetIndexed" {
+	if got := reg.Requests(); len(got) != 1 || got[0].Method+" "+got[0].URL.RequestURI() != "GET /v1/notYetIndexed" {
 		t.Fatalf("requests = %v, want the unindexed path", got)
 	}
 }
@@ -596,13 +529,10 @@ func TestAPIAllowUnknownPathSkipsSchemaCheck(t *testing.T) {
 func TestAPIRendersAppleErrorsWithStatusExitCode(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusNotFound,
-			Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'apps' with id '999'"}]}`)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/999"),
+		asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'apps' with id '999'"}]}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		if code := rootcmd.Run([]string{"api", "GET", "/v1/apps/999"}, "1.2.3"); code != rootcmd.ExitNotFound {
@@ -620,15 +550,8 @@ func TestAPIRendersAppleErrorsWithStatusExitCode(t *testing.T) {
 func TestAPIFullURLStaysOnItsHost(t *testing.T) {
 	setupAuth(t)
 
-	requests := newRequestLog(1)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(req.Method + " " + req.URL.String())
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	_, stderr := captureOutput(t, func() {
 		args := []string{"api", "get", "https://api.enterprise.developer.apple.com/v1/certificates"}
@@ -639,7 +562,7 @@ func TestAPIFullURLStaysOnItsHost(t *testing.T) {
 	if !strings.Contains(stderr, "rejected request URL") {
 		t.Fatalf("stderr = %q", stderr)
 	}
-	if got := requests.Snapshot(); len(got) != 0 {
+	if got := reg.Requests(); len(got) != 0 {
 		t.Fatalf("requests = %v, want none", got)
 	}
 }

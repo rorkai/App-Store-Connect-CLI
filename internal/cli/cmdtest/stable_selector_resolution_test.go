@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -63,29 +63,23 @@ func selectorJSONResponse(body string) *http.Response {
 	}
 }
 
+func registerMonthlySubscriptionLookup(reg *asctest.Registry) {
+	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`))
+	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "filter[productId]=com.example.monthly", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}]}`))
+}
+
 func TestIAPContentGetResolvesStableSelectorViaASCAppID(t *testing.T) {
 	setupStableSelectorAuth(t)
 	t.Setenv("ASC_APP_ID", "app-123")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		switch req.URL.Path {
-		case "/v1/apps/app-123/inAppPurchasesV2":
-			if req.URL.Query().Get("filter[productId]") != "com.example.pro" {
-				t.Fatalf("expected product filter on lookup request, got %q", req.URL.Query().Get("filter[productId]"))
-			}
-			return selectorJSONResponse(`{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`), nil
-		case "/v2/inAppPurchases/iap-1/content":
-			return selectorJSONResponse(`{"data":{"type":"inAppPurchaseContents","id":"content-1"}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-123/inAppPurchasesV2", "filter[productId]=com.example.pro", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/iap-1/content"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchaseContents","id":"content-1"}}`))
 
 	stdout, stderr, runErr := runRootCommand(t, []string{"iap", "content", "view", "--iap-id", "com.example.pro"})
 	if runErr != nil {
@@ -94,7 +88,7 @@ func TestIAPContentGetResolvesStableSelectorViaASCAppID(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requests != 2 {
+	if requests := len(reg.Requests()); requests != 2 {
 		t.Fatalf("expected 2 requests, got %d", requests)
 	}
 
@@ -115,25 +109,12 @@ func TestIAPContentGetResolvesNumericStableSelectorWhenAppProvided(t *testing.T)
 	setupStableSelectorAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		switch req.URL.Path {
-		case "/v1/apps/app-123/inAppPurchasesV2":
-			if req.URL.Query().Get("filter[productId]") != "2024" {
-				t.Fatalf("expected numeric product filter on lookup request, got %q", req.URL.Query().Get("filter[productId]"))
-			}
-			return selectorJSONResponse(`{"data":[{"type":"inAppPurchases","id":"iap-2024","attributes":{"name":"Spring Sale","productId":"2024","inAppPurchaseType":"CONSUMABLE"}}]}`), nil
-		case "/v2/inAppPurchases/iap-2024/content":
-			return selectorJSONResponse(`{"data":{"type":"inAppPurchaseContents","id":"content-2024"}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-123/inAppPurchasesV2", "filter[productId]=2024", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"iap-2024","attributes":{"name":"Spring Sale","productId":"2024","inAppPurchaseType":"CONSUMABLE"}}]}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/iap-2024/content"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchaseContents","id":"content-2024"}}`))
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"iap", "content", "view",
@@ -146,7 +127,7 @@ func TestIAPContentGetResolvesNumericStableSelectorWhenAppProvided(t *testing.T)
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requests != 2 {
+	if requests := len(reg.Requests()); requests != 2 {
 		t.Fatalf("expected 2 requests, got %d", requests)
 	}
 
@@ -167,28 +148,14 @@ func TestIAPContentGetFallsBackToNumericIDWhenLookupErrors(t *testing.T) {
 	setupStableSelectorAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		switch req.URL.Path {
-		case "/v1/apps/app-123/inAppPurchasesV2":
-			return &http.Response{
-				StatusCode: http.StatusForbidden,
-				Body: io.NopCloser(strings.NewReader(`{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-123/inAppPurchasesV2", "filter[productId]=2024", "limit=200"),
+		asctest.JSON(http.StatusForbidden, `{
 					"errors":[{"status":"403","code":"FORBIDDEN.REQUIRED_ROLE","detail":"forbidden"}]
-				}`)),
-				Header: http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v2/inAppPurchases/2024/content":
-			return selectorJSONResponse(`{"data":{"type":"inAppPurchaseContents","id":"content-2024"}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+				}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/2024/content"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchaseContents","id":"content-2024"}}`))
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"iap", "content", "view",
@@ -201,7 +168,7 @@ func TestIAPContentGetFallsBackToNumericIDWhenLookupErrors(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requests != 2 {
+	if requests := len(reg.Requests()); requests != 2 {
 		t.Fatalf("expected lookup attempt followed by direct fetch, got %d requests", requests)
 	}
 
@@ -300,37 +267,15 @@ func TestIAPContentViewDoesNotSuppressNumericAmbiguity(t *testing.T) {
 	setupStableSelectorAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		switch req.URL.Path {
-		case "/v1/apps/app-123/inAppPurchasesV2":
-			switch req.URL.Query().Get("filter[productId]") {
-			case "2024":
-				return selectorJSONResponse(`{"data":[]}`), nil
-			case "":
-				if req.URL.Query().Get("filter[name]") != "2024" {
-					t.Fatalf("expected name filter on second lookup request, got %q", req.URL.Query().Encode())
-				}
-				return selectorJSONResponse(`{"data":[
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-123/inAppPurchasesV2", "filter[productId]=2024", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-123/inAppPurchasesV2", "filter[name]=2024", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
 					{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"2024","productId":"com.example.one","inAppPurchaseType":"CONSUMABLE"}},
 					{"type":"inAppPurchases","id":"iap-2","attributes":{"name":"2024","productId":"com.example.two","inAppPurchaseType":"CONSUMABLE"}}
-				]}`), nil
-			default:
-				t.Fatalf("unexpected lookup query: %s", req.URL.RawQuery)
-				return nil, nil
-			}
-		case "/v2/inAppPurchases/2024/content":
-			t.Fatal("expected ambiguity to stop before direct numeric ID fetch")
-			return nil, nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+				]}`))
 
 	_, _, runErr := runRootCommand(t, []string{
 		"iap", "content", "view",
@@ -343,7 +288,7 @@ func TestIAPContentViewDoesNotSuppressNumericAmbiguity(t *testing.T) {
 	if !strings.Contains(runErr.Error(), "pass --iap-id with one of:") {
 		t.Fatalf("expected disambiguation guidance, got %v", runErr)
 	}
-	if requests != 2 {
+	if requests := len(reg.Requests()); requests != 2 {
 		t.Fatalf("expected product-id and name lookup requests before error, got %d", requests)
 	}
 }
@@ -352,27 +297,11 @@ func TestSubscriptionReviewScreenshotGetResolvesStableSelectorWithAppFlag(t *tes
 	setupStableSelectorAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		switch req.URL.Path {
-		case "/v1/apps/app-1/subscriptionGroups":
-			return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
-		case "/v1/subscriptionGroups/group-1/subscriptions":
-			if req.URL.Query().Get("filter[productId]") != "com.example.monthly" {
-				t.Fatalf("expected product filter on lookup request, got %q", req.URL.Query().Get("filter[productId]"))
-			}
-			return selectorJSONResponse(`{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}]}`), nil
-		case "/v1/subscriptions/sub-1/appStoreReviewScreenshot":
-			return selectorJSONResponse(`{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1"}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerMonthlySubscriptionLookup(reg)
+	reg.Register(asctest.GET("/v1/subscriptions/sub-1/appStoreReviewScreenshot"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1"}}`))
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "review", "app-store-screenshot", "view",
@@ -385,7 +314,7 @@ func TestSubscriptionReviewScreenshotGetResolvesStableSelectorWithAppFlag(t *tes
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requests != 3 {
+	if requests := len(reg.Requests()); requests != 3 {
 		t.Fatalf("expected 3 requests, got %d", requests)
 	}
 
@@ -406,52 +335,11 @@ func TestSubscriptionPromotedPurchaseViewResolvesStableSelectorWithAppFlag(t *te
 	setupStableSelectorAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		if req.Method != http.MethodGet {
-			t.Fatalf("request method = %s, want GET", req.Method)
-		}
-		switch req.URL.Path {
-		case "/v1/apps/app-1/subscriptionGroups":
-			query := req.URL.Query()
-			if len(query) != 1 || len(query["limit"]) != 1 || query["limit"][0] != "200" {
-				t.Fatalf("subscription-group query = %v, want exactly limit=200", query)
-			}
-			return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
-		case "/v1/subscriptionGroups/group-1/subscriptions":
-			query := req.URL.Query()
-			if len(query) != 2 || len(query["limit"]) != 1 || query["limit"][0] != "200" {
-				t.Fatalf("subscription query = %v, want exactly product filter and limit=200", query)
-			}
-			if got := query["filter[productId]"]; len(got) != 1 || got[0] != "com.example.monthly" {
-				t.Fatalf("product filter = %v, want exactly [com.example.monthly]", got)
-			}
-			return selectorJSONResponse(`{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}]}`), nil
-		case "/v1/subscriptions/sub-1/promotedPurchase":
-			query := req.URL.Query()
-			want := map[string]string{
-				"fields[inAppPurchases]": "versions",
-				"fields[subscriptions]":  "versions",
-				"include":                "inAppPurchaseV2,subscription",
-			}
-			if len(query) != len(want) {
-				t.Fatalf("query = %v, want exactly %v", query, want)
-			}
-			for key, wantValue := range want {
-				if got := query[key]; len(got) != 1 || got[0] != wantValue {
-					t.Fatalf("query[%q] = %v, want exactly [%q]", key, got, wantValue)
-				}
-			}
-			return selectorJSONResponse(`{"data":{"type":"promotedPurchases","id":"promo-1"}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerMonthlySubscriptionLookup(reg)
+	reg.Register(asctest.GET("/v1/subscriptions/sub-1/promotedPurchase", "fields[inAppPurchases]=versions", "fields[subscriptions]=versions", "include=inAppPurchaseV2,subscription"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"promotedPurchases","id":"promo-1"}}`))
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "promoted-purchases", "view",
@@ -466,7 +354,7 @@ func TestSubscriptionPromotedPurchaseViewResolvesStableSelectorWithAppFlag(t *te
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requests != 3 || !strings.Contains(stdout, `"id":"promo-1"`) {
+	if requests := len(reg.Requests()); requests != 3 || !strings.Contains(stdout, `"id":"promo-1"`) {
 		t.Fatalf("requests=%d stdout=%q", requests, stdout)
 	}
 }
@@ -474,20 +362,11 @@ func TestSubscriptionPromotedPurchaseViewResolvesStableSelectorWithAppFlag(t *te
 func TestIAPOfferCodesCreateStopsBeforeMutationWhenLookupFails(t *testing.T) {
 	setupStableSelectorAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		if req.Method == http.MethodPost {
-			t.Fatalf("unexpected mutation request during failed lookup: %s %s", req.Method, req.URL.String())
-		}
-		if req.URL.Path != "/v1/apps/app-1/inAppPurchasesV2" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return selectorJSONResponse(`{"data":[]}`), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	for _, query := range []string{"filter[productId]=com.example.missing", "filter[name]=com.example.missing", ""} {
+		reg.Register(asctest.GET("/v1/apps/app-1/inAppPurchasesV2", query, "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	}
 
 	_, _, runErr := runRootCommand(t, []string{
 		"iap", "offer-codes", "create",
@@ -502,7 +381,7 @@ func TestIAPOfferCodesCreateStopsBeforeMutationWhenLookupFails(t *testing.T) {
 	if !strings.Contains(runErr.Error(), "not found") {
 		t.Fatalf("expected not found error, got %v", runErr)
 	}
-	if requests == 0 {
+	if requests := len(reg.Requests()); requests == 0 {
 		t.Fatal("expected lookup requests before failure")
 	}
 }
@@ -510,25 +389,13 @@ func TestIAPOfferCodesCreateStopsBeforeMutationWhenLookupFails(t *testing.T) {
 func TestSubscriptionsOfferCodesCreateStopsBeforeMutationWhenLookupFails(t *testing.T) {
 	setupStableSelectorAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		if req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionOfferCodes" {
-			t.Fatalf("unexpected mutation request during failed lookup: %s %s", req.Method, req.URL.String())
-		}
-		switch req.URL.Path {
-		case "/v1/apps/app-1/subscriptionGroups":
-			return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
-		case "/v1/subscriptionGroups/group-1/subscriptions":
-			return selectorJSONResponse(`{"data":[]}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	for _, query := range []string{"filter[productId]=com.example.missing", "filter[name]=com.example.missing", ""} {
+		reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"),
+			asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`))
+		reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", query, "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	}
 
 	_, _, runErr := runRootCommand(t, []string{
 		"subscriptions", "offers", "offer-codes", "create",
@@ -548,7 +415,7 @@ func TestSubscriptionsOfferCodesCreateStopsBeforeMutationWhenLookupFails(t *test
 	if !strings.Contains(runErr.Error(), "not found") {
 		t.Fatalf("expected not found error, got %v", runErr)
 	}
-	if requests == 0 {
+	if requests := len(reg.Requests()); requests == 0 {
 		t.Fatal("expected lookup requests before failure")
 	}
 }
@@ -556,40 +423,11 @@ func TestSubscriptionsOfferCodesCreateStopsBeforeMutationWhenLookupFails(t *test
 func TestSubscriptionsOfferCodesCreateFreeTrialResolvesStableSelector(t *testing.T) {
 	setupStableSelectorAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1/subscriptionGroups":
-			return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
-		case "/v1/subscriptionGroups/group-1/subscriptions":
-			if req.URL.Query().Get("filter[productId]") != "com.example.monthly" {
-				t.Fatalf("expected product filter on lookup request, got %q", req.URL.Query().Get("filter[productId]"))
-			}
-			return selectorJSONResponse(`{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}]}`), nil
-		case "/v1/subscriptionOfferCodes":
-			if req.Method != http.MethodPost {
-				t.Fatalf("expected POST to /v1/subscriptionOfferCodes, got %s", req.Method)
-			}
-			rawBody, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("read body error: %v", err)
-			}
-			if !strings.Contains(string(rawBody), `"subscription":{"data":{"type":"subscriptions","id":"sub-1"}}`) {
-				t.Fatalf("expected resolved subscription sub-1 in request body, got %s", rawBody)
-			}
-			body := `{"data":{"type":"subscriptionOfferCodes","id":"sub-offer-ft-2","attributes":{"name":"SPRING","active":true}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerMonthlySubscriptionLookup(reg)
+	reg.Register(asctest.POST("/v1/subscriptionOfferCodes").JSONBody(`{"data":{"type":"subscriptionOfferCodes","attributes":{"name":"SPRING","offerEligibility":"STACK_WITH_INTRO_OFFERS","customerEligibilities":["NEW"],"duration":"ONE_MONTH","offerMode":"FREE_TRIAL","numberOfPeriods":1},"relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-1"}},"prices":{"data":[{"type":"subscriptionOfferCodePrices","id":"${local-price-1}"}]}}},"included":[{"type":"subscriptionOfferCodePrices","id":"${local-price-1}","relationships":{"territory":{"data":{"type":"territories","id":"DEU"}}}}]}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"subscriptionOfferCodes","id":"sub-offer-ft-2","attributes":{"name":"SPRING","active":true}}}`))
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "offers", "offer-codes", "create",
@@ -648,27 +486,10 @@ func TestSubscriptionsOfferCodesCreateFreeTrialWithPricePointIsRejected(t *testi
 func TestWinBackOffersLinksResolvesStableSelector(t *testing.T) {
 	setupStableSelectorAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		switch req.URL.Path {
-		case "/v1/apps/app-1/subscriptionGroups":
-			return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
-		case "/v1/subscriptionGroups/group-1/subscriptions":
-			if req.URL.Query().Get("filter[productId]") != "com.example.monthly" {
-				t.Fatalf("expected product filter on lookup request, got %q", req.URL.Query().Get("filter[productId]"))
-			}
-			return selectorJSONResponse(`{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}]}`), nil
-		case "/v1/subscriptions/sub-1/relationships/winBackOffers":
-			return selectorJSONResponse(`{"data":[]}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerMonthlySubscriptionLookup(reg)
+	reg.Register(asctest.GET("/v1/subscriptions/sub-1/relationships/winBackOffers"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "offers", "win-back", "links",
@@ -681,7 +502,7 @@ func TestWinBackOffersLinksResolvesStableSelector(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requests != 3 {
+	if requests := len(reg.Requests()); requests != 3 {
 		t.Fatalf("expected 3 requests, got %d", requests)
 	}
 	if !strings.Contains(stdout, `"data"`) {
@@ -711,20 +532,9 @@ func TestStableSelectorNextBypassesLookup(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-			requests := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requests++
-				if req.URL.Path != test.path {
-					t.Fatalf("expected direct next request to %s, got %s", test.path, req.URL.Path)
-				}
-				if req.URL.Query().Get("cursor") != "abc" {
-					t.Fatalf("expected cursor query, got %q", req.URL.RawQuery)
-				}
-				return selectorJSONResponse(`{"data":[]}`), nil
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.path, "cursor=abc"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 			stdout, stderr, runErr := runRootCommand(t, test.args)
 			if runErr != nil {
@@ -733,7 +543,7 @@ func TestStableSelectorNextBypassesLookup(t *testing.T) {
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if requests != 1 {
+			if requests := len(reg.Requests()); requests != 1 {
 				t.Fatalf("expected exactly one request, got %d", requests)
 			}
 			if !strings.Contains(stdout, `"data"`) {
@@ -780,17 +590,9 @@ func TestStableSelectorAlternateSelectorsBypassLookup(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-			requests := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requests++
-				if req.URL.Path != test.path {
-					t.Fatalf("expected direct resource request to %s, got %s", test.path, req.URL.Path)
-				}
-				return selectorJSONResponse(test.body), nil
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.path), asctest.JSON(http.StatusOK, test.body))
 
 			_, stderr, runErr := runRootCommand(t, test.args)
 			if runErr != nil {
@@ -799,7 +601,7 @@ func TestStableSelectorAlternateSelectorsBypassLookup(t *testing.T) {
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if requests != 1 {
+			if requests := len(reg.Requests()); requests != 1 {
 				t.Fatalf("expected exactly one request, got %d", requests)
 			}
 		})
@@ -810,26 +612,12 @@ func TestStableSelectorMissingAppContextShowsUsageError(t *testing.T) {
 	setupStableSelectorAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	asctest.NewRegistry(t).Install()
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected network request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "review", "app-store-screenshot", "view", "--subscription-id", "com.example.monthly"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"subscriptions", "review", "app-store-screenshot", "view", "--subscription-id", "com.example.monthly"})
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", err)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}

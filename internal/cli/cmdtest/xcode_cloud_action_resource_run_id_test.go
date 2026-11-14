@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestXcodeCloudActionResourcesAggregateFromRunID(t *testing.T) {
@@ -56,25 +58,11 @@ func TestXcodeCloudActionResourcesAggregateFromRunID(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 
-			callCount := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				callCount++
-				if callCount > len(test.steps) {
-					t.Fatalf("unexpected request %d: %s %s", callCount, req.Method, req.URL.String())
-				}
-				want := test.steps[callCount-1]
-				if req.Method != http.MethodGet || req.URL.Path != want.path {
-					t.Fatalf("request %d = %s %s, want GET %s", callCount, req.Method, req.URL.String(), want.path)
-				}
-				if req.URL.Query().Get("limit") != "200" {
-					t.Fatalf("request %d limit = %q, want 200", callCount, req.URL.Query().Get("limit"))
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(want.body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			for _, step := range test.steps {
+				reg.Register(asctest.GET(step.path, "limit=200"), asctest.JSON(http.StatusOK, step.body))
+			}
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
@@ -96,8 +84,14 @@ func TestXcodeCloudActionResourcesAggregateFromRunID(t *testing.T) {
 					t.Fatalf("expected %s in output, got %q", want, stdout)
 				}
 			}
-			if callCount != len(test.steps) {
+			requests := reg.Requests()
+			if callCount := len(requests); callCount != len(test.steps) {
 				t.Fatalf("expected %d requests, got %d", len(test.steps), callCount)
+			}
+			for i, req := range requests {
+				if want := test.steps[i]; req.URL.Path != want.path {
+					t.Fatalf("request %d = %s %s, want GET %s", i+1, req.Method, req.URL.String(), want.path)
+				}
 			}
 		})
 	}
@@ -106,40 +100,11 @@ func TestXcodeCloudActionResourcesAggregateFromRunID(t *testing.T) {
 func TestXcodeCloudTestResultsListRunIDEmptyResultsStayArray(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/ciBuildRuns/run-1/actions" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"ciBuildActions","id":"act-1","attributes":{"name":"Test iOS","actionType":"TEST"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/ciBuildActions/act-1/testResults" {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1/actions", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciBuildActions","id":"act-1","attributes":{"name":"Test iOS","actionType":"TEST"}}]}`))
+	reg.Register(asctest.GET("/v1/ciBuildActions/act-1/testResults"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

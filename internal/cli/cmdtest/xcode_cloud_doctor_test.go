@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestXcodeCloudDoctorReportsFailedRunAndInspectsLogBundle(t *testing.T) {
@@ -232,34 +234,15 @@ func TestXcodeCloudDoctorSavesLogBundleWithoutOverwriting(t *testing.T) {
 func TestXcodeCloudDoctorSuccessfulRunDoesNotDownloadLogs(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	requestedArtifactDetail := false
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		var body string
-		switch req.URL.Path {
-		case "/v1/ciBuildRuns/run-1":
-			body = `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"COMPLETE","completionStatus":"SUCCEEDED"}}}`
-		case "/v1/ciBuildRuns/run-1/actions":
-			body = `{"data":[{"type":"ciBuildActions","id":"action-1","attributes":{"actionType":"ARCHIVE","executionProgress":"COMPLETE","completionStatus":"SUCCEEDED"}}]}`
-		case "/v1/ciBuildActions/action-1/issues":
-			body = `{"data":[]}`
-		case "/v1/ciBuildActions/action-1/artifacts":
-			body = `{"data":[{"type":"ciArtifacts","id":"log-1","attributes":{"fileType":"LOG_BUNDLE"}}]}`
-		case "/v1/ciArtifacts/log-1":
-			requestedArtifactDetail = true
-			t.Fatalf("successful run should not download log bundle")
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"COMPLETE","completionStatus":"SUCCEEDED"}}}`))
+	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1/actions", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciBuildActions","id":"action-1","attributes":{"actionType":"ARCHIVE","executionProgress":"COMPLETE","completionStatus":"SUCCEEDED"}}]}`))
+	reg.Register(asctest.GET("/v1/ciBuildActions/action-1/issues", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/ciBuildActions/action-1/artifacts", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciArtifacts","id":"log-1","attributes":{"fileType":"LOG_BUNDLE"}}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -273,6 +256,12 @@ func TestXcodeCloudDoctorSuccessfulRunDoesNotDownloadLogs(t *testing.T) {
 	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	requestedArtifactDetail := false
+	for _, req := range reg.Requests() {
+		if req.URL.Path == "/v1/ciArtifacts/log-1" {
+			requestedArtifactDetail = true
+		}
 	}
 	if requestedArtifactDetail {
 		t.Fatal("successful run requested artifact details")
@@ -298,32 +287,13 @@ func TestXcodeCloudDoctorSuccessfulRunDoesNotDownloadLogs(t *testing.T) {
 func TestXcodeCloudDoctorWaitsForTerminalRunAndRendersTable(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	runRequests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		var body string
-		switch req.URL.Path {
-		case "/v1/ciBuildRuns/run-1":
-			runRequests++
-			if runRequests == 1 {
-				body = `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"RUNNING"}}}`
-			} else {
-				body = `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"COMPLETE","completionStatus":"FAILED"}}}`
-			}
-		case "/v1/ciBuildRuns/run-1/actions":
-			body = `{"data":[]}`
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"RUNNING"}}}`))
+	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"COMPLETE","completionStatus":"FAILED"}}}`))
+	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1/actions", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -338,6 +308,12 @@ func TestXcodeCloudDoctorWaitsForTerminalRunAndRendersTable(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
+	runRequests := 0
+	for _, req := range reg.Requests() {
+		if req.URL.Path == "/v1/ciBuildRuns/run-1" {
+			runRequests++
+		}
+	}
 	if runRequests != 2 {
 		t.Fatalf("run requests = %d, want 2", runRequests)
 	}
@@ -351,20 +327,10 @@ func TestXcodeCloudDoctorWaitsForTerminalRunAndRendersTable(t *testing.T) {
 func TestXcodeCloudDoctorReportsRunAPIError(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/ciBuildRuns/run-1" {
-			t.Fatalf("unexpected request: %s", req.URL.String())
-		}
-		return &http.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"500","code":"SERVER_ERROR","title":"Unavailable"}]}`)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1"),
+		asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"SERVER_ERROR","title":"Unavailable"}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

@@ -16,5 +16,5 @@ func TestWinBackOffersCreateInvalidPricePointExitUsage(t *testing.T) {
 		"--start-date", "2026-02-01",
 		"--priority", "HIGH",
 		"--price", "not-a-price-point!!",
-	}, "is not a subscription price point ID")
+	}, `Error: subscriptions offers win-back create: --price "not-a-price-point!!" is not a subscription price point ID`)
 }
