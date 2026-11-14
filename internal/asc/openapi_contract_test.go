@@ -111,7 +111,7 @@ func (op *contractOperation) response(spec *contractSpec) (contractResponse, err
 			resource = spec.resolve(data.Items)
 		}
 		response := contractResponse{status: status, resource: resource}
-		var item any = spec.sample(resource)
+		item := spec.sample(resource)
 		if response.isResource() {
 			resourceItem := map[string]any{"id": contractResourceID}
 			if types := spec.property(resource, "type"); types != nil && len(types.Enum) > 0 {
