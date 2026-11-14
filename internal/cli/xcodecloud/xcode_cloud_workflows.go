@@ -155,8 +155,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			fileValue := strings.TrimSpace(*file)
 			if fileValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			payload, err := shared.ReadJSONFilePayload(fileValue)
@@ -202,13 +201,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			fileValue := strings.TrimSpace(*file)
 			if fileValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			payload, err := shared.ReadJSONFilePayload(fileValue)

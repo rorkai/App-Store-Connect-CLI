@@ -78,24 +78,19 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*name) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			if strings.TrimSpace(*clientID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --client-id is required")
-				return shared.MissingRequiredUsageError("--client-id")
+				return shared.RequiredFlag("--client-id")
 			}
 			if strings.TrimSpace(*teamID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --team-id is required")
-				return shared.MissingRequiredUsageError("--team-id")
+				return shared.RequiredFlag("--team-id")
 			}
 			if strings.TrimSpace(*keyID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --key-id is required")
-				return shared.MissingRequiredUsageError("--key-id")
+				return shared.RequiredFlag("--key-id")
 			}
 			if strings.TrimSpace(*privateKey) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --private-key is required")
-				return shared.MissingRequiredUsageError("--private-key")
+				return shared.RequiredFlag("--private-key")
 			}
 			if *skipValidation && *network {
 				return shared.UsageError("--skip-validation and --network are mutually exclusive")
@@ -740,8 +735,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*name) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			if err := appleads.SetDefaultCredentials(*name); err != nil {
 				return fmt.Errorf("ads auth switch: %w", err)

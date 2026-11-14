@@ -100,8 +100,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			bindHost := strings.TrimSpace(*host)
 			if bindHost == "" {
-				fmt.Fprintln(os.Stderr, "Error: --host is required")
-				return shared.MissingRequiredUsageError("--host")
+				return shared.RequiredFlag("--host")
 			}
 			if !*allowRemote && !isLoopbackWebhookBindHost(bindHost) {
 				return shared.UsageErrorf("binding to non-loopback host %q requires --allow-remote", bindHost)

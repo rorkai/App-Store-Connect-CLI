@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -661,8 +660,7 @@ func readBody(spec appleads.EndpointSpec, flags endpointFlagValues) (json.RawMes
 		if spec.BodyOptional && !spec.CLIRequiresBody {
 			return nil, nil
 		}
-		fmt.Fprintln(os.Stderr, "Error: --file is required")
-		return nil, shared.MissingRequiredUsageError("--file")
+		return nil, shared.RequiredFlag("--file")
 	}
 	kind := shared.JSONPayloadObject
 	if spec.BodyKind == appleads.BodyArray {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -59,8 +58,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*instanceID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
-				return shared.MissingRequiredUsageError("--instance-id")
+				return shared.RequiredFlag("--instance-id")
 			}
 			var err error
 			id, err = asc.ValidateResourcePathSegment(id)
@@ -117,8 +115,7 @@ Examples:
 
 			id := strings.TrimSpace(*instanceID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
-				return shared.MissingRequiredUsageError("--instance-id")
+				return shared.RequiredFlag("--instance-id")
 			}
 			if id != "" {
 				var err error

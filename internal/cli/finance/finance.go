@@ -109,16 +109,13 @@ Examples:
 				return shared.MissingRequiredUsageError("--vendor")
 			}
 			if strings.TrimSpace(*reportType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --report-type is required")
-				return shared.MissingRequiredUsageError("--report-type")
+				return shared.RequiredFlag("--report-type")
 			}
 			if strings.TrimSpace(*region) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --region is required")
-				return shared.MissingRequiredUsageError("--region")
+				return shared.RequiredFlag("--region")
 			}
 			if strings.TrimSpace(*date) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --date is required")
-				return shared.MissingRequiredUsageError("--date")
+				return shared.RequiredFlag("--date")
 			}
 
 			normalizedReportType, err := normalizeFinanceReportType(*reportType)

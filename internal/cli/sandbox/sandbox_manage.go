@@ -180,8 +180,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --email is required")

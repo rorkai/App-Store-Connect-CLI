@@ -44,8 +44,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*accessType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --access-type is required")
-				return shared.MissingRequiredUsageError("--access-type")
+				return shared.RequiredFlag("--access-type")
 			}
 			normalizedAccessType, err := normalizeAnalyticsAccessType(*accessType)
 			if err != nil {
@@ -342,15 +341,13 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*requestID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
-				return shared.MissingRequiredUsageError("--request-id")
+				return shared.RequiredFlag("--request-id")
 			}
 			if err := validateAnalyticsRequestID(id); err != nil {
 				return shared.UsageErrorf("analytics requests delete: %v", err)
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -445,8 +442,7 @@ Examples:
 				}
 			})
 			if strings.TrimSpace(*requestID) == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
-				return shared.MissingRequiredUsageError("--request-id")
+				return shared.RequiredFlag("--request-id")
 			}
 			if strings.TrimSpace(*requestID) != "" {
 				if err := validateAnalyticsRequestID(*requestID); err != nil {
@@ -567,12 +563,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*requestID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
-				return shared.MissingRequiredUsageError("--request-id")
+				return shared.RequiredFlag("--request-id")
 			}
 			if strings.TrimSpace(*instanceID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
-				return shared.MissingRequiredUsageError("--instance-id")
+				return shared.RequiredFlag("--instance-id")
 			}
 			if err := validateAnalyticsRequestID(*requestID); err != nil {
 				return shared.UsageErrorf("analytics download: %v", err)

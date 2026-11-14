@@ -146,12 +146,10 @@ Examples:
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 			if strings.TrimSpace(*scheme) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --scheme is required")
-				return shared.MissingRequiredUsageError("--scheme")
+				return shared.RequiredFlag("--scheme")
 			}
 			if strings.TrimSpace(*archivePath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --archive-path is required")
-				return shared.MissingRequiredUsageError("--archive-path")
+				return shared.RequiredFlag("--archive-path")
 			}
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "configuration"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
@@ -246,8 +244,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*archivePath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --archive-path is required")
-				return shared.MissingRequiredUsageError("--archive-path")
+				return shared.RequiredFlag("--archive-path")
 			}
 			if *wait && *pollInterval <= 0 {
 				return shared.UsageError("--poll-interval must be greater than 0")
