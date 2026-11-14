@@ -474,20 +474,7 @@ func (inv *signingEntitlementInventory) collect(requests []signingRequest) error
 			continue
 		}
 		for _, filePath := range files {
-			// These paths came from the successful collector, but keep the
-			// membership and authorization checks on this later read as well.
-			// This prevents a future caller from turning configFiles into an
-			// ambient path list that bypasses the signing resolver's rooted,
-			// no-follow policy.
-			data, err := inv.resolver.readXCConfig(filePath)
-			if err != nil {
-				return fmt.Errorf("read xcconfig %s: %w", filePath, err)
-			}
-			document, err := parseXCConfig(data)
-			if err != nil {
-				return fmt.Errorf("parse xcconfig %s: %w", filePath, err)
-			}
-			for _, assignment := range document.assignments {
+			if err := inv.scanXCConfigAssignments(filePath, func(assignment xcconfigAssignment) error {
 				selected := inv.selectedIDs[configuration.id]
 				selectedSource := inv.selectedXCConfigSources[signingXCConfigOperationKey(filePath, inv.fileIdentities)]
 				if assignment.continued && allowedSigningSetting(assignment.baseKey) &&
@@ -495,13 +482,13 @@ func (inv *signingEntitlementInventory) collect(requests []signingRequest) error
 					return fmt.Errorf("xcconfig %s uses a line continuation for signing setting %s", filePath, assignment.baseKey)
 				}
 				if inv.resolvedEntitlementConfigurations[configuration.id] && assignment.baseKey == "CODE_SIGN_ENTITLEMENTS" {
-					continue
+					return nil
 				}
 				if assignment.baseKey != "CODE_SIGN_ENTITLEMENTS" {
-					continue
+					return nil
 				}
 				if configuration.projectLevel && signingConfigurationDefinesUnconditionalPBXEntitlement(configuration) {
-					continue
+					return nil
 				}
 				if configuration.projectLevel {
 					candidates, cached := projectEntitlementCandidatesByConfiguration[configuration.id]
@@ -519,7 +506,7 @@ func (inv *signingEntitlementInventory) collect(requests []signingRequest) error
 						projectEntitlementCandidatesByConfiguration[configuration.id] = candidates
 					}
 					if !candidates[normalizeSigningLexicalPath(filePath)][assignment.lineIndex] {
-						continue
+						return nil
 					}
 				}
 				if configuration.projectLevel && (strings.Contains(assignment.value, "$(") || strings.Contains(assignment.value, "${")) {
@@ -582,28 +569,28 @@ func (inv *signingEntitlementInventory) collect(requests []signingRequest) error
 						expandedForTarget = true
 					}
 					if matchingTargetCount > 0 && shadowedTargetCount == matchingTargetCount {
-						continue
+						return nil
 					}
 					if targetExpansionFailed {
 						if lexicalErr := inv.appendLexicalEntitlementCandidate(assignment.value); lexicalErr != nil {
 							return lexicalErr
 						}
-						continue
+						return nil
 					}
 					if expandedForTarget {
-						continue
+						return nil
 					}
 				}
 				if !isSigningConditionalEntitlementKey(assignment.key) {
 					if !inv.uncertainEntitlementConfigurations[configuration.id] {
-						continue
+						return nil
 					}
 					if !entitlementCandidatesByConfiguration[configuration.id][normalizeSigningLexicalPath(filePath)][assignment.lineIndex] {
-						continue
+						return nil
 					}
 				} else if inv.uncertainEntitlementConfigurations[configuration.id] &&
 					!entitlementCandidatesByConfiguration[configuration.id][normalizeSigningLexicalPath(filePath)][assignment.lineIndex] {
-					continue
+					return nil
 				}
 				// The xcconfig layer sits below these PBX settings, so the
 				// object's unconditional assignment is not this assignment's
@@ -624,10 +611,13 @@ func (inv *signingEntitlementInventory) collect(requests []signingRequest) error
 					}
 					if !selected {
 						inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved conditional CODE_SIGN_ENTITLEMENTS input; signing scope is uncertain", configuration.target, configuration.name))
-						continue
+						return nil
 					}
 					return newSigningConditionalEntitlementError(err)
 				}
+				return nil
+			}); err != nil {
+				return err
 			}
 		}
 	}
@@ -641,31 +631,49 @@ func (inv *signingEntitlementInventory) collect(requests []signingRequest) error
 			continue
 		}
 		for _, filePath := range files {
-			data, err := inv.resolver.readXCConfig(filePath)
-			if err != nil {
-				return fmt.Errorf("read xcconfig %s: %w", filePath, err)
-			}
-			document, err := parseXCConfig(data)
-			if err != nil {
-				return fmt.Errorf("parse xcconfig %s: %w", filePath, err)
-			}
-			for _, assignment := range document.assignments {
+			if err := inv.scanXCConfigAssignments(filePath, func(assignment xcconfigAssignment) error {
 				if assignment.continued && allowedSigningSetting(assignment.baseKey) {
 					return fmt.Errorf("xcconfig %s uses a line continuation for signing setting %s", filePath, assignment.baseKey)
 				}
 				if assignment.baseKey != "CODE_SIGN_ENTITLEMENTS" {
-					continue
+					return nil
 				}
 				if strings.Contains(assignment.value, "$(") || strings.Contains(assignment.value, "${") {
 					if isSigningConditionalEntitlementKey(assignment.key) {
 						inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("xcconfig %s has an unresolved conditional CODE_SIGN_ENTITLEMENTS input; signing scope is uncertain", filePath))
-						continue
+						return nil
 					}
 				}
 				if err := inv.appendEntitlements(assignment.value); err != nil {
 					return err
 				}
+				return nil
+			}); err != nil {
+				return err
 			}
+		}
+	}
+	return nil
+}
+
+// scanXCConfigAssignments reads and parses one collected xcconfig and calls
+// visit for each assignment until visit fails. The paths came from the
+// successful collector, but the read still goes through the resolver's
+// membership and authorization checks, so a future caller cannot turn
+// configFiles into an ambient path list that bypasses its rooted, no-follow
+// policy.
+func (inv *signingEntitlementInventory) scanXCConfigAssignments(filePath string, visit func(xcconfigAssignment) error) error {
+	data, err := inv.resolver.readXCConfig(filePath)
+	if err != nil {
+		return fmt.Errorf("read xcconfig %s: %w", filePath, err)
+	}
+	document, err := parseXCConfig(data)
+	if err != nil {
+		return fmt.Errorf("parse xcconfig %s: %w", filePath, err)
+	}
+	for _, assignment := range document.assignments {
+		if err := visit(assignment); err != nil {
+			return err
 		}
 	}
 	return nil
