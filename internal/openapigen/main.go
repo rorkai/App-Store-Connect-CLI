@@ -1,5 +1,5 @@
 // Command openapigen generates parts of the App Store Connect client in
-// internal/asc from the OpenAPI spec and a bindings file. See
+// internal/asc from the OpenAPI spec and the bindings directory. See
 // docs/openapi/README.md.
 package main
 
@@ -16,27 +16,24 @@ import (
 
 func main() {
 	specPath := flag.String("spec", "../../docs/openapi/latest.json", "OpenAPI spec")
-	bindingsPath := flag.String("bindings", "openapi_bindings.json", "bindings file")
+	bindingsDir := flag.String("bindings", "openapi_bindings", "directory with one bindings file per family")
 	dir := flag.String("dir", ".", "client package directory")
 	check := flag.Bool("check", false, "fail if generated files are out of date instead of writing them")
 	adopt := flag.String("adopt", "", "comma-separated tags (or \"all\") whose hand-written methods and types to replace")
 	dryRun := flag.Bool("dry-run", false, "with -adopt, only report what would be generated")
 	flag.Parse()
-	if err := run(*specPath, *bindingsPath, *dir, *check, *adopt, *dryRun, os.Stdout); err != nil {
+	if err := run(*specPath, *bindingsDir, *dir, *check, *adopt, *dryRun, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "openapigen:", err)
 		os.Exit(1)
 	}
 }
 
-func run(specPath, bindingsPath, dir string, check bool, adopt string, dryRun bool, report io.Writer) error {
+func run(specPath, bindingsDir, dir string, check bool, adopt string, dryRun bool, report io.Writer) error {
 	spec, err := LoadSpec(specPath)
 	if err != nil {
 		return err
 	}
-	bindings, err := LoadBindings(bindingsPath)
-	if os.IsNotExist(err) {
-		bindings, err = &Bindings{}, nil
-	}
+	bindings, err := LoadBindings(bindingsDir)
 	if err != nil {
 		return err
 	}
@@ -50,12 +47,8 @@ func run(specPath, bindingsPath, dir string, check bool, adopt string, dryRun bo
 	if adopt == "all" {
 		tags = spec.Tags()
 	}
-	edits, err := Adopt(spec, bindings, dir, tags, report)
+	edits, adopted, err := Adopt(spec, bindings, dir, tags, report)
 	if err != nil || dryRun {
-		return err
-	}
-	data, err := bindings.Encode()
-	if err != nil {
 		return err
 	}
 	// Render everything before touching a file, so a failure leaves the
@@ -64,7 +57,18 @@ func run(specPath, bindingsPath, dir string, check bool, adopt string, dryRun bo
 	if err != nil {
 		return err
 	}
-	writes[bindingsPath] = data
+	for _, fam := range adopted {
+		data, err := fam.Encode()
+		if err != nil {
+			return err
+		}
+		writes[bindingsFile(bindingsDir, fam.Tag)] = data
+	}
+	if len(adopted) > 0 {
+		if err := os.MkdirAll(bindingsDir, 0o755); err != nil {
+			return err
+		}
+	}
 	for path, src := range edits {
 		if src == nil {
 			stale = append(stale, path)

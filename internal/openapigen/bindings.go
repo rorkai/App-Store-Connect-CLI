@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -10,9 +11,10 @@ import (
 )
 
 // Bindings lists what is generated and the Go-side choices the spec cannot
-// supply. `-adopt` writes it from existing code; nobody edits it by hand.
+// supply, one file per family in a bindings directory. `-adopt` writes them
+// from existing code; nobody edits them by hand.
 type Bindings struct {
-	Families []*Family `json:"families"`
+	Families []*Family
 }
 
 // Family is one spec tag generated into one file.
@@ -47,51 +49,62 @@ type OpBind struct {
 	IDs         string   `json:"ids,omitempty"`         // ID list parameter of a relationship change
 }
 
-// LoadBindings reads a bindings file.
-func LoadBindings(path string) (*Bindings, error) {
-	data, err := os.ReadFile(path)
+// LoadBindings reads every family file in a bindings directory.
+func LoadBindings(dir string) (*Bindings, error) {
+	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
 	if err != nil {
 		return nil, err
 	}
-	var b Bindings
-	if err := json.Unmarshal(data, &b); err != nil {
-		return nil, err
+	b := &Bindings{}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		var f Family
+		if err := json.Unmarshal(data, &f); err != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
+		if bindingsFile(dir, f.Tag) != path {
+			return nil, fmt.Errorf("%s: holds tag %q, so it must be named %s.json", path, f.Tag, f.Tag)
+		}
+		b.Families = append(b.Families, &f)
 	}
-	return &b, nil
+	return b, nil
 }
 
-// Encode returns the file contents in a stable order, one operation or type
-// per line so that a diff shows each binding that changed.
-func (b *Bindings) Encode() ([]byte, error) {
-	sort.Slice(b.Families, func(i, j int) bool { return b.Families[i].Tag < b.Families[j].Tag })
-	var families []string
-	for _, f := range b.Families {
-		sort.Strings(f.Types)
-		sort.Slice(f.Operations, func(i, j int) bool { return f.Operations[i].Operation < f.Operations[j].Operation })
-		fields := []string{`"tag": ` + jsonString(f.Tag), `"file": ` + jsonString(f.File)}
-		if len(f.Types) > 0 {
-			var types []string
-			for _, t := range f.Types {
-				types = append(types, jsonString(t))
-			}
-			fields = append(fields, "\"types\": [\n        "+strings.Join(types, ",\n        ")+"\n      ]")
+// bindingsFile is the file that holds the bindings of a tag.
+func bindingsFile(dir, tag string) string {
+	return filepath.Join(dir, tag+".json")
+}
+
+// Encode returns the family file in a stable order, one operation or type per
+// line so that a diff shows each binding that changed.
+func (f *Family) Encode() ([]byte, error) {
+	sort.Strings(f.Types)
+	sort.Slice(f.Operations, func(i, j int) bool { return f.Operations[i].Operation < f.Operations[j].Operation })
+	fields := []string{`"tag": ` + jsonString(f.Tag), `"file": ` + jsonString(f.File)}
+	if len(f.Types) > 0 {
+		var types []string
+		for _, t := range f.Types {
+			types = append(types, jsonString(t))
 		}
-		if len(f.Operations) > 0 {
-			var ops []string
-			for _, op := range f.Operations {
-				var buf bytes.Buffer
-				enc := json.NewEncoder(&buf)
-				enc.SetEscapeHTML(false)
-				if err := enc.Encode(op); err != nil {
-					return nil, err
-				}
-				ops = append(ops, strings.TrimSpace(buf.String()))
-			}
-			fields = append(fields, "\"operations\": [\n        "+strings.Join(ops, ",\n        ")+"\n      ]")
-		}
-		families = append(families, "    {\n      "+strings.Join(fields, ",\n      ")+"\n    }")
+		fields = append(fields, "\"types\": [\n    "+strings.Join(types, ",\n    ")+"\n  ]")
 	}
-	return []byte("{\n  \"families\": [\n" + strings.Join(families, ",\n") + "\n  ]\n}\n"), nil
+	if len(f.Operations) > 0 {
+		var ops []string
+		for _, op := range f.Operations {
+			var buf bytes.Buffer
+			enc := json.NewEncoder(&buf)
+			enc.SetEscapeHTML(false)
+			if err := enc.Encode(op); err != nil {
+				return nil, err
+			}
+			ops = append(ops, strings.TrimSpace(buf.String()))
+		}
+		fields = append(fields, "\"operations\": [\n    "+strings.Join(ops, ",\n    ")+"\n  ]")
+	}
+	return []byte("{\n  " + strings.Join(fields, ",\n  ") + "\n}\n"), nil
 }
 
 func jsonString(s string) string {

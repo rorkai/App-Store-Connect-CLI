@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ func loadTestdata(t *testing.T) (*Spec, *Bindings) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bindings, err := LoadBindings(filepath.Join("testdata", "bindings.json"))
+	bindings, err := LoadBindings(filepath.Join("testdata", "bindings"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,16 +37,26 @@ func TestGenerateMatchesGolden(t *testing.T) {
 
 func TestBindingsEncodeIsCanonical(t *testing.T) {
 	_, bindings := loadTestdata(t)
-	got, err := bindings.Encode()
+	got, err := bindings.Families[0].Encode()
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := os.ReadFile(filepath.Join("testdata", "bindings.json"))
+	want, err := os.ReadFile(filepath.Join("testdata", "bindings", "Widgets.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(got) != string(want) {
-		t.Errorf("Encode differs from testdata/bindings.json:\n%s", got)
+		t.Errorf("Encode differs from testdata/bindings/Widgets.json:\n%s", got)
+	}
+}
+
+func TestLoadBindingsRejectsTagThatDiffersFromFileName(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Gadgets.json"), []byte(`{"tag": "Widgets", "file": "widgets_gen.go"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadBindings(dir); err == nil || !strings.Contains(err.Error(), "Gadgets.json") {
+		t.Fatalf("err = %v", err)
 	}
 }
 
