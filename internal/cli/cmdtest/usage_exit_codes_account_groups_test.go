@@ -27,41 +27,49 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "actors list limit",
 			args:    []string{"actors", "list", "--limit", "201"},
 			wantErr: "actors list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "actors list next",
 			args:    []string{"actors", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "actors list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "actors list invalid fields",
 			args:    []string{"actors", "list", "--id", "ACTOR_ID", "--fields", "bad"},
 			wantErr: "actors list: --fields must be one of: actorType, userFirstName, userLastName, userEmail, apiKeyId",
+			deps:    true,
 		},
 		{
 			name:    "actors view invalid fields",
 			args:    []string{"actors", "view", "--id", "ACTOR_ID", "--fields", "bad"},
 			wantErr: "actors view: --fields must be one of: actorType, userFirstName, userLastName, userEmail, apiKeyId",
+			deps:    true,
 		},
 		{
 			name:    "agreements territories list limit",
 			args:    []string{"agreements", "territories", "list", "--id", "X", "--limit", "201"},
 			wantErr: "agreements territories list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "agreements territories list next",
 			args:    []string{"agreements", "territories", "list", "--id", "X", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "agreements territories list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "agreements territories list next id extraction",
 			args:    []string{"agreements", "territories", "list", "--next", "https://api.appstoreconnect.apple.com/v1/endUserLicenseAgreements//territories?cursor=AQ"},
 			wantErr: "agreements territories list: invalid --next URL",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution domains list limit",
@@ -602,7 +610,13 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, runErr := runCommand(t, test.args)
+			var stdout, stderr string
+			var runErr error
+			if test.deps {
+				stdout, stderr, runErr = runRootWithDeps(t, nil, test.args...)
+			} else {
+				stdout, stderr, runErr = runCommand(t, test.args)
+			}
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")

@@ -12,6 +12,7 @@ func TestRelationshipCommandValidationErrors(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
+		deps bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name: "bundle-ids app get missing id",
@@ -28,6 +29,7 @@ func TestRelationshipCommandValidationErrors(t *testing.T) {
 		{
 			name: "agreements territories list missing id",
 			args: []string{"agreements", "territories", "list"},
+			deps: true,
 		},
 		{
 			name: "background-assets app-store-releases get missing id",
@@ -49,18 +51,24 @@ func TestRelationshipCommandValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
+			var stdout, stderr string
+			var err error
+			if test.deps {
+				stdout, stderr, err = runRootWithDeps(t, nil, test.args...)
+			} else {
+				root := RootCommand("1.2.3")
+				root.FlagSet.SetOutput(io.Discard)
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
+				stdout, stderr = captureOutput(t, func() {
+					if parseErr := root.Parse(test.args); parseErr != nil {
+						t.Fatalf("parse error: %v", parseErr)
+					}
+					err = root.Run(context.Background())
+				})
+			}
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)

@@ -377,6 +377,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		args     []string
 		flag     string
 		wantType string
+		deps     bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
 		// Localization media sets and the asset commands that read them.
 		{args: []string{"localizations", "preview-sets", "list"}, flag: "localization-id", wantType: "appStoreVersionLocalizations"},
@@ -430,9 +431,9 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"pre-orders", "list"}, flag: "availability", wantType: "appAvailabilities"},
 		// Bare --id flags and other single-resource flags.
 		{args: []string{"accessibility", "view"}, flag: "id", wantType: "accessibilityDeclarations"},
-		{args: []string{"actors", "view"}, flag: "id", wantType: "actors"},
+		{args: []string{"actors", "view"}, flag: "id", wantType: "actors", deps: true},
 		{args: []string{"age-rating", "edit"}, flag: "id", wantType: "ageRatingDeclarations"},
-		{args: []string{"agreements", "territories", "list"}, flag: "id", wantType: "endUserLicenseAgreements"},
+		{args: []string{"agreements", "territories", "list"}, flag: "id", wantType: "endUserLicenseAgreements", deps: true},
 		{args: []string{"app-clips", "view"}, flag: "id", wantType: "appClips"},
 		{args: []string{"app-clips", "header-images", "view"}, flag: "id", wantType: "appClipHeaderImages"},
 		{args: []string{"app-clips", "review-details", "view"}, flag: "id", wantType: "appClipAppStoreReviewDetails"},
@@ -524,12 +525,21 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 				wantErr = "expected a self-link of type apps, got builds"
 			}
 			args := append(append([]string(nil), test.args...), "--"+test.flag, value)
-			stdout, stderr := captureOutput(t, func() {
-				code := rootcmd.Run(args, "1.2.3")
+			var stdout, stderr string
+			if test.deps {
+				var code int
+				stdout, stderr, code = runWithDeps(t, nil, args...)
 				if code != rootcmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
 				}
-			})
+			} else {
+				stdout, stderr = captureOutput(t, func() {
+					code := rootcmd.Run(args, "1.2.3")
+					if code != rootcmd.ExitUsage {
+						t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+					}
+				})
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}

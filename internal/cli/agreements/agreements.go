@@ -13,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AgreementsCommand returns the agreements command group.
-func AgreementsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("agreements", flag.ExitOnError)
+// NewAgreementsCommand returns the agreements command group built on d.
+func NewAgreementsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("agreements", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "agreements",
@@ -28,7 +28,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AgreementsTerritoriesCommand(),
+			newAgreementsTerritoriesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -36,9 +36,10 @@ Examples:
 	}
 }
 
-// AgreementsTerritoriesCommand returns the agreements territories command group.
-func AgreementsTerritoriesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("territories", flag.ExitOnError)
+// newAgreementsTerritoriesCommand returns the agreements territories command
+// group built on d.
+func newAgreementsTerritoriesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("territories", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "territories",
@@ -51,7 +52,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AgreementsTerritoriesListCommand(),
+			newAgreementsTerritoriesListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -59,15 +60,16 @@ Examples:
 	}
 }
 
-// AgreementsTerritoriesListCommand returns the agreements territories list subcommand.
-func AgreementsTerritoriesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newAgreementsTerritoriesListCommand returns the agreements territories list
+// subcommand built on d.
+func newAgreementsTerritoriesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "endUserLicenseAgreements", "EULA ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -83,28 +85,28 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("agreements territories list: --limit must be between 1 and 200")
+				return d.UsageError("agreements territories list: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("agreements territories list: %v", err)
+				return d.UsageErrorf("agreements territories list: %v", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
 				derivedID, err := extractEULATerritoryIDFromNextURL(*next)
 				if err != nil {
-					return shared.UsageErrorf("agreements territories list: %v", err)
+					return d.UsageErrorf("agreements territories list: %v", err)
 				}
 				idValue = derivedID
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("agreements territories list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.EndUserLicenseAgreementTerritoriesOption{
@@ -114,7 +116,7 @@ Examples:
 
 			if *paginate {
 				if idValue == "" {
-					return shared.RequiredFlag("--id")
+					return d.RequiredFlag("--id")
 				}
 				paginateOpts := append(opts, asc.Limit[asc.EndUserLicenseAgreementTerritoriesOption](200))
 				firstPage, err := client.GetEndUserLicenseAgreementTerritories(requestCtx, idValue, paginateOpts...)
@@ -129,7 +131,7 @@ Examples:
 					return fmt.Errorf("agreements territories list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetEndUserLicenseAgreementTerritories(requestCtx, idValue, opts...)
@@ -137,7 +139,7 @@ Examples:
 				return fmt.Errorf("agreements territories list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
