@@ -232,8 +232,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*clipID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --clip-id is required")
-				return shared.MissingRequiredUsageError("--clip-id")
+				return shared.RequiredFlag("--clip-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -281,8 +280,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return shared.MissingRequiredUsageError("--path")
+				return shared.RequiredFlag("--path")
 			}
 			if strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
@@ -378,13 +376,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*clipID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --clip-id is required")
-				return shared.MissingRequiredUsageError("--clip-id")
+				return shared.RequiredFlag("--clip-id")
 			}
 			tc := strings.TrimSpace(*timeCode)
 			if tc == "" {
-				fmt.Fprintln(os.Stderr, "Error: --time-code is required")
-				return shared.MissingRequiredUsageError("--time-code")
+				return shared.RequiredFlag("--time-code")
 			}
 			if err := validateVideoClipTimeCode("time-code", tc); err != nil {
 				return err
@@ -456,12 +452,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*clipID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --clip-id is required")
-				return shared.MissingRequiredUsageError("--clip-id")
+				return shared.RequiredFlag("--clip-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
