@@ -168,7 +168,7 @@ Examples:
 			return client.DeleteRoutingAppCoverage(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.RoutingAppCoverageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

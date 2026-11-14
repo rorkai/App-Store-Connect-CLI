@@ -171,7 +171,7 @@ Examples:
 			return client.DeleteAlternativeDistributionKey(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AlternativeDistributionKeyDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

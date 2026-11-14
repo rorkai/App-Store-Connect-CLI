@@ -407,7 +407,7 @@ Examples:
 			return client.DeleteBundleID(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.BundleIDDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

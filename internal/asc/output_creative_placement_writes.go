@@ -17,18 +17,8 @@ type CreativePlacementCreateResult struct {
 	State          string `json:"state,omitempty"`
 }
 
-// CreativePlacementDeleteResult records a successful public placement removal.
-type CreativePlacementDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 func creativePlacementCreateResultRows(r *CreativePlacementCreateResult) ([]string, [][]string) {
 	return []string{"ID", "Created", "Localization ID", "Image ID", "Video ID", "Placement Type", "Group", "State"}, [][]string{{r.ID, strconv.FormatBool(r.Created), r.LocalizationID, r.ImageID, r.VideoID, r.PlacementType, r.PlacementGroup, r.State}}
-}
-
-func creativePlacementDeleteResultRows(r *CreativePlacementDeleteResult) ([]string, [][]string) {
-	return []string{"ID", "Deleted"}, [][]string{{r.ID, strconv.FormatBool(r.Deleted)}}
 }
 
 // CreativePlacementReorderResult records an accepted placement ordering request.

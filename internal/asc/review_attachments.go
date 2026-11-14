@@ -26,12 +26,6 @@ type AppStoreReviewAttachmentCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-// AppStoreReviewAttachmentDeleteResult represents CLI output for deletions.
-type AppStoreReviewAttachmentDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GetAppStoreReviewAttachmentsForReviewDetail lists attachments for a review detail.
 func (c *Client) GetAppStoreReviewAttachmentsForReviewDetail(ctx context.Context, reviewDetailID string, opts ...AppStoreReviewAttachmentsOption) (*AppStoreReviewAttachmentsResponse, error) {
 	query := &appStoreReviewAttachmentsQuery{}

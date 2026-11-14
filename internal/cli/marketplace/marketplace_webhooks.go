@@ -258,7 +258,7 @@ Examples:
 				return fmt.Errorf("marketplace webhooks delete: failed to delete: %w", err)
 			}
 
-			result := &asc.MarketplaceWebhookDeleteResult{
+			result := &asc.DeleteResult{
 				ID:      trimmedID,
 				Deleted: true,
 			}

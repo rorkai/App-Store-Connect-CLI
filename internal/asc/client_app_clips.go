@@ -302,40 +302,10 @@ type AppClipHeaderImageUploadResult struct {
 	Uploaded           bool   `json:"uploaded"`
 }
 
-// AppClipDefaultExperienceDeleteResult represents default experience deletion.
-type AppClipDefaultExperienceDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// AppClipDefaultExperienceLocalizationDeleteResult represents localization deletion.
-type AppClipDefaultExperienceLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // AppClipAdvancedExperienceRemoveResult represents advanced experience removal.
 type AppClipAdvancedExperienceRemoveResult struct {
 	ID      string `json:"id"`
 	Removed bool   `json:"removed"`
-}
-
-// AppClipHeaderImageDeleteResult represents header image deletion.
-type AppClipHeaderImageDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// BetaAppClipInvocationDeleteResult represents invocation deletion.
-type BetaAppClipInvocationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// BetaAppClipInvocationLocalizationDeleteResult represents localization deletion.
-type BetaAppClipInvocationLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
 }
 
 // GetAppClips retrieves App Clips for an app.

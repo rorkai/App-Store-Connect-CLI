@@ -68,21 +68,3 @@ func TestPrintMarkdown_EndUserLicenseAgreement(t *testing.T) {
 		t.Fatalf("expected eula id in output, got: %s", output)
 	}
 }
-
-func TestPrintTable_EndUserLicenseAgreementDeleteResult(t *testing.T) {
-	result := &EndUserLicenseAgreementDeleteResult{
-		ID:      "eula-3",
-		Deleted: true,
-	}
-
-	output := captureStdout(t, func() error {
-		return PrintTable(result)
-	})
-
-	if !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected deleted header, got: %s", output)
-	}
-	if !strings.Contains(output, "eula-3") {
-		t.Fatalf("expected eula id in output, got: %s", output)
-	}
-}

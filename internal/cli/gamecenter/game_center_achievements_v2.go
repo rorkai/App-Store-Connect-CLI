@@ -473,7 +473,7 @@ Examples:
 			return client.DeleteGameCenterAchievementLocalizationV2(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterAchievementLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -630,7 +630,7 @@ Examples:
 			return client.DeleteGameCenterAchievementImageV2(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterAchievementImageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

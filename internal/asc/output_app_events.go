@@ -2,18 +2,6 @@ package asc
 
 import "fmt"
 
-// AppEventDeleteResult represents CLI output for app event deletions.
-type AppEventDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// AppEventLocalizationDeleteResult represents CLI output for localization deletions.
-type AppEventLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // AppEventSubmissionResult represents CLI output for app event submissions.
 type AppEventSubmissionResult struct {
 	SubmissionID  string  `json:"submissionId"`
@@ -86,18 +74,6 @@ func appEventVideoClipsRows(resp *AppEventVideoClipsResponse) ([]string, [][]str
 			SanitizeTerminalText(formatAppMediaVideoState(attrs.VideoDeliveryState, attrs.AssetDeliveryState)),
 		})
 	}
-	return headers, rows
-}
-
-func appEventDeleteResultRows(result *AppEventDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func appEventLocalizationDeleteResultRows(result *AppEventLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

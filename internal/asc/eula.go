@@ -39,12 +39,6 @@ type EndUserLicenseAgreementUpdateData struct {
 	Relationships *EndUserLicenseAgreementUpdateRelationships `json:"relationships,omitempty"`
 }
 
-// EndUserLicenseAgreementDeleteResult represents CLI output for EULA deletions.
-type EndUserLicenseAgreementDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 func buildTerritoryRelationship(ids []string) *RelationshipList {
 	normalized := normalizeList(ids)
 	if len(normalized) == 0 {

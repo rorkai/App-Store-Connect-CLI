@@ -369,7 +369,7 @@ Examples:
 			return client.DeleteMerchantID(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.MerchantIDDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

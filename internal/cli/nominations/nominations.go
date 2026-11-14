@@ -668,7 +668,7 @@ Examples:
 			return client.DeleteNomination(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.NominationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

@@ -15,18 +15,6 @@ type CiArtifactDownloadResult struct {
 	BytesWritten int64  `json:"bytesWritten,omitempty"`
 }
 
-// CiWorkflowDeleteResult represents CLI output for workflow deletions.
-type CiWorkflowDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// CiProductDeleteResult represents CLI output for product deletions.
-type CiProductDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 func xcodeCloudRunResultRows(result *XcodeCloudRunResult) ([]string, [][]string) {
 	headers := []string{"Build Run ID", "Build #", "Workflow ID", "Workflow Name", "Trigger Source", "Git Ref ID", "Git Ref Name", "Pull Request ID", "Source Run ID", "Clean", "Progress", "Status", "Start Reason", "Created"}
 	rows := [][]string{{
@@ -312,18 +300,6 @@ func ciArtifactDownloadResultRows(result *CiArtifactDownloadResult) ([]string, [
 		fmt.Sprintf("%d", result.BytesWritten),
 		result.OutputPath,
 	}}
-	return headers, rows
-}
-
-func ciWorkflowDeleteResultRows(result *CiWorkflowDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func ciProductDeleteResultRows(result *CiProductDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

@@ -126,7 +126,7 @@ Examples:
 			return client.DeleteAppClipHeaderImage(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppClipHeaderImageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

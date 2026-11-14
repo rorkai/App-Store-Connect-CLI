@@ -711,7 +711,7 @@ Examples:
 			return client.DeleteBetaRecruitmentCriteria(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.BetaRecruitmentCriteriaDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

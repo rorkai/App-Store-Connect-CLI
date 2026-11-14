@@ -527,7 +527,7 @@ Examples:
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
-			result := &asc.ReviewSubmissionItemDeleteResult{
+			result := &asc.DeleteResult{
 				ID:      strings.TrimSpace(*itemID),
 				Deleted: true,
 			}

@@ -127,7 +127,7 @@ Examples:
 			return client.DeleteCustomerReviewResponse(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.CustomerReviewResponseDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

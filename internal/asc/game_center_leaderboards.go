@@ -81,12 +81,6 @@ type GameCenterLeaderboardVersionInlineCreate struct {
 // GameCenterLeaderboardsResponse is the response from leaderboard list endpoints.
 type GameCenterLeaderboardsResponse = Response[GameCenterLeaderboardAttributes]
 
-// GameCenterLeaderboardDeleteResult represents CLI output for leaderboard deletions.
-type GameCenterLeaderboardDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GCLeaderboardsOption is a functional option for GetGameCenterLeaderboards.
 type GCLeaderboardsOption func(*gcLeaderboardsQuery)
 
@@ -148,12 +142,6 @@ type GameCenterLeaderboardLocalizationV2CreateData struct {
 // GameCenterLeaderboardLocalizationsResponse is the response from leaderboard localization list endpoints.
 type GameCenterLeaderboardLocalizationsResponse = Response[GameCenterLeaderboardLocalizationAttributes]
 
-// GameCenterLeaderboardLocalizationDeleteResult represents CLI output for localization deletions.
-type GameCenterLeaderboardLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GCLeaderboardLocalizationsOption is a functional option for GetGameCenterLeaderboardLocalizations.
 type GCLeaderboardLocalizationsOption func(*gcLeaderboardLocalizationsQuery)
 
@@ -174,12 +162,6 @@ type GameCenterLeaderboardReleaseAttributes struct {
 
 // GameCenterLeaderboardReleasesResponse is the response from leaderboard release list endpoints.
 type GameCenterLeaderboardReleasesResponse = Response[GameCenterLeaderboardReleaseAttributes]
-
-// GameCenterLeaderboardReleaseDeleteResult represents CLI output for leaderboard release deletions.
-type GameCenterLeaderboardReleaseDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
 
 // GCLeaderboardReleasesOption is a functional option for GetGameCenterLeaderboardReleases.
 type GCLeaderboardReleasesOption func(*gcLeaderboardReleasesQuery)
@@ -218,12 +200,6 @@ type GameCenterLeaderboardImageV2CreateData struct {
 
 // GameCenterLeaderboardImagesResponse is the response from leaderboard image list endpoints.
 type GameCenterLeaderboardImagesResponse = Response[GameCenterLeaderboardImageAttributes]
-
-// GameCenterLeaderboardImageDeleteResult represents CLI output for image deletions.
-type GameCenterLeaderboardImageDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
 
 // GameCenterLeaderboardImageUploadResult represents CLI output for image uploads.
 type GameCenterLeaderboardImageUploadResult struct {

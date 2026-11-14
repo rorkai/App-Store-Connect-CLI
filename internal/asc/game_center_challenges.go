@@ -53,12 +53,6 @@ type GameCenterChallengeUpdateData struct {
 // GameCenterChallengesResponse is the response from challenge list endpoints.
 type GameCenterChallengesResponse = Response[GameCenterChallengeAttributes]
 
-// GameCenterChallengeDeleteResult represents CLI output for challenge deletions.
-type GameCenterChallengeDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GCChallengesOption is a functional option for GetGameCenterChallenges.
 type GCChallengesOption func(*gcChallengesQuery)
 
@@ -97,12 +91,6 @@ type GameCenterChallengeLocalizationCreateAttributes struct {
 // GameCenterChallengeLocalizationsResponse is the response from localization list endpoints.
 type GameCenterChallengeLocalizationsResponse = Response[GameCenterChallengeLocalizationAttributes]
 
-// GameCenterChallengeLocalizationDeleteResult represents CLI output for localization deletions.
-type GameCenterChallengeLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GameCenterChallengeImageAttributes represents a challenge image resource.
 type GameCenterChallengeImageAttributes struct {
 	FileSize           int64               `json:"fileSize"`
@@ -129,12 +117,6 @@ type GameCenterChallengeVersionDefaultImageResponse struct {
 	Meta     json.RawMessage                               `json:"meta,omitempty"`
 }
 
-// GameCenterChallengeImageDeleteResult represents CLI output for image deletions.
-type GameCenterChallengeImageDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GameCenterChallengeImageUploadResult represents CLI output for image uploads.
 type GameCenterChallengeImageUploadResult struct {
 	ID                 string `json:"id"`
@@ -156,9 +138,3 @@ type GameCenterChallengeVersionReleaseRelationships struct {
 
 // GameCenterChallengeVersionReleasesResponse is the response from release list endpoints.
 type GameCenterChallengeVersionReleasesResponse = Response[GameCenterChallengeVersionReleaseAttributes]
-
-// GameCenterChallengeVersionReleaseDeleteResult represents CLI output for release deletions.
-type GameCenterChallengeVersionReleaseDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}

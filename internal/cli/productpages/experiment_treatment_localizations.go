@@ -247,7 +247,7 @@ Examples:
 			return client.DeleteAppStoreVersionExperimentTreatmentLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppStoreVersionExperimentTreatmentLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

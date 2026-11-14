@@ -462,7 +462,7 @@ Examples:
 				}
 			}
 
-			result := &asc.AppStoreVersionExperimentDeleteResult{ID: trimmedID, Deleted: true}
+			result := &asc.DeleteResult{ID: trimmedID, Deleted: true}
 			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}

@@ -552,7 +552,7 @@ Examples:
 			return client.DeleteProfile(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.ProfileDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

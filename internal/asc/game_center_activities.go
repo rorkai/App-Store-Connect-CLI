@@ -56,12 +56,6 @@ type GameCenterActivityVersionInlineCreate struct {
 // GameCenterActivitiesResponse is the response from activity list endpoints.
 type GameCenterActivitiesResponse = Response[GameCenterActivityAttributes]
 
-// GameCenterActivityDeleteResult represents CLI output for activity deletions.
-type GameCenterActivityDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GCActivitiesOption is a functional option for GetGameCenterActivities.
 type GCActivitiesOption func(*gcActivitiesQuery)
 
@@ -100,12 +94,6 @@ type GameCenterActivityLocalizationCreateAttributes struct {
 // GameCenterActivityLocalizationsResponse is the response from localization list endpoints.
 type GameCenterActivityLocalizationsResponse = Response[GameCenterActivityLocalizationAttributes]
 
-// GameCenterActivityLocalizationDeleteResult represents CLI output for localization deletions.
-type GameCenterActivityLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GameCenterActivityImageAttributes represents an activity image resource.
 type GameCenterActivityImageAttributes struct {
 	FileSize           int64               `json:"fileSize"`
@@ -132,12 +120,6 @@ type GameCenterActivityVersionDefaultImageResponse struct {
 	Meta     json.RawMessage                              `json:"meta,omitempty"`
 }
 
-// GameCenterActivityImageDeleteResult represents CLI output for image deletions.
-type GameCenterActivityImageDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GameCenterActivityImageUploadResult represents CLI output for image uploads.
 type GameCenterActivityImageUploadResult struct {
 	ID                 string `json:"id"`
@@ -159,9 +141,3 @@ type GameCenterActivityVersionReleaseRelationships struct {
 
 // GameCenterActivityVersionReleasesResponse is the response from release list endpoints.
 type GameCenterActivityVersionReleasesResponse = Response[GameCenterActivityVersionReleaseAttributes]
-
-// GameCenterActivityVersionReleaseDeleteResult represents CLI output for release deletions.
-type GameCenterActivityVersionReleaseDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}

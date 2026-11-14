@@ -146,12 +146,6 @@ type UserInvitationCreateAttributes struct {
 	ProvisioningAllowed *bool    `json:"provisioningAllowed,omitempty"`
 }
 
-// UserDeleteResult represents CLI output for user deletion.
-type UserDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // UserInvitationRevokeResult represents CLI output for invitation revocation.
 type UserInvitationRevokeResult struct {
 	ID      string `json:"id"`

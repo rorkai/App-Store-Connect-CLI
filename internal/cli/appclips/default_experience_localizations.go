@@ -287,7 +287,7 @@ Examples:
 			return client.DeleteAppClipDefaultExperienceLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppClipDefaultExperienceLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

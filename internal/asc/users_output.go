@@ -76,12 +76,6 @@ func userInvitationsRows(resp *UserInvitationsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func userDeleteResultRows(result *UserDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func userInvitationRevokeResultRows(result *UserInvitationRevokeResult) ([]string, [][]string) {
 	headers := []string{"ID", "Revoked"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Revoked)}}

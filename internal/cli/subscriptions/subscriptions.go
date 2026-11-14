@@ -421,7 +421,7 @@ Examples:
 			return client.DeleteSubscriptionGroup(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.SubscriptionGroupDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -961,7 +961,7 @@ Examples:
 			return client.DeleteSubscription(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.SubscriptionDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -1542,7 +1542,7 @@ Examples:
 			return client.DeleteSubscriptionPrice(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.SubscriptionPriceDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

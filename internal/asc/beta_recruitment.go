@@ -25,12 +25,6 @@ type BetaRecruitmentCriteriaUpdateAttributes struct {
 // BetaRecruitmentCriteriaResponse is the response from beta recruitment criteria endpoints.
 type BetaRecruitmentCriteriaResponse = SingleResponse[BetaRecruitmentCriteriaAttributes]
 
-// BetaRecruitmentCriteriaDeleteResult represents CLI output for deletions.
-type BetaRecruitmentCriteriaDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // BetaRecruitmentCriterionCompatibleBuildCheckAttributes describes compatible build check attributes.
 type BetaRecruitmentCriterionCompatibleBuildCheckAttributes struct {
 	HasCompatibleBuild bool `json:"hasCompatibleBuild,omitempty"`

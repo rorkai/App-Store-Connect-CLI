@@ -357,7 +357,7 @@ Examples:
 				return fmt.Errorf("users delete: failed to delete: %w", err)
 			}
 
-			result := &asc.UserDeleteResult{
+			result := &asc.DeleteResult{
 				ID:      idValue,
 				Deleted: true,
 			}

@@ -322,7 +322,7 @@ Examples:
 			return client.DeleteAndroidToIosAppMappingDetail(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AndroidToIosAppMappingDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

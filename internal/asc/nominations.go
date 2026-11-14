@@ -94,12 +94,6 @@ type NominationUpdateData struct {
 	Relationships *NominationRelationships    `json:"relationships,omitempty"`
 }
 
-// NominationDeleteResult represents CLI output for deletions.
-type NominationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // CreateNomination creates a nomination.
 func (c *Client) CreateNomination(ctx context.Context, attrs NominationCreateAttributes, relationships NominationRelationships) (*NominationResponse, error) {
 	payload := NominationCreateRequest{

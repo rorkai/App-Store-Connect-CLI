@@ -104,7 +104,7 @@ Examples:
 			return client.DeleteGameCenterLeaderboardSetImage(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardSetImageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

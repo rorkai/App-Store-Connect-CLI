@@ -182,20 +182,6 @@ func registerIDStateRows[T any](extract func(*T) (string, string), rows func(str
 	})
 }
 
-func registerIDBoolRows[T any](extract func(*T) (string, bool), rows func(string, bool) ([]string, [][]string)) {
-	t := typeForPtr[T]()
-	if extract == nil {
-		panicNilHelperFunction("id/bool extractor", t)
-	}
-	if rows == nil {
-		panicNilHelperFunction("id/bool rows function", t)
-	}
-	registerRows(func(v *T) ([]string, [][]string) {
-		id, deleted := extract(ptrOrZero(v))
-		return rows(id, deleted)
-	})
-}
-
 // registerSingleResourceRowsAdapter registers rows rendering for list renderers
 // by adapting SingleResponse[T] into Response[T] with one item in Data.
 func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string, [][]string)) {

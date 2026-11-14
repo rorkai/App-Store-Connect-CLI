@@ -324,7 +324,7 @@ Examples:
 			return client.DeleteBetaAppClipInvocation(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.BetaAppClipInvocationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

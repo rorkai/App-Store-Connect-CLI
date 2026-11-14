@@ -1,25 +1,5 @@
 package asc
 
-import "fmt"
-
-// AppStoreVersionLocalizationDeleteResult represents CLI output for localization deletions.
-type AppStoreVersionLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// BetaBuildLocalizationDeleteResult represents CLI output for beta build localization deletions.
-type BetaBuildLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// BetaAppLocalizationDeleteResult represents CLI output for beta app localization deletions.
-type BetaAppLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // LocalizationFileResult represents a localization file written or read.
 type LocalizationFileResult struct {
 	Locale string `json:"locale"`
@@ -176,23 +156,5 @@ func appInfoSetBatchResultRows(result *AppInfoSetBatchResult) ([]string, [][]str
 			compactWhitespace(item.Error),
 		})
 	}
-	return headers, rows
-}
-
-func appStoreVersionLocalizationDeleteResultRows(result *AppStoreVersionLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func betaAppLocalizationDeleteResultRows(result *BetaAppLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func betaBuildLocalizationDeleteResultRows(result *BetaBuildLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }

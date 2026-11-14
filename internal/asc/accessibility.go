@@ -56,9 +56,3 @@ type AccessibilityDeclarationAttributes struct {
 
 // AccessibilityDeclarationsResponse is the response from accessibility declarations list.
 type AccessibilityDeclarationsResponse = Response[AccessibilityDeclarationAttributes]
-
-// AccessibilityDeclarationDeleteResult represents CLI output for deletions.
-type AccessibilityDeclarationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}

@@ -38,12 +38,6 @@ type GameCenterLeaderboardSetVersionInlineCreate struct {
 // GameCenterLeaderboardSetsResponse is the response from leaderboard set list endpoints.
 type GameCenterLeaderboardSetsResponse = Response[GameCenterLeaderboardSetAttributes]
 
-// GameCenterLeaderboardSetDeleteResult represents CLI output for leaderboard set deletions.
-type GameCenterLeaderboardSetDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GCLeaderboardSetsOption is a functional option for GetGameCenterLeaderboardSets.
 type GCLeaderboardSetsOption func(*gcLeaderboardSetsQuery)
 
@@ -101,12 +95,6 @@ type GameCenterLeaderboardSetLocalizationV2CreateData struct {
 // GameCenterLeaderboardSetLocalizationsResponse is the response from leaderboard set localization list endpoints.
 type GameCenterLeaderboardSetLocalizationsResponse = Response[GameCenterLeaderboardSetLocalizationAttributes]
 
-// GameCenterLeaderboardSetLocalizationDeleteResult represents CLI output for leaderboard set localization deletions.
-type GameCenterLeaderboardSetLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GCLeaderboardSetLocalizationsOption is a functional option for GetGameCenterLeaderboardSetLocalizations.
 type GCLeaderboardSetLocalizationsOption func(*gcLeaderboardSetLocalizationsQuery)
 
@@ -127,12 +115,6 @@ type GameCenterLeaderboardSetReleaseAttributes struct {
 
 // GameCenterLeaderboardSetReleasesResponse is the response from leaderboard set release list endpoints.
 type GameCenterLeaderboardSetReleasesResponse = Response[GameCenterLeaderboardSetReleaseAttributes]
-
-// GameCenterLeaderboardSetReleaseDeleteResult represents CLI output for leaderboard set release deletions.
-type GameCenterLeaderboardSetReleaseDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
 
 // GCLeaderboardSetReleasesOption is a functional option for GetGameCenterLeaderboardSetReleases.
 type GCLeaderboardSetReleasesOption func(*gcLeaderboardSetReleasesQuery)
@@ -193,12 +175,6 @@ type GameCenterLeaderboardSetImageV2CreateData struct {
 	Type          ResourceType                                  `json:"type"`
 	Attributes    GameCenterLeaderboardSetImageCreateAttributes `json:"attributes"`
 	Relationships *GameCenterLeaderboardSetImageV2Relationships `json:"relationships"`
-}
-
-// GameCenterLeaderboardSetImageDeleteResult represents CLI output for leaderboard set image deletions.
-type GameCenterLeaderboardSetImageDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
 }
 
 // GameCenterLeaderboardSetImageUploadResult represents CLI output for leaderboard set image uploads.

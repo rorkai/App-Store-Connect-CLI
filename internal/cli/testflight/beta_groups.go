@@ -1276,7 +1276,7 @@ Examples:
 				return fmt.Errorf("beta-groups delete: failed to delete: %w", err)
 			}
 
-			result := &asc.BetaGroupDeleteResult{ID: strings.TrimSpace(*id), Deleted: true}
+			result := &asc.DeleteResult{ID: strings.TrimSpace(*id), Deleted: true}
 			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}

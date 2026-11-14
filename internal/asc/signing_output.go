@@ -6,28 +6,10 @@ import (
 	"strings"
 )
 
-// BundleIDDeleteResult represents CLI output for bundle ID deletions.
-type BundleIDDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// BundleIDCapabilityDeleteResult represents CLI output for capability deletions.
-type BundleIDCapabilityDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // CertificateRevokeResult represents CLI output for certificate revocations.
 type CertificateRevokeResult struct {
 	ID      string `json:"id"`
 	Revoked bool   `json:"revoked"`
-}
-
-// ProfileDeleteResult represents CLI output for profile deletions.
-type ProfileDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
 }
 
 // ProfileDownloadResult represents CLI output for profile downloads.
@@ -77,18 +59,6 @@ func bundleIDCapabilitiesRows(resp *BundleIDCapabilitiesResponse) ([]string, [][
 	return headers, rows
 }
 
-func bundleIDDeleteResultRows(result *BundleIDDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func bundleIDCapabilityDeleteResultRows(result *BundleIDCapabilityDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func certificatesRows(resp *CertificatesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Type", "Expiration", "Serial"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -122,12 +92,6 @@ func profilesRows(resp *ProfilesResponse) ([]string, [][]string) {
 			item.Attributes.ExpirationDate,
 		})
 	}
-	return headers, rows
-}
-
-func profileDeleteResultRows(result *ProfileDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

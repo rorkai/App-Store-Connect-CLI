@@ -50,12 +50,6 @@ type AppCustomProductPageVersionInlineCreateRelationships struct {
 	AppCustomProductPageLocalizations RelationshipList `json:"appCustomProductPageLocalizations"`
 }
 
-// AppCustomProductPageDeleteResult represents CLI output for custom page deletions.
-type AppCustomProductPageDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // AppCustomProductPageVersionsResponse is the response from custom product page version list endpoints.
 type AppCustomProductPageVersionsResponse = Response[AppCustomProductPageVersionAttributes]
 
@@ -94,12 +88,6 @@ type AppCustomProductPageLocalizationCreateAttributes struct {
 // AppCustomProductPageLocalizationCreateRelationships describes create relationships.
 type AppCustomProductPageLocalizationCreateRelationships struct {
 	AppCustomProductPageVersion *Relationship `json:"appCustomProductPageVersion"`
-}
-
-// AppCustomProductPageLocalizationDeleteResult represents CLI output for custom page localization deletions.
-type AppCustomProductPageLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
 }
 
 // CreateAppCustomProductPage creates a custom product page with an initial version and

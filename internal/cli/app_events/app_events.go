@@ -543,7 +543,7 @@ Examples:
 			return client.DeleteAppEvent(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppEventDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

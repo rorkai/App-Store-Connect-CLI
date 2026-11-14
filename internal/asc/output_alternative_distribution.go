@@ -109,9 +109,3 @@ func formatAlternativeDistributionChecksum(label string, checksum *Checksum) str
 	}
 	return fmt.Sprintf("%s:%s", label, checksum.Hash)
 }
-
-func alternativeDistributionDeleteResultRows(id string, deleted bool) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{id, fmt.Sprintf("%t", deleted)}}
-	return headers, rows
-}

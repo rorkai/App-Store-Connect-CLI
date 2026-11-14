@@ -221,7 +221,7 @@ Examples:
 			return client.DeleteBetaAppClipInvocationLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.BetaAppClipInvocationLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
