@@ -171,12 +171,10 @@ Examples:
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*territory) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory is required")
-				return shared.MissingRequiredUsageError("--territory")
+				return shared.RequiredFlag("--territory")
 			}
 			if strings.TrimSpace(*releaseDate) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --release-date is required")
-				return shared.MissingRequiredUsageError("--release-date")
+				return shared.RequiredFlag("--release-date")
 			}
 
 			normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
@@ -294,8 +292,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*territoryAvailabilityID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory-availability is required")
-				return shared.MissingRequiredUsageError("--territory-availability")
+				return shared.RequiredFlag("--territory-availability")
 			}
 
 			attrs := asc.TerritoryAvailabilityUpdateAttributes{}
@@ -368,8 +365,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*territoryAvailabilityID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory-availability is required")
-				return shared.MissingRequiredUsageError("--territory-availability")
+				return shared.RequiredFlag("--territory-availability")
 			}
 
 			preOrderEnabled := false
@@ -415,12 +411,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			ids := shared.SplitCSV(*territoryAvailabilityIDs)
 			if len(ids) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --territory-availability is required")
-				return shared.MissingRequiredUsageError("--territory-availability")
+				return shared.RequiredFlag("--territory-availability")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
