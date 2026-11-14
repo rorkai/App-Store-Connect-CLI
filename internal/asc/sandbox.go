@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -174,34 +173,20 @@ func filterSandboxTesters(items []Resource[SandboxTesterAttributes], email, terr
 
 // GetSandboxTesters retrieves sandbox testers with optional filters.
 func (c *Client) GetSandboxTesters(ctx context.Context, opts ...SandboxTestersOption) (*SandboxTestersResponse, error) {
-	query := &sandboxTestersQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v2/sandboxTesters"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("sandboxTesters: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildSandboxTestersQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
+	query := applyOptions(opts)
+	resp, err := getJSON[SandboxTestersResponse](ctx, c, readRequest{
+		Path:        "/v2/sandboxTesters",
+		Query:       buildSandboxTestersQuery(query),
+		Next:        query.nextURL,
+		NextContext: "sandboxTesters",
+		ParseErr:    "failed to parse sandbox testers response",
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var response SandboxTestersResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse sandbox testers response: %w", err)
-	}
-
-	response.Data = filterSandboxTesters(response.Data, query.email, query.territory)
-	return &response, nil
+	resp.Data = filterSandboxTesters(resp.Data, query.email, query.territory)
+	return resp, nil
 }
 
 // errSandboxTesterFound signals early pagination exit once the tester is located.
@@ -248,22 +233,7 @@ func (c *Client) UpdateSandboxTester(ctx context.Context, testerID string, attri
 			Attributes: attributes,
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v2/sandboxTesters/%s", testerID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SandboxTesterResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse sandbox tester response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[SandboxTesterResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v2/sandboxTesters/%s", testerID), Payload: payload, ParseErr: "failed to parse sandbox tester response"})
 }
 
 // ClearSandboxTesterPurchaseHistory clears purchase history for a sandbox tester.
@@ -280,20 +250,5 @@ func (c *Client) ClearSandboxTesterPurchaseHistory(ctx context.Context, testerID
 			},
 		},
 	}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v2/sandboxTestersClearPurchaseHistoryRequest", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SandboxTesterClearHistoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse sandbox clear history response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[SandboxTesterClearHistoryResponse](ctx, c, writeRequest{Method: "POST", Path: "/v2/sandboxTestersClearPurchaseHistoryRequest", Payload: payload, ParseErr: "failed to parse sandbox clear history response"})
 }

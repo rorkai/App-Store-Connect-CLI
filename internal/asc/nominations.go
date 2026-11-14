@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -126,32 +125,13 @@ type NominationDeleteResult struct {
 
 // GetNominations retrieves nominations with optional filters.
 func (c *Client) GetNominations(ctx context.Context, opts ...NominationsOption) (*NominationsResponse, error) {
-	query := &nominationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/nominations"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("nominations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildNominationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response NominationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[NominationsResponse](ctx, c, readRequest{
+		Path:        "/v1/nominations",
+		Query:       buildNominationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "nominations",
+	})
 }
 
 // GetNomination retrieves a nomination by ID.
@@ -161,27 +141,11 @@ func (c *Client) GetNomination(ctx context.Context, nominationID string, opts ..
 		return nil, fmt.Errorf("nominationID is required")
 	}
 
-	query := &nominationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/nominations/%s", nominationID)
-	if queryString := buildNominationsDetailQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response NominationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[NominationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/nominations/%s", nominationID),
+		Query: buildNominationsDetailQuery(query),
+	})
 }
 
 // CreateNomination creates a nomination.
@@ -194,22 +158,7 @@ func (c *Client) CreateNomination(ctx context.Context, attrs NominationCreateAtt
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/nominations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response NominationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[NominationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/nominations", Payload: payload})
 }
 
 // UpdateNomination updates a nomination by ID.
@@ -232,22 +181,7 @@ func (c *Client) UpdateNomination(ctx context.Context, nominationID string, attr
 		payload.Data.Relationships = relationships
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/nominations/%s", nominationID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response NominationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[NominationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/nominations/%s", nominationID), Payload: payload})
 }
 
 // DeleteNomination deletes a nomination by ID.
@@ -256,6 +190,5 @@ func (c *Client) DeleteNomination(ctx context.Context, nominationID string) erro
 	if nominationID == "" {
 		return fmt.Errorf("nominationID is required")
 	}
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/nominations/%s", nominationID), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/nominations/%s", nominationID), nil)
 }

@@ -511,9 +511,7 @@ func (c *Client) DeleteReviewSubmissionItem(ctx context.Context, itemID string) 
 		return fmt.Errorf("itemID is required")
 	}
 
-	path := fmt.Sprintf("/v1/reviewSubmissionItems/%s", itemID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/reviewSubmissionItems/%s", itemID), nil)
 }
 
 // AddReviewSubmissionItem adds an app store version to a review submission.

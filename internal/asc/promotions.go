@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -67,20 +66,5 @@ func (c *Client) CreateAppStoreVersionPromotion(ctx context.Context, versionID, 
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appStoreVersionPromotions", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionPromotionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionPromotionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appStoreVersionPromotions", Payload: payload})
 }
