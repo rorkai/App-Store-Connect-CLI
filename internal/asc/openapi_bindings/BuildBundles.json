@@ -1,0 +1,10 @@
+{
+  "tag": "BuildBundles",
+  "file": "build_bundles_gen.go",
+  "operations": [
+    {"operation":"buildBundles_appClipDomainCacheStatus_getToOneRelated","name":"GetBuildBundleAppClipDomainCacheStatus","params":["buildBundleID"],"check":"raw"},
+    {"operation":"buildBundles_appClipDomainDebugStatus_getToOneRelated","name":"GetBuildBundleAppClipDomainDebugStatus","params":["buildBundleID"],"check":"raw"},
+    {"operation":"buildBundles_betaAppClipInvocations_getToManyRelated","name":"GetBuildBundleBetaAppClipInvocations","params":["buildBundleID"],"check":"raw","options":"BetaAppClipInvocationsOption","query":"buildBetaAppClipInvocationsQuery","nextContext":"build bundle app clip invocations"},
+    {"operation":"buildBundles_buildBundleFileSizes_getToManyRelated","name":"GetBuildBundleFileSizes","params":["buildBundleID"],"check":"raw","options":"BuildBundleFileSizesOption","query":"buildBuildBundleFileSizesQuery","nextContext":"build bundle file sizes"}
+  ]
+}

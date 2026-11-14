@@ -2,6 +2,8 @@
   "tag": "CiWorkflows",
   "file": "ci_workflows_gen.go",
   "operations": [
-    {"operation":"ciWorkflows_deleteInstance","name":"DeleteCiWorkflow","params":["workflowID"],"check":"trim"}
+    {"operation":"ciWorkflows_buildRuns_getToManyRelated","name":"GetCiBuildRuns","params":["workflowID"],"check":"raw","options":"CiBuildRunsOption","query":"buildCiBuildRunsQuery","nextContext":"ciBuildRuns"},
+    {"operation":"ciWorkflows_deleteInstance","name":"DeleteCiWorkflow","params":["workflowID"],"check":"trim"},
+    {"operation":"ciWorkflows_getInstance","name":"GetCiWorkflow","params":["workflowID"],"check":"raw"}
   ]
 }

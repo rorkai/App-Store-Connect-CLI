@@ -11,6 +11,22 @@ import (
 // AlternativeDistributionPackageVersionResponse is the AlternativeDistributionPackageVersionResponse schema.
 type AlternativeDistributionPackageVersionResponse = SingleResponse[AlternativeDistributionPackageVersionAttributes]
 
+// GetAlternativeDistributionPackageVersionDeltas sends GET /v1/alternativeDistributionPackageVersions/{id}/deltas (alternativeDistributionPackageVersions_deltas_getToManyRelated).
+func (c *Client) GetAlternativeDistributionPackageVersionDeltas(ctx context.Context, versionID string, opts ...AlternativeDistributionPackageDeltasOption) (*AlternativeDistributionPackageDeltasResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[AlternativeDistributionPackageDeltasResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/alternativeDistributionPackageVersions/%s/deltas", versionID),
+		Query:       buildAlternativeDistributionPackageDeltasQuery(query),
+		Next:        query.nextURL,
+		NextContext: "alternativeDistributionPackageDeltas",
+		ParseErr:    "failed to parse alternative distribution package deltas response",
+	})
+}
+
 // GetAlternativeDistributionPackageVersion sends GET /v1/alternativeDistributionPackageVersions/{id} (alternativeDistributionPackageVersions_getInstance).
 func (c *Client) GetAlternativeDistributionPackageVersion(ctx context.Context, versionID string) (*AlternativeDistributionPackageVersionResponse, error) {
 	versionID = strings.TrimSpace(versionID)
@@ -20,5 +36,21 @@ func (c *Client) GetAlternativeDistributionPackageVersion(ctx context.Context, v
 	return getJSON[AlternativeDistributionPackageVersionResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/alternativeDistributionPackageVersions/%s", versionID),
 		ParseErr: "failed to parse alternative distribution package version response",
+	})
+}
+
+// GetAlternativeDistributionPackageVersionVariants sends GET /v1/alternativeDistributionPackageVersions/{id}/variants (alternativeDistributionPackageVersions_variants_getToManyRelated).
+func (c *Client) GetAlternativeDistributionPackageVersionVariants(ctx context.Context, versionID string, opts ...AlternativeDistributionPackageVariantsOption) (*AlternativeDistributionPackageVariantsResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[AlternativeDistributionPackageVariantsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/alternativeDistributionPackageVersions/%s/variants", versionID),
+		Query:       buildAlternativeDistributionPackageVariantsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "alternativeDistributionPackageVariants",
+		ParseErr:    "failed to parse alternative distribution package variants response",
 	})
 }

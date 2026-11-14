@@ -1,8 +1,6 @@
 package asc
 
 import (
-	"context"
-	"fmt"
 	"net/url"
 )
 
@@ -133,38 +131,4 @@ func buildCiXcodeVersionsQuery(query *ciXcodeVersionsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
-}
-
-// GetCiMacOsVersion retrieves a CI macOS version by ID.
-func (c *Client) GetCiMacOsVersion(ctx context.Context, macOsVersionID string) (*CiMacOsVersionResponse, error) {
-	return getJSON[CiMacOsVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciMacOsVersions/%s", macOsVersionID)})
-}
-
-// GetCiMacOsVersionXcodeVersions retrieves Xcode versions for a macOS version.
-func (c *Client) GetCiMacOsVersionXcodeVersions(ctx context.Context, macOsVersionID string, opts ...CiXcodeVersionsOption) (*CiXcodeVersionsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiXcodeVersionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/ciMacOsVersions/%s/xcodeVersions", macOsVersionID),
-		Query:       buildCiXcodeVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciMacOsVersionXcodeVersions",
-	})
-}
-
-// GetCiXcodeVersion retrieves a CI Xcode version by ID.
-func (c *Client) GetCiXcodeVersion(ctx context.Context, xcodeVersionID string) (*CiXcodeVersionResponse, error) {
-	return getJSON[CiXcodeVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciXcodeVersions/%s", xcodeVersionID)})
-}
-
-// GetCiXcodeVersionMacOsVersions retrieves macOS versions for an Xcode version.
-func (c *Client) GetCiXcodeVersionMacOsVersions(ctx context.Context, xcodeVersionID string, opts ...CiMacOsVersionsOption) (*CiMacOsVersionsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiMacOsVersionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/ciXcodeVersions/%s/macOsVersions", xcodeVersionID),
-		Query:       buildCiMacOsVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciXcodeVersionMacOsVersions",
-	})
 }

@@ -5,6 +5,8 @@
     "AppPreviewSetCreateRequest"
   ],
   "operations": [
-    {"operation":"appPreviewSets_appPreviews_getToManyRelationship","name":"GetAppPreviewSetAppPreviewsRelationships","params":["setID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appPreviewsRelationships","response":"LinkagesResponse"}
+    {"operation":"appPreviewSets_appPreviews_getToManyRelationship","name":"GetAppPreviewSetAppPreviewsRelationships","params":["setID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appPreviewsRelationships","response":"LinkagesResponse"},
+    {"operation":"appPreviewSets_deleteInstance","name":"DeleteAppPreviewSet","params":["setID"],"check":"raw"},
+    {"operation":"appPreviewSets_getInstance","name":"GetAppPreviewSet","params":["setID"],"check":"raw"}
   ]
 }

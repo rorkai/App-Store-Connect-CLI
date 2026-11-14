@@ -23,6 +23,17 @@ func (c *Client) GetAppInfoAgeRatingDeclarationRelationship(ctx context.Context,
 	})
 }
 
+// GetAppInfoLocalizations sends GET /v1/appInfos/{id}/appInfoLocalizations (appInfos_appInfoLocalizations_getToManyRelated).
+func (c *Client) GetAppInfoLocalizations(ctx context.Context, appInfoID string, opts ...AppInfoLocalizationsOption) (*AppInfoLocalizationsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[AppInfoLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appInfos/%s/appInfoLocalizations", appInfoID),
+		Query:       buildAppInfoLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appInfoLocalizations",
+	})
+}
+
 // GetAppInfoPrimaryCategory sends GET /v1/appInfos/{id}/primaryCategory (appInfos_primaryCategory_getToOneRelated).
 func (c *Client) GetAppInfoPrimaryCategory(ctx context.Context, appInfoID string) (*AppCategoryResponse, error) {
 	appInfoID = strings.TrimSpace(appInfoID)

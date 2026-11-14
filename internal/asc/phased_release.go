@@ -88,11 +88,6 @@ func FormatPhasedReleaseProgressBar(currentDayNumber int) string {
 	return fmt.Sprintf("[%s%s] %d/7", strings.Repeat("#", filled), strings.Repeat("-", barWidth-filled), day)
 }
 
-// GetAppStoreVersionPhasedRelease fetches the phased release for an app store version.
-func (c *Client) GetAppStoreVersionPhasedRelease(ctx context.Context, versionID string) (*AppStoreVersionPhasedReleaseResponse, error) {
-	return getJSON[AppStoreVersionPhasedReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionPhasedRelease", versionID)})
-}
-
 // CreateAppStoreVersionPhasedRelease creates a phased release for an app store version.
 // If state is empty, defaults to INACTIVE per API spec.
 func (c *Client) CreateAppStoreVersionPhasedRelease(ctx context.Context, versionID string, state PhasedReleaseState) (*AppStoreVersionPhasedReleaseResponse, error) {
@@ -139,9 +134,4 @@ func (c *Client) UpdateAppStoreVersionPhasedRelease(ctx context.Context, phasedR
 	}
 
 	return sendJSON[AppStoreVersionPhasedReleaseResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appStoreVersionPhasedReleases/%s", phasedReleaseID), Payload: payload})
-}
-
-// DeleteAppStoreVersionPhasedRelease deletes a phased release.
-func (c *Client) DeleteAppStoreVersionPhasedRelease(ctx context.Context, phasedReleaseID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreVersionPhasedReleases/%s", phasedReleaseID), nil)
 }

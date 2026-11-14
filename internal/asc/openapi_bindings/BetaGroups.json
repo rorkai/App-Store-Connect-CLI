@@ -13,7 +13,11 @@
     {"operation":"betaGroups_app_getToOneRelated","name":"GetBetaGroupApp","params":["groupID"],"check":"require","response":"AppResponse"},
     {"operation":"betaGroups_betaRecruitmentCriteria_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriteria","params":["groupID"],"check":"require","response":"BetaRecruitmentCriteriaResponse"},
     {"operation":"betaGroups_betaRecruitmentCriterionCompatibleBuildCheck_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriterionCompatibleBuildCheck","params":["groupID"],"check":"require"},
+    {"operation":"betaGroups_betaTesters_getToManyRelated","name":"GetBetaGroupTesters","params":["groupID"],"check":"raw","options":"BetaGroupTestersOption","query":"buildBetaGroupTestersQuery","nextContext":"betaGroupTesters","response":"BetaTestersResponse"},
+    {"operation":"betaGroups_builds_getToManyRelated","name":"GetBetaGroupBuilds","params":["groupID"],"check":"raw","options":"BetaGroupBuildsOption","query":"buildBetaGroupBuildsQuery","nextContext":"betaGroupBuilds","response":"BuildsResponse"},
+    {"operation":"betaGroups_deleteInstance","name":"DeleteBetaGroup","params":["groupID"],"check":"raw"},
     {"operation":"betaGroups_getCollection","name":"ListBetaGroups","options":"BetaGroupsOption","query":"buildBetaGroupsQuery","nextContext":"betaGroups"},
+    {"operation":"betaGroups_getInstance","name":"GetBetaGroup","params":["groupID"],"check":"raw"},
     {"operation":"betaGroups_publicLinkUsages_getMetrics","name":"GetBetaGroupPublicLinkUsages","params":["groupID"],"check":"require","response":"BetaGroupPublicLinkUsagesResponse","deviations":[{"problem":"the operation pages with limit, the method takes no options","reason":"hand-written signature without options. The live API rejects limit on this read (\"The parameter 'limit' can not be used with this request\", checked 2026-11-14), so the schema snapshot is wrong here and the method must not send it"}]}
   ]
 }

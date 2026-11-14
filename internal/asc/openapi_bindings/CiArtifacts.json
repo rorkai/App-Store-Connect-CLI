@@ -3,5 +3,8 @@
   "file": "ci_artifacts_gen.go",
   "types": [
     "CiArtifactAttributes"
+  ],
+  "operations": [
+    {"operation":"ciArtifacts_getInstance","name":"GetCiArtifact","params":["artifactID"],"check":"raw"}
   ]
 }

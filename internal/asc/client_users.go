@@ -89,18 +89,6 @@ func (c *Client) CreateUserInvitation(ctx context.Context, attrs UserInvitationC
 	return sendJSON[UserInvitationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/userInvitations", Payload: payload})
 }
 
-// GetUserVisibleApps retrieves the visible apps for a user.
-func (c *Client) GetUserVisibleApps(ctx context.Context, userID string, opts ...UserVisibleAppsOption) (*AppsResponse, error) {
-	userID = strings.TrimSpace(userID)
-	query := applyOptions(opts)
-	return getJSON[AppsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/users/%s/visibleApps", userID),
-		Query:       buildUserVisibleAppsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "userVisibleApps",
-	})
-}
-
 // GetUserVisibleAppsRelationships retrieves visible app linkages for a user.
 func (c *Client) GetUserVisibleAppsRelationships(ctx context.Context, userID string, opts ...LinkagesOption) (*UserVisibleAppsLinkagesResponse, error) {
 	userID = strings.TrimSpace(userID)

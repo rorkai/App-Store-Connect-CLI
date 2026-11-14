@@ -154,15 +154,3 @@ func (c *Client) UpdateEndUserLicenseAgreement(ctx context.Context, id string, a
 
 	return sendJSON[EndUserLicenseAgreementResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id), Payload: payload})
 }
-
-// GetEndUserLicenseAgreementTerritories retrieves territories for an EULA.
-func (c *Client) GetEndUserLicenseAgreementTerritories(ctx context.Context, id string, opts ...EndUserLicenseAgreementTerritoriesOption) (*TerritoriesResponse, error) {
-	id = strings.TrimSpace(id)
-	query := applyOptions(opts)
-	return getJSON[TerritoriesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/endUserLicenseAgreements/%s/territories", id),
-		Query:       buildEndUserLicenseAgreementTerritoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "endUserLicenseAgreementTerritories",
-	})
-}

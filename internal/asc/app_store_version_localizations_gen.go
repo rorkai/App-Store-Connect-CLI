@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -78,6 +79,18 @@ func (c *Client) GetAppStoreVersionLocalizationScreenshotSetsRelationships(ctx c
 		Query:       buildLinkagesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appScreenshotSetsRelationships",
+	})
+}
+
+// DeleteAppStoreVersionLocalization sends DELETE /v1/appStoreVersionLocalizations/{id} (appStoreVersionLocalizations_deleteInstance).
+func (c *Client) DeleteAppStoreVersionLocalization(ctx context.Context, localizationID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID), nil)
+}
+
+// GetAppStoreVersionLocalization sends GET /v1/appStoreVersionLocalizations/{id} (appStoreVersionLocalizations_getInstance).
+func (c *Client) GetAppStoreVersionLocalization(ctx context.Context, localizationID string) (*AppStoreVersionLocalizationResponse, error) {
+	return getJSON[AppStoreVersionLocalizationResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID),
 	})
 }
 

@@ -37,18 +37,6 @@ func (c *Client) UpdatePassTypeID(ctx context.Context, id string, attrs PassType
 	return sendJSON[PassTypeIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/passTypeIds/%s", id), Payload: request})
 }
 
-// GetPassTypeIDCertificates retrieves certificates for a pass type ID.
-func (c *Client) GetPassTypeIDCertificates(ctx context.Context, passTypeID string, opts ...PassTypeIDCertificatesOption) (*CertificatesResponse, error) {
-	passTypeID = strings.TrimSpace(passTypeID)
-	query := applyOptions(opts)
-	return getJSON[CertificatesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/passTypeIds/%s/certificates", passTypeID),
-		Query:       buildPassTypeIDCertificatesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "passTypeIdCertificates",
-	})
-}
-
 // GetPassTypeIDCertificatesRelationships retrieves certificate linkages for a pass type ID.
 func (c *Client) GetPassTypeIDCertificatesRelationships(ctx context.Context, passTypeID string, opts ...LinkagesOption) (*PassTypeIDCertificatesLinkagesResponse, error) {
 	return getTypedResourceLinkages[PassTypeIDCertificatesLinkagesResponse](

@@ -81,11 +81,6 @@ func (c *Client) GetAppScreenshotSets(ctx context.Context, localizationID string
 	})
 }
 
-// GetAppScreenshotSet retrieves a screenshot set by ID.
-func (c *Client) GetAppScreenshotSet(ctx context.Context, setID string) (*AppScreenshotSetResponse, error) {
-	return getJSON[AppScreenshotSetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appScreenshotSets/%s", setID)})
-}
-
 // CreateAppScreenshotSet creates a screenshot set for a localization.
 func (c *Client) CreateAppScreenshotSet(ctx context.Context, localizationID string, displayType string) (*AppScreenshotSetResponse, error) {
 	return c.createAppScreenshotSet(ctx, displayType, &AppScreenshotSetRelationships{
@@ -134,11 +129,6 @@ func (c *Client) createAppScreenshotSet(ctx context.Context, displayType string,
 	return sendJSON[AppScreenshotSetResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appScreenshotSets", Payload: payload})
 }
 
-// DeleteAppScreenshotSet deletes a screenshot set by ID.
-func (c *Client) DeleteAppScreenshotSet(ctx context.Context, setID string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appScreenshotSets/%s", setID), nil)
-}
-
 // GetAppScreenshots retrieves screenshots for a set.
 func (c *Client) GetAppScreenshots(ctx context.Context, setID string, opts ...AppScreenshotsOption) (*AppScreenshotsResponse, error) {
 	query := applyOptions(opts)
@@ -167,11 +157,6 @@ func (c *Client) UpdateAppScreenshotSetAppScreenshotsRelationship(ctx context.Co
 	}
 	payload := RelationshipRequest{Data: data}
 	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", setID), payload)
-}
-
-// GetAppScreenshot retrieves a screenshot by ID.
-func (c *Client) GetAppScreenshot(ctx context.Context, screenshotID string) (*AppScreenshotResponse, error) {
-	return getJSON[AppScreenshotResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appScreenshots/%s", screenshotID)})
 }
 
 // CreateAppScreenshot creates a screenshot reservation.
@@ -228,19 +213,9 @@ func (c *Client) UpdateAppScreenshot(ctx context.Context, screenshotID string, u
 	return &response, nil
 }
 
-// DeleteAppScreenshot deletes a screenshot by ID.
-func (c *Client) DeleteAppScreenshot(ctx context.Context, screenshotID string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appScreenshots/%s", screenshotID), nil)
-}
-
 // GetAppPreviewSets retrieves preview sets for a localization.
 func (c *Client) GetAppPreviewSets(ctx context.Context, localizationID string) (*AppPreviewSetsResponse, error) {
 	return getJSON[AppPreviewSetsResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionLocalizations/%s/appPreviewSets", localizationID)})
-}
-
-// GetAppPreviewSet retrieves a preview set by ID.
-func (c *Client) GetAppPreviewSet(ctx context.Context, setID string) (*AppPreviewSetResponse, error) {
-	return getJSON[AppPreviewSetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appPreviewSets/%s", setID)})
 }
 
 // CreateAppPreviewSet creates a preview set for a localization.
@@ -291,11 +266,6 @@ func (c *Client) createAppPreviewSet(ctx context.Context, previewType string, re
 	return sendJSON[AppPreviewSetResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appPreviewSets", Payload: payload})
 }
 
-// DeleteAppPreviewSet deletes a preview set by ID.
-func (c *Client) DeleteAppPreviewSet(ctx context.Context, setID string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appPreviewSets/%s", setID), nil)
-}
-
 type appPreviewsQuery struct {
 	nextURL string
 }
@@ -335,11 +305,6 @@ func (c *Client) UpdateAppPreviewSetAppPreviewsRelationship(ctx context.Context,
 	}
 	payload := RelationshipRequest{Data: data}
 	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appPreviewSets/%s/relationships/appPreviews", setID), payload)
-}
-
-// GetAppPreview retrieves a preview by ID.
-func (c *Client) GetAppPreview(ctx context.Context, previewID string) (*AppPreviewResponse, error) {
-	return getJSON[AppPreviewResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appPreviews/%s", previewID)})
 }
 
 // CreateAppPreview creates a preview reservation.
@@ -395,9 +360,4 @@ func (c *Client) SetAppPreviewFrameTimeCode(ctx context.Context, previewID strin
 	}
 
 	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appPreviews/%s", previewID), Payload: payload})
-}
-
-// DeleteAppPreview deletes a preview by ID.
-func (c *Client) DeleteAppPreview(ctx context.Context, previewID string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appPreviews/%s", previewID), nil)
 }

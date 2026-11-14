@@ -356,11 +356,6 @@ func (c *Client) GetBuild(ctx context.Context, buildID string, opts ...BuildOpti
 	return getJSON[BuildResponse](ctx, c, readRequest{Path: path})
 }
 
-// GetBuildAppStoreVersion retrieves the app store version for a build.
-func (c *Client) GetBuildAppStoreVersion(ctx context.Context, buildID string) (*AppStoreVersionResponse, error) {
-	return getJSON[AppStoreVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/appStoreVersion", buildID)})
-}
-
 // BuildUpdateAttributes describes mutable attributes on a build resource.
 type BuildUpdateAttributes struct {
 	UsesNonExemptEncryption *bool `json:"usesNonExemptEncryption,omitempty"`

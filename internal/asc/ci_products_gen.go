@@ -9,6 +9,28 @@ import (
 	"strings"
 )
 
+// GetCiProductAdditionalRepositories sends GET /v1/ciProducts/{id}/additionalRepositories (ciProducts_additionalRepositories_getToManyRelated).
+func (c *Client) GetCiProductAdditionalRepositories(ctx context.Context, productID string, opts ...CiProductRepositoriesOption) (*ScmRepositoriesResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[ScmRepositoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciProducts/%s/additionalRepositories", productID),
+		Query:       buildCiProductRepositoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciProductAdditionalRepositories",
+	})
+}
+
+// GetCiProductBuildRuns sends GET /v1/ciProducts/{id}/buildRuns (ciProducts_buildRuns_getToManyRelated).
+func (c *Client) GetCiProductBuildRuns(ctx context.Context, productID string, opts ...CiBuildRunsOption) (*CiBuildRunsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[CiBuildRunsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciProducts/%s/buildRuns", productID),
+		Query:       buildCiBuildRunsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciProductBuildRuns",
+	})
+}
+
 // DeleteCiProduct sends DELETE /v1/ciProducts/{id} (ciProducts_deleteInstance).
 func (c *Client) DeleteCiProduct(ctx context.Context, productID string) error {
 	productID = strings.TrimSpace(productID)
@@ -23,5 +45,34 @@ func (c *Client) GetCiProducts(ctx context.Context, opts ...CiProductsOption) (*
 		Query:       buildCiProductsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "ciProducts",
+	})
+}
+
+// GetCiProduct sends GET /v1/ciProducts/{id} (ciProducts_getInstance).
+func (c *Client) GetCiProduct(ctx context.Context, productID string) (*CiProductResponse, error) {
+	return getJSON[CiProductResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/ciProducts/%s", productID),
+	})
+}
+
+// GetCiProductPrimaryRepositories sends GET /v1/ciProducts/{id}/primaryRepositories (ciProducts_primaryRepositories_getToManyRelated).
+func (c *Client) GetCiProductPrimaryRepositories(ctx context.Context, productID string, opts ...CiProductRepositoriesOption) (*ScmRepositoriesResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[ScmRepositoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciProducts/%s/primaryRepositories", productID),
+		Query:       buildCiProductRepositoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciProductPrimaryRepositories",
+	})
+}
+
+// GetCiWorkflows sends GET /v1/ciProducts/{id}/workflows (ciProducts_workflows_getToManyRelated).
+func (c *Client) GetCiWorkflows(ctx context.Context, productID string, opts ...CiWorkflowsOption) (*CiWorkflowsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[CiWorkflowsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciProducts/%s/workflows", productID),
+		Query:       buildCiWorkflowsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciWorkflows",
 	})
 }

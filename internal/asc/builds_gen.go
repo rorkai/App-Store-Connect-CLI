@@ -25,6 +25,13 @@ func (c *Client) GetBuildAppEncryptionDeclaration(ctx context.Context, buildID s
 	})
 }
 
+// GetBuildAppStoreVersion sends GET /v1/builds/{id}/appStoreVersion (builds_appStoreVersion_getToOneRelated).
+func (c *Client) GetBuildAppStoreVersion(ctx context.Context, buildID string) (*AppStoreVersionResponse, error) {
+	return getJSON[AppStoreVersionResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/builds/%s/appStoreVersion", buildID),
+	})
+}
+
 // GetBuildAppStoreVersionRelationship sends GET /v1/builds/{id}/relationships/appStoreVersion (builds_appStoreVersion_getToOneRelationship).
 func (c *Client) GetBuildAppStoreVersionRelationship(ctx context.Context, buildID string) (*BuildAppStoreVersionLinkageResponse, error) {
 	buildID = strings.TrimSpace(buildID)
@@ -60,6 +67,17 @@ func (c *Client) GetBuildAppRelationship(ctx context.Context, buildID string) (*
 	})
 }
 
+// GetBetaBuildLocalizations sends GET /v1/builds/{id}/betaBuildLocalizations (builds_betaBuildLocalizations_getToManyRelated).
+func (c *Client) GetBetaBuildLocalizations(ctx context.Context, buildID string, opts ...BetaBuildLocalizationsOption) (*BetaBuildLocalizationsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[BetaBuildLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/builds/%s/betaBuildLocalizations", buildID),
+		Query:       buildBetaBuildLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaBuildLocalizations",
+	})
+}
+
 // GetBuildBuildBetaDetail sends GET /v1/builds/{id}/buildBetaDetail (builds_buildBetaDetail_getToOneRelated).
 func (c *Client) GetBuildBuildBetaDetail(ctx context.Context, buildID string) (*BuildBetaDetailResponse, error) {
 	buildID = strings.TrimSpace(buildID)
@@ -80,6 +98,22 @@ func (c *Client) GetBuildBuildBetaDetailRelationship(ctx context.Context, buildI
 	return getJSON[BuildBuildBetaDetailLinkageResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/builds/%s/relationships/buildBetaDetail", buildID),
 		ParseErr: "failed to parse buildBetaDetail relationship response",
+	})
+}
+
+// GetDiagnosticSignaturesForBuild sends GET /v1/builds/{id}/diagnosticSignatures (builds_diagnosticSignatures_getToManyRelated).
+func (c *Client) GetDiagnosticSignaturesForBuild(ctx context.Context, buildID string, opts ...DiagnosticSignaturesOption) (*DiagnosticSignaturesResponse, error) {
+	buildID = strings.TrimSpace(buildID)
+	if buildID == "" {
+		return nil, fmt.Errorf("build ID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[DiagnosticSignaturesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/builds/%s/diagnosticSignatures", buildID),
+		Query:       buildDiagnosticSignaturesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "diagnosticSignatures",
+		ParseErr:    "failed to parse diagnostic signatures response",
 	})
 }
 

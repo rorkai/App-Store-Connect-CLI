@@ -420,18 +420,6 @@ func (c *Client) UpdateBundleID(ctx context.Context, id string, attrs BundleIDUp
 	return sendJSON[BundleIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIds/%s", id), Payload: request})
 }
 
-// GetBundleIDCapabilities retrieves capabilities for a bundle ID.
-func (c *Client) GetBundleIDCapabilities(ctx context.Context, bundleID string, opts ...BundleIDCapabilitiesOption) (*BundleIDCapabilitiesResponse, error) {
-	bundleID = strings.TrimSpace(bundleID)
-	query := applyOptions(opts)
-	return getJSON[BundleIDCapabilitiesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/bundleIds/%s/bundleIdCapabilities", bundleID),
-		Query:       buildBundleIDCapabilitiesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "bundleIdCapabilities",
-	})
-}
-
 // CreateBundleIDCapability adds a capability to a bundle ID.
 func (c *Client) CreateBundleIDCapability(ctx context.Context, bundleID string, attrs BundleIDCapabilityCreateAttributes) (*BundleIDCapabilityResponse, error) {
 	bundleID = strings.TrimSpace(bundleID)
@@ -576,30 +564,6 @@ func (c *Client) GetProfile(ctx context.Context, id string, opts ...ProfilesOpti
 	id = strings.TrimSpace(id)
 	query := applyOptions(opts)
 	return getJSON[ProfileResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s", id), Query: buildProfilesQuery(query)})
-}
-
-// GetProfileCertificates retrieves certificates for a profile.
-func (c *Client) GetProfileCertificates(ctx context.Context, profileID string, opts ...ProfileCertificatesOption) (*CertificatesResponse, error) {
-	profileID = strings.TrimSpace(profileID)
-	query := applyOptions(opts)
-	return getJSON[CertificatesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/profiles/%s/certificates", profileID),
-		Query:       buildProfileCertificatesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "profileCertificates",
-	})
-}
-
-// GetProfileDevices retrieves devices for a profile.
-func (c *Client) GetProfileDevices(ctx context.Context, profileID string, opts ...ProfileDevicesOption) (*DevicesResponse, error) {
-	profileID = strings.TrimSpace(profileID)
-	query := applyOptions(opts)
-	return getJSON[DevicesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/profiles/%s/devices", profileID),
-		Query:       buildProfileDevicesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "profileDevices",
-	})
 }
 
 // GetProfileCertificatesRelationships retrieves certificate linkages for a profile.
