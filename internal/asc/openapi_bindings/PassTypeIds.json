@@ -1,0 +1,8 @@
+{
+  "tag": "PassTypeIds",
+  "file": "pass_type_ids_gen.go",
+  "operations": [
+    {"operation":"passTypeIds_deleteInstance","name":"DeletePassTypeID","params":["id"],"check":"trim"},
+    {"operation":"passTypeIds_getCollection","name":"GetPassTypeIDs","options":"PassTypeIDsOption","query":"buildPassTypeIDsQuery","nextContext":"passTypeIds","response":"PassTypeIDsResponse"}
+  ]
+}

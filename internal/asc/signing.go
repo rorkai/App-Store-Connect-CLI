@@ -453,16 +453,8 @@ type ProfileCreateData struct {
 	Relationships *ProfileCreateRelationships `json:"relationships"`
 }
 
-// ProfileCreateRequest is a request to create a profile.
-type ProfileCreateRequest struct {
-	Data ProfileCreateData `json:"data"`
-}
-
 // ProfilesResponse is the response from profiles list endpoint.
 type ProfilesResponse Response[ProfileAttributes]
-
-// ProfileResponse is the response from profile detail endpoint.
-type ProfileResponse = SingleResponse[ProfileAttributes]
 
 // ProfileCertificatesLinkagesResponse is the response from profile certificates linkage endpoint.
 type ProfileCertificatesLinkagesResponse = LinkagesResponse

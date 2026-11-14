@@ -1,0 +1,7 @@
+{
+  "tag": "InAppPurchaseContents",
+  "file": "in_app_purchase_contents_gen.go",
+  "types": [
+    "InAppPurchaseContentResponse"
+  ]
+}

@@ -156,11 +156,6 @@ type ReviewSubmissionItemCreateData struct {
 	Relationships ReviewSubmissionItemCreateRelationships `json:"relationships"`
 }
 
-// ReviewSubmissionItemCreateRequest is a request to create a review submission item.
-type ReviewSubmissionItemCreateRequest struct {
-	Data ReviewSubmissionItemCreateData `json:"data"`
-}
-
 type reviewSubmissionItemTypeSpec struct {
 	canonical         ReviewSubmissionItemType
 	applyRelationship func(*ReviewSubmissionItemCreateRelationships, string)
@@ -324,11 +319,6 @@ type ReviewSubmissionItemUpdateData struct {
 	Type       ResourceType                         `json:"type"`
 	ID         string                               `json:"id"`
 	Attributes ReviewSubmissionItemUpdateAttributes `json:"attributes"`
-}
-
-// ReviewSubmissionItemUpdateRequest is a request to update a review submission item.
-type ReviewSubmissionItemUpdateRequest struct {
-	Data ReviewSubmissionItemUpdateData `json:"data"`
 }
 
 // ReviewSubmissionItemDeleteResult represents CLI output for review submission item deletions.
@@ -502,16 +492,6 @@ func (c *Client) UpdateReviewSubmissionItem(ctx context.Context, itemID string, 
 	}
 
 	return &response, nil
-}
-
-// DeleteReviewSubmissionItem deletes a review submission item by ID.
-func (c *Client) DeleteReviewSubmissionItem(ctx context.Context, itemID string) error {
-	itemID = strings.TrimSpace(itemID)
-	if itemID == "" {
-		return fmt.Errorf("itemID is required")
-	}
-
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/reviewSubmissionItems/%s", itemID), nil)
 }
 
 // AddReviewSubmissionItem adds an app store version to a review submission.

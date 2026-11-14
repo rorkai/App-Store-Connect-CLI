@@ -1,0 +1,11 @@
+{
+  "tag": "ReviewSubmissionItems",
+  "file": "review_submission_items_gen.go",
+  "types": [
+    "ReviewSubmissionItemCreateRequest",
+    "ReviewSubmissionItemUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"reviewSubmissionItems_deleteInstance","name":"DeleteReviewSubmissionItem","params":["itemID"],"check":"require"}
+  ]
+}

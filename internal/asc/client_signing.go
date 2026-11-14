@@ -592,28 +592,11 @@ func (c *Client) RegisterDevice(ctx context.Context, attrs DeviceCreateAttribute
 	return sendJSON[DeviceResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/devices", Payload: request})
 }
 
-// GetProfiles retrieves the list of profiles.
-func (c *Client) GetProfiles(ctx context.Context, opts ...ProfilesOption) (*ProfilesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[ProfilesResponse](ctx, c, readRequest{
-		Path:        "/v1/profiles",
-		Query:       buildProfilesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "profiles",
-	})
-}
-
 // GetProfile retrieves a single profile by ID.
 func (c *Client) GetProfile(ctx context.Context, id string, opts ...ProfilesOption) (*ProfileResponse, error) {
 	id = strings.TrimSpace(id)
 	query := applyOptions(opts)
 	return getJSON[ProfileResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s", id), Query: buildProfilesQuery(query)})
-}
-
-// GetProfileBundleID retrieves the bundle ID for a profile.
-func (c *Client) GetProfileBundleID(ctx context.Context, profileID string) (*BundleIDResponse, error) {
-	profileID = strings.TrimSpace(profileID)
-	return getJSON[BundleIDResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s/bundleId", profileID)})
 }
 
 // GetProfileCertificates retrieves certificates for a profile.
@@ -638,12 +621,6 @@ func (c *Client) GetProfileDevices(ctx context.Context, profileID string, opts .
 		Next:        query.nextURL,
 		NextContext: "profileDevices",
 	})
-}
-
-// GetProfileBundleIDRelationship retrieves the bundle ID linkage for a profile.
-func (c *Client) GetProfileBundleIDRelationship(ctx context.Context, profileID string) (*ProfileBundleIDLinkageResponse, error) {
-	profileID = strings.TrimSpace(profileID)
-	return getJSON[ProfileBundleIDLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s/relationships/bundleId", profileID)})
 }
 
 // GetProfileCertificatesRelationships retrieves certificate linkages for a profile.
@@ -717,10 +694,4 @@ func (c *Client) CreateProfile(ctx context.Context, attrs ProfileCreateAttribute
 		},
 	}
 	return sendJSON[ProfileResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/profiles", Payload: request})
-}
-
-// DeleteProfile deletes a profile by ID.
-func (c *Client) DeleteProfile(ctx context.Context, id string) error {
-	id = strings.TrimSpace(id)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/profiles/%s", id), nil)
 }

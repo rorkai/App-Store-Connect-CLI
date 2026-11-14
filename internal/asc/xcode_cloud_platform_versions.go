@@ -152,18 +152,6 @@ func (c *Client) GetCiMacOsVersionXcodeVersions(ctx context.Context, macOsVersio
 	})
 }
 
-// GetCiXcodeVersions retrieves the list of CI Xcode versions.
-func (c *Client) GetCiXcodeVersions(ctx context.Context, opts ...CiXcodeVersionsOption) (*CiXcodeVersionsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiXcodeVersionsResponse](ctx, c, readRequest{
-		Path:        "/v1/ciXcodeVersions",
-		Query:       buildCiXcodeVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciXcodeVersions",
-	})
-}
-
 // GetCiXcodeVersion retrieves a CI Xcode version by ID.
 func (c *Client) GetCiXcodeVersion(ctx context.Context, xcodeVersionID string) (*CiXcodeVersionResponse, error) {
 	return getJSON[CiXcodeVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciXcodeVersions/%s", xcodeVersionID)})

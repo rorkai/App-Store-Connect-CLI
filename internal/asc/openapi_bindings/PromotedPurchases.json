@@ -1,0 +1,15 @@
+{
+  "tag": "PromotedPurchases",
+  "file": "promoted_purchases_gen.go",
+  "types": [
+    "PromotedPurchaseCreateAttributes",
+    "PromotedPurchaseCreateRequest",
+    "PromotedPurchaseResponse",
+    "PromotedPurchaseUpdateAttributes",
+    "PromotedPurchaseUpdateData",
+    "PromotedPurchaseUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"promotedPurchases_deleteInstance","name":"DeletePromotedPurchase","params":["promotedPurchaseID"]}
+  ]
+}
