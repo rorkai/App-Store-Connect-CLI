@@ -28,7 +28,7 @@ func TestGetGameCenterChallenges_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterChallenges(context.Background(), "gc-detail-1", WithGCChallengesLimit(50)); err != nil {
+	if _, err := client.GetGameCenterChallenges(context.Background(), "gc-detail-1", Limit[GCChallengesOption](50)); err != nil {
 		t.Fatalf("GetGameCenterChallenges() error: %v", err)
 	}
 }
@@ -43,7 +43,7 @@ func TestGetGameCenterChallenges_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterChallenges(context.Background(), "gc-detail-1", WithGCChallengesNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterChallenges(context.Background(), "gc-detail-1", NextURL[GCChallengesOption](next)); err != nil {
 		t.Fatalf("GetGameCenterChallenges() error: %v", err)
 	}
 }
@@ -259,7 +259,7 @@ func TestGetGameCenterChallengeVersions_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterChallengeVersions(context.Background(), "ch-1", WithGCChallengeVersionsLimit(20)); err != nil {
+	if _, err := client.GetGameCenterChallengeVersions(context.Background(), "ch-1", Limit[GCChallengeVersionsOption](20)); err != nil {
 		t.Fatalf("GetGameCenterChallengeVersions() error: %v", err)
 	}
 }
@@ -274,7 +274,7 @@ func TestGetGameCenterChallengeVersions_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterChallengeVersions(context.Background(), "ch-1", WithGCChallengeVersionsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterChallengeVersions(context.Background(), "ch-1", NextURL[GCChallengeVersionsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterChallengeVersions() error: %v", err)
 	}
 }
@@ -338,7 +338,7 @@ func TestGetGameCenterChallengeLocalizations_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterChallengeLocalizations(context.Background(), "ver-1", WithGCChallengeLocalizationsLimit(10)); err != nil {
+	if _, err := client.GetGameCenterChallengeLocalizations(context.Background(), "ver-1", Limit[GCChallengeLocalizationsOption](10)); err != nil {
 		t.Fatalf("GetGameCenterChallengeLocalizations() error: %v", err)
 	}
 }
@@ -353,7 +353,7 @@ func TestGetGameCenterChallengeLocalizations_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterChallengeLocalizations(context.Background(), "ver-1", WithGCChallengeLocalizationsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterChallengeLocalizations(context.Background(), "ver-1", NextURL[GCChallengeLocalizationsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterChallengeLocalizations() error: %v", err)
 	}
 }
@@ -631,7 +631,7 @@ func TestGetGameCenterChallengeVersionReleases_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterChallengeVersionReleases(context.Background(), "gc-detail-1", WithGCChallengeVersionReleasesLimit(15)); err != nil {
+	if _, err := client.GetGameCenterChallengeVersionReleases(context.Background(), "gc-detail-1", Limit[GCChallengeVersionReleasesOption](15)); err != nil {
 		t.Fatalf("GetGameCenterChallengeVersionReleases() error: %v", err)
 	}
 }
@@ -646,7 +646,7 @@ func TestGetGameCenterChallengeVersionReleases_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterChallengeVersionReleases(context.Background(), "gc-detail-1", WithGCChallengeVersionReleasesNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterChallengeVersionReleases(context.Background(), "gc-detail-1", NextURL[GCChallengeVersionReleasesOption](next)); err != nil {
 		t.Fatalf("GetGameCenterChallengeVersionReleases() error: %v", err)
 	}
 }
@@ -700,11 +700,11 @@ func TestGCChallengesOptions(t *testing.T) {
 	if got := buildGCChallengesQuery(query); got != "" {
 		t.Fatalf("expected empty query, got %q", got)
 	}
-	WithGCChallengesLimit(25)(query)
+	Limit[GCChallengesOption](25)(query)
 	if query.limit != 25 {
 		t.Fatalf("expected limit 25, got %d", query.limit)
 	}
-	WithGCChallengesNextURL(" https://example.com/next ")(query)
+	NextURL[GCChallengesOption](" https://example.com/next ")(query)
 	if query.nextURL != "https://example.com/next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}
@@ -719,11 +719,11 @@ func TestGCChallengesOptions(t *testing.T) {
 
 func TestGCChallengeVersionsOptions(t *testing.T) {
 	query := &gcChallengeVersionsQuery{}
-	WithGCChallengeVersionsLimit(10)(query)
+	Limit[GCChallengeVersionsOption](10)(query)
 	if query.limit != 10 {
 		t.Fatalf("expected limit 10, got %d", query.limit)
 	}
-	WithGCChallengeVersionsNextURL("next")(query)
+	NextURL[GCChallengeVersionsOption]("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}
@@ -738,11 +738,11 @@ func TestGCChallengeVersionsOptions(t *testing.T) {
 
 func TestGCChallengeLocalizationsOptions(t *testing.T) {
 	query := &gcChallengeLocalizationsQuery{}
-	WithGCChallengeLocalizationsLimit(5)(query)
+	Limit[GCChallengeLocalizationsOption](5)(query)
 	if query.limit != 5 {
 		t.Fatalf("expected limit 5, got %d", query.limit)
 	}
-	WithGCChallengeLocalizationsNextURL("next")(query)
+	NextURL[GCChallengeLocalizationsOption]("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}
@@ -791,11 +791,11 @@ func TestGetGameCenterChallengeVersionDefaultImage(t *testing.T) {
 
 func TestGCChallengeVersionReleasesOptions(t *testing.T) {
 	query := &gcChallengeVersionReleasesQuery{}
-	WithGCChallengeVersionReleasesLimit(12)(query)
+	Limit[GCChallengeVersionReleasesOption](12)(query)
 	if query.limit != 12 {
 		t.Fatalf("expected limit 12, got %d", query.limit)
 	}
-	WithGCChallengeVersionReleasesNextURL("next")(query)
+	NextURL[GCChallengeVersionReleasesOption]("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}

@@ -81,7 +81,7 @@ Examples:
 		FetchErrorPrefix:     "game-center activities list: failed to fetch",
 		LookupParent:         gameCenterDetailParent("game-center activities list"),
 		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterActivities(ctx, gcDetailID, asc.WithGCActivitiesLimit(limit), asc.WithGCActivitiesNextURL(next))
+			return client.GetGameCenterActivities(ctx, gcDetailID, asc.Limit[asc.GCActivitiesOption](limit), asc.NextURL[asc.GCActivitiesOption](next))
 		},
 	})
 }
@@ -643,7 +643,7 @@ Examples:
 		ErrorPrefix:          "game-center activities versions list",
 		FetchErrorPrefix:     "game-center activities versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, activityId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterActivityVersions(ctx, activityId, asc.WithGCActivityVersionsLimit(limit), asc.WithGCActivityVersionsNextURL(next))
+			return client.GetGameCenterActivityVersions(ctx, activityId, asc.Limit[asc.GCActivityVersionsOption](limit), asc.NextURL[asc.GCActivityVersionsOption](next))
 		},
 	})
 }
@@ -815,7 +815,7 @@ Examples:
 		ErrorPrefix:          "game-center activities localizations list",
 		FetchErrorPrefix:     "game-center activities localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterActivityLocalizations(ctx, versionId, asc.WithGCActivityLocalizationsLimit(limit), asc.WithGCActivityLocalizationsNextURL(next))
+			return client.GetGameCenterActivityLocalizations(ctx, versionId, asc.Limit[asc.GCActivityLocalizationsOption](limit), asc.NextURL[asc.GCActivityLocalizationsOption](next))
 		},
 	})
 }
@@ -1248,19 +1248,19 @@ Examples:
 			}
 
 			opts := []asc.GCActivityVersionReleasesOption{
-				asc.WithGCActivityVersionReleasesLimit(*limit),
-				asc.WithGCActivityVersionReleasesNextURL(*next),
+				asc.Limit[asc.GCActivityVersionReleasesOption](*limit),
+				asc.NextURL[asc.GCActivityVersionReleasesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCActivityVersionReleasesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCActivityVersionReleasesOption](200))
 				firstPage, err := client.GetGameCenterActivityVersionReleases(requestCtx, gcDetailID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center activities releases list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterActivityVersionReleases(ctx, gcDetailID, asc.WithGCActivityVersionReleasesNextURL(nextURL))
+					return client.GetGameCenterActivityVersionReleases(ctx, gcDetailID, asc.NextURL[asc.GCActivityVersionReleasesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center activities releases list: %w", err)

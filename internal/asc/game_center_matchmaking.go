@@ -73,24 +73,6 @@ type gcMatchmakingQueuesQuery struct {
 	listQuery
 }
 
-// WithGCMatchmakingQueuesLimit sets the max number of queues to return.
-func WithGCMatchmakingQueuesLimit(limit int) GCMatchmakingQueuesOption {
-	return func(q *gcMatchmakingQueuesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCMatchmakingQueuesNextURL uses a next page URL directly.
-func WithGCMatchmakingQueuesNextURL(next string) GCMatchmakingQueuesOption {
-	return func(q *gcMatchmakingQueuesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildGCMatchmakingQueuesQuery(query *gcMatchmakingQueuesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -159,24 +141,6 @@ type GCMatchmakingRuleSetsOption func(*gcMatchmakingRuleSetsQuery)
 
 type gcMatchmakingRuleSetsQuery struct {
 	listQuery
-}
-
-// WithGCMatchmakingRuleSetsLimit sets the max number of rule sets to return.
-func WithGCMatchmakingRuleSetsLimit(limit int) GCMatchmakingRuleSetsOption {
-	return func(q *gcMatchmakingRuleSetsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCMatchmakingRuleSetsNextURL uses a next page URL directly.
-func WithGCMatchmakingRuleSetsNextURL(next string) GCMatchmakingRuleSetsOption {
-	return func(q *gcMatchmakingRuleSetsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCMatchmakingRuleSetsQuery(query *gcMatchmakingRuleSetsQuery) string {
@@ -258,24 +222,6 @@ type gcMatchmakingRulesQuery struct {
 	listQuery
 }
 
-// WithGCMatchmakingRulesLimit sets the max number of rules to return.
-func WithGCMatchmakingRulesLimit(limit int) GCMatchmakingRulesOption {
-	return func(q *gcMatchmakingRulesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCMatchmakingRulesNextURL uses a next page URL directly.
-func WithGCMatchmakingRulesNextURL(next string) GCMatchmakingRulesOption {
-	return func(q *gcMatchmakingRulesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildGCMatchmakingRulesQuery(query *gcMatchmakingRulesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -348,24 +294,6 @@ type GCMatchmakingTeamsOption func(*gcMatchmakingTeamsQuery)
 
 type gcMatchmakingTeamsQuery struct {
 	listQuery
-}
-
-// WithGCMatchmakingTeamsLimit sets the max number of teams to return.
-func WithGCMatchmakingTeamsLimit(limit int) GCMatchmakingTeamsOption {
-	return func(q *gcMatchmakingTeamsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCMatchmakingTeamsNextURL uses a next page URL directly.
-func WithGCMatchmakingTeamsNextURL(next string) GCMatchmakingTeamsOption {
-	return func(q *gcMatchmakingTeamsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCMatchmakingTeamsQuery(query *gcMatchmakingTeamsQuery) string {
@@ -486,24 +414,6 @@ func WithGCMatchmakingMetricsFilterGameCenterDetail(value string) GCMatchmakingM
 func WithGCMatchmakingMetricsFilterQueue(value string) GCMatchmakingMetricsOption {
 	return func(q *gcMatchmakingMetricsQuery) {
 		q.filterGameCenterMatchmakingQueue = strings.TrimSpace(value)
-	}
-}
-
-// WithGCMatchmakingMetricsLimit sets the max number of groups to return.
-func WithGCMatchmakingMetricsLimit(limit int) GCMatchmakingMetricsOption {
-	return func(q *gcMatchmakingMetricsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCMatchmakingMetricsNextURL uses a next page URL directly.
-func WithGCMatchmakingMetricsNextURL(next string) GCMatchmakingMetricsOption {
-	return func(q *gcMatchmakingMetricsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 

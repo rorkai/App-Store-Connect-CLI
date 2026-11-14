@@ -68,7 +68,7 @@ Examples:
 		ErrorPrefix:          "game-center leaderboards localizations list",
 		FetchErrorPrefix:     "game-center leaderboards localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, leaderboardId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterLeaderboardLocalizations(ctx, leaderboardId, asc.WithGCLeaderboardLocalizationsLimit(limit), asc.WithGCLeaderboardLocalizationsNextURL(next))
+			return client.GetGameCenterLeaderboardLocalizations(ctx, leaderboardId, asc.Limit[asc.GCLeaderboardLocalizationsOption](limit), asc.NextURL[asc.GCLeaderboardLocalizationsOption](next))
 		},
 	})
 }

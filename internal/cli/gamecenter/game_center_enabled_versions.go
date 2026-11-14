@@ -59,7 +59,7 @@ Examples:
 		ErrorPrefix:          "game-center enabled-versions list",
 		FetchErrorPrefix:     "game-center enabled-versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetAppGameCenterEnabledVersions(ctx, appID, asc.WithGCEnabledVersionsLimit(limit), asc.WithGCEnabledVersionsNextURL(next))
+			return client.GetAppGameCenterEnabledVersions(ctx, appID, asc.Limit[asc.GCEnabledVersionsOption](limit), asc.NextURL[asc.GCEnabledVersionsOption](next))
 		},
 	})
 }
@@ -108,14 +108,14 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCEnabledVersionsOption{
-				asc.WithGCEnabledVersionsLimit(*limit),
-				asc.WithGCEnabledVersionsNextURL(*next),
+				asc.Limit[asc.GCEnabledVersionsOption](*limit),
+				asc.NextURL[asc.GCEnabledVersionsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := []asc.GCEnabledVersionsOption{asc.WithGCEnabledVersionsNextURL(*next)}
+				paginateOpts := []asc.GCEnabledVersionsOption{asc.NextURL[asc.GCEnabledVersionsOption](*next)}
 				if nextURL == "" {
-					paginateOpts = []asc.GCEnabledVersionsOption{asc.WithGCEnabledVersionsLimit(200)}
+					paginateOpts = []asc.GCEnabledVersionsOption{asc.Limit[asc.GCEnabledVersionsOption](200)}
 				}
 				firstPage, err := client.GetGameCenterEnabledVersionCompatibleVersions(requestCtx, id, paginateOpts...)
 				if err != nil {
@@ -123,7 +123,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterEnabledVersionCompatibleVersions(ctx, id, asc.WithGCEnabledVersionsNextURL(nextURL))
+					return client.GetGameCenterEnabledVersionCompatibleVersions(ctx, id, asc.NextURL[asc.GCEnabledVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center enabled-versions compatible-versions: %w", err)

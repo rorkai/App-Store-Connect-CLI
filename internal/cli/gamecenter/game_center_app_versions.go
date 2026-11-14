@@ -69,7 +69,7 @@ Examples:
 		FetchErrorPrefix:     "game-center app-versions list: failed to fetch",
 		LookupParent:         gameCenterDetailParent("game-center app-versions list"),
 		FetchPage: func(ctx context.Context, client *asc.Client, detailID string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterDetailGameCenterAppVersions(ctx, detailID, asc.WithGCAppVersionsLimit(limit), asc.WithGCAppVersionsNextURL(next))
+			return client.GetGameCenterDetailGameCenterAppVersions(ctx, detailID, asc.Limit[asc.GCAppVersionsOption](limit), asc.NextURL[asc.GCAppVersionsOption](next))
 		},
 	})
 }
@@ -244,7 +244,7 @@ Examples:
 		ErrorPrefix:          "game-center app-versions compatibility list",
 		FetchErrorPrefix:     "game-center app-versions compatibility list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterAppVersionCompatibilityVersions(ctx, id, asc.WithGCAppVersionsLimit(limit), asc.WithGCAppVersionsNextURL(next))
+			return client.GetGameCenterAppVersionCompatibilityVersions(ctx, id, asc.Limit[asc.GCAppVersionsOption](limit), asc.NextURL[asc.GCAppVersionsOption](next))
 		},
 	})
 }

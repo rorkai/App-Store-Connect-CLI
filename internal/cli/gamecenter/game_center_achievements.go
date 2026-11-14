@@ -125,19 +125,19 @@ Examples:
 			}
 
 			opts := []asc.GCAchievementsOption{
-				asc.WithGCAchievementsLimit(*limit),
-				asc.WithGCAchievementsNextURL(*next),
+				asc.Limit[asc.GCAchievementsOption](*limit),
+				asc.NextURL[asc.GCAchievementsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCAchievementsOption](200))
 				firstPage, err := client.GetGameCenterAchievements(requestCtx, gcDetailID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center achievements list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievements(ctx, gcDetailID, asc.WithGCAchievementsNextURL(nextURL))
+					return client.GetGameCenterAchievements(ctx, gcDetailID, asc.NextURL[asc.GCAchievementsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center achievements list: %w", err)
@@ -614,7 +614,7 @@ Examples:
 		ErrorPrefix:          "game-center achievements localizations list",
 		FetchErrorPrefix:     "game-center achievements localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterAchievementLocalizations(ctx, achievementId, asc.WithGCAchievementLocalizationsLimit(limit), asc.WithGCAchievementLocalizationsNextURL(next))
+			return client.GetGameCenterAchievementLocalizations(ctx, achievementId, asc.Limit[asc.GCAchievementLocalizationsOption](limit), asc.NextURL[asc.GCAchievementLocalizationsOption](next))
 		},
 	})
 }
@@ -883,7 +883,7 @@ Examples:
 		ErrorPrefix:          "game-center achievements releases list",
 		FetchErrorPrefix:     "game-center achievements releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterAchievementReleases(ctx, achievementId, asc.WithGCAchievementReleasesLimit(limit), asc.WithGCAchievementReleasesNextURL(next))
+			return client.GetGameCenterAchievementReleases(ctx, achievementId, asc.Limit[asc.GCAchievementReleasesOption](limit), asc.NextURL[asc.GCAchievementReleasesOption](next))
 		},
 	})
 }

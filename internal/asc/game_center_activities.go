@@ -3,7 +3,6 @@ package asc
 import (
 	"encoding/json"
 	"net/url"
-	"strings"
 )
 
 // GameCenterActivityAttributes represents a Game Center activity resource.
@@ -99,24 +98,6 @@ type gcActivitiesQuery struct {
 	listQuery
 }
 
-// WithGCActivitiesLimit sets the max number of activities to return.
-func WithGCActivitiesLimit(limit int) GCActivitiesOption {
-	return func(q *gcActivitiesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCActivitiesNextURL uses a next page URL directly.
-func WithGCActivitiesNextURL(next string) GCActivitiesOption {
-	return func(q *gcActivitiesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildGCActivitiesQuery(query *gcActivitiesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -180,24 +161,6 @@ type GCActivityVersionsOption func(*gcActivityVersionsQuery)
 
 type gcActivityVersionsQuery struct {
 	listQuery
-}
-
-// WithGCActivityVersionsLimit sets the max number of versions to return.
-func WithGCActivityVersionsLimit(limit int) GCActivityVersionsOption {
-	return func(q *gcActivityVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCActivityVersionsNextURL uses a next page URL directly.
-func WithGCActivityVersionsNextURL(next string) GCActivityVersionsOption {
-	return func(q *gcActivityVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCActivityVersionsQuery(query *gcActivityVersionsQuery) string {
@@ -272,24 +235,6 @@ type GCActivityLocalizationsOption func(*gcActivityLocalizationsQuery)
 
 type gcActivityLocalizationsQuery struct {
 	listQuery
-}
-
-// WithGCActivityLocalizationsLimit sets the max number of localizations to return.
-func WithGCActivityLocalizationsLimit(limit int) GCActivityLocalizationsOption {
-	return func(q *gcActivityLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCActivityLocalizationsNextURL uses a next page URL directly.
-func WithGCActivityLocalizationsNextURL(next string) GCActivityLocalizationsOption {
-	return func(q *gcActivityLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCActivityLocalizationsQuery(query *gcActivityLocalizationsQuery) string {
@@ -415,24 +360,6 @@ type GCActivityVersionReleasesOption func(*gcActivityVersionReleasesQuery)
 
 type gcActivityVersionReleasesQuery struct {
 	listQuery
-}
-
-// WithGCActivityVersionReleasesLimit sets the max number of releases to return.
-func WithGCActivityVersionReleasesLimit(limit int) GCActivityVersionReleasesOption {
-	return func(q *gcActivityVersionReleasesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCActivityVersionReleasesNextURL uses a next page URL directly.
-func WithGCActivityVersionReleasesNextURL(next string) GCActivityVersionReleasesOption {
-	return func(q *gcActivityVersionReleasesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCActivityVersionReleasesQuery(query *gcActivityVersionReleasesQuery) string {

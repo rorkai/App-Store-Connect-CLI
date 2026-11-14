@@ -109,19 +109,19 @@ Examples:
 			}
 
 			opts := []asc.GCChallengesOption{
-				asc.WithGCChallengesLimit(*limit),
-				asc.WithGCChallengesNextURL(*next),
+				asc.Limit[asc.GCChallengesOption](*limit),
+				asc.NextURL[asc.GCChallengesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCChallengesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCChallengesOption](200))
 				firstPage, err := client.GetGameCenterChallenges(requestCtx, gcDetailID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center challenges list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterChallenges(ctx, gcDetailID, asc.WithGCChallengesNextURL(nextURL))
+					return client.GetGameCenterChallenges(ctx, gcDetailID, asc.NextURL[asc.GCChallengesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center challenges list: %w", err)
@@ -446,7 +446,7 @@ Examples:
 		ErrorPrefix:          "game-center challenges versions list",
 		FetchErrorPrefix:     "game-center challenges versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, challengeId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterChallengeVersions(ctx, challengeId, asc.WithGCChallengeVersionsLimit(limit), asc.WithGCChallengeVersionsNextURL(next))
+			return client.GetGameCenterChallengeVersions(ctx, challengeId, asc.Limit[asc.GCChallengeVersionsOption](limit), asc.NextURL[asc.GCChallengeVersionsOption](next))
 		},
 	})
 }
@@ -568,7 +568,7 @@ Examples:
 		ErrorPrefix:          "game-center challenges localizations list",
 		FetchErrorPrefix:     "game-center challenges localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterChallengeLocalizations(ctx, versionId, asc.WithGCChallengeLocalizationsLimit(limit), asc.WithGCChallengeLocalizationsNextURL(next))
+			return client.GetGameCenterChallengeLocalizations(ctx, versionId, asc.Limit[asc.GCChallengeLocalizationsOption](limit), asc.NextURL[asc.GCChallengeLocalizationsOption](next))
 		},
 	})
 }
@@ -969,7 +969,7 @@ Examples:
 		FetchErrorPrefix:     "game-center challenges releases list: failed to fetch",
 		LookupParent:         gameCenterDetailParent("game-center challenges releases list"),
 		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterChallengeVersionReleases(ctx, gcDetailID, asc.WithGCChallengeVersionReleasesLimit(limit), asc.WithGCChallengeVersionReleasesNextURL(next))
+			return client.GetGameCenterChallengeVersionReleases(ctx, gcDetailID, asc.Limit[asc.GCChallengeVersionReleasesOption](limit), asc.NextURL[asc.GCChallengeVersionReleasesOption](next))
 		},
 	})
 }
