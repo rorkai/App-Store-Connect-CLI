@@ -1,0 +1,17 @@
+{
+  "tag": "Subscriptions",
+  "file": "subscriptions_gen.go",
+  "types": [
+    "SubscriptionCreateRequest",
+    "SubscriptionResponse"
+  ],
+  "operations": [
+    {"operation":"subscriptions_deleteInstance","name":"DeleteSubscription","params":["subID"]},
+    {"operation":"subscriptions_prices_getToManyRelated","name":"GetSubscriptionPrices","params":["subscriptionID"],"options":"SubscriptionPricesOption","query":"buildSubscriptionPricesQuery","nextContext":"subscriptionPrices"},
+    {"operation":"subscriptions_prices_getToManyRelationship","name":"GetSubscriptionPricesRelationships","params":["subID"],"check":"require","messages":["subscription ID is required"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"subscriptionPricesRelationships","response":"LinkagesResponse"},
+    {"operation":"subscriptions_subscriptionAvailability_getToOneRelated","name":"GetSubscriptionAvailabilityForSubscription","params":["subID"],"check":"require","messages":["subscription ID is required"]},
+    {"operation":"subscriptions_versions_getToManyRelated","name":"GetSubscriptionVersions","params":["subscriptionID"],"check":"require","messages":["subscription ID is required"],"options":"SubscriptionVersionsOption","query":"buildSubscriptionVersionsQuery","nextContext":"subscriptionVersions"},
+    {"operation":"subscriptions_winBackOffers_getToManyRelated","name":"GetSubscriptionWinBackOffers","params":["subscriptionID"],"options":"WinBackOffersOption","query":"buildWinBackOffersQuery","nextContext":"winBackOffers"},
+    {"operation":"subscriptions_winBackOffers_getToManyRelationship","name":"GetSubscriptionWinBackOffersRelationships","params":["subscriptionID"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"winBackOffers relationships","response":"LinkagesResponse"}
+  ]
+}

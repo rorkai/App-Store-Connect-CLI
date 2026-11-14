@@ -39,11 +39,3 @@ type SubscriptionGracePeriodUpdateData struct {
 	ID         string                                  `json:"id"`
 	Attributes SubscriptionGracePeriodUpdateAttributes `json:"attributes"`
 }
-
-// SubscriptionGracePeriodUpdateRequest is a request to update a grace period.
-type SubscriptionGracePeriodUpdateRequest struct {
-	Data SubscriptionGracePeriodUpdateData `json:"data"`
-}
-
-// SubscriptionGracePeriodResponse is the response for subscription grace period endpoints.
-type SubscriptionGracePeriodResponse = SingleResponse[SubscriptionGracePeriodAttributes]

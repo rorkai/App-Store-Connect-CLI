@@ -1,0 +1,8 @@
+{
+  "tag": "SubscriptionGroupVersions",
+  "file": "subscription_group_versions_gen.go",
+  "types": [
+    "SubscriptionGroupVersionAttributes",
+    "SubscriptionGroupVersionCreateRequest"
+  ]
+}

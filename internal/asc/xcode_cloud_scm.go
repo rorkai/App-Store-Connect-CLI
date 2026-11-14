@@ -132,21 +132,6 @@ func (r *ScmGitReferencesResponse) GetData() any {
 	return r.Data
 }
 
-// ScmPullRequestAttributes describes an SCM pull request resource.
-type ScmPullRequestAttributes struct {
-	Title                      string `json:"title,omitempty"`
-	Number                     int    `json:"number,omitempty"`
-	WebURL                     string `json:"webUrl,omitempty"`
-	SourceRepositoryOwner      string `json:"sourceRepositoryOwner,omitempty"`
-	SourceRepositoryName       string `json:"sourceRepositoryName,omitempty"`
-	SourceBranchName           string `json:"sourceBranchName,omitempty"`
-	DestinationRepositoryOwner string `json:"destinationRepositoryOwner,omitempty"`
-	DestinationRepositoryName  string `json:"destinationRepositoryName,omitempty"`
-	DestinationBranchName      string `json:"destinationBranchName,omitempty"`
-	IsClosed                   bool   `json:"isClosed,omitempty"`
-	IsCrossRepository          bool   `json:"isCrossRepository,omitempty"`
-}
-
 // ScmPullRequestRelationships describes relationships for an SCM pull request.
 type ScmPullRequestRelationships struct {
 	Repository *Relationship `json:"repository,omitempty"`
@@ -234,47 +219,6 @@ func buildScmPullRequestsQuery(query *scmPullRequestsQuery) string {
 	return values.Encode()
 }
 
-// GetScmProviders retrieves SCM providers.
-func (c *Client) GetScmProviders(ctx context.Context, opts ...ScmProvidersOption) (*ScmProvidersResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[ScmProvidersResponse](ctx, c, readRequest{
-		Path:        "/v1/scmProviders",
-		Query:       buildScmProvidersQuery(query),
-		Next:        query.nextURL,
-		NextContext: "scmProviders",
-	})
-}
-
-// GetScmProvider retrieves an SCM provider by ID.
-func (c *Client) GetScmProvider(ctx context.Context, providerID string) (*ScmProviderResponse, error) {
-	return getJSON[ScmProviderResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/scmProviders/%s", strings.TrimSpace(providerID))})
-}
-
-// GetScmProviderRepositories retrieves repositories for an SCM provider.
-func (c *Client) GetScmProviderRepositories(ctx context.Context, providerID string, opts ...ScmRepositoriesOption) (*ScmRepositoriesResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[ScmRepositoriesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/scmProviders/%s/repositories", strings.TrimSpace(providerID)),
-		Query:       buildScmRepositoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "scmProviderRepositories",
-	})
-}
-
-// GetScmRepositories retrieves SCM repositories.
-func (c *Client) GetScmRepositories(ctx context.Context, opts ...ScmRepositoriesOption) (*ScmRepositoriesResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[ScmRepositoriesResponse](ctx, c, readRequest{
-		Path:        "/v1/scmRepositories",
-		Query:       buildScmRepositoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "scmRepositories",
-	})
-}
-
 // GetScmRepository retrieves an SCM repository by ID.
 func (c *Client) GetScmRepository(ctx context.Context, repositoryID string) (*ScmRepositoryResource, error) {
 	path := fmt.Sprintf("/v1/scmRepositories/%s", strings.TrimSpace(repositoryID))
@@ -293,23 +237,6 @@ func (c *Client) GetScmRepository(ctx context.Context, repositoryID string) (*Sc
 	return &response.Data, nil
 }
 
-// GetScmGitReference retrieves a git reference by ID.
-func (c *Client) GetScmGitReference(ctx context.Context, referenceID string) (*ScmGitReferenceResponse, error) {
-	return getJSON[ScmGitReferenceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/scmGitReferences/%s", strings.TrimSpace(referenceID))})
-}
-
-// GetScmGitReferences retrieves git references for a repository.
-func (c *Client) GetScmGitReferences(ctx context.Context, repositoryID string, opts ...ScmGitReferencesOption) (*ScmGitReferencesResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[ScmGitReferencesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/scmRepositories/%s/gitReferences", strings.TrimSpace(repositoryID)),
-		Query:       buildScmGitReferencesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "scmGitReferences",
-	})
-}
-
 // GetScmRepositoryGitReferencesRelationships retrieves git reference linkages for a repository.
 func (c *Client) GetScmRepositoryGitReferencesRelationships(ctx context.Context, repositoryID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	repositoryID = strings.TrimSpace(repositoryID)
@@ -320,18 +247,6 @@ func (c *Client) GetScmRepositoryGitReferencesRelationships(ctx context.Context,
 		Query:       buildLinkagesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "scmRepositoryGitReferencesRelationships",
-	})
-}
-
-// GetScmRepositoryPullRequests retrieves pull requests for a repository.
-func (c *Client) GetScmRepositoryPullRequests(ctx context.Context, repositoryID string, opts ...ScmPullRequestsOption) (*ScmPullRequestsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[ScmPullRequestsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/scmRepositories/%s/pullRequests", strings.TrimSpace(repositoryID)),
-		Query:       buildScmPullRequestsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "scmRepositoryPullRequests",
 	})
 }
 
@@ -346,11 +261,6 @@ func (c *Client) GetScmRepositoryPullRequestsRelationships(ctx context.Context, 
 		Next:        query.nextURL,
 		NextContext: "scmRepositoryPullRequestsRelationships",
 	})
-}
-
-// GetScmPullRequest retrieves a pull request by ID.
-func (c *Client) GetScmPullRequest(ctx context.Context, pullRequestID string) (*ScmPullRequestResponse, error) {
-	return getJSON[ScmPullRequestResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/scmPullRequests/%s", strings.TrimSpace(pullRequestID))})
 }
 
 // ResolveGitReferenceByName finds a git reference (branch or tag) by name.

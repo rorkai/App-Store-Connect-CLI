@@ -1,10 +1,5 @@
 package asc
 
-// TerritoryAttributes describes a territory resource.
-type TerritoryAttributes struct {
-	Currency string `json:"currency,omitempty"`
-}
-
 // AppPricePointV3Attributes describes app price point metadata.
 type AppPricePointV3Attributes struct {
 	CustomerPrice string `json:"customerPrice,omitempty"`
@@ -159,18 +154,6 @@ type TerritoryAvailabilityUpdateAttributes struct {
 	ReleaseDate      *string `json:"releaseDate,omitempty"`
 	PreOrderEnabled  *bool   `json:"preOrderEnabled,omitempty"`
 	ClearReleaseDate bool    `json:"-"`
-}
-
-// TerritoryAvailabilityUpdateData is the data portion of an availability update request.
-type TerritoryAvailabilityUpdateData struct {
-	Type       ResourceType                           `json:"type"`
-	ID         string                                 `json:"id"`
-	Attributes *TerritoryAvailabilityUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// TerritoryAvailabilityUpdateRequest is a request to update a territory availability.
-type TerritoryAvailabilityUpdateRequest struct {
-	Data TerritoryAvailabilityUpdateData `json:"data"`
 }
 
 // EndAppAvailabilityPreOrderAttributes describes the end pre-order response attributes.

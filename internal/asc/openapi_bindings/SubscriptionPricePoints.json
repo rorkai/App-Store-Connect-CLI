@@ -1,0 +1,7 @@
+{
+  "tag": "SubscriptionPricePoints",
+  "file": "subscription_price_points_gen.go",
+  "types": [
+    "SubscriptionPricePointAttributes"
+  ]
+}
