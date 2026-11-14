@@ -1018,6 +1018,10 @@ func runXcodebuildForBuild(ctx context.Context, args []string, logWriter io.Writ
 	return runCommandWithBoundedOutputMode(ctx, "xcodebuild", args, logWriter, summarizeAction(args), "xcodebuild", true)
 }
 
+func runXcodebuildForTest(ctx context.Context, dir string, args []string, logWriter io.Writer) error {
+	return runCommandWithBoundedOutputEnvironmentMode(ctx, "xcodebuild", args, nil, dir, logWriter, summarizeAction(args), "xcodebuild", true)
+}
+
 func runAltoolValidate(ctx context.Context, args []string, logWriter io.Writer) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -1563,18 +1567,18 @@ func parseBuildStatusMetadataField(line string) (string, string, bool) {
 }
 
 func runCommandWithBoundedOutput(ctx context.Context, name string, args []string, logWriter io.Writer, action string, commandLabel string) error {
-	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, nil, logWriter, action, commandLabel, false)
+	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, nil, "", logWriter, action, commandLabel, false)
 }
 
 func runCommandWithBoundedOutputMode(ctx context.Context, name string, args []string, logWriter io.Writer, action string, commandLabel string, preserveProcessError bool) error {
-	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, nil, logWriter, action, commandLabel, preserveProcessError)
+	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, nil, "", logWriter, action, commandLabel, preserveProcessError)
 }
 
 func runCommandWithBoundedOutputEnvironment(ctx context.Context, name string, args, environment []string, logWriter io.Writer, action string, commandLabel string, terminateProcessGroup bool) error {
-	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, environment, logWriter, action, commandLabel, false, terminateProcessGroup)
+	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, environment, "", logWriter, action, commandLabel, false, terminateProcessGroup)
 }
 
-func runCommandWithBoundedOutputEnvironmentMode(ctx context.Context, name string, args, environment []string, logWriter io.Writer, action string, commandLabel string, preserveProcessError bool, terminateProcessGroup ...bool) error {
+func runCommandWithBoundedOutputEnvironmentMode(ctx context.Context, name string, args, environment []string, dir string, logWriter io.Writer, action string, commandLabel string, preserveProcessError bool, terminateProcessGroup ...bool) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1582,6 +1586,7 @@ func runCommandWithBoundedOutputEnvironmentMode(ctx context.Context, name string
 	if err != nil {
 		return err
 	}
+	cmd.Dir = dir
 	outputWindow := newXcodeDiagnosticBuffer(xcodebuildErrorTailLimit, logWriter)
 	cmd.Stdout = outputWindow
 	cmd.Stderr = outputWindow
