@@ -153,49 +153,26 @@ Examples:
 
 // RoutingCoverageDeleteCommand returns the routing coverage delete subcommand.
 func RoutingCoverageDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("routing-coverage delete", flag.ExitOnError)
-
-	coverageID := shared.BindResourceIDFlag(fs, "id", "routingAppCoverages", "Routing app coverage ID (required)")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc routing-coverage delete --id \"COVERAGE_ID\" --confirm",
-		ShortHelp:  "Delete routing app coverage.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "routing-coverage delete",
+		Name:        "delete",
+		ShortUsage:  "asc routing-coverage delete --id \"COVERAGE_ID\" --confirm",
+		ShortHelp:   "Delete routing app coverage.",
 		LongHelp: `Delete routing app coverage.
 
 Examples:
   asc routing-coverage delete --id "COVERAGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			coverageValue := strings.TrimSpace(*coverageID)
-			if coverageValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("routing-coverage delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteRoutingAppCoverage(requestCtx, coverageValue); err != nil {
-				return fmt.Errorf("routing-coverage delete: failed to delete: %w", err)
-			}
-
-			result := &asc.RoutingAppCoverageDeleteResult{
-				ID:      coverageValue,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Routing app coverage ID (required)",
+		IDType:             "routingAppCoverages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "routing-coverage delete",
+		DeleteErrorPrefix:  "routing-coverage delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteRoutingAppCoverage(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.RoutingAppCoverageDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
