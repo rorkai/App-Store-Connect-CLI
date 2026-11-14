@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -319,9 +320,13 @@ func IsValidationError(err error) bool {
 // UsageError prints a CLI validation error and returns flag.ErrHelp so callers
 // map the failure to usage exit code semantics.
 func UsageError(message string) error {
+	return usageErrorTo(os.Stderr, message)
+}
+
+func usageErrorTo(stderr io.Writer, message string) error {
 	trimmed := strings.TrimSpace(SanitizeTerminal(message))
 	if trimmed != "" {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", trimmed)
+		fmt.Fprintf(stderr, "Error: %s\n", trimmed)
 	}
 	return classifiedUsageError{kind: classifyUsageMessage(trimmed), message: trimmed}
 }
@@ -349,7 +354,11 @@ func MissingRequiredUsageError(parameters ...string) error {
 // "Error: <name> is required" to stderr and returns
 // MissingRequiredUsageError(name).
 func RequiredFlag(name string) error {
-	fmt.Fprintln(os.Stderr, "Error: "+name+" is required")
+	return requiredFlagTo(os.Stderr, name)
+}
+
+func requiredFlagTo(stderr io.Writer, name string) error {
+	fmt.Fprintln(stderr, "Error: "+name+" is required")
 	return MissingRequiredUsageError(name)
 }
 

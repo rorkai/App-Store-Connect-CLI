@@ -1692,18 +1692,19 @@ func validateCommandOutputPath(commands []*ffcli.Command) error {
 
 // WrapCommandOutputValidation ensures shared output flags are validated before
 // command execution so invalid format combinations fail before side effects.
-func WrapCommandOutputValidation(cmd *ffcli.Command) {
-	wrapCommandOutputValidation(cmd, nil)
+// The diagnostic goes to d's stderr.
+func WrapCommandOutputValidation(cmd *ffcli.Command, d *Deps) {
+	wrapCommandOutputValidation(cmd, d, nil)
 }
 
-func wrapCommandOutputValidation(cmd *ffcli.Command, parents []*ffcli.Command) {
+func wrapCommandOutputValidation(cmd *ffcli.Command, d *Deps, parents []*ffcli.Command) {
 	if cmd == nil {
 		return
 	}
 
 	path := append(append([]*ffcli.Command(nil), parents...), cmd)
 	for _, sub := range cmd.Subcommands {
-		wrapCommandOutputValidation(sub, path)
+		wrapCommandOutputValidation(sub, d, path)
 	}
 
 	if cmd.Exec == nil {
@@ -1716,7 +1717,7 @@ func wrapCommandOutputValidation(cmd *ffcli.Command, parents []*ffcli.Command) {
 			// Output-flag diagnostics already name the flag, its valid set,
 			// and the rejected value, so report them without dragging the
 			// command's full help page along.
-			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 			return NewReportedUsageError(UsageErrorInvalidValue, err.Error())
 		}
 		return originalExec(ctx, args)

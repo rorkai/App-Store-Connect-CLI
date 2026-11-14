@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
 )
 
@@ -96,7 +97,7 @@ func TestRunAPITelemetryNeverCarriesRequestDetails(t *testing.T) {
 // flag from swallowing the METHOD positional as its value.
 func TestNormalizeSpacedBooleanFlagsPreservesAPIPositionals(t *testing.T) {
 	args := []string{"api", "--paginate", "GET", "/v1/apps"}
-	root := rootCommandForArgs("1.0.0", args)
+	root := rootCommandForArgs("1.0.0", shared.DefaultDeps(), args)
 	got := normalizeSpacedBooleanFlags(root, args)
 	if !reflect.DeepEqual(got, args) {
 		t.Fatalf("normalizeSpacedBooleanFlags() = %#v, want positional args preserved %#v", got, args)
