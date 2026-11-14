@@ -107,8 +107,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BuildUploadsOption{
-				asc.WithBuildUploadsLimit(*limit),
-				asc.WithBuildUploadsNextURL(*next),
+				asc.Limit[asc.BuildUploadsOption](*limit),
+				asc.NextURL[asc.BuildUploadsOption](*next),
 				asc.WithBuildUploadsCFBundleShortVersionStrings(shared.SplitCSV(*shortVersion)),
 				asc.WithBuildUploadsCFBundleVersions(shared.SplitCSV(*bundleVersion)),
 				asc.WithBuildUploadsPlatforms(platforms),
@@ -119,14 +119,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBuildUploadsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BuildUploadsOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuildUploads(ctx, resolvedAppID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBuildUploads(ctx, resolvedAppID, asc.WithBuildUploadsNextURL(nextURL))
+						return client.GetBuildUploads(ctx, resolvedAppID, asc.NextURL[asc.BuildUploadsOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -304,8 +304,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BuildUploadFilesOption{
-				asc.WithBuildUploadFilesLimit(*limit),
-				asc.WithBuildUploadFilesNextURL(*next),
+				asc.Limit[asc.BuildUploadFilesOption](*limit),
+				asc.NextURL[asc.BuildUploadFilesOption](*next),
 			}
 
 			if *paginate {
@@ -313,14 +313,14 @@ Examples:
 					return shared.RequiredFlag("--upload")
 				}
 
-				paginateOpts := append(opts, asc.WithBuildUploadFilesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BuildUploadFilesOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuildUploadFiles(ctx, uploadValue, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBuildUploadFiles(ctx, uploadValue, asc.WithBuildUploadFilesNextURL(nextURL))
+						return client.GetBuildUploadFiles(ctx, uploadValue, asc.NextURL[asc.BuildUploadFilesOption](nextURL))
 					},
 				)
 				if err != nil {

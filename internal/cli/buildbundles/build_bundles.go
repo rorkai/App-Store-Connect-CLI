@@ -161,19 +161,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BuildBundleFileSizesOption{
-				asc.WithBuildBundleFileSizesLimit(*limit),
-				asc.WithBuildBundleFileSizesNextURL(*next),
+				asc.Limit[asc.BuildBundleFileSizesOption](*limit),
+				asc.NextURL[asc.BuildBundleFileSizesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBuildBundleFileSizesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BuildBundleFileSizesOption](200))
 				firstPage, err := client.GetBuildBundleFileSizes(requestCtx, buildBundleValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("build-bundles file-sizes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildBundleFileSizes(ctx, buildBundleValue, asc.WithBuildBundleFileSizesNextURL(nextURL))
+					return client.GetBuildBundleFileSizes(ctx, buildBundleValue, asc.NextURL[asc.BuildBundleFileSizesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("build-bundles file-sizes list: %w", err)
@@ -425,12 +425,12 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaAppClipInvocationsOption{
-				asc.WithBetaAppClipInvocationsLimit(*limit),
-				asc.WithBetaAppClipInvocationsNextURL(*next),
+				asc.Limit[asc.BetaAppClipInvocationsOption](*limit),
+				asc.NextURL[asc.BetaAppClipInvocationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaAppClipInvocationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaAppClipInvocationsOption](200))
 				firstPage, err := client.GetBuildBundleBetaAppClipInvocations(requestCtx, buildBundleValue, paginateOpts...)
 				if err != nil {
 					if asc.IsNotFound(err) {
@@ -441,7 +441,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildBundleBetaAppClipInvocations(ctx, buildBundleValue, asc.WithBetaAppClipInvocationsNextURL(nextURL))
+					return client.GetBuildBundleBetaAppClipInvocations(ctx, buildBundleValue, asc.NextURL[asc.BetaAppClipInvocationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("build-bundles app-clip invocations list: %w", err)

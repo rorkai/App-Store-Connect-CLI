@@ -97,19 +97,19 @@ Examples:
 			}
 
 			opts := []asc.BuildIndividualTestersOption{
-				asc.WithBuildIndividualTestersLimit(*limit),
-				asc.WithBuildIndividualTestersNextURL(*next),
+				asc.Limit[asc.BuildIndividualTestersOption](*limit),
+				asc.NextURL[asc.BuildIndividualTestersOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBuildIndividualTestersLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BuildIndividualTestersOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuildIndividualTesters(ctx, buildID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBuildIndividualTesters(ctx, buildID, asc.WithBuildIndividualTestersNextURL(nextURL))
+						return client.GetBuildIndividualTesters(ctx, buildID, asc.NextURL[asc.BuildIndividualTestersOption](nextURL))
 					},
 				)
 				if err != nil {

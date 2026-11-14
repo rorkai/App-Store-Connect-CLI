@@ -80,12 +80,12 @@ Examples:
 
 // fetchAllAppsForPublishedAudit retrieves every app record across all result pages.
 func fetchAllAppsForPublishedAudit(ctx context.Context, client *asc.Client) (*asc.AppsResponse, error) {
-	firstPage, err := client.GetApps(ctx, asc.WithAppsLimit(200), asc.WithAppsSort("name"))
+	firstPage, err := client.GetApps(ctx, asc.Limit[asc.AppsOption](200), asc.WithAppsSort("name"))
 	if err != nil {
 		return nil, err
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
+		return client.GetApps(ctx, asc.NextURL[asc.AppsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

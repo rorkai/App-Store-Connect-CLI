@@ -292,8 +292,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppSearchKeywordsOption{
-				asc.WithAppSearchKeywordsLimit(*limit),
-				asc.WithAppSearchKeywordsNextURL(*next),
+				asc.Limit[asc.AppSearchKeywordsOption](*limit),
+				asc.NextURL[asc.AppSearchKeywordsOption](*next),
 			}
 			if len(platforms) > 0 {
 				opts = append(opts, asc.WithAppSearchKeywordsPlatforms(platforms))
@@ -303,14 +303,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppSearchKeywordsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppSearchKeywordsOption](200))
 				firstPage, err := client.GetAppSearchKeywords(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("apps search-keywords list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppSearchKeywords(ctx, resolvedAppID, asc.WithAppSearchKeywordsNextURL(nextURL))
+					return client.GetAppSearchKeywords(ctx, resolvedAppID, asc.NextURL[asc.AppSearchKeywordsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("apps search-keywords list: %w", err)

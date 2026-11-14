@@ -355,7 +355,7 @@ func chooseLiveVersion(versions []liveAppVersion, platform string) (liveAppVersi
 func listDSYMTargets(ctx context.Context, client *asc.Client, appID, platform, exactVersion, minVersion string, after *time.Time, excludeExpired bool) ([]dsymTarget, error) {
 	opts := []asc.BuildsOption{
 		asc.WithBuildsSort("-uploadedDate"),
-		asc.WithBuildsLimit(200),
+		asc.Limit[asc.BuildsOption](200),
 		asc.WithBuildsInclude([]string{"preReleaseVersion"}),
 	}
 	if platform != "" {
@@ -389,7 +389,7 @@ func listDSYMTargets(ctx context.Context, client *asc.Client, appID, platform, e
 		}
 		seenNext[identity] = struct{}{}
 		nextCtx, nextCancel := shared.ContextWithTimeout(ctx)
-		page, err = client.GetBuilds(nextCtx, appID, asc.WithBuildsNextURL(page.Links.Next))
+		page, err = client.GetBuilds(nextCtx, appID, asc.NextURL[asc.BuildsOption](page.Links.Next))
 		nextCancel()
 		if err != nil {
 			return nil, fmt.Errorf("builds dsyms: failed to list builds: %w", err)

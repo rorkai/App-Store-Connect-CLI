@@ -38,7 +38,7 @@ func TestGetAppSearchKeywords_SendsRequestWithFilters(t *testing.T) {
 		"app-1",
 		WithAppSearchKeywordsPlatforms([]string{"ios", "MAC_OS"}),
 		WithAppSearchKeywordsLocales([]string{"en-US", "ja"}),
-		WithAppSearchKeywordsLimit(5),
+		Limit[AppSearchKeywordsOption](5),
 	)
 	if err != nil {
 		t.Fatalf("GetAppSearchKeywords() error: %v", err)
@@ -56,7 +56,7 @@ func TestAppMetadataListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppSearchKeywords",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/searchKeywords?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppSearchKeywords(ctx, "", WithAppSearchKeywordsNextURL(next))
+				_, err := c.GetAppSearchKeywords(ctx, "", NextURL[AppSearchKeywordsOption](next))
 				return err
 			},
 		},

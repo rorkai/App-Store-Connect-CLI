@@ -191,7 +191,7 @@ func apiAccessCheck(ctx context.Context, appID string) (accountCheck, error) {
 		}, nil
 	}
 
-	_, err = client.GetApps(requestCtx, asc.WithAppsLimit(1))
+	_, err = client.GetApps(requestCtx, asc.Limit[asc.AppsOption](1))
 	if err == nil {
 		return accountCheck{
 			Name:    "api_access",

@@ -156,20 +156,20 @@ Examples:
 				asc.WithAppEncryptionDeclarationsDocumentFields(documentFieldsValue),
 				asc.WithAppEncryptionDeclarationsInclude(includeValue),
 				asc.WithIncludedFields[asc.AppEncryptionDeclarationsOption](included),
-				asc.WithAppEncryptionDeclarationsLimit(*limit),
+				asc.Limit[asc.AppEncryptionDeclarationsOption](*limit),
 				asc.WithAppEncryptionDeclarationsBuildLimit(*buildLimit),
-				asc.WithAppEncryptionDeclarationsNextURL(*next),
+				asc.NextURL[asc.AppEncryptionDeclarationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppEncryptionDeclarationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppEncryptionDeclarationsOption](200))
 				firstPage, err := client.GetAppEncryptionDeclarations(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("encryption declarations list: failed to fetch: %w", err)
 				}
 
 				pages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEncryptionDeclarations(ctx, resolvedAppID, asc.WithAppEncryptionDeclarationsNextURL(nextURL))
+					return client.GetAppEncryptionDeclarations(ctx, resolvedAppID, asc.NextURL[asc.AppEncryptionDeclarationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("encryption declarations list: %w", err)

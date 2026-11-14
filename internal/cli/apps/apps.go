@@ -435,8 +435,8 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 		asc.WithAppsSKUs(shared.SplitCSV(sku)),
 		asc.WithAppsVersionStates(versionStateValues),
 		asc.WithAppsReviewSubmissionStates(reviewSubmissionStateValues),
-		asc.WithAppsLimit(limit),
-		asc.WithAppsNextURL(next),
+		asc.Limit[asc.AppsOption](limit),
+		asc.NextURL[asc.AppsOption](next),
 		asc.WithAppsAppInfoFields(appInfoFieldValues),
 		asc.WithAppsInAppPurchaseFields(iapFieldValues),
 		asc.WithAppsSubscriptionGroupFields(groupFieldValues),
@@ -461,14 +461,14 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 	}
 
 	if paginate {
-		paginateOpts := append(opts, asc.WithAppsLimit(200))
+		paginateOpts := append(opts, asc.Limit[asc.AppsOption](200))
 		apps, err := shared.PaginateWithSpinner(
 			requestCtx,
 			func(ctx context.Context) (asc.PaginatedResponse, error) {
 				return client.GetApps(ctx, paginateOpts...)
 			},
 			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
+				return client.GetApps(ctx, asc.NextURL[asc.AppsOption](nextURL))
 			},
 		)
 		if err != nil {

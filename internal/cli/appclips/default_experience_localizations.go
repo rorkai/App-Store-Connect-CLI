@@ -89,13 +89,13 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppClipDefaultExperienceLocalizationsOption{
-				asc.WithAppClipDefaultExperienceLocalizationsLimit(*limit),
-				asc.WithAppClipDefaultExperienceLocalizationsNextURL(*next),
+				asc.Limit[asc.AppClipDefaultExperienceLocalizationsOption](*limit),
+				asc.NextURL[asc.AppClipDefaultExperienceLocalizationsOption](*next),
 				asc.WithAppClipDefaultExperienceLocalizationsLocales(shared.SplitCSV(*locale)),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppClipDefaultExperienceLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppClipDefaultExperienceLocalizationsOption](200))
 				firstPage, err := client.GetAppClipDefaultExperienceLocalizations(requestCtx, experienceValue, paginateOpts...)
 				if err != nil {
 					if asc.IsNotFound(err) {
@@ -106,7 +106,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppClipDefaultExperienceLocalizations(ctx, experienceValue, asc.WithAppClipDefaultExperienceLocalizationsNextURL(nextURL))
+					return client.GetAppClipDefaultExperienceLocalizations(ctx, experienceValue, asc.NextURL[asc.AppClipDefaultExperienceLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-clips default-experiences localizations list: %w", err)

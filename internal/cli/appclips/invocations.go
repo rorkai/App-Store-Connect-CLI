@@ -87,12 +87,12 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaAppClipInvocationsOption{
-				asc.WithBetaAppClipInvocationsLimit(*limit),
-				asc.WithBetaAppClipInvocationsNextURL(*next),
+				asc.Limit[asc.BetaAppClipInvocationsOption](*limit),
+				asc.NextURL[asc.BetaAppClipInvocationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaAppClipInvocationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaAppClipInvocationsOption](200))
 				firstPage, err := client.GetBuildBundleBetaAppClipInvocations(requestCtx, buildBundleValue, paginateOpts...)
 				if err != nil {
 					if asc.IsNotFound(err) {
@@ -104,7 +104,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildBundleBetaAppClipInvocations(ctx, buildBundleValue, asc.WithBetaAppClipInvocationsNextURL(nextURL))
+					return client.GetBuildBundleBetaAppClipInvocations(ctx, buildBundleValue, asc.NextURL[asc.BetaAppClipInvocationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-clips invocations list: %w", err)

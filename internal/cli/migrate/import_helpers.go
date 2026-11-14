@@ -41,7 +41,7 @@ func resolveAppID(ctx context.Context, client *asc.Client, appFlag string, confi
 		if client == nil {
 			return "", fmt.Errorf("deliverfile app_identifier requires API access to resolve app ID")
 		}
-		resp, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{config.AppIdentifier}), asc.WithAppsLimit(10))
+		resp, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{config.AppIdentifier}), asc.Limit[asc.AppsOption](10))
 		if err != nil {
 			return "", fmt.Errorf("failed to resolve app identifier %q: %w", config.AppIdentifier, err)
 		}

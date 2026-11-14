@@ -158,24 +158,6 @@ type AppPreReleaseVersionsOption func(*listQuery)
 // PreReleaseVersionBuildsOption is a functional option for GetPreReleaseVersionBuilds.
 type PreReleaseVersionBuildsOption func(*listQuery)
 
-// WithBuildsLimit sets the max number of builds to return.
-func WithBuildsLimit(limit int) BuildsOption {
-	return func(q *buildsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBuildsNextURL uses a next page URL directly.
-func WithBuildsNextURL(next string) BuildsOption {
-	return func(q *buildsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithBuildsSort sets the sort order for builds.
 func WithBuildsSort(sort string) BuildsOption {
 	return func(q *buildsQuery) {
@@ -308,42 +290,6 @@ func WithBuildBundlesLimit(limit int) BuildBundlesOption {
 	}
 }
 
-// WithBuildBundleFileSizesLimit sets the max number of file size items to return.
-func WithBuildBundleFileSizesLimit(limit int) BuildBundleFileSizesOption {
-	return func(q *buildBundleFileSizesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBuildBundleFileSizesNextURL uses a next page URL directly.
-func WithBuildBundleFileSizesNextURL(next string) BuildBundleFileSizesOption {
-	return func(q *buildBundleFileSizesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithBuildUploadsLimit sets the max number of build uploads to return.
-func WithBuildUploadsLimit(limit int) BuildUploadsOption {
-	return func(q *buildUploadsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBuildUploadsNextURL uses a next page URL directly.
-func WithBuildUploadsNextURL(next string) BuildUploadsOption {
-	return func(q *buildUploadsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithBuildUploadsCFBundleShortVersionStrings filters build uploads by CFBundleShortVersionString.
 func WithBuildUploadsCFBundleShortVersionStrings(values []string) BuildUploadsOption {
 	return func(q *buildUploadsQuery) {
@@ -381,42 +327,6 @@ func WithBuildUploadsSort(sort string) BuildUploadsOption {
 	}
 }
 
-// WithBuildUploadFilesLimit sets the max number of build upload files to return.
-func WithBuildUploadFilesLimit(limit int) BuildUploadFilesOption {
-	return func(q *buildUploadFilesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBuildUploadFilesNextURL uses a next page URL directly.
-func WithBuildUploadFilesNextURL(next string) BuildUploadFilesOption {
-	return func(q *buildUploadFilesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithBuildIndividualTestersLimit sets the max number of build individual testers to return.
-func WithBuildIndividualTestersLimit(limit int) BuildIndividualTestersOption {
-	return func(q *buildIndividualTestersQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBuildIndividualTestersNextURL uses a next page URL directly.
-func WithBuildIndividualTestersNextURL(next string) BuildIndividualTestersOption {
-	return func(q *buildIndividualTestersQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithPreReleaseVersionsPlatform filters pre-release versions by platform.
 func WithPreReleaseVersionsPlatform(platform string) PreReleaseVersionsOption {
 	return func(q *preReleaseVersionsQuery) {
@@ -433,78 +343,6 @@ func WithPreReleaseVersionsVersion(version string) PreReleaseVersionsOption {
 		normalized := normalizeCSVString(version)
 		if normalized != "" {
 			q.version = normalized
-		}
-	}
-}
-
-// WithPreReleaseVersionsLimit sets the max number of pre-release versions to return.
-func WithPreReleaseVersionsLimit(limit int) PreReleaseVersionsOption {
-	return func(q *preReleaseVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithPreReleaseVersionsNextURL uses a next page URL directly.
-func WithPreReleaseVersionsNextURL(next string) PreReleaseVersionsOption {
-	return func(q *preReleaseVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithBuildIconsLimit sets the max number of build icons to return.
-func WithBuildIconsLimit(limit int) BuildIconsOption {
-	return func(q *listQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBuildIconsNextURL uses a next page URL directly.
-func WithBuildIconsNextURL(next string) BuildIconsOption {
-	return func(q *listQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppPreReleaseVersionsLimit sets the max number of pre-release versions to return.
-func WithAppPreReleaseVersionsLimit(limit int) AppPreReleaseVersionsOption {
-	return func(q *listQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppPreReleaseVersionsNextURL uses a next page URL directly.
-func WithAppPreReleaseVersionsNextURL(next string) AppPreReleaseVersionsOption {
-	return func(q *listQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithPreReleaseVersionBuildsLimit sets the max number of builds to return.
-func WithPreReleaseVersionBuildsLimit(limit int) PreReleaseVersionBuildsOption {
-	return func(q *listQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithPreReleaseVersionBuildsNextURL uses a next page URL directly.
-func WithPreReleaseVersionBuildsNextURL(next string) PreReleaseVersionBuildsOption {
-	return func(q *listQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }

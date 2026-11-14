@@ -139,9 +139,9 @@ func auditTargetApps(ctx context.Context, client *asc.Client, only []string, pag
 	seenNext := map[string]struct{}{}
 	page := 1
 	for {
-		opts := []asc.AppsOption{asc.WithAppsLimit(200)}
+		opts := []asc.AppsOption{asc.Limit[asc.AppsOption](200)}
 		if next != "" {
-			opts = append(opts, asc.WithAppsNextURL(next))
+			opts = append(opts, asc.NextURL[asc.AppsOption](next))
 		}
 		resp, err := client.GetApps(requestCtx, opts...)
 		if err != nil {

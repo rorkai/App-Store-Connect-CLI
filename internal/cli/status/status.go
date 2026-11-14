@@ -590,7 +590,7 @@ func fillBuildsAndTestFlight(ctx context.Context, client *asc.Client, appID stri
 	}
 	buildOpts := []asc.BuildsOption{
 		asc.WithBuildsSort("-uploadedDate"),
-		asc.WithBuildsLimit(50),
+		asc.Limit[asc.BuildsOption](50),
 		asc.WithBuildsInclude(buildIncludes),
 	}
 	if platform != "" {
@@ -787,7 +787,7 @@ func fetchBetaReviewSubmissionsForStatus(
 
 	activeBuildOpts := []asc.BuildsOption{
 		asc.WithBuildsBetaReviewStates([]string{"WAITING_FOR_REVIEW", "IN_REVIEW"}),
-		asc.WithBuildsLimit(50),
+		asc.Limit[asc.BuildsOption](50),
 		asc.WithBuildsInclude([]string{"preReleaseVersion"}),
 	}
 	if platform != "" {
@@ -799,7 +799,7 @@ func fetchBetaReviewSubmissionsForStatus(
 	}
 
 	err = asc.PaginateEach(ctx, activeBuilds, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBuilds(pageCtx, appID, asc.WithBuildsNextURL(nextURL))
+		return client.GetBuilds(pageCtx, appID, asc.NextURL[asc.BuildsOption](nextURL))
 	}, func(page asc.PaginatedResponse) error {
 		buildPage, ok := page.(*asc.BuildsResponse)
 		if !ok {

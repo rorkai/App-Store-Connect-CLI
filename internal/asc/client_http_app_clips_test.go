@@ -27,7 +27,7 @@ func TestGetAppClips_WithFiltersAndLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppClips(context.Background(), "app-1", WithAppClipsBundleIDs([]string{"com.example.clip"}), WithAppClipsLimit(10)); err != nil {
+	if _, err := client.GetAppClips(context.Background(), "app-1", WithAppClipsBundleIDs([]string{"com.example.clip"}), Limit[AppClipsOption](10)); err != nil {
 		t.Fatalf("GetAppClips() error: %v", err)
 	}
 }
@@ -149,7 +149,7 @@ func TestGetAppClipDefaultExperienceLocalizations_WithFilters(t *testing.T) {
 	if _, err := client.GetAppClipDefaultExperienceLocalizations(
 		context.Background(), "exp-1",
 		WithAppClipDefaultExperienceLocalizationsLocales([]string{"en-US", "fr-FR"}),
-		WithAppClipDefaultExperienceLocalizationsLimit(20),
+		Limit[AppClipDefaultExperienceLocalizationsOption](20),
 	); err != nil {
 		t.Fatalf("GetAppClipDefaultExperienceLocalizations() error: %v", err)
 	}

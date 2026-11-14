@@ -68,7 +68,7 @@ func PrepareImport(ctx context.Context, client *asc.Client, appID, versionID str
 	}
 	if plan.Experience.ID == "" {
 		clips, err := pages(ctx, func(c context.Context, next string) (*asc.AppClipsResponse, error) {
-			return client.GetAppClips(c, appID, asc.WithAppClipsNextURL(next))
+			return client.GetAppClips(c, appID, asc.NextURL[asc.AppClipsOption](next))
 		})
 		if err != nil {
 			return nil, err
