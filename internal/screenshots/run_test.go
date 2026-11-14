@@ -205,6 +205,46 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	}
 }
 
+func TestRunPlan_ScrollAndSwipeStepsCallAXe(t *testing.T) {
+	skipWindowsUnixExecutableFixtures(t)
+	binDir := t.TempDir()
+	axeLog := filepath.Join(t.TempDir(), "axe.log")
+	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$AXE_LOG"
+`)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("AXE_LOG", axeLog)
+
+	path := writePlanFile(t, `{
+  "version": 1,
+  "app": { "bundle_id": "com.example.app", "udid": "SIM-UDID-123", "output_dir": "`+t.TempDir()+`" },
+  "steps": [
+    { "action": "scroll", "direction": "up", "label": "Privacy", "distance": 0.6, "max_swipes": 20 },
+    { "action": "swipe", "x": 350, "y": 400, "end_x": 50, "end_y": 400.5, "duration_ms": 250 }
+  ]
+}`)
+	plan, err := LoadPlan(path)
+	if err != nil {
+		t.Fatalf("LoadPlan() error = %v", err)
+	}
+	if _, err := RunPlan(context.Background(), plan); err != nil {
+		t.Fatalf("RunPlan() error = %v", err)
+	}
+	data, err := os.ReadFile(axeLog)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", axeLog, err)
+	}
+	got := strings.Split(strings.TrimSpace(string(data)), "\n")
+	want := []string{
+		"gesture scroll-up --distance 0.6 --until-label Privacy --max-swipes 20 --udid SIM-UDID-123",
+		"swipe --start-x 350 --start-y 400 --end-x 50 --end-y 400.5 --duration 0.25 --udid SIM-UDID-123",
+	}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("axe calls = %q, want %q", got, want)
+	}
+}
+
 func TestRunPlan_TerminatesOnlyTheInitialMatrixLaunch(t *testing.T) {
 	skipWindowsUnixExecutableFixtures(t)
 	binDir := t.TempDir()

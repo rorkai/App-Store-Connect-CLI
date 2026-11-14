@@ -168,6 +168,36 @@ func TestLoadPlan_KeySequenceRequiresKeycodes(t *testing.T) {
 	assertValidationCode(t, err, PlanErrKeycodesMissing)
 }
 
+func TestLoadPlan_ScrollAndSwipeValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		step string
+		code PlanValidationCode
+	}{
+		{"scroll missing direction", `{ "action": "scroll" }`, PlanErrScrollDirection},
+		{"scroll bad direction", `{ "action": "scroll", "direction": "sideways" }`, PlanErrScrollDirection},
+		{"scroll label and id", `{ "action": "scroll", "direction": "up", "label": "Privacy", "id": "privacy" }`, PlanErrScrollLabelAndID},
+		{"scroll distance too small", `{ "action": "scroll", "direction": "up", "distance": 0.01 }`, PlanErrScrollDistance},
+		{"scroll distance too large", `{ "action": "scroll", "direction": "up", "distance": 1 }`, PlanErrScrollDistance},
+		{"scroll max_swipes without target", `{ "action": "scroll", "direction": "up", "max_swipes": 5 }`, PlanErrScrollMaxSwipes},
+		{"scroll max_swipes out of range", `{ "action": "scroll", "direction": "up", "label": "Privacy", "max_swipes": 51 }`, PlanErrScrollMaxSwipes},
+		{"swipe missing end_y", `{ "action": "swipe", "x": 200, "y": 600, "end_x": 200 }`, PlanErrSwipeCoordinates},
+		{"swipe negative coordinate", `{ "action": "swipe", "x": -1, "y": 600, "end_x": 200, "end_y": 300 }`, PlanErrSwipeCoordinates},
+		{"swipe zero duration", `{ "action": "swipe", "x": 200, "y": 600, "end_x": 200, "end_y": 300, "duration_ms": 0 }`, PlanErrSwipeDuration},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := writePlanFile(t, `{
+  "version": 1,
+  "app": { "bundle_id": "com.example.app" },
+  "steps": [`+tt.step+`]
+}`)
+			_, err := LoadPlan(path)
+			assertValidationCode(t, err, tt.code)
+		})
+	}
+}
+
 func TestRunPlan_WaitOnly(t *testing.T) {
 	plan := &Plan{
 		Version: 1,
