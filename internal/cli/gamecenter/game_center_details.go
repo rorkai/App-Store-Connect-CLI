@@ -126,43 +126,24 @@ Examples:
 
 // GameCenterDetailsGetCommand returns the details get subcommand.
 func GameCenterDetailsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	detailID := shared.BindResourceIDFlag(fs, "id", "gameCenterDetails", "Game Center detail ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center details view --id \"DETAIL_ID\"",
-		ShortHelp:  "View a Game Center detail by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center details view --id \"DETAIL_ID\"",
+		ShortHelp:   "View a Game Center detail by ID.",
 		LongHelp: `View a Game Center detail by ID.
 
 Examples:
   asc game-center details view --id "DETAIL_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*detailID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center details view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterDetail(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center details view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center detail ID",
+		IDType:             "gameCenterDetails",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center details view",
+		FetchErrorPrefix:   "game-center details view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterDetail(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterDetailsCreateCommand returns the details create subcommand.
@@ -431,43 +412,24 @@ Examples:
 
 // GameCenterDetailsGroupGetCommand returns the details group get subcommand.
 func GameCenterDetailsGroupGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	detailID := shared.BindResourceIDFlag(fs, "id", "gameCenterDetails", "Game Center detail ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center details group view --id \"DETAIL_ID\"",
-		ShortHelp:  "View the Game Center group for a detail.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center details group view --id \"DETAIL_ID\"",
+		ShortHelp:   "View the Game Center group for a detail.",
 		LongHelp: `View the Game Center group for a detail.
 
 Examples:
   asc game-center details group view --id "DETAIL_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*detailID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center details group view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterDetailGameCenterGroup(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center details group view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center detail ID",
+		IDType:             "gameCenterDetails",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center details group view",
+		FetchErrorPrefix:   "game-center details group view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterDetailGameCenterGroup(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterDetailsAchievementsV2Command returns the achievements v2 command group.
