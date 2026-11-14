@@ -421,39 +421,12 @@ type AppClipAppStoreReviewDetailUpdateRequest struct {
 	Data AppClipAppStoreReviewDetailUpdateData `json:"data"`
 }
 
-// BetaAppClipInvocationCreateAttributes describes invocation create attributes.
-type BetaAppClipInvocationCreateAttributes struct {
-	URL string `json:"url"`
-}
-
-// BetaAppClipInvocationUpdateAttributes describes invocation update attributes.
-type BetaAppClipInvocationUpdateAttributes struct {
-	URL *string `json:"url,omitempty"`
-}
-
-// BetaAppClipInvocationLocalizationAttributes describes localization attributes.
-type BetaAppClipInvocationLocalizationAttributes struct {
-	Title  string `json:"title,omitempty"`
-	Locale string `json:"locale,omitempty"`
-}
-
-// BetaAppClipInvocationLocalizationCreateAttributes describes localization create attributes.
-type BetaAppClipInvocationLocalizationCreateAttributes struct {
-	Title  string `json:"title"`
-	Locale string `json:"locale"`
-}
-
 // BetaAppClipInvocationLocalizationInlineCreate describes an inline localization create payload.
 type BetaAppClipInvocationLocalizationInlineCreate struct {
 	Type          ResourceType                                      `json:"type"`
 	ID            string                                            `json:"id,omitempty"`
 	Attributes    BetaAppClipInvocationLocalizationCreateAttributes `json:"attributes"`
 	Relationships *BetaAppClipInvocationLocalizationRelationships   `json:"relationships,omitempty"`
-}
-
-// BetaAppClipInvocationLocalizationUpdateAttributes describes localization update attributes.
-type BetaAppClipInvocationLocalizationUpdateAttributes struct {
-	Title *string `json:"title,omitempty"`
 }
 
 // BetaAppClipInvocationRelationships describes invocation relationships.
@@ -480,40 +453,11 @@ type BetaAppClipInvocationCreateRequest struct {
 	Included []BetaAppClipInvocationLocalizationInlineCreate `json:"included,omitempty"`
 }
 
-// BetaAppClipInvocationUpdateData is the payload for updating an invocation.
-type BetaAppClipInvocationUpdateData struct {
-	Type       ResourceType                           `json:"type"`
-	ID         string                                 `json:"id"`
-	Attributes *BetaAppClipInvocationUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// BetaAppClipInvocationUpdateRequest is the update request payload.
-type BetaAppClipInvocationUpdateRequest struct {
-	Data BetaAppClipInvocationUpdateData `json:"data"`
-}
-
 // BetaAppClipInvocationLocalizationCreateData is the payload for creating a localization.
 type BetaAppClipInvocationLocalizationCreateData struct {
 	Type          ResourceType                                      `json:"type"`
 	Attributes    BetaAppClipInvocationLocalizationCreateAttributes `json:"attributes"`
 	Relationships *BetaAppClipInvocationLocalizationRelationships   `json:"relationships"`
-}
-
-// BetaAppClipInvocationLocalizationCreateRequest is the create request payload.
-type BetaAppClipInvocationLocalizationCreateRequest struct {
-	Data BetaAppClipInvocationLocalizationCreateData `json:"data"`
-}
-
-// BetaAppClipInvocationLocalizationUpdateData is the payload for updating a localization.
-type BetaAppClipInvocationLocalizationUpdateData struct {
-	Type       ResourceType                                       `json:"type"`
-	ID         string                                             `json:"id"`
-	Attributes *BetaAppClipInvocationLocalizationUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// BetaAppClipInvocationLocalizationUpdateRequest is the update request payload.
-type BetaAppClipInvocationLocalizationUpdateRequest struct {
-	Data BetaAppClipInvocationLocalizationUpdateData `json:"data"`
 }
 
 // Response aliases.
@@ -1480,15 +1424,6 @@ func (c *Client) UpdateBetaAppClipInvocation(ctx context.Context, invocationID s
 	return sendJSON[BetaAppClipInvocationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), Payload: payload})
 }
 
-// DeleteBetaAppClipInvocation deletes a beta App Clip invocation.
-func (c *Client) DeleteBetaAppClipInvocation(ctx context.Context, invocationID string) error {
-	invocationID = strings.TrimSpace(invocationID)
-	if invocationID == "" {
-		return fmt.Errorf("invocationID is required")
-	}
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), nil)
-}
-
 // GetBetaAppClipInvocationLocalizations retrieves localizations via the invocation include.
 func (c *Client) GetBetaAppClipInvocationLocalizations(ctx context.Context, invocationID string, limit int) (*BetaAppClipInvocationLocalizationsResponse, error) {
 	opts := []BetaAppClipInvocationOption{
@@ -1561,13 +1496,4 @@ func (c *Client) UpdateBetaAppClipInvocationLocalization(ctx context.Context, lo
 	}
 
 	return sendJSON[BetaAppClipInvocationLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/betaAppClipInvocationLocalizations/%s", localizationID), Payload: payload})
-}
-
-// DeleteBetaAppClipInvocationLocalization deletes a localization.
-func (c *Client) DeleteBetaAppClipInvocationLocalization(ctx context.Context, localizationID string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaAppClipInvocationLocalizations/%s", localizationID), nil)
 }

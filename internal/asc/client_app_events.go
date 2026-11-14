@@ -149,23 +149,6 @@ type AppEventVideoClipUpdateRequest struct {
 	Data AppEventVideoClipUpdateData `json:"data"`
 }
 
-// GetAppEvents retrieves app events for an app.
-func (c *Client) GetAppEvents(ctx context.Context, appID string, opts ...AppEventsOption) (*AppEventsResponse, error) {
-	query := applyOptions(opts)
-
-	appID = strings.TrimSpace(appID)
-	if query.nextURL == "" && appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-
-	return getJSON[AppEventsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/appEvents", appID),
-		Query:       buildAppEventsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appEvents",
-	})
-}
-
 // GetAppEvent retrieves an app event by ID.
 func (c *Client) GetAppEvent(ctx context.Context, eventID string) (*AppEventResponse, error) {
 	eventID = strings.TrimSpace(eventID)

@@ -108,16 +108,6 @@ func (c *Client) GetEndUserLicenseAgreement(ctx context.Context, id string) (*En
 	return getJSON[EndUserLicenseAgreementResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id)})
 }
 
-// GetEndUserLicenseAgreementForApp retrieves an EULA for a specific app.
-func (c *Client) GetEndUserLicenseAgreementForApp(ctx context.Context, appID string) (*EndUserLicenseAgreementResponse, error) {
-	appID = strings.TrimSpace(appID)
-	if appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-
-	return getJSON[EndUserLicenseAgreementResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/apps/%s/endUserLicenseAgreement", appID)})
-}
-
 // CreateEndUserLicenseAgreement creates an EULA for an app.
 func (c *Client) CreateEndUserLicenseAgreement(ctx context.Context, appID, agreementText string, territoryIDs []string) (*EndUserLicenseAgreementResponse, error) {
 	appID = strings.TrimSpace(appID)
