@@ -1,64 +1,35 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestLocalizationsListSendsIncludeAndPrintsEnvelope(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "filter[locale]=en-US", "include=appScreenshotSets,appPreviewSets"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}],"included":[{"type":"appScreenshotSets","id":"set-1"}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-1/appStoreVersionLocalizations"}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"localizations", "list",
+		"--version", "version-1",
+		"--locale", "en-US",
+		"--include", "appScreenshotSets,appPreviewSets",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		if got := req.URL.Path; got != "/v1/appStoreVersions/version-1/appStoreVersionLocalizations" {
-			t.Fatalf("unexpected path: %s", got)
-		}
-		if got := req.URL.Query().Get("include"); got != "appScreenshotSets,appPreviewSets" {
-			t.Fatalf("expected include=appScreenshotSets,appPreviewSets, got %q", got)
-		}
-		if got := req.URL.Query().Get("filter[locale]"); got != "en-US" {
-			t.Fatalf("expected filter[locale]=en-US, got %q", got)
-		}
-		body := `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}],` +
-			`"included":[{"type":"appScreenshotSets","id":"set-1"}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-1/appStoreVersionLocalizations"}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"localizations", "list",
-			"--version", "version-1",
-			"--locale", "en-US",
-			"--include", "appScreenshotSets,appPreviewSets",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if requestCount != 1 {
+	if requestCount := len(reg.Requests()); requestCount != 1 {
 		t.Fatalf("expected exactly 1 request, got %d", requestCount)
 	}
 	if stderr != "" {
@@ -78,64 +49,24 @@ func TestLocalizationsListPaginateMergesIncludeAcrossPages(t *testing.T) {
 
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-1/appStoreVersionLocalizations?cursor=BQ&include=appScreenshotSets&limit=200"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "include=appScreenshotSets", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1"}],"included":[{"type":"appScreenshotSets","id":"set-1"}],"links":{"next":"`+secondURL+`"}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "cursor=BQ", "include=appScreenshotSets", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-2"}],"included":[{"type":"appScreenshotSets","id":"set-2"}],"links":{"next":""}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"localizations", "list",
+		"--version", "version-1",
+		"--include", "appScreenshotSets",
+		"--paginate",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if got := req.URL.Query().Get("include"); got != "appScreenshotSets" {
-				t.Fatalf("expected include=appScreenshotSets on first page, got %q", got)
-			}
-			if got := req.URL.Query().Get("limit"); got != "200" {
-				t.Fatalf("expected limit=200 on first page, got %q", got)
-			}
-			body := `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1"}],` +
-				`"included":[{"type":"appScreenshotSets","id":"set-1"}],"links":{"next":"` + secondURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s", req.URL.String())
-			}
-			body := `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-2"}],` +
-				`"included":[{"type":"appScreenshotSets","id":"set-2"}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s", req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"localizations", "list",
-			"--version", "version-1",
-			"--include", "appScreenshotSets",
-			"--paginate",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if requestCount != 2 {
+	if requestCount := len(reg.Requests()); requestCount != 2 {
 		t.Fatalf("expected exactly 2 requests, got %d", requestCount)
 	}
 	if stderr != "" {
@@ -197,14 +128,7 @@ func TestLocalizationsListIncludeValidationErrors(t *testing.T) {
 			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request for invalid input: %s", req.URL.String())
-				return nil, nil
-			})
+			asctest.NewRegistry(t).Install()
 
 			_, stderr := captureOutput(t, func() {
 				if code := cmd.Run(test.args, "1.0.0"); code != cmd.ExitUsage {
