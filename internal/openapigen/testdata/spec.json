@@ -75,6 +75,36 @@
         "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetGadgetsLinkagesRequest"}}}},
         "responses": {"204": {"description": "Success (no content)"}}
       }
+    },
+    "/v1/wizards/{id}": {
+      "patch": {
+        "tags": ["Widgets"],
+        "operationId": "wizards_updateInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WizardUpdateRequest"}}}},
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
+    },
+    "/v2/wizards/{id}": {
+      "patch": {
+        "tags": ["Widgets"],
+        "operationId": "wizardsV2_updateInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WizardUpdateRequest"}}}},
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
+    },
+    "/v3/wizards/{id}": {
+      "patch": {
+        "tags": ["Widgets"],
+        "operationId": "wizardsV3_updateInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WizardUpdateRequest"}}}},
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
     }
   },
   "components": {
@@ -164,6 +194,27 @@
               },
               "required": ["id", "type"]
             }
+          }
+        },
+        "required": ["data"]
+      },
+      "WizardUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["wizards"]},
+              "id": {"type": "string"},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "title": {"type": "string", "nullable": true},
+                  "visible": {"type": "boolean", "nullable": true}
+                }
+              }
+            },
+            "required": ["id", "type"]
           }
         },
         "required": ["data"]

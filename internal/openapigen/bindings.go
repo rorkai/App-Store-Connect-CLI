@@ -33,6 +33,13 @@ const (
 	checkRaw     = "raw"     // use the parameter as given
 )
 
+// Ways an optional attributes object reaches the data of a create or update
+// request. The default takes the argument by value and sends its address.
+const (
+	attrsValue   = "value"   // send the value; the data type holds it by value
+	attrsPointer = "pointer" // take a pointer argument and send it as given
+)
+
 // OpBind binds one spec operation to one client method. Empty fields take the
 // default rule documented next to each field.
 type OpBind struct {
@@ -51,6 +58,9 @@ type OpBind struct {
 	ParseErr    string   `json:"parseErr,omitempty"`    // default "failed to parse response"
 	Response    string   `json:"response,omitempty"`    // Go decode type; default the spec schema name
 	IDs         string   `json:"ids,omitempty"`         // ID list parameter of a relationship change
+	Attrs       string   `json:"attrs,omitempty"`       // "", attrsValue or attrsPointer
+	// SkipEmptyAttributes sends the attributes only when one of them is set.
+	SkipEmptyAttributes bool `json:"skipEmptyAttributes,omitempty"`
 	// Deviations are known differences from the schema that the contract test
 	// in internal/asc pins. They change no generated code.
 	Deviations []Deviation `json:"deviations,omitempty"`

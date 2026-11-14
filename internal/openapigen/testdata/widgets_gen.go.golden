@@ -162,3 +162,62 @@ func (c *Client) UpdateWidget(ctx context.Context, widgetID string, attrs Widget
 		Payload: payload,
 	})
 }
+
+// UpdateWizardV2 sends PATCH /v2/wizards/{id} (wizardsV2_updateInstance).
+func (c *Client) UpdateWizardV2(ctx context.Context, wizardID string, attrs WizardUpdateAttributes) (*WidgetResponse, error) {
+	wizardID = strings.TrimSpace(wizardID)
+	payload := WizardUpdateRequest{
+		Data: WizardUpdateData{
+			Type:       ResourceTypeWizards,
+			ID:         wizardID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v2/wizards/%s", wizardID),
+		Payload: payload,
+	})
+}
+
+// UpdateWizardV3 sends PATCH /v3/wizards/{id} (wizardsV3_updateInstance).
+func (c *Client) UpdateWizardV3(ctx context.Context, wizardID string, attrs *WizardUpdateAttributes) (*WidgetResponse, error) {
+	wizardID = strings.TrimSpace(wizardID)
+	if wizardID == "" {
+		return nil, fmt.Errorf("wizardID is required")
+	}
+	payload := WizardUpdateRequest{
+		Data: WizardUpdateData{
+			Type:       ResourceTypeWizards,
+			ID:         wizardID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v3/wizards/%s", wizardID),
+		Payload: payload,
+	})
+}
+
+// UpdateWizard sends PATCH /v1/wizards/{id} (wizards_updateInstance).
+func (c *Client) UpdateWizard(ctx context.Context, wizardID string, attrs WizardUpdateAttributes) (*WidgetResponse, error) {
+	wizardID = strings.TrimSpace(wizardID)
+	if wizardID == "" {
+		return nil, fmt.Errorf("wizardID is required")
+	}
+	payload := WizardUpdateRequest{
+		Data: WizardUpdateData{
+			Type: ResourceTypeWizards,
+			ID:   wizardID,
+		},
+	}
+	if attrs.Title != nil || attrs.Visible != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/wizards/%s", wizardID),
+		Payload: payload,
+	})
+}
