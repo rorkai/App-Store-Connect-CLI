@@ -198,8 +198,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
-				return shared.MissingRequiredUsageError("--schedule-id")
+				return shared.RequiredFlag("--schedule-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -249,13 +248,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return shared.MissingRequiredUsageError("--iap-id")
+				return shared.RequiredFlag("--iap-id")
 			}
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
 			if baseTerritoryValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
-				return shared.MissingRequiredUsageError("--base-territory")
+				return shared.RequiredFlag("--base-territory")
 			}
 			baseTerritoryValue, err := ascterritory.Normalize(baseTerritoryValue)
 			if err != nil {
@@ -400,8 +397,7 @@ Examples:
 
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
-				return shared.MissingRequiredUsageError("--schedule-id")
+				return shared.RequiredFlag("--schedule-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -489,8 +485,7 @@ Examples:
 
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
-				return shared.MissingRequiredUsageError("--schedule-id")
+				return shared.RequiredFlag("--schedule-id")
 			}
 
 			client, err := shared.GetASCClient()

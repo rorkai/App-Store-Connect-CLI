@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -32,8 +30,7 @@ func IAPPricingPPPCommand() *ffcli.Command {
 			return shared.PriceSchedulePPPResource{
 				Validate: func() error {
 					if strings.TrimSpace(*iapID) == "" {
-						fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-						return shared.MissingRequiredUsageError("--iap-id")
+						return shared.RequiredFlag("--iap-id")
 					}
 					return shared.RequireAppForStableSelector(shared.ResolveAppID(*appID), strings.TrimSpace(*iapID), "--iap-id")
 				},

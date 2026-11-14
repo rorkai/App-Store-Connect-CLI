@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -109,8 +108,7 @@ Examples:
 
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return shared.MissingRequiredUsageError("--iap-id")
+				return shared.RequiredFlag("--iap-id")
 			}
 
 			client, err := shared.GetASCClient()

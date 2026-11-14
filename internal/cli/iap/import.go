@@ -123,8 +123,7 @@ Examples:
 			}
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())

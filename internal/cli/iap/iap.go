@@ -334,8 +334,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*iapID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
 				return shared.UsageError("iap view: --versions-limit must be between 1 and 50")
@@ -442,14 +441,12 @@ Examples:
 
 			name := strings.TrimSpace(*refName)
 			if name == "" {
-				fmt.Fprintln(os.Stderr, "Error: --ref-name is required")
-				return shared.MissingRequiredUsageError("--ref-name")
+				return shared.RequiredFlag("--ref-name")
 			}
 
 			product := strings.TrimSpace(*productID)
 			if product == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 
 			note := strings.TrimSpace(*reviewNote)
@@ -511,8 +508,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*iapID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			name := strings.TrimSpace(*refName)
@@ -577,12 +573,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*iapID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

@@ -58,8 +58,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return shared.MissingRequiredUsageError("--iap-id")
+				return shared.RequiredFlag("--iap-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -117,8 +116,7 @@ Examples:
 
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return shared.MissingRequiredUsageError("--iap-id")
+				return shared.RequiredFlag("--iap-id")
 			}
 
 			territoryIDs, err := shared.NormalizeASCTerritoryCSV(territories.String())
@@ -126,8 +124,7 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 			if len(territoryIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --territories is required")
-				return shared.MissingRequiredUsageError("--territories")
+				return shared.RequiredFlag("--territories")
 			}
 
 			client, err := shared.GetASCClient()

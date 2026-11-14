@@ -61,8 +61,7 @@ func NewActiveUpdateCommand(config ActiveUpdateCommandConfig) *ffcli.Command {
 				return shared.UsageErrorfCtx(ctx, "%s: %v", config.ErrorPrefix, err)
 			}
 			if activeValue == nil {
-				fmt.Fprintln(os.Stderr, "Error: --active is required")
-				return shared.MissingRequiredUsageError("--active")
+				return shared.RequiredFlag("--active")
 			}
 			if confirm != nil && !*activeValue && !*confirm {
 				return shared.UsageErrorf("--confirm is required to turn off %s; turning it off is permanent", config.ConfirmOff)
