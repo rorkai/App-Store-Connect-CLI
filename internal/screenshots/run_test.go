@@ -396,3 +396,137 @@ if [ -n "$out" ]; then cp "$AXE_TEMPLATE_PNG" "$out"; fi
 		})
 	}
 }
+
+func TestRunPlanAppliesAndClearsStatusBarPreset(t *testing.T) {
+	skipWindowsUnixExecutableFixtures(t)
+	text := "hello"
+	name := "home"
+	waitMS := 1
+	appSteps := []PlanStep{{Action: ActionLaunch}, {Action: ActionType, Text: &text}, {Action: ActionScreenshot, Name: &name}}
+	tests := []struct {
+		name      string
+		statusBar string
+		steps     []PlanStep
+		failOn    string
+		failClear bool
+		wantErr   string
+		alsoErr   string
+		wantCode  PlanValidationCode
+		wantCalls []string
+	}{
+		{
+			name:      "preset before the first step and clear last",
+			statusBar: " Screenshot ",
+			steps:     appSteps,
+			wantCalls: []string{
+				"settings status-bar preset screenshot --udid BOOTED-1",
+				"type hello --udid BOOTED-1",
+				"screenshot --output OUT --udid BOOTED-1",
+				"settings status-bar clear --udid BOOTED-1",
+			},
+		},
+		{
+			name:      "wait-only plan still targets the booted simulator",
+			statusBar: "charging",
+			steps:     []PlanStep{{Action: ActionWait, DurationMS: &waitMS}},
+			wantCalls: []string{
+				"settings status-bar preset charging --udid BOOTED-1",
+				"settings status-bar clear --udid BOOTED-1",
+			},
+		},
+		{
+			name:      "failing step still clears and keeps the step error",
+			statusBar: "no-service",
+			steps:     appSteps,
+			failOn:    "type",
+			wantErr:   "step 2 (type)",
+			wantCalls: []string{
+				"settings status-bar preset no-service --udid BOOTED-1",
+				"type hello --udid BOOTED-1",
+				"settings status-bar clear --udid BOOTED-1",
+			},
+		},
+		{
+			name:      "failing step and failing clear are both reported",
+			statusBar: "screenshot",
+			steps:     appSteps,
+			failOn:    "type",
+			failClear: true,
+			wantErr:   "step 2 (type)",
+			alsoErr:   "clear status bar overrides",
+			wantCalls: []string{
+				"settings status-bar preset screenshot --udid BOOTED-1",
+				"type hello --udid BOOTED-1",
+				"settings status-bar clear --udid BOOTED-1",
+			},
+		},
+		{
+			name:      "unknown preset fails validation before anything runs",
+			statusBar: "sunny",
+			steps:     appSteps,
+			wantCode:  PlanErrInvalidStatusBar,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			binDir := t.TempDir()
+			logDir := t.TempDir()
+			axeLog := filepath.Join(logDir, "axe.log")
+			templatePNG := filepath.Join(logDir, "template.png")
+			writeMinimalPNG(t, templatePNG, 10, 10)
+			writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  printf '{"devices":{"runtime":[{"udid":"BOOTED-1","name":"iPhone 17","state":"Booted","isAvailable":true}]}}\n'
+fi
+`)
+			writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$AXE_LOG"
+if [ "$1" = "$AXE_FAIL_ON" ]; then exit 1; fi
+if [ "$AXE_FAIL_CLEAR" = "1" ] && [ "$1" = "settings" ] && [ "$3" = "clear" ]; then exit 1; fi
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--output" ]; then out="$2"; break; fi
+  shift
+done
+if [ -n "$out" ]; then cp "$AXE_TEMPLATE_PNG" "$out"; fi
+`)
+			t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+			t.Setenv("AXE_LOG", axeLog)
+			t.Setenv("AXE_FAIL_ON", test.failOn)
+			failClear := "0"
+			if test.failClear {
+				failClear = "1"
+			}
+			t.Setenv("AXE_FAIL_CLEAR", failClear)
+			t.Setenv("AXE_TEMPLATE_PNG", templatePNG)
+
+			outputDir := t.TempDir()
+			plan := &Plan{
+				Version:  1,
+				App:      PlanApp{BundleID: "com.example.app", OutputDir: outputDir},
+				Defaults: PlanDefaults{StatusBar: test.statusBar},
+				Steps:    test.steps,
+			}
+			_, err := RunPlan(context.Background(), plan)
+			switch {
+			case test.wantCode != "":
+				assertValidationCode(t, err, test.wantCode)
+			case test.wantErr != "":
+				if err == nil || !strings.Contains(err.Error(), test.wantErr) || !strings.Contains(err.Error(), test.alsoErr) {
+					t.Fatalf("RunPlan() error = %v, want %q and %q", err, test.wantErr, test.alsoErr)
+				}
+			case err != nil:
+				t.Fatalf("RunPlan() error = %v", err)
+			}
+			var calls []string
+			if data, readErr := os.ReadFile(axeLog); readErr == nil {
+				logged := strings.ReplaceAll(strings.TrimSpace(string(data)), filepath.Join(outputDir, name+".png"), "OUT")
+				calls = strings.Split(logged, "\n")
+			}
+			if strings.Join(calls, "\n") != strings.Join(test.wantCalls, "\n") {
+				t.Fatalf("axe calls = %q, want %q", calls, test.wantCalls)
+			}
+		})
+	}
+}

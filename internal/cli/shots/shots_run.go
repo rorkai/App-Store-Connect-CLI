@@ -30,7 +30,11 @@ func ShotsRunCommand() *ffcli.Command {
 By default it loads .asc/screenshots.json from the current project root.
 Supported actions: launch, tap, type, key_sequence, wait, wait_for (polling), scroll, swipe, screenshot.
 scroll takes direction up, down, left, or right, the way the finger moves: up drags the content up to show what is below it.
-scroll and swipe need AXe 2.0 or later.`,
+scroll and swipe need AXe 2.0 or later.
+Set defaults.status_bar to screenshot, low-battery, no-service, or charging to
+override the simulator status bar during the run (needs AXe 2.0+ and Xcode 27+).
+When the run ends, every status bar override on that simulator is cleared,
+including any that were set before the run.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
