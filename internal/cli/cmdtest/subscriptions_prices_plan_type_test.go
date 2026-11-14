@@ -6,36 +6,23 @@ import (
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSubscriptionsPricingPricesListSendsPlanTypeFilter(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/prices" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		if got := req.URL.Query().Get("filter[planType]"); got != "MONTHLY" {
-			t.Fatalf("expected filter[planType]=MONTHLY, got %q", got)
-		}
-		body := `{"data":[{"type":"subscriptionPrices","id":"price-monthly","attributes":{"planType":"MONTHLY","startDate":"2026-01-01","preserved":false}}]}`
-		return jsonResponse(http.StatusOK, body)
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/prices", "filter[planType]=MONTHLY"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-monthly","attributes":{"planType":"MONTHLY","startDate":"2026-01-01","preserved":false}}]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "prices", "list",
-			"--subscription-id", "8000000001",
-			"--plan-type", "MONTHLY",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"subscriptions", "pricing", "prices", "list",
+		"--subscription-id", "8000000001",
+		"--plan-type", "MONTHLY",
+		"--output", "json",
 	})
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
@@ -170,35 +157,20 @@ func TestSubscriptionsPricingPricesListNextPreservesPlanTypeFilter(t *testing.T)
 	setupAuth(t)
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/8000000001/prices?cursor=next"
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/prices" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		if got := req.URL.Query().Get("cursor"); got != "next" {
-			t.Fatalf("expected cursor=next, got %q", got)
-		}
-		if got := req.URL.Query().Get("filter[planType]"); got != "UPFRONT" {
-			t.Fatalf("expected filter[planType]=UPFRONT, got %q", got)
-		}
-		return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-upfront"}],"links":{"next":""}}`)
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/prices", "cursor=next", "filter[planType]=UPFRONT"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-upfront"}],"links":{"next":""}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "prices", "list",
-			"--next", nextURL,
-			"--plan-type", "UPFRONT",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	_, stderr, err := runCommand(t, []string{
+		"subscriptions", "pricing", "prices", "list",
+		"--next", nextURL,
+		"--plan-type", "UPFRONT",
+		"--output", "json",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}

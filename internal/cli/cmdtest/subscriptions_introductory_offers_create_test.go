@@ -14,6 +14,7 @@ import (
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -31,52 +32,10 @@ func (b *cancelOnCloseBody) Close() error {
 func TestSubscriptionsIntroductoryOffersCreateNormalizesTerritory(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionIntroductoryOffers" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-
-		var payload struct {
-			Data struct {
-				Relationships struct {
-					Subscription struct {
-						Data struct {
-							ID string `json:"id"`
-						} `json:"data"`
-					} `json:"subscription"`
-					Territory struct {
-						Data struct {
-							ID string `json:"id"`
-						} `json:"data"`
-					} `json:"territory"`
-					SubscriptionPricePoint struct {
-						Data struct {
-							ID string `json:"id"`
-						} `json:"data"`
-					} `json:"subscriptionPricePoint"`
-				} `json:"relationships"`
-			} `json:"data"`
-		}
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request payload: %v", err)
-		}
-		if got := payload.Data.Relationships.Territory.Data.ID; got != "USA" {
-			t.Fatalf("expected normalized territory USA, got %q", got)
-		}
-		if got := payload.Data.Relationships.Subscription.Data.ID; got != "8000000001" {
-			t.Fatalf("expected subscription relationship 8000000001, got %q", got)
-		}
-		if got := payload.Data.Relationships.SubscriptionPricePoint.Data.ID; got != "price-1" {
-			t.Fatalf("expected price point relationship price-1, got %q", got)
-		}
-
-		return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionIntroductoryOffers","id":"intro-1","attributes":{"duration":"ONE_MONTH","offerMode":"FREE_TRIAL","numberOfPeriods":1}}}`), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/subscriptionIntroductoryOffers").JSONBody(`{"data":{"type":"subscriptionIntroductoryOffers","attributes":{"duration":"ONE_MONTH","offerMode":"FREE_TRIAL","numberOfPeriods":1},"relationships":{"subscription":{"data":{"type":"subscriptions","id":"8000000001"}},"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"price-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"subscriptionIntroductoryOffers","id":"intro-1","attributes":{"duration":"ONE_MONTH","offerMode":"FREE_TRIAL","numberOfPeriods":1}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -100,12 +59,8 @@ func TestSubscriptionsIntroductoryOffersCreateNormalizesTerritory(t *testing.T) 
 func TestSubscriptionsIntroductoryOffersCreateRequiresExactlyOneTerritorySelectorBeforeAuth(t *testing.T) {
 	isolateIntroductoryOfferCreateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("validation must happen before HTTP: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	baseArgs := []string{
 		"subscriptions", "offers", "introductory", "create",
@@ -491,12 +446,8 @@ func TestSubscriptionsIntroductoryOffersCreateSingleTerritoryDryRunSummarizesRes
 func TestSubscriptionsIntroductoryOffersCreateSingleTerritoryDryRunSkipsSubscriptionLookup(t *testing.T) {
 	isolateIntroductoryOfferCreateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("single-territory dry-run should not resolve subscription selectors: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "offers", "introductory", "create",
@@ -537,12 +488,8 @@ func TestSubscriptionsIntroductoryOffersCreateSingleTerritoryDryRunSkipsSubscrip
 func TestSubscriptionsIntroductoryOffersCreateSingleTerritoryDryRunRequiresAppForLookupSelectors(t *testing.T) {
 	isolateIntroductoryOfferCreateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("missing app validation must happen before HTTP: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	for _, selector := range []string{"com.example.monthly", "Monthly Plan"} {
 		t.Run(selector, func(t *testing.T) {
@@ -575,12 +522,8 @@ func TestSubscriptionsIntroductoryOffersCreateSingleTerritoryDryRunRequiresAppFo
 func TestSubscriptionsIntroductoryOffersCreateSingleTerritoryDryRunHonorsCanceledContext(t *testing.T) {
 	isolateIntroductoryOfferCreateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("canceled dry-run should not reach the API: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

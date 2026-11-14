@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	subscriptionscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
 )
 
@@ -411,10 +412,8 @@ func TestSubscriptionsAdjustedEqualizationsRequiresLiveFiltersBeforeClient(t *te
 
 func TestSubscriptionsPricePointsListValidates441FlagsBeforeLookup(t *testing.T) {
 	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("invalid fields must fail before HTTP lookup: %s %s", req.Method, req.URL)
-		return nil, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	assertUsageExit(t, []string{
 		"subscriptions", "pricing", "price-points", "list",
@@ -430,10 +429,8 @@ func TestSubscriptionsPricePointsListValidates441FlagsBeforeLookup(t *testing.T)
 
 func TestSubscriptionsPricePointsListRejectsNextQueryConflictsBeforeLookup(t *testing.T) {
 	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("next conflicts must fail before HTTP lookup: %s %s", req.Method, req.URL)
-		return nil, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	assertUsageExit(t, []string{
 		"subscriptions", "pricing", "price-points", "list",
@@ -651,15 +648,10 @@ func TestSubscriptionsPricePointCommandsContinueFromOpaqueNextURL(t *testing.T) 
 
 func TestSubscriptionsPricePointsListKeepsCustomerPriceForClientSideFiltering(t *testing.T) {
 	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/subscriptions/8000000001/pricePoints" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
-		}
-		if got := req.URL.Query().Get("fields[subscriptionPricePoints]"); got != "proceeds,customerPrice" {
-			t.Fatalf("fields[subscriptionPricePoints]=%q, want proceeds,customerPrice", got)
-		}
-		return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"point-1","attributes":{"customerPrice":"4.99","proceeds":"3.50"}}],"links":{}}`)
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "fields[subscriptionPricePoints]=proceeds,customerPrice"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"point-1","attributes":{"customerPrice":"4.99","proceeds":"3.50"}}],"links":{}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -691,18 +683,10 @@ func TestSubscriptionsPricePointsListKeepsCustomerPriceForClientSideFiltering(t 
 
 func TestSubscriptionsPricePointsListKeepsFullPayloadWhenFieldsAreOmitted(t *testing.T) {
 	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/subscriptions/8000000001/pricePoints" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
-		}
-		if got := req.URL.Query().Get("include"); got != "territory" {
-			t.Fatalf("include=%q, want territory", got)
-		}
-		if _, ok := req.URL.Query()["fields[subscriptionPricePoints]"]; ok {
-			t.Fatalf("unexpected sparse fields query: %s", req.URL.RawQuery)
-		}
-		return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"point-1","attributes":{"customerPrice":"4.99","proceeds":"3.50","proceedsYear2":"3.75"}}],"links":{}}`)
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "include=territory"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"point-1","attributes":{"customerPrice":"4.99","proceeds":"3.50","proceedsYear2":"3.75"}}],"links":{}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

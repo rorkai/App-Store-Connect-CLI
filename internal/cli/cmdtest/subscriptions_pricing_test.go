@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSubscriptionsPricingValidationErrors(t *testing.T) {
@@ -33,69 +35,33 @@ func TestSubscriptionsPricingValidationErrors(t *testing.T) {
 func TestSubscriptionsPricingByIDSuccess(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.URL.Path == "/v1/subscriptions/8000000001" && req.Method == http.MethodGet:
-			body := `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"name":"Monthly","productId":"com.example.monthly","subscriptionPeriod":"ONE_MONTH","state":"APPROVED"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-
-		case req.URL.Path == "/v1/subscriptions/8000000001/prices":
-			query := req.URL.Query()
-			if query.Get("filter[territory]") != "USA" {
-				t.Fatalf("expected filter[territory]=USA, got %q", query.Get("filter[territory]"))
-			}
-			if query.Get("include") != "subscriptionPricePoint,territory" {
-				t.Fatalf("expected include=subscriptionPricePoint,territory, got %q", query.Get("include"))
-			}
-			body := `{
-				"data":[
-					{
-						"type":"subscriptionPrices","id":"price-1",
-						"attributes":{"startDate":"2024-01-01"},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-1"}}
-						}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"name":"Monthly","productId":"com.example.monthly","subscriptionPeriod":"ONE_MONTH","state":"APPROVED"}}}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/prices", "fields[subscriptionPricePoints]=customerPrice,proceeds,proceedsYear2", "fields[territories]=currency", "filter[planType]=UPFRONT", "filter[territory]=USA", "include=subscriptionPricePoint,territory", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"subscriptionPrices","id":"price-1",
+					"attributes":{"startDate":"2024-01-01"},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-1"}}
 					}
-				],
-				"included":[
-					{"type":"subscriptionPricePoints","id":"pp-1","attributes":{"customerPrice":"9.99","proceeds":"7.00","proceedsYear2":"8.49"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-				],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
+				}
+			],
+			"included":[
+				{"type":"subscriptionPricePoints","id":"pp-1","attributes":{"customerPrice":"9.99","proceeds":"7.00","proceedsYear2":"8.49"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+			],
+			"links":{"next":""}
+		}`))
 
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "pricing", "summary", "--subscription-id", "8000000001", "--territory", "US"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"subscriptions", "pricing", "summary", "--subscription-id", "8000000001", "--territory", "US"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -117,60 +83,31 @@ func TestSubscriptionsPricingByIDSuccess(t *testing.T) {
 func TestSubscriptionsPricingTableOutput(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"name":"Monthly","productId":"com.example.monthly","subscriptionPeriod":"ONE_MONTH","state":"APPROVED"}}}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/prices", "fields[subscriptionPricePoints]=customerPrice,proceeds,proceedsYear2", "fields[territories]=currency", "filter[planType]=UPFRONT", "filter[territory]=USA", "include=subscriptionPricePoint,territory", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{
+				"type":"subscriptionPrices","id":"price-1",
+				"attributes":{"startDate":"2024-01-01"},
+				"relationships":{
+					"territory":{"data":{"type":"territories","id":"USA"}},
+					"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-1"}}
+				}
+			}],
+			"included":[
+				{"type":"subscriptionPricePoints","id":"pp-1","attributes":{"customerPrice":"9.99","proceeds":"7.00","proceedsYear2":"8.49"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+			],
+			"links":{"next":""}
+		}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.URL.Path == "/v1/subscriptions/8000000001" && req.Method == http.MethodGet:
-			body := `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"name":"Monthly","productId":"com.example.monthly","subscriptionPeriod":"ONE_MONTH","state":"APPROVED"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-
-		case req.URL.Path == "/v1/subscriptions/8000000001/prices":
-			body := `{
-				"data":[{
-					"type":"subscriptionPrices","id":"price-1",
-					"attributes":{"startDate":"2024-01-01"},
-					"relationships":{
-						"territory":{"data":{"type":"territories","id":"USA"}},
-						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-1"}}
-					}
-				}],
-				"included":[
-					{"type":"subscriptionPricePoints","id":"pp-1","attributes":{"customerPrice":"9.99","proceeds":"7.00","proceedsYear2":"8.49"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-				],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "pricing", "summary", "--subscription-id", "8000000001", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"subscriptions", "pricing", "summary", "--subscription-id", "8000000001", "--output", "table"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -186,71 +123,42 @@ func TestSubscriptionsPricingTableOutput(t *testing.T) {
 func TestSubscriptionsPricingUsesLatestEffectivePriceAsCurrent(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.URL.Path == "/v1/subscriptions/8000000001" && req.Method == http.MethodGet:
-			body := `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"name":"Monthly","productId":"com.example.monthly","subscriptionPeriod":"ONE_MONTH","state":"APPROVED"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-
-		case req.URL.Path == "/v1/subscriptions/8000000001/prices":
-			body := `{
-				"data":[
-					{
-						"type":"subscriptionPrices","id":"price-old",
-						"attributes":{"startDate":"2020-01-01"},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-old"}}
-						}
-					},
-					{
-						"type":"subscriptionPrices","id":"price-current",
-						"attributes":{"startDate":"2024-01-01"},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-current"}}
-						}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"name":"Monthly","productId":"com.example.monthly","subscriptionPeriod":"ONE_MONTH","state":"APPROVED"}}}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/prices", "fields[subscriptionPricePoints]=customerPrice,proceeds,proceedsYear2", "fields[territories]=currency", "filter[planType]=UPFRONT", "filter[territory]=USA", "include=subscriptionPricePoint,territory", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"subscriptionPrices","id":"price-old",
+					"attributes":{"startDate":"2020-01-01"},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-old"}}
 					}
-				],
-				"included":[
-					{"type":"subscriptionPricePoints","id":"pp-old","attributes":{"customerPrice":"1.99","proceeds":"1.40","proceedsYear2":"1.60"}},
-					{"type":"subscriptionPricePoints","id":"pp-current","attributes":{"customerPrice":"9.99","proceeds":"7.00","proceedsYear2":"8.49"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-				],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
+				},
+				{
+					"type":"subscriptionPrices","id":"price-current",
+					"attributes":{"startDate":"2024-01-01"},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-current"}}
+					}
+				}
+			],
+			"included":[
+				{"type":"subscriptionPricePoints","id":"pp-old","attributes":{"customerPrice":"1.99","proceeds":"1.40","proceedsYear2":"1.60"}},
+				{"type":"subscriptionPricePoints","id":"pp-current","attributes":{"customerPrice":"9.99","proceeds":"7.00","proceedsYear2":"8.49"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+			],
+			"links":{"next":""}
+		}`))
 
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "pricing", "summary", "--subscription-id", "8000000001"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"subscriptions", "pricing", "summary", "--subscription-id", "8000000001"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
