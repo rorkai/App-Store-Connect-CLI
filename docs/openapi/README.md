@@ -23,8 +23,9 @@ still work in the API (parity checks can surface these gaps).
 1. Replace `latest.json` with a newer spec file.
 2. Run `make update-openapi` to regenerate `paths.txt`.
 3. Run `make update-schema-index` to regenerate the runtime `asc schema` index.
-4. Run `make check-docs` to verify both generated indexes are current.
-5. Update the "Last synced" date below and commit the snapshot and indexes together.
+4. Run `make generate-client` to regenerate the client code in `internal/asc`.
+5. Run `make check-docs` to verify the generated indexes and client code are current.
+6. Update the "Last synced" date below and commit the snapshot and indexes together.
 
 Last synced: 2026-11-05
 
@@ -35,3 +36,21 @@ Snapshot version: `4.6`, from the official Apple archive listed above.
 
 The snapshot preserves the extracted JSON bytes. Both indexes are generated
 from that snapshot using the update process above.
+
+## Generated client code
+
+`internal/openapigen` writes the `*_gen.go` files in `internal/asc` from
+`latest.json` and `internal/asc/openapi_bindings.json`. The bindings list, per
+spec tag, the types and the operations to generate, with the Go choices the
+spec cannot supply: method name, parameter names, blank-argument checks, the
+paged-read option type and query builder, and error prefixes. Do not edit
+generated files or the bindings by hand.
+
+- `make generate-client` regenerates every generated file.
+- `make check-openapi` fails when a generated file is out of date.
+- To move hand-written code of more tags to the generator, run
+  `cd internal/asc && go run ../openapigen -adopt <Tag>[,<Tag>...]`. For each
+  operation of a tag it renders the method from the spec and the choices read
+  out of the existing method, and replaces the existing method only when both
+  are the same Go tokens; types are handled the same way. It prints what it
+  generated and why it kept the rest. Add `-dry-run` to only print the report.

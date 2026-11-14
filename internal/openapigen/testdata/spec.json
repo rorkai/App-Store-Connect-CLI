@@ -1,0 +1,155 @@
+{
+  "openapi": "3.0.1",
+  "paths": {
+    "/v1/widgets": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_getCollection",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetsResponse"}}}},
+          "400": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+        }
+      },
+      "post": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetCreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
+    },
+    "/v1/widgets/{id}": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_getInstance",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      },
+      "patch": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_updateInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetUpdateRequest"}}}},
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      },
+      "delete": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_deleteInstance",
+        "responses": {"204": {"description": "Success (no content)"}}
+      }
+    },
+    "/v1/widgets/{id}/gadgets": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_gadgets_getToManyRelated",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/GadgetsResponse"}}}}
+        }
+      }
+    },
+    "/v1/widgets/{id}/relationships/gadgets": {
+      "patch": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_gadgets_replaceToManyRelationship",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetGadgetsLinkagesRequest"}}}},
+        "responses": {"204": {"description": "Success (no content)"}}
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorResponse": {"type": "object"},
+      "Widget": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "enum": ["widgets"]},
+          "id": {"type": "string"},
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "count": {"type": "integer"},
+              "enabled": {"type": "boolean"},
+              "apiKeyId": {"type": "string"},
+              "tags": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        "required": ["id", "type"]
+      },
+      "WidgetResponse": {
+        "type": "object",
+        "properties": {"data": {"$ref": "#/components/schemas/Widget"}},
+        "required": ["data"]
+      },
+      "WidgetsResponse": {
+        "type": "object",
+        "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/Widget"}}},
+        "required": ["data"]
+      },
+      "GadgetsResponse": {"type": "object"},
+      "WidgetCreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["widgets"]},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "count": {"type": "integer", "nullable": true}
+                },
+                "required": ["name"]
+              }
+            },
+            "required": ["attributes", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "WidgetUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["widgets"]},
+              "id": {"type": "string"},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string", "nullable": true},
+                  "enabled": {"type": "boolean", "nullable": true}
+                }
+              }
+            },
+            "required": ["id", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "WidgetGadgetsLinkagesRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {"type": "string", "enum": ["gadgets"]},
+                "id": {"type": "string"}
+              },
+              "required": ["id", "type"]
+            }
+          }
+        },
+        "required": ["data"]
+      }
+    }
+  }
+}
