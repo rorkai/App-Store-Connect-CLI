@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 	"unicode/utf8"
 
@@ -1448,32 +1449,36 @@ func TestResolveWebMinRequestInterval(t *testing.T) {
 }
 
 func TestClientDoRequestAppliesRateLimit(t *testing.T) {
-	servedAt := make(chan time.Time, 2)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		servedAt <- time.Now()
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":[]}`))
-	}))
-	defer server.Close()
+	synctest.Test(t, func(t *testing.T) {
+		var servedAt []time.Time
+		client := &Client{
+			httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				servedAt = append(servedAt, time.Now())
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
+					Request:    req,
+				}, nil
+			})},
+			baseURL:            "https://appstoreconnect.example.test",
+			minRequestInterval: 80 * time.Millisecond,
+		}
 
-	client := &Client{
-		httpClient:         server.Client(),
-		baseURL:            server.URL,
-		minRequestInterval: 80 * time.Millisecond,
-	}
+		if _, err := client.doRequest(context.Background(), "GET", "/apps", nil); err != nil {
+			t.Fatalf("first doRequest error: %v", err)
+		}
+		if _, err := client.doRequest(context.Background(), "GET", "/apps", nil); err != nil {
+			t.Fatalf("second doRequest error: %v", err)
+		}
 
-	if _, err := client.doRequest(context.Background(), "GET", "/apps", nil); err != nil {
-		t.Fatalf("first doRequest error: %v", err)
-	}
-	if _, err := client.doRequest(context.Background(), "GET", "/apps", nil); err != nil {
-		t.Fatalf("second doRequest error: %v", err)
-	}
-
-	first := <-servedAt
-	second := <-servedAt
-	if diff := second.Sub(first); diff < 55*time.Millisecond {
-		t.Fatalf("expected low-rate gap between calls, got %v", diff)
-	}
+		if len(servedAt) != 2 {
+			t.Fatalf("served %d requests, want 2", len(servedAt))
+		}
+		if diff := servedAt[1].Sub(servedAt[0]); diff != 80*time.Millisecond {
+			t.Fatalf("gap between calls = %v, want the 80ms request interval", diff)
+		}
+	})
 }
 
 func TestLoadWebRootCAPoolFromPaths(t *testing.T) {
