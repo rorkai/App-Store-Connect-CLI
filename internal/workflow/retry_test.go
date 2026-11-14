@@ -480,6 +480,49 @@ func TestRun_TimeoutPolicyWithoutRetryIsTerminalAndCannotResume(t *testing.T) {
 	}
 }
 
+func TestRun_ToleratedTimeoutStaysRecoverableAndIsNotRepeatedOnResume(t *testing.T) {
+	dir := t.TempDir()
+	counterPath := filepath.Join(dir, "notify-counter")
+	allowPath := filepath.Join(dir, "allow")
+	def, workflowPath := loadWorkflowForRetryTest(t, fmt.Sprintf(`{
+		"env": {"COUNTER": %q, "ALLOW": %q},
+		"workflows": {"main": {"steps": [
+			{"name": "prepare", "run": "true"},
+			{"name": "notify", "run": "printf x >> \"$COUNTER\"; sleep 10", "timeout": "250ms", "continue_on_error": true},
+			{"name": "gate", "run": "test -f \"$ALLOW\""}
+		]}}
+	}`, counterPath, allowPath))
+
+	opts := runOpts("main")
+	opts.WorkflowFile = workflowPath
+	opts.StateDir = filepath.Join(dir, "runs")
+	result, err := Run(context.Background(), def, opts)
+	if err == nil || result.FailedStep != "gate" || !result.Steps[1].ContinuedOnError {
+		t.Fatalf("expected the tolerated timeout to continue and gate to fail, got err=%v result=%+v", err, result)
+	}
+	if result.Terminal || !result.Recoverable {
+		t.Fatalf("a tolerated timeout must leave a later failure recoverable: %+v", result)
+	}
+
+	if writeErr := os.WriteFile(allowPath, []byte("ok"), 0o600); writeErr != nil {
+		t.Fatalf("write allow file: %v", writeErr)
+	}
+	resumeOpts := runOpts("main")
+	resumeOpts.WorkflowFile = workflowPath
+	resumeOpts.StateDir = opts.StateDir
+	resumeOpts.ResumeRunID = result.RunID
+	resumeResult, resumeErr := Run(context.Background(), def, resumeOpts)
+	if resumeErr != nil || resumeResult.Status != "ok" {
+		t.Fatalf("resume: err=%v result=%+v", resumeErr, resumeResult)
+	}
+	if notify := resumeResult.Steps[1]; notify.Status != "resumed" || !notify.ContinuedOnError {
+		t.Fatalf("expected the tolerated step to be resumed as tolerated, got %+v", notify)
+	}
+	if got := readFileOrEmpty(t, counterPath); got != "x" {
+		t.Fatalf("resume repeated the tolerated step: %q", got)
+	}
+}
+
 func TestRun_TimeoutConfiguredCommandFailureNeedsRecoveryCheckpoint(t *testing.T) {
 	t.Run("first step is diagnostic only", func(t *testing.T) {
 		dir := t.TempDir()

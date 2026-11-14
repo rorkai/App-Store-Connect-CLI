@@ -207,6 +207,16 @@ Steps can be defined in two formats:
   later steps.
 </ParamField>
 
+<ParamField path="continue_on_error" type="boolean">
+  Keep running the workflow when this step fails
+
+  The step still reports `"status": "error"` and its `error`, plus
+  `"continued_on_error": true`. The run can still succeed and the `error` hook
+  does not run for that failure. A tolerated timeout does not make the run
+  terminal, and `--resume` never runs a tolerated step again. A canceled run
+  still stops.
+</ParamField>
+
 ## Bounded retry and timeout
 
 Use retry only for a command you have explicitly determined is safe to repeat.
