@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestIAPOfferCodesCreateUsesDefaultEligibilitiesAndParsedPrices(t *testing.T) {
@@ -185,62 +187,28 @@ func TestIAPOfferCodePricesNextURLPreservesRelationshipsForTableOutput(t *testin
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if got := req.URL.Query().Get("fields[inAppPurchaseOfferPrices]"); got != "territory,pricePoint" {
-			t.Fatalf("expected offer price relationship fields, got %q", got)
-		}
-		if got := req.URL.Query().Get("include"); got != "territory,pricePoint" {
-			t.Fatalf("expected offer price relationships to be included, got %q", got)
-		}
-
-		var body string
-		switch got := req.URL.Query().Get("cursor"); got {
-		case "legacy":
-			body = `{"data":[],"links":{"next":"https://api.appstoreconnect.apple.com/v1/inAppPurchaseOfferCodes/offer-1/prices?cursor=page2"}}`
-		case "page2":
-			body = `{"data":[{"type":"inAppPurchaseOfferPrices","id":"free-1","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"pricePoint":{"data":null}}}],"links":{"next":null}}`
-		default:
-			t.Fatalf("expected legacy or page2 cursor, got %q", got)
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/inAppPurchaseOfferCodes/offer-1/prices", "cursor=legacy", "fields[inAppPurchaseOfferPrices]=territory,pricePoint", "include=territory,pricePoint"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":"https://api.appstoreconnect.apple.com/v1/inAppPurchaseOfferCodes/offer-1/prices?cursor=page2"}}`))
+	reg.Register(asctest.GET("/v1/inAppPurchaseOfferCodes/offer-1/prices", "cursor=page2", "fields[inAppPurchaseOfferPrices]=territory,pricePoint", "include=territory,pricePoint"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"inAppPurchaseOfferPrices","id":"free-1","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"pricePoint":{"data":null}}}],"links":{"next":null}}`))
 
 	nextURL := "https://api.appstoreconnect.apple.com/v1/inAppPurchaseOfferCodes/offer-1/prices?cursor=legacy"
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "prices",
-			"--next", nextURL,
-			"--paginate",
-			"--output", "table",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"iap", "offer-codes", "prices",
+		"--next", nextURL,
+		"--paginate",
+		"--output", "table",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requests != 2 {
+	if requests := len(reg.Requests()); requests != 2 {
 		t.Fatalf("expected two paginated requests, got %d", requests)
 	}
 	for _, want := range []string{"USA", "FREE"} {
@@ -254,25 +222,10 @@ func TestIAPOfferCodesCreateReturnsCreateFailure(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchaseOfferCodes" {
-			t.Fatalf("expected path /v1/inAppPurchaseOfferCodes, got %s", req.URL.Path)
-		}
-		body := `{"errors":[{"status":"409","title":"Conflict","detail":"duplicate code"}]}`
-		return &http.Response{
-			StatusCode: http.StatusConflict,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/inAppPurchaseOfferCodes").JSONBody(`{"data":{"type":"inAppPurchaseOfferCodes","attributes":{"name":"SPRING","customerEligibilities":["NON_SPENDER","ACTIVE_SPENDER","CHURNED_SPENDER"]},"relationships":{"inAppPurchase":{"data":{"type":"inAppPurchases","id":"9000000001"}},"prices":{"data":[{"type":"inAppPurchaseOfferPrices","id":"${local-price-1}"}]}}},"included":[{"type":"inAppPurchaseOfferPrices","id":"${local-price-1}","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"pricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-us"}}}}]}`),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","title":"Conflict","detail":"duplicate code"}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -480,46 +433,18 @@ func TestIAPOfferCodesListPaginateFromNextWithoutIAP(t *testing.T) {
 	const firstURL = "https://api.appstoreconnect.apple.com/v2/inAppPurchases/9000000001/offerCodes?cursor=AQ&limit=200"
 	const secondURL = "https://api.appstoreconnect.apple.com/v2/inAppPurchases/9000000001/offerCodes?cursor=BQ&limit=200"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{
-				"data":[{"type":"inAppPurchaseOfferCodes","id":"offer-next-1"}],
-				"links":{"next":"` + secondURL + `"}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{
-				"data":[{"type":"inAppPurchaseOfferCodes","id":"offer-next-2"}],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/offerCodes", "cursor=AQ", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{"type":"inAppPurchaseOfferCodes","id":"offer-next-1"}],
+			"links":{"next":"`+secondURL+`"}
+		}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/offerCodes", "cursor=BQ", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{"type":"inAppPurchaseOfferCodes","id":"offer-next-2"}],
+			"links":{"next":""}
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -545,28 +470,13 @@ func TestIAPOfferCodesListTableOutput(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v2/inAppPurchases/9000000001/offerCodes" {
-			t.Fatalf("expected path /v2/inAppPurchases/9000000001/offerCodes, got %s", req.URL.Path)
-		}
-		body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/offerCodes"),
+		asctest.JSON(http.StatusOK, `{
 			"data":[{"type":"inAppPurchaseOfferCodes","id":"offer-table-1","attributes":{"name":"Spring","active":true}}],
 			"links":{"next":""}
-		}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

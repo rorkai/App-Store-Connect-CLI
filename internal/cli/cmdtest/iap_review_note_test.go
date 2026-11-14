@@ -1,14 +1,12 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
-	"reflect"
-	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestIAPReviewNoteRequestAttributes(t *testing.T) {
@@ -77,48 +75,20 @@ func TestIAPReviewNoteRequestAttributes(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
+			attrs, err := json.Marshal(test.wantAttrs)
+			if err != nil {
+				t.Fatalf("marshal attributes: %v", err)
+			}
+			matcher := asctest.POST(test.wantPath).JSONBody(`{"data":{"type":"inAppPurchases","attributes":` + string(attrs) + `,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+			if test.wantPath != "/v2/inAppPurchases" {
+				matcher = asctest.PATCH(test.wantPath).JSONBody(`{"data":{"type":"inAppPurchases","id":"iap-1","attributes":` + string(attrs) + `}}`)
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(matcher, asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro"}}}`))
 
-			var gotAttrs map[string]any
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path != test.wantPath {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				var payload struct {
-					Data struct {
-						Attributes map[string]any `json:"attributes"`
-					} `json:"data"`
-				}
-				if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-					t.Fatalf("decode request body: %v", err)
-				}
-				gotAttrs = payload.Data.Attributes
-
-				body := `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro"}}}`
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
-
-			if !reflect.DeepEqual(gotAttrs, test.wantAttrs) {
-				t.Fatalf("expected attributes %v, got %v", test.wantAttrs, gotAttrs)
+			if _, _, err := runCommand(t, test.args); err != nil {
+				t.Fatalf("run error: %v", err)
 			}
 		})
 	}

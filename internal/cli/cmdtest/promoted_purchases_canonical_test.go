@@ -1,61 +1,31 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
-	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestIAPPromotedPurchasesCreateAcceptsNormalizedProductTypeAlias(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/promotedPurchases").JSONBody(`{"data":{"type":"promotedPurchases","attributes":{"visibleForAllUsers":true},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}},"inAppPurchaseV2":{"data":{"type":"inAppPurchases","id":"IAP_ID"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"promotedPurchases","id":"promo-1","attributes":{"enabled":true}}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"iap", "promoted-purchases", "create",
+		"--app", "APP_ID",
+		"--product-id", "IAP_ID",
+		"--product-type", "in-app-purchase",
+		"--visible-for-all-users", "true",
 	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost || req.URL.Path != "/v1/promotedPurchases" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-
-		bodyBytes, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		body := string(bodyBytes)
-		if !strings.Contains(body, `"inAppPurchaseV2"`) {
-			t.Fatalf("expected in-app purchase relationship in body, got %s", body)
-		}
-
-		resp := `{"data":{"type":"promotedPurchases","id":"promo-1","attributes":{"enabled":true}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(resp)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "promoted-purchases", "create",
-			"--app", "APP_ID",
-			"--product-id", "IAP_ID",
-			"--product-type", "in-app-purchase",
-			"--visible-for-all-users", "true",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -76,50 +46,21 @@ func TestIAPPromotedPurchasesCreateAcceptsNormalizedProductTypeAlias(t *testing.
 func TestSubscriptionsPromotedPurchasesCreateAcceptsNormalizedProductTypeAlias(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/promotedPurchases").JSONBody(`{"data":{"type":"promotedPurchases","attributes":{"visibleForAllUsers":true},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}},"subscription":{"data":{"type":"subscriptions","id":"SUB_ID"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"promotedPurchases","id":"promo-2","attributes":{"enabled":true}}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"subscriptions", "promoted-purchases", "create",
+		"--app", "APP_ID",
+		"--product-id", "SUB_ID",
+		"--product-type", "subscription",
+		"--visible-for-all-users", "true",
 	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost || req.URL.Path != "/v1/promotedPurchases" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-
-		bodyBytes, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		body := string(bodyBytes)
-		if !strings.Contains(body, `"subscription"`) {
-			t.Fatalf("expected subscription relationship in body, got %s", body)
-		}
-
-		resp := `{"data":{"type":"promotedPurchases","id":"promo-2","attributes":{"enabled":true}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(resp)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "promoted-purchases", "create",
-			"--app", "APP_ID",
-			"--product-id", "SUB_ID",
-			"--product-type", "subscription",
-			"--visible-for-all-users", "true",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
