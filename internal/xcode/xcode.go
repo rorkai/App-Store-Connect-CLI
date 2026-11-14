@@ -113,12 +113,13 @@ type ExportOptions struct {
 }
 
 type ExportResult struct {
-	ArchivePath string   `json:"archive_path"`
-	IPAPath     string   `json:"ipa_path"`
-	PKGPath     string   `json:"pkg_path,omitempty"`
-	BundleID    string   `json:"bundle_id,omitempty"`
-	Version     string   `json:"version,omitempty"`
-	BuildNumber string   `json:"build_number,omitempty"`
+	ArchivePath string `json:"archive_path"`
+	IPAPath     string `json:"ipa_path"`
+	PKGPath     string `json:"pkg_path,omitempty"`
+	BundleID    string `json:"bundle_id,omitempty"`
+	Version     string `json:"version,omitempty"`
+	BuildNumber string `json:"build_number,omitempty"`
+
 	ExportDir   string   `json:"export_dir,omitempty"`
 	ExportFiles []string `json:"export_files,omitempty"`
 }

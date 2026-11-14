@@ -727,17 +727,18 @@ func archiveResultRows(result *localxcode.ArchiveResult) [][]string {
 }
 
 type xcodeExportCommandResult struct {
-	ArchivePath       string   `json:"archive_path"`
-	ExportOptionsPath string   `json:"export_options_path"`
-	IPAPath           string   `json:"ipa_path"`
-	PKGPath           string   `json:"pkg_path,omitempty"`
-	BundleID          string   `json:"bundle_id,omitempty"`
-	Version           string   `json:"version,omitempty"`
-	BuildNumber       string   `json:"build_number,omitempty"`
-	BuildID           string   `json:"build_id,omitempty"`
-	ProcessingState   string   `json:"processing_state,omitempty"`
-	ExportDir         string   `json:"export_dir,omitempty"`
-	ExportFiles       []string `json:"export_files,omitempty"`
+	ArchivePath       string `json:"archive_path"`
+	ExportOptionsPath string `json:"export_options_path"`
+	IPAPath           string `json:"ipa_path"`
+	PKGPath           string `json:"pkg_path,omitempty"`
+	BundleID          string `json:"bundle_id,omitempty"`
+	Version           string `json:"version,omitempty"`
+	BuildNumber       string `json:"build_number,omitempty"`
+	BuildID           string `json:"build_id,omitempty"`
+	ProcessingState   string `json:"processing_state,omitempty"`
+
+	ExportDir   string   `json:"export_dir,omitempty"`
+	ExportFiles []string `json:"export_files,omitempty"`
 }
 
 func exportResultRows(result xcodeExportCommandResult) [][]string {
