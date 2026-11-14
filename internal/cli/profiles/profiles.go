@@ -429,60 +429,45 @@ func profilesListFlagWasProvided(fs *flag.FlagSet, name string) bool {
 
 // ProfilesGetCommand returns the profiles view subcommand.
 func ProfilesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	var (
+		includeValues []string
+		included      asc.IncludedFields
+	)
 
-	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
-	include := fs.String("include", "", "Include related resources: bundleId, certificates, devices")
-	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"bundleId": "bundleIds", "certificates": "certificates", "devices": "devices"})
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc profiles view --id \"PROFILE_ID\"",
-		ShortHelp:  "View a profile by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc profiles view --id \"PROFILE_ID\"",
+		ShortHelp:   "View a profile by ID.",
 		LongHelp: `View a profile by ID.
 
 Examples:
   asc profiles view --id "PROFILE_ID"
   asc profiles view --id "PROFILE_ID" --include bundleId,certificates,devices`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			includeValues, err := normalizeProfileInclude(*include)
-			if err != nil {
-				return shared.UsageErrorf("profiles view: %v", err)
-			}
-			included, err := includedFields.Resolve("profiles view", "", includeValues)
-			if err != nil {
+		IDUsage:            "Profile ID",
+		IDType:             "profiles",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := fs.String("include", "", "Include related resources: bundleId, certificates, devices")
+			includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"bundleId": "bundleIds", "certificates": "certificates", "devices": "devices"})
+			return func() (err error) {
+				if includeValues, err = normalizeProfileInclude(*include); err != nil {
+					return shared.UsageErrorf("profiles view: %v", err)
+				}
+				included, err = includedFields.Resolve("profiles view", "", includeValues)
 				return err
 			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("profiles view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
+		},
+		ErrorPrefix:      "profiles view",
+		FetchErrorPrefix: "profiles view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			opts := []asc.ProfilesOption{asc.WithIncludedFields[asc.ProfilesOption](included)}
 			if len(includeValues) > 0 {
 				opts = append(opts, asc.WithProfilesInclude(includeValues))
 			}
-
-			resp, err := client.GetProfile(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("profiles view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return client.GetProfile(ctx, id, opts...)
 		},
-	}
+	})
 }
 
 // ProfilesCreateCommand returns the profiles create subcommand.

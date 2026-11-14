@@ -151,43 +151,25 @@ func rejectWebhooksListNextFlagConflicts(fs *flag.FlagSet, next string, names ..
 
 // WebhooksGetCommand returns the webhooks view subcommand.
 func WebhooksGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
-		ShortHelp:  "View a webhook by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
+		ShortHelp:   "View a webhook by ID.",
 		LongHelp: `View a webhook by ID.
 
 Examples:
   asc webhooks view --webhook-id "WEBHOOK_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*webhookID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--webhook-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("webhooks view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			webhook, err := client.GetWebhook(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("webhooks view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)
+		IDFlag:             "webhook-id",
+		IDUsage:            "Webhook ID",
+		IDType:             "webhooks",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "webhooks view",
+		FetchErrorPrefix:   "webhooks view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetWebhook(ctx, id)
 		},
-	}
+	})
 }
 
 // WebhooksCreateCommand returns the webhooks create subcommand.

@@ -43,112 +43,53 @@ Examples:
 
 // AlternativeDistributionDomainsListCommand returns the domains list subcommand.
 func AlternativeDistributionDomainsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc alternative-distribution domains list [flags]",
-		ShortHelp:  "List alternative distribution domains.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc alternative-distribution domains list [flags]",
+		ShortHelp:   "List alternative distribution domains.",
 		LongHelp: `List alternative distribution domains.
 
 Examples:
   asc alternative-distribution domains list
   asc alternative-distribution domains list --limit 50
   asc alternative-distribution domains list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
-				return shared.UsageErrorf("alternative-distribution domains list: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("alternative-distribution domains list: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("alternative-distribution domains list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.AlternativeDistributionDomainsOption{
-				asc.Limit[asc.AlternativeDistributionDomainsOption](*limit),
-				asc.NextURL[asc.AlternativeDistributionDomainsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AlternativeDistributionDomainsOption](alternativeDistributionMaxLimit))
-				firstPage, err := client.GetAlternativeDistributionDomains(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("alternative-distribution domains list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAlternativeDistributionDomains(ctx, asc.NextURL[asc.AlternativeDistributionDomainsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("alternative-distribution domains list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAlternativeDistributionDomains(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("alternative-distribution domains list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		TopLevel:             true,
+		LimitMax:             alternativeDistributionMaxLimit,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "alternative-distribution domains list",
+		FetchErrorPrefix:     "alternative-distribution domains list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAlternativeDistributionDomains(ctx,
+				asc.Limit[asc.AlternativeDistributionDomainsOption](limit),
+				asc.NextURL[asc.AlternativeDistributionDomainsOption](next),
+			)
 		},
-	}
+	})
 }
 
 // AlternativeDistributionDomainsGetCommand returns the domains get subcommand.
 func AlternativeDistributionDomainsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	domainID := shared.BindResourceIDFlag(fs, "domain-id", "alternativeDistributionDomains", "Alternative distribution domain ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc alternative-distribution domains view --domain-id \"DOMAIN_ID\"",
-		ShortHelp:  "View an alternative distribution domain.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc alternative-distribution domains view --domain-id \"DOMAIN_ID\"",
+		ShortHelp:   "View an alternative distribution domain.",
 		LongHelp: `View an alternative distribution domain.
 
 Examples:
   asc alternative-distribution domains view --domain-id "DOMAIN_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*domainID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--domain-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("alternative-distribution domains view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAlternativeDistributionDomain(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("alternative-distribution domains view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "domain-id",
+		IDUsage:            "Alternative distribution domain ID",
+		IDType:             "alternativeDistributionDomains",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "alternative-distribution domains view",
+		FetchErrorPrefix:   "alternative-distribution domains view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAlternativeDistributionDomain(ctx, id)
 		},
-	}
+	})
 }
 
 // AlternativeDistributionDomainsCreateCommand returns the domains create subcommand.

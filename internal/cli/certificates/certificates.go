@@ -231,60 +231,45 @@ Examples:
 
 // CertificatesGetCommand returns the certificates view subcommand.
 func CertificatesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	var (
+		includeValues []string
+		included      asc.IncludedFields
+	)
 
-	id := shared.BindResourceIDFlag(fs, "id", "certificates", "Certificate ID")
-	include := fs.String("include", "", "Include related resources: passTypeId")
-	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"passTypeId": "passTypeIds"})
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc certificates view --id \"CERT_ID\" [flags]",
-		ShortHelp:  "View a signing certificate by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc certificates view --id \"CERT_ID\" [flags]",
+		ShortHelp:   "View a signing certificate by ID.",
 		LongHelp: `View a signing certificate by ID.
 
 Examples:
   asc certificates view --id "CERT_ID"
   asc certificates view --id "CERT_ID" --include passTypeId`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			includeValues, err := normalizeCertificatesInclude(*include)
-			if err != nil {
-				return shared.UsageErrorf("certificates view: %v", err)
-			}
-			included, err := includedFields.Resolve("certificates view", "", includeValues)
-			if err != nil {
+		IDUsage:            "Certificate ID",
+		IDType:             "certificates",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := fs.String("include", "", "Include related resources: passTypeId")
+			includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"passTypeId": "passTypeIds"})
+			return func() (err error) {
+				if includeValues, err = normalizeCertificatesInclude(*include); err != nil {
+					return shared.UsageErrorf("certificates view: %v", err)
+				}
+				included, err = includedFields.Resolve("certificates view", "", includeValues)
 				return err
 			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("certificates view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
+		},
+		ErrorPrefix:      "certificates view",
+		FetchErrorPrefix: "certificates view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			opts := []asc.CertificatesOption{asc.WithIncludedFields[asc.CertificatesOption](included)}
 			if len(includeValues) > 0 {
 				opts = append(opts, asc.WithCertificatesInclude(includeValues))
 			}
-
-			resp, err := client.GetCertificate(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("certificates view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return client.GetCertificate(ctx, id, opts...)
 		},
-	}
+	})
 }
 
 // certificateCreateSpec describes an entry point for POST /v1/certificates.

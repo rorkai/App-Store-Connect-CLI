@@ -54,25 +54,18 @@ Examples:
 
 // UsersListCommand returns the users list subcommand.
 func UsersListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	var (
+		email                                     *string
+		visibleAppsLimit                          *int
+		visibleAppValues, roleValues, sortValues  []string
+		fieldsValue, appFieldsValue, includeValue []string
+	)
 
-	email := fs.String("email", "", "Filter by email/username")
-	role := fs.String("role", "", "Filter by UserRole (comma-separated): "+strings.Join(userRoleList(), ", "))
-	visibleApp := fs.String("visible-app", "", "Filter by visible app ID(s), comma-separated")
-	sort := fs.String("sort", "", "Sort by one or more comma-separated expressions: username, -username, lastName, or -lastName")
-	fields := fs.String("fields", "", "User fields to include: "+strings.Join(usersFieldsList(), ", "))
-	appFields := fs.String("app-fields", "", "Fields to include for related apps, comma-separated")
-	include := fs.String("include", "", "Include related resources: visibleApps")
-	visibleAppsLimit := fs.Int("visible-apps-limit", 0, "Maximum included visible apps (1-50)")
-	output := shared.BindOutputFlags(fs)
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc users list [flags]",
-		ShortHelp:  "List users in App Store Connect.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc users list [flags]",
+		ShortHelp:   "List users in App Store Connect.",
 		LongHelp: `List users in App Store Connect.
 
 Examples:
@@ -85,82 +78,74 @@ Examples:
   asc users list --fields "username,lastName" --include visibleApps --app-fields "name,bundleId"
   asc users list --limit 50
   asc users list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("users list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(
-				fs,
-				*next,
-				"users list",
-				"email", "role", "visible-app", "sort", "fields", "app-fields", "include", "visible-apps-limit", "limit",
-			); err != nil {
-				return err
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("users list: --limit must be between 1 and 200")
-			}
-			provided := make(map[string]bool)
-			fs.Visit(func(f *flag.Flag) {
-				provided[f.Name] = true
-			})
-			if provided["visible-apps-limit"] && (*visibleAppsLimit < 1 || *visibleAppsLimit > 50) {
-				return shared.UsageErrorf("users list: --visible-apps-limit must be between 1 and 50")
-			}
-			visibleAppValues := shared.SplitCSV(*visibleApp)
-			if provided["visible-app"] && len(visibleAppValues) == 0 {
-				return shared.UsageErrorf("users list: --visible-app must not be empty")
-			}
-			roleValues, err := normalizeUserRoles(*role, "--role")
-			if err != nil {
-				return shared.UsageErrorf("users list: %v", err)
-			}
-			sortValues, err := normalizeUsersSort(*sort, "--sort")
-			if err != nil {
-				return shared.UsageErrorf("users list: %v", err)
-			}
-			if provided["sort"] && len(sortValues) == 0 {
-				return shared.UsageErrorf("users list: --sort must not be empty")
-			}
-			fieldsValue, err := normalizeUsersFields(*fields, "--fields")
-			if err != nil {
-				return shared.UsageErrorf("users list: %v", err)
-			}
-			if provided["fields"] && len(fieldsValue) == 0 {
-				return shared.UsageErrorf("users list: --fields must not be empty")
-			}
-			appFieldsValue, err := normalizeUsersAppFields(*appFields, "--app-fields")
-			if err != nil {
-				return shared.UsageErrorf("users list: %v", err)
-			}
-			if provided["app-fields"] && len(appFieldsValue) == 0 {
-				return shared.UsageErrorf("users list: --app-fields must not be empty")
-			}
-			includeValue, err := normalizeUsersInclude(*include)
-			if err != nil {
-				return shared.UsageErrorf("users list: %v", err)
-			}
-			if provided["include"] && len(includeValue) == 0 {
-				return shared.UsageErrorf("users list: --include must not be empty")
-			}
-			if len(appFieldsValue) > 0 && !shared.HasInclude(includeValue, "visibleApps") {
-				return shared.UsageErrorf("users list: --app-fields requires --include visibleApps")
-			}
-			if *visibleAppsLimit > 0 && !shared.HasInclude(includeValue, "visibleApps") {
-				return shared.UsageErrorf("users list: --visible-apps-limit requires --include visibleApps")
-			}
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextBeforeLimit:      true,
+		NextConflicts:        []string{"email", "role", "visible-app", "sort", "fields", "app-fields", "include", "visible-apps-limit", "limit"},
+		Flags: func(fs *flag.FlagSet) func() error {
+			email = fs.String("email", "", "Filter by email/username")
+			role := fs.String("role", "", "Filter by UserRole (comma-separated): "+strings.Join(userRoleList(), ", "))
+			visibleApp := fs.String("visible-app", "", "Filter by visible app ID(s), comma-separated")
+			sort := fs.String("sort", "", "Sort by one or more comma-separated expressions: username, -username, lastName, or -lastName")
+			fields := fs.String("fields", "", "User fields to include: "+strings.Join(usersFieldsList(), ", "))
+			appFields := fs.String("app-fields", "", "Fields to include for related apps, comma-separated")
+			include := fs.String("include", "", "Include related resources: visibleApps")
+			visibleAppsLimit = fs.Int("visible-apps-limit", 0, "Maximum included visible apps (1-50)")
 
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("users list: %w", err)
+			return func() error {
+				provided := make(map[string]bool)
+				fs.Visit(func(f *flag.Flag) {
+					provided[f.Name] = true
+				})
+				if provided["visible-apps-limit"] && (*visibleAppsLimit < 1 || *visibleAppsLimit > 50) {
+					return shared.UsageErrorf("users list: --visible-apps-limit must be between 1 and 50")
+				}
+				visibleAppValues = shared.SplitCSV(*visibleApp)
+				if provided["visible-app"] && len(visibleAppValues) == 0 {
+					return shared.UsageErrorf("users list: --visible-app must not be empty")
+				}
+				var err error
+				if roleValues, err = normalizeUserRoles(*role, "--role"); err != nil {
+					return shared.UsageErrorf("users list: %v", err)
+				}
+				if sortValues, err = normalizeUsersSort(*sort, "--sort"); err != nil {
+					return shared.UsageErrorf("users list: %v", err)
+				}
+				if provided["sort"] && len(sortValues) == 0 {
+					return shared.UsageErrorf("users list: --sort must not be empty")
+				}
+				if fieldsValue, err = normalizeUsersFields(*fields, "--fields"); err != nil {
+					return shared.UsageErrorf("users list: %v", err)
+				}
+				if provided["fields"] && len(fieldsValue) == 0 {
+					return shared.UsageErrorf("users list: --fields must not be empty")
+				}
+				if appFieldsValue, err = normalizeUsersAppFields(*appFields, "--app-fields"); err != nil {
+					return shared.UsageErrorf("users list: %v", err)
+				}
+				if provided["app-fields"] && len(appFieldsValue) == 0 {
+					return shared.UsageErrorf("users list: --app-fields must not be empty")
+				}
+				if includeValue, err = normalizeUsersInclude(*include); err != nil {
+					return shared.UsageErrorf("users list: %v", err)
+				}
+				if provided["include"] && len(includeValue) == 0 {
+					return shared.UsageErrorf("users list: --include must not be empty")
+				}
+				if len(appFieldsValue) > 0 && !shared.HasInclude(includeValue, "visibleApps") {
+					return shared.UsageErrorf("users list: --app-fields requires --include visibleApps")
+				}
+				if *visibleAppsLimit > 0 && !shared.HasInclude(includeValue, "visibleApps") {
+					return shared.UsageErrorf("users list: --visible-apps-limit requires --include visibleApps")
+				}
+				return nil
 			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.UsersOption{
+		},
+		ErrorPrefix:      "users list",
+		FetchErrorPrefix: "users list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetUsers(ctx,
 				asc.WithUsersEmail(*email),
 				asc.WithUsersRoles(roleValues),
 				asc.WithUsersVisibleAppIDs(visibleAppValues),
@@ -169,97 +154,58 @@ Examples:
 				asc.WithUsersAppFields(appFieldsValue),
 				asc.WithUsersInclude(includeValue),
 				asc.WithUsersVisibleAppsLimit(*visibleAppsLimit),
-				asc.Limit[asc.UsersOption](*limit),
-				asc.NextURL[asc.UsersOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.UsersOption](200))
-				firstPage, err := client.GetUsers(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("users list: failed to fetch: %w", err)
-				}
-
-				users, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetUsers(ctx, asc.NextURL[asc.UsersOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("users list: %w", err)
-				}
-
-				return shared.PrintOutput(users, *output.Output, *output.Pretty)
-			}
-
-			users, err := client.GetUsers(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("users list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(users, *output.Output, *output.Pretty)
+				asc.Limit[asc.UsersOption](limit),
+				asc.NextURL[asc.UsersOption](next),
+			)
 		},
-	}
+	})
 }
 
 // UsersGetCommand returns the users view subcommand.
 func UsersGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	var (
+		includeValues []string
+		included      asc.IncludedFields
+	)
 
-	id := shared.BindResourceIDFlag(fs, "id", "users", "User ID")
-	include := fs.String("include", "", "Include related resources: visibleApps")
-	// Apple rejects these spec fields[apps] values with 400 on users view.
-	includedFields := shared.BindIncludedFieldFlagsExcept(fs, map[string]string{"visibleApps": "apps"}, map[string][]string{"apps": {
-		"appStoreIcon", "performanceOverviews", "customerReviewSummarizations", "analyticsReportRequests",
-		"betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "webhooks", "androidToIosAppMappingDetails",
-	}})
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc users view --id USER_ID",
-		ShortHelp:  "View a user by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc users view --id USER_ID",
+		ShortHelp:   "View a user by ID.",
 		LongHelp: `View a user by ID.
 
 Examples:
   asc users view --id "USER_ID"
   asc users view --id "USER_ID" --include visibleApps`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			includeValues, err := normalizeUsersInclude(*include)
-			if err != nil {
-				return shared.UsageErrorf("users view: %v", err)
-			}
-			included, err := includedFields.Resolve("users view", "", includeValues)
-			if err != nil {
+		IDUsage:            "User ID",
+		IDType:             "users",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := fs.String("include", "", "Include related resources: visibleApps")
+			// Apple rejects these spec fields[apps] values with 400 on users view.
+			includedFields := shared.BindIncludedFieldFlagsExcept(fs, map[string]string{"visibleApps": "apps"}, map[string][]string{"apps": {
+				"appStoreIcon", "performanceOverviews", "customerReviewSummarizations", "analyticsReportRequests",
+				"betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "webhooks", "androidToIosAppMappingDetails",
+			}})
+			return func() (err error) {
+				if includeValues, err = normalizeUsersInclude(*include); err != nil {
+					return shared.UsageErrorf("users view: %v", err)
+				}
+				included, err = includedFields.Resolve("users view", "", includeValues)
 				return err
 			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("users view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
+		},
+		ErrorPrefix:      "users view",
+		FetchErrorPrefix: "users view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			opts := []asc.UsersOption{asc.WithIncludedFields[asc.UsersOption](included)}
 			if len(includeValues) > 0 {
 				opts = append(opts, asc.WithUsersInclude(includeValues))
 			}
-
-			user, err := client.GetUser(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("users view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(user, *output.Output, *output.Pretty)
+			return client.GetUser(ctx, id, opts...)
 		},
-	}
+	})
 }
 
 // UsersUpdateCommand returns the users update subcommand.
@@ -561,112 +507,51 @@ Examples:
 
 // UsersInvitesListCommand returns the users invites list subcommand.
 func UsersInvitesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	output := shared.BindOutputFlags(fs)
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc users invites list [flags]",
-		ShortHelp:  "List user invitations.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc users invites list [flags]",
+		ShortHelp:   "List user invitations.",
 		LongHelp: `List user invitations.
 
 Examples:
   asc users invites list
   asc users invites list --limit 50
   asc users invites list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("users invites list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("users invites list: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("users invites list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.UserInvitationsOption{
-				asc.Limit[asc.UserInvitationsOption](*limit),
-				asc.NextURL[asc.UserInvitationsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.UserInvitationsOption](200))
-				firstPage, err := client.GetUserInvitations(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("users invites list: failed to fetch: %w", err)
-				}
-
-				invites, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetUserInvitations(ctx, asc.NextURL[asc.UserInvitationsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("users invites list: %w", err)
-				}
-
-				return shared.PrintOutput(invites, *output.Output, *output.Pretty)
-			}
-
-			invites, err := client.GetUserInvitations(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("users invites list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(invites, *output.Output, *output.Pretty)
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "users invites list",
+		FetchErrorPrefix:     "users invites list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetUserInvitations(ctx,
+				asc.Limit[asc.UserInvitationsOption](limit),
+				asc.NextURL[asc.UserInvitationsOption](next),
+			)
 		},
-	}
+	})
 }
 
 // UsersInvitesGetCommand returns the users invites view subcommand.
 func UsersInvitesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "userInvitations", "Invitation ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc users invites view --id INVITE_ID",
-		ShortHelp:  "View a user invitation by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc users invites view --id INVITE_ID",
+		ShortHelp:   "View a user invitation by ID.",
 		LongHelp: `View a user invitation by ID.
 
 Examples:
   asc users invites view --id "INVITE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("users invites view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			invite, err := client.GetUserInvitation(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("users invites view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(invite, *output.Output, *output.Pretty)
+		IDUsage:            "Invitation ID",
+		IDType:             "userInvitations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "users invites view",
+		FetchErrorPrefix:   "users invites view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetUserInvitation(ctx, id)
 		},
-	}
+	})
 }
 
 // UsersInvitesRevokeCommand returns the users invites revoke subcommand.
