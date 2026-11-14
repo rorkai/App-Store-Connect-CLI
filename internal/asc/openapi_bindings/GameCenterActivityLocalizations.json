@@ -1,0 +1,17 @@
+{
+  "tag": "GameCenterActivityLocalizations",
+  "file": "game_center_activity_localizations_gen.go",
+  "types": [
+    "GameCenterActivityLocalizationCreateRequest",
+    "GameCenterActivityLocalizationResponse",
+    "GameCenterActivityLocalizationUpdateAttributes",
+    "GameCenterActivityLocalizationUpdateData",
+    "GameCenterActivityLocalizationUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterActivityLocalizations_deleteInstance","name":"DeleteGameCenterActivityLocalization","params":["localizationID"]},
+    {"operation":"gameCenterActivityLocalizations_getInstance","name":"GetGameCenterActivityLocalization","params":["localizationID"]},
+    {"operation":"gameCenterActivityLocalizations_image_getToOneRelated","name":"GetGameCenterActivityLocalizationImage","params":["localizationID"]},
+    {"operation":"gameCenterActivityLocalizations_updateInstance","name":"UpdateGameCenterActivityLocalization","params":["localizationID"]}
+  ]
+}

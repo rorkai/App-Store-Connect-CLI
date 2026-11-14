@@ -54,11 +54,6 @@ type GameCenterAchievementCreateData struct {
 	Relationships *GameCenterAchievementRelationships   `json:"relationships,omitempty"`
 }
 
-// GameCenterAchievementCreateRequest is a request to create an achievement.
-type GameCenterAchievementCreateRequest struct {
-	Data GameCenterAchievementCreateData `json:"data"`
-}
-
 // GameCenterAchievementV2CreateData is the data portion of a v2 achievement create request.
 type GameCenterAchievementV2CreateData struct {
 	Type          ResourceType                          `json:"type"`
@@ -78,23 +73,8 @@ type GameCenterAchievementVersionInlineCreate struct {
 	ID   string       `json:"id"`
 }
 
-// GameCenterAchievementUpdateData is the data portion of an achievement update request.
-type GameCenterAchievementUpdateData struct {
-	Type       ResourceType                           `json:"type"`
-	ID         string                                 `json:"id"`
-	Attributes *GameCenterAchievementUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterAchievementUpdateRequest is a request to update an achievement.
-type GameCenterAchievementUpdateRequest struct {
-	Data GameCenterAchievementUpdateData `json:"data"`
-}
-
 // GameCenterAchievementsResponse is the response from achievement list endpoints.
 type GameCenterAchievementsResponse = Response[GameCenterAchievementAttributes]
-
-// GameCenterAchievementResponse is the response from achievement detail endpoints.
-type GameCenterAchievementResponse = SingleResponse[GameCenterAchievementAttributes]
 
 // GameCenterAchievementDeleteResult represents CLI output for achievement deletions.
 type GameCenterAchievementDeleteResult struct {
@@ -164,21 +144,6 @@ type GameCenterAchievementLocalizationAttributes struct {
 	AfterEarnedDescription  string `json:"afterEarnedDescription,omitempty"`
 }
 
-// GameCenterAchievementLocalizationCreateAttributes describes attributes for creating a localization.
-type GameCenterAchievementLocalizationCreateAttributes struct {
-	Locale                  string `json:"locale"`
-	Name                    string `json:"name"`
-	BeforeEarnedDescription string `json:"beforeEarnedDescription"`
-	AfterEarnedDescription  string `json:"afterEarnedDescription"`
-}
-
-// GameCenterAchievementLocalizationUpdateAttributes describes attributes for updating a localization.
-type GameCenterAchievementLocalizationUpdateAttributes struct {
-	Name                    *string `json:"name,omitempty"`
-	BeforeEarnedDescription *string `json:"beforeEarnedDescription,omitempty"`
-	AfterEarnedDescription  *string `json:"afterEarnedDescription,omitempty"`
-}
-
 // GameCenterAchievementLocalizationRelationships describes relationships for achievement localizations.
 type GameCenterAchievementLocalizationRelationships struct {
 	GameCenterAchievement *Relationship `json:"gameCenterAchievement"`
@@ -189,11 +154,6 @@ type GameCenterAchievementLocalizationCreateData struct {
 	Type          ResourceType                                      `json:"type"`
 	Attributes    GameCenterAchievementLocalizationCreateAttributes `json:"attributes"`
 	Relationships *GameCenterAchievementLocalizationRelationships   `json:"relationships,omitempty"`
-}
-
-// GameCenterAchievementLocalizationCreateRequest is a request to create a localization.
-type GameCenterAchievementLocalizationCreateRequest struct {
-	Data GameCenterAchievementLocalizationCreateData `json:"data"`
 }
 
 // GameCenterAchievementLocalizationV2Relationships describes relationships for v2 achievement localizations.
@@ -208,28 +168,8 @@ type GameCenterAchievementLocalizationV2CreateData struct {
 	Relationships *GameCenterAchievementLocalizationV2Relationships `json:"relationships,omitempty"`
 }
 
-// GameCenterAchievementLocalizationV2CreateRequest is a request to create a v2 localization.
-type GameCenterAchievementLocalizationV2CreateRequest struct {
-	Data GameCenterAchievementLocalizationV2CreateData `json:"data"`
-}
-
-// GameCenterAchievementLocalizationUpdateData is the data portion of a localization update request.
-type GameCenterAchievementLocalizationUpdateData struct {
-	Type       ResourceType                                       `json:"type"`
-	ID         string                                             `json:"id"`
-	Attributes *GameCenterAchievementLocalizationUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterAchievementLocalizationUpdateRequest is a request to update a localization.
-type GameCenterAchievementLocalizationUpdateRequest struct {
-	Data GameCenterAchievementLocalizationUpdateData `json:"data"`
-}
-
 // GameCenterAchievementLocalizationsResponse is the response from achievement localization list endpoints.
 type GameCenterAchievementLocalizationsResponse = Response[GameCenterAchievementLocalizationAttributes]
-
-// GameCenterAchievementLocalizationResponse is the response from achievement localization detail endpoints.
-type GameCenterAchievementLocalizationResponse = SingleResponse[GameCenterAchievementLocalizationAttributes]
 
 // GameCenterAchievementLocalizationDeleteResult represents CLI output for localization deletions.
 type GameCenterAchievementLocalizationDeleteResult struct {
@@ -267,16 +207,8 @@ type GameCenterAchievementReleaseCreateData struct {
 	Relationships *GameCenterAchievementReleaseRelationships `json:"relationships"`
 }
 
-// GameCenterAchievementReleaseCreateRequest is a request to create an achievement release.
-type GameCenterAchievementReleaseCreateRequest struct {
-	Data GameCenterAchievementReleaseCreateData `json:"data"`
-}
-
 // GameCenterAchievementReleasesResponse is the response from achievement release list endpoints.
 type GameCenterAchievementReleasesResponse = Response[GameCenterAchievementReleaseAttributes]
-
-// GameCenterAchievementReleaseResponse is the response from achievement release detail endpoints.
-type GameCenterAchievementReleaseResponse = SingleResponse[GameCenterAchievementReleaseAttributes]
 
 // GameCenterAchievementReleaseDeleteResult represents CLI output for achievement release deletions.
 type GameCenterAchievementReleaseDeleteResult struct {
@@ -312,11 +244,6 @@ type GameCenterAchievementImageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-// GameCenterAchievementImageUpdateAttributes describes attributes for committing an image upload.
-type GameCenterAchievementImageUpdateAttributes struct {
-	Uploaded *bool `json:"uploaded,omitempty"`
-}
-
 // GameCenterAchievementImageRelationships describes relationships for achievement images.
 type GameCenterAchievementImageRelationships struct {
 	GameCenterAchievementLocalization *Relationship `json:"gameCenterAchievementLocalization"`
@@ -327,11 +254,6 @@ type GameCenterAchievementImageCreateData struct {
 	Type          ResourceType                               `json:"type"`
 	Attributes    GameCenterAchievementImageCreateAttributes `json:"attributes"`
 	Relationships *GameCenterAchievementImageRelationships   `json:"relationships"`
-}
-
-// GameCenterAchievementImageCreateRequest is a request to reserve an image upload.
-type GameCenterAchievementImageCreateRequest struct {
-	Data GameCenterAchievementImageCreateData `json:"data"`
 }
 
 // GameCenterAchievementImageV2Relationships describes relationships for v2 achievement images.
@@ -346,28 +268,8 @@ type GameCenterAchievementImageV2CreateData struct {
 	Relationships *GameCenterAchievementImageV2Relationships `json:"relationships"`
 }
 
-// GameCenterAchievementImageV2CreateRequest is a request to reserve a v2 image upload.
-type GameCenterAchievementImageV2CreateRequest struct {
-	Data GameCenterAchievementImageV2CreateData `json:"data"`
-}
-
-// GameCenterAchievementImageUpdateData is the data portion of an image update (commit) request.
-type GameCenterAchievementImageUpdateData struct {
-	Type       ResourceType                                `json:"type"`
-	ID         string                                      `json:"id"`
-	Attributes *GameCenterAchievementImageUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterAchievementImageUpdateRequest is a request to commit an image upload.
-type GameCenterAchievementImageUpdateRequest struct {
-	Data GameCenterAchievementImageUpdateData `json:"data"`
-}
-
 // GameCenterAchievementImagesResponse is the response from achievement image list endpoints.
 type GameCenterAchievementImagesResponse = Response[GameCenterAchievementImageAttributes]
-
-// GameCenterAchievementImageResponse is the response from achievement image detail endpoints.
-type GameCenterAchievementImageResponse = SingleResponse[GameCenterAchievementImageAttributes]
 
 // GameCenterAchievementImageDeleteResult represents CLI output for image deletions.
 type GameCenterAchievementImageDeleteResult struct {

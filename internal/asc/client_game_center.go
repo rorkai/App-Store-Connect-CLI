@@ -17,27 +17,6 @@ func (c *Client) GetGameCenterDetailID(ctx context.Context, appID string) (strin
 	return resp.Data.ID, nil
 }
 
-// GetGameCenterAchievements retrieves the list of Game Center achievements for a Game Center detail.
-func (c *Client) GetGameCenterAchievements(ctx context.Context, gcDetailID string, opts ...GCAchievementsOption) (*GameCenterAchievementsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterAchievementsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterAchievements", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCAchievementsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-achievements",
-	})
-}
-
-// GetGameCenterAchievement retrieves a Game Center achievement by ID.
-func (c *Client) GetGameCenterAchievement(ctx context.Context, achievementID string) (*GameCenterAchievementResponse, error) {
-	return getJSON[GameCenterAchievementResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterAchievements/%s", strings.TrimSpace(achievementID))})
-}
-
-// GetGameCenterAchievementGroupAchievement retrieves the group achievement for an achievement.
-func (c *Client) GetGameCenterAchievementGroupAchievement(ctx context.Context, achievementID string) (*GameCenterAchievementResponse, error) {
-	return getJSON[GameCenterAchievementResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterAchievements/%s/groupAchievement", strings.TrimSpace(achievementID))})
-}
-
 // CreateGameCenterAchievement creates a new Game Center achievement.
 func (c *Client) CreateGameCenterAchievement(ctx context.Context, gcDetailID string, attrs GameCenterAchievementCreateAttributes) (*GameCenterAchievementResponse, error) {
 	payload := GameCenterAchievementCreateRequest{
@@ -56,35 +35,6 @@ func (c *Client) CreateGameCenterAchievement(ctx context.Context, gcDetailID str
 	}
 
 	return sendJSON[GameCenterAchievementResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievements", Payload: payload})
-}
-
-// UpdateGameCenterAchievement updates an existing Game Center achievement.
-func (c *Client) UpdateGameCenterAchievement(ctx context.Context, achievementID string, attrs GameCenterAchievementUpdateAttributes) (*GameCenterAchievementResponse, error) {
-	payload := GameCenterAchievementUpdateRequest{
-		Data: GameCenterAchievementUpdateData{
-			Type:       ResourceTypeGameCenterAchievements,
-			ID:         strings.TrimSpace(achievementID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterAchievementResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterAchievements/%s", strings.TrimSpace(achievementID)), Payload: payload})
-}
-
-// DeleteGameCenterAchievement deletes a Game Center achievement.
-func (c *Client) DeleteGameCenterAchievement(ctx context.Context, achievementID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterAchievements/%s", strings.TrimSpace(achievementID)), nil)
-}
-
-// GetGameCenterLeaderboards retrieves the list of Game Center leaderboards for a Game Center detail.
-func (c *Client) GetGameCenterLeaderboards(ctx context.Context, gcDetailID string, opts ...GCLeaderboardsOption) (*GameCenterLeaderboardsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterLeaderboards", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCLeaderboardsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboards",
-	})
 }
 
 // GetGameCenterLeaderboard retrieves a Game Center leaderboard by ID.
@@ -139,17 +89,6 @@ func (c *Client) UpdateGameCenterLeaderboard(ctx context.Context, leaderboardID 
 // DeleteGameCenterLeaderboard deletes a Game Center leaderboard.
 func (c *Client) DeleteGameCenterLeaderboard(ctx context.Context, leaderboardID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboards/%s", strings.TrimSpace(leaderboardID)), nil)
-}
-
-// GetGameCenterLeaderboardSets retrieves the list of Game Center leaderboard sets for a Game Center detail.
-func (c *Client) GetGameCenterLeaderboardSets(ctx context.Context, gcDetailID string, opts ...GCLeaderboardSetsOption) (*GameCenterLeaderboardSetsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardSetsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterLeaderboardSets", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCLeaderboardSetsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-sets",
-	})
 }
 
 // GetGameCenterLeaderboardSet retrieves a Game Center leaderboard set by ID.
@@ -322,22 +261,6 @@ func (c *Client) DeleteGameCenterLeaderboardRelease(ctx context.Context, release
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardReleases/%s", strings.TrimSpace(releaseID)), nil)
 }
 
-// GetGameCenterAchievementReleases retrieves the list of releases for a Game Center achievement.
-func (c *Client) GetGameCenterAchievementReleases(ctx context.Context, achievementID string, opts ...GCAchievementReleasesOption) (*GameCenterAchievementReleasesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterAchievementReleasesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterAchievements/%s/releases", strings.TrimSpace(achievementID)),
-		Query:       buildGCAchievementReleasesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-achievement-releases",
-	})
-}
-
-// GetGameCenterAchievementRelease retrieves an achievement release by ID.
-func (c *Client) GetGameCenterAchievementRelease(ctx context.Context, releaseID string) (*GameCenterAchievementReleaseResponse, error) {
-	return getJSON[GameCenterAchievementReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterAchievementReleases/%s", strings.TrimSpace(releaseID))})
-}
-
 // CreateGameCenterAchievementRelease creates a new Game Center achievement release.
 func (c *Client) CreateGameCenterAchievementRelease(ctx context.Context, gcDetailID, achievementID string) (*GameCenterAchievementReleaseResponse, error) {
 	payload := GameCenterAchievementReleaseCreateRequest{
@@ -361,11 +284,6 @@ func (c *Client) CreateGameCenterAchievementRelease(ctx context.Context, gcDetai
 	}
 
 	return sendJSON[GameCenterAchievementReleaseResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievementReleases", Payload: payload})
-}
-
-// DeleteGameCenterAchievementRelease deletes a Game Center achievement release.
-func (c *Client) DeleteGameCenterAchievementRelease(ctx context.Context, releaseID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterAchievementReleases/%s", strings.TrimSpace(releaseID)), nil)
 }
 
 // GetGameCenterLeaderboardSetMembers retrieves the leaderboards in a leaderboard set.
@@ -511,32 +429,6 @@ func (c *Client) DeleteGameCenterLeaderboardSetLocalization(ctx context.Context,
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSetLocalizations/%s", strings.TrimSpace(localizationID)), nil)
 }
 
-// GetGameCenterAchievementLocalizations retrieves the list of localizations for a Game Center achievement.
-func (c *Client) GetGameCenterAchievementLocalizations(ctx context.Context, achievementID string, opts ...GCAchievementLocalizationsOption) (*GameCenterAchievementLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterAchievementLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterAchievements/%s/localizations", strings.TrimSpace(achievementID)),
-		Query:       buildGCAchievementLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-achievement-localizations",
-	})
-}
-
-// GetGameCenterAchievementLocalization retrieves a Game Center achievement localization by ID.
-func (c *Client) GetGameCenterAchievementLocalization(ctx context.Context, localizationID string) (*GameCenterAchievementLocalizationResponse, error) {
-	return getJSON[GameCenterAchievementLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterAchievementLocalizations/%s", strings.TrimSpace(localizationID))})
-}
-
-// GetGameCenterAchievementLocalizationAchievement retrieves the achievement for a localization.
-func (c *Client) GetGameCenterAchievementLocalizationAchievement(ctx context.Context, localizationID string) (*GameCenterAchievementResponse, error) {
-	return getJSON[GameCenterAchievementResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterAchievementLocalizations/%s/gameCenterAchievement", strings.TrimSpace(localizationID))})
-}
-
-// GetGameCenterAchievementLocalizationImage retrieves the image for a localization.
-func (c *Client) GetGameCenterAchievementLocalizationImage(ctx context.Context, localizationID string) (*GameCenterAchievementImageResponse, error) {
-	return getJSON[GameCenterAchievementImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterAchievementLocalizations/%s/gameCenterAchievementImage", strings.TrimSpace(localizationID))})
-}
-
 // CreateGameCenterAchievementLocalization creates a new Game Center achievement localization.
 func (c *Client) CreateGameCenterAchievementLocalization(ctx context.Context, achievementID string, attrs GameCenterAchievementLocalizationCreateAttributes) (*GameCenterAchievementLocalizationResponse, error) {
 	payload := GameCenterAchievementLocalizationCreateRequest{
@@ -555,24 +447,6 @@ func (c *Client) CreateGameCenterAchievementLocalization(ctx context.Context, ac
 	}
 
 	return sendJSON[GameCenterAchievementLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievementLocalizations", Payload: payload})
-}
-
-// UpdateGameCenterAchievementLocalization updates an existing Game Center achievement localization.
-func (c *Client) UpdateGameCenterAchievementLocalization(ctx context.Context, localizationID string, attrs GameCenterAchievementLocalizationUpdateAttributes) (*GameCenterAchievementLocalizationResponse, error) {
-	payload := GameCenterAchievementLocalizationUpdateRequest{
-		Data: GameCenterAchievementLocalizationUpdateData{
-			Type:       ResourceTypeGameCenterAchievementLocalizations,
-			ID:         strings.TrimSpace(localizationID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterAchievementLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterAchievementLocalizations/%s", strings.TrimSpace(localizationID)), Payload: payload})
-}
-
-// DeleteGameCenterAchievementLocalization deletes a Game Center achievement localization.
-func (c *Client) DeleteGameCenterAchievementLocalization(ctx context.Context, localizationID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterAchievementLocalizations/%s", strings.TrimSpace(localizationID)), nil)
 }
 
 // GetGameCenterLeaderboardImage retrieves a Game Center leaderboard image by ID.
@@ -678,11 +552,6 @@ func (c *Client) UploadGameCenterLeaderboardImage(ctx context.Context, localizat
 	}, nil
 }
 
-// GetGameCenterAchievementImage retrieves a Game Center achievement image by ID.
-func (c *Client) GetGameCenterAchievementImage(ctx context.Context, imageID string) (*GameCenterAchievementImageResponse, error) {
-	return getJSON[GameCenterAchievementImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterAchievementImages/%s", strings.TrimSpace(imageID))})
-}
-
 // CreateGameCenterAchievementImage reserves a new Game Center achievement image upload.
 func (c *Client) CreateGameCenterAchievementImage(ctx context.Context, localizationID string, fileName string, fileSize int64) (*GameCenterAchievementImageResponse, error) {
 	payload := GameCenterAchievementImageCreateRequest{
@@ -719,11 +588,6 @@ func (c *Client) UpdateGameCenterAchievementImage(ctx context.Context, imageID s
 	}
 
 	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)), Payload: payload})
-}
-
-// DeleteGameCenterAchievementImage deletes a Game Center achievement image.
-func (c *Client) DeleteGameCenterAchievementImage(ctx context.Context, imageID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)), nil)
 }
 
 // UploadGameCenterAchievementImage performs the complete upload flow: reserve, upload chunks, commit.
@@ -883,11 +747,6 @@ func (c *Client) UploadGameCenterLeaderboardSetImage(ctx context.Context, locali
 	return result, nil
 }
 
-// GetGameCenterAchievementV2 retrieves a v2 Game Center achievement by ID.
-func (c *Client) GetGameCenterAchievementV2(ctx context.Context, achievementID string) (*GameCenterAchievementResponse, error) {
-	return getJSON[GameCenterAchievementResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterAchievements/%s", strings.TrimSpace(achievementID))})
-}
-
 // CreateGameCenterAchievementV2 creates a new v2 Game Center achievement.
 func (c *Client) CreateGameCenterAchievementV2(ctx context.Context, gcDetailID string, groupID string, attrs GameCenterAchievementCreateAttributes) (*GameCenterAchievementResponse, error) {
 	const initialVersionID = "${achVer1}"
@@ -942,11 +801,6 @@ func (c *Client) UpdateGameCenterAchievementV2(ctx context.Context, achievementI
 	}
 
 	return sendJSON[GameCenterAchievementResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/gameCenterAchievements/%s", strings.TrimSpace(achievementID)), Payload: payload})
-}
-
-// DeleteGameCenterAchievementV2 deletes a v2 Game Center achievement.
-func (c *Client) DeleteGameCenterAchievementV2(ctx context.Context, achievementID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterAchievements/%s", strings.TrimSpace(achievementID)), nil)
 }
 
 // GetGameCenterLeaderboardV2 retrieves a v2 Game Center leaderboard by ID.
