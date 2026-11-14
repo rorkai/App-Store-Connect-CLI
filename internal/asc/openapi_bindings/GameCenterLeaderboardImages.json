@@ -13,6 +13,7 @@
     {"operation":"gameCenterLeaderboardImagesV2_deleteInstance","name":"DeleteGameCenterLeaderboardImageV2","params":["imageID"]},
     {"operation":"gameCenterLeaderboardImagesV2_getInstance","name":"GetGameCenterLeaderboardImageV2","params":["imageID"],"response":"GameCenterLeaderboardImageResponse"},
     {"operation":"gameCenterLeaderboardImages_deleteInstance","name":"DeleteGameCenterLeaderboardImage","params":["imageID"]},
-    {"operation":"gameCenterLeaderboardImages_getInstance","name":"GetGameCenterLeaderboardImage","params":["imageID"]}
+    {"operation":"gameCenterLeaderboardImages_getInstance","name":"GetGameCenterLeaderboardImage","params":["imageID"]},
+    {"operation":"gameCenterLeaderboardImages_updateInstance","name":"UpdateGameCenterLeaderboardImage","params":["imageID"],"args":[{"name":"uploaded"}]}
   ]
 }

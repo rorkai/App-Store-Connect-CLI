@@ -108,6 +108,12 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"skip empty attributes the request requires", &Family{Operations: []*OpBind{{Operation: "widgets_createInstance", Name: "X", SkipEmptyAttributes: true}}}},
 		{"skip empty attributes of a pointer argument", &Family{Operations: []*OpBind{{Operation: "wizards_updateInstance", Name: "X", Params: []string{"id"}, Attrs: attrsPointer, SkipEmptyAttributes: true}}}},
 		{"skip empty attributes on a read", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, SkipEmptyAttributes: true}}}},
+		{"args on a read", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, Args: []ArgBind{{Name: "uploaded"}}}}}},
+		{"arg for an attribute the request lacks", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Args: []ArgBind{{Name: "color"}}}}}},
+		{"arg type that does not fit the attribute", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Args: []ArgBind{{Name: "fileName", Type: "int64"}}}}}},
+		{"two args for one attribute", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Args: []ArgBind{{Name: "fileName"}, {Name: "name", Attribute: "fileName"}}}}}},
+		{"int64 arg with a generated attributes type", &Family{Types: []string{"WrenchCreateAttributes"}, Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Args: []ArgBind{{Name: "fileName"}, {Name: "fileSize", Type: "int64"}}}}}},
+		{"args with an attributes style", &Family{Operations: []*OpBind{{Operation: "wrenches_updateInstance", Name: "X", Params: []string{"id"}, Attrs: attrsValue, Args: []ArgBind{{Name: "uploaded"}}}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

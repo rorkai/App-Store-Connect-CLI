@@ -45,3 +45,21 @@ func (c *Client) GetGameCenterActivityImage(ctx context.Context, imageID string)
 		Path: fmt.Sprintf("/v1/gameCenterActivityImages/%s", strings.TrimSpace(imageID)),
 	})
 }
+
+// UpdateGameCenterActivityImage sends PATCH /v1/gameCenterActivityImages/{id} (gameCenterActivityImages_updateInstance).
+func (c *Client) UpdateGameCenterActivityImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterActivityImageResponse, error) {
+	payload := GameCenterActivityImageUpdateRequest{
+		Data: GameCenterActivityImageUpdateData{
+			Type: ResourceTypeGameCenterActivityImages,
+			ID:   strings.TrimSpace(imageID),
+			Attributes: &GameCenterActivityImageUpdateAttributes{
+				Uploaded: &uploaded,
+			},
+		},
+	}
+	return sendJSON[GameCenterActivityImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/gameCenterActivityImages/%s", strings.TrimSpace(imageID)),
+		Payload: payload,
+	})
+}

@@ -264,21 +264,6 @@ func (c *Client) CreateGameCenterLeaderboardImage(ctx context.Context, localizat
 	return sendJSON[GameCenterLeaderboardImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardImages", Payload: payload})
 }
 
-// UpdateGameCenterLeaderboardImage commits an image upload.
-func (c *Client) UpdateGameCenterLeaderboardImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterLeaderboardImageResponse, error) {
-	payload := GameCenterLeaderboardImageUpdateRequest{
-		Data: GameCenterLeaderboardImageUpdateData{
-			Type: ResourceTypeGameCenterLeaderboardImages,
-			ID:   strings.TrimSpace(imageID),
-			Attributes: &GameCenterLeaderboardImageUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID)), Payload: payload})
-}
-
 // UploadGameCenterLeaderboardImage performs the full upload flow for a leaderboard image.
 // It reserves the upload, uploads the file, and commits the upload.
 func (c *Client) UploadGameCenterLeaderboardImage(ctx context.Context, localizationID string, filePath string) (*GameCenterLeaderboardImageUploadResult, error) {
@@ -357,21 +342,6 @@ func (c *Client) CreateGameCenterAchievementImage(ctx context.Context, localizat
 	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievementImages", Payload: payload})
 }
 
-// UpdateGameCenterAchievementImage updates a Game Center achievement image (used to commit upload).
-func (c *Client) UpdateGameCenterAchievementImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterAchievementImageResponse, error) {
-	payload := GameCenterAchievementImageUpdateRequest{
-		Data: GameCenterAchievementImageUpdateData{
-			Type: ResourceTypeGameCenterAchievementImages,
-			ID:   strings.TrimSpace(imageID),
-			Attributes: &GameCenterAchievementImageUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)), Payload: payload})
-}
-
 // UploadGameCenterAchievementImage performs the complete upload flow: reserve, upload chunks, commit.
 func (c *Client) UploadGameCenterAchievementImage(ctx context.Context, localizationID string, filePath string) (*GameCenterAchievementImageUploadResult, error) {
 	// Validate the file
@@ -447,21 +417,6 @@ func (c *Client) CreateGameCenterLeaderboardSetImage(ctx context.Context, locali
 	}
 
 	return sendJSON[GameCenterLeaderboardSetImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardSetImages", Payload: payload})
-}
-
-// UpdateGameCenterLeaderboardSetImage commits an image upload (sets uploaded=true).
-func (c *Client) UpdateGameCenterLeaderboardSetImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterLeaderboardSetImageResponse, error) {
-	payload := GameCenterLeaderboardSetImageUpdateRequest{
-		Data: GameCenterLeaderboardSetImageUpdateData{
-			Type: ResourceTypeGameCenterLeaderboardSetImages,
-			ID:   strings.TrimSpace(imageID),
-			Attributes: &GameCenterLeaderboardSetImageUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID)), Payload: payload})
 }
 
 // UploadGameCenterLeaderboardSetImage performs the full upload flow for a leaderboard set image.

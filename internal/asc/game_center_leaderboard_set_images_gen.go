@@ -62,3 +62,21 @@ func (c *Client) GetGameCenterLeaderboardSetImage(ctx context.Context, imageID s
 		Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID)),
 	})
 }
+
+// UpdateGameCenterLeaderboardSetImage sends PATCH /v1/gameCenterLeaderboardSetImages/{id} (gameCenterLeaderboardSetImages_updateInstance).
+func (c *Client) UpdateGameCenterLeaderboardSetImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterLeaderboardSetImageResponse, error) {
+	payload := GameCenterLeaderboardSetImageUpdateRequest{
+		Data: GameCenterLeaderboardSetImageUpdateData{
+			Type: ResourceTypeGameCenterLeaderboardSetImages,
+			ID:   strings.TrimSpace(imageID),
+			Attributes: &GameCenterLeaderboardSetImageUpdateAttributes{
+				Uploaded: &uploaded,
+			},
+		},
+	}
+	return sendJSON[GameCenterLeaderboardSetImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID)),
+		Payload: payload,
+	})
+}

@@ -166,21 +166,6 @@ func (c *Client) CreateGameCenterChallengeImage(ctx context.Context, localizatio
 	return sendJSON[GameCenterChallengeImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeImages", Payload: payload})
 }
 
-// UpdateGameCenterChallengeImage commits a challenge image upload.
-func (c *Client) UpdateGameCenterChallengeImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterChallengeImageResponse, error) {
-	payload := GameCenterChallengeImageUpdateRequest{
-		Data: GameCenterChallengeImageUpdateData{
-			Type: ResourceTypeGameCenterChallengeImages,
-			ID:   strings.TrimSpace(imageID),
-			Attributes: &GameCenterChallengeImageUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[GameCenterChallengeImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID)), Payload: payload})
-}
-
 // UploadGameCenterChallengeImage performs the full upload flow for a challenge image.
 func (c *Client) UploadGameCenterChallengeImage(ctx context.Context, localizationID, versionID, filePath string) (*GameCenterChallengeImageUploadResult, error) {
 	if err := ValidateImageFile(filePath); err != nil {
