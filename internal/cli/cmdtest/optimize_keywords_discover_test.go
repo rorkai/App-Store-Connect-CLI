@@ -3,9 +3,10 @@ package cmdtest
 import (
 	"errors"
 	"flag"
-	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestOptimizeKeywordsDiscoverUsageErrors(t *testing.T) {
@@ -40,12 +41,7 @@ func TestOptimizeKeywordsDiscoverUsageErrors(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 			t.Setenv("ASC_APP_ID", "")
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request before input validation: %s", req.URL.String())
-				return nil, errors.New("unexpected request")
-			})
+			asctest.NewRegistry(t).Install()
 
 			stdout, stderr, runErr := runCommand(t, test.args)
 			if !errors.Is(runErr, flag.ErrHelp) {
@@ -67,12 +63,7 @@ func TestOptimizeKeywordsDiscoverFailsActionablyWithoutAppleAdsCredentials(t *te
 	t.Setenv("ASC_ADS_CLIENT_ID", "")
 	t.Setenv("ASC_ADS_CLIENT_SECRET", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request without Apple Ads credentials: %s", req.URL.String())
-		return nil, errors.New("unexpected request")
-	})
+	asctest.NewRegistry(t).Install()
 
 	stdout, _, runErr := runCommand(t, []string{
 		"optimize", "keywords", "discover",

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestRunMetadataKeywordsAuditBlockedTermValidationReturnsUsageExitCode(t *testing.T) {
@@ -29,10 +30,7 @@ func TestRunMetadataKeywordsAuditBlockedTermValidationReturnsUsageExitCode(t *te
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	}))
+	asctest.NewRegistry(t).Install()
 
 	tests := []struct {
 		name    string
@@ -60,7 +58,7 @@ func TestMetadataKeywordsAuditReportsBlockedTermAndStrictBlocking(t *testing.T) 
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	installDefaultTransport(t, metadataKeywordsAuditTransport(t, "free trial,habit tracker"))
+	stubMetadataKeywordsAudit(t, "free trial,habit tracker")
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -124,7 +122,7 @@ func TestMetadataKeywordsAuditLoadsBlockedTermsFile(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	installDefaultTransport(t, metadataKeywordsAuditTransport(t, "premium features,habit tracker"))
+	stubMetadataKeywordsAudit(t, "premium features,habit tracker")
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -170,7 +168,7 @@ func TestRunMetadataKeywordsAuditSuggestsAppInfoOverrideWhenResolutionIsAmbiguou
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	installDefaultTransport(t, metadataKeywordsAuditAmbiguousAppInfoTransport(t))
+	stubMetadataKeywordsAuditAmbiguousAppInfo(t, false)
 
 	_, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
@@ -197,7 +195,7 @@ func TestMetadataKeywordsAuditUsesAppInfoOverride(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	installDefaultTransport(t, metadataKeywordsAuditAmbiguousAppInfoTransport(t))
+	stubMetadataKeywordsAuditAmbiguousAppInfo(t, true)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -233,103 +231,99 @@ func TestMetadataKeywordsAuditUsesAppInfoOverride(t *testing.T) {
 	}
 }
 
-func metadataKeywordsAuditTransport(t *testing.T, keywords string) http.RoundTripper {
+func stubMetadataKeywordsAudit(t *testing.T, keywords string) {
 	t.Helper()
 
-	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1":
-			return jsonResponse(http.StatusOK, `{
-				"data":{
-					"type":"appStoreVersions",
-					"id":"ver-1",
-					"attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"PREPARE_FOR_SUBMISSION"},
-					"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1", "include=app"),
+		asctest.JSON(http.StatusOK, `{
+			"data":{
+				"type":"appStoreVersions",
+				"id":"ver-1",
+				"attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"PREPARE_FOR_SUBMISSION"},
+				"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+			}
+		}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}
+			]
+		}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"appStoreVersionLocalizations",
+					"id":"ver-loc-en",
+					"attributes":{"locale":"en-US","keywords":"`+keywords+`"}
 				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
-			return jsonResponse(http.StatusOK, `{
-				"data":[
-					{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}
-				]
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/info-1/appInfoLocalizations":
-			return jsonResponse(http.StatusOK, `{
-				"data":[
-					{
-						"type":"appInfoLocalizations",
-						"id":"info-loc-en",
-						"attributes":{"locale":"en-US","name":"Habit Tracker","subtitle":"Daily progress"}
-					}
-				],
-				"links":{}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{
-				"data":[
-					{
-						"type":"appStoreVersionLocalizations",
-						"id":"ver-loc-en",
-						"attributes":{"locale":"en-US","keywords":"`+keywords+`"}
-					}
-				],
-				"links":{}
-			}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+			],
+			"links":{}
+		}`))
+	reg.Register(asctest.GET("/v1/appInfos/info-1/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"appInfoLocalizations",
+					"id":"info-loc-en",
+					"attributes":{"locale":"en-US","name":"Habit Tracker","subtitle":"Daily progress"}
+				}
+			],
+			"links":{}
+		}`))
 }
 
-func metadataKeywordsAuditAmbiguousAppInfoTransport(t *testing.T) http.RoundTripper {
+// stubMetadataKeywordsAuditAmbiguousAppInfo stubs an app with two app infos.
+// Without an override the command stops after listing them; with
+// --app-info info-override it reads the localizations.
+func stubMetadataKeywordsAuditAmbiguousAppInfo(t *testing.T, override bool) {
 	t.Helper()
 
-	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1":
-			return jsonResponse(http.StatusOK, `{
-				"data":{
-					"type":"appStoreVersions",
-					"id":"ver-1",
-					"attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"PREPARE_FOR_SUBMISSION"},
-					"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
-				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
-			return jsonResponse(http.StatusOK, `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1", "include=app"),
+		asctest.JSON(http.StatusOK, `{
+			"data":{
+				"type":"appStoreVersions",
+				"id":"ver-1",
+				"attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"PREPARE_FOR_SUBMISSION"},
+				"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+			}
+		}`))
+	if !override {
+		reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+			asctest.JSON(http.StatusOK, `{
 				"data":[
 					{"type":"appInfos","id":"info-a","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},
 					{"type":"appInfos","id":"info-override","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}
 				]
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/info-override/appInfoLocalizations":
-			return jsonResponse(http.StatusOK, `{
-				"data":[
-					{
-						"type":"appInfoLocalizations",
-						"id":"info-loc-en",
-						"attributes":{"locale":"en-US","name":"Habit Tracker","subtitle":"Daily progress"}
-					}
-				],
-				"links":{}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{
-				"data":[
-					{
-						"type":"appStoreVersionLocalizations",
-						"id":"ver-loc-en",
-						"attributes":{"locale":"en-US","keywords":"habit tracker,focus"}
-					}
-				],
-				"links":{}
-			}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+			}`))
+		return
+	}
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"appStoreVersionLocalizations",
+					"id":"ver-loc-en",
+					"attributes":{"locale":"en-US","keywords":"habit tracker,focus"}
+				}
+			],
+			"links":{}
+		}`))
+	reg.Register(asctest.GET("/v1/appInfos/info-override/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"appInfoLocalizations",
+					"id":"info-loc-en",
+					"attributes":{"locale":"en-US","name":"Habit Tracker","subtitle":"Daily progress"}
+				}
+			],
+			"links":{}
+		}`))
 }
 
 func hasAuditCheckID(checks []struct {

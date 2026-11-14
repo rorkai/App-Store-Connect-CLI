@@ -75,13 +75,3 @@ func (c *Client) UpdateAndroidToIosAppMappingDetail(ctx context.Context, id stri
 
 	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id), Payload: request})
 }
-
-// DeleteAndroidToIosAppMappingDetail deletes a mapping by ID.
-func (c *Client) DeleteAndroidToIosAppMappingDetail(ctx context.Context, id string) error {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return fmt.Errorf("mapping ID is required")
-	}
-
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id), nil)
-}

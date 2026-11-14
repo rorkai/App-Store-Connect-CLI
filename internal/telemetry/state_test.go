@@ -52,7 +52,7 @@ func TestInstallIDCreateReuseAndReset(t *testing.T) {
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
-	first, err := EnsureInstallID()
+	first, err := ensureInstallID(lockTimeout)
 	if err != nil {
 		t.Fatalf("EnsureInstallID() error = %v", err)
 	}
@@ -60,7 +60,7 @@ func TestInstallIDCreateReuseAndReset(t *testing.T) {
 		t.Fatal("expected install ID")
 	}
 
-	second, err := EnsureInstallID()
+	second, err := ensureInstallID(lockTimeout)
 	if err != nil {
 		t.Fatalf("EnsureInstallID() second error = %v", err)
 	}
@@ -97,7 +97,7 @@ func TestInstallIDCreateReuseAndReset(t *testing.T) {
 func TestEnsureInstallIDDoesNotRewriteUnchangedState(t *testing.T) {
 	setTelemetryTestHome(t)
 
-	if _, err := EnsureInstallID(); err != nil {
+	if _, err := ensureInstallID(lockTimeout); err != nil {
 		t.Fatalf("EnsureInstallID() error = %v", err)
 	}
 	path, err := StatePath()
@@ -110,7 +110,7 @@ func TestEnsureInstallIDDoesNotRewriteUnchangedState(t *testing.T) {
 	}
 
 	time.Sleep(20 * time.Millisecond)
-	if _, err := EnsureInstallID(); err != nil {
+	if _, err := ensureInstallID(lockTimeout); err != nil {
 		t.Fatalf("EnsureInstallID() second error = %v", err)
 	}
 	secondInfo, err := os.Stat(path)
@@ -137,7 +137,7 @@ func TestExistingUnlockedLockFileIsReusable(t *testing.T) {
 		t.Fatalf("create unlocked lock file: %v", err)
 	}
 
-	if _, err := EnsureInstallID(); err != nil {
+	if _, err := ensureInstallID(lockTimeout); err != nil {
 		t.Fatalf("EnsureInstallID() with existing lock file error = %v", err)
 	}
 }
@@ -158,7 +158,7 @@ func TestStaleLegacyLockDirectoryIsMigrated(t *testing.T) {
 		t.Fatalf("age legacy lock directory: %v", err)
 	}
 
-	if _, err := EnsureInstallID(); err != nil {
+	if _, err := ensureInstallID(lockTimeout); err != nil {
 		t.Fatalf("EnsureInstallID() with stale legacy lock error = %v", err)
 	}
 	info, err := os.Stat(lockPath)
@@ -265,7 +265,7 @@ func TestStaleLegacyMigrationMarkerIsRecovered(t *testing.T) {
 		t.Fatalf("age legacy lock directory: %v", err)
 	}
 
-	if _, err := EnsureInstallID(); err != nil {
+	if _, err := ensureInstallID(lockTimeout); err != nil {
 		t.Fatalf("EnsureInstallID() with stale migration marker error = %v", err)
 	}
 	info, err := os.Stat(lockPath)
@@ -346,7 +346,7 @@ func TestConcurrentStateUpdatesPreserveOptOutAndInstallID(t *testing.T) {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			_, err := EnsureInstallID()
+			_, err := ensureInstallID(lockTimeout)
 			errs <- err
 		}()
 		go func() {

@@ -67,23 +67,8 @@ type GameCenterActivityVersionInlineCreate struct {
 	Attributes *GameCenterActivityVersionCreateAttributes `json:"attributes,omitempty"`
 }
 
-// GameCenterActivityUpdateData is the data portion of an activity update request.
-type GameCenterActivityUpdateData struct {
-	Type       ResourceType                        `json:"type"`
-	ID         string                              `json:"id"`
-	Attributes *GameCenterActivityUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterActivityUpdateRequest is a request to update an activity.
-type GameCenterActivityUpdateRequest struct {
-	Data GameCenterActivityUpdateData `json:"data"`
-}
-
 // GameCenterActivitiesResponse is the response from activity list endpoints.
 type GameCenterActivitiesResponse = Response[GameCenterActivityAttributes]
-
-// GameCenterActivityResponse is the response from activity detail endpoints.
-type GameCenterActivityResponse = SingleResponse[GameCenterActivityAttributes]
 
 // GameCenterActivityDeleteResult represents CLI output for activity deletions.
 type GameCenterActivityDeleteResult struct {
@@ -116,11 +101,6 @@ type GameCenterActivityVersionRelationships struct {
 	Activity *Relationship `json:"activity,omitempty"`
 }
 
-// GameCenterActivityVersionCreateAttributes describes attributes for creating a version.
-type GameCenterActivityVersionCreateAttributes struct {
-	FallbackURL *string `json:"fallbackUrl,omitempty"`
-}
-
 // GameCenterActivityVersionCreateData is the data portion of a version create request.
 type GameCenterActivityVersionCreateData struct {
 	Type          ResourceType                               `json:"type"`
@@ -128,33 +108,8 @@ type GameCenterActivityVersionCreateData struct {
 	Relationships *GameCenterActivityVersionRelationships    `json:"relationships,omitempty"`
 }
 
-// GameCenterActivityVersionCreateRequest is a request to create an activity version.
-type GameCenterActivityVersionCreateRequest struct {
-	Data GameCenterActivityVersionCreateData `json:"data"`
-}
-
-// GameCenterActivityVersionUpdateAttributes describes attributes for updating a version.
-type GameCenterActivityVersionUpdateAttributes struct {
-	FallbackURL *string `json:"fallbackUrl,omitempty"`
-}
-
-// GameCenterActivityVersionUpdateData is the data portion of a version update request.
-type GameCenterActivityVersionUpdateData struct {
-	Type       ResourceType                               `json:"type"`
-	ID         string                                     `json:"id"`
-	Attributes *GameCenterActivityVersionUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterActivityVersionUpdateRequest is a request to update an activity version.
-type GameCenterActivityVersionUpdateRequest struct {
-	Data GameCenterActivityVersionUpdateData `json:"data"`
-}
-
 // GameCenterActivityVersionsResponse is the response from version list endpoints.
 type GameCenterActivityVersionsResponse = Response[GameCenterActivityVersionAttributes]
-
-// GameCenterActivityVersionResponse is the response from version detail endpoints.
-type GameCenterActivityVersionResponse = SingleResponse[GameCenterActivityVersionAttributes]
 
 // GCActivityVersionsOption is a functional option for GetGameCenterActivityVersions.
 type GCActivityVersionsOption func(*gcActivityVersionsQuery)
@@ -183,12 +138,6 @@ type GameCenterActivityLocalizationCreateAttributes struct {
 	Description string `json:"description"`
 }
 
-// GameCenterActivityLocalizationUpdateAttributes describes attributes for updating a localization.
-type GameCenterActivityLocalizationUpdateAttributes struct {
-	Name        *string `json:"name,omitempty"`
-	Description *string `json:"description,omitempty"`
-}
-
 // GameCenterActivityLocalizationRelationships describes relationships for activity localizations.
 type GameCenterActivityLocalizationRelationships struct {
 	Version *Relationship `json:"version"`
@@ -201,28 +150,8 @@ type GameCenterActivityLocalizationCreateData struct {
 	Relationships *GameCenterActivityLocalizationRelationships   `json:"relationships,omitempty"`
 }
 
-// GameCenterActivityLocalizationCreateRequest is a request to create a localization.
-type GameCenterActivityLocalizationCreateRequest struct {
-	Data GameCenterActivityLocalizationCreateData `json:"data"`
-}
-
-// GameCenterActivityLocalizationUpdateData is the data portion of a localization update request.
-type GameCenterActivityLocalizationUpdateData struct {
-	Type       ResourceType                                    `json:"type"`
-	ID         string                                          `json:"id"`
-	Attributes *GameCenterActivityLocalizationUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterActivityLocalizationUpdateRequest is a request to update a localization.
-type GameCenterActivityLocalizationUpdateRequest struct {
-	Data GameCenterActivityLocalizationUpdateData `json:"data"`
-}
-
 // GameCenterActivityLocalizationsResponse is the response from localization list endpoints.
 type GameCenterActivityLocalizationsResponse = Response[GameCenterActivityLocalizationAttributes]
-
-// GameCenterActivityLocalizationResponse is the response from localization detail endpoints.
-type GameCenterActivityLocalizationResponse = SingleResponse[GameCenterActivityLocalizationAttributes]
 
 // GameCenterActivityLocalizationDeleteResult represents CLI output for localization deletions.
 type GameCenterActivityLocalizationDeleteResult struct {
@@ -258,11 +187,6 @@ type GameCenterActivityImageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-// GameCenterActivityImageUpdateAttributes describes attributes for committing an image upload.
-type GameCenterActivityImageUpdateAttributes struct {
-	Uploaded *bool `json:"uploaded,omitempty"`
-}
-
 // GameCenterActivityImageRelationships describes relationships for activity images.
 type GameCenterActivityImageRelationships struct {
 	Localization *Relationship `json:"localization,omitempty"`
@@ -276,28 +200,8 @@ type GameCenterActivityImageCreateData struct {
 	Relationships *GameCenterActivityImageRelationships   `json:"relationships"`
 }
 
-// GameCenterActivityImageCreateRequest is a request to reserve an image upload.
-type GameCenterActivityImageCreateRequest struct {
-	Data GameCenterActivityImageCreateData `json:"data"`
-}
-
-// GameCenterActivityImageUpdateData is the data portion of an image update (commit) request.
-type GameCenterActivityImageUpdateData struct {
-	Type       ResourceType                             `json:"type"`
-	ID         string                                   `json:"id"`
-	Attributes *GameCenterActivityImageUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterActivityImageUpdateRequest is a request to commit an image upload.
-type GameCenterActivityImageUpdateRequest struct {
-	Data GameCenterActivityImageUpdateData `json:"data"`
-}
-
 // GameCenterActivityImagesResponse is the response from activity image list endpoints.
 type GameCenterActivityImagesResponse = Response[GameCenterActivityImageAttributes]
-
-// GameCenterActivityImageResponse is the response from activity image detail endpoints.
-type GameCenterActivityImageResponse = SingleResponse[GameCenterActivityImageAttributes]
 
 // GameCenterActivityVersionDefaultImageResponse preserves a missing default image as null.
 type GameCenterActivityVersionDefaultImageResponse struct {
@@ -338,16 +242,8 @@ type GameCenterActivityVersionReleaseCreateData struct {
 	Relationships *GameCenterActivityVersionReleaseRelationships `json:"relationships,omitempty"`
 }
 
-// GameCenterActivityVersionReleaseCreateRequest is a request to create a release.
-type GameCenterActivityVersionReleaseCreateRequest struct {
-	Data GameCenterActivityVersionReleaseCreateData `json:"data"`
-}
-
 // GameCenterActivityVersionReleasesResponse is the response from release list endpoints.
 type GameCenterActivityVersionReleasesResponse = Response[GameCenterActivityVersionReleaseAttributes]
-
-// GameCenterActivityVersionReleaseResponse is the response from release detail endpoints.
-type GameCenterActivityVersionReleaseResponse = SingleResponse[GameCenterActivityVersionReleaseAttributes]
 
 // GameCenterActivityVersionReleaseDeleteResult represents CLI output for release deletions.
 type GameCenterActivityVersionReleaseDeleteResult struct {

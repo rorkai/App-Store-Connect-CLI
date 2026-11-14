@@ -40,12 +40,6 @@ type DeviceAttributes struct {
 	AddedDate   string         `json:"addedDate,omitempty"`
 }
 
-// DevicesResponse is the response from devices list endpoint.
-type DevicesResponse = Response[DeviceAttributes]
-
-// DeviceResponse is the response from device detail endpoint.
-type DeviceResponse = SingleResponse[DeviceAttributes]
-
 // DeviceCreateAttributes describes attributes for creating a device.
 type DeviceCreateAttributes struct {
 	Name     string         `json:"name"`
@@ -53,31 +47,8 @@ type DeviceCreateAttributes struct {
 	Platform DevicePlatform `json:"platform"`
 }
 
-// DeviceCreateData is the data portion of a device create request.
-type DeviceCreateData struct {
-	Type       ResourceType           `json:"type"`
-	Attributes DeviceCreateAttributes `json:"attributes"`
-}
-
-// DeviceCreateRequest is a request to create a device.
-type DeviceCreateRequest struct {
-	Data DeviceCreateData `json:"data"`
-}
-
 // DeviceUpdateAttributes describes attributes for updating a device.
 type DeviceUpdateAttributes struct {
 	Name   *string       `json:"name,omitempty"`
 	Status *DeviceStatus `json:"status,omitempty"`
-}
-
-// DeviceUpdateData is the data portion of a device update request.
-type DeviceUpdateData struct {
-	Type       ResourceType            `json:"type"`
-	ID         string                  `json:"id"`
-	Attributes *DeviceUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// DeviceUpdateRequest is a request to update a device.
-type DeviceUpdateRequest struct {
-	Data DeviceUpdateData `json:"data"`
 }

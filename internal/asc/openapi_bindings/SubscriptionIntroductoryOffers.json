@@ -1,0 +1,12 @@
+{
+  "tag": "SubscriptionIntroductoryOffers",
+  "file": "subscription_introductory_offers_gen.go",
+  "types": [
+    "SubscriptionIntroductoryOfferCreateRequest",
+    "SubscriptionIntroductoryOfferUpdateAttributes",
+    "SubscriptionIntroductoryOfferUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"subscriptionIntroductoryOffers_deleteInstance","name":"DeleteSubscriptionIntroductoryOffer","params":["offerID"]}
+  ]
+}

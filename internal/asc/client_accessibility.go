@@ -7,6 +7,17 @@ import (
 	"strings"
 )
 
+// GetAccessibilityDeclarations retrieves accessibility declarations for an app.
+func (c *Client) GetAccessibilityDeclarations(ctx context.Context, appID string, opts ...AccessibilityDeclarationsOption) (*AccessibilityDeclarationsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[AccessibilityDeclarationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/accessibilityDeclarations", strings.TrimSpace(appID)),
+		Query:       buildAccessibilityDeclarationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "accessibility-declarations",
+	})
+}
+
 // GetAccessibilityDeclaration retrieves a single accessibility declaration by ID.
 func (c *Client) GetAccessibilityDeclaration(ctx context.Context, declarationID string, fields []string) (*AccessibilityDeclarationResponse, error) {
 	declarationID = strings.TrimSpace(declarationID)
@@ -47,11 +58,6 @@ func (c *Client) UpdateAccessibilityDeclaration(ctx context.Context, declaration
 	}
 
 	return sendJSON[AccessibilityDeclarationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID), Payload: payload})
-}
-
-// DeleteAccessibilityDeclaration deletes an accessibility declaration by ID.
-func (c *Client) DeleteAccessibilityDeclaration(ctx context.Context, declarationID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/accessibilityDeclarations/%s", strings.TrimSpace(declarationID)), nil)
 }
 
 // HasAccessibilityDeclarationUpdates reports whether any update attributes are set.

@@ -1,0 +1,10 @@
+{
+  "tag": "AppCategories",
+  "file": "app_categories_gen.go",
+  "operations": [
+    {"operation":"appCategories_getCollection","name":"GetAppCategories","options":"AppCategoriesOption","query":"buildAppCategoriesQuery","nextContext":"appCategories"},
+    {"operation":"appCategories_getInstance","name":"GetAppCategory","params":["categoryID"],"check":"require"},
+    {"operation":"appCategories_parent_getToOneRelated","name":"GetAppCategoryParent","params":["categoryID"],"check":"require","response":"AppCategoryResponse"},
+    {"operation":"appCategories_subcategories_getToManyRelated","name":"GetAppCategorySubcategories","params":["categoryID"],"check":"require","options":"AppCategoriesOption","query":"buildAppCategoriesQuery","nextContext":"appCategorySubcategories","response":"AppCategoriesResponse"}
+  ]
+}

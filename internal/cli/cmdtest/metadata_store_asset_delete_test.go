@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // Replacing a header uses DELETE before reservation; --confirm alone must not
@@ -28,31 +30,29 @@ func TestMetadataHeaderReplacementRequiresAllowDeletes(t *testing.T) {
 				t.Fatal(err)
 			}
 			writePNGForMigrate(t, filepath.Join(dir, "header_image.png"), 1800, 1200)
-			var mutations []string
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				key := req.Method + " " + req.URL.Path
-				if req.Method != http.MethodGet {
-					mutations = append(mutations, key)
-				}
-				switch key {
-				case "GET /v1/apps/APP_ID/appStoreVersions":
-					return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-				case "GET /v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
-					return migrateJSONResponse(200, `{"data":[]}`), nil
-				case "GET /v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
-					return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"OPEN"}}}`), nil
-				case "GET /v1/appClipDefaultExperiences/EXP/appClipDefaultExperienceLocalizations":
-					return migrateJSONResponse(200, `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`), nil
-				case "GET /v1/appClipDefaultExperienceLocalizations/LOC/appClipHeaderImage":
-					return migrateJSONResponse(200, `{"data":{"type":"appClipHeaderImages","id":"OLD_HEADER","attributes":{"sourceFileChecksum":"old"}}}`), nil
-				case "DELETE /v1/appClipHeaderImages/OLD_HEADER":
-					return migrateJSONResponse(204, ``), nil
-				case "POST /v1/appClipHeaderImages":
-					return migrateJSONResponse(400, `{"errors":[{"status":"400","code":"INVALID","title":"reservation rejected"}]}`), nil
-				default:
-					return nil, fmt.Errorf("unexpected %s", key)
-				}
-			}))
+			info, err := os.Stat(filepath.Join(dir, "header_image.png"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps/APP_ID/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+				asctest.JSON(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`))
+			registerHeaderReads := func() {
+				reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
+					asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"OPEN"}}}`))
+				reg.Register(asctest.GET("/v1/appClipDefaultExperiences/EXP/appClipDefaultExperienceLocalizations"),
+					asctest.JSON(200, `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`))
+				reg.Register(asctest.GET("/v1/appClipDefaultExperienceLocalizations/LOC/appClipHeaderImage"),
+					asctest.JSON(200, `{"data":{"type":"appClipHeaderImages","id":"OLD_HEADER","attributes":{"sourceFileChecksum":"old"}}}`))
+			}
+			registerHeaderReads()
+			if tc.allowDeletes && !tc.dryRun {
+				registerHeaderReads()
+				reg.Register(asctest.DELETE("/v1/appClipHeaderImages/OLD_HEADER"), asctest.JSON(204, ``))
+				reg.Register(asctest.POST("/v1/appClipHeaderImages").JSONBody(fmt.Sprintf(`{"data":{"type":"appClipHeaderImages","attributes":{"fileSize":%d,"fileName":"header_image.png"},"relationships":{"appClipDefaultExperienceLocalization":{"data":{"type":"appClipDefaultExperienceLocalizations","id":"LOC"}}}}}`, info.Size())),
+					asctest.JSON(400, `{"errors":[{"status":"400","code":"INVALID","title":"reservation rejected"}]}`))
+			}
 			args := []string{"metadata", tc.command, "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "app-clip", "--output", "json"}
 			if tc.dryRun {
 				args = append(args, "--dry-run")
@@ -64,6 +64,12 @@ func TestMetadataHeaderReplacementRequiresAllowDeletes(t *testing.T) {
 			}
 			var runErr error
 			stdout, _ := captureOutput(t, func() { runErr = RootCommand("test").ParseAndRun(context.Background(), args) })
+			var mutations []string
+			for _, req := range reg.Requests() {
+				if req.Method != http.MethodGet {
+					mutations = append(mutations, req.Method+" "+req.URL.Path)
+				}
+			}
 			if tc.dryRun {
 				if runErr != nil {
 					t.Fatal(runErr)

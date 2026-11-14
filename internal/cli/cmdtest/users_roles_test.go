@@ -2,27 +2,20 @@ package cmdtest
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestUsersListNormalizesRoles(t *testing.T) {
 	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/users" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		if got := req.URL.Query().Get("filter[roles]"); got != "DEVELOPER,APP_MANAGER" {
-			t.Fatalf("filter[roles] = %q, want DEVELOPER,APP_MANAGER", got)
-		}
-		return jsonResponse(http.StatusOK, `{"data":[]}`)
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/users", "filter[roles]=DEVELOPER,APP_MANAGER"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -36,28 +29,12 @@ func TestUsersListNormalizesRoles(t *testing.T) {
 
 func TestUsersUpdateNormalizesRoles(t *testing.T) {
 	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method == http.MethodGet && req.URL.Path == "/v1/users/user-1" {
-			return jsonResponse(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"],"provisioningAllowed":true}}}`)
-		}
-		if req.Method != http.MethodPatch || req.URL.Path != "/v1/users/user-1" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		var payload asc.UserUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
-		if got := payload.Data.Attributes.Roles; len(got) != 2 || got[0] != "DEVELOPER" || got[1] != "APP_MANAGER" {
-			t.Fatalf("roles = %#v, want [DEVELOPER APP_MANAGER]", got)
-		}
-		if payload.Data.Attributes.AllAppsVisible != nil {
-			t.Fatalf("allAppsVisible = %v, want omitted", payload.Data.Attributes.AllAppsVisible)
-		}
-		if payload.Data.Relationships != nil {
-			t.Fatalf("relationships = %+v, want omitted", payload.Data.Relationships)
-		}
-		return jsonResponse(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER","APP_MANAGER"]}}}`)
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/users/user-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"],"provisioningAllowed":true}}}`))
+	reg.Register(asctest.PATCH("/v1/users/user-1").JSONBody(`{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER","APP_MANAGER"],"provisioningAllowed":true}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER","APP_MANAGER"]}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -71,19 +48,10 @@ func TestUsersUpdateNormalizesRoles(t *testing.T) {
 
 func TestUsersInviteNormalizesRoles(t *testing.T) {
 	setupAuth(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost || req.URL.Path != "/v1/userInvitations" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		var payload asc.UserInvitationCreateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
-		if got := payload.Data.Attributes.Roles; len(got) != 1 || got[0] != "DEVELOPER" {
-			t.Fatalf("roles = %#v, want [DEVELOPER]", got)
-		}
-		return jsonResponse(http.StatusCreated, `{"data":{"type":"userInvitations","id":"invite-1","attributes":{"roles":["DEVELOPER"]}}}`)
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/userInvitations").JSONBody(`{"data":{"type":"userInvitations","attributes":{"email":"user@example.com","firstName":"Jane","lastName":"Doe","roles":["DEVELOPER"],"allAppsVisible":true}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"userInvitations","id":"invite-1","attributes":{"roles":["DEVELOPER"]}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

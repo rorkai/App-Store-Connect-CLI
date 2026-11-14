@@ -1,0 +1,13 @@
+{
+  "tag": "InAppPurchaseAvailabilities",
+  "file": "in_app_purchase_availabilities_gen.go",
+  "types": [
+    "InAppPurchaseAvailabilityCreateAttributes",
+    "InAppPurchaseAvailabilityCreateRequest",
+    "InAppPurchaseAvailabilityResponse"
+  ],
+  "operations": [
+    {"operation":"inAppPurchaseAvailabilities_availableTerritories_getToManyRelated","name":"GetInAppPurchaseAvailabilityAvailableTerritories","params":["availabilityID"],"check":"require","options":"IAPAvailabilityTerritoriesOption","query":"buildIAPAvailabilityTerritoriesQuery","nextContext":"in-app-purchase-availability-territories"},
+    {"operation":"inAppPurchaseAvailabilities_getInstance","name":"GetInAppPurchaseAvailabilityByID","params":["availabilityID"],"check":"require"}
+  ]
+}

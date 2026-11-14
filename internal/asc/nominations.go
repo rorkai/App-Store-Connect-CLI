@@ -44,12 +44,6 @@ type NominationAttributes struct {
 	PreOrderEnabled            bool            `json:"preOrderEnabled,omitempty"`
 }
 
-// NominationsResponse is the response from nominations list endpoints.
-type NominationsResponse = Response[NominationAttributes]
-
-// NominationResponse is the response from nominations detail endpoints.
-type NominationResponse = SingleResponse[NominationAttributes]
-
 // NominationCreateAttributes describes attributes for creating a nomination.
 type NominationCreateAttributes struct {
 	Name                       string         `json:"name"`
@@ -99,11 +93,6 @@ type NominationCreateData struct {
 	Relationships NominationRelationships    `json:"relationships"`
 }
 
-// NominationCreateRequest is a request to create a nomination.
-type NominationCreateRequest struct {
-	Data NominationCreateData `json:"data"`
-}
-
 // NominationUpdateData is the data portion of a nomination update request.
 type NominationUpdateData struct {
 	Type          ResourceType                `json:"type"`
@@ -112,26 +101,10 @@ type NominationUpdateData struct {
 	Relationships *NominationRelationships    `json:"relationships,omitempty"`
 }
 
-// NominationUpdateRequest is a request to update a nomination.
-type NominationUpdateRequest struct {
-	Data NominationUpdateData `json:"data"`
-}
-
 // NominationDeleteResult represents CLI output for deletions.
 type NominationDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// GetNominations retrieves nominations with optional filters.
-func (c *Client) GetNominations(ctx context.Context, opts ...NominationsOption) (*NominationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[NominationsResponse](ctx, c, readRequest{
-		Path:        "/v1/nominations",
-		Query:       buildNominationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "nominations",
-	})
 }
 
 // GetNomination retrieves a nomination by ID.
@@ -182,13 +155,4 @@ func (c *Client) UpdateNomination(ctx context.Context, nominationID string, attr
 	}
 
 	return sendJSON[NominationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/nominations/%s", nominationID), Payload: payload})
-}
-
-// DeleteNomination deletes a nomination by ID.
-func (c *Client) DeleteNomination(ctx context.Context, nominationID string) error {
-	nominationID = strings.TrimSpace(nominationID)
-	if nominationID == "" {
-		return fmt.Errorf("nominationID is required")
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/nominations/%s", nominationID), nil)
 }

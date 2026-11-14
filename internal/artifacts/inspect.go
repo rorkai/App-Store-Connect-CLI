@@ -140,13 +140,6 @@ type IPAOptions struct {
 	VerifySignature bool
 }
 
-// InspectIPA reads a bounded IPA zip and returns a metadata manifest. A missing
-// embedded profile is reported as unsigned. The main executable's signer
-// identity is read from its code signature, which is not verified.
-func InspectIPA(source io.ReaderAt, size int64, includeEntitlements, includeProfile bool) (IPAManifest, error) {
-	return InspectIPAWithOptions(source, size, IPAOptions{IncludeEntitlements: includeEntitlements, IncludeProfile: includeProfile})
-}
-
 // InspectIPAWithOptions is InspectIPA with optional signature verification
 // against the embedded Apple roots.
 // Inspection failures caused by the IPA's own contents match ErrInvalidArchive.
@@ -647,14 +640,6 @@ func stringValue(value any) string {
 type PKGOptions struct {
 	// VerifySignature verifies the package signature offline.
 	VerifySignature bool
-}
-
-// InspectPKG reads PackageInfo from a flat xar component package, or the
-// Distribution and embedded component packages of a product archive. The
-// signer identity is read from the package signature certificates, which are
-// not verified.
-func InspectPKG(source io.ReaderAt, size int64) (PKGManifest, error) {
-	return inspectPKG(source, size, nil)
 }
 
 // InspectPKGWithOptions is InspectPKG with optional signature verification

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestFinanceReportsValidationErrors(t *testing.T) {
@@ -139,12 +140,10 @@ func TestFinanceRegionsCommandOutputsJSON(t *testing.T) {
 func TestFinanceReportsNotFoundExplainsReportAvailability(t *testing.T) {
 	setupAuth(t)
 	const detail = "The requested report was not found."
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/financeReports" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+detail+`"}]}`)
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/financeReports", "filter[vendorNumber]=12345678", "filter[reportType]=FINANCIAL", "filter[regionCode]=US", "filter[reportDate]=2026-10"),
+		asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+detail+`"}]}`))
 	outputPath := filepath.Join(t.TempDir(), "finance.tsv.gz")
 
 	var code int

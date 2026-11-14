@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestMetadataPullDefaultsToEditableVersionWhenVersionOmitted(t *testing.T) {
@@ -18,29 +19,16 @@ func TestMetadataPullDefaultsToEditableVersionWhenVersionOmitted(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	outputDir := filepath.Join(t.TempDir(), "metadata")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1/appStoreVersions":
-			key := appStoreVersionsQueryKey(req.URL.Query())
-			if key != editableVersionStateQuery {
-				t.Fatalf("unexpected versions query %q", req.URL.RawQuery)
-			}
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION","createdDate":"2026-02-01T00:00:00Z"}}],"links":{"next":""}}`)
-		case "/v1/apps/app-1/appInfos":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`)
-		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App Name"}}],"links":{"next":""}}`)
-		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"English description"}}],"links":{"next":""}}`)
-		default:
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", editableVersionStateQuery, "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION","createdDate":"2026-02-01T00:00:00Z"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
+	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App Name"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"English description"}}],"links":{"next":""}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -100,18 +88,13 @@ func TestMetadataPullDefaultVersionSelectionErrorsDoNotWriteFiles(t *testing.T) 
 			t.Setenv("ASC_APP_ID", "")
 			outputDir := filepath.Join(t.TempDir(), "metadata")
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path != "/v1/apps/app-1/appStoreVersions" {
-					t.Fatalf("unexpected path: %s", req.URL.Path)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			for _, query := range []string{editableVersionStateQuery, removedEditableStateQuery, liveVersionStateQuery, liveVersionModernStateQuery} {
+				if body, ok := test.versions[query]; ok {
+					reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", query, "limit=200"), asctest.JSON(http.StatusOK, body))
 				}
-				body, ok := test.versions[appStoreVersionsQueryKey(req.URL.Query())]
-				if !ok {
-					t.Fatalf("unexpected versions query %q", req.URL.RawQuery)
-				}
-				return jsonResponse(http.StatusOK, body)
-			})
+			}
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)

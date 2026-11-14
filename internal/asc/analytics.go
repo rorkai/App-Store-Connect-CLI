@@ -122,11 +122,6 @@ func (r *AnalyticsReportRequestsResponse) GetData() any {
 	return r.Data
 }
 
-// AnalyticsReportRequestCreateRequest is a request to create an analytics report request.
-type AnalyticsReportRequestCreateRequest struct {
-	Data AnalyticsReportRequestCreateData `json:"data"`
-}
-
 // AnalyticsReportRequestCreateData is the data portion of an analytics report request create.
 type AnalyticsReportRequestCreateData struct {
 	Type          ResourceType                              `json:"type"`
@@ -156,9 +151,6 @@ type AnalyticsReportAttributes struct {
 // AnalyticsReportsResponse is the response from analytics reports endpoint.
 type AnalyticsReportsResponse = Response[AnalyticsReportAttributes]
 
-// AnalyticsReportResponse is the response from analytics report endpoint.
-type AnalyticsReportResponse = SingleResponse[AnalyticsReportAttributes]
-
 // AnalyticsReportInstanceAttributes describes analytics report instance metadata.
 type AnalyticsReportInstanceAttributes struct {
 	ReportDate     string `json:"reportDate,omitempty"`
@@ -170,9 +162,6 @@ type AnalyticsReportInstanceAttributes struct {
 // AnalyticsReportInstancesResponse is the response from analytics report instances endpoint.
 type AnalyticsReportInstancesResponse = Response[AnalyticsReportInstanceAttributes]
 
-// AnalyticsReportInstanceResponse is the response from analytics report instance endpoint.
-type AnalyticsReportInstanceResponse = SingleResponse[AnalyticsReportInstanceAttributes]
-
 // AnalyticsReportSegmentAttributes describes analytics report segment metadata.
 type AnalyticsReportSegmentAttributes struct {
 	URL               string `json:"url,omitempty"`
@@ -183,9 +172,6 @@ type AnalyticsReportSegmentAttributes struct {
 
 // AnalyticsReportSegmentsResponse is the response from analytics report segments endpoint.
 type AnalyticsReportSegmentsResponse = Response[AnalyticsReportSegmentAttributes]
-
-// AnalyticsReportSegmentResponse is the response from analytics report segment endpoint.
-type AnalyticsReportSegmentResponse = SingleResponse[AnalyticsReportSegmentAttributes]
 
 // AnalyticsReportInstancesLinkagesResponse is the response from analytics report instances linkages endpoint.
 type AnalyticsReportInstancesLinkagesResponse = LinkagesResponse

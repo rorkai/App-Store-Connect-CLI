@@ -1,0 +1,11 @@
+{
+  "tag": "BuildUploads",
+  "file": "build_uploads_gen.go",
+  "types": [
+    "BuildUploadCreateRequest"
+  ],
+  "operations": [
+    {"operation":"buildUploads_buildUploadFiles_getToManyRelated","name":"GetBuildUploadFiles","params":["uploadID"],"check":"require","options":"BuildUploadFilesOption","query":"buildBuildUploadFilesQuery","nextContext":"buildUploadFiles"},
+    {"operation":"buildUploads_deleteInstance","name":"DeleteBuildUpload","params":["id"],"check":"require"}
+  ]
+}

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestRunMetadataKeywordsPushInvalidContinueOnErrorReturnsUsageExitCode(t *testing.T) {
@@ -72,75 +73,46 @@ func TestMetadataKeywordsPushCreatesUpdatesAndWritesFailureArtifact(t *testing.T
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	var patchBody string
-	createBodies := make([]string, 0, 2)
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return appInfoSetBatchJSONResponse(http.StatusOK, `{
-				"data":[
-					{
-						"type":"appStoreVersionLocalizations",
-						"id":"loc-en",
-						"attributes":{"locale":"en-US","keywords":"old,keywords"}
-					}
-				],
-				"links":{}
-			}`), nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en":
-			body, readErr := io.ReadAll(req.Body)
-			if readErr != nil {
-				t.Fatalf("ReadAll() error: %v", readErr)
-			}
-			patchBody = string(body)
-			return appInfoSetBatchJSONResponse(http.StatusOK, `{
-				"data":{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
 					"type":"appStoreVersionLocalizations",
 					"id":"loc-en",
-					"attributes":{"locale":"en-US","keywords":"alpha,beta"}
+					"attributes":{"locale":"en-US","keywords":"old,keywords"}
 				}
-			}`), nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			body, readErr := io.ReadAll(req.Body)
-			if readErr != nil {
-				t.Fatalf("ReadAll() error: %v", readErr)
+			],
+			"links":{}
+		}`))
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"de-DE","keywords":"eins,zwei"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{
+			"data":{
+				"type":"appStoreVersionLocalizations",
+				"id":"loc-de",
+				"attributes":{"locale":"de-DE","keywords":"eins,zwei"}
 			}
-			bodyText := string(body)
-			createBodies = append(createBodies, bodyText)
-			switch {
-			case strings.Contains(bodyText, `"locale":"de-DE"`):
-				return appInfoSetBatchJSONResponse(http.StatusCreated, `{
-					"data":{
-						"type":"appStoreVersionLocalizations",
-						"id":"loc-de",
-						"attributes":{"locale":"de-DE","keywords":"eins,zwei"}
-					}
-				}`), nil
-			case strings.Contains(bodyText, `"locale":"ja"`):
-				return appInfoSetBatchJSONResponse(http.StatusUnprocessableEntity, `{
-					"errors":[
-						{
-							"status":"422",
-							"code":"ENTITY_ERROR.ATTRIBUTE.INVALID",
-							"title":"Invalid",
-							"detail":"ja keywords failed validation"
-						}
-					]
-				}`), nil
-			default:
-				t.Fatalf("unexpected create payload: %s", bodyText)
-				return nil, nil
+		}`))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-en").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"keywords":"alpha,beta"}}}`),
+		asctest.JSON(http.StatusOK, `{
+			"data":{
+				"type":"appStoreVersionLocalizations",
+				"id":"loc-en",
+				"attributes":{"locale":"en-US","keywords":"alpha,beta"}
 			}
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+		}`))
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"ja","keywords":"nihon,go"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`),
+		asctest.JSON(http.StatusUnprocessableEntity, `{
+			"errors":[
+				{
+					"status":"422",
+					"code":"ENTITY_ERROR.ATTRIBUTE.INVALID",
+					"title":"Invalid",
+					"detail":"ja keywords failed validation"
+				}
+			]
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -163,6 +135,16 @@ func TestMetadataKeywordsPushCreatesUpdatesAndWritesFailureArtifact(t *testing.T
 	}
 	if _, ok := errors.AsType[ReportedError](runErr); !ok {
 		t.Fatalf("expected ReportedError, got %T: %v", runErr, runErr)
+	}
+	var patchBody string
+	createBodies := make([]string, 0, 2)
+	for _, req := range reg.Requests() {
+		switch req.Method {
+		case http.MethodPatch:
+			patchBody = string(req.Body)
+		case http.MethodPost:
+			createBodies = append(createBodies, string(req.Body))
+		}
 	}
 	if !strings.Contains(patchBody, `"keywords":"alpha,beta"`) {
 		t.Fatalf("expected PATCH body to include keywords, got %s", patchBody)
@@ -254,28 +236,14 @@ func TestRunMetadataKeywordsPushPartialFailureReturnsExitError(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			body, readErr := io.ReadAll(req.Body)
-			if readErr != nil {
-				t.Fatalf("ReadAll() error: %v", readErr)
-			}
-			if strings.Contains(string(body), `"locale":"en-US"`) {
-				return appInfoSetBatchJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}}`), nil
-			}
-			return appInfoSetBatchJSONResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid","detail":"de-DE failed"}]}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"de-DE","keywords":"eins,zwei"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`),
+		asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid","detail":"de-DE failed"}]}`))
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"en-US","keywords":"alpha,beta"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
@@ -324,28 +292,14 @@ func TestRunMetadataKeywordsPushTableOutputIncludesSummaryAndFailureArtifact(t *
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			body, readErr := io.ReadAll(req.Body)
-			if readErr != nil {
-				t.Fatalf("ReadAll() error: %v", readErr)
-			}
-			if strings.Contains(string(body), `"locale":"en-US"`) {
-				return appInfoSetBatchJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}}`), nil
-			}
-			return appInfoSetBatchJSONResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid","detail":"de-DE failed"}]}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"de-DE","keywords":"eins,zwei"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`),
+		asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid","detail":"de-DE failed"}]}`))
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"en-US","keywords":"alpha,beta"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
@@ -398,24 +352,12 @@ func TestMetadataKeywordsPushStopsOnFirstFailureWhenContinueOnErrorFalse(t *test
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	postCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			postCount++
-			return appInfoSetBatchJSONResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid","detail":"de-DE failed"}]}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"de-DE","keywords":"eins,zwei"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`),
+		asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid","detail":"de-DE failed"}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -438,6 +380,12 @@ func TestMetadataKeywordsPushStopsOnFirstFailureWhenContinueOnErrorFalse(t *test
 	}
 	if _, ok := errors.AsType[ReportedError](runErr); !ok {
 		t.Fatalf("expected ReportedError, got %T: %v", runErr, runErr)
+	}
+	postCount := 0
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPost {
+			postCount++
+		}
 	}
 	if postCount != 1 {
 		t.Fatalf("expected one create attempt before stopping, got %d", postCount)

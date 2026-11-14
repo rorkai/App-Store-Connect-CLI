@@ -1,0 +1,18 @@
+{
+  "tag": "AppCustomProductPageLocalizations",
+  "file": "app_custom_product_page_localizations_gen.go",
+  "types": [
+    "AppCustomProductPageLocalizationAttributes",
+    "AppCustomProductPageLocalizationCreateRequest",
+    "AppCustomProductPageLocalizationResponse",
+    "AppCustomProductPageLocalizationUpdateAttributes",
+    "AppCustomProductPageLocalizationUpdateData",
+    "AppCustomProductPageLocalizationUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appCustomProductPageLocalizations_appPreviewSets_getToManyRelated","name":"GetAppCustomProductPageLocalizationPreviewSets","params":["localizationID"],"check":"require","options":"AppCustomProductPageLocalizationPreviewSetsOption","query":"buildAppCustomProductPageLocalizationPreviewSetsQuery","nextContext":"appPreviewSets"},
+    {"operation":"appCustomProductPageLocalizations_appScreenshotSets_getToManyRelated","name":"GetAppCustomProductPageLocalizationScreenshotSets","params":["localizationID"],"check":"require","options":"AppCustomProductPageLocalizationScreenshotSetsOption","query":"buildAppCustomProductPageLocalizationScreenshotSetsQuery","nextContext":"appScreenshotSets"},
+    {"operation":"appCustomProductPageLocalizations_deleteInstance","name":"DeleteAppCustomProductPageLocalization","params":["localizationID"],"check":"require"},
+    {"operation":"appCustomProductPageLocalizations_searchKeywords_getToManyRelated","name":"GetAppCustomProductPageLocalizationSearchKeywords","params":["localizationID"],"check":"require"}
+  ]
+}

@@ -460,18 +460,6 @@ func buildCiProductRepositoriesQuery(query *ciProductRepositoriesQuery) string {
 	return values.Encode()
 }
 
-// GetCiProducts retrieves CI products with optional filters, sparse fields, includes, and pagination.
-func (c *Client) GetCiProducts(ctx context.Context, opts ...CiProductsOption) (*CiProductsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiProductsResponse](ctx, c, readRequest{
-		Path:        "/v1/ciProducts",
-		Query:       buildCiProductsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciProducts",
-	})
-}
-
 // GetCiProduct retrieves a CI product by ID.
 func (c *Client) GetCiProduct(ctx context.Context, productID string) (*CiProductResponse, error) {
 	return getJSON[CiProductResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciProducts/%s", productID)})
@@ -518,12 +506,6 @@ func (c *Client) GetCiProductAdditionalRepositories(ctx context.Context, product
 		Next:        query.nextURL,
 		NextContext: "ciProductAdditionalRepositories",
 	})
-}
-
-// DeleteCiProduct deletes a CI product by ID.
-func (c *Client) DeleteCiProduct(ctx context.Context, productID string) error {
-	productID = strings.TrimSpace(productID)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/ciProducts/%s", productID), nil)
 }
 
 // GetCiWorkflows retrieves CI workflows for a product.
@@ -604,12 +586,6 @@ func (c *Client) UpdateCiWorkflow(ctx context.Context, workflowID string, payloa
 	}
 
 	return &response, nil
-}
-
-// DeleteCiWorkflow deletes a CI workflow by ID.
-func (c *Client) DeleteCiWorkflow(ctx context.Context, workflowID string) error {
-	workflowID = strings.TrimSpace(workflowID)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/ciWorkflows/%s", workflowID), nil)
 }
 
 // GetCiWorkflowRepository retrieves the repository for a CI workflow.

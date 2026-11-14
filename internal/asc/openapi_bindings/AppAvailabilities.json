@@ -1,0 +1,7 @@
+{
+  "tag": "AppAvailabilities",
+  "file": "app_availabilities_gen.go",
+  "operations": [
+    {"operation":"appAvailabilitiesV2_getInstance","name":"GetAppAvailabilityV2ByID","params":["availabilityID"],"check":"require","parseErr":"failed to parse app availability response"}
+  ]
+}

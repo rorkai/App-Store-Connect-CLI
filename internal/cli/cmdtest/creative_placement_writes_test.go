@@ -2,47 +2,21 @@ package cmdtest
 
 import (
 	"encoding/json"
-	"io"
-	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestCreativePlacementCreate(t *testing.T) {
 	for _, kind := range []string{"PRODUCT_PAGE_HEADER_ASSET", "APP_STORE_SEARCH_RESULTS_ASSET"} {
 		t.Run(kind, func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != "POST" || req.URL.Path != "/v1/appAssetLibraryPlacements" {
-					t.Fatalf("unexpected request %s %s", req.Method, req.URL)
-				}
-				var body struct {
-					Data struct {
-						Type          string
-						Attributes    map[string]string
-						Relationships map[string]struct {
-							Data struct {
-								Type string
-								ID   string
-							}
-						}
-					}
-				}
-				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-					t.Fatal(err)
-				}
-				if body.Data.Type != "appAssetLibraryPlacements" || len(body.Data.Attributes) != 2 || body.Data.Attributes["placementType"] != kind || body.Data.Attributes["placementGroup"] != "DEFAULT_PROFILE" || len(body.Data.Relationships) != 2 {
-					t.Fatalf("unexpected payload %+v", body)
-				}
-				image := body.Data.Relationships["image"].Data
-				loc := body.Data.Relationships["appStoreVersionLocalization"].Data
-				if image.Type != "appAssetLibraryImages" || image.ID != "image" || loc.Type != "appStoreVersionLocalizations" || loc.ID != "loc" {
-					t.Fatalf("unexpected relationships %+v", body)
-				}
-				return jsonResponse(201, `{"data":{"id":"placement","type":"appAssetLibraryPlacements","attributes":{"state":"ACTIVE","future":null}}}`)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			for range 3 {
+				reg.Register(placementCreateRequest(kind), asctest.JSON(201, `{"data":{"id":"placement","type":"appAssetLibraryPlacements","attributes":{"state":"ACTIVE","future":null}}}`))
+			}
 			stdout, stderr, err := runCreativePlacements(t, "localizations", "placements", "create", "--localization-id", "loc", "--image-id", "image", "--placement-type", kind)
 			var receipt map[string]any
 			if err != nil || stderr != "" || json.Unmarshal([]byte(stdout), &receipt) != nil {
@@ -61,10 +35,14 @@ func TestCreativePlacementCreate(t *testing.T) {
 	}
 }
 
+func placementCreateRequest(kind string) asctest.Matcher {
+	return asctest.POST("/v1/appAssetLibraryPlacements").JSONBody(`{"data":{"attributes":{"placementGroup":"DEFAULT_PROFILE","placementType":"` + kind + `"},"relationships":{"appStoreVersionLocalization":{"data":{"id":"loc","type":"appStoreVersionLocalizations"}},"image":{"data":{"id":"image","type":"appAssetLibraryImages"}}},"type":"appAssetLibraryPlacements"}}`)
+}
+
 func TestCreativePlacementCreateRefusesFalseSuccess(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 	for _, response := range []struct {
 		status int
 		body   string
@@ -72,7 +50,7 @@ func TestCreativePlacementCreateRefusesFalseSuccess(t *testing.T) {
 		{403, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Denied"}]}`},
 		{201, `{"data":{}}`},
 	} {
-		http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) { return jsonResponse(response.status, response.body) })
+		reg.Register(placementCreateRequest("PRODUCT_PAGE_HEADER_ASSET"), asctest.JSON(response.status, response.body))
 		stdout, _, err := runCreativePlacements(t, "localizations", "placements", "create", "--localization-id", "loc", "--image-id", "image", "--placement-type", "PRODUCT_PAGE_HEADER_ASSET")
 		if err == nil || stdout != "" {
 			t.Fatalf("false create success status=%d output=%s error=%v", response.status, stdout, err)
@@ -102,12 +80,7 @@ func TestCreativePlacementWriteUsageBeforeAuth(t *testing.T) {
 // Read filter support does not establish creation support, so the wider list
 // filter must not widen create or swap.
 func TestCreativePlacementWritesRejectFilterOnlyTypes(t *testing.T) {
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request %s %s", req.Method, req.URL)
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 	for _, tc := range []struct{ command, operation, kind string }{
 		{"localizations", "create", "SEARCH_RESULTS_ADS_ASSET"},
 		{"app-events localizations", "create", "PRODUCT_PAGE_HEADER_ASSET"},
@@ -126,14 +99,13 @@ func TestCreativePlacementWritesRejectFilterOnlyTypes(t *testing.T) {
 
 func TestCreativePlacementDeleteReceiptAndFailure(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != "DELETE" || req.URL.Path != "/v1/appAssetLibraryPlacements/placement" {
-			t.Fatalf("unexpected request %s %s", req.Method, req.URL)
-		}
-		return &http.Response{StatusCode: 204, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	for range 3 {
+		reg.Register(asctest.DELETE("/v1/appAssetLibraryPlacements/placement"), asctest.JSON(204, ""))
+	}
+	reg.Register(asctest.DELETE("/v1/appAssetLibraryPlacements/placement"),
+		asctest.JSON(403, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Denied"}]}`))
 	for _, output := range []string{"json", "table", "markdown"} {
 		stdout, stderr, err := runCreativePlacements(t, "localizations", "placements", "delete", "--id", "placement", "--confirm", "--output", output)
 		if err != nil || stderr != "" || !strings.Contains(stdout, "placement") {
@@ -146,9 +118,6 @@ func TestCreativePlacementDeleteReceiptAndFailure(t *testing.T) {
 			}
 		}
 	}
-	http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
-		return jsonResponse(403, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Denied"}]}`)
-	})
 	stdout, _, err := runCreativePlacements(t, "localizations", "placements", "delete", "--id", "placement", "--confirm")
 	if err == nil || stdout != "" {
 		t.Fatalf("false success %s %v", stdout, err)

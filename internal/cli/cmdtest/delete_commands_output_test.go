@@ -1,12 +1,12 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 var deleteOutputCommands = []struct {
@@ -38,28 +38,14 @@ func TestDeleteCommandsOutput(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodDelete || req.URL.Path != test.path {
-					t.Fatalf("request = %s %s, want DELETE %s", req.Method, req.URL.Path, test.path)
-				}
-				return &http.Response{
-					StatusCode: http.StatusNoContent,
-					Body:       io.NopCloser(strings.NewReader("")),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.DELETE(test.path), asctest.JSON(http.StatusNoContent, ""))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, test.args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -79,26 +65,12 @@ func TestDeleteCommandsAPIError(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					StatusCode: http.StatusNotFound,
-					Body: io.NopCloser(strings.NewReader(
-						`{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found","detail":"Resource does not exist"}]}`,
-					)),
-					Header: http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.DELETE(test.path),
+				asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found","detail":"Resource does not exist"}]}`))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runCommand(t, test.args)
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")

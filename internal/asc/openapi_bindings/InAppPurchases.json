@@ -1,0 +1,20 @@
+{
+  "tag": "InAppPurchases",
+  "file": "in_app_purchases_gen.go",
+  "types": [
+    "InAppPurchaseResponse",
+    "InAppPurchaseV2CreateRequest",
+    "InAppPurchaseV2Response",
+    "InAppPurchaseV2UpdateData",
+    "InAppPurchaseV2UpdateRequest"
+  ],
+  "operations": [
+    {"operation":"inAppPurchasesV2_deleteInstance","name":"DeleteInAppPurchaseV2","params":["iapID"]},
+    {"operation":"inAppPurchasesV2_inAppPurchaseAvailability_getToOneRelated","name":"GetInAppPurchaseAvailability","params":["iapID"],"check":"require"},
+    {"operation":"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated","name":"GetInAppPurchaseLocalizations","params":["iapID"],"options":"IAPLocalizationsOption","query":"buildIAPLocalizationsQuery","nextContext":"in-app-purchase-localizations"},
+    {"operation":"inAppPurchasesV2_offerCodes_getToManyRelated","name":"GetInAppPurchaseOfferCodes","params":["iapID"],"check":"require","options":"IAPOfferCodesOption","query":"buildIAPOfferCodesQuery","nextContext":"in-app-purchase-offer-codes"},
+    {"operation":"inAppPurchasesV2_pricePoints_getToManyRelated","name":"GetInAppPurchasePricePoints","params":["iapID"],"check":"require","options":"IAPPricePointsOption","query":"buildIAPPricePointsQuery","nextContext":"in-app-purchase-price-points"},
+    {"operation":"inAppPurchasesV2_updateInstance","name":"UpdateInAppPurchaseV2","params":["iapID"]},
+    {"operation":"inAppPurchases_getInstance","name":"GetInAppPurchase","params":["iapID"]}
+  ]
+}

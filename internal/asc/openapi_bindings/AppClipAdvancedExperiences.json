@@ -1,0 +1,10 @@
+{
+  "tag": "AppClipAdvancedExperiences",
+  "file": "app_clip_advanced_experiences_gen.go",
+  "types": [
+    "AppClipAdvancedExperienceUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appClipAdvancedExperiences_getInstance","name":"GetAppClipAdvancedExperience","params":["experienceID"],"check":"require"}
+  ]
+}

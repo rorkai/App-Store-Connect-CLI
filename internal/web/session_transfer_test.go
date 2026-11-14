@@ -87,7 +87,7 @@ func TestExportSessionBundleRoundTripsThroughImport(t *testing.T) {
 		t.Fatalf("ExportSessionBundle() on empty cache = (%v, %v), want (false, nil)", ok, err)
 	}
 
-	summary, err := ImportSessionBundle(bundle)
+	summary, err := ImportSessionBundleWithOptions(bundle, false)
 	if err != nil {
 		t.Fatalf("ImportSessionBundle() error = %v", err)
 	}
@@ -234,7 +234,7 @@ func TestImportSessionBundleReportsDisabledCache(t *testing.T) {
 	t.Setenv(webSessionBackendEnv, "off")
 
 	bundle := validTestBundle(time.Now().Add(time.Hour))
-	if _, err := ImportSessionBundle(bundle); !errors.Is(err, ErrSessionCacheDisabled) {
+	if _, err := ImportSessionBundleWithOptions(bundle, false); !errors.Is(err, ErrSessionCacheDisabled) {
 		t.Fatalf("ImportSessionBundle() error = %v, want ErrSessionCacheDisabled", err)
 	}
 }
@@ -423,7 +423,7 @@ func TestImportSessionBundleSkipsExpiredCookies(t *testing.T) {
 		Expires: &stale,
 	})
 
-	summary, err := ImportSessionBundle(bundle)
+	summary, err := ImportSessionBundleWithOptions(bundle, false)
 	if err != nil {
 		t.Fatalf("ImportSessionBundle() error = %v", err)
 	}
@@ -437,7 +437,7 @@ func TestImportSessionBundleRejectsDuplicateCanonicalCookieIdentity(t *testing.T
 	bundle := validTestBundle(time.Now().Add(time.Hour))
 	bundle.Cookies = append(bundle.Cookies, bundle.Cookies[0])
 
-	if _, err := ImportSessionBundle(bundle); !errors.Is(err, ErrSessionCookieDuplicate) {
+	if _, err := ImportSessionBundleWithOptions(bundle, false); !errors.Is(err, ErrSessionCookieDuplicate) {
 		t.Fatalf("ImportSessionBundle() error = %v, want ErrSessionCookieDuplicate", err)
 	}
 	if _, ok, err := LoadCachedSession(bundle.AppleID); err != nil || ok {
@@ -449,7 +449,7 @@ func TestImportSessionBundleRefusesFullyExpiredBundle(t *testing.T) {
 	withFileSessionCache(t)
 	bundle := validTestBundle(time.Now().Add(-time.Hour))
 
-	if _, err := ImportSessionBundle(bundle); !errors.Is(err, ErrSessionBundleUnusable) {
+	if _, err := ImportSessionBundleWithOptions(bundle, false); !errors.Is(err, ErrSessionBundleUnusable) {
 		t.Fatalf("ImportSessionBundle() error = %v, want ErrSessionBundleUnusable", err)
 	}
 	if _, ok, err := LoadCachedSession("user@example.com"); err != nil || ok {
@@ -570,7 +570,7 @@ func TestImportSessionBundleRejectsInvalidCookieSyntax(t *testing.T) {
 	if err := bundle.Validate(); !errors.Is(err, ErrSessionCookieInvalid) {
 		t.Fatalf("Validate() error = %v, want ErrSessionCookieInvalid", err)
 	}
-	if _, err := ImportSessionBundle(bundle); !errors.Is(err, ErrSessionCookieInvalid) {
+	if _, err := ImportSessionBundleWithOptions(bundle, false); !errors.Is(err, ErrSessionCookieInvalid) {
 		t.Fatalf("ImportSessionBundle() error = %v, want ErrSessionCookieInvalid", err)
 	}
 	if err := bundle.Validate(); err != nil && strings.Contains(err.Error(), "token;injected") {
@@ -593,7 +593,7 @@ func TestImportSessionBundleRejectsCookieDomainTheJarCannotStore(t *testing.T) {
 			if err := bundle.Validate(); !errors.Is(err, ErrSessionCookieNotStorable) {
 				t.Fatalf("Validate() error = %v, want ErrSessionCookieNotStorable", err)
 			}
-			if _, err := ImportSessionBundle(bundle); !errors.Is(err, ErrSessionCookieNotStorable) {
+			if _, err := ImportSessionBundleWithOptions(bundle, false); !errors.Is(err, ErrSessionCookieNotStorable) {
 				t.Fatalf("ImportSessionBundle() error = %v, want ErrSessionCookieNotStorable", err)
 			}
 			if _, ok, err := LoadCachedSession("user@example.com"); err != nil || ok {
@@ -611,7 +611,7 @@ func TestImportSessionBundleAcceptsOriginHostCookieDomain(t *testing.T) {
 	if err := bundle.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v, want nil for the origin host", err)
 	}
-	if _, err := ImportSessionBundle(bundle); err != nil {
+	if _, err := ImportSessionBundleWithOptions(bundle, false); err != nil {
 		t.Fatalf("ImportSessionBundle() error = %v", err)
 	}
 }
@@ -622,7 +622,7 @@ func TestImportSessionBundleTreatsExplicitZeroExpiryAsExpired(t *testing.T) {
 	bundle := validTestBundle(time.Now().Add(time.Hour))
 	bundle.Cookies[0].Expires = &zero
 
-	if _, err := ImportSessionBundle(bundle); !errors.Is(err, ErrSessionBundleUnusable) {
+	if _, err := ImportSessionBundleWithOptions(bundle, false); !errors.Is(err, ErrSessionBundleUnusable) {
 		t.Fatalf("ImportSessionBundle() error = %v, want ErrSessionBundleUnusable", err)
 	}
 	if _, ok, err := LoadCachedSession("user@example.com"); err != nil || ok {
@@ -641,7 +641,7 @@ func TestImportSessionBundleFailsWhenLastSessionPointerCannotBeUpdated(t *testin
 	}
 
 	bundle := validTestBundle(time.Now().Add(time.Hour))
-	if _, err := ImportSessionBundle(bundle); err == nil {
+	if _, err := ImportSessionBundleWithOptions(bundle, false); err == nil {
 		t.Fatal("ImportSessionBundle() error = nil, want a last-session pointer failure")
 	}
 	key := webSessionCacheKey(bundle.AppleID)
@@ -678,7 +678,7 @@ func TestImportSessionBundleRestoresExistingSessionWhenLastSessionPointerCannotB
 		t.Fatalf("MkdirAll(%q) error = %v", lastPath, err)
 	}
 
-	if _, err := ImportSessionBundle(bundle); err == nil {
+	if _, err := ImportSessionBundleWithOptions(bundle, false); err == nil {
 		t.Fatal("ImportSessionBundle() error = nil, want a last-session pointer failure")
 	}
 	restored, ok, err := readSessionFromFile(key)
@@ -766,7 +766,7 @@ func TestImportSessionBundleConvertsPositiveMaxAgeToAbsoluteExpiry(t *testing.T)
 	bundle.Cookies[0].MaxAge = 60
 
 	before := time.Now().UTC()
-	summary, err := ImportSessionBundle(bundle)
+	summary, err := ImportSessionBundleWithOptions(bundle, false)
 	if err != nil {
 		t.Fatalf("ImportSessionBundle() error = %v", err)
 	}
@@ -817,7 +817,7 @@ func TestImportSessionBundleDoesNotMergeDifferentAppleIDs(t *testing.T) {
 	}
 	t.Cleanup(func() { sessionInfoFetcher = previousFetcher })
 
-	if _, err := ImportSessionBundle(bundle); err != nil {
+	if _, err := ImportSessionBundleWithOptions(bundle, false); err != nil {
 		t.Fatalf("ImportSessionBundle() error = %v", err)
 	}
 

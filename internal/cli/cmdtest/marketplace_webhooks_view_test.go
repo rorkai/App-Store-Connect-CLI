@@ -8,26 +8,17 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestMarketplaceWebhooksViewUsesCollectionAndPrintsSingleResource(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/marketplaceWebhooks" {
-			t.Fatalf("expected collection GET, got %s %s", req.Method, req.URL.String())
-		}
-		if req.URL.Query().Get("limit") != "200" {
-			t.Fatalf("expected limit=200, got %q", req.URL.Query().Get("limit"))
-		}
-		return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"marketplaceWebhooks","id":"wh-1","attributes":{"endpointUrl":"https://example.com/webhook"}}],"links":{}}`), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/marketplaceWebhooks", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"marketplaceWebhooks","id":"wh-1","attributes":{"endpointUrl":"https://example.com/webhook"}}],"links":{}}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		code := rootcmd.Run([]string{"marketplace", "webhooks", "view", "--webhook-id", "wh-1", "--output", "json"}, "1.2.3")
@@ -36,7 +27,7 @@ func TestMarketplaceWebhooksViewUsesCollectionAndPrintsSingleResource(t *testing
 		}
 	})
 
-	if requests != 1 {
+	if requests := len(reg.Requests()); requests != 1 {
 		t.Fatalf("expected one request, got %d", requests)
 	}
 	if !strings.Contains(stderr, "Warning: marketplace webhooks endpoints are deprecated in App Store Connect API.") {
@@ -103,11 +94,9 @@ func TestMarketplaceWebhooksViewFailureExitCodes(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				return jsonHTTPResponse(test.status, test.body), nil
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/marketplaceWebhooks", "limit=200"), asctest.JSON(test.status, test.body))
 
 			stdout, stderr := captureOutput(t, func() {
 				code := rootcmd.Run([]string{"marketplace", "webhooks", "view", "--webhook-id", "wh-1", "--output", "json"}, "1.2.3")

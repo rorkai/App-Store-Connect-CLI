@@ -1,0 +1,7 @@
+{
+  "tag": "InAppPurchasePricePoints",
+  "file": "in_app_purchase_price_points_gen.go",
+  "operations": [
+    {"operation":"inAppPurchasePricePoints_equalizations_getToManyRelated","name":"GetInAppPurchasePricePointEqualizations","params":["pricePointID"],"check":"require","options":"IAPPricePointsOption","query":"buildIAPPricePointsQuery","nextContext":"in-app-purchase-price-point-equalizations"}
+  ]
+}

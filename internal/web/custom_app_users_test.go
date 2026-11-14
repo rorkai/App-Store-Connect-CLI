@@ -26,7 +26,7 @@ func TestListCustomAppUsersPreservesRawAppleEnvelope(t *testing.T) {
 	}))
 	defer server.Close()
 
-	result, err := testWebClient(server).ListCustomAppUsers(context.Background(), "app-1")
+	result, err := testWebClient(server).listCustomAppUsers(context.Background(), "app-1", false)
 	if err != nil {
 		t.Fatalf("ListCustomAppUsers() error = %v", err)
 	}
@@ -201,7 +201,7 @@ func TestListCustomAppUsersAllowsPartialFirstPage(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"customAppUsers","id":"one","attributes":{"appleId":"one@example.com"}}],"links":{"self":"/apps/app-1/customAppUsers","next":"/apps/app-1/customAppUsers?cursor=two"},"meta":{"paging":{"total":2}}}`)
 	}))
 	defer server.Close()
-	result, err := testWebClient(server).ListCustomAppUsers(context.Background(), "app-1")
+	result, err := testWebClient(server).listCustomAppUsers(context.Background(), "app-1", false)
 	if err != nil || calls != 1 || result == nil || len(result.Data) != 1 || result.GetLinks().Next == "" {
 		t.Fatalf("partial list result=%+v calls=%d err=%v", result, calls, err)
 	}
@@ -214,7 +214,7 @@ func TestListCustomAppUsersPreservesObjectContinuationDiagnostics(t *testing.T) 
 				_, _ = io.WriteString(w, `{"data":[],"links":{"self":"/apps/app-1/customAppUsers","next":{"`+field+`":"/apps/app-1/customAppUsers?cursor=next"}},"meta":{"paging":{"total":1}}}`)
 			}))
 			defer server.Close()
-			result, err := testWebClient(server).ListCustomAppUsers(context.Background(), "app-1")
+			result, err := testWebClient(server).listCustomAppUsers(context.Background(), "app-1", false)
 			if err != nil {
 				t.Fatal(err)
 			}

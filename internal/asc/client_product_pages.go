@@ -16,14 +16,6 @@ type AppCustomProductPageAttributes struct {
 // AppCustomProductPagesResponse is the response from custom product page list endpoints.
 type AppCustomProductPagesResponse = Response[AppCustomProductPageAttributes]
 
-// AppCustomProductPageResponse is the response from custom product page endpoints.
-type AppCustomProductPageResponse = SingleResponse[AppCustomProductPageAttributes]
-
-// AppCustomProductPageCreateAttributes describes create payload attributes.
-type AppCustomProductPageCreateAttributes struct {
-	Name string `json:"name"`
-}
-
 // AppCustomProductPageCreateRelationships describes create relationships.
 type AppCustomProductPageCreateRelationships struct {
 	App                          *Relationship    `json:"app"`
@@ -65,42 +57,14 @@ type AppCustomProductPageVersionInlineCreateRelationships struct {
 	AppCustomProductPageLocalizations RelationshipList `json:"appCustomProductPageLocalizations"`
 }
 
-// AppCustomProductPageUpdateAttributes describes update payload attributes.
-type AppCustomProductPageUpdateAttributes struct {
-	Name    *string `json:"name,omitempty"`
-	Visible *bool   `json:"visible,omitempty"`
-}
-
-// AppCustomProductPageUpdateData is the data payload for update requests.
-type AppCustomProductPageUpdateData struct {
-	Type       ResourceType                          `json:"type"`
-	ID         string                                `json:"id"`
-	Attributes *AppCustomProductPageUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// AppCustomProductPageUpdateRequest is a request to update a custom product page.
-type AppCustomProductPageUpdateRequest struct {
-	Data AppCustomProductPageUpdateData `json:"data"`
-}
-
 // AppCustomProductPageDeleteResult represents CLI output for custom page deletions.
 type AppCustomProductPageDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
 }
 
-// AppCustomProductPageVersionAttributes describes custom product page version attributes.
-type AppCustomProductPageVersionAttributes struct {
-	Version  string `json:"version,omitempty"`
-	State    string `json:"state,omitempty"`
-	DeepLink string `json:"deepLink,omitempty"`
-}
-
 // AppCustomProductPageVersionsResponse is the response from custom product page version list endpoints.
 type AppCustomProductPageVersionsResponse = Response[AppCustomProductPageVersionAttributes]
-
-// AppCustomProductPageVersionResponse is the response from custom product page version endpoints.
-type AppCustomProductPageVersionResponse = SingleResponse[AppCustomProductPageVersionAttributes]
 
 // AppCustomProductPageVersionCreateAttributes describes create payload attributes.
 type AppCustomProductPageVersionCreateAttributes struct {
@@ -119,39 +83,8 @@ type AppCustomProductPageVersionCreateData struct {
 	Relationships *AppCustomProductPageVersionCreateRelationships `json:"relationships"`
 }
 
-// AppCustomProductPageVersionCreateRequest is a request to create a custom product page version.
-type AppCustomProductPageVersionCreateRequest struct {
-	Data AppCustomProductPageVersionCreateData `json:"data"`
-}
-
-// AppCustomProductPageVersionUpdateAttributes describes update payload attributes.
-type AppCustomProductPageVersionUpdateAttributes struct {
-	DeepLink *string `json:"deepLink,omitempty"`
-}
-
-// AppCustomProductPageVersionUpdateData is the data payload for update requests.
-type AppCustomProductPageVersionUpdateData struct {
-	Type       ResourceType                                 `json:"type"`
-	ID         string                                       `json:"id"`
-	Attributes *AppCustomProductPageVersionUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// AppCustomProductPageVersionUpdateRequest is a request to update a custom product page version.
-type AppCustomProductPageVersionUpdateRequest struct {
-	Data AppCustomProductPageVersionUpdateData `json:"data"`
-}
-
-// AppCustomProductPageLocalizationAttributes describes custom product page localization attributes.
-type AppCustomProductPageLocalizationAttributes struct {
-	Locale          string `json:"locale,omitempty"`
-	PromotionalText string `json:"promotionalText,omitempty"`
-}
-
 // AppCustomProductPageLocalizationsResponse is the response from custom product page localization list endpoints.
 type AppCustomProductPageLocalizationsResponse = Response[AppCustomProductPageLocalizationAttributes]
-
-// AppCustomProductPageLocalizationResponse is the response from custom product page localization endpoints.
-type AppCustomProductPageLocalizationResponse = SingleResponse[AppCustomProductPageLocalizationAttributes]
 
 // AppKeywordAttributes describes an app keyword resource.
 type AppKeywordAttributes struct{}
@@ -177,41 +110,25 @@ type AppCustomProductPageLocalizationCreateData struct {
 	Relationships *AppCustomProductPageLocalizationCreateRelationships `json:"relationships"`
 }
 
-// AppCustomProductPageLocalizationCreateRequest is a request to create a custom product page localization.
-type AppCustomProductPageLocalizationCreateRequest struct {
-	Data AppCustomProductPageLocalizationCreateData `json:"data"`
-}
-
-// AppCustomProductPageLocalizationUpdateAttributes describes update payload attributes.
-type AppCustomProductPageLocalizationUpdateAttributes struct {
-	PromotionalText *string `json:"promotionalText,omitempty"`
-}
-
-// AppCustomProductPageLocalizationUpdateData is the data payload for update requests.
-type AppCustomProductPageLocalizationUpdateData struct {
-	Type       ResourceType                                      `json:"type"`
-	ID         string                                            `json:"id"`
-	Attributes *AppCustomProductPageLocalizationUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// AppCustomProductPageLocalizationUpdateRequest is a request to update a custom product page localization.
-type AppCustomProductPageLocalizationUpdateRequest struct {
-	Data AppCustomProductPageLocalizationUpdateData `json:"data"`
-}
-
 // AppCustomProductPageLocalizationDeleteResult represents CLI output for custom page localization deletions.
 type AppCustomProductPageLocalizationDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
 }
 
-// GetAppCustomProductPage retrieves a custom product page by ID.
-func (c *Client) GetAppCustomProductPage(ctx context.Context, pageID string) (*AppCustomProductPageResponse, error) {
-	pageID = strings.TrimSpace(pageID)
-	if pageID == "" {
-		return nil, fmt.Errorf("pageID is required")
+// GetAppCustomProductPages retrieves custom product pages for an app.
+func (c *Client) GetAppCustomProductPages(ctx context.Context, appID string, opts ...AppCustomProductPagesOption) (*AppCustomProductPagesResponse, error) {
+	query := applyOptions(opts)
+	appID = strings.TrimSpace(appID)
+	if query.nextURL == "" && appID == "" {
+		return nil, fmt.Errorf("appID is required")
 	}
-	return getJSON[AppCustomProductPageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appCustomProductPages/%s", pageID)})
+	return getJSON[AppCustomProductPagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appCustomProductPages", appID),
+		Query:       buildAppCustomProductPagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appCustomProductPages",
+	})
 }
 
 // CreateAppCustomProductPage creates a custom product page with an initial version and
@@ -300,39 +217,6 @@ func (c *Client) UpdateAppCustomProductPage(ctx context.Context, pageID string, 
 	return sendJSON[AppCustomProductPageResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appCustomProductPages/%s", pageID), Payload: payload})
 }
 
-// DeleteAppCustomProductPage deletes a custom product page.
-func (c *Client) DeleteAppCustomProductPage(ctx context.Context, pageID string) error {
-	pageID = strings.TrimSpace(pageID)
-	if pageID == "" {
-		return fmt.Errorf("pageID is required")
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appCustomProductPages/%s", pageID), nil)
-}
-
-// GetAppCustomProductPageVersions retrieves versions for a custom product page.
-func (c *Client) GetAppCustomProductPageVersions(ctx context.Context, pageID string, opts ...AppCustomProductPageVersionsOption) (*AppCustomProductPageVersionsResponse, error) {
-	query := applyOptions(opts)
-	pageID = strings.TrimSpace(pageID)
-	if query.nextURL == "" && pageID == "" {
-		return nil, fmt.Errorf("pageID is required")
-	}
-	return getJSON[AppCustomProductPageVersionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appCustomProductPages/%s/appCustomProductPageVersions", pageID),
-		Query:       buildAppCustomProductPageVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appCustomProductPageVersions",
-	})
-}
-
-// GetAppCustomProductPageVersion retrieves a custom product page version by ID.
-func (c *Client) GetAppCustomProductPageVersion(ctx context.Context, versionID string) (*AppCustomProductPageVersionResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[AppCustomProductPageVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID)})
-}
-
 // CreateAppCustomProductPageVersion creates a custom product page version.
 func (c *Client) CreateAppCustomProductPageVersion(ctx context.Context, pageID, deepLink string) (*AppCustomProductPageVersionResponse, error) {
 	pageID = strings.TrimSpace(pageID)
@@ -375,21 +259,6 @@ func (c *Client) UpdateAppCustomProductPageVersion(ctx context.Context, versionI
 		payload.Data.Attributes = &attrs
 	}
 	return sendJSON[AppCustomProductPageVersionResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID), Payload: payload})
-}
-
-// GetAppCustomProductPageLocalizations retrieves custom product page localizations for a version.
-func (c *Client) GetAppCustomProductPageLocalizations(ctx context.Context, versionID string, opts ...AppCustomProductPageLocalizationsOption) (*AppCustomProductPageLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	versionID = strings.TrimSpace(versionID)
-	if query.nextURL == "" && versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[AppCustomProductPageLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appCustomProductPageVersions/%s/appCustomProductPageLocalizations", versionID),
-		Query:       buildAppCustomProductPageLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appCustomProductPageLocalizations",
-	})
 }
 
 // GetAppCustomProductPageLocalization retrieves a custom product page localization by ID.
@@ -449,24 +318,6 @@ func (c *Client) UpdateAppCustomProductPageLocalization(ctx context.Context, loc
 	return sendJSON[AppCustomProductPageLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), Payload: payload})
 }
 
-// DeleteAppCustomProductPageLocalization deletes a custom product page localization.
-func (c *Client) DeleteAppCustomProductPageLocalization(ctx context.Context, localizationID string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), nil)
-}
-
-// GetAppCustomProductPageLocalizationSearchKeywords retrieves search keywords for a localization.
-func (c *Client) GetAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string) (*AppKeywordsResponse, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	return getJSON[AppKeywordsResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/searchKeywords", localizationID)})
-}
-
 // AddAppCustomProductPageLocalizationSearchKeywords adds search keywords to a localization.
 func (c *Client) AddAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
 	localizationID = strings.TrimSpace(localizationID)
@@ -511,34 +362,4 @@ func (c *Client) DeleteAppCustomProductPageLocalizationSearchKeywords(ctx contex
 		})
 	}
 	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID), payload)
-}
-
-// GetAppCustomProductPageLocalizationPreviewSets retrieves preview sets for a localization.
-func (c *Client) GetAppCustomProductPageLocalizationPreviewSets(ctx context.Context, localizationID string, opts ...AppCustomProductPageLocalizationPreviewSetsOption) (*AppPreviewSetsResponse, error) {
-	query := applyOptions(opts)
-	localizationID = strings.TrimSpace(localizationID)
-	if query.nextURL == "" && localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	return getJSON[AppPreviewSetsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/appPreviewSets", localizationID),
-		Query:       buildAppCustomProductPageLocalizationPreviewSetsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appPreviewSets",
-	})
-}
-
-// GetAppCustomProductPageLocalizationScreenshotSets retrieves screenshot sets for a localization.
-func (c *Client) GetAppCustomProductPageLocalizationScreenshotSets(ctx context.Context, localizationID string, opts ...AppCustomProductPageLocalizationScreenshotSetsOption) (*AppScreenshotSetsResponse, error) {
-	query := applyOptions(opts)
-	localizationID = strings.TrimSpace(localizationID)
-	if query.nextURL == "" && localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	return getJSON[AppScreenshotSetsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/appScreenshotSets", localizationID),
-		Query:       buildAppCustomProductPageLocalizationScreenshotSetsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appScreenshotSets",
-	})
 }

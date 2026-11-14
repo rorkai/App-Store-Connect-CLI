@@ -8,15 +8,16 @@ import (
 	"strings"
 )
 
-// GetTerritories retrieves available territories.
-func (c *Client) GetTerritories(ctx context.Context, opts ...TerritoriesOption) (*TerritoriesResponse, error) {
+// GetAppPricePoints retrieves app price points for an app.
+func (c *Client) GetAppPricePoints(ctx context.Context, appID string, opts ...PricePointsOption) (*AppPricePointsV3Response, error) {
 	query := applyOptions(opts)
-	return getJSON[TerritoriesResponse](ctx, c, readRequest{
-		Path:        "/v1/territories",
-		Query:       buildTerritoriesQuery(query),
+	appID = strings.TrimSpace(appID)
+	return getJSON[AppPricePointsV3Response](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appPricePoints", appID),
+		Query:       buildPricePointsQuery(query),
 		Next:        query.nextURL,
-		NextContext: "territories",
-		ParseErr:    "failed to parse territories response",
+		NextContext: "appPricePoints",
+		ParseErr:    "failed to parse app price points response",
 	})
 }
 
@@ -53,6 +54,15 @@ func (c *Client) GetAppPricePointEqualizations(ctx context.Context, pricePointID
 		Next:        query.nextURL,
 		NextContext: "appPricePointEqualizations",
 		ParseErr:    "failed to parse app price point equalizations response",
+	})
+}
+
+// GetAppPriceSchedule retrieves the app price schedule for an app.
+func (c *Client) GetAppPriceSchedule(ctx context.Context, appID string) (*AppPriceScheduleResponse, error) {
+	appID = strings.TrimSpace(appID)
+	return getJSON[AppPriceScheduleResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/apps/%s/appPriceSchedule", appID),
+		ParseErr: "failed to parse app price schedule response",
 	})
 }
 
@@ -189,14 +199,11 @@ func (c *Client) GetAppPriceScheduleAutomaticPrices(ctx context.Context, schedul
 	})
 }
 
-// GetAppAvailabilityV2ByID retrieves app availability by ID.
-func (c *Client) GetAppAvailabilityV2ByID(ctx context.Context, availabilityID string) (*AppAvailabilityV2Response, error) {
-	availabilityID = strings.TrimSpace(availabilityID)
-	if availabilityID == "" {
-		return nil, fmt.Errorf("availabilityID is required")
-	}
+// GetAppAvailabilityV2 retrieves app availability for an app.
+func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAvailabilityV2Response, error) {
+	appID = strings.TrimSpace(appID)
 	return getJSON[AppAvailabilityV2Response](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v2/appAvailabilities/%s", availabilityID),
+		Path:     fmt.Sprintf("/v1/apps/%s/appAvailabilityV2", appID),
 		ParseErr: "failed to parse app availability response",
 	})
 }

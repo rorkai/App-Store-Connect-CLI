@@ -43,7 +43,7 @@ func TestLegacyMigrationPreservesNonMacOSCredentials(t *testing.T) {
 			if err := kr.Set(keyring.Item{Key: keyringKey("other"), Data: payload}); err != nil {
 				t.Fatal(err)
 			}
-			if err := RemoveCredentials("fixture"); err != nil {
+			if err := RemoveCredentialsWithOptions("fixture", RemoveOptions{}); err != nil {
 				t.Fatalf("named logout with absent legacy store failed: %v", err)
 			}
 			if _, err := kr.Get(keyringKey("fixture")); !errors.Is(err, keyring.ErrKeyNotFound) {

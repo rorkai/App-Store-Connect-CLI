@@ -1,0 +1,13 @@
+{
+  "tag": "GameCenterChallengeVersions",
+  "file": "game_center_challenge_versions_gen.go",
+  "types": [
+    "GameCenterChallengeVersionCreateRequest",
+    "GameCenterChallengeVersionResponse"
+  ],
+  "operations": [
+    {"operation":"gameCenterChallengeVersions_defaultImage_getToOneRelated","name":"GetGameCenterChallengeVersionDefaultImage","params":["versionID"],"response":"GameCenterChallengeVersionDefaultImageResponse"},
+    {"operation":"gameCenterChallengeVersions_getInstance","name":"GetGameCenterChallengeVersion","params":["versionID"]},
+    {"operation":"gameCenterChallengeVersions_localizations_getToManyRelated","name":"GetGameCenterChallengeLocalizations","params":["versionID"],"options":"GCChallengeLocalizationsOption","query":"buildGCChallengeLocalizationsQuery","nextContext":"game-center-challenge-localizations"}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "tag": "WebhookDeliveries",
+  "file": "webhook_deliveries_gen.go",
+  "types": [
+    "WebhookDeliveryCreateRequest",
+    "WebhookDeliveryResponse"
+  ]
+}

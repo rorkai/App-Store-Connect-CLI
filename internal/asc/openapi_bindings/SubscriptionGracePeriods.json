@@ -1,0 +1,11 @@
+{
+  "tag": "SubscriptionGracePeriods",
+  "file": "subscription_grace_periods_gen.go",
+  "types": [
+    "SubscriptionGracePeriodResponse",
+    "SubscriptionGracePeriodUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"subscriptionGracePeriods_getInstance","name":"GetSubscriptionGracePeriod","params":["gracePeriodID"],"check":"require","messages":["grace period ID is required"]}
+  ]
+}

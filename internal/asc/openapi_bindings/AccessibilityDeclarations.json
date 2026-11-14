@@ -1,0 +1,14 @@
+{
+  "tag": "AccessibilityDeclarations",
+  "file": "accessibility_declarations_gen.go",
+  "types": [
+    "AccessibilityDeclarationCreateRequest",
+    "AccessibilityDeclarationResponse",
+    "AccessibilityDeclarationUpdateAttributes",
+    "AccessibilityDeclarationUpdateData",
+    "AccessibilityDeclarationUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"accessibilityDeclarations_deleteInstance","name":"DeleteAccessibilityDeclaration","params":["declarationID"]}
+  ]
+}

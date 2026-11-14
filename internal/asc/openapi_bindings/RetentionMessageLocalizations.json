@@ -1,0 +1,7 @@
+{
+  "tag": "RetentionMessageLocalizations",
+  "file": "retention_message_localizations_gen.go",
+  "types": [
+    "RetentionMessageLocalizationCreateAttributes"
+  ]
+}

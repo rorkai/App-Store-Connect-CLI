@@ -13,6 +13,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestMigrateImportAppliesAppClipAction(t *testing.T) {
@@ -23,35 +25,16 @@ func TestMigrateImportAppliesAppClipAction(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeFile(t, filepath.Join(root, "metadata", "app_clip", "action.txt"), "PLAY")
-	applied := false
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.Method + " " + req.URL.Path {
-		case "GET /v1/appStoreVersions/VERSION_ID":
-			return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
-		case "GET /v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
-			return migrateJSONResponse(200, `{"data":[]}`), nil
-		case "GET /v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
-			return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"OPEN"}}}`), nil
-		case "GET /v1/appClipDefaultExperiences/CLIP_EXPERIENCE/appClipDefaultExperienceLocalizations":
-			return migrateJSONResponse(200, `{"data":[]}`), nil
-		case "PATCH /v1/appClipDefaultExperiences/CLIP_EXPERIENCE":
-			body, _ := io.ReadAll(req.Body)
-			var payload struct {
-				Data struct {
-					Attributes struct {
-						Action string `json:"action"`
-					} `json:"attributes"`
-				} `json:"data"`
-			}
-			if err := json.Unmarshal(body, &payload); err != nil || payload.Data.Attributes.Action != "PLAY" {
-				t.Errorf("action payload = %s", body)
-			}
-			applied = true
-			return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"PLAY"}}}`), nil
-		default:
-			return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL.Path)
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID", "include=app"),
+		asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
+		asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"OPEN"}}}`))
+	reg.Register(asctest.GET("/v1/appClipDefaultExperiences/CLIP_EXPERIENCE/appClipDefaultExperienceLocalizations"),
+		asctest.JSON(200, `{"data":[]}`))
+	reg.Register(asctest.PATCH("/v1/appClipDefaultExperiences/CLIP_EXPERIENCE").JSONBody(`{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"PLAY"}}}`),
+		asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"PLAY"}}}`))
 	cmd := RootCommand("test")
 	var runErr error
 	captureOutput(t, func() {
@@ -60,6 +43,7 @@ func TestMigrateImportAppliesAppClipAction(t *testing.T) {
 	if runErr != nil {
 		t.Fatal(runErr)
 	}
+	applied := metadataMutationCount(reg) == 1
 	if !applied {
 		t.Fatal("confirmed import succeeded without applying App Clip action")
 	}
@@ -69,22 +53,20 @@ func TestMigrateExportFetchesAppClipMetadata(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	root := t.TempDir()
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.Method + " " + req.URL.Path {
-		case "GET /v1/appStoreVersions/VERSION_ID":
-			return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
-		case "GET /v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "GET /v1/apps/APP_ID/appInfos":
-			return migrateJSONResponse(200, `{"data":[]}`), nil
-		case "GET /v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
-			return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"PLAY"}}}`), nil
-		case "GET /v1/appClipDefaultExperiences/CLIP_EXPERIENCE/appClipDefaultExperienceLocalizations":
-			return migrateJSONResponse(200, `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"CLIP_LOC","attributes":{"locale":"en-US","subtitle":"Play now"}}]}`), nil
-		case "GET /v1/appClipDefaultExperienceLocalizations/CLIP_LOC/appClipHeaderImage":
-			return migrateJSONResponse(200, `{"data":null}`), nil
-		default:
-			return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL.Path)
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID", "include=app"),
+		asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(200, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/APP_ID/appInfos"),
+		asctest.JSON(200, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
+		asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"PLAY"}}}`))
+	reg.Register(asctest.GET("/v1/appClipDefaultExperiences/CLIP_EXPERIENCE/appClipDefaultExperienceLocalizations"),
+		asctest.JSON(200, `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"CLIP_LOC","attributes":{"locale":"en-US","subtitle":"Play now"}}]}`))
+	reg.Register(asctest.GET("/v1/appClipDefaultExperienceLocalizations/CLIP_LOC/appClipHeaderImage"),
+		asctest.JSON(200, `{"data":null}`))
 	cmd := RootCommand("test")
 	var runErr error
 	captureOutput(t, func() {
@@ -105,7 +87,7 @@ func TestMetadataPullExportsAppClip(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	root := t.TempDir()
-	installStoreAssetMetadataFixture(t)
+	installStoreAssetMetadataFixture(t, false)
 	cmd := RootCommand("test")
 	var runErr error
 	captureOutput(t, func() {
@@ -130,7 +112,7 @@ func TestMetadataPushAppliesAppClipAction(t *testing.T) {
 		}
 	}
 	writeFile(t, filepath.Join(root, "app_clip", "action.txt"), "PLAY")
-	applied := installStoreAssetMetadataFixture(t)
+	reg := installStoreAssetMetadataFixture(t, true)
 	cmd := RootCommand("test")
 	var runErr error
 	captureOutput(t, func() {
@@ -139,34 +121,30 @@ func TestMetadataPushAppliesAppClipAction(t *testing.T) {
 	if runErr != nil {
 		t.Fatal(runErr)
 	}
-	if !*applied {
+	if applied := metadataMutationCount(reg) == 1; !applied {
 		t.Fatal("metadata push ignored App Clip action")
 	}
 }
 
-func installStoreAssetMetadataFixture(t *testing.T) *bool {
+func installStoreAssetMetadataFixture(t *testing.T, applyAction bool) *asctest.Registry {
 	t.Helper()
-	applied := false
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.Method + " " + req.URL.Path {
-		case "GET /v1/apps/APP_ID/appInfos":
-			return migrateJSONResponse(200, `{"data":[{"type":"appInfos","id":"INFO_ID","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-		case "GET /v1/apps/APP_ID/appStoreVersions":
-			return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-		case "GET /v1/appStoreVersions/VERSION_ID":
-			return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
-		case "GET /v1/appInfos/INFO_ID/appInfoLocalizations", "GET /v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "GET /v1/appClipDefaultExperiences/CLIP_EXPERIENCE/appClipDefaultExperienceLocalizations":
-			return migrateJSONResponse(200, `{"data":[]}`), nil
-		case "GET /v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
-			return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"OPEN"}}}`), nil
-		case "PATCH /v1/appClipDefaultExperiences/CLIP_EXPERIENCE":
-			applied = true
-			return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"PLAY"}}}`), nil
-		default:
-			return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL.Path)
-		}
-	}))
-	return &applied
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	empty := asctest.JSON(200, `{"data":[]}`)
+	reg.Register(asctest.GET("/v1/apps/APP_ID/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+		asctest.JSON(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/APP_ID/appInfos"),
+		asctest.JSON(200, `{"data":[{"type":"appInfos","id":"INFO_ID","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
+	reg.Register(asctest.GET("/v1/appInfos/INFO_ID/appInfoLocalizations", "limit=200"), empty)
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "limit=200"), empty)
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
+		asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"OPEN"}}}`))
+	reg.Register(asctest.GET("/v1/appClipDefaultExperiences/CLIP_EXPERIENCE/appClipDefaultExperienceLocalizations"), empty)
+	if applyAction {
+		reg.Register(asctest.PATCH("/v1/appClipDefaultExperiences/CLIP_EXPERIENCE").JSONBody(`{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"PLAY"}}}`),
+			asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"PLAY"}}}`))
+	}
+	return reg
 }
 
 func TestMigrateValidateRejectsInvalidAppClipHeader(t *testing.T) {
@@ -352,31 +330,23 @@ func TestMetadataAssetsOnlyNeverMutatesLocalizations(t *testing.T) {
 				t.Fatal(err)
 			}
 			writeFile(t, filepath.Join(root, "app_clip/action.txt"), "PLAY")
-			applied := false
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch req.Method + " " + req.URL.Path {
-				case "GET /v1/apps/APP_ID/appStoreVersions":
-					return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-				case "GET /v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
-					return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersionLocalizations","id":"LOC","attributes":{"locale":"en-US","description":"keep"}}]}`), nil
-				case "GET /v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
-					return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"OPEN"}}}`), nil
-				case "GET /v1/appClipDefaultExperiences/EXP/appClipDefaultExperienceLocalizations":
-					return migrateJSONResponse(200, `{"data":[]}`), nil
-				case "PATCH /v1/appClipDefaultExperiences/EXP":
-					applied = true
-					return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"PLAY"}}}`), nil
-				default:
-					t.Errorf("out-of-scope request %s %s", req.Method, req.URL.Path)
-					return nil, fmt.Errorf("unexpected request")
-				}
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps/APP_ID/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+				asctest.JSON(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`))
+			reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
+				asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"OPEN"}}}`))
+			reg.Register(asctest.GET("/v1/appClipDefaultExperiences/EXP/appClipDefaultExperienceLocalizations"),
+				asctest.JSON(200, `{"data":[]}`))
+			reg.Register(asctest.PATCH("/v1/appClipDefaultExperiences/EXP").JSONBody(`{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"PLAY"}}}`),
+				asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"PLAY"}}}`))
 			args := []string{"metadata", "push", "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "app-clip", "--confirm", "--output", "json"}
 			if allowDeletes {
 				args = append(args, "--allow-deletes")
 			}
 			var runErr error
 			captureOutput(t, func() { runErr = RootCommand("test").ParseAndRun(context.Background(), args) })
+			applied := metadataMutationCount(reg) == 1
 			if runErr != nil || !applied {
 				t.Fatalf("err=%v action applied=%v", runErr, applied)
 			}
@@ -393,32 +363,40 @@ func TestMigrateHeaderReplacementFailureKeepsDeletionReceipt(t *testing.T) {
 		t.Fatal(err)
 	}
 	writePNGForMigrate(t, filepath.Join(dir, "header_image.png"), 1800, 1200)
-	deleted := false
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.Method + " " + req.URL.Path {
-		case "GET /v1/appStoreVersions/VERSION_ID":
-			return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
-		case "GET /v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
-			return migrateJSONResponse(200, `{"data":[]}`), nil
-		case "GET /v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
-			return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"OPEN"}}}`), nil
-		case "GET /v1/appClipDefaultExperiences/EXP/appClipDefaultExperienceLocalizations":
-			return migrateJSONResponse(200, `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`), nil
-		case "GET /v1/appClipDefaultExperienceLocalizations/LOC/appClipHeaderImage":
-			return migrateJSONResponse(200, `{"data":{"type":"appClipHeaderImages","id":"OLD_HEADER","attributes":{"sourceFileChecksum":"old"}}}`), nil
-		case "DELETE /v1/appClipHeaderImages/OLD_HEADER":
-			deleted = true
-			return migrateJSONResponse(204, ``), nil
-		case "POST /v1/appClipHeaderImages":
-			return migrateJSONResponse(400, `{"errors":[{"status":"400","code":"INVALID","title":"reservation rejected"}]}`), nil
-		default:
-			return nil, fmt.Errorf("unexpected %s %s", req.Method, req.URL.Path)
-		}
-	}))
+	headerInfo, err := os.Stat(filepath.Join(dir, "header_image.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID", "include=app"),
+		asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
+		asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"OPEN"}}}`))
+	reg.Register(asctest.GET("/v1/appClipDefaultExperiences/EXP/appClipDefaultExperienceLocalizations"),
+		asctest.JSON(200, `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`))
+	reg.Register(asctest.GET("/v1/appClipDefaultExperienceLocalizations/LOC/appClipHeaderImage"),
+		asctest.JSON(200, `{"data":{"type":"appClipHeaderImages","id":"OLD_HEADER","attributes":{"sourceFileChecksum":"old"}}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
+		asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"OPEN"}}}`))
+	reg.Register(asctest.GET("/v1/appClipDefaultExperiences/EXP/appClipDefaultExperienceLocalizations"),
+		asctest.JSON(200, `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`))
+	reg.Register(asctest.GET("/v1/appClipDefaultExperienceLocalizations/LOC/appClipHeaderImage"),
+		asctest.JSON(200, `{"data":{"type":"appClipHeaderImages","id":"OLD_HEADER","attributes":{"sourceFileChecksum":"old"}}}`))
+	reg.Register(asctest.DELETE("/v1/appClipHeaderImages/OLD_HEADER"),
+		asctest.JSON(204, ``))
+	reg.Register(asctest.POST("/v1/appClipHeaderImages").JSONBody(fmt.Sprintf(`{"data":{"type":"appClipHeaderImages","attributes":{"fileSize":%d,"fileName":"header_image.png"},"relationships":{"appClipDefaultExperienceLocalization":{"data":{"type":"appClipDefaultExperienceLocalizations","id":"LOC"}}}}}`, headerInfo.Size())),
+		asctest.JSON(400, `{"errors":[{"status":"400","code":"INVALID","title":"reservation rejected"}]}`))
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
 		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--confirm", "--output", "json"})
 	})
+	deleted := false
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodDelete && req.URL.Path == "/v1/appClipHeaderImages/OLD_HEADER" {
+			deleted = true
+		}
+	}
 	if runErr == nil || !deleted {
 		t.Fatalf("err=%v deleted=%v", runErr, deleted)
 	}
@@ -450,10 +428,7 @@ func TestMigrateSkippedAssetsAreNotReadOrUploaded(t *testing.T) {
 	writeFile(t, filepath.Join(root, "metadata/app_clip/action.txt"), "INVALID")
 	writeFile(t, filepath.Join(root, "app_previews/en-US/iphone_65/preview.mp4"), "not a video")
 	t.Setenv("PATH", t.TempDir())
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Errorf("dry-run made request %s %s", req.Method, req.URL.Path)
-		return nil, fmt.Errorf("unexpected request")
-	}))
+	asctest.NewRegistry(t).Install()
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
 		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--skip-app-clip", "--skip-previews", "--dry-run", "--output", "json"})
