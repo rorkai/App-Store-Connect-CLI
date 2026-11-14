@@ -26,6 +26,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "accessibility list limit",
@@ -606,101 +607,121 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "product-pages custom-pages list limit",
 			args:    []string{"product-pages", "custom-pages", "list", "--limit", "201"},
 			wantErr: "custom-pages list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages list next",
 			args:    []string{"product-pages", "custom-pages", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "custom-pages list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages localizations list limit",
 			args:    []string{"product-pages", "custom-pages", "localizations", "list", "--limit", "201"},
 			wantErr: "custom-pages localizations list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages localizations list next",
 			args:    []string{"product-pages", "custom-pages", "localizations", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "custom-pages localizations list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages localizations preview-sets list limit",
 			args:    []string{"product-pages", "custom-pages", "localizations", "preview-sets", "list", "--localization-id", "L", "--limit", "201"},
 			wantErr: "custom-pages localizations preview-sets list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages localizations preview-sets list next",
 			args:    []string{"product-pages", "custom-pages", "localizations", "preview-sets", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "custom-pages localizations preview-sets list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages localizations screenshot-sets list limit",
 			args:    []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--localization-id", "L", "--limit", "201"},
 			wantErr: "custom-pages localizations screenshot-sets list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages localizations screenshot-sets list next",
 			args:    []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "custom-pages localizations screenshot-sets list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages versions list limit",
 			args:    []string{"product-pages", "custom-pages", "versions", "list", "--limit", "201"},
 			wantErr: "custom-pages versions list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages versions list next",
 			args:    []string{"product-pages", "custom-pages", "versions", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "custom-pages versions list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments list limit",
 			args:    []string{"product-pages", "experiments", "list", "--limit", "201"},
 			wantErr: "experiments list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments list next",
 			args:    []string{"product-pages", "experiments", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "experiments list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments treatments list limit",
 			args:    []string{"product-pages", "experiments", "treatments", "list", "--limit", "201"},
 			wantErr: "experiments treatments list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments treatments list next",
 			args:    []string{"product-pages", "experiments", "treatments", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "experiments treatments list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments treatments localizations list limit",
 			args:    []string{"product-pages", "experiments", "treatments", "localizations", "list", "--limit", "201"},
 			wantErr: "experiments treatments localizations list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments treatments localizations list next",
 			args:    []string{"product-pages", "experiments", "treatments", "localizations", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "experiments treatments localizations list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments treatments localizations preview-sets list limit",
 			args:    []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "list", "--localization-id", "L", "--limit", "201"},
 			wantErr: "experiments treatments localizations preview-sets list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments treatments localizations preview-sets list next",
 			args:    []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "experiments treatments localizations preview-sets list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments treatments localizations screenshot-sets list limit",
 			args:    []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "list", "--localization-id", "L", "--limit", "201"},
 			wantErr: "experiments treatments localizations screenshot-sets list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments treatments localizations screenshot-sets list next",
 			args:    []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "experiments treatments localizations screenshot-sets list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "review attachments-list limit",
@@ -931,31 +952,37 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "product-pages custom-pages view without custom-page-id",
 			args:    []string{"product-pages", "custom-pages", "view"},
 			wantErr: "--custom-page-id is required",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages versions view without custom-page-version-id",
 			args:    []string{"product-pages", "custom-pages", "versions", "view"},
 			wantErr: "--custom-page-version-id is required",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages localizations view without localization-id",
 			args:    []string{"product-pages", "custom-pages", "localizations", "view"},
 			wantErr: "--localization-id is required",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments view without experiment-id",
 			args:    []string{"product-pages", "experiments", "view"},
 			wantErr: "--experiment-id is required",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments treatments view without treatment-id",
 			args:    []string{"product-pages", "experiments", "treatments", "view"},
 			wantErr: "--treatment-id is required",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments treatments localizations view without localization-id",
 			args:    []string{"product-pages", "experiments", "treatments", "localizations", "view"},
 			wantErr: "--localization-id is required",
+			deps:    true,
 		},
 		{
 			name:    "build-localizations view without id",
@@ -986,7 +1013,13 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, runErr := runCommand(t, test.args)
+			var stdout, stderr string
+			var runErr error
+			if test.deps {
+				stdout, stderr, runErr = runRootWithDeps(t, nil, test.args...)
+			} else {
+				stdout, stderr, runErr = runCommand(t, test.args)
+			}
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")

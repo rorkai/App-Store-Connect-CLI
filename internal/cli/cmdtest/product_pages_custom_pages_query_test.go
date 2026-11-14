@@ -1,14 +1,12 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,40 +16,18 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func installCustomPagesQueryTestClient(t *testing.T, handler http.HandlerFunc) {
+func customPagesQueryTestClient(t *testing.T, handler http.HandlerFunc) func() (*asc.Client, error) {
 	t.Helper()
 
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse test server URL: %v", err)
-	}
-	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		return server.Client().Transport.RoundTrip(cloned)
-	})
-	client, err := asc.NewClientWithHTTPClient(
-		os.Getenv("ASC_KEY_ID"),
-		os.Getenv("ASC_ISSUER_ID"),
-		os.Getenv("ASC_PRIVATE_KEY_PATH"),
-		&http.Client{Transport: transport},
-	)
-	if err != nil {
-		t.Fatalf("create custom pages query test client: %v", err)
-	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		return client, nil
-	}))
+	return stubServerClient(t, server)
 }
 
 func TestCustomPagesListEmitsQuerySurface(t *testing.T) {
-	installCustomPagesQueryTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+	client := customPagesQueryTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/appCustomProductPages" {
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 			w.WriteHeader(http.StatusBadRequest)
@@ -73,27 +49,21 @@ func TestCustomPagesListEmitsQuerySurface(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"appCustomProductPages","id":"page-1"}],"links":{"next":""}}`)
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		args := []string{
-			"product-pages", "custom-pages", "list", "--app", "app-1",
-			"--visible", "false,true",
-			"--fields", "name,visible,app",
-			"--app-fields", "name,bundleId",
-			"--version-fields", "version,state",
-			"--include", "app,appCustomProductPageVersions",
-			"--versions-limit", "25",
-			"--limit", "10",
-			"--output", "json",
-		}
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	args := []string{
+		"product-pages", "custom-pages", "list", "--app", "app-1",
+		"--visible", "false,true",
+		"--fields", "name,visible,app",
+		"--app-fields", "name,bundleId",
+		"--version-fields", "version,state",
+		"--include", "app,appCustomProductPageVersions",
+		"--versions-limit", "25",
+		"--limit", "10",
+		"--output", "json",
+	}
+	stdout, stderr, err := runRootWithDeps(t, client, args...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -139,14 +109,13 @@ func TestCustomPagesListRejectsInvalidQueryFlagsBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
 			args := append(append([]string{"product-pages", "custom-pages", "list"}, test.base...), test.args...)
-			assertUsageExit(t, args, "custom-pages list: "+test.want)
+			assertUsageExitWithDeps(t, client, args, "custom-pages list: "+test.want)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before query validation")
 			}
@@ -184,22 +153,13 @@ func TestCustomPagesListRelationshipFlagsRequireIncludes(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during relationship validation")
-			})
-			defer restore()
+			}
 
 			args := append([]string{"product-pages", "custom-pages", "list", "--app", "app-1"}, test.args...)
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, client, args...)
 			if runErr == nil || !shared.IsReportedUsageError(runErr) || errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("run error = %v, want reported usage error without flag.ErrHelp", runErr)
 			}
@@ -240,7 +200,7 @@ func TestCustomPagesListAllowsNextWithOrWithoutApp(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			nextURL := "https://api.appstoreconnect.apple.com/v1/apps/app-1/appCustomProductPages?" + test.rawQuery
-			installCustomPagesQueryTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+			client := customPagesQueryTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 				if req.URL.Path != "/v1/apps/app-1/appCustomProductPages" || req.URL.RawQuery != test.rawQuery {
 					t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 				}
@@ -250,7 +210,7 @@ func TestCustomPagesListAllowsNextWithOrWithoutApp(t *testing.T) {
 
 			args := append([]string{"product-pages", "custom-pages", "list"}, test.appArgs...)
 			args = append(args, "--next", nextURL, "--output", "json")
-			stdout, stderr, runErr := runRootCommand(t, args)
+			stdout, stderr, runErr := runRootWithDeps(t, client, args...)
 			if runErr != nil {
 				t.Fatalf("run error: %v", runErr)
 			}

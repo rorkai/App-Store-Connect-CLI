@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AlternativeDistributionPackageVersionsCommand returns the package versions command group.
-func AlternativeDistributionPackageVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions", flag.ExitOnError)
+// newAlternativeDistributionPackageVersionsCommand returns the package versions command group.
+func newAlternativeDistributionPackageVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "versions",
@@ -30,10 +30,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AlternativeDistributionPackageVersionsListCommand(),
-			AlternativeDistributionPackageVersionsGetCommand(),
-			AlternativeDistributionPackageVersionsDeltasCommand(),
-			AlternativeDistributionPackageVersionsVariantsCommand(),
+			newAlternativeDistributionPackageVersionsListCommand(d),
+			newAlternativeDistributionPackageVersionsGetCommand(d),
+			newAlternativeDistributionPackageVersionsDeltasCommand(d),
+			newAlternativeDistributionPackageVersionsVariantsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -41,15 +41,15 @@ Examples:
 	}
 }
 
-// AlternativeDistributionPackageVersionsListCommand returns the package versions list subcommand.
-func AlternativeDistributionPackageVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newAlternativeDistributionPackageVersionsListCommand returns the package versions list subcommand.
+func newAlternativeDistributionPackageVersionsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	packageID := shared.BindResourceIDFlag(fs, "package-id", "alternativeDistributionPackages", "Alternative distribution package ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -65,21 +65,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*packageID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--package-id")
+				return d.RequiredFlag("--package-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
-				return shared.UsageErrorf("alternative-distribution packages versions list: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
+				return d.UsageErrorf("alternative-distribution packages versions list: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("alternative-distribution packages versions list: %v", err)
+				return d.UsageErrorf("alternative-distribution packages versions list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages versions list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionPackageVersionsOption{
@@ -101,7 +101,7 @@ Examples:
 					return fmt.Errorf("alternative-distribution packages versions list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAlternativeDistributionPackageVersions(requestCtx, trimmedID, opts...)
@@ -109,14 +109,15 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages versions list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AlternativeDistributionPackageVersionsGetCommand returns the package versions get subcommand.
-func AlternativeDistributionPackageVersionsGetCommand() *ffcli.Command {
+// newAlternativeDistributionPackageVersionsGetCommand returns the package versions get subcommand.
+func newAlternativeDistributionPackageVersionsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "view",
 		Name:        "view",
 		ShortUsage:  "asc alternative-distribution packages versions view --version-id \"VERSION_ID\"",
@@ -137,15 +138,15 @@ Examples:
 	})
 }
 
-// AlternativeDistributionPackageVersionsDeltasCommand returns the package version deltas subcommand.
-func AlternativeDistributionPackageVersionsDeltasCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("deltas", flag.ExitOnError)
+// newAlternativeDistributionPackageVersionsDeltasCommand returns the package version deltas subcommand.
+func newAlternativeDistributionPackageVersionsDeltasCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("deltas", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "alternativeDistributionPackageVersions", "Alternative distribution package version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "deltas",
@@ -161,21 +162,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
-				return shared.UsageErrorf("alternative-distribution packages versions deltas: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
+				return d.UsageErrorf("alternative-distribution packages versions deltas: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("alternative-distribution packages versions deltas: %v", err)
+				return d.UsageErrorf("alternative-distribution packages versions deltas: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages versions deltas: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionPackageDeltasOption{
@@ -197,7 +198,7 @@ Examples:
 					return fmt.Errorf("alternative-distribution packages versions deltas: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAlternativeDistributionPackageVersionDeltas(requestCtx, trimmedID, opts...)
@@ -205,20 +206,20 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages versions deltas: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AlternativeDistributionPackageVersionsVariantsCommand returns the package version variants subcommand.
-func AlternativeDistributionPackageVersionsVariantsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("variants", flag.ExitOnError)
+// newAlternativeDistributionPackageVersionsVariantsCommand returns the package version variants subcommand.
+func newAlternativeDistributionPackageVersionsVariantsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("variants", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "alternativeDistributionPackageVersions", "Alternative distribution package version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "variants",
@@ -234,21 +235,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
-				return shared.UsageErrorf("alternative-distribution packages versions variants: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
+				return d.UsageErrorf("alternative-distribution packages versions variants: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("alternative-distribution packages versions variants: %v", err)
+				return d.UsageErrorf("alternative-distribution packages versions variants: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages versions variants: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionPackageVariantsOption{
@@ -270,7 +271,7 @@ Examples:
 					return fmt.Errorf("alternative-distribution packages versions variants: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAlternativeDistributionPackageVersionVariants(requestCtx, trimmedID, opts...)
@@ -278,7 +279,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages versions variants: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

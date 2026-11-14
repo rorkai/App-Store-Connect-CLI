@@ -82,26 +82,31 @@ func TestRemainingListsPaginateFromNext(t *testing.T) {
 			args:     []string{"product-pages", "experiments", "list", "--version-id", "version-1"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-1/appStoreVersionExperiments?cursor=AQ&limit=200",
 			dataType: "appStoreVersionExperiments",
+			deps:     true,
 		},
 		{
 			args:     []string{"product-pages", "experiments", "treatments", "list", "--experiment-id", "experiment-1"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersionExperiments/experiment-1/appStoreVersionExperimentTreatments?cursor=AQ&limit=200",
 			dataType: "appStoreVersionExperimentTreatments",
+			deps:     true,
 		},
 		{
 			args:     []string{"product-pages", "experiments", "treatments", "localizations", "list", "--treatment-id", "treatment-1"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersionExperimentTreatments/treatment-1/appStoreVersionExperimentTreatmentLocalizations?cursor=AQ&limit=200",
 			dataType: "appStoreVersionExperimentTreatmentLocalizations",
+			deps:     true,
 		},
 		{
 			args:     []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersionExperimentTreatmentLocalizations/localization-1/appPreviewSets?cursor=AQ&limit=200",
 			dataType: "appPreviewSets",
+			deps:     true,
 		},
 		{
 			args:     []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersionExperimentTreatmentLocalizations/localization-1/appScreenshotSets?cursor=AQ&limit=200",
 			dataType: "appScreenshotSets",
+			deps:     true,
 		},
 		{
 			args:       []string{"marketplace", "webhooks", "list"},
