@@ -270,31 +270,27 @@ func SubscriptionsGroupsVersionLocalizationsUpdateCommand() *ffcli.Command {
 
 // SubscriptionsGroupsVersionLocalizationsDeleteCommand deletes a v2 localization.
 func SubscriptionsGroupsVersionLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions localizations delete", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "id", "subscriptionGroupLocalizations", "Subscription group localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "delete", ShortUsage: `asc subscriptions groups versions localizations delete --id "LOCALIZATION_ID" --confirm`, ShortHelp: "Delete a version-scoped subscription group localization.", LongHelp: "Delete a version-scoped subscription group localization.",
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			value := strings.TrimSpace(*id)
-			if value == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-			client, err := subscriptionGroupVersionClientFactory()
-			if err != nil {
-				return fmt.Errorf("subscriptions groups versions localizations delete: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			if err := client.DeleteSubscriptionGroupLocalizationV2(requestCtx, value); err != nil {
-				return fmt.Errorf("subscriptions groups versions localizations delete: failed to delete: %w", err)
-			}
-			return shared.PrintOutput(&asc.AssetDeleteResult{ID: value, Deleted: true}, *output.Output, *output.Pretty)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() }
+
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName:        "groups versions localizations delete",
+		Name:               "delete",
+		ShortUsage:         `asc subscriptions groups versions localizations delete --id "LOCALIZATION_ID" --confirm`,
+		ShortHelp:          "Delete a version-scoped subscription group localization.",
+		LongHelp:           "Delete a version-scoped subscription group localization.",
+		IDFlag:             "id",
+		IDUsage:            "Subscription group localization ID",
+		IDType:             "subscriptionGroupLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions groups versions localizations delete",
+		DeleteErrorPrefix:  "subscriptions groups versions localizations delete: failed to delete",
+		Deps:               d,
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteSubscriptionGroupLocalizationV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

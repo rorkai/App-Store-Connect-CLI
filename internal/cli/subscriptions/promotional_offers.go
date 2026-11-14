@@ -343,47 +343,28 @@ Examples:
 
 // SubscriptionsPromotionalOffersDeleteCommand returns the promotional offers delete subcommand.
 func SubscriptionsPromotionalOffersDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("promotional-offers delete", flag.ExitOnError)
-
-	offerID := shared.BindResourceIDFlag(fs, "id", "subscriptionPromotionalOffers", "Promotional offer ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc subscriptions promotional-offers delete --id \"OFFER_ID\" --confirm",
-		ShortHelp:  "Delete a promotional offer.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "promotional-offers delete",
+		Name:        "delete",
+		ShortUsage:  "asc subscriptions promotional-offers delete --id \"OFFER_ID\" --confirm",
+		ShortHelp:   "Delete a promotional offer.",
 		LongHelp: `Delete a promotional offer.
 
 Examples:
   asc subscriptions promotional-offers delete --id "OFFER_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*offerID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions promotional-offers delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteSubscriptionPromotionalOffer(requestCtx, id); err != nil {
-				return fmt.Errorf("subscriptions promotional-offers delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Promotional offer ID",
+		IDType:             "subscriptionPromotionalOffers",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions promotional-offers delete",
+		DeleteErrorPrefix:  "subscriptions promotional-offers delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteSubscriptionPromotionalOffer(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // SubscriptionsPromotionalOfferPricesCommand returns the promotional offer prices subcommand.

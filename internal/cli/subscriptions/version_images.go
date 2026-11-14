@@ -331,31 +331,23 @@ func SubscriptionsVersionImagesUpdateCommand() *ffcli.Command {
 
 // SubscriptionsVersionImagesDeleteCommand deletes a v2 image.
 func SubscriptionsVersionImagesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images delete", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "id", "subscriptionImages", "Subscription image ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "delete", ShortUsage: "asc subscriptions versions images delete --id \"IMAGE_ID\" --confirm", ShortHelp: "Delete a version-scoped image.",
-		LongHelp: "Delete a version-scoped subscription image.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			imageID := strings.TrimSpace(*id)
-			if imageID == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions versions images delete: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			if err := client.DeleteSubscriptionImageV2(requestCtx, imageID); err != nil {
-				return fmt.Errorf("subscriptions versions images delete: failed to delete: %w", err)
-			}
-			return shared.PrintOutput(&asc.AssetDeleteResult{ID: imageID, Deleted: true}, *output.Output, *output.Pretty)
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName:        "versions images delete",
+		Name:               "delete",
+		ShortUsage:         "asc subscriptions versions images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:          "Delete a version-scoped image.",
+		LongHelp:           "Delete a version-scoped subscription image.",
+		IDFlag:             "id",
+		IDUsage:            "Subscription image ID",
+		IDType:             "subscriptionImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions versions images delete",
+		DeleteErrorPrefix:  "subscriptions versions images delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteSubscriptionImageV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
