@@ -886,77 +886,29 @@ Examples:
 
 // GameCenterLeaderboardReleasesListCommand returns the releases list subcommand.
 func GameCenterLeaderboardReleasesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Game Center leaderboard ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center leaderboards releases list --leaderboard-id \"LEADERBOARD_ID\"",
-		ShortHelp:  "List releases for a Game Center leaderboard.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center leaderboards releases list --leaderboard-id \"LEADERBOARD_ID\"",
+		ShortHelp:   "List releases for a Game Center leaderboard.",
 		LongHelp: `List releases for a Game Center leaderboard.
 
 Examples:
   asc game-center leaderboards releases list --leaderboard-id "LEADERBOARD_ID"
   asc game-center leaderboards releases list --leaderboard-id "LEADERBOARD_ID" --limit 50
   asc game-center leaderboards releases list --leaderboard-id "LEADERBOARD_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center leaderboards releases list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center leaderboards releases list: %v", err)
-			}
-
-			lbID := strings.TrimSpace(*leaderboardID)
-			if lbID == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--leaderboard-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards releases list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCLeaderboardReleasesOption{
-				asc.WithGCLeaderboardReleasesLimit(*limit),
-				asc.WithGCLeaderboardReleasesNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardReleasesLimit(200))
-				firstPage, err := client.GetGameCenterLeaderboardReleases(requestCtx, lbID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center leaderboards releases list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardReleases(ctx, lbID, asc.WithGCLeaderboardReleasesNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center leaderboards releases list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterLeaderboardReleases(requestCtx, lbID, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards releases list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "leaderboard-id",
+		ParentUsage:          "Game Center leaderboard ID",
+		ParentType:           "gameCenterLeaderboards",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center leaderboards releases list",
+		FetchErrorPrefix:     "game-center leaderboards releases list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, leaderboardId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterLeaderboardReleases(ctx, leaderboardId, asc.WithGCLeaderboardReleasesLimit(limit), asc.WithGCLeaderboardReleasesNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardReleasesCreateCommand returns the releases create subcommand.

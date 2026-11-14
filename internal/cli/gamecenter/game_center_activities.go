@@ -681,77 +681,29 @@ Examples:
 
 // GameCenterActivityVersionsListCommand returns the activity versions list subcommand.
 func GameCenterActivityVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center activities versions list --activity-id \"ACTIVITY_ID\"",
-		ShortHelp:  "List versions for a Game Center activity.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center activities versions list --activity-id \"ACTIVITY_ID\"",
+		ShortHelp:   "List versions for a Game Center activity.",
 		LongHelp: `List versions for a Game Center activity.
 
 Examples:
   asc game-center activities versions list --activity-id "ACTIVITY_ID"
   asc game-center activities versions list --activity-id "ACTIVITY_ID" --limit 50
   asc game-center activities versions list --activity-id "ACTIVITY_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center activities versions list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center activities versions list: %v", err)
-			}
-
-			id := strings.TrimSpace(*activityID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--activity-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center activities versions list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCActivityVersionsOption{
-				asc.WithGCActivityVersionsLimit(*limit),
-				asc.WithGCActivityVersionsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCActivityVersionsLimit(200))
-				firstPage, err := client.GetGameCenterActivityVersions(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center activities versions list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterActivityVersions(ctx, id, asc.WithGCActivityVersionsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center activities versions list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterActivityVersions(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center activities versions list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "activity-id",
+		ParentUsage:          "Game Center activity ID",
+		ParentType:           "gameCenterActivities",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center activities versions list",
+		FetchErrorPrefix:     "game-center activities versions list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, activityId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterActivityVersions(ctx, activityId, asc.WithGCActivityVersionsLimit(limit), asc.WithGCActivityVersionsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterActivityVersionsGetCommand returns the activity versions get subcommand.
@@ -901,77 +853,29 @@ Examples:
 
 // GameCenterActivityLocalizationsListCommand returns the activity localizations list subcommand.
 func GameCenterActivityLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterActivityVersions", "Game Center activity version ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center activities localizations list --version-id \"VERSION_ID\"",
-		ShortHelp:  "List localizations for an activity version.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center activities localizations list --version-id \"VERSION_ID\"",
+		ShortHelp:   "List localizations for an activity version.",
 		LongHelp: `List localizations for an activity version.
 
 Examples:
   asc game-center activities localizations list --version-id "VERSION_ID"
   asc game-center activities localizations list --version-id "VERSION_ID" --limit 50
   asc game-center activities localizations list --version-id "VERSION_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center activities localizations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center activities localizations list: %v", err)
-			}
-
-			id := strings.TrimSpace(*versionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center activities localizations list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCActivityLocalizationsOption{
-				asc.WithGCActivityLocalizationsLimit(*limit),
-				asc.WithGCActivityLocalizationsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCActivityLocalizationsLimit(200))
-				firstPage, err := client.GetGameCenterActivityLocalizations(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center activities localizations list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterActivityLocalizations(ctx, id, asc.WithGCActivityLocalizationsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center activities localizations list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterActivityLocalizations(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center activities localizations list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "version-id",
+		ParentUsage:          "Game Center activity version ID",
+		ParentType:           "gameCenterActivityVersions",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center activities localizations list",
+		FetchErrorPrefix:     "game-center activities localizations list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterActivityLocalizations(ctx, versionId, asc.WithGCActivityLocalizationsLimit(limit), asc.WithGCActivityLocalizationsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterActivityLocalizationsGetCommand returns the activity localizations get subcommand.

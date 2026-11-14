@@ -594,77 +594,29 @@ Examples:
 
 // GameCenterAchievementLocalizationsListCommand returns the localizations list subcommand.
 func GameCenterAchievementLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	achievementID := shared.BindResourceIDFlag(fs, "achievement-id", "gameCenterAchievements", "Game Center achievement ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center achievements localizations list --achievement-id \"ACHIEVEMENT_ID\"",
-		ShortHelp:  "List localizations for a Game Center achievement.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center achievements localizations list --achievement-id \"ACHIEVEMENT_ID\"",
+		ShortHelp:   "List localizations for a Game Center achievement.",
 		LongHelp: `List localizations for a Game Center achievement.
 
 Examples:
   asc game-center achievements localizations list --achievement-id "ACHIEVEMENT_ID"
   asc game-center achievements localizations list --achievement-id "ACHIEVEMENT_ID" --limit 50
   asc game-center achievements localizations list --achievement-id "ACHIEVEMENT_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center achievements localizations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center achievements localizations list: %v", err)
-			}
-
-			achID := strings.TrimSpace(*achievementID)
-			if achID == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--achievement-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCAchievementLocalizationsOption{
-				asc.WithGCAchievementLocalizationsLimit(*limit),
-				asc.WithGCAchievementLocalizationsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementLocalizationsLimit(200))
-				firstPage, err := client.GetGameCenterAchievementLocalizations(requestCtx, achID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center achievements localizations list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievementLocalizations(ctx, achID, asc.WithGCAchievementLocalizationsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center achievements localizations list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterAchievementLocalizations(requestCtx, achID, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "achievement-id",
+		ParentUsage:          "Game Center achievement ID",
+		ParentType:           "gameCenterAchievements",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center achievements localizations list",
+		FetchErrorPrefix:     "game-center achievements localizations list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterAchievementLocalizations(ctx, achievementId, asc.WithGCAchievementLocalizationsLimit(limit), asc.WithGCAchievementLocalizationsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterAchievementLocalizationsGetCommand returns the localizations get subcommand.
@@ -911,77 +863,29 @@ Examples:
 
 // GameCenterAchievementReleasesListCommand returns the achievement releases list subcommand.
 func GameCenterAchievementReleasesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	achievementID := shared.BindResourceIDFlag(fs, "achievement-id", "gameCenterAchievements", "Game Center achievement ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center achievements releases list --achievement-id \"ACHIEVEMENT_ID\"",
-		ShortHelp:  "List releases for a Game Center achievement.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center achievements releases list --achievement-id \"ACHIEVEMENT_ID\"",
+		ShortHelp:   "List releases for a Game Center achievement.",
 		LongHelp: `List releases for a Game Center achievement.
 
 Examples:
   asc game-center achievements releases list --achievement-id "ACHIEVEMENT_ID"
   asc game-center achievements releases list --achievement-id "ACHIEVEMENT_ID" --limit 50
   asc game-center achievements releases list --achievement-id "ACHIEVEMENT_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center achievements releases list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center achievements releases list: %v", err)
-			}
-
-			id := strings.TrimSpace(*achievementID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--achievement-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements releases list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCAchievementReleasesOption{
-				asc.WithGCAchievementReleasesLimit(*limit),
-				asc.WithGCAchievementReleasesNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementReleasesLimit(200))
-				firstPage, err := client.GetGameCenterAchievementReleases(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center achievements releases list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievementReleases(ctx, id, asc.WithGCAchievementReleasesNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center achievements releases list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterAchievementReleases(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center achievements releases list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "achievement-id",
+		ParentUsage:          "Game Center achievement ID",
+		ParentType:           "gameCenterAchievements",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center achievements releases list",
+		FetchErrorPrefix:     "game-center achievements releases list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterAchievementReleases(ctx, achievementId, asc.WithGCAchievementReleasesLimit(limit), asc.WithGCAchievementReleasesNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterAchievementReleasesCreateCommand returns the achievement releases create subcommand.

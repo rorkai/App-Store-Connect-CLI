@@ -165,76 +165,28 @@ Examples:
 
 // GameCenterLeaderboardVersionsV2ListCommand returns the leaderboard versions v2 list subcommand.
 func GameCenterLeaderboardVersionsV2ListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Game Center leaderboard ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center leaderboards v2 versions list --leaderboard-id \"LB_ID\"",
-		ShortHelp:  "List versions for a Game Center leaderboard (v2).",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center leaderboards v2 versions list --leaderboard-id \"LB_ID\"",
+		ShortHelp:   "List versions for a Game Center leaderboard (v2).",
 		LongHelp: `List versions for a Game Center leaderboard (v2).
 
 Examples:
   asc game-center leaderboards v2 versions list --leaderboard-id "LB_ID"
   asc game-center leaderboards v2 versions list --leaderboard-id "LB_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center leaderboards v2 versions list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center leaderboards v2 versions list: %v", err)
-			}
-
-			id := strings.TrimSpace(*leaderboardID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--leaderboard-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards v2 versions list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCLeaderboardVersionsOption{
-				asc.WithGCLeaderboardVersionsLimit(*limit),
-				asc.WithGCLeaderboardVersionsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardVersionsLimit(200))
-				firstPage, err := client.GetGameCenterLeaderboardVersions(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center leaderboards v2 versions list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardVersions(ctx, id, asc.WithGCLeaderboardVersionsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center leaderboards v2 versions list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterLeaderboardVersions(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards v2 versions list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "leaderboard-id",
+		ParentUsage:          "Game Center leaderboard ID",
+		ParentType:           "gameCenterLeaderboards",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center leaderboards v2 versions list",
+		FetchErrorPrefix:     "game-center leaderboards v2 versions list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, leaderboardId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterLeaderboardVersions(ctx, leaderboardId, asc.WithGCLeaderboardVersionsLimit(limit), asc.WithGCLeaderboardVersionsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardVersionsV2GetCommand returns the leaderboard versions v2 get subcommand.
@@ -330,76 +282,28 @@ Examples:
 
 // GameCenterLeaderboardLocalizationsV2ListCommand returns the leaderboard localizations v2 list subcommand.
 func GameCenterLeaderboardLocalizationsV2ListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterLeaderboardVersions", "Game Center leaderboard version ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center leaderboards v2 localizations list --version-id \"VER_ID\"",
-		ShortHelp:  "List localizations for a leaderboard version (v2).",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center leaderboards v2 localizations list --version-id \"VER_ID\"",
+		ShortHelp:   "List localizations for a leaderboard version (v2).",
 		LongHelp: `List localizations for a leaderboard version (v2).
 
 Examples:
   asc game-center leaderboards v2 localizations list --version-id "VER_ID"
   asc game-center leaderboards v2 localizations list --version-id "VER_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center leaderboards v2 localizations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center leaderboards v2 localizations list: %v", err)
-			}
-
-			id := strings.TrimSpace(*versionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards v2 localizations list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCLeaderboardLocalizationsOption{
-				asc.WithGCLeaderboardLocalizationsLimit(*limit),
-				asc.WithGCLeaderboardLocalizationsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardLocalizationsLimit(200))
-				firstPage, err := client.GetGameCenterLeaderboardVersionLocalizations(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center leaderboards v2 localizations list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardVersionLocalizations(ctx, id, asc.WithGCLeaderboardLocalizationsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center leaderboards v2 localizations list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterLeaderboardVersionLocalizations(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards v2 localizations list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "version-id",
+		ParentUsage:          "Game Center leaderboard version ID",
+		ParentType:           "gameCenterLeaderboardVersions",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center leaderboards v2 localizations list",
+		FetchErrorPrefix:     "game-center leaderboards v2 localizations list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterLeaderboardVersionLocalizations(ctx, versionId, asc.WithGCLeaderboardLocalizationsLimit(limit), asc.WithGCLeaderboardLocalizationsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardLocalizationsV2GetCommand returns the leaderboard localizations v2 get subcommand.
