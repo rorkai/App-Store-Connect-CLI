@@ -147,8 +147,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*id) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --mapping-id is required")
-				return shared.MissingRequiredUsageError("--mapping-id")
+				return shared.RequiredFlag("--mapping-id")
 			}
 			fieldValues, err := normalizeAndroidIosMappingFields(*fields)
 			if err != nil {
@@ -203,13 +202,11 @@ Examples:
 			}
 			packageValue := strings.TrimSpace(*packageName)
 			if packageValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --android-package-name is required")
-				return shared.MissingRequiredUsageError("--android-package-name")
+				return shared.RequiredFlag("--android-package-name")
 			}
 			fingerprintValues := shared.SplitCSV(fingerprints.String())
 			if len(fingerprintValues) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --fingerprints is required")
-				return shared.MissingRequiredUsageError("--fingerprints")
+				return shared.RequiredFlag("--fingerprints")
 			}
 
 			client, err := shared.GetASCClient()
@@ -260,8 +257,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --mapping-id is required")
-				return shared.MissingRequiredUsageError("--mapping-id")
+				return shared.RequiredFlag("--mapping-id")
 			}
 
 			seen := map[string]bool{}
@@ -339,12 +335,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --mapping-id is required")
-				return shared.MissingRequiredUsageError("--mapping-id")
+				return shared.RequiredFlag("--mapping-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
