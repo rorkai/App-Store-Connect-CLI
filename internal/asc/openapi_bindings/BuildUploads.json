@@ -6,6 +6,7 @@
   ],
   "operations": [
     {"operation":"buildUploads_buildUploadFiles_getToManyRelated","name":"GetBuildUploadFiles","params":["uploadID"],"check":"require","options":"BuildUploadFilesOption","query":"buildBuildUploadFilesQuery","nextContext":"buildUploadFiles"},
-    {"operation":"buildUploads_deleteInstance","name":"DeleteBuildUpload","params":["id"],"check":"require"}
+    {"operation":"buildUploads_deleteInstance","name":"DeleteBuildUpload","params":["id"],"check":"require"},
+    {"operation":"buildUploads_getInstance","name":"GetBuildUpload","params":["id"],"check":"require","checkFirst":true,"options":"BuildUploadOption","query":"buildBuildUploadQuery","single":true}
   ]
 }

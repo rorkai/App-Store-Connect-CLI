@@ -37,6 +37,19 @@ func (c *Client) GetInAppPurchasePriceScheduleBaseTerritory(ctx context.Context,
 	})
 }
 
+// GetInAppPurchasePriceScheduleByID sends GET /v1/inAppPurchasePriceSchedules/{id} (inAppPurchasePriceSchedules_getInstance).
+func (c *Client) GetInAppPurchasePriceScheduleByID(ctx context.Context, scheduleID string, opts ...IAPPriceScheduleOption) (*InAppPurchasePriceScheduleResponse, error) {
+	query := applyOptions(opts)
+	scheduleID = strings.TrimSpace(scheduleID)
+	if scheduleID == "" {
+		return nil, fmt.Errorf("scheduleID is required")
+	}
+	return getJSON[InAppPurchasePriceScheduleResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s", scheduleID),
+		Query: buildIAPPriceScheduleQuery(query),
+	})
+}
+
 // GetInAppPurchasePriceScheduleManualPrices sends GET /v1/inAppPurchasePriceSchedules/{id}/manualPrices (inAppPurchasePriceSchedules_manualPrices_getToManyRelated).
 func (c *Client) GetInAppPurchasePriceScheduleManualPrices(ctx context.Context, scheduleID string, opts ...IAPPriceSchedulePricesOption) (*InAppPurchasePricesResponse, error) {
 	query := applyOptions(opts)

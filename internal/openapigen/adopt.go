@@ -238,18 +238,22 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 			for _, n := range field.Names {
 				b.Params = append(b.Params, n.Name)
 			}
+		case typ == "[]string" && op.Method == "GET":
 		case typ == "[]string" && len(field.Names) == 1:
 			b.IDs = field.Names[0].Name
 		case strings.HasPrefix(typ, "..."):
 			b.Options = strings.TrimPrefix(typ, "...")
 		case strings.HasSuffix(typ, "Attributes"):
+			if strings.HasPrefix(typ, "*") {
+				b.Attrs = attrsPointer
+			}
 		default:
 			return nil, "parameter type " + typ
 		}
 	}
 
 	var messages []string
-	var trimmed bool
+	var trimmed, next, attrsByValue bool
 	var trimAt, optionsAt token.Pos
 	list := &IDList{}
 	ast.Inspect(fn.Body, func(x ast.Node) bool {
@@ -267,16 +271,23 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 				if call, ok := n.Value.(*ast.CallExpr); ok {
 					b.Query = exprString(call.Fun)
 				}
+			case "Next":
+				next = true
 			case "NextContext":
 				b.NextContext = stringLit(n.Value)
 			case "ParseErr":
 				b.ParseErr = stringLit(n.Value)
+			case "Attributes":
+				_, attrsByValue = n.Value.(*ast.Ident)
 			}
 		case *ast.IndexExpr:
 			if fun := exprString(n.X); (fun == "getJSON" || fun == "sendJSON") && exprString(n.Index) != op.Response {
 				b.Response = exprString(n.Index)
 			}
 		case *ast.AssignStmt:
+			if exprString(n.Lhs[0]) == "payload.Data.Attributes" {
+				b.SkipEmptyAttributes = true
+			}
 			call, ok := n.Rhs[0].(*ast.CallExpr)
 			switch {
 			case !ok:
@@ -304,6 +315,10 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 		b.IDList = list
 	}
 	b.CheckFirst = b.Options != "" && trimAt.IsValid() && optionsAt.IsValid() && trimAt < optionsAt
+	b.Single = op.Method == "GET" && b.Query != "" && !next
+	if data, err := requestData(spec, op.Request); attrsByValue && b.Attrs == "" && err == nil && !data.requires("attributes") {
+		b.Attrs = attrsValue
+	}
 	for i, msg := range messages {
 		if i >= len(b.Params) || msg != b.Params[i]+" is required" {
 			b.Messages = messages

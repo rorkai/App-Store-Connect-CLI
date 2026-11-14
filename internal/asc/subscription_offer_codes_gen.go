@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -38,5 +39,21 @@ func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodes(ctx context.Context, of
 		Query:       buildSubscriptionOfferCodeOneTimeUseCodesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "offer codes",
+	})
+}
+
+// UpdateSubscriptionOfferCode sends PATCH /v1/subscriptionOfferCodes/{id} (subscriptionOfferCodes_updateInstance).
+func (c *Client) UpdateSubscriptionOfferCode(ctx context.Context, offerCodeID string, attrs SubscriptionOfferCodeUpdateAttributes) (*SubscriptionOfferCodeResponse, error) {
+	payload := SubscriptionOfferCodeUpdateRequest{
+		Data: SubscriptionOfferCodeUpdateData{
+			Type:       ResourceTypeSubscriptionOfferCodes,
+			ID:         strings.TrimSpace(offerCodeID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionOfferCodeResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionOfferCodes/%s", strings.TrimSpace(offerCodeID)),
+		Payload: payload,
 	})
 }

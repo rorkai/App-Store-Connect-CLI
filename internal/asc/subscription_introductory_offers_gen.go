@@ -28,3 +28,19 @@ type SubscriptionIntroductoryOfferUpdateRequest struct {
 func (c *Client) DeleteSubscriptionIntroductoryOffer(ctx context.Context, offerID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionIntroductoryOffers/%s", strings.TrimSpace(offerID)), nil)
 }
+
+// UpdateSubscriptionIntroductoryOffer sends PATCH /v1/subscriptionIntroductoryOffers/{id} (subscriptionIntroductoryOffers_updateInstance).
+func (c *Client) UpdateSubscriptionIntroductoryOffer(ctx context.Context, offerID string, attrs SubscriptionIntroductoryOfferUpdateAttributes) (*SubscriptionIntroductoryOfferResponse, error) {
+	payload := SubscriptionIntroductoryOfferUpdateRequest{
+		Data: SubscriptionIntroductoryOfferUpdateData{
+			Type:       ResourceTypeSubscriptionIntroductoryOffers,
+			ID:         strings.TrimSpace(offerID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionIntroductoryOfferResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionIntroductoryOffers/%s", strings.TrimSpace(offerID)),
+		Payload: payload,
+	})
+}

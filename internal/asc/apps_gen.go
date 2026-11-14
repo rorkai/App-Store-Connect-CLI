@@ -327,6 +327,16 @@ func (c *Client) GetApps(ctx context.Context, opts ...AppsOption) (*AppsResponse
 	})
 }
 
+// GetAppWithOptions sends GET /v1/apps/{id} (apps_getInstance).
+func (c *Client) GetAppWithOptions(ctx context.Context, appID string, opts ...AppOption) (*AppResponse, error) {
+	query := applyOptions(opts)
+	appID = strings.TrimSpace(appID)
+	return getJSON[AppResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/apps/%s", appID),
+		Query: buildAppQuery(query),
+	})
+}
+
 // GetInAppPurchases sends GET /v1/apps/{id}/inAppPurchases (apps_inAppPurchases_getToManyRelated).
 func (c *Client) GetInAppPurchases(ctx context.Context, appID string, opts ...IAPOption) (*InAppPurchasesResponse, error) {
 	query := applyOptions(opts)
@@ -335,6 +345,19 @@ func (c *Client) GetInAppPurchases(ctx context.Context, appID string, opts ...IA
 		Query:       buildInAppPurchasesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "in-app-purchases",
+	})
+}
+
+// GetMarketplaceSearchDetailForApp sends GET /v1/apps/{id}/marketplaceSearchDetail (apps_marketplaceSearchDetail_getToOneRelated).
+func (c *Client) GetMarketplaceSearchDetailForApp(ctx context.Context, appID string, fields []string) (*MarketplaceSearchDetailResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+	return getJSON[MarketplaceSearchDetailResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/apps/%s/marketplaceSearchDetail", appID),
+		Query:    buildMarketplaceSearchDetailsFieldsQuery(fields),
+		ParseErr: "failed to parse marketplace search detail response",
 	})
 }
 

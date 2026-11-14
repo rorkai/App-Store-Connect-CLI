@@ -191,7 +191,15 @@ func renderMethod(spec *Spec, b *OpBind) (string, error) {
 		return "", fmt.Errorf("idList needs a relationship change")
 	}
 	if b.CheckFirst && (op.Method != "GET" || b.Options == "" || (b.Check != checkTrim && b.Check != checkRequire)) {
-		return "", fmt.Errorf("checkFirst needs a paged read with trim or require checks")
+		return "", fmt.Errorf("checkFirst needs a read with options and trim or require checks")
+	}
+	if b.Single && (op.Method != "GET" || b.Query == "" || b.NextContext != "") {
+		return "", fmt.Errorf("single needs a read with a query builder and no next URL")
+	}
+	write := (op.Method == "PATCH" && strings.HasSuffix(op.Request, "UpdateRequest")) ||
+		(op.Method == "POST" && strings.HasSuffix(op.Request, "CreateRequest"))
+	if (b.Attrs != "" || b.SkipEmptyAttributes) && !write {
+		return "", fmt.Errorf("attributes bindings need a create or update request")
 	}
 	m := &method{b: b, op: op}
 	if len(b.Params) > 0 {
@@ -229,8 +237,7 @@ func renderMethod(spec *Spec, b *OpBind) (string, error) {
 			return "", err
 		}
 		call = fmt.Sprintf("return sendNoContent(ctx, c, http.Method%s, %s, %s)", methodConst(op.Method), m.path(), body)
-	case (op.Method == "PATCH" && strings.HasSuffix(op.Request, "UpdateRequest")) ||
-		(op.Method == "POST" && strings.HasSuffix(op.Request, "CreateRequest")):
+	case write:
 		if response == "" {
 			return "", fmt.Errorf("no response schema")
 		}
@@ -261,7 +268,9 @@ func (m *method) read(response string) string {
 	if m.b.CheckFirst {
 		m.checks()
 	}
-	if m.b.Options != "" {
+	if m.b.Single {
+		fields = append(fields, m.singleQuery())
+	} else if m.b.Options != "" {
 		m.params = append(m.params, "opts ..."+m.b.Options)
 		m.pre = append(m.pre, "query := applyOptions(opts)")
 		fields = append(fields, fmt.Sprintf("Query: %s(query)", m.b.Query), "Next: query.nextURL")
@@ -276,6 +285,18 @@ func (m *method) read(response string) string {
 		m.checks()
 	}
 	return fmt.Sprintf("return getJSON[%s](ctx, c, readRequest{\n%s,\n})", response, strings.Join(fields, ",\n"))
+}
+
+// singleQuery adds the query argument of a single read and returns its Query
+// field: the options, or a fields list when there is no option type.
+func (m *method) singleQuery() string {
+	if m.b.Options == "" {
+		m.params = append(m.params, "fields []string")
+		return fmt.Sprintf("Query: %s(fields)", m.b.Query)
+	}
+	m.params = append(m.params, "opts ..."+m.b.Options)
+	m.pre = append(m.pre, "query := applyOptions(opts)")
+	return fmt.Sprintf("Query: %s(query)", m.b.Query)
 }
 
 // checks adds the trim and blank checks of the path parameters.
@@ -299,7 +320,7 @@ func (m *method) checks() {
 			msg = m.b.Messages[i]
 		}
 		cond := p + ` == ""`
-		if m.b.Options != "" && !m.b.CheckFirst {
+		if m.b.Options != "" && !m.b.CheckFirst && !m.b.Single {
 			cond = `query.nextURL == "" && ` + cond
 		}
 		m.pre = append(m.pre, fmt.Sprintf("if %s {\nreturn %sfmt.Errorf(%s)\n}", cond, zero, strconv.Quote(msg)))
@@ -351,16 +372,57 @@ func (m *method) payload(spec *Spec) (string, error) {
 	if data.Properties.Get("relationships") != nil {
 		return "", fmt.Errorf("relationships in %s are not supported", m.op.Request)
 	}
-	if data.Properties.Get("attributes") != nil {
-		m.params = append(m.params, "attrs "+base+"Attributes")
-		if data.requires("attributes") {
+	if err := m.checkAttrs(data); err != nil {
+		return "", err
+	}
+	var step string
+	if attrs := data.Properties.Get("attributes"); attrs != nil {
+		typ := base + "Attributes"
+		if m.b.Attrs == attrsPointer {
+			typ = "*" + typ
+		}
+		m.params = append(m.params, "attrs "+typ)
+		switch {
+		case m.b.SkipEmptyAttributes:
+			step = "\n" + attributesIfSet(attrs)
+		case data.requires("attributes") || m.b.Attrs != "":
 			fields = append(fields, "Attributes: attrs")
-		} else {
+		default:
 			fields = append(fields, "Attributes: &attrs")
 		}
 	}
 	m.checks()
-	return fmt.Sprintf("payload := %s{\nData: %sData{\n%s,\n},\n}", m.op.Request, base, strings.Join(fields, ",\n")), nil
+	return fmt.Sprintf("payload := %s{\nData: %sData{\n%s,\n},\n}", m.op.Request, base, strings.Join(fields, ",\n")) + step, nil
+}
+
+// checkAttrs rejects attributes bindings the request data cannot take.
+func (m *method) checkAttrs(data *Schema) error {
+	attrs := data.Properties.Get("attributes")
+	optional := attrs != nil && !data.requires("attributes")
+	switch m.b.Attrs {
+	case "":
+	case attrsValue, attrsPointer:
+		if !optional {
+			return fmt.Errorf("attrs %q needs optional attributes", m.b.Attrs)
+		}
+	default:
+		return fmt.Errorf("unknown attrs %q", m.b.Attrs)
+	}
+	if m.b.SkipEmptyAttributes && (!optional || m.b.Attrs != "" || len(attrs.Required) > 0 || len(attrs.Properties) == 0) {
+		return fmt.Errorf("skipEmptyAttributes needs optional attributes, none of them required, passed by value")
+	}
+	return nil
+}
+
+// attributesIfSet attaches the attributes only when one of them is set. No
+// attribute is required, so a request attributes type holds each as a
+// nillable field.
+func attributesIfSet(attrs *Schema) string {
+	var set []string
+	for _, prop := range attrs.Properties {
+		set = append(set, "attrs."+goName(prop.Name)+" != nil")
+	}
+	return fmt.Sprintf("if %s {\npayload.Data.Attributes = &attrs\n}", strings.Join(set, " || "))
 }
 
 // idList adds the ID list handling of a relationship change after the path

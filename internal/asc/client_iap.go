@@ -52,17 +52,6 @@ func (c *Client) getInAppPurchasesV2(ctx context.Context, appID string, strict b
 	return &response, nil
 }
 
-// GetInAppPurchaseV2 retrieves an in-app purchase by ID.
-func (c *Client) GetInAppPurchaseV2(ctx context.Context, iapID string, opts ...IAPGetOption) (*InAppPurchaseV2Response, error) {
-	iapID = strings.TrimSpace(iapID)
-	if iapID == "" {
-		return nil, fmt.Errorf("iapID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[InAppPurchaseV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s", iapID), Query: buildInAppPurchaseGetQuery(query)})
-}
-
 // CreateInAppPurchaseV2 creates a new in-app purchase.
 func (c *Client) CreateInAppPurchaseV2(ctx context.Context, appID string, attrs InAppPurchaseV2CreateAttributes) (*InAppPurchaseV2Response, error) {
 	payload := InAppPurchaseV2CreateRequest{

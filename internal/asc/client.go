@@ -836,16 +836,3 @@ func (c *Client) UpdateAppInfoLocalizationNullableFields(ctx context.Context, lo
 	}}
 	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), Payload: payload})
 }
-
-// GetAppInfo retrieves an app info record by ID.
-func (c *Client) GetAppInfo(ctx context.Context, appInfoID string, opts ...AppInfoOption) (*AppInfoResponse, error) {
-	query := applyOptions(opts)
-	appInfoID = strings.TrimSpace(appInfoID)
-	if appInfoID == "" {
-		return nil, fmt.Errorf("appInfoID is required")
-	}
-	return getJSON[AppInfoResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/appInfos/%s", appInfoID),
-		Query: buildAppInfoQuery(query),
-	})
-}

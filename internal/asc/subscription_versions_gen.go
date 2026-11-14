@@ -13,6 +13,32 @@ type SubscriptionVersionCreateRequest struct {
 	Data SubscriptionVersionCreateData `json:"data"`
 }
 
+// GetSubscriptionVersion sends GET /v1/subscriptionVersions/{id} (subscriptionVersions_getInstance).
+func (c *Client) GetSubscriptionVersion(ctx context.Context, versionID string, opts ...SubscriptionVersionOption) (*SubscriptionVersionResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("version ID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[SubscriptionVersionResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptionVersions/%s", versionID),
+		Query: buildSubscriptionVersionQuery(query),
+	})
+}
+
+// GetSubscriptionVersionImage sends GET /v1/subscriptionVersions/{id}/image (subscriptionVersions_image_getToOneRelated).
+func (c *Client) GetSubscriptionVersionImage(ctx context.Context, versionID string, opts ...SubscriptionImageV2Option) (*SubscriptionImageV2Response, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("version ID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[SubscriptionImageV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptionVersions/%s/image", versionID),
+		Query: buildSubscriptionImageV2Query(query),
+	})
+}
+
 // GetSubscriptionVersionImageRelationship sends GET /v1/subscriptionVersions/{id}/relationships/image (subscriptionVersions_image_getToOneRelationship).
 func (c *Client) GetSubscriptionVersionImageRelationship(ctx context.Context, versionID string) (*SubscriptionVersionImageLinkageResponse, error) {
 	versionID = strings.TrimSpace(versionID)

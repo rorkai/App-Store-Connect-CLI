@@ -6,13 +6,6 @@ import (
 	"strings"
 )
 
-// GetPassTypeID retrieves a single pass type ID by ID.
-func (c *Client) GetPassTypeID(ctx context.Context, id string, opts ...PassTypeIDOption) (*PassTypeIDResponse, error) {
-	id = strings.TrimSpace(id)
-	query := applyOptions(opts)
-	return getJSON[PassTypeIDResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/passTypeIds/%s", id), Query: buildPassTypeIDQuery(query)})
-}
-
 // CreatePassTypeID creates a new pass type ID.
 func (c *Client) CreatePassTypeID(ctx context.Context, attrs PassTypeIDCreateAttributes) (*PassTypeIDResponse, error) {
 	request := PassTypeIDCreateRequest{

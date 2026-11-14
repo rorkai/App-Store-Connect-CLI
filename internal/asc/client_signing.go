@@ -559,13 +559,6 @@ func (c *Client) UpdateCertificate(ctx context.Context, id string, attrs Certifi
 	return sendJSON[CertificateResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/certificates/%s", id), Payload: request})
 }
 
-// GetProfile retrieves a single profile by ID.
-func (c *Client) GetProfile(ctx context.Context, id string, opts ...ProfilesOption) (*ProfileResponse, error) {
-	id = strings.TrimSpace(id)
-	query := applyOptions(opts)
-	return getJSON[ProfileResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s", id), Query: buildProfilesQuery(query)})
-}
-
 // GetProfileCertificatesRelationships retrieves certificate linkages for a profile.
 func (c *Client) GetProfileCertificatesRelationships(ctx context.Context, profileID string, opts ...LinkagesOption) (*ProfileCertificatesLinkagesResponse, error) {
 	return getTypedResourceLinkages[ProfileCertificatesLinkagesResponse](

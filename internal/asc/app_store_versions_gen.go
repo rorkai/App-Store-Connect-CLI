@@ -214,6 +214,15 @@ func (c *Client) GetAppStoreVersionGameCenterAppVersionRelationship(ctx context.
 	})
 }
 
+// GetAppStoreVersion sends GET /v1/appStoreVersions/{id} (appStoreVersions_getInstance).
+func (c *Client) GetAppStoreVersion(ctx context.Context, versionID string, opts ...AppStoreVersionOption) (*AppStoreVersionResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[AppStoreVersionResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appStoreVersions/%s", versionID),
+		Query: buildAppStoreVersionQuery(query),
+	})
+}
+
 // GetRoutingAppCoverageForVersion sends GET /v1/appStoreVersions/{id}/routingAppCoverage (appStoreVersions_routingAppCoverage_getToOneRelated).
 func (c *Client) GetRoutingAppCoverageForVersion(ctx context.Context, versionID string) (*RoutingAppCoverageResponse, error) {
 	versionID = strings.TrimSpace(versionID)
