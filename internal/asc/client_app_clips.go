@@ -663,8 +663,8 @@ func (c *Client) UpdateAppClipAdvancedExperienceImage(ctx context.Context, image
 			Type: ResourceTypeAppClipAdvancedExperienceImages,
 			ID:   imageID,
 			Attributes: &AppClipAdvancedExperienceImageUpdateAttributes{
-				SourceFileChecksum: &checksumHash,
 				Uploaded:           &uploaded,
+				SourceFileChecksum: &checksumHash,
 			},
 		},
 	}
@@ -761,8 +761,8 @@ func (c *Client) UpdateAppClipHeaderImage(ctx context.Context, imageID string, u
 			Type: ResourceTypeAppClipHeaderImages,
 			ID:   imageID,
 			Attributes: &AppClipHeaderImageUpdateAttributes{
-				SourceFileChecksum: &checksumHash,
 				Uploaded:           &uploaded,
+				SourceFileChecksum: &checksumHash,
 			},
 		},
 	}

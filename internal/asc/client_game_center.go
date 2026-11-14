@@ -92,8 +92,8 @@ func (c *Client) CreateGameCenterLeaderboardImage(ctx context.Context, localizat
 		Data: GameCenterLeaderboardImageCreateData{
 			Type: ResourceTypeGameCenterLeaderboardImages,
 			Attributes: GameCenterLeaderboardImageCreateAttributes{
-				FileSize: fileSize,
 				FileName: fileName,
+				FileSize: fileSize,
 			},
 			Relationships: &GameCenterLeaderboardImageRelationships{
 				GameCenterLeaderboardLocalization: &Relationship{
@@ -170,8 +170,8 @@ func (c *Client) CreateGameCenterAchievementImage(ctx context.Context, localizat
 		Data: GameCenterAchievementImageCreateData{
 			Type: ResourceTypeGameCenterAchievementImages,
 			Attributes: GameCenterAchievementImageCreateAttributes{
-				FileSize: fileSize,
 				FileName: fileName,
+				FileSize: fileSize,
 			},
 			Relationships: &GameCenterAchievementImageRelationships{
 				GameCenterAchievementLocalization: &Relationship{
@@ -247,8 +247,8 @@ func (c *Client) CreateGameCenterLeaderboardSetImage(ctx context.Context, locali
 		Data: GameCenterLeaderboardSetImageCreateData{
 			Type: ResourceTypeGameCenterLeaderboardSetImages,
 			Attributes: GameCenterLeaderboardSetImageCreateAttributes{
-				FileSize: fileSize,
 				FileName: fileName,
+				FileSize: fileSize,
 			},
 			Relationships: &GameCenterLeaderboardSetImageRelationships{
 				GameCenterLeaderboardSetLocalization: &Relationship{
