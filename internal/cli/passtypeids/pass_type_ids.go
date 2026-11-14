@@ -209,8 +209,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --pass-type-id is required")
-				return shared.MissingRequiredUsageError("--pass-type-id")
+				return shared.RequiredFlag("--pass-type-id")
 			}
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
 				return shared.UsageError("pass-type-ids view: --limit-certificates must be between 1 and 50")
@@ -290,13 +289,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			identifierValue := strings.TrimSpace(*identifier)
 			if identifierValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --identifier is required")
-				return shared.MissingRequiredUsageError("--identifier")
+				return shared.RequiredFlag("--identifier")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			client, err := shared.GetASCClient()
@@ -342,13 +339,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --pass-type-id is required")
-				return shared.MissingRequiredUsageError("--pass-type-id")
+				return shared.RequiredFlag("--pass-type-id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			client, err := shared.GetASCClient()
@@ -393,12 +388,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --pass-type-id is required")
-				return shared.MissingRequiredUsageError("--pass-type-id")
+				return shared.RequiredFlag("--pass-type-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
