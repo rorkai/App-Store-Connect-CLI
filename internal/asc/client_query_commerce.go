@@ -6,25 +6,12 @@ import (
 	"strings"
 )
 
-type subscriptionOfferCodeOneTimeUseCodesQuery struct {
-	listQuery
-}
-
 type winBackOffersQuery struct {
 	listQuery
 	fields      []string
 	priceFields []string
 	include     []string
 	pricesLimit int
-}
-
-type winBackOfferPricesQuery struct {
-	listQuery
-	territoryIDs                 []string
-	fields                       []string
-	territoryFields              []string
-	subscriptionPricePointFields []string
-	include                      []string
 }
 
 type promotedPurchasesQuery struct {
@@ -67,12 +54,6 @@ func buildPromotedPurchasesQuery(query *promotedPurchasesQuery) string {
 	return values.Encode()
 }
 
-func buildSubscriptionOfferCodeOneTimeUseCodesQuery(query *subscriptionOfferCodeOneTimeUseCodesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildWinBackOffersQuery(query *winBackOffersQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[winBackOffers]", query.fields)
@@ -82,17 +63,6 @@ func buildWinBackOffersQuery(query *winBackOffersQuery) string {
 	if query.pricesLimit > 0 {
 		values.Set("limit[prices]", strconv.Itoa(query.pricesLimit))
 	}
-	return values.Encode()
-}
-
-func buildWinBackOfferPricesQuery(query *winBackOfferPricesQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[territory]", query.territoryIDs)
-	addCSV(values, "fields[winBackOfferPrices]", query.fields)
-	addCSV(values, "fields[territories]", query.territoryFields)
-	addCSV(values, "fields[subscriptionPricePoints]", query.subscriptionPricePointFields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
 	return values.Encode()
 }
 
@@ -123,14 +93,8 @@ func buildAppPriceSchedulePricesQuery(query *appPriceSchedulePricesQuery) string
 	return values.Encode()
 }
 
-// SubscriptionOfferCodeOneTimeUseCodesOption is a functional option for GetSubscriptionOfferCodeOneTimeUseCodes.
-type SubscriptionOfferCodeOneTimeUseCodesOption func(*subscriptionOfferCodeOneTimeUseCodesQuery)
-
 // WinBackOffersOption is a functional option for win-back offer list endpoints.
 type WinBackOffersOption func(*winBackOffersQuery)
-
-// WinBackOfferPricesOption is a functional option for win-back offer prices list endpoints.
-type WinBackOfferPricesOption func(*winBackOfferPricesQuery)
 
 // PromotedPurchasesOption is a functional option for promoted purchases endpoints.
 type PromotedPurchasesOption func(*promotedPurchasesQuery)
@@ -174,41 +138,6 @@ func WithWinBackOffersPricesLimit(limit int) WinBackOffersOption {
 		if limit > 0 {
 			q.pricesLimit = limit
 		}
-	}
-}
-
-// WithWinBackOfferPricesTerritoryFilter filters win-back offer prices by territory ID(s).
-func WithWinBackOfferPricesTerritoryFilter(ids []string) WinBackOfferPricesOption {
-	return func(q *winBackOfferPricesQuery) {
-		q.territoryIDs = normalizeList(ids)
-	}
-}
-
-// WithWinBackOfferPricesFields sets fields[winBackOfferPrices] for price responses.
-func WithWinBackOfferPricesFields(fields []string) WinBackOfferPricesOption {
-	return func(q *winBackOfferPricesQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-// WithWinBackOfferPricesTerritoryFields sets fields[territories] for included territories.
-func WithWinBackOfferPricesTerritoryFields(fields []string) WinBackOfferPricesOption {
-	return func(q *winBackOfferPricesQuery) {
-		q.territoryFields = normalizeList(fields)
-	}
-}
-
-// WithWinBackOfferPricesSubscriptionPricePointFields sets fields[subscriptionPricePoints] for included price points.
-func WithWinBackOfferPricesSubscriptionPricePointFields(fields []string) WinBackOfferPricesOption {
-	return func(q *winBackOfferPricesQuery) {
-		q.subscriptionPricePointFields = normalizeList(fields)
-	}
-}
-
-// WithWinBackOfferPricesInclude sets include for win-back offer price responses.
-func WithWinBackOfferPricesInclude(include []string) WinBackOfferPricesOption {
-	return func(q *winBackOfferPricesQuery) {
-		q.include = normalizeList(include)
 	}
 }
 

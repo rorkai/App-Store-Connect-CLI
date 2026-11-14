@@ -3,6 +3,6 @@
   "file": "customer_review_responses_gen.go",
   "operations": [
     {"operation":"customerReviewResponses_deleteInstance","name":"DeleteCustomerReviewResponse","params":["responseID"],"check":"require"},
-    {"operation":"customerReviewResponses_getInstance","name":"GetCustomerReviewResponse","params":["responseID"],"check":"require","response":"CustomerReviewResponseResponse"}
+    {"operation":"customerReviewResponses_getInstance","name":"GetCustomerReviewResponse","params":["responseID"],"check":"require","response":"CustomerReviewResponseResponse","deviations":[{"problem":"result data holds asc.CustomerReviewResponseAttributes, not the attributes of resource CustomerReviewResponseV1","reason":"CustomerReviewResponseAttributes is the hand-written attributes type, named without the version suffix of CustomerReviewResponseV1; the attribute names check passes for CustomerReviewResponseV1."}]}
   ]
 }

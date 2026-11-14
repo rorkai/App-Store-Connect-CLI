@@ -188,57 +188,6 @@ type CiIssueResponse struct {
 	Data  CiIssueResource `json:"data"`
 	Links Links           `json:"links"`
 }
-type ciBuildActionsQuery struct {
-	listQuery
-}
-
-// CiBuildActionsOption is a functional option for GetCiBuildActions.
-type CiBuildActionsOption func(*ciBuildActionsQuery)
-
-func buildCiBuildActionsQuery(query *ciBuildActionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-type ciArtifactsQuery struct {
-	listQuery
-}
-
-// CiArtifactsOption is a functional option for GetCiBuildActionArtifacts.
-type CiArtifactsOption func(*ciArtifactsQuery)
-
-func buildCiArtifactsQuery(query *ciArtifactsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-type ciTestResultsQuery struct {
-	listQuery
-}
-
-// CiTestResultsOption is a functional option for GetCiBuildActionTestResults.
-type CiTestResultsOption func(*ciTestResultsQuery)
-
-func buildCiTestResultsQuery(query *ciTestResultsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-type ciIssuesQuery struct {
-	listQuery
-}
-
-// CiIssuesOption is a functional option for GetCiBuildActionIssues.
-type CiIssuesOption func(*ciIssuesQuery)
-
-func buildCiIssuesQuery(query *ciIssuesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
 
 // DownloadCiArtifact downloads an artifact from its download URL.
 func (c *Client) DownloadCiArtifact(ctx context.Context, downloadURL string) (*ReportDownload, error) {

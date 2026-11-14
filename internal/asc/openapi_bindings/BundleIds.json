@@ -7,5 +7,8 @@
     {"operation":"bundleIds_deleteInstance","name":"DeleteBundleID","params":["id"],"check":"trim"},
     {"operation":"bundleIds_getInstance","name":"GetBundleID","params":["id"],"check":"trim","response":"BundleIDResponse"},
     {"operation":"bundleIds_profiles_getToManyRelated","name":"GetBundleIDProfiles","params":["bundleID"],"options":"BundleIDProfilesOption","query":"buildBundleIDProfilesQuery","nextContext":"bundleIdProfiles","response":"ProfilesResponse"}
+  ],
+  "queries": [
+    {"operation":"bundleIds_profiles_getToManyRelated","name":"BundleIDProfiles","deviations":[{"problem":"query parameters [fields[profiles]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

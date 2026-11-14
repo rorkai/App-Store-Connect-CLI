@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -74,4 +75,26 @@ func (c *Client) GetMarketplaceWebhooks(ctx context.Context, opts ...Marketplace
 		NextContext: "marketplaceWebhooks",
 		ParseErr:    "failed to parse marketplace webhooks response",
 	})
+}
+
+// MarketplaceWebhooksOption sets the query of GET /v1/marketplaceWebhooks (marketplaceWebhooks_getCollection).
+type MarketplaceWebhooksOption func(*marketplaceWebhooksQuery)
+
+type marketplaceWebhooksQuery struct {
+	listQuery
+	fields []string
+}
+
+// WithMarketplaceWebhooksFields sets fields[marketplaceWebhooks].
+func WithMarketplaceWebhooksFields(fields []string) MarketplaceWebhooksOption {
+	return func(q *marketplaceWebhooksQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildMarketplaceWebhooksQuery(query *marketplaceWebhooksQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[marketplaceWebhooks]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

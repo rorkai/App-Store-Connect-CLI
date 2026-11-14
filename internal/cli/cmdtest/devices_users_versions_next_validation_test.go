@@ -20,6 +20,7 @@ func TestDevicesUsersVersionsPaginateFromNext(t *testing.T) {
 			args:     []string{"users", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/users?cursor=AQ&limit=200",
 			dataType: "users",
+			deps:     true,
 		},
 		{
 			args:     []string{"versions", "list"},

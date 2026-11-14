@@ -13,5 +13,8 @@
     {"operation":"buildBetaDetails_getCollection","name":"GetBuildBetaDetails","options":"BuildBetaDetailsOption","query":"buildBuildBetaDetailsQuery","nextContext":"buildBetaDetails"},
     {"operation":"buildBetaDetails_getInstance","name":"GetBuildBetaDetail","params":["detailID"],"check":"require"},
     {"operation":"buildBetaDetails_updateInstance","name":"UpdateBuildBetaDetail","params":["detailID"],"check":"require"}
+  ],
+  "queries": [
+    {"operation":"buildBetaDetails_getCollection","name":"BuildBetaDetails","params":[{"name":"filter[build]","field":"buildIDs","arg":"ids"}],"deviations":[{"problem":"query parameters [fields[buildBetaDetails] fields[builds] filter[id] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

@@ -84,19 +84,6 @@ type GameCenterActivityVersionRelationships struct {
 // GameCenterActivityVersionsResponse is the response from version list endpoints.
 type GameCenterActivityVersionsResponse = Response[GameCenterActivityVersionAttributes]
 
-// GCActivityVersionsOption is a functional option for GetGameCenterActivityVersions.
-type GCActivityVersionsOption func(*gcActivityVersionsQuery)
-
-type gcActivityVersionsQuery struct {
-	listQuery
-}
-
-func buildGCActivityVersionsQuery(query *gcActivityVersionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterActivityLocalizationAttributes represents an activity localization.
 type GameCenterActivityLocalizationAttributes struct {
 	Locale      string `json:"locale"`
@@ -113,19 +100,6 @@ type GameCenterActivityLocalizationCreateAttributes struct {
 
 // GameCenterActivityLocalizationsResponse is the response from localization list endpoints.
 type GameCenterActivityLocalizationsResponse = Response[GameCenterActivityLocalizationAttributes]
-
-// GCActivityLocalizationsOption is a functional option for GetGameCenterActivityLocalizations.
-type GCActivityLocalizationsOption func(*gcActivityLocalizationsQuery)
-
-type gcActivityLocalizationsQuery struct {
-	listQuery
-}
-
-func buildGCActivityLocalizationsQuery(query *gcActivityLocalizationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
 
 // GameCenterActivityImageAttributes represents an activity image resource.
 type GameCenterActivityImageAttributes struct {
@@ -174,16 +148,3 @@ type GameCenterActivityVersionReleaseRelationships struct {
 
 // GameCenterActivityVersionReleasesResponse is the response from release list endpoints.
 type GameCenterActivityVersionReleasesResponse = Response[GameCenterActivityVersionReleaseAttributes]
-
-// GCActivityVersionReleasesOption is a functional option for GetGameCenterActivityVersionReleases.
-type GCActivityVersionReleasesOption func(*gcActivityVersionReleasesQuery)
-
-type gcActivityVersionReleasesQuery struct {
-	listQuery
-}
-
-func buildGCActivityVersionReleasesQuery(query *gcActivityVersionReleasesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}

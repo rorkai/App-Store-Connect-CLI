@@ -18,7 +18,7 @@
   ],
   "operations": [
     {"operation":"gameCenterLeaderboardImagesV2_deleteInstance","name":"DeleteGameCenterLeaderboardImageV2","params":["imageID"]},
-    {"operation":"gameCenterLeaderboardImagesV2_getInstance","name":"GetGameCenterLeaderboardImageV2","params":["imageID"],"response":"GameCenterLeaderboardImageResponse"},
+    {"operation":"gameCenterLeaderboardImagesV2_getInstance","name":"GetGameCenterLeaderboardImageV2","params":["imageID"],"response":"GameCenterLeaderboardImageResponse","deviations":[{"problem":"result data holds asc.GameCenterLeaderboardImageAttributes, not the attributes of resource GameCenterLeaderboardImageV2","reason":"GameCenterLeaderboardImageAttributes is the hand-written attributes type, named without the version suffix of GameCenterLeaderboardImageV2; the attribute names check passes for GameCenterLeaderboardImageV2."}]},
     {"operation":"gameCenterLeaderboardImages_deleteInstance","name":"DeleteGameCenterLeaderboardImage","params":["imageID"]},
     {"operation":"gameCenterLeaderboardImages_getInstance","name":"GetGameCenterLeaderboardImage","params":["imageID"]},
     {"operation":"gameCenterLeaderboardImages_updateInstance","name":"UpdateGameCenterLeaderboardImage","params":["imageID"],"args":[{"name":"uploaded"}]}

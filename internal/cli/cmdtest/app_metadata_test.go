@@ -6,6 +6,8 @@ import (
 	"flag"
 	"io"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestLocalizationsSearchKeywordsValidationErrors(t *testing.T) {
@@ -209,7 +211,11 @@ func TestCategoriesValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, stubClient(t, asctest.NewRegistry(t)), test.args, test.wantErr)
+		})
+	}
 }
 
 func TestAppInfoIncludeValidationErrors(t *testing.T) {

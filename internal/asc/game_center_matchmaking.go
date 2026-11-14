@@ -47,19 +47,6 @@ type GameCenterMatchmakingRuleSetAttributes struct {
 	MaxPlayers          int    `json:"maxPlayers"`
 }
 
-// GCMatchmakingRuleSetsOption is a functional option for GetGameCenterMatchmakingRuleSets.
-type GCMatchmakingRuleSetsOption func(*gcMatchmakingRuleSetsQuery)
-
-type gcMatchmakingRuleSetsQuery struct {
-	listQuery
-}
-
-func buildGCMatchmakingRuleSetsQuery(query *gcMatchmakingRuleSetsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterMatchmakingRuleAttributes represents a matchmaking rule resource.
 type GameCenterMatchmakingRuleAttributes struct {
 	ReferenceName string  `json:"referenceName"`
@@ -77,19 +64,6 @@ type GameCenterMatchmakingRuleRelationships struct {
 // GameCenterMatchmakingRulesResponse is the response from rule list endpoints.
 type GameCenterMatchmakingRulesResponse = Response[GameCenterMatchmakingRuleAttributes]
 
-// GCMatchmakingRulesOption is a functional option for GetGameCenterMatchmakingRules.
-type GCMatchmakingRulesOption func(*gcMatchmakingRulesQuery)
-
-type gcMatchmakingRulesQuery struct {
-	listQuery
-}
-
-func buildGCMatchmakingRulesQuery(query *gcMatchmakingRulesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterMatchmakingTeamAttributes represents a matchmaking team resource.
 type GameCenterMatchmakingTeamAttributes struct {
 	ReferenceName string `json:"referenceName"`
@@ -104,19 +78,6 @@ type GameCenterMatchmakingTeamRelationships struct {
 
 // GameCenterMatchmakingTeamsResponse is the response from team list endpoints.
 type GameCenterMatchmakingTeamsResponse = Response[GameCenterMatchmakingTeamAttributes]
-
-// GCMatchmakingTeamsOption is a functional option for GetGameCenterMatchmakingTeams.
-type GCMatchmakingTeamsOption func(*gcMatchmakingTeamsQuery)
-
-type gcMatchmakingTeamsQuery struct {
-	listQuery
-}
-
-func buildGCMatchmakingTeamsQuery(query *gcMatchmakingTeamsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
 
 // GameCenterMetricsDataPoint represents a metrics data point.
 type GameCenterMetricsDataPoint struct {

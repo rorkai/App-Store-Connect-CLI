@@ -80,19 +80,6 @@ type GameCenterChallengeVersionRelationships struct {
 // GameCenterChallengeVersionsResponse is the response from version list endpoints.
 type GameCenterChallengeVersionsResponse = Response[GameCenterChallengeVersionAttributes]
 
-// GCChallengeVersionsOption is a functional option for GetGameCenterChallengeVersions.
-type GCChallengeVersionsOption func(*gcChallengeVersionsQuery)
-
-type gcChallengeVersionsQuery struct {
-	listQuery
-}
-
-func buildGCChallengeVersionsQuery(query *gcChallengeVersionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterChallengeLocalizationAttributes represents a challenge localization.
 type GameCenterChallengeLocalizationAttributes struct {
 	Locale      string `json:"locale"`
@@ -109,19 +96,6 @@ type GameCenterChallengeLocalizationCreateAttributes struct {
 
 // GameCenterChallengeLocalizationsResponse is the response from localization list endpoints.
 type GameCenterChallengeLocalizationsResponse = Response[GameCenterChallengeLocalizationAttributes]
-
-// GCChallengeLocalizationsOption is a functional option for GetGameCenterChallengeLocalizations.
-type GCChallengeLocalizationsOption func(*gcChallengeLocalizationsQuery)
-
-type gcChallengeLocalizationsQuery struct {
-	listQuery
-}
-
-func buildGCChallengeLocalizationsQuery(query *gcChallengeLocalizationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
 
 // GameCenterChallengeImageAttributes represents a challenge image resource.
 type GameCenterChallengeImageAttributes struct {
@@ -170,16 +144,3 @@ type GameCenterChallengeVersionReleaseRelationships struct {
 
 // GameCenterChallengeVersionReleasesResponse is the response from release list endpoints.
 type GameCenterChallengeVersionReleasesResponse = Response[GameCenterChallengeVersionReleaseAttributes]
-
-// GCChallengeVersionReleasesOption is a functional option for GetGameCenterChallengeVersionReleases.
-type GCChallengeVersionReleasesOption func(*gcChallengeVersionReleasesQuery)
-
-type gcChallengeVersionReleasesQuery struct {
-	listQuery
-}
-
-func buildGCChallengeVersionReleasesQuery(query *gcChallengeVersionReleasesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}

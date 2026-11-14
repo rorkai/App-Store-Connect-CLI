@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -83,4 +84,26 @@ func (c *Client) UpdateBuildBetaDetail(ctx context.Context, detailID string, att
 		Path:    fmt.Sprintf("/v1/buildBetaDetails/%s", detailID),
 		Payload: payload,
 	})
+}
+
+// BuildBetaDetailsOption sets the query of GET /v1/buildBetaDetails (buildBetaDetails_getCollection).
+type BuildBetaDetailsOption func(*buildBetaDetailsQuery)
+
+type buildBetaDetailsQuery struct {
+	listQuery
+	buildIDs []string
+}
+
+// WithBuildBetaDetailsBuildIDs sets filter[build].
+func WithBuildBetaDetailsBuildIDs(ids []string) BuildBetaDetailsOption {
+	return func(q *buildBetaDetailsQuery) {
+		q.buildIDs = normalizeList(ids)
+	}
+}
+
+func buildBuildBetaDetailsQuery(query *buildBetaDetailsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[build]", query.buildIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

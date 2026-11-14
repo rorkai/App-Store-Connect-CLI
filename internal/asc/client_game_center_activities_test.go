@@ -132,35 +132,6 @@ func TestCreateGameCenterActivity_WithInitialVersion(t *testing.T) {
 	}
 }
 
-func TestUpdateGameCenterActivity(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivities","id":"act-1","attributes":{"referenceName":"Updated"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivities/act-1" {
-			t.Fatalf("expected path /v1/gameCenterActivities/act-1, got %s", req.URL.Path)
-		}
-		var payload GameCenterActivityUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.ID != "act-1" || payload.Data.Type != ResourceTypeGameCenterActivities {
-			t.Fatalf("unexpected payload: %+v", payload.Data)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.ReferenceName == nil || *payload.Data.Attributes.ReferenceName != "Updated" {
-			t.Fatalf("expected referenceName update, got %+v", payload.Data.Attributes)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	name := "Updated"
-	attrs := GameCenterActivityUpdateAttributes{ReferenceName: &name}
-	if _, err := client.UpdateGameCenterActivity(context.Background(), "act-1", attrs); err != nil {
-		t.Fatalf("UpdateGameCenterActivity() error: %v", err)
-	}
-}
-
 func TestAddGameCenterActivityAchievements(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, "")
 	client := newTestClient(t, func(req *http.Request) {
@@ -487,62 +458,5 @@ func TestGCActivitiesOptions(t *testing.T) {
 	}
 	if values.Get("limit") != "20" {
 		t.Fatalf("expected limit=20, got %q", values.Get("limit"))
-	}
-}
-
-func TestGCActivityVersionsOptions(t *testing.T) {
-	query := &gcActivityVersionsQuery{}
-	Limit[GCActivityVersionsOption](10)(query)
-	if query.limit != 10 {
-		t.Fatalf("expected limit 10, got %d", query.limit)
-	}
-	NextURL[GCActivityVersionsOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCActivityVersionsQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "10" {
-		t.Fatalf("expected limit=10, got %q", values.Get("limit"))
-	}
-}
-
-func TestGCActivityLocalizationsOptions(t *testing.T) {
-	query := &gcActivityLocalizationsQuery{}
-	Limit[GCActivityLocalizationsOption](6)(query)
-	if query.limit != 6 {
-		t.Fatalf("expected limit 6, got %d", query.limit)
-	}
-	NextURL[GCActivityLocalizationsOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCActivityLocalizationsQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "6" {
-		t.Fatalf("expected limit=6, got %q", values.Get("limit"))
-	}
-}
-
-func TestGCActivityVersionReleasesOptions(t *testing.T) {
-	query := &gcActivityVersionReleasesQuery{}
-	Limit[GCActivityVersionReleasesOption](14)(query)
-	if query.limit != 14 {
-		t.Fatalf("expected limit 14, got %d", query.limit)
-	}
-	NextURL[GCActivityVersionReleasesOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCActivityVersionReleasesQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "14" {
-		t.Fatalf("expected limit=14, got %q", values.Get("limit"))
 	}
 }

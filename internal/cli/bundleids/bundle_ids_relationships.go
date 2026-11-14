@@ -13,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BundleIDsAppCommand returns the bundle ID app command group.
-func BundleIDsAppCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app", flag.ExitOnError)
+// newBundleIDsAppCommand returns the bundle ID app command group.
+func newBundleIDsAppCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app",
@@ -28,7 +28,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BundleIDsAppGetCommand(),
+			newBundleIDsAppGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -36,9 +36,10 @@ Examples:
 	}
 }
 
-// BundleIDsAppGetCommand returns the bundle ID app get subcommand.
-func BundleIDsAppGetCommand() *ffcli.Command {
+// newBundleIDsAppGetCommand returns the bundle ID app get subcommand.
+func newBundleIDsAppGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "view",
 		Name:        "view",
 		ShortUsage:  "asc bundle-ids app view --id \"BUNDLE_ID\"",
@@ -58,9 +59,9 @@ Examples:
 	})
 }
 
-// BundleIDsProfilesCommand returns the bundle ID profiles command group.
-func BundleIDsProfilesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("profiles", flag.ExitOnError)
+// newBundleIDsProfilesCommand returns the bundle ID profiles command group.
+func newBundleIDsProfilesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("profiles", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "profiles",
@@ -73,7 +74,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BundleIDsProfilesListCommand(),
+			newBundleIDsProfilesListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -81,15 +82,15 @@ Examples:
 	}
 }
 
-// BundleIDsProfilesListCommand returns the bundle ID profiles list subcommand.
-func BundleIDsProfilesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newBundleIDsProfilesListCommand returns the bundle ID profiles list subcommand.
+func newBundleIDsProfilesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "bundleIds", "Bundle ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -105,28 +106,28 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("bundle-ids profiles list: --limit must be between 1 and 200")
+				return d.UsageError("bundle-ids profiles list: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("bundle-ids profiles list: %v", err)
+				return d.UsageErrorf("bundle-ids profiles list: %v", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
 				derivedID, err := extractBundleIDFromNextURL(*next)
 				if err != nil {
-					return shared.UsageErrorf("bundle-ids profiles list: %v", err)
+					return d.UsageErrorf("bundle-ids profiles list: %v", err)
 				}
 				idValue = derivedID
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("bundle-ids profiles list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.BundleIDProfilesOption{
@@ -136,7 +137,7 @@ Examples:
 
 			if *paginate {
 				if idValue == "" {
-					return shared.RequiredFlag("--id")
+					return d.RequiredFlag("--id")
 				}
 				paginateOpts := append(opts, asc.Limit[asc.BundleIDProfilesOption](200))
 				firstPage, err := client.GetBundleIDProfiles(requestCtx, idValue, paginateOpts...)
@@ -151,7 +152,7 @@ Examples:
 					return fmt.Errorf("bundle-ids profiles list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBundleIDProfiles(requestCtx, idValue, opts...)
@@ -159,7 +160,7 @@ Examples:
 				return fmt.Errorf("bundle-ids profiles list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

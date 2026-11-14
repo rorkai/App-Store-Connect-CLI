@@ -4,6 +4,7 @@ package asc
 
 import (
 	"context"
+	"net/url"
 )
 
 // ActorAttributes is the attributes object of the Actor schema.
@@ -30,4 +31,35 @@ func (c *Client) GetActors(ctx context.Context, opts ...ActorsOption) (*ActorsRe
 		Next:        query.nextURL,
 		NextContext: "actors",
 	})
+}
+
+// ActorsOption sets the query of GET /v1/actors (actors_getCollection).
+type ActorsOption func(*actorsQuery)
+
+type actorsQuery struct {
+	listQuery
+	ids    []string
+	fields []string
+}
+
+// WithActorsIDs sets filter[id].
+func WithActorsIDs(ids []string) ActorsOption {
+	return func(q *actorsQuery) {
+		q.ids = normalizeList(ids)
+	}
+}
+
+// WithActorsFields sets fields[actors].
+func WithActorsFields(fields []string) ActorsOption {
+	return func(q *actorsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildActorsQuery(query *actorsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[id]", query.ids)
+	addCSV(values, "fields[actors]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

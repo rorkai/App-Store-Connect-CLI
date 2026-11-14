@@ -13,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// UsersInvitesVisibleAppsCommand returns the invites visible apps command group.
-func UsersInvitesVisibleAppsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("visible-apps", flag.ExitOnError)
+// newUsersInvitesVisibleAppsCommand returns the invites visible apps command group.
+func newUsersInvitesVisibleAppsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("visible-apps", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "visible-apps",
@@ -28,7 +28,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			UsersInvitesVisibleAppsListCommand(),
+			newUsersInvitesVisibleAppsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -36,15 +36,15 @@ Examples:
 	}
 }
 
-// UsersInvitesVisibleAppsListCommand returns the invites visible apps list subcommand.
-func UsersInvitesVisibleAppsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("visible-apps list", flag.ExitOnError)
+// newUsersInvitesVisibleAppsListCommand returns the invites visible apps list subcommand.
+func newUsersInvitesVisibleAppsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("visible-apps list", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "userInvitations", "Invitation ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -60,28 +60,28 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("users invites visible-apps list: --limit must be between 1 and 200")
+				return d.UsageError("users invites visible-apps list: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("users invites visible-apps list: %v", err)
+				return d.UsageErrorf("users invites visible-apps list: %v", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
 				derivedID, err := extractUserInvitationIDFromNextURL(*next)
 				if err != nil {
-					return shared.UsageErrorf("users invites visible-apps list: %v", err)
+					return d.UsageErrorf("users invites visible-apps list: %v", err)
 				}
 				idValue = derivedID
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("users invites visible-apps list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.UserInvitationVisibleAppsOption{
@@ -91,7 +91,7 @@ Examples:
 
 			if *paginate {
 				if idValue == "" {
-					return shared.RequiredFlag("--id")
+					return d.RequiredFlag("--id")
 				}
 				paginateOpts := append(opts, asc.Limit[asc.UserInvitationVisibleAppsOption](200))
 				firstPage, err := client.GetUserInvitationVisibleApps(requestCtx, idValue, paginateOpts...)
@@ -106,7 +106,7 @@ Examples:
 					return fmt.Errorf("users invites visible-apps list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetUserInvitationVisibleApps(requestCtx, idValue, opts...)
@@ -114,7 +114,7 @@ Examples:
 				return fmt.Errorf("users invites visible-apps list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -7,5 +7,10 @@
     {"operation":"ciBuildActions_getInstance","name":"GetCiBuildAction","params":["buildActionID"],"check":"raw"},
     {"operation":"ciBuildActions_issues_getToManyRelated","name":"GetCiBuildActionIssues","params":["buildActionID"],"check":"raw","options":"CiIssuesOption","query":"buildCiIssuesQuery","nextContext":"ciIssues"},
     {"operation":"ciBuildActions_testResults_getToManyRelated","name":"GetCiBuildActionTestResults","params":["buildActionID"],"check":"raw","options":"CiTestResultsOption","query":"buildCiTestResultsQuery","nextContext":"ciTestResults"}
+  ],
+  "queries": [
+    {"operation":"ciBuildActions_artifacts_getToManyRelated","name":"CiArtifacts","deviations":[{"problem":"query parameters [fields[ciArtifacts]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"ciBuildActions_issues_getToManyRelated","name":"CiIssues","deviations":[{"problem":"query parameters [fields[ciIssues]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"ciBuildActions_testResults_getToManyRelated","name":"CiTestResults","deviations":[{"problem":"query parameters [fields[ciTestResults]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

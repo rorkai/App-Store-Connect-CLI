@@ -4,7 +4,7 @@ import "testing"
 
 func TestUsersVersionsListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"users", "visible-apps", "list"}, wantErr: "users visible-apps list: --next"},
+		{args: []string{"users", "visible-apps", "list"}, wantErr: "users visible-apps list: --next", deps: true},
 		{args: []string{"versions", "links", "--type", "appStoreVersionExperiments"}, wantErr: "versions links: --next"},
 	})
 }
@@ -15,21 +15,25 @@ func TestUsersVersionsListsPaginateFromNext(t *testing.T) {
 			args:     []string{"users", "invites", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/userInvitations?cursor=AQ&limit=200",
 			dataType: "userInvitations",
+			deps:     true,
 		},
 		{
 			args:     []string{"users", "visible-apps", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/users/user-1/visibleApps?cursor=AQ&limit=200",
 			dataType: "apps",
+			deps:     true,
 		},
 		{
 			args:     []string{"users", "visible-apps", "view"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/users/user-1/relationships/visibleApps?cursor=AQ&limit=200",
 			dataType: "apps",
+			deps:     true,
 		},
 		{
 			args:     []string{"users", "invites", "visible-apps", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/userInvitations/invite-1/visibleApps?cursor=AQ&limit=200",
 			dataType: "apps",
+			deps:     true,
 		},
 		{
 			args:     []string{"versions", "links", "--type", "appStoreVersionExperiments"},

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BundleIDsCommand returns the bundle IDs command with subcommands.
-func BundleIDsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("bundle-ids", flag.ExitOnError)
+// NewBundleIDsCommand returns the bundle IDs command with subcommands.
+func NewBundleIDsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("bundle-ids", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "bundle-ids",
@@ -35,14 +34,14 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BundleIDsListCommand(),
-			BundleIDsGetCommand(),
-			BundleIDsAppCommand(),
-			BundleIDsProfilesCommand(),
-			BundleIDsCreateCommand(),
-			BundleIDsUpdateCommand(),
-			BundleIDsDeleteCommand(),
-			BundleIDsCapabilitiesCommand(),
+			newBundleIDsListCommand(d),
+			newBundleIDsGetCommand(d),
+			newBundleIDsAppCommand(d),
+			newBundleIDsProfilesCommand(d),
+			newBundleIDsCreateCommand(d),
+			newBundleIDsUpdateCommand(d),
+			newBundleIDsDeleteCommand(d),
+			newBundleIDsCapabilitiesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -50,9 +49,9 @@ Examples:
 	}
 }
 
-// BundleIDsListCommand returns the bundle IDs list subcommand.
-func BundleIDsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newBundleIDsListCommand returns the bundle IDs list subcommand.
+func newBundleIDsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	name := fs.String("name", "", "Filter by name(s), comma-separated")
 	platform := fs.String("platform", "", "Filter by platform(s), comma-separated: "+strings.Join(shared.BundleIDPlatformList(), ", "))
@@ -70,7 +69,7 @@ func BundleIDsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -92,9 +91,9 @@ Examples:
 			profilesLimitSet := bundleIDsListFlagWasSet(fs, "profiles-limit")
 			capabilitiesLimitSet := bundleIDsListFlagWasSet(fs, "capabilities-limit")
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("bundle-ids list: %v", err)
+				return d.UsageErrorf("bundle-ids list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(
+			if err := d.RejectNextFlagConflicts(
 				fs,
 				*next,
 				"bundle-ids list",
@@ -103,57 +102,57 @@ Examples:
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("bundle-ids list: %w", shared.UsageError("--limit must be between 1 and 200"))
+				return fmt.Errorf("bundle-ids list: %w", d.UsageError("--limit must be between 1 and 200"))
 			}
 			if profilesLimitSet && (*profilesLimit < 1 || *profilesLimit > 50) {
-				return fmt.Errorf("bundle-ids list: %w", shared.UsageError("--profiles-limit must be between 1 and 50"))
+				return fmt.Errorf("bundle-ids list: %w", d.UsageError("--profiles-limit must be between 1 and 50"))
 			}
 			if capabilitiesLimitSet && (*capabilitiesLimit < 1 || *capabilitiesLimit > 50) {
-				return fmt.Errorf("bundle-ids list: %w", shared.UsageError("--capabilities-limit must be between 1 and 50"))
+				return fmt.Errorf("bundle-ids list: %w", d.UsageError("--capabilities-limit must be between 1 and 50"))
 			}
 			sortValue, err := normalizeBundleIDSort(*sort)
 			if err != nil {
-				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
+				return fmt.Errorf("bundle-ids list: %w", d.UsageError(err.Error()))
 			}
 
 			platformValues, err := normalizeBundleIDListPlatforms(shared.SplitCSV(*platform))
 			if err != nil {
-				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
+				return fmt.Errorf("bundle-ids list: %w", d.UsageError(err.Error()))
 			}
 			fieldValues, err := shared.NormalizeSelection(*fields, bundleIDFieldsList(), "--fields")
 			if err != nil {
-				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
+				return fmt.Errorf("bundle-ids list: %w", d.UsageError(err.Error()))
 			}
 			profileFieldValues, err := shared.NormalizeSelection(*profileFields, bundleIDProfileFieldsList(), "--profile-fields")
 			if err != nil {
-				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
+				return fmt.Errorf("bundle-ids list: %w", d.UsageError(err.Error()))
 			}
 			capabilityFieldValues, err := shared.NormalizeSelection(*capabilityFields, bundleIDCapabilityFieldsList(), "--capability-fields")
 			if err != nil {
-				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
+				return fmt.Errorf("bundle-ids list: %w", d.UsageError(err.Error()))
 			}
 			appFieldValues, err := shared.NormalizeSelection(*appFields, shared.AppFieldsList(), "--app-fields")
 			if err != nil {
-				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
+				return fmt.Errorf("bundle-ids list: %w", d.UsageError(err.Error()))
 			}
 			includeValues, err := shared.NormalizeSelection(*include, bundleIDIncludeList(), "--include")
 			if err != nil {
-				return fmt.Errorf("bundle-ids list: %w", shared.UsageError(err.Error()))
+				return fmt.Errorf("bundle-ids list: %w", d.UsageError(err.Error()))
 			}
 			if len(profileFieldValues) > 0 && !shared.HasInclude(includeValues, "profiles") {
-				return bundleIDsListIncludeRequirementUsageError("--profile-fields", "--profile-fields requires --include profiles")
+				return bundleIDsListIncludeRequirementUsageError(d, "--profile-fields", "--profile-fields requires --include profiles")
 			}
 			if len(capabilityFieldValues) > 0 && !shared.HasInclude(includeValues, "bundleIdCapabilities") {
-				return bundleIDsListIncludeRequirementUsageError("--capability-fields", "--capability-fields requires --include bundleIdCapabilities")
+				return bundleIDsListIncludeRequirementUsageError(d, "--capability-fields", "--capability-fields requires --include bundleIdCapabilities")
 			}
 			if len(appFieldValues) > 0 && !shared.HasInclude(includeValues, "app") {
-				return bundleIDsListIncludeRequirementUsageError("--app-fields", "--app-fields requires --include app")
+				return bundleIDsListIncludeRequirementUsageError(d, "--app-fields", "--app-fields requires --include app")
 			}
 			if profilesLimitSet && !shared.HasInclude(includeValues, "profiles") {
-				return bundleIDsListIncludeRequirementUsageError("--profiles-limit", "--profiles-limit requires --include profiles")
+				return bundleIDsListIncludeRequirementUsageError(d, "--profiles-limit", "--profiles-limit requires --include profiles")
 			}
 			if capabilitiesLimitSet && !shared.HasInclude(includeValues, "bundleIdCapabilities") {
-				return bundleIDsListIncludeRequirementUsageError("--capabilities-limit", "--capabilities-limit requires --include bundleIdCapabilities")
+				return bundleIDsListIncludeRequirementUsageError(d, "--capabilities-limit", "--capabilities-limit requires --include bundleIdCapabilities")
 			}
 
 			opts := []asc.BundleIDsOption{
@@ -176,17 +175,17 @@ Examples:
 			}
 			if err := asc.ValidateBundleIDsRequest(opts...); err != nil {
 				if asc.IsBundleIDsPaginationRequired(err) {
-					return bundleIDsListPaginateRequirementUsageError()
+					return bundleIDsListPaginateRequirementUsageError(d)
 				}
-				return bundleIDsListRequestValidationUsageError(err)
+				return bundleIDsListRequestValidationUsageError(d, err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("bundle-ids list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if *paginate {
@@ -203,7 +202,7 @@ Examples:
 					return fmt.Errorf("bundle-ids list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBundleIDs(requestCtx, opts...)
@@ -211,13 +210,13 @@ Examples:
 				return fmt.Errorf("bundle-ids list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func bundleIDsListIncludeRequirementUsageError(parameter, message string) error {
-	fmt.Fprintln(os.Stderr, "Error: "+message)
+func bundleIDsListIncludeRequirementUsageError(d *shared.Deps, parameter, message string) error {
+	fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 	return shared.WithDiagnostic(
 		shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message),
 		shared.DiagnosticInvalidInput,
@@ -225,9 +224,9 @@ func bundleIDsListIncludeRequirementUsageError(parameter, message string) error 
 	)
 }
 
-func bundleIDsListPaginateRequirementUsageError() error {
+func bundleIDsListPaginateRequirementUsageError(d *shared.Deps) error {
 	const message = "split identifier filter requires --paginate because multiple continuation URLs cannot be represented"
-	fmt.Fprintln(os.Stderr, "Error: "+message)
+	fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 	return shared.WithDiagnostic(
 		shared.NewReportedUsageError(shared.UsageErrorMissingRequired, message),
 		shared.DiagnosticRequiredInputMissing,
@@ -235,9 +234,9 @@ func bundleIDsListPaginateRequirementUsageError() error {
 	)
 }
 
-func bundleIDsListRequestValidationUsageError(err error) error {
+func bundleIDsListRequestValidationUsageError(d *shared.Deps, err error) error {
 	message := strings.TrimPrefix(strings.TrimSpace(err.Error()), "bundleIds: ")
-	fmt.Fprintln(os.Stderr, "Error: "+message)
+	fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 	return shared.WithDiagnostic(
 		shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message),
 		shared.DiagnosticInvalidInput,
@@ -253,9 +252,10 @@ func bundleIDsListFlagWasSet(fs *flag.FlagSet, name string) bool {
 	return set
 }
 
-// BundleIDsGetCommand returns the bundle IDs get subcommand.
-func BundleIDsGetCommand() *ffcli.Command {
+// newBundleIDsGetCommand returns the bundle IDs get subcommand.
+func newBundleIDsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "view",
 		Name:        "view",
 		ShortUsage:  "asc bundle-ids view --id \"BUNDLE_ID\"",
@@ -275,15 +275,15 @@ Examples:
 	})
 }
 
-// BundleIDsCreateCommand returns the bundle IDs create subcommand.
-func BundleIDsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newBundleIDsCreateCommand returns the bundle IDs create subcommand.
+func newBundleIDsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	identifier := fs.String("identifier", "", "Bundle ID identifier (e.g., com.example.app)")
 	name := fs.String("name", "", "Bundle ID name")
 	platform := fs.String("platform", "IOS", "Platform: "+strings.Join(shared.BundleIDPlatformList(), ", "))
 	seedID := fs.String("seed-id", "", "App ID prefix (seedId); omit for Apple's default")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -299,15 +299,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			identifierValue := strings.TrimSpace(*identifier)
 			if identifierValue == "" {
-				return shared.RequiredFlag("--identifier")
+				return d.RequiredFlag("--identifier")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 			platformValue, err := shared.NormalizeBundleIDPlatform(*platform)
 			if err != nil {
-				return fmt.Errorf("bundle-ids create: %w", shared.UsageError(err.Error()))
+				return fmt.Errorf("bundle-ids create: %w", d.UsageError(err.Error()))
 			}
 			seedIDValue := strings.TrimSpace(*seedID)
 			seedIDSet := false
@@ -317,15 +317,15 @@ Examples:
 				}
 			})
 			if seedIDSet && seedIDValue == "" {
-				return fmt.Errorf("bundle-ids create: %w", shared.UsageError("--seed-id must not be empty"))
+				return fmt.Errorf("bundle-ids create: %w", d.UsageError("--seed-id must not be empty"))
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("bundle-ids create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.BundleIDCreateAttributes{
@@ -339,18 +339,18 @@ Examples:
 				return fmt.Errorf("bundle-ids create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BundleIDsUpdateCommand returns the bundle IDs update subcommand.
-func BundleIDsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newBundleIDsUpdateCommand returns the bundle IDs update subcommand.
+func newBundleIDsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "bundleIds", "Bundle ID")
 	name := fs.String("name", "", "Bundle ID name")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -365,19 +365,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("bundle-ids update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.BundleIDUpdateAttributes{Name: nameValue}
@@ -386,14 +386,15 @@ Examples:
 				return fmt.Errorf("bundle-ids update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BundleIDsDeleteCommand returns the bundle IDs delete subcommand.
-func BundleIDsDeleteCommand() *ffcli.Command {
+// newBundleIDsDeleteCommand returns the bundle IDs delete subcommand.
+func newBundleIDsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "delete",
 		Name:        "delete",
 		ShortUsage:  "asc bundle-ids delete --id \"BUNDLE_ID\" --confirm",
