@@ -311,7 +311,7 @@ func TestSubscriptionsIntroductoryOffersCreateSelectorAndPostShareOperationTimeo
 	root.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
-	started := time.Now()
+	var elapsed time.Duration
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"subscriptions", "offers", "introductory", "create",
@@ -324,7 +324,11 @@ func TestSubscriptionsIntroductoryOffersCreateSelectorAndPostShareOperationTimeo
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		synctest.Test(t, func(*testing.T) {
+			started := time.Now()
+			runErr = root.Run(context.Background())
+			elapsed = time.Since(started)
+		})
 	})
 	if runErr == nil {
 		t.Fatalf("expected create operation timeout, got nil; selector-to-POST deadline delta=%v", postDeadlineDelta)
@@ -338,10 +342,10 @@ func TestSubscriptionsIntroductoryOffersCreateSelectorAndPostShareOperationTimeo
 	if stdout != "" || stderr != "" {
 		t.Fatalf("expected no output before single-create timeout, got stdout=%q stderr=%q", stdout, stderr)
 	}
-	if postDeadlineDelta < 0 || postDeadlineDelta > 100*time.Millisecond {
+	if postDeadlineDelta != 0 {
 		t.Fatalf("expected selector and POST to share one operation deadline, delta=%v", postDeadlineDelta)
 	}
-	if elapsed := time.Since(started); elapsed > 2*time.Second {
+	if elapsed != time.Second {
 		t.Fatalf("expected explicit 1s timeout to cap the operation, elapsed=%v", elapsed)
 	}
 }

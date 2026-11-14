@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -192,8 +193,8 @@ func TestIAPPriceSchedulesCreateRefreshesContextAfterTierResolution(t *testing.T
 				t.Fatal("expected create request to carry a timeout deadline")
 			}
 			createDeadlineRemaining = time.Until(deadline)
-			if createDeadlineRemaining < 35*time.Millisecond {
-				t.Fatalf("expected fresh create context after tier resolution, got only %v remaining", createDeadlineRemaining)
+			if createDeadlineRemaining != 80*time.Millisecond {
+				t.Fatalf("expected fresh create context after tier resolution, got %v remaining, want 80ms", createDeadlineRemaining)
 			}
 
 			resp := `{"data":{"type":"inAppPurchasePriceSchedules","id":"sched-1","attributes":{}}}`
@@ -223,8 +224,10 @@ func TestIAPPriceSchedulesCreateRefreshesContextAfterTierResolution(t *testing.T
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if runErr != nil {
+			t.Fatalf("run error: %v", runErr)
 		}
 	})
 

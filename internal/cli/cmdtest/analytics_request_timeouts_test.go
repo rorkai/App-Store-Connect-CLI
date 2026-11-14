@@ -91,7 +91,7 @@ func TestAnalyticsViewRefreshesTimeoutForEachRequest(t *testing.T) {
 	})
 	setAnalyticsTimeoutTestClient(t, transport)
 
-	stdout, stderr, runErr := runCommand(t, []string{
+	stdout, stderr, runErr := runCommandOnFakeClock(t, []string{
 		"analytics", "view",
 		"--request-id", analyticsViewRequestID,
 		"--include-segments",
@@ -210,7 +210,7 @@ func TestAnalyticsDownloadRefreshesTimeoutThroughBodyTransfer(t *testing.T) {
 	setAnalyticsTimeoutTestClient(t, transport)
 
 	outputPath := filepath.Join(t.TempDir(), "analytics-report.csv.gz")
-	stdout, stderr, runErr := runCommand(t, []string{
+	stdout, stderr, runErr := runCommandOnFakeClock(t, []string{
 		"analytics", "download",
 		"--request-id", analyticsViewRequestID,
 		"--instance-id", "instance-1",

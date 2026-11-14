@@ -6,9 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -59,7 +59,7 @@ func TestAssetListCommandsRenewRequestTimeout(t *testing.T) {
 			t.Setenv("ASC_MAX_RETRIES", "0")
 
 			callCount := 0
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				callCount++
 				var body string
 				switch callCount {
@@ -86,15 +86,9 @@ func TestAssetListCommandsRenewRequestTimeout(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
 				_, _ = io.WriteString(w, body)
-			}))
-			t.Cleanup(server.Close)
+			})
 
-			serverURL, err := url.Parse(server.URL)
-			if err != nil {
-				t.Fatalf("parse test server URL: %v", err)
-			}
 			requestDeadlines := make([]time.Time, 0, 2)
-			serverTransport := server.Client().Transport
 			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				deadline, ok := req.Context().Deadline()
 				if !ok {
@@ -102,10 +96,9 @@ func TestAssetListCommandsRenewRequestTimeout(t *testing.T) {
 				}
 				requestDeadlines = append(requestDeadlines, deadline)
 
-				cloned := req.Clone(req.Context())
-				cloned.URL.Scheme = serverURL.Scheme
-				cloned.URL.Host = serverURL.Host
-				return serverTransport.RoundTrip(cloned)
+				response := httptest.NewRecorder()
+				handler.ServeHTTP(response, req)
+				return response.Result(), nil
 			})
 			client, err := asc.NewClientWithHTTPClient(
 				os.Getenv("ASC_KEY_ID"),
@@ -128,7 +121,7 @@ func TestAssetListCommandsRenewRequestTimeout(t *testing.T) {
 				if err := root.Parse([]string{tt.command, "list", "--version-localization", "loc-1"}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
-				runErr = root.Run(context.Background())
+				synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 			})
 
 			if runErr != nil {
@@ -140,8 +133,8 @@ func TestAssetListCommandsRenewRequestTimeout(t *testing.T) {
 			if callCount != 3 {
 				t.Fatalf("request count = %d, want 3", callCount)
 			}
-			if !requestDeadlines[1].After(requestDeadlines[0]) {
-				t.Fatalf("child request deadline = %v, want later than set request deadline %v", requestDeadlines[1], requestDeadlines[0])
+			if gap := requestDeadlines[1].Sub(requestDeadlines[0]); gap != 5*time.Millisecond {
+				t.Fatalf("child request deadline = %v, want 5ms later than set request deadline %v", requestDeadlines[1], requestDeadlines[0])
 			}
 
 			var result struct {
