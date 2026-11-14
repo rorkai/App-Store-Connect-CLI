@@ -57,8 +57,7 @@ func RootCommandWithDeps(version string, d *shared.Deps) *ffcli.Command {
 	return root
 }
 
-func rootCommandForArgs(version string, args []string) *ffcli.Command {
-	d := shared.DefaultDeps()
+func rootCommandForArgs(version string, d *shared.Deps, args []string) *ffcli.Command {
 	catalog := registry.NewCatalogWithDeps(version, d)
 	root := newRootCommand(version, d, catalog.MetadataCommands())
 	catalog.SetCompletionRootFlagSet(root.FlagSet)
@@ -74,8 +73,8 @@ func rootCommandForArgs(version string, args []string) *ffcli.Command {
 	root.Subcommands = catalog.CommandsFor(parts[1])
 	for _, subcommand := range root.Subcommands {
 		if strings.EqualFold(subcommand.Name, parts[1]) {
-			shared.WrapCommandOutputValidation(subcommand)
-			shared.WrapNextLimitConflicts(subcommand)
+			shared.WrapCommandOutputValidation(subcommand, d)
+			shared.WrapNextLimitConflicts(subcommand, d)
 			break
 		}
 	}
@@ -95,8 +94,8 @@ func newRootCommand(version string, d *shared.Deps, subcommands []*ffcli.Command
 	}
 
 	for _, subcommand := range subcommands {
-		shared.WrapCommandOutputValidation(subcommand)
-		shared.WrapNextLimitConflicts(subcommand)
+		shared.WrapCommandOutputValidation(subcommand, d)
+		shared.WrapNextLimitConflicts(subcommand, d)
 	}
 
 	root.FlagSet.BoolVar(&versionRequested, "version", false, "Print version and exit")

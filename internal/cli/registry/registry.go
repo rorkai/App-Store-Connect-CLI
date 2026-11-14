@@ -178,7 +178,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("product-pages", "Manage custom product pages and product page experiments.", productpages.ProductPagesCommand),
 		commandFactory("routing-coverage", "Manage routing app coverage files.", routingcoverage.RoutingCoverageCommand),
 		commandFactory("eula", "Manage End User License Agreements (EULA).", eula.EULACommand),
-		commandFactory("agreements", "Manage agreements in App Store Connect.", agreements.AgreementsCommand),
+		commandFactory("agreements", "Manage agreements in App Store Connect.", func() *ffcli.Command {
+			return agreements.NewAgreementsCommand(d)
+		}),
 		commandFactory("pricing", "Manage app pricing and availability.", pricing.PricingCommand),
 		commandFactory("pre-orders", "Manage app pre-orders.", preorders.PreOrdersCommand),
 		commandFactory("localizations", "Manage App Store localization metadata.", localizations.LocalizationsCommand),

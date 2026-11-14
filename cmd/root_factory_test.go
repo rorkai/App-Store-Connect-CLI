@@ -1,9 +1,13 @@
 package cmd
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+)
 
 func TestRootCommandForArgsBuildsOnlySelectedSubtree(t *testing.T) {
-	root := rootCommandForArgs("test", []string{"builds", "list"})
+	root := rootCommandForArgs("test", shared.DefaultDeps(), []string{"builds", "list"})
 	builds := findDirectSubcommand(root, "builds")
 	if builds == nil || len(builds.Subcommands) == 0 {
 		t.Fatal("selected builds subtree was not materialized")
@@ -18,7 +22,7 @@ func TestRootCommandForArgsBuildsOnlySelectedSubtree(t *testing.T) {
 }
 
 func TestRootCommandForArgsSkipsRootFlagValues(t *testing.T) {
-	root := rootCommandForArgs("test", []string{"--profile", "builds", "completion", "--shell", "bash"})
+	root := rootCommandForArgs("test", shared.DefaultDeps(), []string{"--profile", "builds", "completion", "--shell", "bash"})
 	completion := findDirectSubcommand(root, "completion")
 	if completion == nil || completion.FlagSet == nil {
 		t.Fatal("completion command was not materialized")
@@ -31,7 +35,7 @@ func TestRootCommandForArgsSkipsRootFlagValues(t *testing.T) {
 
 func TestRootCommandForArgsPreservesRootHelp(t *testing.T) {
 	full := RootCommand("test")
-	lazy := rootCommandForArgs("test", []string{"--help"})
+	lazy := rootCommandForArgs("test", shared.DefaultDeps(), []string{"--help"})
 	if got, want := lazy.UsageFunc(lazy), full.UsageFunc(full); got != want {
 		t.Fatalf("lazy root help differs from full catalog:\n--- got ---\n%s\n--- want ---\n%s", got, want)
 	}
@@ -40,13 +44,13 @@ func TestRootCommandForArgsPreservesRootHelp(t *testing.T) {
 func BenchmarkRootCommandForArgsBuildsList(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = rootCommandForArgs("test", []string{"builds", "list"})
+		_ = rootCommandForArgs("test", shared.DefaultDeps(), []string{"builds", "list"})
 	}
 }
 
 func BenchmarkRootCommandForArgsHelp(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = rootCommandForArgs("test", []string{"--help"})
+		_ = rootCommandForArgs("test", shared.DefaultDeps(), []string{"--help"})
 	}
 }

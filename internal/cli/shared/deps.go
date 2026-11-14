@@ -3,6 +3,7 @@ package shared
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -79,4 +80,25 @@ func (d *Deps) BindOutputFlags(fs *flag.FlagSet) OutputFlags {
 // that more pages exist to d's stderr.
 func (d *Deps) PrintOutput(data any, format string, pretty bool) error {
 	return printOutputTo(d.IO.Out, d.IO.ErrOut, data, format, pretty)
+}
+
+// UsageError is UsageError with the "Error:" line written to d's stderr.
+func (d *Deps) UsageError(message string) error {
+	return usageErrorTo(d.IO.ErrOut, message)
+}
+
+// UsageErrorf is UsageErrorf with the "Error:" line written to d's stderr.
+func (d *Deps) UsageErrorf(format string, args ...any) error {
+	return d.UsageError(fmt.Sprintf(format, args...))
+}
+
+// RequiredFlag is RequiredFlag with the "Error:" line written to d's stderr.
+func (d *Deps) RequiredFlag(name string) error {
+	return requiredFlagTo(d.IO.ErrOut, name)
+}
+
+// RejectNextFlagConflicts is RejectNextFlagConflicts with the "Error:" line
+// written to d's stderr.
+func (d *Deps) RejectNextFlagConflicts(fs *flag.FlagSet, next, command string, names ...string) error {
+	return rejectNextFlagConflicts(d.IO.ErrOut, fs, next, command, names...)
 }

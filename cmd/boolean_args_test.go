@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestNormalizeSpacedBooleanFlags(t *testing.T) {
@@ -152,7 +154,7 @@ func TestNormalizeSpacedBooleanFlagsPreservesPositionalCommandPayloads(t *testin
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := rootCommandForArgs("1.0.0", test.args)
+			root := rootCommandForArgs("1.0.0", shared.DefaultDeps(), test.args)
 			got := normalizeSpacedBooleanFlags(root, test.args)
 			if !reflect.DeepEqual(got, test.args) {
 				t.Fatalf("normalizeSpacedBooleanFlags() = %#v, want legacy positional args %#v", got, test.args)
@@ -305,7 +307,7 @@ func TestRequestedHelpArgsRecognizesPositionalPayloadCommands(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := rootCommandForArgs("1.0.0", test.args)
+			root := rootCommandForArgs("1.0.0", shared.DefaultDeps(), test.args)
 			gotArgs, gotOK := requestedHelpArgs(root, test.args)
 			if !gotOK {
 				t.Fatalf("requestedHelpArgs(%v) ok = false, want true", test.args)
