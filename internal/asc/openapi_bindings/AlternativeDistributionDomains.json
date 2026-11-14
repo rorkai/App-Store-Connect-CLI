@@ -1,0 +1,17 @@
+{
+  "tag": "AlternativeDistributionDomains",
+  "file": "alternative_distribution_domains_gen.go",
+  "types": [
+    "AlternativeDistributionDomainAttributes",
+    "AlternativeDistributionDomainCreateAttributes",
+    "AlternativeDistributionDomainCreateData",
+    "AlternativeDistributionDomainCreateRequest",
+    "AlternativeDistributionDomainResponse",
+    "AlternativeDistributionDomainsResponse"
+  ],
+  "operations": [
+    {"operation":"alternativeDistributionDomains_deleteInstance","name":"DeleteAlternativeDistributionDomain","params":["domainID"],"check":"require"},
+    {"operation":"alternativeDistributionDomains_getCollection","name":"GetAlternativeDistributionDomains","options":"AlternativeDistributionDomainsOption","query":"buildAlternativeDistributionDomainsQuery","nextContext":"alternativeDistributionDomains","parseErr":"failed to parse alternative distribution domains response"},
+    {"operation":"alternativeDistributionDomains_getInstance","name":"GetAlternativeDistributionDomain","params":["domainID"],"check":"require","parseErr":"failed to parse alternative distribution domain response"}
+  ]
+}

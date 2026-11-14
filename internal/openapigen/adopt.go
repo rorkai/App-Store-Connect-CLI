@@ -49,12 +49,13 @@ func (d *decl) adopt() {
 // source equals what the generator renders, adds their bindings, and reports
 // every operation and type it leaves hand-written, with the reason. It writes
 // nothing: it returns the new contents of each hand-written file it would
-// change, nil for a file left empty.
-func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer) (map[string][]byte, error) {
+// change, nil for a file left empty, and the families whose bindings grew.
+func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer) (map[string][]byte, []*Family, error) {
 	p, err := loadPackage(dir)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	var adopted []*Family
 	bound := map[string]bool{}
 	for _, f := range b.Families {
 		for _, op := range f.Operations {
@@ -64,7 +65,7 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 	for _, tag := range tags {
 		ops := spec.Operations(tag)
 		if len(ops) == 0 {
-			return nil, fmt.Errorf("no operations tagged %s", tag)
+			return nil, nil, fmt.Errorf("no operations tagged %s", tag)
 		}
 		var adoptedOps []*OpBind
 		var adoptedTypes []string
@@ -114,9 +115,11 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			fam := b.Family(tag, fileName(tag))
 			fam.Operations = append(fam.Operations, adoptedOps...)
 			fam.Types = append(fam.Types, adoptedTypes...)
+			adopted = append(adopted, fam)
 		}
 	}
-	return p.edits()
+	edits, err := p.edits()
+	return edits, adopted, err
 }
 
 func loadPackage(dir string) (*pkg, error) {
