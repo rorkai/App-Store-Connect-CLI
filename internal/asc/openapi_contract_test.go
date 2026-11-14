@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -641,17 +640,12 @@ func checkContractResult(spec *contractSpec, result any, response contractRespon
 	return append(problems, checkContractResultType(reflect.TypeOf(result), response)...)
 }
 
-// contractVersionSuffix is the version suffix of a resource schema name, such
-// as the V2 of GameCenterLeaderboardV2.
-var contractVersionSuffix = regexp.MustCompile(`V[0-9]+$`)
-
 // checkContractResultType checks that the result's data items are the
 // response's resource by name, as the generator names them: the attributes of
-// resource R are type RAttributes. Hand-written types may differ in case or
-// leave out a version suffix. Attribute names alone cannot tell two resources
-// apart when both have the same names, or when a type keeps whatever
-// attributes it decodes. Linkages carry no attributes, so their items must
-// have none.
+// resource R are type RAttributes; hand-written types may differ in case.
+// Attribute names alone cannot tell two resources apart when both have the
+// same names, or when a type keeps whatever attributes it decodes. Linkages
+// carry no attributes, so their items must have none.
 func checkContractResultType(result reflect.Type, response contractResponse) []string {
 	data, ok := result.Elem().FieldByName("Data")
 	if !ok {
@@ -672,9 +666,8 @@ func checkContractResultType(result reflect.Type, response contractResponse) []s
 	if hasAttrs && attrs.Type.Name() != "" {
 		name, holds = strings.TrimSuffix(attrs.Type.Name(), "Attributes"), attrs.Type.String()
 	}
-	want := response.resourceName
-	if !strings.EqualFold(name, want) && !strings.EqualFold(name, contractVersionSuffix.ReplaceAllString(want, "")) {
-		return []string{fmt.Sprintf("result data holds %s, not the attributes of resource %s", holds, want)}
+	if !strings.EqualFold(name, response.resourceName) {
+		return []string{fmt.Sprintf("result data holds %s, not the attributes of resource %s", holds, response.resourceName)}
 	}
 	return nil
 }
