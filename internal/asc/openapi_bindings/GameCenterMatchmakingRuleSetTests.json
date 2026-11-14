@@ -1,0 +1,7 @@
+{
+  "tag": "GameCenterMatchmakingRuleSetTests",
+  "file": "game_center_matchmaking_rule_set_tests_gen.go",
+  "types": [
+    "GameCenterMatchmakingRuleSetTestResponse"
+  ]
+}

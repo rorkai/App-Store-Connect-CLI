@@ -8,17 +8,6 @@ import (
 	"strings"
 )
 
-// GetGameCenterLeaderboardSetMemberLocalizations retrieves leaderboard set member localizations.
-func (c *Client) GetGameCenterLeaderboardSetMemberLocalizations(ctx context.Context, opts ...GCLeaderboardSetMemberLocalizationsOption) (*GameCenterLeaderboardSetMemberLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardSetMemberLocalizationsResponse](ctx, c, readRequest{
-		Path:        "/v1/gameCenterLeaderboardSetMemberLocalizations",
-		Query:       buildGCLeaderboardSetMemberLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-set-member-localizations",
-	})
-}
-
 // GetGameCenterLeaderboardSetMemberLocalization retrieves a leaderboard set member localization by ID.
 // App Store Connect does not expose a direct instance GET, so this resolves the
 // localization's two parents and searches the required doubly filtered collection.
@@ -159,23 +148,4 @@ func (c *Client) UpdateGameCenterLeaderboardSetMemberLocalization(ctx context.Co
 		Path:    fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", localizationID),
 		Payload: payload,
 	})
-}
-
-// DeleteGameCenterLeaderboardSetMemberLocalization deletes a leaderboard set member localization.
-func (c *Client) DeleteGameCenterLeaderboardSetMemberLocalization(ctx context.Context, localizationID string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", localizationID), nil)
-}
-
-// GetGameCenterLeaderboardSetMemberLocalizationLeaderboard retrieves the leaderboard for a member localization.
-func (c *Client) GetGameCenterLeaderboardSetMemberLocalizationLeaderboard(ctx context.Context, localizationID string) (*GameCenterLeaderboardResponse, error) {
-	return getJSON[GameCenterLeaderboardResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s/gameCenterLeaderboard", strings.TrimSpace(localizationID))})
-}
-
-// GetGameCenterLeaderboardSetMemberLocalizationLeaderboardSet retrieves the leaderboard set for a member localization.
-func (c *Client) GetGameCenterLeaderboardSetMemberLocalizationLeaderboardSet(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetResponse, error) {
-	return getJSON[GameCenterLeaderboardSetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s/gameCenterLeaderboardSet", strings.TrimSpace(localizationID))})
 }

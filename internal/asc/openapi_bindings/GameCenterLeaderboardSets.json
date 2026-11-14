@@ -1,0 +1,27 @@
+{
+  "tag": "GameCenterLeaderboardSets",
+  "file": "game_center_leaderboard_sets_gen.go",
+  "types": [
+    "GameCenterLeaderboardSetCreateAttributes",
+    "GameCenterLeaderboardSetCreateRequest",
+    "GameCenterLeaderboardSetResponse",
+    "GameCenterLeaderboardSetUpdateAttributes",
+    "GameCenterLeaderboardSetUpdateData",
+    "GameCenterLeaderboardSetUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterLeaderboardSetsV2_deleteInstance","name":"DeleteGameCenterLeaderboardSetV2","params":["setID"]},
+    {"operation":"gameCenterLeaderboardSetsV2_gameCenterLeaderboards_createToManyRelationship","name":"AddGameCenterLeaderboardSetMembersV2","params":["setID"],"ids":"leaderboardIDs"},
+    {"operation":"gameCenterLeaderboardSetsV2_gameCenterLeaderboards_deleteToManyRelationship","name":"RemoveGameCenterLeaderboardSetMembersV2","params":["setID"],"ids":"leaderboardIDs"},
+    {"operation":"gameCenterLeaderboardSetsV2_gameCenterLeaderboards_getToManyRelated","name":"GetGameCenterLeaderboardSetMembersV2","params":["setID"],"options":"GCLeaderboardSetMembersOption","query":"buildGCLeaderboardSetMembersQuery","nextContext":"game-center-leaderboard-set-members-v2","response":"GameCenterLeaderboardsResponse"},
+    {"operation":"gameCenterLeaderboardSetsV2_getInstance","name":"GetGameCenterLeaderboardSetV2","params":["setID"],"response":"GameCenterLeaderboardSetResponse"},
+    {"operation":"gameCenterLeaderboardSetsV2_versions_getToManyRelated","name":"GetGameCenterLeaderboardSetVersions","params":["setID"],"options":"GCLeaderboardSetVersionsOption","query":"buildGCLeaderboardSetVersionsQuery","nextContext":"game-center-leaderboard-set-versions","response":"GameCenterLeaderboardSetVersionsResponse"},
+    {"operation":"gameCenterLeaderboardSets_deleteInstance","name":"DeleteGameCenterLeaderboardSet","params":["setID"]},
+    {"operation":"gameCenterLeaderboardSets_gameCenterLeaderboards_getToManyRelated","name":"GetGameCenterLeaderboardSetMembers","params":["setID"],"options":"GCLeaderboardSetMembersOption","query":"buildGCLeaderboardSetMembersQuery","nextContext":"game-center-leaderboard-set-members"},
+    {"operation":"gameCenterLeaderboardSets_getInstance","name":"GetGameCenterLeaderboardSet","params":["setID"]},
+    {"operation":"gameCenterLeaderboardSets_groupLeaderboardSet_getToOneRelated","name":"GetGameCenterLeaderboardSetGroupLeaderboardSet","params":["setID"]},
+    {"operation":"gameCenterLeaderboardSets_localizations_getToManyRelated","name":"GetGameCenterLeaderboardSetLocalizations","params":["setID"],"options":"GCLeaderboardSetLocalizationsOption","query":"buildGCLeaderboardSetLocalizationsQuery","nextContext":"game-center-leaderboard-set-localizations"},
+    {"operation":"gameCenterLeaderboardSets_releases_getToManyRelated","name":"GetGameCenterLeaderboardSetReleases","params":["setID"],"options":"GCLeaderboardSetReleasesOption","query":"buildGCLeaderboardSetReleasesQuery","nextContext":"game-center-leaderboard-set-releases"},
+    {"operation":"gameCenterLeaderboardSets_updateInstance","name":"UpdateGameCenterLeaderboardSet","params":["setID"]}
+  ]
+}

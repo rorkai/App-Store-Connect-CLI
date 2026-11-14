@@ -1,0 +1,19 @@
+{
+  "tag": "GameCenterMatchmakingRules",
+  "file": "game_center_matchmaking_rules_gen.go",
+  "types": [
+    "GameCenterMatchmakingRuleCreateAttributes",
+    "GameCenterMatchmakingRuleCreateRequest",
+    "GameCenterMatchmakingRuleResponse",
+    "GameCenterMatchmakingRuleUpdateAttributes",
+    "GameCenterMatchmakingRuleUpdateData",
+    "GameCenterMatchmakingRuleUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterMatchmakingRules_deleteInstance","name":"DeleteGameCenterMatchmakingRule","params":["ruleID"]},
+    {"operation":"gameCenterMatchmakingRules_matchmakingBooleanRuleResults_getMetrics","name":"GetGameCenterMatchmakingBooleanRuleResults","params":["ruleID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingRuleMetricsQuery","nextContext":"game-center-matchmaking-boolean-rule-results","response":"GameCenterMatchmakingBooleanRuleResultsResponse"},
+    {"operation":"gameCenterMatchmakingRules_matchmakingNumberRuleResults_getMetrics","name":"GetGameCenterMatchmakingNumberRuleResults","params":["ruleID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingRuleMetricsQuery","nextContext":"game-center-matchmaking-number-rule-results","response":"GameCenterMatchmakingNumberRuleResultsResponse"},
+    {"operation":"gameCenterMatchmakingRules_matchmakingRuleErrors_getMetrics","name":"GetGameCenterMatchmakingRuleErrors","params":["ruleID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingRuleMetricsQuery","nextContext":"game-center-matchmaking-rule-errors","response":"GameCenterMatchmakingRuleErrorsResponse"},
+    {"operation":"gameCenterMatchmakingRules_updateInstance","name":"UpdateGameCenterMatchmakingRule","params":["ruleID"]}
+  ]
+}
