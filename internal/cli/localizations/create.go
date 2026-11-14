@@ -73,8 +73,7 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version is required")
-				return shared.MissingRequiredUsageError("--version")
+				return shared.RequiredFlag("--version")
 			}
 
 			versionIsString, normalizedPlatform, err := normalizeLocalizationVersionSelector(vid, *appID, *platform)
@@ -84,8 +83,7 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 			normalizedLocale, err := shared.CanonicalizeAppStoreLocalizationLocale(localeValue)
 			if err != nil {
