@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestIAPPricesValidationErrors(t *testing.T) {
@@ -54,106 +56,54 @@ func TestIAPPricesValidationErrors(t *testing.T) {
 func TestIAPPricesByIDSuccess(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v2/inAppPurchases/9000000001":
-			body := `{"data":{"type":"inAppPurchases","id":"9000000001","attributes":{"name":"Lifetime Unlock","productId":"com.example.lifetime","inAppPurchaseType":"NON_CONSUMABLE"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v2/inAppPurchases/9000000001/iapPriceSchedule":
-			query := req.URL.Query()
-			if query.Get("include") != "baseTerritory,manualPrices,automaticPrices" {
-				t.Fatalf("unexpected include query: %q", query.Get("include"))
-			}
-			if query.Get("fields[inAppPurchasePrices]") != "startDate,endDate,manual,inAppPurchasePricePoint,territory" {
-				t.Fatalf("unexpected price fields: %q", query.Get("fields[inAppPurchasePrices]"))
-			}
-			if query.Get("fields[territories]") != "currency" {
-				t.Fatalf("unexpected territory fields: %q", query.Get("fields[territories]"))
-			}
-			if query.Get("limit[manualPrices]") != "50" {
-				t.Fatalf("unexpected manual prices limit: %q", query.Get("limit[manualPrices]"))
-			}
-			if query.Get("limit[automaticPrices]") != "50" {
-				t.Fatalf("unexpected automatic prices limit: %q", query.Get("limit[automaticPrices]"))
-			}
-
-			body := `{
-				"data":{
-					"type":"inAppPurchasePriceSchedules",
-					"id":"schedule-1",
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"9000000001","attributes":{"name":"Lifetime Unlock","productId":"com.example.lifetime","inAppPurchaseType":"NON_CONSUMABLE"}}}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/iapPriceSchedule", "fields[inAppPurchasePriceSchedules]=baseTerritory,manualPrices,automaticPrices", "fields[inAppPurchasePrices]=startDate,endDate,manual,inAppPurchasePricePoint,territory", "fields[territories]=currency", "include=baseTerritory,manualPrices,automaticPrices", "limit[automaticPrices]=50", "limit[manualPrices]=50"),
+		asctest.JSON(http.StatusOK, `{
+			"data":{
+				"type":"inAppPurchasePriceSchedules",
+				"id":"schedule-1",
+				"relationships":{
+					"baseTerritory":{"data":{"type":"territories","id":"USA"}}
+				}
+			},
+			"included":[
+				{
+					"type":"inAppPurchasePrices",
+					"id":"iap-price-1",
+					"attributes":{"startDate":"2024-01-01","manual":true},
 					"relationships":{
-						"baseTerritory":{"data":{"type":"territories","id":"USA"}}
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-1"}}
 					}
 				},
-				"included":[
-					{
-						"type":"inAppPurchasePrices",
-						"id":"iap-price-1",
-						"attributes":{"startDate":"2024-01-01","manual":true},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-1"}}
-						}
-					},
-					{
-						"type":"inAppPurchasePrices",
-						"id":"iap-price-2",
-						"attributes":{"startDate":"2030-01-01","manual":true},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-2"}}
-						}
-					},
-					{
-						"type":"territories",
-						"id":"USA",
-						"attributes":{"currency":"USD"}
+				{
+					"type":"inAppPurchasePrices",
+					"id":"iap-price-2",
+					"attributes":{"startDate":"2030-01-01","manual":true},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-2"}}
 					}
-				]
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v2/inAppPurchases/9000000001/pricePoints":
-			query := req.URL.Query()
-			if query.Get("filter[territory]") != "USA" {
-				t.Fatalf("unexpected territory filter: %q", query.Get("filter[territory]"))
-			}
-			if query.Get("include") != "territory" {
-				t.Fatalf("unexpected include query: %q", query.Get("include"))
-			}
-			if query.Get("fields[inAppPurchasePricePoints]") != "customerPrice,proceeds,territory" {
-				t.Fatalf("unexpected fields[inAppPurchasePricePoints]: %q", query.Get("fields[inAppPurchasePricePoints]"))
-			}
-			body := `{
-				"data":[
-					{"type":"inAppPurchasePricePoints","id":"pp-1","attributes":{"customerPrice":"9.99","proceeds":"8.49"}},
-					{"type":"inAppPurchasePricePoints","id":"pp-2","attributes":{"customerPrice":"12.99","proceeds":"11.04"}}
-				],
-				"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-			return nil, nil
-		}
-	})
+				},
+				{
+					"type":"territories",
+					"id":"USA",
+					"attributes":{"currency":"USD"}
+				}
+			]
+		}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/pricePoints", "fields[inAppPurchasePricePoints]=customerPrice,proceeds,territory", "fields[territories]=currency", "filter[territory]=USA", "include=territory", "limit=8000"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{"type":"inAppPurchasePricePoints","id":"pp-1","attributes":{"customerPrice":"9.99","proceeds":"8.49"}},
+				{"type":"inAppPurchasePricePoints","id":"pp-2","attributes":{"customerPrice":"12.99","proceeds":"11.04"}}
+			],
+			"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
+			"links":{"next":""}
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -184,52 +134,39 @@ func TestIAPPricesByIDSuccess(t *testing.T) {
 func TestIAPPricesByIDNormalizesTerritory(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v2/inAppPurchases/9000000001":
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"9000000001","attributes":{"name":"Lifetime Unlock","productId":"com.example.lifetime","inAppPurchaseType":"NON_CONSUMABLE"}}}`), nil
-		case "/v2/inAppPurchases/9000000001/iapPriceSchedule":
-			return jsonHTTPResponse(http.StatusOK, `{
-				"data":{"type":"inAppPurchasePriceSchedules","id":"schedule-1","relationships":{"baseTerritory":{"data":{"type":"territories","id":"USA"}}}},
-				"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}]
-			}`), nil
-		case "/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices":
-			return jsonHTTPResponse(http.StatusOK, `{
-				"data":[
-					{
-						"type":"inAppPurchasePrices",
-						"id":"iap-price-1",
-						"attributes":{"startDate":"2024-01-01","manual":true},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-1"}}
-						}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"9000000001","attributes":{"name":"Lifetime Unlock","productId":"com.example.lifetime","inAppPurchaseType":"NON_CONSUMABLE"}}}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/iapPriceSchedule", "fields[inAppPurchasePriceSchedules]=baseTerritory,manualPrices,automaticPrices", "fields[inAppPurchasePrices]=startDate,endDate,manual,inAppPurchasePricePoint,territory", "fields[territories]=currency", "include=baseTerritory,manualPrices,automaticPrices", "limit[automaticPrices]=50", "limit[manualPrices]=50"),
+		asctest.JSON(http.StatusOK, `{
+			"data":{"type":"inAppPurchasePriceSchedules","id":"schedule-1","relationships":{"baseTerritory":{"data":{"type":"territories","id":"USA"}}}},
+			"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}]
+		}`))
+	reg.Register(asctest.GET("/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"inAppPurchasePrices",
+					"id":"iap-price-1",
+					"attributes":{"startDate":"2024-01-01","manual":true},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-1"}}
 					}
-				],
-				"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
-		case "/v2/inAppPurchases/9000000001/pricePoints":
-			if got := req.URL.Query().Get("filter[territory]"); got != "USA" {
-				t.Fatalf("expected normalized filter[territory]=USA, got %q", got)
-			}
-			return jsonHTTPResponse(http.StatusOK, `{
-				"data":[{"type":"inAppPurchasePricePoints","id":"pp-1","attributes":{"customerPrice":"9.99","proceeds":"8.49"}}],
-				"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
-				"links":{"next":""}
-			}`), nil
-		default:
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-			return nil, nil
-		}
-	})
+				}
+			],
+			"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
+			"links":{"next":""}
+		}`))
+	reg.Register(asctest.GET("/v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/pricePoints", "fields[inAppPurchasePricePoints]=customerPrice,proceeds,territory", "fields[territories]=currency", "filter[territory]=USA", "include=territory", "limit=8000"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{"type":"inAppPurchasePricePoints","id":"pp-1","attributes":{"customerPrice":"9.99","proceeds":"8.49"}}],
+			"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
+			"links":{"next":""}
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -245,65 +182,40 @@ func TestIAPPricesByIDNormalizesTerritory(t *testing.T) {
 func TestIAPPricesTableOutput(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v2/inAppPurchases/9000000001":
-			body := `{"data":{"type":"inAppPurchases","id":"9000000001","attributes":{"name":"Lifetime Unlock","productId":"com.example.lifetime","inAppPurchaseType":"NON_CONSUMABLE"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v2/inAppPurchases/9000000001/iapPriceSchedule":
-			body := `{
-				"data":{
-					"type":"inAppPurchasePriceSchedules",
-					"id":"schedule-1",
-					"relationships":{"baseTerritory":{"data":{"type":"territories","id":"USA"}}}
-				},
-				"included":[
-					{
-						"type":"inAppPurchasePrices",
-						"id":"iap-price-1",
-						"attributes":{"startDate":"2024-01-01","manual":true},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-1"}}
-						}
-					},
-					{
-						"type":"territories",
-						"id":"USA",
-						"attributes":{"currency":"USD"}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"9000000001","attributes":{"name":"Lifetime Unlock","productId":"com.example.lifetime","inAppPurchaseType":"NON_CONSUMABLE"}}}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/iapPriceSchedule", "fields[inAppPurchasePriceSchedules]=baseTerritory,manualPrices,automaticPrices", "fields[inAppPurchasePrices]=startDate,endDate,manual,inAppPurchasePricePoint,territory", "fields[territories]=currency", "include=baseTerritory,manualPrices,automaticPrices", "limit[automaticPrices]=50", "limit[manualPrices]=50"),
+		asctest.JSON(http.StatusOK, `{
+			"data":{
+				"type":"inAppPurchasePriceSchedules",
+				"id":"schedule-1",
+				"relationships":{"baseTerritory":{"data":{"type":"territories","id":"USA"}}}
+			},
+			"included":[
+				{
+					"type":"inAppPurchasePrices",
+					"id":"iap-price-1",
+					"attributes":{"startDate":"2024-01-01","manual":true},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-1"}}
 					}
-				]
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v2/inAppPurchases/9000000001/pricePoints":
-			body := `{
-				"data":[{"type":"inAppPurchasePricePoints","id":"pp-1","attributes":{"customerPrice":"9.99","proceeds":"8.49"}}],
-				"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-			return nil, nil
-		}
-	})
+				},
+				{
+					"type":"territories",
+					"id":"USA",
+					"attributes":{"currency":"USD"}
+				}
+			]
+		}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/pricePoints", "fields[inAppPurchasePricePoints]=customerPrice,proceeds,territory", "fields[territories]=currency", "filter[territory]=USA", "include=territory", "limit=8000"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{"type":"inAppPurchasePricePoints","id":"pp-1","attributes":{"customerPrice":"9.99","proceeds":"8.49"}}],
+			"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
+			"links":{"next":""}
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -331,99 +243,61 @@ func TestIAPPricesTableOutput(t *testing.T) {
 func TestIAPPricesFetchesAllScheduleEntriesWhenIncludedHitsLimit(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	scheduleBody := buildIAPPriceScheduleWithAutomaticIncludedCount(50)
-	manualSubresourceCalls := 0
-	automaticSubresourceCalls := 0
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v2/inAppPurchases/9000000001":
-			body := `{"data":{"type":"inAppPurchases","id":"9000000001","attributes":{"name":"Lifetime Unlock","productId":"com.example.lifetime","inAppPurchaseType":"NON_CONSUMABLE"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v2/inAppPurchases/9000000001/iapPriceSchedule":
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(scheduleBody)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices":
-			manualSubresourceCalls++
-			body := `{
-				"data":[
-					{
-						"type":"inAppPurchasePrices",
-						"id":"manual-current",
-						"attributes":{"startDate":"2024-01-01","manual":true},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-current"}}
-						}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"9000000001","attributes":{"name":"Lifetime Unlock","productId":"com.example.lifetime","inAppPurchaseType":"NON_CONSUMABLE"}}}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/iapPriceSchedule", "fields[inAppPurchasePriceSchedules]=baseTerritory,manualPrices,automaticPrices", "fields[inAppPurchasePrices]=startDate,endDate,manual,inAppPurchasePricePoint,territory", "fields[territories]=currency", "include=baseTerritory,manualPrices,automaticPrices", "limit[automaticPrices]=50", "limit[manualPrices]=50"),
+		asctest.JSON(http.StatusOK, scheduleBody))
+	reg.Register(asctest.GET("/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"inAppPurchasePrices",
+					"id":"manual-current",
+					"attributes":{"startDate":"2024-01-01","manual":true},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-current"}}
 					}
-				],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices":
-			automaticSubresourceCalls++
-			body := `{
-				"data":[
-					{
-						"type":"inAppPurchasePrices",
-						"id":"mus-old",
-						"attributes":{"startDate":"2024-01-01","endDate":"2099-01-01"},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"MUS"}},
-							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-mus-old"}}
-						}
-					},
-					{
-						"type":"inAppPurchasePrices",
-						"id":"mus-new",
-						"attributes":{"startDate":"2099-01-01"},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"MUS"}},
-							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-mus-new"}}
-						}
+				}
+			],
+			"links":{"next":""}
+		}`))
+	reg.Register(asctest.GET("/v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"inAppPurchasePrices",
+					"id":"mus-old",
+					"attributes":{"startDate":"2024-01-01","endDate":"2099-01-01"},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"MUS"}},
+						"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-mus-old"}}
 					}
-				],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v2/inAppPurchases/9000000001/pricePoints":
-			body := `{
-				"data":[
-					{"type":"inAppPurchasePricePoints","id":"pp-current","attributes":{"customerPrice":"9.99","proceeds":"8.49"}}
-				],
-				"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-			return nil, nil
-		}
-	})
+				},
+				{
+					"type":"inAppPurchasePrices",
+					"id":"mus-new",
+					"attributes":{"startDate":"2099-01-01"},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"MUS"}},
+						"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-mus-new"}}
+					}
+				}
+			],
+			"links":{"next":""}
+		}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/pricePoints", "fields[inAppPurchasePricePoints]=customerPrice,proceeds,territory", "fields[territories]=currency", "filter[territory]=USA", "include=territory", "limit=8000"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{"type":"inAppPurchasePricePoints","id":"pp-current","attributes":{"customerPrice":"9.99","proceeds":"8.49"}}
+			],
+			"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
+			"links":{"next":""}
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -439,6 +313,15 @@ func TestIAPPricesFetchesAllScheduleEntriesWhenIncludedHitsLimit(t *testing.T) {
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	manualSubresourceCalls, automaticSubresourceCalls := 0, 0
+	for _, req := range reg.Requests() {
+		switch req.URL.Path {
+		case "/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices":
+			manualSubresourceCalls++
+		case "/v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices":
+			automaticSubresourceCalls++
+		}
 	}
 	if manualSubresourceCalls == 0 {
 		t.Fatalf("expected manualPrices subresource to be requested when included hits limit")
@@ -458,115 +341,69 @@ func TestIAPPricesResolvesLegacyManualPricePointValues(t *testing.T) {
 	const legacyPricePointResourceID = "eyJzIjoiMTU1OTI5NDEzOSIsInQiOiJVU0EiLCJwIjoiMyJ9"
 	const canonicalUSAResourceID = "eyJzIjoiMTU1OTI5NDEzOSIsInQiOiJVU0EiLCJwIjoiMTAwMzYifQ"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	manualFallbackCalls := 0
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v2/inAppPurchases/9000000002":
-			body := `{"data":{"type":"inAppPurchases","id":"9000000002","attributes":{"name":"Legacy Tip","productId":"com.example.legacy.tip","inAppPurchaseType":"CONSUMABLE"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v2/inAppPurchases/9000000002/iapPriceSchedule":
-			body := `{
-				"data":{
-					"type":"inAppPurchasePriceSchedules",
-					"id":"schedule-legacy",
-					"relationships":{"baseTerritory":{"data":{"type":"territories","id":"USA"}}}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000002"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"9000000002","attributes":{"name":"Legacy Tip","productId":"com.example.legacy.tip","inAppPurchaseType":"CONSUMABLE"}}}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000002/iapPriceSchedule", "fields[inAppPurchasePriceSchedules]=baseTerritory,manualPrices,automaticPrices", "fields[inAppPurchasePrices]=startDate,endDate,manual,inAppPurchasePricePoint,territory", "fields[territories]=currency", "include=baseTerritory,manualPrices,automaticPrices", "limit[automaticPrices]=50", "limit[manualPrices]=50"),
+		asctest.JSON(http.StatusOK, `{
+			"data":{
+				"type":"inAppPurchasePriceSchedules",
+				"id":"schedule-legacy",
+				"relationships":{"baseTerritory":{"data":{"type":"territories","id":"USA"}}}
+			},
+			"included":[
+				{
+					"type":"inAppPurchasePrices",
+					"id":"`+legacyPriceResourceID+`",
+					"attributes":{"manual":true}
 				},
-				"included":[
-					{
-						"type":"inAppPurchasePrices",
-						"id":"` + legacyPriceResourceID + `",
-						"attributes":{"manual":true}
-					},
-					{
-						"type":"territories",
-						"id":"USA",
-						"attributes":{"currency":"USD"}
+				{
+					"type":"territories",
+					"id":"USA",
+					"attributes":{"currency":"USD"}
+				}
+			]
+		}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000002/pricePoints", "fields[inAppPurchasePricePoints]=customerPrice,proceeds,territory", "fields[territories]=currency", "filter[territory]=USA", "include=territory", "limit=8000"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"inAppPurchasePricePoints",
+					"id":"`+canonicalUSAResourceID+`",
+					"attributes":{"customerPrice":"2.99","proceeds":"2.54"}
+				}
+			],
+			"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
+			"links":{"next":""}
+		}`))
+	reg.Register(asctest.GET("/v1/inAppPurchasePriceSchedules/schedule-legacy/manualPrices", "fields[inAppPurchasePricePoints]=customerPrice,proceeds,territory", "fields[inAppPurchasePrices]=manual,inAppPurchasePricePoint,territory", "fields[territories]=currency", "include=inAppPurchasePricePoint,territory", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"inAppPurchasePrices",
+					"id":"`+legacyPriceResourceID+`",
+					"attributes":{"manual":true},
+					"relationships":{
+						"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"`+legacyPricePointResourceID+`"}},
+						"territory":{"data":{"type":"territories","id":"USA"}}
 					}
-				]
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v2/inAppPurchases/9000000002/pricePoints":
-			body := `{
-				"data":[
-					{
-						"type":"inAppPurchasePricePoints",
-						"id":"` + canonicalUSAResourceID + `",
-						"attributes":{"customerPrice":"2.99","proceeds":"2.54"}
-					}
-				],
-				"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case "/v1/inAppPurchasePriceSchedules/schedule-legacy/manualPrices":
-			manualFallbackCalls++
-			query := req.URL.Query()
-			if query.Get("include") != "inAppPurchasePricePoint,territory" {
-				t.Fatalf("unexpected include query: %q", query.Get("include"))
-			}
-			if query.Get("fields[inAppPurchasePrices]") != "manual,inAppPurchasePricePoint,territory" {
-				t.Fatalf("unexpected fields[inAppPurchasePrices]: %q", query.Get("fields[inAppPurchasePrices]"))
-			}
-			if query.Get("fields[inAppPurchasePricePoints]") != "customerPrice,proceeds,territory" {
-				t.Fatalf("unexpected fields[inAppPurchasePricePoints]: %q", query.Get("fields[inAppPurchasePricePoints]"))
-			}
-			if query.Get("fields[territories]") != "currency" {
-				t.Fatalf("unexpected fields[territories]: %q", query.Get("fields[territories]"))
-			}
-			body := `{
-				"data":[
-					{
-						"type":"inAppPurchasePrices",
-						"id":"` + legacyPriceResourceID + `",
-						"attributes":{"manual":true},
-						"relationships":{
-							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"` + legacyPricePointResourceID + `"}},
-							"territory":{"data":{"type":"territories","id":"USA"}}
-						}
-					}
-				],
-				"included":[
-					{
-						"type":"inAppPurchasePricePoints",
-						"id":"` + legacyPricePointResourceID + `",
-						"attributes":{"customerPrice":"2.99","proceeds":"2.54"}
-					},
-					{
-						"type":"territories",
-						"id":"USA",
-						"attributes":{"currency":"USD"}
-					}
-				],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-			return nil, nil
-		}
-	})
+				}
+			],
+			"included":[
+				{
+					"type":"inAppPurchasePricePoints",
+					"id":"`+legacyPricePointResourceID+`",
+					"attributes":{"customerPrice":"2.99","proceeds":"2.54"}
+				},
+				{
+					"type":"territories",
+					"id":"USA",
+					"attributes":{"currency":"USD"}
+				}
+			],
+			"links":{"next":""}
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -582,6 +419,12 @@ func TestIAPPricesResolvesLegacyManualPricePointValues(t *testing.T) {
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	manualFallbackCalls := 0
+	for _, req := range reg.Requests() {
+		if req.URL.Path == "/v1/inAppPurchasePriceSchedules/schedule-legacy/manualPrices" {
+			manualFallbackCalls++
+		}
 	}
 	if manualFallbackCalls == 0 {
 		t.Fatalf("expected manual schedule fallback endpoint to be called")
