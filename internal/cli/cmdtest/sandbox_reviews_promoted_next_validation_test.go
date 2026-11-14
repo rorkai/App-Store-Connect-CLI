@@ -1,12 +1,12 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSandboxReviewsPromotedListsRejectsInvalidNextURL(t *testing.T) {
@@ -46,52 +46,17 @@ func TestPromotedPurchasesListPaginateFromNextWithoutApp(t *testing.T) {
 	const firstURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/promotedPurchases?cursor=AQ&limit=200"
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/promotedPurchases?cursor=BQ&limit=200"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/promotedPurchases", "cursor=AQ", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"promotedPurchases","id":"promo-next-1","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-next-1"}}}}],"links":{"next":"`+secondURL+`"}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/promotedPurchases", "cursor=BQ", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"promotedPurchases","id":"promo-next-2","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-next-2"}}}}],"links":{"next":""}}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"promotedPurchases","id":"promo-next-1","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-next-1"}}}}],"links":{"next":"` + secondURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"promotedPurchases","id":"promo-next-2","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-next-2"}}}}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "promoted-purchases", "list", "--paginate", "--next", firstURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"subscriptions", "promoted-purchases", "list", "--paginate", "--next", firstURL})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

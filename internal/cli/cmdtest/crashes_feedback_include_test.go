@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -15,6 +14,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 const feedbackScreenshotFields = "createdDate,comment,email,deviceModel,osVersion,locale,timeZone,architecture,connectionType,pairedAppleWatch,appUptimeInMilliseconds,diskBytesAvailable,diskBytesTotal,batteryPercentage,screenWidthInPoints,screenHeightInPoints,appPlatform,devicePlatform,deviceFamily,buildBundleId,screenshots,build,tester"
@@ -57,15 +57,6 @@ func installDefaultTransportForServer(t *testing.T, server *httptest.Server) {
 	}))
 }
 
-// okJSONResponse builds a 200 JSON response for the mock transport.
-func okJSONResponse(body string) *http.Response {
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(strings.NewReader(body)),
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-	}
-}
-
 func TestBetaFeedbackListIncludeBuildSendsBuildRelationship(t *testing.T) {
 	for _, tc := range []struct {
 		command  string
@@ -78,37 +69,17 @@ func TestBetaFeedbackListIncludeBuildSendsBuildRelationship(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps/123/"+tc.resource, "include=build", "fields[builds]=version,preReleaseVersion"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"`+tc.resource+`","id":"submission-1"}],`+
+					`"included":[{"type":"builds","id":"b1","attributes":{"version":"532621"}}]}`))
 
-			var gotQuery url.Values
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/"+tc.resource {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				}
-				gotQuery = req.URL.Query()
-				return okJSONResponse(`{"data":[{"type":"` + tc.resource + `","id":"submission-1"}],` +
-					`"included":[{"type":"builds","id":"b1","attributes":{"version":"532621"}}]}`), nil
-			})
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"testflight", tc.command, "list", "--app", "123", "--include", "build", "--output", "json"}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
-
-			if got := gotQuery.Get("include"); got != "build" {
-				t.Fatalf("include query = %q, want %q", got, "build")
+			stdout, stderr, err := runCommand(t, []string{"testflight", tc.command, "list", "--app", "123", "--include", "build", "--output", "json"})
+			if err != nil {
+				t.Fatalf("run error: %v", err)
 			}
-			if got := gotQuery.Get("fields[builds]"); got != "version,preReleaseVersion" {
-				t.Fatalf("fields[builds] query = %q, want %q", got, "version,preReleaseVersion")
-			}
+
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -129,23 +100,9 @@ func TestBetaFeedbackListInvalidIncludeReturnsUsageError(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected network request: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			})
+			asctest.NewRegistry(t).Install()
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"testflight", command, "list", "--app", "123", "--include", "bogus"}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runCommand(t, []string{"testflight", command, "list", "--app", "123", "--include", "bogus"})
 
 			if rootcmd.ExitCodeFromError(runErr) != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", rootcmd.ExitCodeFromError(runErr), rootcmd.ExitUsage, runErr)

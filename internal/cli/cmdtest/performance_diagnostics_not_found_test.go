@@ -6,20 +6,26 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestPerformanceDiagnosticsListNotFoundHint(t *testing.T) {
 	const detail = "There is no resource of type '/v1/builds/{id}/diagnosticSignatures' with id 'build-1'"
 	const hint = "Hint: The build may exist without diagnostic data: Apple reports diagnostics for App Store versions only after a few days of significant usage. Check that the build exists with `asc builds info --build-id \"build-1\"`.\n"
-	for _, extra := range [][]string{nil, {"--paginate"}} {
+	for _, test := range []struct {
+		extra []string
+		query []string
+	}{
+		{},
+		{extra: []string{"--paginate"}, query: []string{"limit=200"}},
+	} {
+		extra := test.extra
 		t.Run(strings.Join(append([]string{"default"}, extra...), " "), func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/diagnosticSignatures" {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				}
-				return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+detail+`"}]}`)
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/builds/build-1/diagnosticSignatures", test.query...),
+				asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+detail+`"}]}`))
 
 			args := append([]string{"performance", "diagnostics", "list", "--build-id", "build-1"}, extra...)
 			var code int

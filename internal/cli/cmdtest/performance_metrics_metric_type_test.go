@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func runPerformanceMetricsListWithMetricType(t *testing.T, metricType string) (string, string, error) {
@@ -15,21 +17,9 @@ func runPerformanceMetricsListWithMetricType(t *testing.T, metricType string) (s
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-1/perfPowerMetrics" {
-			t.Fatalf("expected perfPowerMetrics path, got %s", req.URL.Path)
-		}
-		if got := req.URL.Query().Get("filter[metricType]"); got != metricType {
-			t.Fatalf("expected filter[metricType]=%q, got %q", metricType, got)
-		}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/perfPowerMetrics", "filter[metricType]="+metricType), func(*http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(`{"productData":[],"version":"1.0"}`)),
@@ -37,17 +27,7 @@ func runPerformanceMetricsListWithMetricType(t *testing.T, metricType string) (s
 		}, nil
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"performance", "metrics", "list", "--app", "app-1", "--metric-type", metricType}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
+	return runCommand(t, []string{"performance", "metrics", "list", "--app", "app-1", "--metric-type", metricType})
 }
 
 func TestPerformanceMetricsListAcceptsStorageMetricType(t *testing.T) {
