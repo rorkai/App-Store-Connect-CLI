@@ -7,12 +7,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
@@ -911,7 +911,7 @@ func TestBackgroundAssetsSubmitRenewsAttachBudgetAndRollsBackFailure(t *testing.
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
@@ -946,14 +946,8 @@ func TestBackgroundAssetsSubmitRenewsAttachBudgetAndRollsBackFailure(t *testing.
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 			w.WriteHeader(http.StatusNotFound)
 		}
-	}))
-	t.Cleanup(server.Close)
+	})
 
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse test server URL: %v", err)
-	}
-	serverTransport := server.Client().Transport
 	attachBudget := make(chan time.Duration, 1)
 	rollbackBudget := make(chan time.Duration, 1)
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -971,10 +965,9 @@ func TestBackgroundAssetsSubmitRenewsAttachBudgetAndRollsBackFailure(t *testing.
 			rollbackBudget <- 0
 		}
 
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		return serverTransport.RoundTrip(cloned)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, req)
+		return response.Result(), nil
 	})
 	client, err := asc.NewClientWithHTTPClient(
 		os.Getenv("ASC_KEY_ID"),
@@ -1002,7 +995,7 @@ func TestBackgroundAssetsSubmitRenewsAttachBudgetAndRollsBackFailure(t *testing.
 		if err := root.Parse(args); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 	})
 
 	if stderr != "" {
@@ -1011,10 +1004,10 @@ func TestBackgroundAssetsSubmitRenewsAttachBudgetAndRollsBackFailure(t *testing.
 	if runErr == nil || !strings.Contains(runErr.Error(), "attach version") || !strings.Contains(runErr.Error(), "rolled back the submission") {
 		t.Fatalf("run error = %v, want failed attach followed by rollback", runErr)
 	}
-	if got := <-attachBudget; got < 500*time.Millisecond {
-		t.Fatalf("attach request had only %s remaining, want a fresh per-request budget near %s", got, timeout)
+	if got := <-attachBudget; got != timeout {
+		t.Fatalf("attach request had %s remaining, want a fresh per-request budget of %s", got, timeout)
 	}
-	if got := <-rollbackBudget; got < 500*time.Millisecond {
-		t.Fatalf("rollback request had only %s remaining, want an independent fresh budget", got)
+	if got := <-rollbackBudget; got != timeout {
+		t.Fatalf("rollback request had %s remaining, want an independent fresh budget of %s", got, timeout)
 	}
 }

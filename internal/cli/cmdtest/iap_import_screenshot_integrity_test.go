@@ -310,7 +310,7 @@ func TestIAPImportGivesScreenshotDeliveryVerificationItsOwnTimeout(t *testing.T)
 		}
 	})
 
-	_, stderr, runErr := runIAPImport(t, []string{
+	_, stderr, runErr := runCommandOnFakeClock(t, []string{
 		"iap", "import", "--app", "123456789", "--file", filePath, "--confirm", "--output", "json",
 	})
 	if runErr != nil {
