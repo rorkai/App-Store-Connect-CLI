@@ -34,8 +34,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetID := strings.TrimSpace(*id)
 			if assetID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")

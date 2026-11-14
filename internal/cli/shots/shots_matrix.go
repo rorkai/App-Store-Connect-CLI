@@ -70,8 +70,7 @@ execution values in the matrix plan.`,
 			})
 			planValue := *planPath
 			if strings.TrimSpace(planValue) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --plan is required")
-				return shared.MissingRequiredUsageError("--plan")
+				return shared.RequiredFlag("--plan")
 			}
 			// Both flags advertise "0 uses plan value". Honor that sentinel
 			// instead of rejecting it, so a script computing an override can

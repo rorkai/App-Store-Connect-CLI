@@ -67,8 +67,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
 				return shared.UsageErrorf("background-assets upload-files list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
@@ -137,8 +136,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
 			if uploadFileIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --upload-file-id is required")
-				return shared.MissingRequiredUsageError("--upload-file-id")
+				return shared.RequiredFlag("--upload-file-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -183,19 +181,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			if strings.TrimSpace(*assetType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --asset-type is required")
-				return shared.MissingRequiredUsageError("--asset-type")
+				return shared.RequiredFlag("--asset-type")
 			}
 
 			typeValue, err := normalizeBackgroundAssetUploadFileAssetType(*assetType)
@@ -298,14 +293,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
 			if uploadFileIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --upload-file-id is required")
-				return shared.MissingRequiredUsageError("--upload-file-id")
+				return shared.RequiredFlag("--upload-file-id")
 			}
 
 			uploadedValue := strings.TrimSpace(*uploaded)
 			if uploadedValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --uploaded is required")
-				return shared.MissingRequiredUsageError("--uploaded")
+				return shared.RequiredFlag("--uploaded")
 			}
 			uploadedBool, err := shared.ParseBoolFlag(uploadedValue, "--uploaded")
 			if err != nil {
