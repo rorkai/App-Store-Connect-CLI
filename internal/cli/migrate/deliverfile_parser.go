@@ -17,6 +17,14 @@ type DeliverfileConfig struct {
 	Platform        string
 	SkipMetadata    bool
 	SkipScreenshots bool
+	IgnoredKeys     []IgnoredConfigKey
+}
+
+// IgnoredConfigKey is a configuration file key that import does not apply.
+type IgnoredConfigKey struct {
+	Key   string
+	Value string
+	Line  int
 }
 
 func parseDeliverfile(path string) (DeliverfileConfig, error) {
@@ -84,6 +92,8 @@ func parseDeliverfileReader(path string, reader io.Reader) (DeliverfileConfig, e
 				return DeliverfileConfig{}, err
 			}
 			config.SkipScreenshots = parsed
+		default:
+			config.IgnoredKeys = append(config.IgnoredKeys, IgnoredConfigKey{Key: key, Value: value, Line: lineNumber})
 		}
 	}
 
@@ -224,4 +234,33 @@ func parseDeliverfileBool(path string, line int, key, value string) (bool, error
 
 func deliverfileLineError(path string, line int, message string) error {
 	return fmt.Errorf("deliverfile %s line %d: %s", filepath.Base(path), line, message)
+}
+
+func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
+	items := make([]SkippedItem, 0, len(keys))
+	for _, ignored := range keys {
+		reason := fmt.Sprintf("line %d: %s is not applied by import", ignored.Line, ignored.Key)
+		if hint := ignoredConfigKeyHint(ignored); hint != "" {
+			reason += "; to apply it, run: " + hint
+		}
+		items = append(items, SkippedItem{Path: path, Reason: reason})
+	}
+	return items
+}
+
+func ignoredConfigKeyHint(ignored IgnoredConfigKey) string {
+	switch ignored.Key {
+	case "submit_for_review":
+		return "asc review submit --app APP_ID --version-id VERSION_ID --build-id BUILD_ID --confirm"
+	case "phased_release":
+		return "asc versions phased-release create --version-id VERSION_ID"
+	case "automatic_release":
+		switch strings.ToLower(ignored.Value) {
+		case "true":
+			return "asc versions update --version-id VERSION_ID --release-type AFTER_APPROVAL"
+		case "false":
+			return "asc versions update --version-id VERSION_ID --release-type MANUAL"
+		}
+	}
+	return ""
 }

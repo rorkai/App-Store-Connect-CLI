@@ -254,6 +254,10 @@ skip_screenshots false
 * `metadata_path` - Metadata directory, resolved relative to the Deliverfile
 * `screenshots_path` - Screenshots directory, resolved relative to the Deliverfile
 
+Any other key is not applied. Each one is reported in `skipped` with its line
+number, and a key that another command applies names that command, for example
+`asc versions phased-release create --version-id "VERSION_ID"` for `phased_release`.
+
 `metadata_path` and `screenshots_path` win over the conventional `metadata/` and
 `screenshots/` directories, including when `--fastlane-dir` selected the
 Deliverfile. When a conventional directory exists but is not read, it is
@@ -495,8 +499,8 @@ Fastlane uses directory names like `en-US`, `es-ES`, `ja`, etc. The CLI automati
 
 The import command reports directories and files it did not read. Directory
 names that are not locales, symlinked entries, unsupported screenshot files, a
-missing conventional directory, and anything a Deliverfile or flag turned off
-all appear here (`metadata/review_information` and `metadata/default` are read
+missing conventional directory, configuration keys that import does not apply,
+and anything a Deliverfile or flag turned off all appear here (`metadata/review_information` and `metadata/default` are read
 as part of the import and are not reported):
 
 ```json
