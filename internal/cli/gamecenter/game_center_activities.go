@@ -60,88 +60,30 @@ Examples:
 
 // GameCenterActivitiesListCommand returns the activities list subcommand.
 func GameCenterActivitiesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center activities list [flags]",
-		ShortHelp:  "List Game Center activities for an app.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center activities list [flags]",
+		ShortHelp:   "List Game Center activities for an app.",
 		LongHelp: `List Game Center activities for an app.
 
 Examples:
   asc game-center activities list --app "APP_ID"
   asc game-center activities list --app "APP_ID" --limit 50
   asc game-center activities list --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center activities list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center activities list: %v", err)
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			nextURL := strings.TrimSpace(*next)
-			if resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center activities list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			gcDetailID := ""
-			if nextURL == "" {
-				var err error
-				gcDetailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
-				if err != nil {
-					return fmt.Errorf("game-center activities list: failed to get Game Center detail: %w", err)
-				}
-			}
-
-			opts := []asc.GCActivitiesOption{
-				asc.WithGCActivitiesLimit(*limit),
-				asc.WithGCActivitiesNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCActivitiesLimit(200))
-				firstPage, err := client.GetGameCenterActivities(requestCtx, gcDetailID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center activities list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterActivities(ctx, gcDetailID, asc.WithGCActivitiesNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center activities list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterActivities(requestCtx, gcDetailID, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center activities list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID env)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center activities list",
+		FetchErrorPrefix:     "game-center activities list: failed to fetch",
+		LookupParent:         gameCenterDetailParent("game-center activities list"),
+		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterActivities(ctx, gcDetailID, asc.WithGCActivitiesLimit(limit), asc.WithGCActivitiesNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterActivitiesGetCommand returns the activities get subcommand.

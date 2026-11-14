@@ -48,91 +48,30 @@ Examples:
 
 // GameCenterAppVersionsListCommand returns the app versions list subcommand.
 func GameCenterAppVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center app-versions list [flags]",
-		ShortHelp:  "List Game Center app versions.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center app-versions list [flags]",
+		ShortHelp:   "List Game Center app versions.",
 		LongHelp: `List Game Center app versions.
 
 Examples:
   asc game-center app-versions list --app "APP_ID"
   asc game-center app-versions list --app "APP_ID" --limit 50
   asc game-center app-versions list --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center app-versions list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center app-versions list: %v", err)
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			nextURL := strings.TrimSpace(*next)
-			if resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center app-versions list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			detailID := ""
-			if nextURL == "" {
-				var err error
-				detailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
-				if err != nil {
-					return fmt.Errorf("game-center app-versions list: failed to get Game Center detail: %w", err)
-				}
-			}
-
-			opts := []asc.GCAppVersionsOption{
-				asc.WithGCAppVersionsLimit(*limit),
-				asc.WithGCAppVersionsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := []asc.GCAppVersionsOption{asc.WithGCAppVersionsNextURL(*next)}
-				if nextURL == "" {
-					paginateOpts = []asc.GCAppVersionsOption{asc.WithGCAppVersionsLimit(200)}
-				}
-				firstPage, err := client.GetGameCenterDetailGameCenterAppVersions(requestCtx, detailID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center app-versions list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterDetailGameCenterAppVersions(ctx, detailID, asc.WithGCAppVersionsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center app-versions list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterDetailGameCenterAppVersions(requestCtx, detailID, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center app-versions list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID env)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center app-versions list",
+		FetchErrorPrefix:     "game-center app-versions list: failed to fetch",
+		LookupParent:         gameCenterDetailParent("game-center app-versions list"),
+		FetchPage: func(ctx context.Context, client *asc.Client, detailID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterDetailGameCenterAppVersions(ctx, detailID, asc.WithGCAppVersionsLimit(limit), asc.WithGCAppVersionsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterAppVersionsGetCommand returns the app versions get subcommand.

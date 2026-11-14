@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -120,4 +121,16 @@ func parseLeaderboardVisibilityFlag(fs *flag.FlagSet) (string, error) {
 		return "", shared.UsageErrorf("--visibility must be one of: %s", strings.Join(asc.ValidLeaderboardVisibilities, ", "))
 	}
 	return value, nil
+}
+
+// gameCenterDetailParent looks up the app's Game Center detail ID for a list
+// built on the app.
+func gameCenterDetailParent(errorPrefix string) func(context.Context, *asc.Client, string) (string, error) {
+	return func(ctx context.Context, client *asc.Client, appID string) (string, error) {
+		detailID, err := client.GetGameCenterDetailID(ctx, appID)
+		if err != nil {
+			return "", fmt.Errorf("%s: failed to get Game Center detail: %w", errorPrefix, err)
+		}
+		return detailID, nil
+	}
 }
