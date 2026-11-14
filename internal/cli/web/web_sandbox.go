@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
-	"os"
 	"strings"
 	"unicode/utf8"
 
@@ -107,12 +106,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			requestedIDs := shared.SplitUniqueCSV(*ids)
 			if len(requestedIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)

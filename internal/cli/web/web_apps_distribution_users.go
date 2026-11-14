@@ -141,8 +141,7 @@ Example:
 			}
 			appleID := strings.TrimSpace(*recipientAppleID)
 			if appleID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --recipient-apple-id is required")
-				return shared.MissingRequiredUsageError("--recipient-apple-id")
+				return shared.RequiredFlag("--recipient-apple-id")
 			}
 			if !*confirm {
 				return shared.UsageError("--confirm is required")
