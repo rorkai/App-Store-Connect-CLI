@@ -81,8 +81,8 @@ is <id>.cer with its private key in <id>.p12 (a PEM private key or a PKCS#12
 file without a password), and each profile is a .mobileprovision or
 .provisionprofile file. Certificate directories are development, distribution,
 enterprise, and developer_id_application. The appstore, adhoc, and developer_id
-aliases also map to distribution. Installer certificate directories are not
-supported because signing sync pull requires a provisioning-profile binding.
+aliases also map to distribution. Installer certificate directories are skipped
+with a warning because signing sync pull requires a provisioning-profile binding.
 Encrypted signing inputs are limited to 256 files, 4 MiB per file, and 128 MiB
 total. Remote cloning uses the configured request timeout.
 Every file is decrypted with --source-password. Each
@@ -300,9 +300,23 @@ func listOpenSSLImportFiles(root rootfs.Root, top string) ([]string, error) {
 }
 
 func loadOpenSSLImportSource(root rootfs.Root, password string) ([]openSSLImportCertificate, []openSSLImportProfile, error) {
-	certFiles, err := listOpenSSLImportFiles(root, "certs")
+	listedCertFiles, err := listOpenSSLImportFiles(root, "certs")
 	if err != nil {
 		return nil, nil, err
+	}
+	var certFiles []string
+	skippedDirs := make(map[string]bool)
+	for _, relPath := range listedCertFiles {
+		dir := path.Dir(relPath)
+		switch strings.ToLower(path.Base(dir)) {
+		case "mac_installer_distribution", "developer_id_installer":
+			if !skippedDirs[dir] {
+				skippedDirs[dir] = true
+				fmt.Fprintf(os.Stderr, "Warning: skipping installer certificate folder %s; signing sync pull requires a provisioning-profile binding\n", dir)
+			}
+		default:
+			certFiles = append(certFiles, relPath)
+		}
 	}
 	profileFiles, err := listOpenSSLImportFiles(root, "profiles")
 	if err != nil {
