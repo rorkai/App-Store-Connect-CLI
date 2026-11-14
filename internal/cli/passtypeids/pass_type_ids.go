@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// PassTypeIDsCommand returns the pass type IDs command with subcommands.
-func PassTypeIDsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pass-type-ids", flag.ExitOnError)
+// NewPassTypeIDsCommand returns the pass type IDs command with subcommands.
+func NewPassTypeIDsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pass-type-ids", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "pass-type-ids",
@@ -33,12 +32,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PassTypeIDsListCommand(),
-			PassTypeIDsGetCommand(),
-			PassTypeIDsCreateCommand(),
-			PassTypeIDsUpdateCommand(),
-			PassTypeIDsDeleteCommand(),
-			PassTypeIDCertificatesCommand(),
+			newPassTypeIDsListCommand(d),
+			newPassTypeIDsGetCommand(d),
+			newPassTypeIDsCreateCommand(d),
+			newPassTypeIDsUpdateCommand(d),
+			newPassTypeIDsDeleteCommand(d),
+			newPassTypeIDCertificatesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -46,9 +45,9 @@ Examples:
 	}
 }
 
-// PassTypeIDsListCommand returns the pass type IDs list subcommand.
-func PassTypeIDsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newPassTypeIDsListCommand returns the pass type IDs list subcommand.
+func newPassTypeIDsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	ids := fs.String("id", "", "Filter by pass type ID(s), comma-separated")
 	identifier := fs.String("identifier", "", "Filter by identifier (comma-separated)")
@@ -61,7 +60,7 @@ func PassTypeIDsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -79,9 +78,9 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("pass-type-ids list: %v", err)
+				return d.UsageErrorf("pass-type-ids list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(
+			if err := d.RejectNextFlagConflicts(
 				fs,
 				*next,
 				"pass-type-ids list",
@@ -90,13 +89,13 @@ Examples:
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("pass-type-ids list: --limit must be between 1 and 200")
+				return d.UsageError("pass-type-ids list: --limit must be between 1 and 200")
 			}
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
-				return shared.UsageError("pass-type-ids list: --limit-certificates must be between 1 and 50")
+				return d.UsageError("pass-type-ids list: --limit-certificates must be between 1 and 50")
 			}
 			if err := shared.ValidateSort(*sort, passTypeIDSortList()...); err != nil {
-				return shared.UsageErrorf("pass-type-ids list: %v", err)
+				return d.UsageErrorf("pass-type-ids list: %v", err)
 			}
 
 			fieldsValue, err := normalizePassTypeIDFields(*fields, "--fields")
@@ -112,20 +111,20 @@ Examples:
 				return fmt.Errorf("pass-type-ids list: %w", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
-				fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
 				return flag.ErrHelp
 			}
 			if *certificatesLimit != 0 && !shared.HasInclude(includeValue, "certificates") {
-				fmt.Fprintln(os.Stderr, "Error: --limit-certificates requires --include certificates")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --limit-certificates requires --include certificates")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.PassTypeIDsOption{
@@ -172,7 +171,7 @@ Examples:
 					return fmt.Errorf("pass-type-ids list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetPassTypeIDs(requestCtx, opts...)
@@ -180,21 +179,21 @@ Examples:
 				return fmt.Errorf("pass-type-ids list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PassTypeIDsGetCommand returns the pass type IDs get subcommand.
-func PassTypeIDsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+// newPassTypeIDsGetCommand returns the pass type IDs get subcommand.
+func newPassTypeIDsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	passTypeID := shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass type ID")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(passTypeIDFieldsList(), ", "))
 	certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(passTypeIDIncludeList(), ", "))
 	certificatesLimit := fs.Int("limit-certificates", 0, "Maximum included certificates (1-50)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -209,10 +208,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
-				return shared.RequiredFlag("--pass-type-id")
+				return d.RequiredFlag("--pass-type-id")
 			}
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
-				return shared.UsageError("pass-type-ids view: --limit-certificates must be between 1 and 50")
+				return d.UsageError("pass-type-ids view: --limit-certificates must be between 1 and 50")
 			}
 
 			fieldsValue, err := normalizePassTypeIDFields(*fields, "--fields")
@@ -228,20 +227,20 @@ Examples:
 				return fmt.Errorf("pass-type-ids view: %w", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
-				fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
 				return flag.ErrHelp
 			}
 			if *certificatesLimit != 0 && !shared.HasInclude(includeValue, "certificates") {
-				fmt.Fprintln(os.Stderr, "Error: --limit-certificates requires --include certificates")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --limit-certificates requires --include certificates")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.PassTypeIDOption{}
@@ -263,18 +262,18 @@ Examples:
 				return fmt.Errorf("pass-type-ids view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PassTypeIDsCreateCommand returns the pass type IDs create subcommand.
-func PassTypeIDsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newPassTypeIDsCreateCommand returns the pass type IDs create subcommand.
+func newPassTypeIDsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	identifier := fs.String("identifier", "", "Pass type identifier (e.g., pass.com.example)")
 	name := fs.String("name", "", "Pass type name")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -289,19 +288,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			identifierValue := strings.TrimSpace(*identifier)
 			if identifierValue == "" {
-				return shared.RequiredFlag("--identifier")
+				return d.RequiredFlag("--identifier")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.PassTypeIDCreateAttributes{
@@ -313,18 +312,18 @@ Examples:
 				return fmt.Errorf("pass-type-ids create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PassTypeIDsUpdateCommand returns the pass type IDs update subcommand.
-func PassTypeIDsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newPassTypeIDsUpdateCommand returns the pass type IDs update subcommand.
+func newPassTypeIDsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	passTypeID := shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass type ID")
 	name := fs.String("name", "", "Pass type name")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -339,19 +338,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
-				return shared.RequiredFlag("--pass-type-id")
+				return d.RequiredFlag("--pass-type-id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.PassTypeIDUpdateAttributes{
@@ -362,13 +361,13 @@ Examples:
 				return fmt.Errorf("pass-type-ids update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PassTypeIDsDeleteCommand returns the pass type IDs delete subcommand.
-func PassTypeIDsDeleteCommand() *ffcli.Command {
+// newPassTypeIDsDeleteCommand returns the pass type IDs delete subcommand.
+func newPassTypeIDsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		FlagSetName: "delete",
 		Name:        "delete",
@@ -384,6 +383,7 @@ Examples:
 		RequiredDiagnostic: true,
 		ErrorPrefix:        "pass-type-ids delete",
 		DeleteErrorPrefix:  "pass-type-ids delete: failed to delete",
+		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeletePassTypeID(ctx, id)
 		},

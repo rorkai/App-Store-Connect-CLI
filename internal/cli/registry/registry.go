@@ -157,7 +157,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", bundleids.BundleIDsCommand),
 		commandFactory("merchant-ids", "Manage merchant IDs and certificates.", merchantids.MerchantIDsCommand),
 		commandFactory("certificates", "Manage signing certificates.", certificates.CertificatesCommand),
-		commandFactory("pass-type-ids", "Manage pass type IDs.", passtypeids.PassTypeIDsCommand),
+		commandFactory("pass-type-ids", "Manage pass type IDs.", func() *ffcli.Command {
+			return passtypeids.NewPassTypeIDsCommand(d)
+		}),
 		commandFactory("profiles", "Manage provisioning profiles.", profiles.ProfilesCommand),
 		commandFactory("users", "Manage users and invitations in App Store Connect.", users.UsersCommand),
 		commandFactory("actors", "Lookup actors (users, API keys) by ID.", func() *ffcli.Command {

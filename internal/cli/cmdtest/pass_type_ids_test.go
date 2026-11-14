@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"io"
@@ -15,7 +14,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestPassTypeIDsCertificateQueryFlagsRequireIncludeBeforeClient(t *testing.T) {
@@ -45,19 +43,16 @@ func TestPassTypeIDsCertificateQueryFlagsRequireIncludeBeforeClient(t *testing.T
 	}
 
 	clientFactoryCalls := 0
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	client := func() (*asc.Client, error) {
 		clientFactoryCalls++
 		return nil, errors.New("client factory must not run during validation")
-	}))
+	}
 
 	for _, command := range commands {
 		for _, flagCase := range flags {
 			t.Run(command.name+"/"+flagCase.name, func(t *testing.T) {
-				var code int
-				stdout, stderr := captureOutput(t, func() {
-					args := append(append([]string(nil), command.args...), flagCase.args...)
-					code = rootcmd.Run(args, "1.2.3")
-				})
+				args := append(append([]string(nil), command.args...), flagCase.args...)
+				stdout, stderr, code := runWithDeps(t, client, args...)
 
 				if code != rootcmd.ExitUsage {
 					t.Errorf("exit code = %d, want %d", code, rootcmd.ExitUsage)
@@ -172,14 +167,9 @@ func TestPassTypeIDsCertificateQueryFlagsPreserveValidRequests(t *testing.T) {
 			if err != nil {
 				t.Fatalf("new client: %v", err)
 			}
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			stdout, stderr, code := runWithDeps(t, func() (*asc.Client, error) {
 				return client, nil
-			}))
-
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(test.args, "1.2.3")
-			})
+			}, test.args...)
 			if code != rootcmd.ExitSuccess {
 				t.Fatalf("exit code = %d, want %d; stderr: %s", code, rootcmd.ExitSuccess, stderr)
 			}
@@ -251,18 +241,10 @@ func TestPassTypeIDsValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, test.args...)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
