@@ -152,15 +152,15 @@ Examples:
 
 			fieldsValue, err := normalizeWinBackOfferFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("win-back-offers list: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
 			}
 			priceFieldsValue, err := normalizeWinBackOfferPriceFields(*priceFields, "--price-fields")
 			if err != nil {
-				return fmt.Errorf("win-back-offers list: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
 			}
 			includeValue, err := normalizeWinBackOfferInclude(*include, "--include")
 			if err != nil {
-				return fmt.Errorf("win-back-offers list: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
 			}
 			if len(priceFieldsValue) > 0 && !shared.HasInclude(includeValue, "prices") {
 				fmt.Fprintln(os.Stderr, "Error: --price-fields requires --include prices")
@@ -762,19 +762,19 @@ Examples:
 
 			fieldsValue, err := normalizeWinBackOfferPriceFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("win-back-offers prices: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			territoryFieldsValue, err := normalizeWinBackOfferTerritoryFields(*territoryFields, "--territory-fields")
 			if err != nil {
-				return fmt.Errorf("win-back-offers prices: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			pricePointFieldsValue, err := normalizeWinBackOfferSubscriptionPricePointFields(*pricePointFields, "--price-point-fields")
 			if err != nil {
-				return fmt.Errorf("win-back-offers prices: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			includeValue, err := normalizeWinBackOfferPriceInclude(*include, "--include")
 			if err != nil {
-				return fmt.Errorf("win-back-offers prices: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			territoryFilter, err := shared.NormalizeASCTerritoryCSV(*territories)
 			if err != nil {

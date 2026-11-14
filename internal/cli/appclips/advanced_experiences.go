@@ -139,7 +139,7 @@ Examples:
 
 			actionValues, err := normalizeAppClipActionList(*action)
 			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences list: %w", err)
+				return shared.UsageErrorf("app-clips advanced-experiences list: %v", err)
 			}
 
 			appClipValue := strings.TrimSpace(*appClipID)
@@ -268,7 +268,7 @@ Examples:
 
 			langValue, err := normalizeAppClipLanguage(*defaultLanguage)
 			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences create: %w", err)
+				return shared.UsageErrorf("app-clips advanced-experiences create: %v", err)
 			}
 
 			visited := map[string]bool{}
@@ -325,7 +325,7 @@ Examples:
 			if strings.TrimSpace(*action) != "" {
 				parsed, err := normalizeAppClipAction(*action)
 				if err != nil {
-					return fmt.Errorf("app-clips advanced-experiences create: %w", err)
+					return shared.UsageErrorf("app-clips advanced-experiences create: %v", err)
 				}
 				actionValue = &parsed
 			}
@@ -334,7 +334,7 @@ Examples:
 			if strings.TrimSpace(*category) != "" {
 				parsed, err := normalizeAppClipBusinessCategory(*category)
 				if err != nil {
-					return fmt.Errorf("app-clips advanced-experiences create: %w", err)
+					return shared.UsageErrorf("app-clips advanced-experiences create: %v", err)
 				}
 				categoryValue = &parsed
 			}
@@ -443,14 +443,14 @@ Examples:
 				if visited["action"] {
 					parsed, err := normalizeAppClipAction(*action)
 					if err != nil {
-						return fmt.Errorf("app-clips advanced-experiences update: %w", err)
+						return shared.UsageErrorf("app-clips advanced-experiences update: %v", err)
 					}
 					update.Action = &parsed
 				}
 				if visited["category"] {
 					parsed, err := normalizeAppClipBusinessCategory(*category)
 					if err != nil {
-						return fmt.Errorf("app-clips advanced-experiences update: %w", err)
+						return shared.UsageErrorf("app-clips advanced-experiences update: %v", err)
 					}
 					update.BusinessCategory = &parsed
 				}
@@ -464,7 +464,7 @@ Examples:
 				if visited["default-language"] {
 					parsed, err := normalizeAppClipLanguage(*defaultLanguage)
 					if err != nil {
-						return fmt.Errorf("app-clips advanced-experiences update: %w", err)
+						return shared.UsageErrorf("app-clips advanced-experiences update: %v", err)
 					}
 					update.DefaultLanguage = &parsed
 				}

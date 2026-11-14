@@ -428,7 +428,7 @@ Examples:
 
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)
 			if err != nil {
-				return fmt.Errorf("app-setup localizations upload: %w", err)
+				return shared.UsageErrorf("app-setup localizations upload: %v", err)
 			}
 
 			locales := shared.SplitCSV(*locale)

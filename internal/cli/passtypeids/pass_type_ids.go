@@ -100,15 +100,15 @@ Examples:
 
 			fieldsValue, err := normalizePassTypeIDFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids list: %w", err)
+				return d.UsageErrorf("pass-type-ids list: %v", err)
 			}
 			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids list: %w", err)
+				return d.UsageErrorf("pass-type-ids list: %v", err)
 			}
 			includeValue, err := normalizePassTypeIDInclude(*include)
 			if err != nil {
-				return fmt.Errorf("pass-type-ids list: %w", err)
+				return d.UsageErrorf("pass-type-ids list: %v", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
@@ -216,15 +216,15 @@ Examples:
 
 			fieldsValue, err := normalizePassTypeIDFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids view: %w", err)
+				return d.UsageErrorf("pass-type-ids view: %v", err)
 			}
 			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids view: %w", err)
+				return d.UsageErrorf("pass-type-ids view: %v", err)
 			}
 			includeValue, err := normalizePassTypeIDInclude(*include)
 			if err != nil {
-				return fmt.Errorf("pass-type-ids view: %w", err)
+				return d.UsageErrorf("pass-type-ids view: %v", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")

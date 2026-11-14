@@ -124,6 +124,9 @@ Examples:
 			if trimmedOutputPath == "" {
 				return shared.RequiredFlag("--output-path")
 			}
+			if err := localxcode.ValidateExportOptionsArchivePath(trimmedArchivePath); err != nil {
+				return shared.UsageErrorf("xcode export-options generate: %v", err)
+			}
 
 			result, err := runGenerateExportOptions(ctx, localxcode.ExportOptionsGenerateOptions{
 				ArchivePath:  trimmedArchivePath,

@@ -344,7 +344,7 @@ func preflightCertificateExportDestination(output string, force bool, inputs ...
 			return fmt.Errorf("resolve input path: %w", absErr)
 		}
 		if outputAbs == filepath.Clean(inputAbs) {
-			return fmt.Errorf("--p12-out must differ from input path %q", input)
+			return shared.UsageErrorf("certificates export: --p12-out must differ from input path %q", input)
 		}
 	}
 

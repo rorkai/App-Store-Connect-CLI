@@ -77,8 +77,8 @@ func TestPreOrdersEnableCommand_InvalidDate(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid release date")
 	}
-	if errors.Is(err, flag.ErrHelp) {
-		t.Fatal("expected non-ErrHelp error for invalid release date")
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp for invalid release date, got %v", err)
 	}
 }
 
@@ -117,8 +117,8 @@ func TestPreOrdersUpdateCommand_InvalidDate(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid release date")
 	}
-	if errors.Is(err, flag.ErrHelp) {
-		t.Fatal("expected non-ErrHelp error for invalid release date")
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp for invalid release date, got %v", err)
 	}
 }
 
