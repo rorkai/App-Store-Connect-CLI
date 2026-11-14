@@ -1,10 +1,12 @@
 // Command openapigen generates parts of the App Store Connect client in
-// internal/asc from the OpenAPI spec and the bindings directory. See
-// docs/openapi/README.md.
+// internal/asc from the OpenAPI spec, and with -target web parts of the web
+// interface client in internal/web from the web interface schema, each from
+// the bindings directory of its package. See docs/openapi/README.md.
 package main
 
 import (
 	"bytes"
+	"cmp"
 	"flag"
 	"fmt"
 	"io"
@@ -15,14 +17,24 @@ import (
 )
 
 func main() {
-	specPath := flag.String("spec", "../../docs/openapi/latest.json", "OpenAPI spec")
+	target := flag.String("target", "asc", "client to generate: asc (internal/asc) or web (internal/web)")
+	specPath := flag.String("spec", "", "OpenAPI spec (default: the target's schema)")
 	bindingsDir := flag.String("bindings", "openapi_bindings", "directory with one bindings file per family")
 	dir := flag.String("dir", ".", "client package directory")
 	check := flag.Bool("check", false, "fail if generated files are out of date instead of writing them")
 	adopt := flag.String("adopt", "", "comma-separated tags (or \"all\") whose hand-written methods and types to replace")
 	dryRun := flag.Bool("dry-run", false, "with -adopt, only report what would be generated")
 	flag.Parse()
-	if err := run(*specPath, *bindingsDir, *dir, *check, *adopt, *dryRun, os.Stdout); err != nil {
+	var err error
+	switch *target {
+	case "asc":
+		err = run(cmp.Or(*specPath, "../../docs/openapi/latest.json"), *bindingsDir, *dir, *check, *adopt, *dryRun, os.Stdout)
+	case "web":
+		err = runWeb(cmp.Or(*specPath, "../../docs/openapi/web/latest.json"), *bindingsDir, *dir, *check, *adopt, *dryRun, os.Stdout)
+	default:
+		err = fmt.Errorf("unknown target %q", *target)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "openapigen:", err)
 		os.Exit(1)
 	}
@@ -51,6 +63,14 @@ func run(specPath, bindingsDir, dir string, check bool, adopt string, dryRun boo
 	if err != nil || dryRun {
 		return err
 	}
+	return writeAdopted(edits, adopted, bindingsDir, func() (map[string][]byte, []string, error) {
+		return plan(spec, bindings, dir)
+	})
+}
+
+// writeAdopted writes the bindings of the adopted families, the generated
+// files planned after adoption, and the hand-written files adoption shrank.
+func writeAdopted(edits map[string][]byte, adopted []*Family, bindingsDir string, planFiles func() (map[string][]byte, []string, error)) error {
 	// Encode sorts a family, so encode before rendering to generate in the
 	// order the bindings files keep.
 	families := map[string][]byte{}
@@ -63,7 +83,7 @@ func run(specPath, bindingsDir, dir string, check bool, adopt string, dryRun boo
 	}
 	// Render everything before touching a file, so a failure leaves the
 	// hand-written code in place.
-	writes, stale, err := plan(spec, bindings, dir)
+	writes, stale, err := planFiles()
 	if err != nil {
 		return err
 	}
@@ -89,6 +109,10 @@ func run(specPath, bindingsDir, dir string, check bool, adopt string, dryRun boo
 // produces. With check it changes nothing and reports what is out of date.
 func writeAll(spec *Spec, bindings *Bindings, dir string, check bool) error {
 	writes, stale, err := plan(spec, bindings, dir)
+	return writeOrCheck(writes, stale, err, check)
+}
+
+func writeOrCheck(writes map[string][]byte, stale []string, err error, check bool) error {
 	if err != nil {
 		return err
 	}
@@ -109,9 +133,15 @@ func writeAll(spec *Spec, bindings *Bindings, dir string, check bool) error {
 // plan renders every family and returns the generated files that differ from
 // disk and the generated files no family produces any more.
 func plan(spec *Spec, bindings *Bindings, dir string) (map[string][]byte, []string, error) {
+	return planTarget(bindings, dir, header, func(fam *Family) ([]byte, error) { return Generate(spec, fam) })
+}
+
+// planTarget is plan for the target whose generated files start with
+// fileHeader and whose families generate renders.
+func planTarget(bindings *Bindings, dir, fileHeader string, generate func(*Family) ([]byte, error)) (map[string][]byte, []string, error) {
 	writes := map[string][]byte{}
 	for _, fam := range bindings.Families {
-		src, err := Generate(spec, fam)
+		src, err := generate(fam)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -133,7 +163,7 @@ func plan(spec *Spec, bindings *Bindings, dir string) (map[string][]byte, []stri
 		if err != nil {
 			return nil, nil, err
 		}
-		if bytes.HasPrefix(data, []byte(header)) {
+		if bytes.HasPrefix(data, []byte(fileHeader)) {
 			stale = append(stale, path)
 		}
 	}

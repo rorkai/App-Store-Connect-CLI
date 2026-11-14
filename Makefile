@@ -257,11 +257,12 @@ update-schema-index:
 	@echo "$(BLUE)Updating schema index...$(NC)"
 	python3 scripts/generate-schema-index.py
 
-# Regenerate the client code in internal/asc from the OpenAPI snapshot
+# Regenerate the client code in internal/asc from the OpenAPI snapshot and in
+# internal/web from the web interface schema
 .PHONY: generate-client
 generate-client:
 	@echo "$(BLUE)Generating API client code...$(NC)"
-	$(GO) generate ./internal/asc
+	$(GO) generate ./internal/asc ./internal/web
 
 # Generate docs/COMMANDS.md from live CLI help
 .PHONY: generate-command-docs
@@ -301,6 +302,7 @@ check-openapi:
 	python3 ./scripts/update-openapi-index.py --check
 	python3 ./scripts/generate-schema-index.py --check
 	cd internal/asc && $(GO) run ../openapigen -check
+	cd internal/web && $(GO) run ../openapigen -target web -check
 
 .PHONY: check-docs
 check-docs: check-repo-docs check-agent-skills check-openapi
@@ -384,7 +386,7 @@ help:
 	@echo "  update-deps    Update dependencies"
 	@echo "  update-openapi Update OpenAPI paths index"
 	@echo "  update-schema-index Update runtime schema index"
-	@echo "  generate-client Regenerate API client code from the OpenAPI snapshot"
+	@echo "  generate-client Regenerate API client code from the OpenAPI snapshot and the web interface schema"
 	@echo "  generate-command-docs Generate docs/COMMANDS.md from live CLI help"
 	@echo "  check-command-docs Validate docs command lists against live CLI help"
 	@echo "  check-repo-docs Validate local links in repository markdown docs"
