@@ -2,7 +2,6 @@ package asc
 
 import (
 	"net/url"
-	"strings"
 )
 
 // GameCenterLeaderboardAttributes represents a Game Center leaderboard resource.
@@ -130,24 +129,6 @@ type gcLeaderboardsQuery struct {
 	listQuery
 }
 
-// WithGCLeaderboardsLimit sets the max number of leaderboards to return.
-func WithGCLeaderboardsLimit(limit int) GCLeaderboardsOption {
-	return func(q *gcLeaderboardsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCLeaderboardsNextURL uses a next page URL directly.
-func WithGCLeaderboardsNextURL(next string) GCLeaderboardsOption {
-	return func(q *gcLeaderboardsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildGCLeaderboardsQuery(query *gcLeaderboardsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -187,24 +168,6 @@ type GCLeaderboardVersionsOption func(*gcLeaderboardVersionsQuery)
 
 type gcLeaderboardVersionsQuery struct {
 	listQuery
-}
-
-// WithGCLeaderboardVersionsLimit sets the max number of versions to return.
-func WithGCLeaderboardVersionsLimit(limit int) GCLeaderboardVersionsOption {
-	return func(q *gcLeaderboardVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCLeaderboardVersionsNextURL uses a next page URL directly.
-func WithGCLeaderboardVersionsNextURL(next string) GCLeaderboardVersionsOption {
-	return func(q *gcLeaderboardVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCLeaderboardVersionsQuery(query *gcLeaderboardVersionsQuery) string {
@@ -307,24 +270,6 @@ type gcLeaderboardLocalizationsQuery struct {
 	listQuery
 }
 
-// WithGCLeaderboardLocalizationsLimit sets the max number of localizations to return.
-func WithGCLeaderboardLocalizationsLimit(limit int) GCLeaderboardLocalizationsOption {
-	return func(q *gcLeaderboardLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCLeaderboardLocalizationsNextURL uses a next page URL directly.
-func WithGCLeaderboardLocalizationsNextURL(next string) GCLeaderboardLocalizationsOption {
-	return func(q *gcLeaderboardLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildGCLeaderboardLocalizationsQuery(query *gcLeaderboardLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -370,24 +315,6 @@ type GCLeaderboardReleasesOption func(*gcLeaderboardReleasesQuery)
 
 type gcLeaderboardReleasesQuery struct {
 	listQuery
-}
-
-// WithGCLeaderboardReleasesLimit sets the max number of leaderboard releases to return.
-func WithGCLeaderboardReleasesLimit(limit int) GCLeaderboardReleasesOption {
-	return func(q *gcLeaderboardReleasesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCLeaderboardReleasesNextURL uses a next page URL directly.
-func WithGCLeaderboardReleasesNextURL(next string) GCLeaderboardReleasesOption {
-	return func(q *gcLeaderboardReleasesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCLeaderboardReleasesQuery(query *gcLeaderboardReleasesQuery) string {

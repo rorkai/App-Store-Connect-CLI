@@ -263,7 +263,7 @@ func (c *Client) GetAllGameCenterLeaderboardLocalizations(ctx context.Context, l
 	}
 
 	result, err := PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return c.GetGameCenterLeaderboardLocalizations(ctx, leaderboardID, WithGCLeaderboardLocalizationsNextURL(nextURL))
+		return c.GetGameCenterLeaderboardLocalizations(ctx, leaderboardID, NextURL[GCLeaderboardLocalizationsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

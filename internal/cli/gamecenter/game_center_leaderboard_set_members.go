@@ -59,7 +59,7 @@ Examples:
 		ErrorPrefix:          "game-center leaderboard-sets members list",
 		FetchErrorPrefix:     "game-center leaderboard-sets members list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterLeaderboardSetMembers(ctx, setId, asc.WithGCLeaderboardSetMembersLimit(limit), asc.WithGCLeaderboardSetMembersNextURL(next))
+			return client.GetGameCenterLeaderboardSetMembers(ctx, setId, asc.Limit[asc.GCLeaderboardSetMembersOption](limit), asc.NextURL[asc.GCLeaderboardSetMembersOption](next))
 		},
 	})
 }

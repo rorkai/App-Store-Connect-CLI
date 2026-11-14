@@ -81,9 +81,9 @@ func listGameCenterLeaderboardSetMemberIDs(ctx context.Context, setID string, li
 	seenNext := make(map[string]struct{})
 
 	for {
-		opts := []GCLeaderboardSetMembersOption{WithGCLeaderboardSetMembersLimit(200)}
+		opts := []GCLeaderboardSetMembersOption{Limit[GCLeaderboardSetMembersOption](200)}
 		if nextURL != "" {
-			opts = append(opts, WithGCLeaderboardSetMembersNextURL(nextURL))
+			opts = append(opts, NextURL[GCLeaderboardSetMembersOption](nextURL))
 		}
 
 		resp, err := listFn(ctx, setID, opts...)

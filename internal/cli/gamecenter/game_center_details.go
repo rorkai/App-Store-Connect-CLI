@@ -330,7 +330,7 @@ Examples:
 		ErrorPrefix:          "game-center details app-versions list",
 		FetchErrorPrefix:     "game-center details app-versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterDetailGameCenterAppVersions(ctx, id, asc.WithGCAppVersionsLimit(limit), asc.WithGCAppVersionsNextURL(next))
+			return client.GetGameCenterDetailGameCenterAppVersions(ctx, id, asc.Limit[asc.GCAppVersionsOption](limit), asc.NextURL[asc.GCAppVersionsOption](next))
 		},
 	})
 }
@@ -425,7 +425,7 @@ Examples:
 		ErrorPrefix:          "game-center details achievements-v2 list",
 		FetchErrorPrefix:     "game-center details achievements-v2 list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterDetailsAchievementsV2(ctx, id, asc.WithGCAchievementsLimit(limit), asc.WithGCAchievementsNextURL(next))
+			return client.GetGameCenterDetailsAchievementsV2(ctx, id, asc.Limit[asc.GCAchievementsOption](limit), asc.NextURL[asc.GCAchievementsOption](next))
 		},
 	})
 }
@@ -475,7 +475,7 @@ Examples:
 		ErrorPrefix:          "game-center details leaderboards-v2 list",
 		FetchErrorPrefix:     "game-center details leaderboards-v2 list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterDetailsLeaderboardsV2(ctx, id, asc.WithGCLeaderboardsLimit(limit), asc.WithGCLeaderboardsNextURL(next))
+			return client.GetGameCenterDetailsLeaderboardsV2(ctx, id, asc.Limit[asc.GCLeaderboardsOption](limit), asc.NextURL[asc.GCLeaderboardsOption](next))
 		},
 	})
 }
@@ -525,7 +525,7 @@ Examples:
 		ErrorPrefix:          "game-center details leaderboard-sets-v2 list",
 		FetchErrorPrefix:     "game-center details leaderboard-sets-v2 list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterDetailsLeaderboardSetsV2(ctx, id, asc.WithGCLeaderboardSetsLimit(limit), asc.WithGCLeaderboardSetsNextURL(next))
+			return client.GetGameCenterDetailsLeaderboardSetsV2(ctx, id, asc.Limit[asc.GCLeaderboardSetsOption](limit), asc.NextURL[asc.GCLeaderboardSetsOption](next))
 		},
 	})
 }
@@ -575,7 +575,7 @@ Examples:
 		ErrorPrefix:          "game-center details achievement-releases list",
 		FetchErrorPrefix:     "game-center details achievement-releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterDetailsAchievementReleases(ctx, id, asc.WithGCAchievementReleasesLimit(limit), asc.WithGCAchievementReleasesNextURL(next))
+			return client.GetGameCenterDetailsAchievementReleases(ctx, id, asc.Limit[asc.GCAchievementReleasesOption](limit), asc.NextURL[asc.GCAchievementReleasesOption](next))
 		},
 	})
 }
@@ -625,7 +625,7 @@ Examples:
 		ErrorPrefix:          "game-center details leaderboard-releases list",
 		FetchErrorPrefix:     "game-center details leaderboard-releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterDetailsLeaderboardReleases(ctx, id, asc.WithGCLeaderboardReleasesLimit(limit), asc.WithGCLeaderboardReleasesNextURL(next))
+			return client.GetGameCenterDetailsLeaderboardReleases(ctx, id, asc.Limit[asc.GCLeaderboardReleasesOption](limit), asc.NextURL[asc.GCLeaderboardReleasesOption](next))
 		},
 	})
 }
@@ -675,7 +675,7 @@ Examples:
 		ErrorPrefix:          "game-center details leaderboard-set-releases list",
 		FetchErrorPrefix:     "game-center details leaderboard-set-releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterDetailsLeaderboardSetReleases(ctx, id, asc.WithGCLeaderboardSetReleasesLimit(limit), asc.WithGCLeaderboardSetReleasesNextURL(next))
+			return client.GetGameCenterDetailsLeaderboardSetReleases(ctx, id, asc.Limit[asc.GCLeaderboardSetReleasesOption](limit), asc.NextURL[asc.GCLeaderboardSetReleasesOption](next))
 		},
 	})
 }
@@ -793,19 +793,19 @@ func runDetailsMetrics(ctx context.Context, name string, fs *flag.FlagSet, detai
 		asc.WithGCMatchmakingMetricsGroupBy(shared.SplitCSV(*groupBy)),
 		asc.WithGCMatchmakingMetricsFilterResult(strings.TrimSpace(*filterResult)),
 		asc.WithGCMatchmakingMetricsSort(shared.SplitCSV(*sort)),
-		asc.WithGCMatchmakingMetricsLimit(*limit),
-		asc.WithGCMatchmakingMetricsNextURL(*next),
+		asc.Limit[asc.GCMatchmakingMetricsOption](*limit),
+		asc.NextURL[asc.GCMatchmakingMetricsOption](*next),
 	}
 
 	if *paginate {
-		paginateOpts := append(opts, asc.WithGCMatchmakingMetricsLimit(200))
+		paginateOpts := append(opts, asc.Limit[asc.GCMatchmakingMetricsOption](200))
 		firstPage, err := fetch(client, requestCtx, id, paginateOpts...)
 		if err != nil {
 			return fmt.Errorf("game-center details metrics %s: failed to fetch: %w", name, err)
 		}
 
 		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return fetch(client, ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
+			return fetch(client, ctx, id, asc.NextURL[asc.GCMatchmakingMetricsOption](nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("game-center details metrics %s: %w", name, err)
