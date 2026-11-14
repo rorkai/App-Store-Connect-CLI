@@ -82,7 +82,7 @@ func TestBuildFeedbackQuery(t *testing.T) {
 		WithFeedbackBuildIDs([]string{"build-1"}),
 		WithFeedbackBuildPreReleaseVersionIDs([]string{"pre-1"}),
 		WithFeedbackTesterIDs([]string{"tester-1"}),
-		WithFeedbackLimit(10),
+		Limit[FeedbackOption](10),
 		WithFeedbackSort("-createdDate"),
 	}
 	for _, opt := range opts {
@@ -231,7 +231,7 @@ func TestBuildCrashQueryIncludeBuildAndTester(t *testing.T) {
 
 func TestBuildBetaGroupsQuery(t *testing.T) {
 	query := &betaGroupsQuery{}
-	WithBetaGroupsLimit(10)(query)
+	Limit[BetaGroupsOption](10)(query)
 	WithBetaGroupsApps([]string{" app-1 ", "app-2"})(query)
 	WithBetaGroupsBuilds([]string{"build-1"})(query)
 	WithBetaGroupsFields([]string{"name", "isInternalGroup", "hasAccessToAllBuilds"})(query)
@@ -809,7 +809,7 @@ func TestBuildAppEncryptionDeclarationsQuery(t *testing.T) {
 func TestBuildBetaTestersQuery(t *testing.T) {
 	query := &betaTestersQuery{}
 	opts := []BetaTestersOption{
-		WithBetaTestersLimit(25),
+		Limit[BetaTestersOption](25),
 		WithBetaTestersEmail("tester@example.com"),
 		WithBetaTestersFirstName("Ada"),
 		WithBetaTestersLastName("Lovelace"),
@@ -1105,7 +1105,7 @@ func TestBuildAppStoreVersionLocalizationsQuery(t *testing.T) {
 func TestBuildBetaAppLocalizationsQuery(t *testing.T) {
 	query := &betaAppLocalizationsQuery{}
 	opts := []BetaAppLocalizationsOption{
-		WithBetaAppLocalizationsLimit(12),
+		Limit[BetaAppLocalizationsOption](12),
 		WithBetaAppLocalizationLocales([]string{"en-US", "fr-FR"}),
 		WithBetaAppLocalizationAppIDs([]string{"app-1", "app-2"}),
 	}
@@ -1131,7 +1131,7 @@ func TestBuildBetaAppLocalizationsQuery(t *testing.T) {
 func TestBuildBetaBuildLocalizationsQuery(t *testing.T) {
 	query := &betaBuildLocalizationsQuery{}
 	opts := []BetaBuildLocalizationsOption{
-		WithBetaBuildLocalizationsLimit(25),
+		Limit[BetaBuildLocalizationsOption](25),
 		WithBetaBuildLocalizationBuildIDs([]string{"build-1", "build-2"}),
 		WithBetaBuildLocalizationLocales([]string{"en-US", "fr-FR"}),
 	}
@@ -1197,7 +1197,7 @@ func TestBuildBetaTesterUsagesQuery(t *testing.T) {
 	opts := []BetaTesterUsagesOption{
 		WithBetaTesterUsagesPeriod("P7D"),
 		WithBetaTesterUsagesAppID("app-1"),
-		WithBetaTesterUsagesLimit(10),
+		Limit[BetaTesterUsagesOption](10),
 	}
 	for _, opt := range opts {
 		opt(query)

@@ -96,8 +96,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaAppLocalizationsOption{
-				asc.WithBetaAppLocalizationsLimit(*limit),
-				asc.WithBetaAppLocalizationsNextURL(*next),
+				asc.Limit[asc.BetaAppLocalizationsOption](*limit),
+				asc.NextURL[asc.BetaAppLocalizationsOption](*next),
 			}
 			if resolvedAppID != "" {
 				opts = append(opts, asc.WithBetaAppLocalizationAppIDs([]string{resolvedAppID}))
@@ -107,14 +107,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaAppLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaAppLocalizationsOption](200))
 				firstPage, err := client.GetBetaAppLocalizations(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("beta-app-localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaAppLocalizations(ctx, asc.WithBetaAppLocalizationsNextURL(nextURL))
+					return client.GetBetaAppLocalizations(ctx, asc.NextURL[asc.BetaAppLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("beta-app-localizations list: %w", err)

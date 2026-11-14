@@ -93,8 +93,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaAppReviewDetailsOption{
-				asc.WithBetaAppReviewDetailsLimit(*limit),
-				asc.WithBetaAppReviewDetailsNextURL(*next),
+				asc.Limit[asc.BetaAppReviewDetailsOption](*limit),
+				asc.NextURL[asc.BetaAppReviewDetailsOption](*next),
 			}
 
 			details, err := client.GetBetaAppReviewDetails(requestCtx, resolvedAppID, opts...)
@@ -404,21 +404,21 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaAppReviewSubmissionsOption{
-				asc.WithBetaAppReviewSubmissionsLimit(*limit),
-				asc.WithBetaAppReviewSubmissionsNextURL(*next),
+				asc.Limit[asc.BetaAppReviewSubmissionsOption](*limit),
+				asc.NextURL[asc.BetaAppReviewSubmissionsOption](*next),
 			}
 
 			opts = append(opts, asc.WithBetaAppReviewSubmissionsBuildIDs([]string{buildValue}))
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaAppReviewSubmissionsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaAppReviewSubmissionsOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBetaAppReviewSubmissions(ctx, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBetaAppReviewSubmissions(ctx, asc.WithBetaAppReviewSubmissionsNextURL(nextURL))
+						return client.GetBetaAppReviewSubmissions(ctx, asc.NextURL[asc.BetaAppReviewSubmissionsOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -598,8 +598,8 @@ Examples:
 
 			opts := []asc.BuildBetaDetailsOption{
 				asc.WithBuildBetaDetailsBuildIDs([]string{trimmedBuildID}),
-				asc.WithBuildBetaDetailsLimit(*limit),
-				asc.WithBuildBetaDetailsNextURL(*next),
+				asc.Limit[asc.BuildBetaDetailsOption](*limit),
+				asc.NextURL[asc.BuildBetaDetailsOption](*next),
 			}
 
 			details, err := client.GetBuildBetaDetails(requestCtx, opts...)
@@ -866,8 +866,8 @@ Examples:
 
 			opts := []asc.BetaRecruitmentCriterionOptionsOption{
 				asc.WithBetaRecruitmentCriterionOptionsFields(fieldsValue),
-				asc.WithBetaRecruitmentCriterionOptionsLimit(*limit),
-				asc.WithBetaRecruitmentCriterionOptionsNextURL(*next),
+				asc.Limit[asc.BetaRecruitmentCriterionOptionsOption](*limit),
+				asc.NextURL[asc.BetaRecruitmentCriterionOptionsOption](*next),
 			}
 
 			options, err := client.GetBetaRecruitmentCriterionOptions(requestCtx, opts...)

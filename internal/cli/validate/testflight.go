@@ -134,7 +134,7 @@ func runValidateTestFlight(ctx context.Context, opts validateTestFlightOptions) 
 
 	var betaBuildLocalizations []validation.BetaBuildLocalization
 	if build != nil {
-		locsResp, err := client.GetBetaBuildLocalizations(requestCtx, build.ID, asc.WithBetaBuildLocalizationsLimit(200))
+		locsResp, err := client.GetBetaBuildLocalizations(requestCtx, build.ID, asc.Limit[asc.BetaBuildLocalizationsOption](200))
 		if err != nil {
 			return fmt.Errorf("validate testflight: failed to fetch beta build localizations: %w", err)
 		}

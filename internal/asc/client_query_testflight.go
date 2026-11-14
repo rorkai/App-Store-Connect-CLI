@@ -466,24 +466,6 @@ func WithFeedbackTesterIDs(ids []string) FeedbackOption {
 	}
 }
 
-// WithFeedbackLimit sets the max number of feedback items to return.
-func WithFeedbackLimit(limit int) FeedbackOption {
-	return func(q *feedbackQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithFeedbackNextURL uses a next page URL directly.
-func WithFeedbackNextURL(next string) FeedbackOption {
-	return func(q *feedbackQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithFeedbackSort sets the sort order for feedback.
 func WithFeedbackSort(sort string) FeedbackOption {
 	return func(q *feedbackQuery) {
@@ -561,24 +543,6 @@ func WithCrashTesterIDs(ids []string) CrashOption {
 	}
 }
 
-// WithCrashLimit sets the max number of crash items to return.
-func WithCrashLimit(limit int) CrashOption {
-	return func(q *crashQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCrashNextURL uses a next page URL directly.
-func WithCrashNextURL(next string) CrashOption {
-	return func(q *crashQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithCrashSort sets the sort order for crashes.
 func WithCrashSort(sort string) CrashOption {
 	return func(q *crashQuery) {
@@ -597,24 +561,6 @@ func WithCrashInclude(include []string) CrashOption {
 		normalized := normalizeList(include)
 		if len(normalized) > 0 {
 			q.include = normalized
-		}
-	}
-}
-
-// WithBetaGroupsLimit sets the max number of beta groups to return.
-func WithBetaGroupsLimit(limit int) BetaGroupsOption {
-	return func(q *betaGroupsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaGroupsNextURL uses a next page URL directly.
-func WithBetaGroupsNextURL(next string) BetaGroupsOption {
-	return func(q *betaGroupsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
@@ -743,60 +689,6 @@ func WithBetaGroupsBuildsLimit(limit int) BetaGroupsOption {
 	}
 }
 
-// WithBetaGroupBuildsLimit sets the max number of builds to return for a group.
-func WithBetaGroupBuildsLimit(limit int) BetaGroupBuildsOption {
-	return func(q *betaGroupBuildsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaGroupBuildsNextURL uses a next page URL directly.
-func WithBetaGroupBuildsNextURL(next string) BetaGroupBuildsOption {
-	return func(q *betaGroupBuildsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithBetaGroupTestersLimit sets the max number of testers to return for a group.
-func WithBetaGroupTestersLimit(limit int) BetaGroupTestersOption {
-	return func(q *betaGroupTestersQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaGroupTestersNextURL uses a next page URL directly.
-func WithBetaGroupTestersNextURL(next string) BetaGroupTestersOption {
-	return func(q *betaGroupTestersQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithBetaTestersLimit sets the max number of beta testers to return.
-func WithBetaTestersLimit(limit int) BetaTestersOption {
-	return func(q *betaTestersQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaTestersNextURL uses a next page URL directly.
-func WithBetaTestersNextURL(next string) BetaTestersOption {
-	return func(q *betaTestersQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithBetaTestersEmail filters beta testers by email.
 func WithBetaTestersEmail(email string) BetaTestersOption {
 	return func(q *betaTestersQuery) {
@@ -875,24 +767,6 @@ func WithBetaTestersFields(fields []string) BetaTestersOption {
 	}
 }
 
-// WithBetaTesterUsagesLimit sets the max number of beta tester usage records to return.
-func WithBetaTesterUsagesLimit(limit int) BetaTesterUsagesOption {
-	return func(q *betaTesterUsagesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaTesterUsagesNextURL uses a next page URL directly.
-func WithBetaTesterUsagesNextURL(next string) BetaTesterUsagesOption {
-	return func(q *betaTesterUsagesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithBetaTesterUsagesPeriod sets the reporting period for beta tester usage metrics.
 func WithBetaTesterUsagesPeriod(period string) BetaTesterUsagesOption {
 	return func(q *betaTesterUsagesQuery) {
@@ -929,42 +803,6 @@ func WithBetaTesterUsagesFilterBetaTesters(testerID string) BetaTesterUsagesOpti
 	}
 }
 
-// WithBetaAppReviewDetailsLimit sets the max number of review detail records to return.
-func WithBetaAppReviewDetailsLimit(limit int) BetaAppReviewDetailsOption {
-	return func(q *betaAppReviewDetailsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaAppReviewDetailsNextURL uses a next page URL directly.
-func WithBetaAppReviewDetailsNextURL(next string) BetaAppReviewDetailsOption {
-	return func(q *betaAppReviewDetailsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithBetaAppReviewSubmissionsLimit sets the max number of submissions to return.
-func WithBetaAppReviewSubmissionsLimit(limit int) BetaAppReviewSubmissionsOption {
-	return func(q *betaAppReviewSubmissionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaAppReviewSubmissionsNextURL uses a next page URL directly.
-func WithBetaAppReviewSubmissionsNextURL(next string) BetaAppReviewSubmissionsOption {
-	return func(q *betaAppReviewSubmissionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithBetaAppReviewSubmissionsBuildIDs filters submissions by build ID(s).
 func WithBetaAppReviewSubmissionsBuildIDs(ids []string) BetaAppReviewSubmissionsOption {
 	return func(q *betaAppReviewSubmissionsQuery) {
@@ -979,24 +817,6 @@ func WithBetaAppReviewSubmissionsIncludeBuild() BetaAppReviewSubmissionsOption {
 	}
 }
 
-// WithBuildBetaDetailsLimit sets the max number of build beta details to return.
-func WithBuildBetaDetailsLimit(limit int) BuildBetaDetailsOption {
-	return func(q *buildBetaDetailsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBuildBetaDetailsNextURL uses a next page URL directly.
-func WithBuildBetaDetailsNextURL(next string) BuildBetaDetailsOption {
-	return func(q *buildBetaDetailsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithBuildBetaDetailsBuildIDs filters build beta details by build ID(s).
 func WithBuildBetaDetailsBuildIDs(ids []string) BuildBetaDetailsOption {
 	return func(q *buildBetaDetailsQuery) {
@@ -1004,46 +824,10 @@ func WithBuildBetaDetailsBuildIDs(ids []string) BuildBetaDetailsOption {
 	}
 }
 
-// WithBetaRecruitmentCriterionOptionsLimit sets the max number of criterion options to return.
-func WithBetaRecruitmentCriterionOptionsLimit(limit int) BetaRecruitmentCriterionOptionsOption {
-	return func(q *betaRecruitmentCriterionOptionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 // WithBetaRecruitmentCriterionOptionsFields sets fields for criterion options.
 func WithBetaRecruitmentCriterionOptionsFields(fields []string) BetaRecruitmentCriterionOptionsOption {
 	return func(q *betaRecruitmentCriterionOptionsQuery) {
 		q.fields = normalizeList(fields)
-	}
-}
-
-// WithBetaRecruitmentCriterionOptionsNextURL uses a next page URL directly.
-func WithBetaRecruitmentCriterionOptionsNextURL(next string) BetaRecruitmentCriterionOptionsOption {
-	return func(q *betaRecruitmentCriterionOptionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithBetaAppLocalizationsLimit sets the max number of beta app localizations to return.
-func WithBetaAppLocalizationsLimit(limit int) BetaAppLocalizationsOption {
-	return func(q *betaAppLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaAppLocalizationsNextURL uses a next page URL directly.
-func WithBetaAppLocalizationsNextURL(next string) BetaAppLocalizationsOption {
-	return func(q *betaAppLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -1061,24 +845,6 @@ func WithBetaAppLocalizationAppIDs(ids []string) BetaAppLocalizationsOption {
 	}
 }
 
-// WithBetaBuildLocalizationsLimit sets the max number of beta build localizations to return.
-func WithBetaBuildLocalizationsLimit(limit int) BetaBuildLocalizationsOption {
-	return func(q *betaBuildLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaBuildLocalizationsNextURL uses a next page URL directly.
-func WithBetaBuildLocalizationsNextURL(next string) BetaBuildLocalizationsOption {
-	return func(q *betaBuildLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithBetaBuildLocalizationLocales filters beta build localizations by locale.
 func WithBetaBuildLocalizationLocales(locales []string) BetaBuildLocalizationsOption {
 	return func(q *betaBuildLocalizationsQuery) {
@@ -1090,96 +856,6 @@ func WithBetaBuildLocalizationLocales(locales []string) BetaBuildLocalizationsOp
 func WithBetaBuildLocalizationBuildIDs(ids []string) BetaBuildLocalizationsOption {
 	return func(q *betaBuildLocalizationsQuery) {
 		q.buildIDs = normalizeList(ids)
-	}
-}
-
-// WithBetaBuildUsagesLimit sets the max number of beta build usage records to return.
-func WithBetaBuildUsagesLimit(limit int) BetaBuildUsagesOption {
-	return func(q *betaBuildUsagesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaBuildUsagesNextURL uses a next page URL directly.
-func WithBetaBuildUsagesNextURL(next string) BetaBuildUsagesOption {
-	return func(q *betaBuildUsagesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppBetaAppLocalizationsLimit sets the max number of beta app localizations to return.
-func WithAppBetaAppLocalizationsLimit(limit int) AppBetaAppLocalizationsOption {
-	return func(q *listQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppBetaAppLocalizationsNextURL uses a next page URL directly.
-func WithAppBetaAppLocalizationsNextURL(next string) AppBetaAppLocalizationsOption {
-	return func(q *listQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithBetaTesterAppsLimit sets the max number of apps to return.
-func WithBetaTesterAppsLimit(limit int) BetaTesterAppsOption {
-	return func(q *listQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaTesterAppsNextURL uses a next page URL directly.
-func WithBetaTesterAppsNextURL(next string) BetaTesterAppsOption {
-	return func(q *listQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithBetaTesterBetaGroupsLimit sets the max number of beta groups to return.
-func WithBetaTesterBetaGroupsLimit(limit int) BetaTesterBetaGroupsOption {
-	return func(q *listQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaTesterBetaGroupsNextURL uses a next page URL directly.
-func WithBetaTesterBetaGroupsNextURL(next string) BetaTesterBetaGroupsOption {
-	return func(q *listQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithBetaTesterBuildsLimit sets the max number of builds to return.
-func WithBetaTesterBuildsLimit(limit int) BetaTesterBuildsOption {
-	return func(q *listQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaTesterBuildsNextURL uses a next page URL directly.
-func WithBetaTesterBuildsNextURL(next string) BetaTesterBuildsOption {
-	return func(q *listQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
