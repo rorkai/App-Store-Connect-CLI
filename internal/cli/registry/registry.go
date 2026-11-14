@@ -151,7 +151,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("app-setup", "Post-create app setup automation.", apps.AppSetupCommand),
 		commandFactory("app-tags", "Inspect Apple-generated App Store discoverability tags.", apps.AppTagsCommand),
 		commandFactory("marketplace", "Manage marketplace resources.", marketplace.MarketplaceCommand),
-		commandFactory("alternative-distribution", "Manage alternative distribution resources.", alternativedistribution.Command),
+		commandFactory("alternative-distribution", "Manage alternative distribution resources.", func() *ffcli.Command {
+			return alternativedistribution.NewAlternativeDistributionCommand(d)
+		}),
 		commandFactory("webhooks", "Manage webhooks in App Store Connect.", webhooks.WebhooksCommand),
 		commandFactory("nominations", "Manage featuring nominations.", nominations.NominationsCommand),
 		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", bundleids.BundleIDsCommand),
@@ -175,7 +177,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("ipa-info", "Inspect a local IPA without contacting App Store Connect.", artifacts.IPAInfoCommand),
 		commandFactory("pkg-info", "Inspect a local flat package or product archive without contacting Apple.", artifacts.PKGInfoCommand),
 		commandFactory("versions", "Manage App Store versions.", versions.VersionsCommand),
-		commandFactory("product-pages", "Manage custom product pages and product page experiments.", productpages.ProductPagesCommand),
+		commandFactory("product-pages", "Manage custom product pages and product page experiments.", func() *ffcli.Command {
+			return productpages.NewProductPagesCommand(d)
+		}),
 		commandFactory("routing-coverage", "Manage routing app coverage files.", routingcoverage.RoutingCoverageCommand),
 		commandFactory("eula", "Manage End User License Agreements (EULA).", eula.EULACommand),
 		commandFactory("agreements", "Manage agreements in App Store Connect.", func() *ffcli.Command {

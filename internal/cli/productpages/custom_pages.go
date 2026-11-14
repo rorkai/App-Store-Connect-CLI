@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// CustomPagesCommand returns the custom pages command group.
-func CustomPagesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-pages", flag.ExitOnError)
+// newCustomPagesCommand returns the custom pages command group.
+func newCustomPagesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-pages", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "custom-pages",
@@ -32,13 +31,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			CustomPagesListCommand(),
-			CustomPagesGetCommand(),
-			CustomPagesCreateCommand(),
-			CustomPagesUpdateCommand(),
-			CustomPagesDeleteCommand(),
-			CustomPageVersionsCommand(),
-			CustomPageLocalizationsCommand(),
+			newCustomPagesListCommand(d),
+			newCustomPagesGetCommand(d),
+			newCustomPagesCreateCommand(d),
+			newCustomPagesUpdateCommand(d),
+			newCustomPagesDeleteCommand(d),
+			newCustomPageVersionsCommand(d),
+			newCustomPageLocalizationsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -46,9 +45,9 @@ Examples:
 	}
 }
 
-// CustomPagesListCommand returns the custom pages list subcommand.
-func CustomPagesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-pages list", flag.ExitOnError)
+// newCustomPagesListCommand returns the custom pages list subcommand.
+func newCustomPagesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-pages list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	visible := fs.String("visible", "", "Filter by visibility (true/false), comma-separated")
@@ -60,7 +59,7 @@ func CustomPagesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -79,9 +78,9 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("custom-pages list: %v", err)
+				return d.UsageErrorf("custom-pages list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(
+			if err := d.RejectNextFlagConflicts(
 				fs,
 				*next,
 				"custom-pages list",
@@ -104,58 +103,58 @@ Examples:
 				{name: "include", value: *include},
 			} {
 				if providedQueryFlags[queryFlag.name] && len(shared.SplitCSV(queryFlag.value)) == 0 {
-					return shared.UsageError(fmt.Sprintf("custom-pages list: --%s must not be empty", queryFlag.name))
+					return d.UsageError(fmt.Sprintf("custom-pages list: --%s must not be empty", queryFlag.name))
 				}
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return shared.UsageErrorf("custom-pages list: --limit must be between 1 and %d", productPagesMaxLimit)
+				return d.UsageErrorf("custom-pages list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
 			if providedQueryFlags["versions-limit"] && (*versionsLimit < 1 || *versionsLimit > customPagesMaxVersionsLimit) {
-				return shared.UsageError(fmt.Sprintf("custom-pages list: --versions-limit must be between 1 and %d", customPagesMaxVersionsLimit))
+				return d.UsageError(fmt.Sprintf("custom-pages list: --versions-limit must be between 1 and %d", customPagesMaxVersionsLimit))
 			}
 
 			visibleValues, err := normalizeCustomPagesVisible(*visible)
 			if err != nil {
-				return shared.UsageError("custom-pages list: " + err.Error())
+				return d.UsageError("custom-pages list: " + err.Error())
 			}
 			pageFields, err := shared.NormalizeSelection(*fields, customPagesFields, "--fields")
 			if err != nil {
-				return shared.UsageError("custom-pages list: " + err.Error())
+				return d.UsageError("custom-pages list: " + err.Error())
 			}
 			appFieldValues, err := shared.NormalizeSelection(*appFields, shared.AppFieldsList(), "--app-fields")
 			if err != nil {
-				return shared.UsageError("custom-pages list: " + err.Error())
+				return d.UsageError("custom-pages list: " + err.Error())
 			}
 			versionFieldValues, err := shared.NormalizeSelection(*versionFields, customPagesVersionFields, "--version-fields")
 			if err != nil {
-				return shared.UsageError("custom-pages list: " + err.Error())
+				return d.UsageError("custom-pages list: " + err.Error())
 			}
 			includeValues, err := shared.NormalizeSelection(*include, customPagesIncludes, "--include")
 			if err != nil {
-				return shared.UsageError("custom-pages list: " + err.Error())
+				return d.UsageError("custom-pages list: " + err.Error())
 			}
 			if len(appFieldValues) > 0 && !shared.HasInclude(includeValues, "app") {
-				return customPagesListIncludeRequirementUsageError("--app-fields", "custom-pages list: --app-fields requires --include app")
+				return customPagesListIncludeRequirementUsageError(d, "--app-fields", "custom-pages list: --app-fields requires --include app")
 			}
 			if len(versionFieldValues) > 0 && !shared.HasInclude(includeValues, "appCustomProductPageVersions") {
-				return customPagesListIncludeRequirementUsageError("--version-fields", "custom-pages list: --version-fields requires --include appCustomProductPageVersions")
+				return customPagesListIncludeRequirementUsageError(d, "--version-fields", "custom-pages list: --version-fields requires --include appCustomProductPageVersions")
 			}
 			if *versionsLimit > 0 && !shared.HasInclude(includeValues, "appCustomProductPageVersions") {
-				return customPagesListIncludeRequirementUsageError("--versions-limit", "custom-pages list: --versions-limit requires --include appCustomProductPageVersions")
+				return customPagesListIncludeRequirementUsageError(d, "--versions-limit", "custom-pages list: --versions-limit requires --include appCustomProductPageVersions")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppCustomProductPagesOption{
@@ -196,7 +195,7 @@ Examples:
 					return fmt.Errorf("custom-pages list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppCustomProductPages(requestCtx, resolvedAppID, opts...)
@@ -204,13 +203,13 @@ Examples:
 				return fmt.Errorf("custom-pages list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func customPagesListIncludeRequirementUsageError(parameter, message string) error {
-	fmt.Fprintln(os.Stderr, "Error: "+message)
+func customPagesListIncludeRequirementUsageError(d *shared.Deps, parameter, message string) error {
+	fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 	return shared.WithDiagnostic(
 		shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message),
 		shared.DiagnosticInvalidInput,
@@ -246,12 +245,12 @@ func normalizeCustomPagesVisible(value string) ([]string, error) {
 	return normalized, nil
 }
 
-// CustomPagesGetCommand returns the custom pages get subcommand.
-func CustomPagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-pages view", flag.ExitOnError)
+// newCustomPagesGetCommand returns the custom pages get subcommand.
+func newCustomPagesGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-pages view", flag.ExitOnError)
 
 	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -266,15 +265,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--custom-page-id")
+				return d.RequiredFlag("--custom-page-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppCustomProductPage(requestCtx, trimmedID)
@@ -282,20 +281,20 @@ Examples:
 				return fmt.Errorf("custom-pages view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPagesCreateCommand returns the custom pages create subcommand.
-func CustomPagesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-pages create", flag.ExitOnError)
+// newCustomPagesCreateCommand returns the custom pages create subcommand.
+func newCustomPagesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-pages create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	name := fs.String("name", "", "Custom product page name")
 	fromVersion := shared.BindResourceIDFlag(fs, "from-version", "appStoreVersions", "App Store version ID to use as the page template")
 	fromCustomPage := shared.BindResourceIDFlag(fs, "from-custom-page", "appCustomProductPages", "Custom product page ID to use as the page template")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -316,26 +315,26 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
 			template := asc.AppCustomProductPageTemplate{AppStoreVersionID: strings.TrimSpace(*fromVersion), CustomPageID: strings.TrimSpace(*fromCustomPage)}
 			if template.AppStoreVersionID != "" && template.CustomPageID != "" {
-				return shared.UsageError("--from-version and --from-custom-page are mutually exclusive")
+				return d.UsageError("--from-version and --from-custom-page are mutually exclusive")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppCustomProductPage(requestCtx, resolvedAppID, nameValue, template)
@@ -343,20 +342,20 @@ Examples:
 				return fmt.Errorf("custom-pages create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPagesUpdateCommand returns the custom pages update subcommand.
-func CustomPagesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-pages update", flag.ExitOnError)
+// newCustomPagesUpdateCommand returns the custom pages update subcommand.
+func newCustomPagesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-pages update", flag.ExitOnError)
 
 	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
 	name := fs.String("name", "", "Update page name")
 	var visible shared.OptionalBool
 	fs.Var(&visible, "visible", "Set visibility: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -372,7 +371,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--custom-page-id")
+				return d.RequiredFlag("--custom-page-id")
 			}
 
 			attrs := asc.AppCustomProductPageUpdateAttributes{}
@@ -384,16 +383,16 @@ Examples:
 				attrs.Visible = &value
 			}
 			if attrs.Name == nil && attrs.Visible == nil {
-				fmt.Fprintln(os.Stderr, "Error: --name or --visible is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --name or --visible is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppCustomProductPage(requestCtx, trimmedID, attrs)
@@ -401,14 +400,15 @@ Examples:
 				return fmt.Errorf("custom-pages update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPagesDeleteCommand returns the custom pages delete subcommand.
-func CustomPagesDeleteCommand() *ffcli.Command {
+// newCustomPagesDeleteCommand returns the custom pages delete subcommand.
+func newCustomPagesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "custom-pages delete",
 		Name:        "delete",
 		ShortUsage:  "asc product-pages custom-pages delete --custom-page-id \"PAGE_ID\" --confirm",

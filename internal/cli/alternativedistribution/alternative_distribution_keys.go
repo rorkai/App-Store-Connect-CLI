@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AlternativeDistributionKeysCommand returns the keys command group.
-func AlternativeDistributionKeysCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("keys", flag.ExitOnError)
+// newAlternativeDistributionKeysCommand returns the keys command group.
+func newAlternativeDistributionKeysCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("keys", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "keys",
@@ -32,11 +31,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AlternativeDistributionKeysListCommand(),
-			AlternativeDistributionKeysGetCommand(),
-			AlternativeDistributionKeysCreateCommand(),
-			AlternativeDistributionKeysDeleteCommand(),
-			AlternativeDistributionKeysAppCommand(),
+			newAlternativeDistributionKeysListCommand(d),
+			newAlternativeDistributionKeysGetCommand(d),
+			newAlternativeDistributionKeysCreateCommand(d),
+			newAlternativeDistributionKeysDeleteCommand(d),
+			newAlternativeDistributionKeysAppCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -44,9 +43,10 @@ Examples:
 	}
 }
 
-// AlternativeDistributionKeysListCommand returns the keys list subcommand.
-func AlternativeDistributionKeysListCommand() *ffcli.Command {
+// newAlternativeDistributionKeysListCommand returns the keys list subcommand.
+func newAlternativeDistributionKeysListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "list",
 		Name:        "list",
 		ShortUsage:  "asc alternative-distribution keys list [flags]",
@@ -72,9 +72,10 @@ Examples:
 	})
 }
 
-// AlternativeDistributionKeysGetCommand returns the keys get subcommand.
-func AlternativeDistributionKeysGetCommand() *ffcli.Command {
+// newAlternativeDistributionKeysGetCommand returns the keys get subcommand.
+func newAlternativeDistributionKeysGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "view",
 		Name:        "view",
 		ShortUsage:  "asc alternative-distribution keys view --key-id \"KEY_ID\"",
@@ -95,14 +96,14 @@ Examples:
 	})
 }
 
-// AlternativeDistributionKeysCreateCommand returns the keys create subcommand.
-func AlternativeDistributionKeysCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newAlternativeDistributionKeysCreateCommand returns the keys create subcommand.
+func newAlternativeDistributionKeysCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	publicKey := fs.String("public-key", "", "Public key content")
 	publicKeyPath := fs.String("public-key-path", "", "Path to public key file")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -118,17 +119,17 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			keyValue := strings.TrimSpace(*publicKey)
 			keyPath := strings.TrimSpace(*publicKeyPath)
 			if keyValue != "" && keyPath != "" {
-				return shared.UsageError("alternative-distribution keys create: only one of --public-key or --public-key-path is allowed")
+				return d.UsageError("alternative-distribution keys create: only one of --public-key or --public-key-path is allowed")
 			}
 			if keyValue == "" && keyPath == "" {
-				fmt.Fprintln(os.Stderr, "Error: --public-key or --public-key-path is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --public-key or --public-key-path is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if keyValue == "" && keyPath != "" {
@@ -139,12 +140,12 @@ Examples:
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution keys create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAlternativeDistributionKey(requestCtx, resolvedAppID, keyValue)
@@ -152,14 +153,15 @@ Examples:
 				return fmt.Errorf("alternative-distribution keys create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AlternativeDistributionKeysDeleteCommand returns the keys delete subcommand.
-func AlternativeDistributionKeysDeleteCommand() *ffcli.Command {
+// newAlternativeDistributionKeysDeleteCommand returns the keys delete subcommand.
+func newAlternativeDistributionKeysDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "delete",
 		Name:        "delete",
 		ShortUsage:  "asc alternative-distribution keys delete --key-id \"KEY_ID\" --confirm",
@@ -183,12 +185,12 @@ Examples:
 	})
 }
 
-// AlternativeDistributionKeysAppCommand returns the app key subcommand.
-func AlternativeDistributionKeysAppCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app", flag.ExitOnError)
+// newAlternativeDistributionKeysAppCommand returns the app key subcommand.
+func newAlternativeDistributionKeysAppCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "app",
@@ -203,16 +205,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution keys app: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppAlternativeDistributionKey(requestCtx, resolvedAppID)
@@ -220,7 +222,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution keys app: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

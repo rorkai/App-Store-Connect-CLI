@@ -8,9 +8,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AlternativeDistributionCommand returns the alternative distribution command group.
-func AlternativeDistributionCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("alternative-distribution", flag.ExitOnError)
+// NewAlternativeDistributionCommand returns the alternative distribution command
+// group built on d.
+func NewAlternativeDistributionCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("alternative-distribution", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "alternative-distribution",
@@ -33,9 +34,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AlternativeDistributionDomainsCommand(),
-			AlternativeDistributionKeysCommand(),
-			AlternativeDistributionPackagesCommand(),
+			newAlternativeDistributionDomainsCommand(d),
+			newAlternativeDistributionKeysCommand(d),
+			newAlternativeDistributionPackagesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

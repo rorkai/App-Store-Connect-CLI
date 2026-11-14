@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -15,7 +14,13 @@ import (
 
 // PromotedPurchasesCommand returns the promoted purchases command with subcommands.
 func PromotedPurchasesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("promoted-purchases", flag.ExitOnError)
+	return NewPromotedPurchasesCommand(shared.DefaultDeps())
+}
+
+// NewPromotedPurchasesCommand returns the promoted purchases command with
+// subcommands built on d.
+func NewPromotedPurchasesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("promoted-purchases", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "promoted-purchases",
@@ -33,12 +38,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PromotedPurchasesListCommand(),
-			PromotedPurchasesGetCommand(),
-			PromotedPurchasesCreateCommand(),
-			PromotedPurchasesUpdateCommand(),
-			PromotedPurchasesDeleteCommand(),
-			PromotedPurchasesLinkCommand(),
+			newPromotedPurchasesListCommand(d),
+			newPromotedPurchasesGetCommand(d),
+			newPromotedPurchasesCreateCommand(d),
+			newPromotedPurchasesUpdateCommand(d),
+			newPromotedPurchasesDeleteCommand(d),
+			newPromotedPurchasesLinkCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -46,15 +51,15 @@ Examples:
 	}
 }
 
-// PromotedPurchasesListCommand returns the promoted purchases list subcommand.
-func PromotedPurchasesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newPromotedPurchasesListCommand returns the promoted purchases list subcommand.
+func newPromotedPurchasesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -70,25 +75,25 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --limit must be between 1 and 200")
 				return flag.ErrHelp
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("promoted-purchases list: %v", err)
+				return d.UsageErrorf("promoted-purchases list: %v", err)
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.PromotedPurchasesOption{
@@ -110,7 +115,7 @@ Examples:
 					return fmt.Errorf("promoted-purchases list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppPromotedPurchases(requestCtx, resolvedAppID, opts...)
@@ -118,14 +123,15 @@ Examples:
 				return fmt.Errorf("promoted-purchases list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PromotedPurchasesGetCommand returns the promoted purchases get subcommand.
-func PromotedPurchasesGetCommand() *ffcli.Command {
+// newPromotedPurchasesGetCommand returns the promoted purchases get subcommand.
+func newPromotedPurchasesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "view",
 		Name:        "view",
 		ShortUsage:  "asc promoted-purchases view --promoted-purchase-id PROMO_ID",
@@ -146,9 +152,9 @@ Examples:
 	})
 }
 
-// PromotedPurchasesCreateCommand returns the promoted purchases create subcommand.
-func PromotedPurchasesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newPromotedPurchasesCreateCommand returns the promoted purchases create subcommand.
+func newPromotedPurchasesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	productID := fs.String("product-id", "", "Product ID (subscription or in-app purchase ID)")
@@ -157,7 +163,7 @@ func PromotedPurchasesCreateCommand() *ffcli.Command {
 	fs.Var(&visibleForAllUsers, "visible-for-all-users", "Visible for all users: true or false")
 	var enabled shared.OptionalBool
 	fs.Var(&enabled, "enabled", "Enable or disable the promoted purchase")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -173,35 +179,35 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			productIDValue := strings.TrimSpace(*productID)
 			if productIDValue == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 
 			if strings.TrimSpace(*productType) == "" {
-				return shared.RequiredFlag("--product-type")
+				return d.RequiredFlag("--product-type")
 			}
 
 			productTypeValue, err := normalizePromotedPurchaseProductType(*productType)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err)
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
 				return flag.ErrHelp
 			}
 
 			if !visibleForAllUsers.IsSet() {
-				return shared.RequiredFlag("--visible-for-all-users")
+				return d.RequiredFlag("--visible-for-all-users")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.PromotedPurchaseCreateAttributes{
@@ -244,21 +250,21 @@ Examples:
 				return fmt.Errorf("promoted-purchases create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PromotedPurchasesUpdateCommand returns the promoted purchases update subcommand.
-func PromotedPurchasesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newPromotedPurchasesUpdateCommand returns the promoted purchases update subcommand.
+func newPromotedPurchasesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "promoted-purchase-id", "promotedPurchases", "Promoted purchase ID")
 	var visibleForAllUsers shared.OptionalBool
 	fs.Var(&visibleForAllUsers, "visible-for-all-users", "Visible for all users: true or false")
 	var enabled shared.OptionalBool
 	fs.Var(&enabled, "enabled", "Enable or disable the promoted purchase")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -274,19 +280,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--promoted-purchase-id")
+				return d.RequiredFlag("--promoted-purchase-id")
 			}
 			if !visibleForAllUsers.IsSet() && !enabled.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.PromotedPurchaseUpdateAttributes{}
@@ -304,18 +310,18 @@ Examples:
 				return fmt.Errorf("promoted-purchases update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PromotedPurchasesDeleteCommand returns the promoted purchases delete subcommand.
-func PromotedPurchasesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+// newPromotedPurchasesDeleteCommand returns the promoted purchases delete subcommand.
+func newPromotedPurchasesDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("delete", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "promoted-purchase-id", "promotedPurchases", "Promoted purchase ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -329,20 +335,20 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+				return d.RequiredFlag("--confirm")
 			}
 
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--promoted-purchase-id")
+				return d.RequiredFlag("--promoted-purchase-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases delete: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.DeletePromotedPurchase(requestCtx, idValue); err != nil {
@@ -354,20 +360,20 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PromotedPurchasesLinkCommand returns the promoted purchases link subcommand.
-func PromotedPurchasesLinkCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("link", flag.ExitOnError)
+// newPromotedPurchasesLinkCommand returns the promoted purchases link subcommand.
+func newPromotedPurchasesLinkCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("link", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	promotedIDs := shared.BindOnceCSVFlag(fs, "promoted-purchase-id", "Comma-separated promoted purchase IDs")
 	clear := fs.Bool("clear", false, "Remove all promoted purchases from the app")
 	confirm := fs.Bool("confirm", false, "Confirm removal when using --clear")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "link",
@@ -384,34 +390,34 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			var promotedPurchaseIDs []string
 			if *clear {
 				if strings.TrimSpace(promotedIDs.String()) != "" {
-					fmt.Fprintln(os.Stderr, "Error: --clear cannot be used with --promoted-purchase-id")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --clear cannot be used with --promoted-purchase-id")
 					return flag.ErrHelp
 				}
 				if !*confirm {
-					fmt.Fprintln(os.Stderr, "Error: --confirm is required with --clear")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required with --clear")
 					return shared.MissingRequiredUsageError("--confirm")
 				}
 				promotedPurchaseIDs = nil
 			} else {
 				promotedPurchaseIDs = shared.SplitCSV(promotedIDs.String())
 				if len(promotedPurchaseIDs) == 0 {
-					return shared.RequiredFlag("--promoted-purchase-id")
+					return d.RequiredFlag("--promoted-purchase-id")
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases link: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.SetAppPromotedPurchases(requestCtx, resolvedAppID, promotedPurchaseIDs); err != nil {
@@ -428,7 +434,7 @@ Examples:
 				Action:              action,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

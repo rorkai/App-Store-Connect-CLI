@@ -28,6 +28,7 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 		path       string
 		flags      []string
 		query      string
+		deps       bool // the command is built on shared.Deps: stub its client and read its deps streams
 	}{
 		{
 			name:       "version localizations list",
@@ -74,6 +75,7 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 			path:       "/v1/appCustomProductPageVersions/version-1/appCustomProductPageLocalizations",
 			flags:      []string{"--include", "placements", "--placements-limit", "10"},
 			query:      "include=placements&limit%5Bplacements%5D=10",
+			deps:       true,
 		},
 		{
 			name:    "custom page localization view",
@@ -81,6 +83,7 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 			path:    "/v1/appCustomProductPageLocalizations/loc-1",
 			flags:   []string{"--include", "placements", "--placements-limit", "10"},
 			query:   "include=placements&limit%5Bplacements%5D=10",
+			deps:    true,
 		},
 		{
 			name:       "treatment localizations list",
@@ -89,6 +92,7 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 			path:       "/v1/appStoreVersionExperimentTreatments/treatment-1/appStoreVersionExperimentTreatmentLocalizations",
 			flags:      []string{"--include", "placements", "--placements-limit", "10"},
 			query:      "include=placements&limit%5Bplacements%5D=10",
+			deps:       true,
 		},
 		{
 			name:    "treatment localization view",
@@ -96,6 +100,7 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 			path:    "/v1/appStoreVersionExperimentTreatmentLocalizations/loc-1",
 			flags:   []string{"--include", "placements", "--placements-limit", "10"},
 			query:   "include=placements&limit%5Bplacements%5D=10",
+			deps:    true,
 		},
 	}
 
@@ -123,22 +128,28 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 				}
 				body += "}"
 				reg := asctest.NewRegistry(t)
-				reg.Install()
 				reg.Register(asctest.GET(test.path, strings.Split(variant.query, "&")...), asctest.JSON(http.StatusOK, body))
-
-				root := RootCommand("1.2.3")
-				root.FlagSet.SetOutput(io.Discard)
 
 				args := append(append([]string{}, test.command...), "--output", "json")
 				args = append(args, variant.flags...)
-				stdout, stderr := captureOutput(t, func() {
-					if err := root.Parse(args); err != nil {
-						t.Fatalf("parse error: %v", err)
-					}
-					if err := root.Run(context.Background()); err != nil {
-						t.Fatalf("run error: %v", err)
-					}
-				})
+				var stdout, stderr string
+				var err error
+				if test.deps {
+					stdout, stderr, err = runRootWithDeps(t, stubClient(t, reg), args...)
+				} else {
+					reg.Install()
+					root := RootCommand("1.2.3")
+					root.FlagSet.SetOutput(io.Discard)
+					stdout, stderr = captureOutput(t, func() {
+						if parseErr := root.Parse(args); parseErr != nil {
+							t.Fatalf("parse error: %v", parseErr)
+						}
+						err = root.Run(context.Background())
+					})
+				}
+				if err != nil {
+					t.Fatalf("run error: %v", err)
+				}
 
 				requests := reg.Requests()
 				if requestCount := len(requests); requestCount != 1 {

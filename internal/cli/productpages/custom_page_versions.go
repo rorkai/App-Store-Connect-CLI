@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// CustomPageVersionsCommand returns the custom page versions command group.
-func CustomPageVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions", flag.ExitOnError)
+// newCustomPageVersionsCommand returns the custom page versions command group.
+func newCustomPageVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "versions",
@@ -28,10 +28,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			CustomPageVersionsListCommand(),
-			CustomPageVersionsGetCommand(),
-			CustomPageVersionsCreateCommand(),
-			CustomPageVersionsUpdateCommand(),
+			newCustomPageVersionsListCommand(d),
+			newCustomPageVersionsGetCommand(d),
+			newCustomPageVersionsCreateCommand(d),
+			newCustomPageVersionsUpdateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -39,15 +39,15 @@ Examples:
 	}
 }
 
-// CustomPageVersionsListCommand returns the custom page versions list subcommand.
-func CustomPageVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-versions list", flag.ExitOnError)
+// newCustomPageVersionsListCommand returns the custom page versions list subcommand.
+func newCustomPageVersionsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-page-versions list", flag.ExitOnError)
 
 	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -62,23 +62,23 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return shared.UsageErrorf("custom-pages versions list: --limit must be between 1 and %d", productPagesMaxLimit)
+				return d.UsageErrorf("custom-pages versions list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("custom-pages versions list: %v", err)
+				return d.UsageErrorf("custom-pages versions list: %v", err)
 			}
 
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--custom-page-id")
+				return d.RequiredFlag("--custom-page-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages versions list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppCustomProductPageVersionsOption{
@@ -100,7 +100,7 @@ Examples:
 					return fmt.Errorf("custom-pages versions list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppCustomProductPageVersions(requestCtx, trimmedID, opts...)
@@ -108,17 +108,17 @@ Examples:
 				return fmt.Errorf("custom-pages versions list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPageVersionsGetCommand returns the custom page versions get subcommand.
-func CustomPageVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-versions view", flag.ExitOnError)
+// newCustomPageVersionsGetCommand returns the custom page versions get subcommand.
+func newCustomPageVersionsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-page-versions view", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -133,15 +133,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--custom-page-version-id")
+				return d.RequiredFlag("--custom-page-version-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages versions view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppCustomProductPageVersion(requestCtx, trimmedID)
@@ -149,18 +149,18 @@ Examples:
 				return fmt.Errorf("custom-pages versions view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPageVersionsCreateCommand returns the custom page versions create subcommand.
-func CustomPageVersionsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-versions create", flag.ExitOnError)
+// newCustomPageVersionsCreateCommand returns the custom page versions create subcommand.
+func newCustomPageVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-page-versions create", flag.ExitOnError)
 
 	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
 	deepLink := fs.String("deep-link", "", "Deep link URL")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -176,15 +176,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--custom-page-id")
+				return d.RequiredFlag("--custom-page-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages versions create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppCustomProductPageVersion(requestCtx, trimmedID, strings.TrimSpace(*deepLink))
@@ -192,18 +192,18 @@ Examples:
 				return fmt.Errorf("custom-pages versions create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPageVersionsUpdateCommand returns the custom page versions update subcommand.
-func CustomPageVersionsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-versions update", flag.ExitOnError)
+// newCustomPageVersionsUpdateCommand returns the custom page versions update subcommand.
+func newCustomPageVersionsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-page-versions update", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
 	deepLink := fs.String("deep-link", "", "Update deep link URL")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -218,24 +218,24 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--custom-page-version-id")
+				return d.RequiredFlag("--custom-page-version-id")
 			}
 
 			deepLinkValue := strings.TrimSpace(*deepLink)
 			if deepLinkValue == "" {
-				return shared.RequiredFlag("--deep-link")
+				return d.RequiredFlag("--deep-link")
 			}
 
 			attrs := asc.AppCustomProductPageVersionUpdateAttributes{
 				DeepLink: &deepLinkValue,
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages versions update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppCustomProductPageVersion(requestCtx, trimmedID, attrs)
@@ -243,7 +243,7 @@ Examples:
 				return fmt.Errorf("custom-pages versions update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
