@@ -14,6 +14,6 @@
     {"operation":"betaGroups_betaRecruitmentCriteria_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriteria","params":["groupID"],"check":"require","response":"BetaRecruitmentCriteriaResponse"},
     {"operation":"betaGroups_betaRecruitmentCriterionCompatibleBuildCheck_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriterionCompatibleBuildCheck","params":["groupID"],"check":"require"},
     {"operation":"betaGroups_getCollection","name":"ListBetaGroups","options":"BetaGroupsOption","query":"buildBetaGroupsQuery","nextContext":"betaGroups"},
-    {"operation":"betaGroups_publicLinkUsages_getMetrics","name":"GetBetaGroupPublicLinkUsages","params":["groupID"],"check":"require","response":"BetaGroupPublicLinkUsagesResponse","deviations":[{"problem":"the operation pages with limit, the method takes no options","reason":"hand-written signature without options; testflight metrics public-link reads the first page only, and adding options would change the request"}]}
+    {"operation":"betaGroups_publicLinkUsages_getMetrics","name":"GetBetaGroupPublicLinkUsages","params":["groupID"],"check":"require","response":"BetaGroupPublicLinkUsagesResponse","deviations":[{"problem":"the operation pages with limit, the method takes no options","reason":"hand-written signature without options. The live API rejects limit on this read (\"The parameter 'limit' can not be used with this request\", checked 2026-11-14), so the schema snapshot is wrong here and the method must not send it"}]}
   ]
 }
