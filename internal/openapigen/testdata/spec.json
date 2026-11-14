@@ -287,6 +287,16 @@
           "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetsResponse"}}}}
         }
       }
+    },
+    "/v1/wristbands": {
+      "post": {
+        "tags": ["Widgets"],
+        "operationId": "wristbands_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WristbandCreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WristbandResponse"}}}}
+        }
+      }
     }
   },
   "components": {
@@ -632,6 +642,49 @@
             }
           }
         }
+      },
+      "WristbandResponse": {"type": "object"},
+      "WristbandCreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["wristbands"]},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "label": {"type": "string"},
+                  "color": {"type": "string", "enum": ["RED", "BLUE"]},
+                  "size": {"type": "integer"}
+                },
+                "required": ["label", "color", "size"]
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "widget": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "type": {"type": "string", "enum": ["widgets"]},
+                          "id": {"type": "string"}
+                        },
+                        "required": ["id", "type"]
+                      }
+                    },
+                    "required": ["data"]
+                  }
+                },
+                "required": ["widget"]
+              }
+            },
+            "required": ["relationships", "attributes", "type"]
+          }
+        },
+        "required": ["data"]
       }
     }
   }
