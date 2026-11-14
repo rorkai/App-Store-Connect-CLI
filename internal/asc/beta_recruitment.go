@@ -6,8 +6,8 @@ import (
 	"fmt"
 )
 
-// BetaRecruitmentCriteriaAttributes describes beta recruitment criteria metadata.
-type BetaRecruitmentCriteriaAttributes struct {
+// BetaRecruitmentCriterionAttributes describes beta recruitment criteria metadata.
+type BetaRecruitmentCriterionAttributes struct {
 	LastModifiedDate             string                        `json:"lastModifiedDate,omitempty"`
 	DeviceFamilyOsVersionFilters []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters,omitempty"`
 }
@@ -23,7 +23,7 @@ type BetaRecruitmentCriteriaUpdateAttributes struct {
 }
 
 // BetaRecruitmentCriteriaResponse is the response from beta recruitment criteria endpoints.
-type BetaRecruitmentCriteriaResponse = SingleResponse[BetaRecruitmentCriteriaAttributes]
+type BetaRecruitmentCriteriaResponse = SingleResponse[BetaRecruitmentCriterionAttributes]
 
 // BetaRecruitmentCriterionCompatibleBuildCheckAttributes describes compatible build check attributes.
 type BetaRecruitmentCriterionCompatibleBuildCheckAttributes struct {

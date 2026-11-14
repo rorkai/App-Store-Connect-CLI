@@ -2,7 +2,7 @@
   "tag": "GameCenterLeaderboardVersions",
   "file": "game_center_leaderboard_versions_gen.go",
   "operations": [
-    {"operation":"gameCenterLeaderboardVersionsV2_getInstance","name":"GetGameCenterLeaderboardVersion","params":["versionID"],"response":"GameCenterLeaderboardVersionResponse","deviations":[{"problem":"result data holds asc.GameCenterLeaderboardVersionAttributes, not the attributes of resource GameCenterLeaderboardVersionV2","reason":"GameCenterLeaderboardVersionAttributes is the hand-written attributes type, named without the version suffix of GameCenterLeaderboardVersionV2; the attribute names check passes for GameCenterLeaderboardVersionV2."}]},
+    {"operation":"gameCenterLeaderboardVersionsV2_getInstance","name":"GetGameCenterLeaderboardVersion","params":["versionID"],"response":"GameCenterLeaderboardVersionResponse"},
     {"operation":"gameCenterLeaderboardVersionsV2_localizations_getToManyRelated","name":"GetGameCenterLeaderboardVersionLocalizations","params":["versionID"],"options":"GCLeaderboardLocalizationsOption","query":"buildGCLeaderboardLocalizationsQuery","nextContext":"game-center-leaderboard-version-localizations","response":"GameCenterLeaderboardLocalizationsResponse","deviations":[{"problem":"result data holds asc.GameCenterLeaderboardLocalizationAttributes, not the attributes of resource GameCenterLeaderboardLocalizationV2","reason":"GameCenterLeaderboardLocalizationAttributes is the hand-written attributes type, named without the version suffix of GameCenterLeaderboardLocalizationV2; the attribute names check passes for GameCenterLeaderboardLocalizationV2."}]}
   ]
 }

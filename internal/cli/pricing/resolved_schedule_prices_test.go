@@ -12,7 +12,7 @@ func TestConsumeResolvedAppPricePage_PrefersManualSameDay(t *testing.T) {
 	now := time.Date(2026, time.March, 29, 12, 0, 0, 0, time.UTC)
 
 	page := &asc.AppPricesResponse{
-		Data: []asc.Resource[asc.AppPriceAttributes]{
+		Data: []asc.Resource[asc.AppPriceV2Attributes]{
 			newResolvedAppPriceResource("automatic-price", "pp-auto", "2025-01-01", "", false),
 			newResolvedAppPriceResource("manual-price", "pp-manual", "2025-01-01", "", true),
 		},
@@ -41,7 +41,7 @@ func TestConsumeResolvedAppPricePage_SkipsFutureAndExpiredRows(t *testing.T) {
 	now := time.Date(2026, time.March, 29, 12, 0, 0, 0, time.UTC)
 
 	page := &asc.AppPricesResponse{
-		Data: []asc.Resource[asc.AppPriceAttributes]{
+		Data: []asc.Resource[asc.AppPriceV2Attributes]{
 			newResolvedAppPriceResource("expired-price", "pp-expired", "2024-01-01", "2025-01-01", true),
 			newResolvedAppPriceResource("future-price", "pp-future", "2030-01-01", "", true),
 		},
@@ -67,7 +67,7 @@ func TestConsumeResolvedAppPricePage_SkipsFutureAndExpiredRows(t *testing.T) {
 
 func TestConsumeResolvedAppPricePage_DateBoundaries(t *testing.T) {
 	page := &asc.AppPricesResponse{
-		Data: []asc.Resource[asc.AppPriceAttributes]{
+		Data: []asc.Resource[asc.AppPriceV2Attributes]{
 			newResolvedAppPriceResource("old-price", "pp-old", "2026-01-01", "2026-10-01", true),
 			newResolvedAppPriceResource("new-price", "pp-new", "2026-10-01", "", true),
 		},
@@ -101,7 +101,7 @@ func TestConsumeResolvedAppPricePage_DateBoundaries(t *testing.T) {
 
 func TestConsumeResolvedAppPricePage_SkipsPriceOnItsEndDate(t *testing.T) {
 	page := &asc.AppPricesResponse{
-		Data: []asc.Resource[asc.AppPriceAttributes]{
+		Data: []asc.Resource[asc.AppPriceV2Attributes]{
 			newResolvedAppPriceResource("ending-price", "pp-ending", "2026-01-01", "2026-09-30", true),
 		},
 		Included: mustMarshalResolvedAppJSON(t, []map[string]any{
@@ -124,7 +124,7 @@ func newResolvedAppPriceResource(
 	startDate string,
 	endDate string,
 	manual bool,
-) asc.Resource[asc.AppPriceAttributes] {
+) asc.Resource[asc.AppPriceV2Attributes] {
 	relationships := map[string]any{
 		"territory": map[string]any{
 			"data": map[string]any{
@@ -140,10 +140,10 @@ func newResolvedAppPriceResource(
 		},
 	}
 
-	return asc.Resource[asc.AppPriceAttributes]{
+	return asc.Resource[asc.AppPriceV2Attributes]{
 		Type:          asc.ResourceTypeAppPrices,
 		ID:            priceID,
-		Attributes:    asc.AppPriceAttributes{StartDate: startDate, EndDate: endDate, Manual: manual},
+		Attributes:    asc.AppPriceV2Attributes{StartDate: startDate, EndDate: endDate, Manual: manual},
 		Relationships: mustMarshalResolvedAppValue(relationships),
 	}
 }

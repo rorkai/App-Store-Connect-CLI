@@ -157,7 +157,7 @@ func TestGetAppPriceScheduleByID_RequiresID(t *testing.T) {
 
 func TestGetAppPriceScheduleManualPrices_WithQueryOptions(t *testing.T) {
 	resp := AppPricesResponse{
-		Data: []Resource[AppPriceAttributes]{{Type: ResourceTypeAppPrices, ID: "price-1"}},
+		Data: []Resource[AppPriceV2Attributes]{{Type: ResourceTypeAppPrices, ID: "price-1"}},
 	}
 	body, _ := json.Marshal(resp)
 
@@ -199,7 +199,7 @@ func TestGetAppPriceScheduleManualPrices_WithQueryOptions(t *testing.T) {
 
 func TestGetAppPriceScheduleAutomaticPrices_WithOptions(t *testing.T) {
 	resp := AppPricesResponse{
-		Data: []Resource[AppPriceAttributes]{{Type: ResourceTypeAppPrices, ID: "price-1"}},
+		Data: []Resource[AppPriceV2Attributes]{{Type: ResourceTypeAppPrices, ID: "price-1"}},
 	}
 	body, _ := json.Marshal(resp)
 

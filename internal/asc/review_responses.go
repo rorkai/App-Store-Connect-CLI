@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// CustomerReviewResponseAttributes describes a customer review response.
-type CustomerReviewResponseAttributes struct {
+// CustomerReviewResponseV1Attributes describes a customer review response.
+type CustomerReviewResponseV1Attributes struct {
 	ResponseBody string `json:"responseBody"`
 	LastModified string `json:"lastModifiedDate,omitempty"`
 	State        string `json:"state,omitempty"`
@@ -16,9 +16,9 @@ type CustomerReviewResponseAttributes struct {
 
 // CustomerReviewResponseResource is a customer review response resource.
 type CustomerReviewResponseResource struct {
-	Type       ResourceType                     `json:"type"`
-	ID         string                           `json:"id"`
-	Attributes CustomerReviewResponseAttributes `json:"attributes"`
+	Type       ResourceType                       `json:"type"`
+	ID         string                             `json:"id"`
+	Attributes CustomerReviewResponseV1Attributes `json:"attributes"`
 }
 
 // CustomerReviewResponsesResponse is the response from customer review responses endpoints (list).
@@ -62,7 +62,7 @@ const ResourceTypeCustomerReviewResponses ResourceType = "customerReviewResponse
 const ResourceTypeCustomerReviews ResourceType = "customerReviews"
 
 // CustomerReviewPublishedResponseID extracts the response relationship from a customer review resource.
-func CustomerReviewPublishedResponseID(review Resource[ReviewAttributes]) (string, bool) {
+func CustomerReviewPublishedResponseID(review Resource[CustomerReviewAttributes]) (string, bool) {
 	if len(review.Relationships) == 0 {
 		return "", false
 	}

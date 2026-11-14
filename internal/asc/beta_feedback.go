@@ -1,7 +1,7 @@
 package asc
 
 // BetaFeedbackCrashSubmissionResponse is the response from crash submission detail endpoint.
-type BetaFeedbackCrashSubmissionResponse = SingleResponse[CrashAttributes]
+type BetaFeedbackCrashSubmissionResponse = SingleResponse[BetaFeedbackCrashSubmissionAttributes]
 
 // BetaFeedbackScreenshotSubmissionResponse is the response from screenshot submission detail endpoint.
-type BetaFeedbackScreenshotSubmissionResponse = SingleResponse[FeedbackAttributes]
+type BetaFeedbackScreenshotSubmissionResponse = SingleResponse[BetaFeedbackScreenshotSubmissionAttributes]

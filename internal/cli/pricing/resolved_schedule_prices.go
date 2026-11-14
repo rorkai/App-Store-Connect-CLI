@@ -206,7 +206,7 @@ func parseResolvedAppPricePageIncluded(raw json.RawMessage) (map[string]asc.AppP
 }
 
 func resolvedAppPriceCandidateFromResource(
-	item asc.Resource[asc.AppPriceAttributes],
+	item asc.Resource[asc.AppPriceV2Attributes],
 	values map[string]asc.AppPricePointV3Attributes,
 	currencies map[string]string,
 ) (appPriceEntry, shared.ResolvedPriceRow, bool) {

@@ -132,17 +132,19 @@ func registerAllOutputRenderers() {
 	registerRowsWithSingleResourceAdapter(backgroundAssetUploadFilesRows)
 	registerRowsWithSingleResourceAdapter(nominationsRows)
 	registerRows(linkagesRows)
-	registerSingleLinkageRows(func(v *AppClipDefaultExperienceReviewDetailLinkageResponse) ResourceData { return v.Data })
+	registerSingleLinkageRows(func(v *AppClipDefaultExperienceAppClipAppStoreReviewDetailLinkageResponse) ResourceData {
+		return v.Data
+	})
 	registerSingleLinkageRows(func(v *AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse) ResourceData {
 		return v.Data
 	})
-	registerSingleLinkageRows(func(v *AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse) ResourceData {
+	registerSingleLinkageRows(func(v *AppClipDefaultExperienceLocalizationAppClipHeaderImageLinkageResponse) ResourceData {
 		return v.Data
 	})
 	registerSingleLinkageRows(func(v *AppStoreVersionAgeRatingDeclarationLinkageResponse) ResourceData { return v.Data })
-	registerSingleLinkageRows(func(v *AppStoreVersionReviewDetailLinkageResponse) ResourceData { return v.Data })
+	registerSingleLinkageRows(func(v *AppStoreVersionAppStoreReviewDetailLinkageResponse) ResourceData { return v.Data })
 	registerSingleLinkageRows(func(v *AppStoreVersionAppClipDefaultExperienceLinkageResponse) ResourceData { return v.Data })
-	registerSingleLinkageRows(func(v *AppStoreVersionSubmissionLinkageResponse) ResourceData { return v.Data })
+	registerSingleLinkageRows(func(v *AppStoreVersionAppStoreVersionSubmissionLinkageResponse) ResourceData { return v.Data })
 	registerSingleLinkageRows(func(v *AppStoreVersionRoutingAppCoverageLinkageResponse) ResourceData { return v.Data })
 	registerSingleLinkageRows(func(v *AppStoreVersionAlternativeDistributionPackageLinkageResponse) ResourceData {
 		return v.Data

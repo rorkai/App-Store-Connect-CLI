@@ -51,8 +51,8 @@ func buildGCLeaderboardSetsQuery(query *gcLeaderboardSetsQuery) string {
 	return values.Encode()
 }
 
-// GameCenterLeaderboardSetVersionAttributes represents a v2 leaderboard set version resource.
-type GameCenterLeaderboardSetVersionAttributes struct {
+// GameCenterLeaderboardSetVersionV2Attributes represents a v2 leaderboard set version resource.
+type GameCenterLeaderboardSetVersionV2Attributes struct {
 	Version int                    `json:"version,omitempty"`
 	State   GameCenterVersionState `json:"state,omitempty"`
 }
@@ -74,10 +74,10 @@ type GameCenterLeaderboardSetVersionCreateRequest struct {
 }
 
 // GameCenterLeaderboardSetVersionsResponse is the response from leaderboard set version list endpoints.
-type GameCenterLeaderboardSetVersionsResponse = Response[GameCenterLeaderboardSetVersionAttributes]
+type GameCenterLeaderboardSetVersionsResponse = Response[GameCenterLeaderboardSetVersionV2Attributes]
 
 // GameCenterLeaderboardSetVersionResponse is the response from leaderboard set version detail endpoints.
-type GameCenterLeaderboardSetVersionResponse = SingleResponse[GameCenterLeaderboardSetVersionAttributes]
+type GameCenterLeaderboardSetVersionResponse = SingleResponse[GameCenterLeaderboardSetVersionV2Attributes]
 
 // GameCenterLeaderboardSetLocalizationAttributes represents a Game Center leaderboard set localization resource.
 type GameCenterLeaderboardSetLocalizationAttributes struct {

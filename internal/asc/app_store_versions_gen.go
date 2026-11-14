@@ -100,12 +100,12 @@ func (c *Client) GetAppStoreReviewDetailForVersion(ctx context.Context, versionI
 }
 
 // GetAppStoreVersionReviewDetailRelationship sends GET /v1/appStoreVersions/{id}/relationships/appStoreReviewDetail (appStoreVersions_appStoreReviewDetail_getToOneRelationship).
-func (c *Client) GetAppStoreVersionReviewDetailRelationship(ctx context.Context, versionID string) (*AppStoreVersionReviewDetailLinkageResponse, error) {
+func (c *Client) GetAppStoreVersionReviewDetailRelationship(ctx context.Context, versionID string) (*AppStoreVersionAppStoreReviewDetailLinkageResponse, error) {
 	versionID = strings.TrimSpace(versionID)
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	return getJSON[AppStoreVersionReviewDetailLinkageResponse](ctx, c, readRequest{
+	return getJSON[AppStoreVersionAppStoreReviewDetailLinkageResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreReviewDetail", versionID),
 		ParseErr: "failed to parse appStoreReviewDetail relationship response",
 	})
@@ -167,12 +167,12 @@ func (c *Client) GetAppStoreVersionSubmissionForVersion(ctx context.Context, ver
 }
 
 // GetAppStoreVersionSubmissionRelationship sends GET /v1/appStoreVersions/{id}/relationships/appStoreVersionSubmission (appStoreVersions_appStoreVersionSubmission_getToOneRelationship).
-func (c *Client) GetAppStoreVersionSubmissionRelationship(ctx context.Context, versionID string) (*AppStoreVersionSubmissionLinkageResponse, error) {
+func (c *Client) GetAppStoreVersionSubmissionRelationship(ctx context.Context, versionID string) (*AppStoreVersionAppStoreVersionSubmissionLinkageResponse, error) {
 	versionID = strings.TrimSpace(versionID)
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	return getJSON[AppStoreVersionSubmissionLinkageResponse](ctx, c, readRequest{
+	return getJSON[AppStoreVersionAppStoreVersionSubmissionLinkageResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreVersionSubmission", versionID),
 		ParseErr: "failed to parse appStoreVersionSubmission relationship response",
 	})

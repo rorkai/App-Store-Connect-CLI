@@ -10,9 +10,9 @@ import (
 
 func TestCurrentAppPaidPricingEvidenceUsesLatestActiveManualPrice(t *testing.T) {
 	page := &asc.AppPricesResponse{
-		Data: []asc.Resource[asc.AppPriceAttributes]{
-			{ID: "old", Attributes: asc.AppPriceAttributes{StartDate: "2025-01-01", EndDate: "2025-12-31"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"free"}}}`)},
-			{ID: "current", Attributes: asc.AppPriceAttributes{StartDate: "2026-01-01"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"paid"}}}`)},
+		Data: []asc.Resource[asc.AppPriceV2Attributes]{
+			{ID: "old", Attributes: asc.AppPriceV2Attributes{StartDate: "2025-01-01", EndDate: "2025-12-31"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"free"}}}`)},
+			{ID: "current", Attributes: asc.AppPriceV2Attributes{StartDate: "2026-01-01"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"paid"}}}`)},
 		},
 		Included: json.RawMessage(`[
 			{"type":"appPricePoints","id":"free","attributes":{"customerPrice":"0.00"}},
@@ -28,8 +28,8 @@ func TestCurrentAppPaidPricingEvidenceUsesLatestActiveManualPrice(t *testing.T) 
 
 func TestCurrentAppPaidPricingEvidenceRecognizesCurrentFreePrice(t *testing.T) {
 	page := &asc.AppPricesResponse{
-		Data: []asc.Resource[asc.AppPriceAttributes]{
-			{ID: "current", Attributes: asc.AppPriceAttributes{StartDate: "2026-01-01"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"free"}}}`)},
+		Data: []asc.Resource[asc.AppPriceV2Attributes]{
+			{ID: "current", Attributes: asc.AppPriceV2Attributes{StartDate: "2026-01-01"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"free"}}}`)},
 		},
 		Included: json.RawMessage(`[
 			{"type":"appPricePoints","id":"free","attributes":{"customerPrice":"0.00"}}
@@ -44,8 +44,8 @@ func TestCurrentAppPaidPricingEvidenceRecognizesCurrentFreePrice(t *testing.T) {
 
 func TestCurrentAppPaidPricingEvidenceFailsClosedOnIncompleteCurrentPrice(t *testing.T) {
 	page := &asc.AppPricesResponse{
-		Data: []asc.Resource[asc.AppPriceAttributes]{
-			{ID: "current", Attributes: asc.AppPriceAttributes{StartDate: "2026-01-01"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"missing"}}}`)},
+		Data: []asc.Resource[asc.AppPriceV2Attributes]{
+			{ID: "current", Attributes: asc.AppPriceV2Attributes{StartDate: "2026-01-01"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"missing"}}}`)},
 		},
 	}
 
@@ -57,9 +57,9 @@ func TestCurrentAppPaidPricingEvidenceFailsClosedOnIncompleteCurrentPrice(t *tes
 
 func TestCurrentAppPaidPricingEvidenceDateBoundaries(t *testing.T) {
 	page := &asc.AppPricesResponse{
-		Data: []asc.Resource[asc.AppPriceAttributes]{
-			{ID: "old", Attributes: asc.AppPriceAttributes{StartDate: "2026-01-01", EndDate: "2026-08-29"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"paid"}}}`)},
-			{ID: "new", Attributes: asc.AppPriceAttributes{StartDate: "2026-08-29"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"free"}}}`)},
+		Data: []asc.Resource[asc.AppPriceV2Attributes]{
+			{ID: "old", Attributes: asc.AppPriceV2Attributes{StartDate: "2026-01-01", EndDate: "2026-08-29"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"paid"}}}`)},
+			{ID: "new", Attributes: asc.AppPriceV2Attributes{StartDate: "2026-08-29"}, Relationships: json.RawMessage(`{"appPricePoint":{"data":{"id":"free"}}}`)},
 		},
 		Included: json.RawMessage(`[
 			{"type":"appPricePoints","id":"free","attributes":{"customerPrice":"0.00"}},

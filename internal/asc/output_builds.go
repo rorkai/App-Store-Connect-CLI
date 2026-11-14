@@ -179,7 +179,7 @@ func extractPreReleaseVersionMap(included json.RawMessage) map[string]preRelease
 	if len(included) == 0 {
 		return nil
 	}
-	var items []Resource[PreReleaseVersionAttributes]
+	var items []Resource[PrereleaseVersionAttributes]
 	if err := json.Unmarshal(included, &items); err != nil {
 		return nil
 	}

@@ -911,9 +911,9 @@ func buildReviewContexts(builds *asc.BuildsResponse) map[string]*betaReviewBuild
 		return contexts
 	}
 
-	preReleaseVersions := make(map[string]asc.PreReleaseVersionAttributes)
+	preReleaseVersions := make(map[string]asc.PrereleaseVersionAttributes)
 	if len(builds.Included) > 0 {
-		var included []asc.Resource[asc.PreReleaseVersionAttributes]
+		var included []asc.Resource[asc.PrereleaseVersionAttributes]
 		if err := json.Unmarshal(builds.Included, &included); err == nil {
 			for _, resource := range included {
 				if resource.Type == asc.ResourceTypePreReleaseVersions {

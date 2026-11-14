@@ -3,6 +3,6 @@
   "file": "beta_feedback_screenshot_submissions_gen.go",
   "operations": [
     {"operation":"betaFeedbackScreenshotSubmissions_deleteInstance","name":"DeleteBetaFeedbackScreenshotSubmission","params":["submissionID"],"check":"require"},
-    {"operation":"betaFeedbackScreenshotSubmissions_getInstance","name":"GetBetaFeedbackScreenshotSubmission","params":["submissionID"],"check":"require","deviations":[{"problem":"result data holds asc.FeedbackAttributes, not the attributes of resource BetaFeedbackScreenshotSubmission","reason":"FeedbackAttributes is the hand-written attributes type of BetaFeedbackScreenshotSubmission under a shorter exported name; the attribute names check above passes for it."}]}
+    {"operation":"betaFeedbackScreenshotSubmissions_getInstance","name":"GetBetaFeedbackScreenshotSubmission","params":["submissionID"],"check":"require"}
   ]
 }
