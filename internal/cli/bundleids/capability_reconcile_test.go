@@ -314,8 +314,7 @@ func TestReconcileApplyAddsAndPreservesPushSettings(t *testing.T) {
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", path, "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	runErr = cmd.Run(context.Background())
+	runErr := cmd.Run(context.Background())
 	stdout := stdoutBuf.String()
 	if runErr != nil {
 		t.Fatalf("apply: %v\n%s", runErr, stdout)
@@ -366,8 +365,7 @@ func TestReconcileApplyUpdatesProtectionWithoutDroppingAlternatives(t *testing.T
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", path, "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	runErr = cmd.Run(context.Background())
+	runErr := cmd.Run(context.Background())
 	stdout := stdoutBuf.String()
 	if runErr != nil || patches != 1 || !strings.Contains(stdout, `"status":"applied"`) {
 		t.Fatalf("error=%v patches=%d stdout=%s", runErr, patches, stdout)
@@ -533,8 +531,7 @@ func TestReconcileApplyPrintsPartialReceiptOnAPIFailure(t *testing.T) {
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", path, "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	runErr = cmd.Run(context.Background())
+	runErr := cmd.Run(context.Background())
 	stdout := stdoutBuf.String()
 	if runErr == nil || posts != 2 {
 		t.Fatalf("error=%v posts=%d stdout=%s", runErr, posts, stdout)
@@ -582,8 +579,7 @@ func TestReconcileApplyRefusesWebOnlyCapabilityBeforeWrites(t *testing.T) {
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", path, "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	runErr = cmd.Run(context.Background())
+	runErr := cmd.Run(context.Background())
 	stdout := stdoutBuf.String()
 	var reportedErr shared.ReportedError
 	if runErr == nil || !errors.As(runErr, &reportedErr) || writes != 0 {
@@ -611,8 +607,7 @@ func TestReconcileApplyMissingConfirmPrintsOnce(t *testing.T) {
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", "unused.plist"}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	runErr = cmd.Run(context.Background())
+	runErr := cmd.Run(context.Background())
 	stderr := stderrBuf.String()
 	if runErr == nil || strings.Count(stderr, "--confirm is required") != 1 {
 		t.Fatalf("error=%v stderr=%q", runErr, stderr)
@@ -631,8 +626,7 @@ func TestReconcileApplyRejectsInvalidOutputBeforeAPI(t *testing.T) {
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", path, "--confirm", "--output", "bogus"}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	runErr = cmd.Run(context.Background())
+	runErr := cmd.Run(context.Background())
 	if runErr == nil || !strings.Contains(runErr.Error(), "--output") || clientCalls != 0 {
 		t.Fatalf("error=%v clientCalls=%d", runErr, clientCalls)
 	}

@@ -82,10 +82,6 @@ func TestBundleIDsListRejectsInvalidQueryBeforeClient(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	clientFactoryCalls := 0
-	client := func() (*asc.Client, error) {
-		clientFactoryCalls++
-		return nil, errors.New("client factory must not run during validation")
-	}
 
 	tests := []struct {
 		name string
@@ -110,6 +106,10 @@ func TestBundleIDsListRejectsInvalidQueryBeforeClient(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			client := func() (*asc.Client, error) {
+				clientFactoryCalls++
+				return nil, errors.New("client factory must not run during validation")
+			}
 			stdout, stderr, err := runRootWithDeps(t, client, append([]string{"bundle-ids", "list"}, test.args...)...)
 			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
@@ -132,10 +132,6 @@ func TestBundleIDsListIncludeRequirementsUseConciseUsageErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	clientFactoryCalls := 0
-	client := func() (*asc.Client, error) {
-		clientFactoryCalls++
-		return nil, errors.New("client factory must not run during validation")
-	}
 
 	tests := []struct {
 		name      string
@@ -177,6 +173,10 @@ func TestBundleIDsListIncludeRequirementsUseConciseUsageErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			client := func() (*asc.Client, error) {
+				clientFactoryCalls++
+				return nil, errors.New("client factory must not run during validation")
+			}
 			stdout, stderr, runErr := runRootWithDeps(t, client, append([]string{"bundle-ids", "list"}, test.args...)...)
 
 			if runErr == nil || !shared.IsReportedUsageError(runErr) || errors.Is(runErr, flag.ErrHelp) {
