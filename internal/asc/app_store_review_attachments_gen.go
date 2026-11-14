@@ -56,3 +56,25 @@ func (c *Client) GetAppStoreReviewAttachment(ctx context.Context, attachmentID s
 		Query: buildAppStoreReviewAttachmentsQuery(query),
 	})
 }
+
+// UpdateAppStoreReviewAttachment sends PATCH /v1/appStoreReviewAttachments/{id} (appStoreReviewAttachments_updateInstance).
+func (c *Client) UpdateAppStoreReviewAttachment(ctx context.Context, attachmentID string, attrs AppStoreReviewAttachmentUpdateAttributes) (*AppStoreReviewAttachmentResponse, error) {
+	attachmentID = strings.TrimSpace(attachmentID)
+	if attachmentID == "" {
+		return nil, fmt.Errorf("attachmentID is required")
+	}
+	payload := AppStoreReviewAttachmentUpdateRequest{
+		Data: AppStoreReviewAttachmentUpdateData{
+			Type: ResourceTypeAppStoreReviewAttachments,
+			ID:   attachmentID,
+		},
+	}
+	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppStoreReviewAttachmentResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID),
+		Payload: payload,
+	})
+}

@@ -29,6 +29,9 @@
     {"operation":"widgets_wheels_createToManyRelationship","name":"AddWidgetWheels","params":["widgetID"],"check":"require","ids":"wheelIDs","idList":{"normalize":true,"message":"wheelIDs are required","payload":"index"}},
     {"operation":"widgets_wheels_deleteToManyRelationship","name":"RemoveWidgetWheels","params":["widgetID"],"check":"require","ids":"wheelIDs","idList":{"normalize":true,"message":"wheelIDs are required","payload":"resourceList","item":"wheelID"}},
     {"operation":"widgets_wheels_replaceToManyRelationship","name":"SetWidgetWheels","params":["widgetID"],"ids":"wheelIDs","idList":{"normalize":true,"payload":"append","item":"id"}},
-    {"operation":"widgets_wrapper_getToOneRelated","name":"GetWidgetWrapper","params":["widgetID"],"query":"buildWrapperFieldsQuery","single":true}
+    {"operation":"widgets_wrapper_getToOneRelated","name":"GetWidgetWrapper","params":["widgetID"],"query":"buildWrapperFieldsQuery","single":true},
+    {"operation":"wizardsV2_updateInstance","name":"UpdateWizardV2","params":["wizardID"],"check":"trim","attrs":"value"},
+    {"operation":"wizardsV3_updateInstance","name":"UpdateWizardV3","params":["wizardID"],"check":"require","attrs":"pointer"},
+    {"operation":"wizards_updateInstance","name":"UpdateWizard","params":["wizardID"],"check":"require","skipEmptyAttributes":true}
   ]
 }

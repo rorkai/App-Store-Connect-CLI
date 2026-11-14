@@ -102,6 +102,12 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"unknown id list payload", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Payload: "bogus"}}}}},
 		{"loop payload without an item name", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Payload: payloadAppend}}}}},
 		{"item name without a loop payload", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Payload: payloadIndex, Item: "id"}}}}},
+		{"unknown attributes style", &Family{Operations: []*OpBind{{Operation: "wizards_updateInstance", Name: "X", Params: []string{"id"}, Attrs: "bogus"}}}},
+		{"attributes by value when the request requires them", &Family{Operations: []*OpBind{{Operation: "widgets_createInstance", Name: "X", Attrs: attrsValue}}}},
+		{"attributes by pointer on a read", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, Attrs: attrsPointer}}}},
+		{"skip empty attributes the request requires", &Family{Operations: []*OpBind{{Operation: "widgets_createInstance", Name: "X", SkipEmptyAttributes: true}}}},
+		{"skip empty attributes of a pointer argument", &Family{Operations: []*OpBind{{Operation: "wizards_updateInstance", Name: "X", Params: []string{"id"}, Attrs: attrsPointer, SkipEmptyAttributes: true}}}},
+		{"skip empty attributes on a read", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, SkipEmptyAttributes: true}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

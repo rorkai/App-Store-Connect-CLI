@@ -151,23 +151,3 @@ func (c *Client) CreateAppEncryptionDeclarationDocument(ctx context.Context, dec
 
 	return sendJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appEncryptionDeclarationDocuments", Payload: payload})
 }
-
-// UpdateAppEncryptionDeclarationDocument updates a document by ID.
-func (c *Client) UpdateAppEncryptionDeclarationDocument(ctx context.Context, documentID string, attrs AppEncryptionDeclarationDocumentUpdateAttributes) (*AppEncryptionDeclarationDocumentResponse, error) {
-	documentID = strings.TrimSpace(documentID)
-	if documentID == "" {
-		return nil, fmt.Errorf("documentID is required")
-	}
-
-	payload := AppEncryptionDeclarationDocumentUpdateRequest{
-		Data: AppEncryptionDeclarationDocumentUpdateData{
-			Type: ResourceTypeAppEncryptionDeclarationDocuments,
-			ID:   documentID,
-		},
-	}
-	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
-		payload.Data.Attributes = &attrs
-	}
-
-	return sendJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appEncryptionDeclarationDocuments/%s", documentID), Payload: payload})
-}
