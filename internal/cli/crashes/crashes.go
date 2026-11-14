@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -30,10 +31,10 @@ type listCommandFlags struct {
 	paginate        *bool
 }
 
-func bindListCommandFlags(d *shared.Deps, fs *flag.FlagSet) listCommandFlags {
+func bindListCommandFlags(fs *flag.FlagSet) listCommandFlags {
 	return listCommandFlags{
 		appID:           shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)"),
-		output:          d.BindOutputFlags(fs),
+		output:          shared.BindOutputFlags(fs),
 		deviceModel:     fs.String("device-model", "", "Filter by device model(s), comma-separated"),
 		osVersion:       fs.String("os-version", "", "Filter by OS version(s), comma-separated"),
 		appPlatform:     fs.String("app-platform", "", "Filter by app platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)"),
@@ -51,7 +52,7 @@ func bindListCommandFlags(d *shared.Deps, fs *flag.FlagSet) listCommandFlags {
 }
 
 // NewListCommand builds a crashes list command with configurable help and warnings.
-func NewListCommand(d *shared.Deps, config shared.ListCommandConfig) *ffcli.Command {
+func NewListCommand(config shared.ListCommandConfig) *ffcli.Command {
 	name := strings.TrimSpace(config.Name)
 	if name == "" {
 		name = "crashes"
@@ -61,8 +62,8 @@ func NewListCommand(d *shared.Deps, config shared.ListCommandConfig) *ffcli.Comm
 		usageFunc = shared.DefaultUsageFunc
 	}
 
-	fs := d.NewFlagSet(name, flag.ExitOnError)
-	flags := bindListCommandFlags(d, fs)
+	fs := flag.NewFlagSet(name, flag.ExitOnError)
+	flags := bindListCommandFlags(fs)
 
 	return &ffcli.Command{
 		Name:       name,
@@ -72,31 +73,31 @@ func NewListCommand(d *shared.Deps, config shared.ListCommandConfig) *ffcli.Comm
 		FlagSet:    fs,
 		UsageFunc:  usageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runListCommand(ctx, d, config, fs, flags)
+			return runListCommand(ctx, config, fs, flags)
 		},
 	}
 }
 
-func runListCommand(ctx context.Context, d *shared.Deps, config shared.ListCommandConfig, fs *flag.FlagSet, flags listCommandFlags) error {
+func runListCommand(ctx context.Context, config shared.ListCommandConfig, fs *flag.FlagSet, flags listCommandFlags) error {
 	prefix := strings.TrimSpace(config.ErrorPrefix)
 	if prefix == "" {
 		prefix = "crashes"
 	}
 
 	if *flags.limit != 0 && (*flags.limit < 1 || *flags.limit > 200) {
-		return d.UsageErrorf("%s: --limit must be between 1 and 200", prefix)
+		return shared.UsageErrorf("%s: --limit must be between 1 and 200", prefix)
 	}
 	if err := shared.ValidateNextURL(*flags.next); err != nil {
-		return d.UsageErrorf("%s: %v", prefix, err)
+		return shared.UsageErrorf("%s: %v", prefix, err)
 	}
-	if err := d.RejectNextFlagConflicts(fs, *flags.next, prefix, "device-model", "os-version", "app-platform", "device-platform", "build-id", "build-pre-release-version", "tester", "include", "sort"); err != nil {
+	if err := shared.RejectNextFlagConflicts(fs, *flags.next, prefix, "device-model", "os-version", "app-platform", "device-platform", "build-id", "build-pre-release-version", "tester", "include", "sort"); err != nil {
 		return err
 	}
 	if err := shared.ValidateSort(*flags.sort, "createdDate", "-createdDate"); err != nil {
-		return d.UsageErrorf("%s: %v", prefix, err)
+		return shared.UsageErrorf("%s: %v", prefix, err)
 	}
 	if err := shared.ValidateInclude(*flags.include, "build", "tester"); err != nil {
-		fmt.Fprintf(d.IO.ErrOut, "Error: %s\n\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n\n", err)
 		return flag.ErrHelp
 	}
 	included, err := flags.includedFields.Resolve(prefix, *flags.next, shared.SplitCSV(*flags.include))
@@ -106,16 +107,16 @@ func runListCommand(ctx context.Context, d *shared.Deps, config shared.ListComma
 
 	resolvedAppID := shared.ResolveAppID(*flags.appID)
 	if resolvedAppID == "" && strings.TrimSpace(*flags.next) == "" {
-		fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
+		fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 		return shared.MissingRequiredUsageError("--app")
 	}
 
-	client, err := d.Client()
+	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("%s: %w", prefix, err)
 	}
 
-	requestCtx, cancel := d.Timeout(ctx)
+	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	if resolvedAppID != "" && strings.TrimSpace(*flags.next) == "" {
@@ -156,7 +157,7 @@ func runListCommand(ctx context.Context, d *shared.Deps, config shared.ListComma
 			return fmt.Errorf("%s: %w", prefix, err)
 		}
 
-		return d.PrintOutput(crashes, *flags.output.Output, *flags.output.Pretty)
+		return shared.PrintOutput(crashes, *flags.output.Output, *flags.output.Pretty)
 	}
 
 	crashes, err := client.GetCrashes(requestCtx, resolvedAppID, opts...)
@@ -164,5 +165,5 @@ func runListCommand(ctx context.Context, d *shared.Deps, config shared.ListComma
 		return fmt.Errorf("%s: failed to fetch: %w", prefix, err)
 	}
 
-	return d.PrintOutput(crashes, *flags.output.Output, *flags.output.Pretty)
+	return shared.PrintOutput(crashes, *flags.output.Output, *flags.output.Pretty)
 }
