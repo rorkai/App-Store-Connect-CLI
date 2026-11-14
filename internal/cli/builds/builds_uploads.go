@@ -147,43 +147,24 @@ Examples:
 
 // BuildsUploadsViewCommand returns the builds uploads view subcommand.
 func BuildsUploadsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("uploads view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "buildUploads", "Build upload ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc builds uploads view --id \"UPLOAD_ID\"",
-		ShortHelp:  "View a build upload by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "uploads view",
+		Name:        "view",
+		ShortUsage:  "asc builds uploads view --id \"UPLOAD_ID\"",
+		ShortHelp:   "View a build upload by ID.",
 		LongHelp: `View a build upload by ID.
 
 Examples:
   asc builds uploads view --id "UPLOAD_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			uploadID := strings.TrimSpace(*id)
-			if uploadID == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("builds uploads view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBuildUpload(requestCtx, uploadID)
-			if err != nil {
-				return fmt.Errorf("builds uploads view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Build upload ID",
+		IDType:             "buildUploads",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "builds uploads view",
+		FetchErrorPrefix:   "builds uploads view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBuildUpload(ctx, id)
 		},
-	}
+	})
 }
 
 // BuildsUploadsDeleteCommand returns the builds uploads delete subcommand.
@@ -342,41 +323,22 @@ Examples:
 
 // BuildsUploadFilesViewCommand returns the build upload files view subcommand.
 func BuildsUploadFilesViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("files view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "buildUploadFiles", "Build upload file ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc builds uploads files view --id \"FILE_ID\"",
-		ShortHelp:  "View a build upload file by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "files view",
+		Name:        "view",
+		ShortUsage:  "asc builds uploads files view --id \"FILE_ID\"",
+		ShortHelp:   "View a build upload file by ID.",
 		LongHelp: `View a build upload file by ID.
 
 Examples:
   asc builds uploads files view --id "FILE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			fileID := strings.TrimSpace(*id)
-			if fileID == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("builds uploads files view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBuildUploadFile(requestCtx, fileID)
-			if err != nil {
-				return fmt.Errorf("builds uploads files view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Build upload file ID",
+		IDType:             "buildUploadFiles",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "builds uploads files view",
+		FetchErrorPrefix:   "builds uploads files view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBuildUploadFile(ctx, id)
 		},
-	}
+	})
 }
