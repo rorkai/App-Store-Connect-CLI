@@ -94,8 +94,11 @@ func parseDeliverfileReader(path string, reader io.Reader) (DeliverfileConfig, e
 			}
 			config.SkipScreenshots = parsed
 		default:
-			assignment := strings.HasPrefix(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), key)), "=")
-			if slices.Contains(unappliedConfigKeys, key) && !assignment {
+			// An option is written as a call. "name = x" is an assignment and
+			// "name: x" is a field inside a multi-line value.
+			rest := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), key))
+			isCall := !strings.HasPrefix(rest, "=") && !strings.HasPrefix(rest, ":")
+			if slices.Contains(unappliedConfigKeys, key) && isCall {
 				config.IgnoredKeys = append(config.IgnoredKeys, IgnoredConfigKey{Key: key, Value: value, Line: lineNumber})
 			}
 		}
