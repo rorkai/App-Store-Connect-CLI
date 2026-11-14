@@ -2,7 +2,6 @@ package cmdtest
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestKeywordArtifactFailureKeepsBatchOutcome(t *testing.T) {
@@ -53,29 +53,18 @@ func TestKeywordArtifactFailureKeepsBatchOutcome(t *testing.T) {
 			if err := os.WriteFile(input, []byte(`{"en-US":"alpha,beta"}`), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			reads, mutations := 0, 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet {
-					mutations++
-					if tc.readOnly || req.Method != http.MethodPatch || req.URL.Path != "/v1/appStoreVersionLocalizations/loc-en" {
-						t.Errorf("unexpected mutation: %s %s", req.Method, req.URL.Path)
-						return nil, io.ErrUnexpectedEOF
-					}
-					return jsonResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"ENTITY_ERROR","title":"test API failure"}]}`)
-				}
-				reads++
-				switch req.URL.Path {
-				case "/v1/apps/app-1/appStoreVersions":
-					return metadataKeywordsJSONResponse(`{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`)
-				case "/v1/appStoreVersions/version-1":
-					return metadataKeywordsJSONResponse(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
-				case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-					return metadataKeywordsJSONResponse(`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","keywords":"old,keywords"}}],"links":{"next":""}}`)
-				default:
-					t.Errorf("unexpected GET: %s", req.URL.Path)
-					return nil, io.ErrUnexpectedEOF
-				}
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			if operation != "push" {
+				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+					asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
+			}
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","keywords":"old,keywords"}}],"links":{"next":""}}`))
+			if !tc.readOnly {
+				reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-en").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"keywords":"alpha,beta"}}}`),
+					asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"ENTITY_ERROR","title":"test API failure"}]}`))
+			}
 			args := []string{"metadata", "keywords", operation, "--output", "json"}
 			if operation == "push" {
 				args = append(args, "--version-id", "version-1", "--input", input)
@@ -87,6 +76,14 @@ func TestKeywordArtifactFailureKeepsBatchOutcome(t *testing.T) {
 			}
 			code := -1
 			stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "test") })
+			reads, mutations := 0, 0
+			for _, req := range reg.Requests() {
+				if req.Method == http.MethodGet {
+					reads++
+				} else {
+					mutations++
+				}
+			}
 			wantMutations := 1
 			if tc.readOnly {
 				wantMutations = 0

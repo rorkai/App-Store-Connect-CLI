@@ -23,6 +23,8 @@ import (
 
 	"go.mozilla.org/pkcs7"
 	"howett.net/plist"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/deviceset"
 )
 
 func TestInspectIPAAdHocOmitsDevicesByDefault(t *testing.T) {
@@ -1217,8 +1219,8 @@ func renameZipMember(t *testing.T, path, oldName, newName string) {
 }
 
 func TestHashSetDeterministic(t *testing.T) {
-	a := hashSet([]string{"b", "a", "a"})
-	b := hashSet([]string{"a", "b"})
+	a := deviceset.Digest([]string{"b", "a", "a"}).SHA256
+	b := deviceset.Digest([]string{"a", "b"}).SHA256
 	if !bytes.Equal([]byte(a), []byte(b)) {
 		t.Fatalf("hashes differ: %q %q", a, b)
 	}

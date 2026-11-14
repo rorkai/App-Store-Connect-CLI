@@ -1,0 +1,12 @@
+{
+  "tag": "AppClips",
+  "file": "app_clips_gen.go",
+  "types": [
+    "AppClipAttributes"
+  ],
+  "operations": [
+    {"operation":"appClips_appClipAdvancedExperiences_getToManyRelationship","name":"GetAppClipAdvancedExperiencesRelationships","params":["appClipID"],"check":"trim","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appClipAdvancedExperiencesRelationships","response":"AppClipAdvancedExperiencesLinkagesResponse"},
+    {"operation":"appClips_appClipDefaultExperiences_getToManyRelationship","name":"GetAppClipDefaultExperiencesRelationships","params":["appClipID"],"check":"trim","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appClipDefaultExperiencesRelationships","response":"AppClipDefaultExperiencesLinkagesResponse"},
+    {"operation":"appClips_getInstance","name":"GetAppClip","params":["appClipID"],"check":"require"}
+  ]
+}

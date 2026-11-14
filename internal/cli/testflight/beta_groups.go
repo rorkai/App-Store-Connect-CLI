@@ -374,16 +374,17 @@ Examples:
 				}
 			})
 
+			command := shared.RewriteUsageMessage(ctx, "beta-groups list")
 			sortValue := strings.TrimSpace(*sort)
 			if sortSet && sortValue == "" {
-				return shared.UsageError("beta-groups list: --sort cannot be empty")
+				return shared.UsageError(command + ": --sort cannot be empty")
 			}
 			if err := shared.ValidateSort(sortValue, betaGroupSortValues...); err != nil {
 				return shared.UsageError(err.Error())
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameSet && nameValue == "" {
-				return shared.UsageError("beta-groups list: --name cannot be empty")
+				return shared.UsageError(command + ": --name cannot be empty")
 			}
 
 			// Both beta group reads follow a links.next URL verbatim, so any
@@ -394,7 +395,7 @@ Examples:
 				if err := shared.RejectNextFlagConflicts(
 					fs,
 					*next,
-					"beta-groups list",
+					command,
 					"id",
 					"public-link-enabled",
 					"public-link-limit-enabled",
@@ -420,7 +421,7 @@ Examples:
 					{sortSet, "--sort"},
 				} {
 					if conflict.set {
-						return shared.UsageError("beta-groups list: --next cannot be combined with " + conflict.name)
+						return shared.UsageError(command + ": --next cannot be combined with " + conflict.name)
 					}
 				}
 			}
@@ -434,64 +435,64 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 
-			idValues, err := parseBetaGroupsListCSV("--id", *id, idSet)
+			idValues, err := parseBetaGroupsListCSV(command, "--id", *id, idSet)
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
 			publicLinkValue := strings.TrimSpace(*publicLink)
 			if publicLinkSet && publicLinkValue == "" {
-				return shared.UsageError("beta-groups list: --public-link cannot be empty")
+				return shared.UsageError(command + ": --public-link cannot be empty")
 			}
-			fieldsValue, err := parseBetaGroupsListFields("--fields", *fields, fieldsSet, betaGroupFieldsValues)
+			fieldsValue, err := parseBetaGroupsListFields(command, "--fields", *fields, fieldsSet, betaGroupFieldsValues)
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			appFieldsValue, err := parseBetaGroupsListFields("--app-fields", *appFields, appFieldsSet, shared.AppFieldsList())
+			appFieldsValue, err := parseBetaGroupsListFields(command, "--app-fields", *appFields, appFieldsSet, shared.AppFieldsList())
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			buildFieldsValue, err := parseBetaGroupsListFields("--build-fields", *buildFields, buildFieldsSet, betaGroupBuildFieldsValues)
+			buildFieldsValue, err := parseBetaGroupsListFields(command, "--build-fields", *buildFields, buildFieldsSet, betaGroupBuildFieldsValues)
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			testerFieldsValue, err := parseBetaGroupsListFields("--tester-fields", *testerFields, testerFieldsSet, betaGroupTesterFieldsValues)
+			testerFieldsValue, err := parseBetaGroupsListFields(command, "--tester-fields", *testerFields, testerFieldsSet, betaGroupTesterFieldsValues)
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			recruitmentCriteriaFieldsValue, err := parseBetaGroupsListFields("--recruitment-criteria-fields", *recruitmentCriteriaFields, recruitmentCriteriaFieldsSet, betaGroupRecruitmentCriteriaFieldsValues)
+			recruitmentCriteriaFieldsValue, err := parseBetaGroupsListFields(command, "--recruitment-criteria-fields", *recruitmentCriteriaFields, recruitmentCriteriaFieldsSet, betaGroupRecruitmentCriteriaFieldsValues)
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
 			includeValue, err := shared.NormalizeSelection(*include, betaGroupIncludeValues, "--include")
 			if err != nil {
-				return shared.UsageError("beta-groups list: " + err.Error())
+				return shared.UsageError(command + ": " + err.Error())
 			}
 			if includeSet && len(includeValue) == 0 {
-				return shared.UsageError("beta-groups list: --include cannot be empty")
+				return shared.UsageError(command + ": --include cannot be empty")
 			}
 			if (len(appFieldsValue) > 0 || appFieldsSet) && !slices.Contains(includeValue, "app") {
-				return shared.UsageError("beta-groups list: --app-fields requires --include app")
+				return shared.UsageError(command + ": --app-fields requires --include app")
 			}
 			if (len(buildFieldsValue) > 0 || buildFieldsSet) && !slices.Contains(includeValue, "builds") {
-				return shared.UsageError("beta-groups list: --build-fields requires --include builds")
+				return shared.UsageError(command + ": --build-fields requires --include builds")
 			}
 			if (len(testerFieldsValue) > 0 || testerFieldsSet) && !slices.Contains(includeValue, "betaTesters") {
-				return shared.UsageError("beta-groups list: --tester-fields requires --include betaTesters")
+				return shared.UsageError(command + ": --tester-fields requires --include betaTesters")
 			}
 			if (len(recruitmentCriteriaFieldsValue) > 0 || recruitmentCriteriaFieldsSet) && !slices.Contains(includeValue, "betaRecruitmentCriteria") {
-				return shared.UsageError("beta-groups list: --recruitment-criteria-fields requires --include betaRecruitmentCriteria")
+				return shared.UsageError(command + ": --recruitment-criteria-fields requires --include betaRecruitmentCriteria")
 			}
 			if testersLimitSet && (*testersLimit < 1 || *testersLimit > 50) {
-				return shared.UsageError("beta-groups list: --testers-limit must be between 1 and 50")
+				return shared.UsageError(command + ": --testers-limit must be between 1 and 50")
 			}
 			if buildsLimitSet && (*buildsLimit < 1 || *buildsLimit > 1000) {
-				return shared.UsageError("beta-groups list: --builds-limit must be between 1 and 1000")
+				return shared.UsageError(command + ": --builds-limit must be between 1 and 1000")
 			}
 			if testersLimitSet && !slices.Contains(includeValue, "betaTesters") {
-				return shared.UsageError("beta-groups list: --testers-limit requires --include betaTesters")
+				return shared.UsageError(command + ": --testers-limit requires --include betaTesters")
 			}
 			if buildsLimitSet && !slices.Contains(includeValue, "builds") {
-				return shared.UsageError("beta-groups list: --builds-limit requires --include builds")
+				return shared.UsageError(command + ": --builds-limit requires --include builds")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -730,7 +731,7 @@ func appleBetaGroupNameSpelling(ctx context.Context, client *asc.Client, appID, 
 		}
 	}
 	if slices.ContainsFunc(matches, func(match string) bool { return strings.Contains(match, ",") }) {
-		return "", shared.UsageErrorf("beta-groups list: --name %q matches %q, and filter[name] reads a comma as OR; use --id", name, matches)
+		return "", shared.UsageErrorf("%s: --name %q matches %q, and filter[name] reads a comma as OR; use --id", shared.RewriteUsageMessage(ctx, "beta-groups list"), name, matches)
 	}
 	return strings.Join(matches, ","), nil
 }
@@ -768,21 +769,21 @@ func parseBetaGroupsListBool(flagName, value string, set bool) (*bool, error) {
 	return parsed, nil
 }
 
-func parseBetaGroupsListCSV(flagName, value string, set bool) ([]string, error) {
+func parseBetaGroupsListCSV(command, flagName, value string, set bool) ([]string, error) {
 	values := shared.SplitCSV(value)
 	if set && len(values) == 0 {
-		return nil, fmt.Errorf("beta-groups list: %s cannot be empty", flagName)
+		return nil, fmt.Errorf("%s: %s cannot be empty", command, flagName)
 	}
 	return values, nil
 }
 
-func parseBetaGroupsListFields(flagName, value string, set bool, allowed []string) ([]string, error) {
+func parseBetaGroupsListFields(command, flagName, value string, set bool, allowed []string) ([]string, error) {
 	values, err := shared.NormalizeSelection(value, allowed, flagName)
 	if err != nil {
 		return nil, err
 	}
 	if set && len(values) == 0 {
-		return nil, fmt.Errorf("beta-groups list: %s cannot be empty", flagName)
+		return nil, fmt.Errorf("%s: %s cannot be empty", command, flagName)
 	}
 	return values, nil
 }

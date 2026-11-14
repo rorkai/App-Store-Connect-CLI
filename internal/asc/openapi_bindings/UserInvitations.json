@@ -1,0 +1,15 @@
+{
+  "tag": "UserInvitations",
+  "file": "user_invitations_gen.go",
+  "types": [
+    "UserInvitationCreateRequest",
+    "UserInvitationResponse",
+    "UserInvitationsResponse"
+  ],
+  "operations": [
+    {"operation":"userInvitations_deleteInstance","name":"DeleteUserInvitation","params":["inviteID"],"check":"trim"},
+    {"operation":"userInvitations_getCollection","name":"GetUserInvitations","options":"UserInvitationsOption","query":"buildUserInvitationsQuery","nextContext":"userInvitations"},
+    {"operation":"userInvitations_getInstance","name":"GetUserInvitation","params":["inviteID"],"check":"trim"},
+    {"operation":"userInvitations_visibleApps_getToManyRelated","name":"GetUserInvitationVisibleApps","params":["invitationID"],"options":"UserInvitationVisibleAppsOption","query":"buildUserInvitationVisibleAppsQuery","nextContext":"userInvitationVisibleApps","response":"AppsResponse"}
+  ]
+}

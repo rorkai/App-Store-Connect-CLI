@@ -1,0 +1,14 @@
+{
+  "tag": "AppEncryptionDeclarations",
+  "file": "app_encryption_declarations_gen.go",
+  "types": [
+    "AppEncryptionDeclarationCreateAttributes",
+    "AppEncryptionDeclarationCreateRequest",
+    "AppEncryptionDeclarationResponse",
+    "AppEncryptionDeclarationsResponse"
+  ],
+  "operations": [
+    {"operation":"appEncryptionDeclarations_appEncryptionDeclarationDocument_getToOneRelated","name":"GetAppEncryptionDeclarationDocumentForDeclaration","params":["declarationID"],"check":"require"},
+    {"operation":"appEncryptionDeclarations_app_getToOneRelated","name":"GetAppEncryptionDeclarationApp","params":["declarationID"],"check":"require","response":"AppResponse"}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "tag": "BetaLicenseAgreements",
+  "file": "beta_license_agreements_gen.go",
+  "types": [
+    "BetaLicenseAgreementAttributes",
+    "BetaLicenseAgreementUpdateAttributes",
+    "BetaLicenseAgreementUpdateData",
+    "BetaLicenseAgreementUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"betaLicenseAgreements_getCollection","name":"GetBetaLicenseAgreements","options":"BetaLicenseAgreementsOption","query":"buildBetaLicenseAgreementsQuery","nextContext":"betaLicenseAgreements"}
+  ]
+}

@@ -3,13 +3,13 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync/atomic"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // TestMigrateExportPreservesAppInfoPrivacyPolicyURL verifies that export keeps
@@ -21,30 +21,22 @@ func TestMigrateExportPreservesAppInfoPrivacyPolicyURL(t *testing.T) {
 
 	outputDir := filepath.Join(t.TempDir(), "fastlane")
 	const privacyURL = "https://example.com/privacy?locale=en-US#policy"
-	var versionLocalizationsLimit200 atomic.Bool
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
-			return migrateJSONResponse(http.StatusOK, `{"data":null}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID":
-			return migrateJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
-			if req.URL.Query().Get("limit") == "200" {
-				versionLocalizationsLimit200.Store(true)
-			}
-			return migrateJSONResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_ID/appInfos":
-			return migrateJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"INFO_ID","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/INFO_ID/appInfoLocalizations" && req.URL.Query().Get("limit") == "200":
-			return migrateJSONResponse(http.StatusOK, `{"data":[
-				{"type":"appInfoLocalizations","id":"LOC_EN","attributes":{"locale":"en-US","name":"English","subtitle":"English subtitle","privacyPolicyUrl":"`+privacyURL+`"}},
-				{"type":"appInfoLocalizations","id":"LOC_FR","attributes":{"locale":"fr-FR","name":"French","subtitle":"French subtitle"}},
-				{"type":"appInfoLocalizations","id":"LOC_DE","attributes":{"locale":"de-DE","name":"German","subtitle":"German subtitle","privacyPolicyUrl":""}}
-			],"links":{"next":""}}`), nil
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/apps/APP_ID/appInfos"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"INFO_ID","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appInfos/INFO_ID/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
+			{"type":"appInfoLocalizations","id":"LOC_EN","attributes":{"locale":"en-US","name":"English","subtitle":"English subtitle","privacyPolicyUrl":"`+privacyURL+`"}},
+			{"type":"appInfoLocalizations","id":"LOC_FR","attributes":{"locale":"fr-FR","name":"French","subtitle":"French subtitle"}},
+			{"type":"appInfoLocalizations","id":"LOC_DE","attributes":{"locale":"de-DE","name":"German","subtitle":"German subtitle","privacyPolicyUrl":""}}
+		],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
+		asctest.JSON(http.StatusOK, `{"data":null}`))
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)
@@ -63,7 +55,13 @@ func TestMigrateExportPreservesAppInfoPrivacyPolicyURL(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("migrate export error: %v", runErr)
 	}
-	if !versionLocalizationsLimit200.Load() {
+	versionLocalizationsLimit200 := false
+	for _, req := range reg.Requests() {
+		if req.URL.Path == "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations" && req.URL.Query().Get("limit") == "200" {
+			versionLocalizationsLimit200 = true
+		}
+	}
+	if !versionLocalizationsLimit200 {
 		t.Fatal("expected version localizations to be requested with limit=200")
 	}
 	var result struct {

@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"io"
 	"net/http"
 	"runtime"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // isolateBearerTokenAuth leaves ASC_BEARER_TOKEN as the only credential.
@@ -59,16 +59,9 @@ func signedTestToken(t *testing.T, expiresAt time.Time) string {
 func TestBearerTokenAuthenticatesWithoutAPrivateKey(t *testing.T) {
 	token := signedTestToken(t, time.Now().Add(20*time.Minute))
 	isolateBearerTokenAuth(t, token)
-	var authorization string
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		authorization = req.Header.Get("Authorization")
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"data":[],"links":{}}`)),
-			Request:    req,
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps"), asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
 	_, stderr := captureOutput(t, func() {
 		if code := cmd.Run([]string{"apps", "list", "--output", "json"}, "1.2.3"); code != 0 {
@@ -76,7 +69,7 @@ func TestBearerTokenAuthenticatesWithoutAPrivateKey(t *testing.T) {
 		}
 	})
 
-	if authorization != "Bearer "+token {
+	if authorization := reg.Requests()[0].Header.Get("Authorization"); authorization != "Bearer "+token {
 		t.Fatalf("Authorization = %q, want the ASC_BEARER_TOKEN token; stderr: %s", authorization, stderr)
 	}
 }
@@ -99,13 +92,9 @@ func TestBearerTokenCommandSuppliesTheToken(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			isolateBearerTokenAuth(t, test.initial)
 			t.Setenv("ASC_BEARER_TOKEN_COMMAND", test.command)
-			var authorization string
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				authorization = req.Header.Get("Authorization")
-				response := jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`)
-				response.Request = req
-				return response, nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps"), asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
 			stdout, stderr := captureOutput(t, func() {
 				if code := cmd.Run([]string{"apps", "list", "--output", "json"}, "1.2.3"); code != 0 {
@@ -113,7 +102,7 @@ func TestBearerTokenCommandSuppliesTheToken(t *testing.T) {
 				}
 			})
 
-			if authorization != "Bearer "+test.want {
+			if authorization := reg.Requests()[0].Header.Get("Authorization"); authorization != "Bearer "+test.want {
 				t.Fatalf("Authorization = %q, want the token ASC_BEARER_TOKEN_COMMAND printed; stderr: %s", authorization, stderr)
 			}
 			if strings.Contains(stdout+stderr, test.want) {
@@ -140,10 +129,7 @@ func TestFailingBearerTokenCommandFailsAsAuthBeforeAnyRequest(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			isolateBearerTokenAuth(t, "")
 			t.Setenv("ASC_BEARER_TOKEN_COMMAND", test.command)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request to %s", req.URL)
-				return nil, nil
-			}))
+			asctest.NewRegistry(t).Install()
 
 			_, stderr := captureOutput(t, func() {
 				if code := cmd.Run([]string{"apps", "list"}, "1.2.3"); code != cmd.ExitAuth {
@@ -170,10 +156,7 @@ func TestUnusableBearerTokenFailsAsAuthBeforeAnyRequest(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			isolateBearerTokenAuth(t, test.token)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request to %s", req.URL)
-				return nil, nil
-			}))
+			asctest.NewRegistry(t).Install()
 
 			_, stderr := captureOutput(t, func() {
 				if code := cmd.Run([]string{"apps", "list"}, "1.2.3"); code != cmd.ExitAuth {
@@ -209,22 +192,22 @@ func TestAppsListUnauthorizedHintMatchesCredentialSource(t *testing.T) {
 			if !tc.bearer {
 				setupAuth(t)
 			}
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
-					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
-				}
-				if gotBearer := req.Header.Get("Authorization") == "Bearer "+token; gotBearer != tc.bearer {
-					t.Fatal("request used the wrong credential source")
-				}
-				response := jsonHTTPResponse(http.StatusUnauthorized, `{"errors":[{"code":"NOT_AUTHORIZED","title":"Authentication credentials are missing or invalid.","detail":"Provide a properly configured and signed bearer token."}]}`)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			unauthorized := asctest.JSON(http.StatusUnauthorized, `{"errors":[{"code":"NOT_AUTHORIZED","title":"Authentication credentials are missing or invalid.","detail":"Provide a properly configured and signed bearer token."}]}`)
+			reg.Register(asctest.GET("/v1/apps"), func(req *http.Request) (*http.Response, error) {
+				response, err := unauthorized(req)
 				response.Request = req
-				return response, nil
-			}))
+				return response, err
+			})
 
 			var code int
 			stdout, stderr := captureOutput(t, func() {
 				code = cmd.Run([]string{"apps", "list", "--output", "json"}, "1.2.3")
 			})
+			if gotBearer := reg.Requests()[0].Header.Get("Authorization") == "Bearer "+token; gotBearer != tc.bearer {
+				t.Fatal("request used the wrong credential source")
+			}
 			if token != "" && strings.Contains(stdout+stderr, token) {
 				t.Fatal("command output exposed the bearer token")
 			}
@@ -269,10 +252,7 @@ func TestBearerTokenRejectsSelectionsItCannotHonorBeforeAnyRequest(t *testing.T)
 			for name, value := range test.env {
 				t.Setenv(name, value)
 			}
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request to %s", req.URL)
-				return nil, nil
-			}))
+			asctest.NewRegistry(t).Install()
 
 			_, stderr := captureOutput(t, func() {
 				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitError {

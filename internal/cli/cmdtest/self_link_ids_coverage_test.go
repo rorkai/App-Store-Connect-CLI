@@ -16,6 +16,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // These tests close the gaps left after the first two self-link passes: the
@@ -296,31 +297,37 @@ func TestSelfLinkCoverageAppFlagsSendExtractedID(t *testing.T) {
 	tests := []struct {
 		name     string
 		args     []string
+		request  asctest.Matcher
 		wantPath string
 	}{
 		{
 			name:     "performance download",
 			args:     []string{"performance", "download", "--app", appLink, "--output", "metrics.json"},
+			request:  asctest.GET("/v1/apps/123456789/perfPowerMetrics"),
 			wantPath: "GET /v1/apps/123456789/perfPowerMetrics",
 		},
 		{
 			name:     "signing fetch",
 			args:     []string{"signing", "fetch", "--app", appLink, "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE"},
+			request:  asctest.GET("/v1/apps/123456789"),
 			wantPath: "GET /v1/apps/123456789",
 		},
 		{
 			name:     "app-setup info set",
 			args:     []string{"app-setup", "info", "set", "--app", appLink, "--primary-locale", "en-US"},
+			request:  asctest.PATCH("/v1/apps/123456789").JSONBody(`{"data":{"type":"apps","id":"123456789","attributes":{"primaryLocale":"en-US"}}}`),
 			wantPath: "PATCH /v1/apps/123456789",
 		},
 		{
 			name:     "app-setup categories set",
 			args:     []string{"app-setup", "categories", "set", "--app", appLink, "--primary", "GAMES"},
+			request:  asctest.GET("/v1/apps/123456789/appInfos"),
 			wantPath: "GET /v1/apps/123456789/appInfos",
 		},
 		{
 			name:     "categories set",
 			args:     []string{"categories", "set", "--app", appLink, "--primary", "GAMES"},
+			request:  asctest.GET("/v1/apps/123456789/appInfos"),
 			wantPath: "GET /v1/apps/123456789/appInfos",
 		},
 	}
@@ -332,21 +339,17 @@ func TestSelfLinkCoverageAppFlagsSendExtractedID(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
 			t.Chdir(t.TempDir())
 
-			recorder := &selfLinkRemainingServer{}
-			stubTransport(t, func(req *http.Request) (*http.Response, error) {
-				recorder.record(req.Method + " " + req.URL.Path)
-				return &http.Response{
-					StatusCode: http.StatusNotFound,
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-					Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"404","code":"NOT_FOUND","title":"not found"}]}`)),
-					Request:    req,
-				}, nil
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(test.request, asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"not found"}]}`))
 
 			_, stderr := captureOutput(t, func() {
 				_ = rootcmd.Run(test.args, "1.2.3")
 			})
-			requested := recorder.requested()
+			var requested []string
+			for _, req := range reg.Requests() {
+				requested = append(requested, req.Method+" "+req.URL.Path)
+			}
 			if len(requested) == 0 {
 				t.Fatalf("expected a request, got none (stderr %q)", stderr)
 			}
@@ -367,10 +370,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 	setCmdtestHome(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	appsLink := selfLinkTestBase + "/v1/apps/123"
 	tests := []struct {

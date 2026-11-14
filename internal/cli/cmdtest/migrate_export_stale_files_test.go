@@ -3,13 +3,14 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestMigrateExportRemovesStaleKnownMetadataFiles(t *testing.T) {
@@ -35,24 +36,20 @@ func TestMigrateExportRemovesStaleKnownMetadataFiles(t *testing.T) {
 		t.Fatalf("write unrelated file: %v", err)
 	}
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
-			return migrateJSONResponse(http.StatusOK, `{"data":null}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_EN/appPreviewSets":
-			return migrateJSONResponse(http.StatusOK, `{"data":[]}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID":
-			return migrateJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
-			return migrateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"LOC_EN","attributes":{"locale":"en-US","description":"","keywords":"","whatsNew":"","promotionalText":"","supportUrl":"","marketingUrl":""}}],"links":{"next":""}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_ID/appInfos":
-			return migrateJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"INFO_ID","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/INFO_ID/appInfoLocalizations":
-			return migrateJSONResponse(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"LOC_EN","attributes":{"locale":"en-US","name":"","subtitle":"","privacyPolicyUrl":""}}],"links":{"next":""}}`), nil
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"LOC_EN","attributes":{"locale":"en-US","description":"","keywords":"","whatsNew":"","promotionalText":"","supportUrl":"","marketingUrl":""}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/apps/APP_ID/appInfos"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"INFO_ID","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appInfos/INFO_ID/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"LOC_EN","attributes":{"locale":"en-US","name":"","subtitle":"","privacyPolicyUrl":""}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
+		asctest.JSON(http.StatusOK, `{"data":null}`))
+	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_EN/appPreviewSets", "include=appPreviews", "limit[appPreviews]=50"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)

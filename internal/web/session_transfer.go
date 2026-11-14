@@ -565,14 +565,6 @@ func OpenValidatedSessionBundle(ctx context.Context, bundle *SessionBundle) (*Au
 	return session, nil
 }
 
-// ImportSessionBundle stores a bundle in the same cache `asc web auth login`
-// writes, so later `asc web` commands resume it. Import performs local bundle
-// validation only; use `asc web auth status` when live Apple validation is
-// needed. The imported session also becomes the last cached session.
-func ImportSessionBundle(bundle *SessionBundle) (SessionImportSummary, error) {
-	return ImportSessionBundleWithOptions(bundle, false)
-}
-
 // ImportSessionBundleWithOptions imports a bundle and optionally permits
 // replacing an existing cache entry. The overwrite bit is also used to scope
 // recovery from a malformed keychain aggregate to the explicit replacement

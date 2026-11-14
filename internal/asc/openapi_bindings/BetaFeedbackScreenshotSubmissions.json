@@ -1,0 +1,8 @@
+{
+  "tag": "BetaFeedbackScreenshotSubmissions",
+  "file": "beta_feedback_screenshot_submissions_gen.go",
+  "operations": [
+    {"operation":"betaFeedbackScreenshotSubmissions_deleteInstance","name":"DeleteBetaFeedbackScreenshotSubmission","params":["submissionID"],"check":"require"},
+    {"operation":"betaFeedbackScreenshotSubmissions_getInstance","name":"GetBetaFeedbackScreenshotSubmission","params":["submissionID"],"check":"require"}
+  ]
+}

@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestMetadataPreviewPlanIncludesPrerequisites(t *testing.T) {
@@ -30,26 +32,22 @@ func TestMetadataPreviewPlanIncludesPrerequisites(t *testing.T) {
 				writeFile(t, filepath.Join(dir, "preview.mp4"), "fixture-video")
 			}
 			installValidStoreAssetProbe(t)
-			mutations := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet {
-					mutations++
-					return nil, fmt.Errorf("unexpected mutation %s %s", req.Method, req.URL.Path)
+			localizations := `{"data":[]}`
+			if localeExists {
+				localizations = `{"data":[{"type":"appStoreVersionLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			for range []string{"push --dry-run", "plan"} {
+				reg.Register(asctest.GET("/v1/apps/APP_ID/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+					asctest.JSON(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`))
+				reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "limit=200"), asctest.JSON(200, localizations))
+				reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations"), asctest.JSON(200, localizations))
+				if localeExists {
+					reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC/appPreviewSets", "include=appPreviews", "limit[appPreviews]=50"),
+						asctest.JSON(200, `{"data":[]}`))
 				}
-				switch req.URL.Path {
-				case "/v1/apps/APP_ID/appStoreVersions":
-					return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-				case "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
-					if !localeExists {
-						return migrateJSONResponse(200, `{"data":[]}`), nil
-					}
-					return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersionLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`), nil
-				case "/v1/appStoreVersionLocalizations/LOC/appPreviewSets":
-					return migrateJSONResponse(200, `{"data":[]}`), nil
-				default:
-					return nil, fmt.Errorf("unexpected request %s", req.URL.Path)
-				}
-			}))
+			}
 			type planResult struct {
 				Adds []struct{ Key, Reason, To string }
 			}
@@ -124,6 +122,12 @@ func TestMetadataPreviewPlanIncludesPrerequisites(t *testing.T) {
 				t.Fatal("saved review hash differs")
 			}
 			check(saved.Plan)
+			mutations := 0
+			for _, req := range reg.Requests() {
+				if req.Method != http.MethodGet {
+					mutations++
+				}
+			}
 			if mutations != 0 {
 				t.Fatalf("planning mutated remote resources %d times", mutations)
 			}

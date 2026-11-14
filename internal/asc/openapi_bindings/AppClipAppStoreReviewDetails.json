@@ -1,0 +1,15 @@
+{
+  "tag": "AppClipAppStoreReviewDetails",
+  "file": "app_clip_app_store_review_details_gen.go",
+  "types": [
+    "AppClipAppStoreReviewDetailAttributes",
+    "AppClipAppStoreReviewDetailCreateAttributes",
+    "AppClipAppStoreReviewDetailCreateRequest",
+    "AppClipAppStoreReviewDetailUpdateAttributes",
+    "AppClipAppStoreReviewDetailUpdateData",
+    "AppClipAppStoreReviewDetailUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appClipAppStoreReviewDetails_getInstance","name":"GetAppClipAppStoreReviewDetail","params":["detailID"],"check":"require"}
+  ]
+}

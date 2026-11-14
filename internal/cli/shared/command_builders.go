@@ -24,6 +24,10 @@ type IDGetCommandConfig struct {
 	// IDType is the API resource type named by the ID flag. When set, the flag
 	// also accepts that resource's self-link and rejects links of other types.
 	IDType string
+	// ResolveApp reads the ID flag through ResolveAppID, which falls back to
+	// ASC_APP_ID and the config file; a missing app is reported as
+	// "--<flag> is required (or set ASC_APP_ID)".
+	ResolveApp bool
 	// RequiredDiagnostic reports a missing ID flag with the required-input
 	// diagnostic instead of a plain usage error.
 	RequiredDiagnostic bool
@@ -74,9 +78,9 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
+			idValue := readBuilderFlag(*id, config.ResolveApp)
 			if idValue == "" {
-				return missingBuilderFlag(d, config.RequiredDiagnostic, idFlagName)
+				return missingBuilderInput(d, config.RequiredDiagnostic, config.ResolveApp, idFlagName)
 			}
 			if err := validate(); err != nil {
 				return err
@@ -118,6 +122,15 @@ type PaginatedListCommandConfig struct {
 	// TopLevel lists a collection that has no parent: no parent flag is
 	// registered, and FetchPage receives an empty parent ID.
 	TopLevel bool
+	// ResolveApp reads the parent flag through ResolveAppID, which falls back
+	// to ASC_APP_ID and the config file; a missing app is reported as
+	// "--<flag> is required (or set ASC_APP_ID)".
+	ResolveApp bool
+	// LookupParent turns the parent ID into the ID FetchPage receives. It
+	// runs after validation, once the client exists, and its error is
+	// returned unwrapped. With --next it is skipped and FetchPage receives an
+	// empty parent ID.
+	LookupParent func(context.Context, *asc.Client, string) (string, error)
 	// RequiredDiagnostic reports a missing parent flag with the
 	// required-input diagnostic instead of a plain usage error.
 	RequiredDiagnostic bool
@@ -223,9 +236,9 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 			return err
 		}
 
-		resolvedParentID := strings.TrimSpace(*parentID)
+		resolvedParentID := readBuilderFlag(*parentID, config.ResolveApp)
 		if !config.TopLevel && resolvedParentID == "" && strings.TrimSpace(*next) == "" {
-			return missingBuilderFlag(d, config.RequiredDiagnostic, parentFlagName)
+			return missingBuilderInput(d, config.RequiredDiagnostic, config.ResolveApp, parentFlagName)
 		}
 		if err := validate(); err != nil {
 			return err
@@ -238,6 +251,16 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 
 		requestCtx, cancel := timeout(ctx)
 		defer cancel()
+
+		if config.LookupParent != nil {
+			lookedUpID := ""
+			if strings.TrimSpace(*next) == "" {
+				if lookedUpID, err = config.LookupParent(requestCtx, client, resolvedParentID); err != nil {
+					return err
+				}
+			}
+			resolvedParentID = lookedUpID
+		}
 
 		if *paginate {
 			firstPageLimit := *limit
@@ -280,6 +303,29 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	}
 
 	return cmd
+}
+
+// readBuilderFlag reads a parent or ID flag; with resolveApp the value goes
+// through ResolveAppID unchanged, as the hand-written app commands did.
+func readBuilderFlag(value string, resolveApp bool) string {
+	if resolveApp {
+		return ResolveAppID(value)
+	}
+	return strings.TrimSpace(value)
+}
+
+// missingBuilderInput reports a missing parent or ID flag; an app flag names
+// its ASC_APP_ID fallback.
+func missingBuilderInput(d *Deps, diagnostic, resolveApp bool, name string) error {
+	if !resolveApp {
+		return missingBuilderFlag(d, diagnostic, name)
+	}
+	message := fmt.Sprintf("--%s is required (or set ASC_APP_ID)", name)
+	if !diagnostic {
+		return UsageError(message)
+	}
+	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
+	return MissingRequiredUsageError("--" + name)
 }
 
 // PricePointEqualizationsCommandConfig configures a standard equalizations list
@@ -404,6 +450,12 @@ type ConfirmDeleteCommandConfig struct {
 	// RequiredDiagnostic reports a missing ID flag or --confirm with the
 	// required-input diagnostic instead of a plain usage error.
 	RequiredDiagnostic bool
+	// ConfirmUsage is the --confirm flag usage. It defaults to
+	// "Confirm deletion".
+	ConfirmUsage string
+	// ConfirmRequiredMessage reports a missing --confirm. It defaults to
+	// "--confirm is required".
+	ConfirmRequiredMessage string
 
 	ErrorPrefix string
 	// DeleteErrorPrefix wraps errors returned by Delete. It defaults to
@@ -433,9 +485,17 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 	if idUsage == "" {
 		idUsage = "Resource ID"
 	}
+	confirmUsage := config.ConfirmUsage
+	if confirmUsage == "" {
+		confirmUsage = "Confirm deletion"
+	}
+	confirmRequired := config.ConfirmRequiredMessage
+	if confirmRequired == "" {
+		confirmRequired = "--confirm is required"
+	}
 
 	id := bindBuilderIDFlag(fs, idFlagName, config.IDType, idUsage)
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
+	confirm := fs.Bool("confirm", false, confirmUsage)
 	output := d.BindOutputFlags(fs)
 
 	timeout := builderTimeout(d, config.ContextTimeout)
@@ -454,7 +514,7 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 				return missingBuilderFlag(d, config.RequiredDiagnostic, idFlagName)
 			}
 			if !*confirm {
-				return missingBuilderFlag(d, config.RequiredDiagnostic, "confirm")
+				return missingBuilderConfirm(d, config.RequiredDiagnostic, confirmRequired)
 			}
 
 			client, err := d.Client()
@@ -513,6 +573,14 @@ func missingBuilderFlag(d *Deps, diagnostic bool, name string) error {
 	}
 	fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", name)
 	return MissingRequiredUsageError("--" + name)
+}
+
+func missingBuilderConfirm(d *Deps, diagnostic bool, message string) error {
+	if !diagnostic {
+		return UsageError(message)
+	}
+	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
+	return MissingRequiredUsageError("--confirm")
 }
 
 // bindBuilderIDFlag registers a builder's ID flag, accepting the resource's

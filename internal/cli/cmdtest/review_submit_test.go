@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestReviewSubmitValidationErrors(t *testing.T) {
@@ -65,35 +66,21 @@ func TestReviewSubmitLocalizationPreflightUsesReviewSubmitGuidance(t *testing.T)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			if req.URL.Query().Get("include") != "app" {
-				t.Fatalf("expected include=app, got %q", req.URL.Query().Get("include"))
-			}
-			return jsonResponse(http.StatusOK, `{
-				"data":{
-					"type":"appStoreVersions",
-					"id":"version-1",
-					"attributes":{"platform":"IOS","versionString":"1.2.3"},
-					"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
-				},
-				"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			if !isReleasedVersionStateQuery(req.URL.Query()) {
-				t.Fatalf("expected released-version state filter, got %q", req.URL.RawQuery)
-			}
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
-			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		default:
-			t.Fatalf("unexpected request during localization preflight: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-			return nil, nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreVersions",
+			"id":"version-1",
+			"attributes":{"platform":"IOS","versionString":"1.2.3"},
+			"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+		},
+		"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -133,42 +120,21 @@ func TestReviewSubmitPreflightRequiresWhatsNewWhenOnlyAppVersionStateIsLive(t *t
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	var versionQueries []string
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			return jsonResponse(http.StatusOK, `{
-				"data":{
-					"type":"appStoreVersions",
-					"id":"version-1",
-					"attributes":{"platform":"IOS","versionString":"1.2.3"},
-					"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
-				},
-				"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"one,two","supportUrl":"https://example.com/support"}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			query := req.URL.Query()
-			legacyFilter := query.Get("filter[appStoreState]")
-			modernFilter := query.Get("filter[appVersionState]")
-			versionQueries = append(versionQueries, legacyFilter+"|"+modernFilter)
-			switch {
-			case legacyFilter == "READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE" && modernFilter == "":
-				return jsonResponse(http.StatusOK, `{"data":[]}`)
-			case legacyFilter == "" && modernFilter == "READY_FOR_DISTRIBUTION":
-				return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-0","attributes":{"platform":"IOS","versionString":"1.0.0","appVersionState":"READY_FOR_DISTRIBUTION"}}]}`)
-			default:
-				t.Fatalf("unexpected released-version query: %s", req.URL.RawQuery)
-				return nil, nil
-			}
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
-			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		default:
-			t.Fatalf("unexpected request during localization preflight: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-			return nil, nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreVersions",
+			"id":"version-1",
+			"attributes":{"platform":"IOS","versionString":"1.2.3"},
+			"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+		},
+		"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"one,two","supportUrl":"https://example.com/support"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-0","attributes":{"platform":"IOS","versionString":"1.0.0","appVersionState":"READY_FOR_DISTRIBUTION"}}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -192,6 +158,13 @@ func TestReviewSubmitPreflightRequiresWhatsNewWhenOnlyAppVersionStateIsLive(t *t
 	if !strings.Contains(stderr, "en-US: whatsNew") {
 		t.Fatalf("expected whatsNew to be required for an app update, got %q", stderr)
 	}
+	var versionQueries []string
+	for _, req := range reg.Requests() {
+		if req.URL.Path == "/v1/apps/app-1/appStoreVersions" {
+			query := req.URL.Query()
+			versionQueries = append(versionQueries, query.Get("filter[appStoreState]")+"|"+query.Get("filter[appVersionState]"))
+		}
+	}
 	if got, want := strings.Join(versionQueries, ","), "READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE|,|READY_FOR_DISTRIBUTION"; got != want {
 		t.Fatalf("released-version queries = %q, want %q", got, want)
 	}
@@ -202,60 +175,36 @@ func TestReviewSubmitSubscriptionPreflightUsesReviewSubmitGuidance(t *testing.T)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			if req.URL.Query().Get("include") != "app" {
-				t.Fatalf("expected include=app, got %q", req.URL.Query().Get("include"))
-			}
-			return jsonResponse(http.StatusOK, `{
-				"data":{
-					"type":"appStoreVersions",
-					"id":"version-1",
-					"attributes":{"platform":"IOS","versionString":"1.2.3"},
-					"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
-				},
-				"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			if !isReleasedVersionStateQuery(req.URL.Query()) {
-				t.Fatalf("expected released-version state filter, got %q", req.URL.RawQuery)
-			}
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}],"links":{}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionGroups/group-1/subscriptions":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","state":"READY_TO_SUBMIT"}}],"links":{}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/build":
-			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
-			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		default:
-			t.Fatalf("unexpected request during subscription preflight: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-			return nil, nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreVersions",
+			"id":"version-1",
+			"attributes":{"platform":"IOS","versionString":"1.2.3"},
+			"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+		},
+		"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}],"links":{}}`))
+	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","state":"READY_TO_SUBMIT"}}],"links":{}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"review", "submit",
-			"--app", "app-1",
-			"--version-id", "version-1",
-			"--build-id", "build-1",
-			"--dry-run",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"review", "submit",
+		"--app", "app-1",
+		"--version-id", "version-1",
+		"--build-id", "build-1",
+		"--dry-run",
+		"--output", "json",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if !strings.Contains(stdout, `"wouldSubmit":true`) {
 		t.Fatalf("expected successful dry-run output, got %q", stdout)
 	}
@@ -281,59 +230,31 @@ func TestReviewSubmitDryRunPreviewsWithoutMutations(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	requests := newRequestLog(20)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(req.Method + " " + req.URL.Path)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreVersions",
+			"id":"version-1",
+			"attributes":{"platform":"IOS","versionString":"1.2.3"},
+			"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+		},
+		"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			if req.URL.Query().Get("include") != "app" {
-				t.Fatalf("expected include=app, got %q", req.URL.Query().Get("include"))
-			}
-			return jsonResponse(http.StatusOK, `{
-				"data":{
-					"type":"appStoreVersions",
-					"id":"version-1",
-					"attributes":{"platform":"IOS","versionString":"1.2.3"},
-					"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
-				},
-				"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			if !isReleasedVersionStateQuery(req.URL.Query()) {
-				t.Fatalf("expected released-version state filter, got %q", req.URL.RawQuery)
-			}
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/build":
-			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
-			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		default:
-			t.Fatalf("unexpected request during dry-run: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-			return nil, nil
-		}
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"review", "submit",
-			"--app", "app-1",
-			"--version-id", "version-1",
-			"--build-id", "build-1",
-			"--dry-run",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"review", "submit",
+		"--app", "app-1",
+		"--version-id", "version-1",
+		"--build-id", "build-1",
+		"--dry-run",
+		"--output", "json",
 	})
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
@@ -385,7 +306,7 @@ func TestReviewSubmitDryRunPreviewsWithoutMutations(t *testing.T) {
 		t.Fatal("expected buildAttachment.wouldAttach=true")
 	}
 
-	recordedRequests := strings.Join(requests.Snapshot(), "\n")
+	recordedRequests := strings.Join(reviewSubmitRequests(reg), "\n")
 	if strings.Contains(recordedRequests, "POST /v1/reviewSubmissions") || strings.Contains(recordedRequests, "PATCH /v1/reviewSubmissions/") {
 		t.Fatalf("expected dry-run to avoid mutations, got requests: %s", recordedRequests)
 	}
@@ -396,84 +317,36 @@ func TestReviewSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	requests := newRequestLog(20)
-	itemAdded := false
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(req.Method + " " + req.URL.Path)
-		if req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/review-sub-1/items" && !itemAdded {
-			return jsonResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/review-sub-1/items"}}`)
-		}
-		if resp, err, ok := respondToFinalReviewSubmissionValidation(req); ok {
-			return resp, err
-		}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "filter[platform]=IOS", "filter[state]=READY_FOR_REVIEW", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.PATCH("/v1/appStoreVersions/version-1/relationships/build").JSONBody(`{"data":{"type":"builds","id":"build-1"}}`), asctest.JSON(http.StatusNoContent, ""))
+	reg.Register(asctest.POST("/v1/reviewSubmissions").JSONBody(`{"data":{"type":"reviewSubmissions","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), asctest.JSON(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1", "include=app"), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/review-sub-1/items"}}`))
+	reg.Register(asctest.POST("/v1/reviewSubmissionItems").JSONBody(`{"data":{"type":"reviewSubmissionItems","relationships":{"reviewSubmission":{"data":{"type":"reviewSubmissions","id":"review-sub-1"}},"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`), asctest.JSON(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1", "include=app"), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"reviewSubmissionItems","id":"item-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}],"links":{"self":"/v1/reviewSubmissions/review-sub-1/items"}}`))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/review-sub-1").JSONBody(`{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"submitted":true}}}`), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-04-08T00:00:00Z"}}}`))
 
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			query := req.URL.Query()
-			switch {
-			case query.Get("filter[versionString]") == "1.2.3":
-				if query.Get("filter[platform]") != "IOS" {
-					t.Fatalf("expected filter[platform]=IOS, got %q", query.Get("filter[platform]"))
-				}
-				return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`)
-			case query.Get("filter[platform]") == "IOS" && isReleasedVersionStateQuery(query):
-				return jsonResponse(http.StatusOK, `{"data":[]}`)
-			default:
-				t.Fatalf("unexpected app store versions query: %s", req.URL.RawQuery)
-				return nil, nil
-			}
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/build":
-			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
-			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
-			return jsonResponse(http.StatusNoContent, "")
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			if req.URL.Query().Get("filter[state]") != "READY_FOR_REVIEW" {
-				t.Fatalf("expected filter[state]=READY_FOR_REVIEW, got %q", req.URL.Query().Get("filter[state]"))
-			}
-			if req.URL.Query().Get("filter[platform]") != "IOS" {
-				t.Fatalf("expected filter[platform]=IOS, got %q", req.URL.Query().Get("filter[platform]"))
-			}
-			return jsonResponse(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
-			itemAdded = true
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-sub-1":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-04-08T00:00:00Z"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionSubmissions":
-			t.Fatalf("review submit should not use the legacy appStoreVersionSubmissions endpoint")
-			return nil, nil
-		default:
-			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-			return nil, nil
-		}
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"review", "submit",
-			"--app", "app-1",
-			"--version", "1.2.3",
-			"--build-id", "build-1",
-			"--confirm",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"review", "submit",
+		"--app", "app-1",
+		"--version", "1.2.3",
+		"--build-id", "build-1",
+		"--confirm",
+		"--output", "json",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -516,7 +389,7 @@ func TestReviewSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 		t.Fatal("expected build attachment to report attached=true")
 	}
 
-	recordedRequests := strings.Join(requests.Snapshot(), "\n")
+	recordedRequests := strings.Join(reviewSubmitRequests(reg), "\n")
 	if strings.Contains(recordedRequests, "POST /v1/appStoreVersionSubmissions") {
 		t.Fatalf("did not expect legacy endpoint usage, got requests: %s", recordedRequests)
 	}
@@ -533,74 +406,30 @@ func TestReviewSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t *testing
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	requests := newRequestLog(20)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(req.Method + " " + req.URL.Path)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreVersions",
+			"id":"version-1",
+			"attributes":{"platform":"IOS","versionString":"1.2.3"},
+			"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+		},
+		"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-sub-1"}}`))
 
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			if req.URL.Query().Get("include") != "app" {
-				t.Fatalf("expected include=app, got %q", req.URL.Query().Get("include"))
-			}
-			return jsonResponse(http.StatusOK, `{
-				"data":{
-					"type":"appStoreVersions",
-					"id":"version-1",
-					"attributes":{"platform":"IOS","versionString":"1.2.3"},
-					"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
-				},
-				"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-sub-1"}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			t.Fatalf("did not expect localization preflight when version is already submitted")
-			return nil, nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			t.Fatalf("did not expect publish-state preflight when version is already submitted")
-			return nil, nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
-			t.Fatalf("did not expect subscription preflight when version is already submitted")
-			return nil, nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/build":
-			t.Fatalf("did not expect build lookup when version is already submitted")
-			return nil, nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
-			t.Fatalf("did not expect build attachment mutation when version is already submitted")
-			return nil, nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
-			t.Fatalf("did not expect new review submission creation when version is already submitted")
-			return nil, nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
-			t.Fatalf("did not expect review submission item creation when version is already submitted")
-			return nil, nil
-		case req.Method == http.MethodPatch && strings.HasPrefix(req.URL.Path, "/v1/reviewSubmissions/"):
-			t.Fatalf("did not expect review submission submission when version is already submitted")
-			return nil, nil
-		default:
-			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-			return nil, nil
-		}
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"review", "submit",
-			"--app", "app-1",
-			"--version-id", "version-1",
-			"--build-id", "build-2",
-			"--confirm",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"review", "submit",
+		"--app", "app-1",
+		"--version-id", "version-1",
+		"--build-id", "build-2",
+		"--confirm",
+		"--output", "json",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -637,7 +466,7 @@ func TestReviewSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t *testing
 		t.Fatalf("expected buildAttachment to be omitted when already submitted, got %s", stdout)
 	}
 
-	recordedRequests := strings.Join(requests.Snapshot(), "\n")
+	recordedRequests := strings.Join(reviewSubmitRequests(reg), "\n")
 	if !strings.Contains(recordedRequests, "GET /v1/appStoreVersions/version-1/appStoreVersionSubmission") {
 		t.Fatalf("expected existing submission lookup, got requests: %s", recordedRequests)
 	}
@@ -659,43 +488,24 @@ func TestReviewSubmitConflictAtFinalSubmitReportsCreatedSubmissionAndHints(t *te
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	itemAdded := false
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/review-sub-1/items" && !itemAdded {
-			return jsonResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/review-sub-1/items"}}`)
-		}
-		if resp, err, ok := respondToFinalReviewSubmissionValidation(req); ok {
-			return resp, err
-		}
-
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			if isReleasedVersionStateQuery(req.URL.Query()) {
-				return jsonResponse(http.StatusOK, `{"data":[]}`)
-			}
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodGet && (req.URL.Path == "/v1/appStoreVersions/version-1/build" || req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission"):
-			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
-			return jsonResponse(http.StatusNoContent, "")
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return jsonResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
-			itemAdded = true
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-sub-1":
-			return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"The request cannot be fulfilled because of the state of another resource.","detail":"Submission is not complete.","meta":{"associatedErrors":{"/v1/ageRatingDeclarations/age-1":[{"code":"ENTITY_ERROR.ATTRIBUTE.REQUIRED","detail":"An attribute value is required."}],"/v1/apps/app-1/contentRightsDeclaration":[{"code":"ENTITY_ERROR.ATTRIBUTE.REQUIRED","detail":"An attribute value is required."}]}}}]}`)
-		default:
-			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-			return nil, nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "filter[platform]=IOS", "filter[state]=READY_FOR_REVIEW", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.PATCH("/v1/appStoreVersions/version-1/relationships/build").JSONBody(`{"data":{"type":"builds","id":"build-1"}}`), asctest.JSON(http.StatusNoContent, ""))
+	reg.Register(asctest.POST("/v1/reviewSubmissions").JSONBody(`{"data":{"type":"reviewSubmissions","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), asctest.JSON(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1", "include=app"), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/review-sub-1/items"}}`))
+	reg.Register(asctest.POST("/v1/reviewSubmissionItems").JSONBody(`{"data":{"type":"reviewSubmissionItems","relationships":{"reviewSubmission":{"data":{"type":"reviewSubmissions","id":"review-sub-1"}},"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`), asctest.JSON(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1", "include=app"), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"reviewSubmissionItems","id":"item-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}],"links":{"self":"/v1/reviewSubmissions/review-sub-1/items"}}`))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/review-sub-1").JSONBody(`{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"submitted":true}}}`), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"The request cannot be fulfilled because of the state of another resource.","detail":"Submission is not complete.","meta":{"associatedErrors":{"/v1/ageRatingDeclarations/age-1":[{"code":"ENTITY_ERROR.ATTRIBUTE.REQUIRED","detail":"An attribute value is required."}],"/v1/apps/app-1/contentRightsDeclaration":[{"code":"ENTITY_ERROR.ATTRIBUTE.REQUIRED","detail":"An attribute value is required."}]}}}]}`))
 
 	code, stdout, stderr := runASCForExitCode(
 		t,
@@ -723,4 +533,12 @@ func TestReviewSubmitConflictAtFinalSubmitReportsCreatedSubmissionAndHints(t *te
 			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
 		}
 	}
+}
+
+func reviewSubmitRequests(reg *asctest.Registry) []string {
+	requests := make([]string, 0, len(reg.Requests()))
+	for _, req := range reg.Requests() {
+		requests = append(requests, req.Method+" "+req.URL.Path)
+	}
+	return requests
 }

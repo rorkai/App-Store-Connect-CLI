@@ -1,0 +1,19 @@
+{
+  "tag": "MarketplaceWebhooks",
+  "file": "marketplace_webhooks_gen.go",
+  "types": [
+    "MarketplaceWebhookAttributes",
+    "MarketplaceWebhookCreateAttributes",
+    "MarketplaceWebhookCreateData",
+    "MarketplaceWebhookCreateRequest",
+    "MarketplaceWebhookResponse",
+    "MarketplaceWebhookUpdateAttributes",
+    "MarketplaceWebhookUpdateData",
+    "MarketplaceWebhookUpdateRequest",
+    "MarketplaceWebhooksResponse"
+  ],
+  "operations": [
+    {"operation":"marketplaceWebhooks_deleteInstance","name":"DeleteMarketplaceWebhook","params":["webhookID"],"check":"require"},
+    {"operation":"marketplaceWebhooks_getCollection","name":"GetMarketplaceWebhooks","options":"MarketplaceWebhooksOption","query":"buildMarketplaceWebhooksQuery","nextContext":"marketplaceWebhooks","parseErr":"failed to parse marketplace webhooks response"}
+  ]
+}

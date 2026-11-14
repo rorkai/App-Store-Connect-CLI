@@ -23,22 +23,6 @@ func (c *Client) GetGameCenterAchievementsV2(ctx context.Context, gcDetailID, gr
 	})
 }
 
-// GetGameCenterAchievementVersions retrieves versions for a v2 achievement.
-func (c *Client) GetGameCenterAchievementVersions(ctx context.Context, achievementID string, opts ...GCAchievementVersionsOption) (*GameCenterAchievementVersionsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterAchievementVersionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/gameCenterAchievements/%s/versions", strings.TrimSpace(achievementID)),
-		Query:       buildGCAchievementVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-achievement-versions",
-	})
-}
-
-// GetGameCenterAchievementVersion retrieves a v2 achievement version by ID.
-func (c *Client) GetGameCenterAchievementVersion(ctx context.Context, versionID string) (*GameCenterAchievementVersionResponse, error) {
-	return getJSON[GameCenterAchievementVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterAchievementVersions/%s", strings.TrimSpace(versionID))})
-}
-
 // CreateGameCenterAchievementVersion creates a new v2 achievement version.
 func (c *Client) CreateGameCenterAchievementVersion(ctx context.Context, achievementID string) (*GameCenterAchievementVersionResponse, error) {
 	payload := GameCenterAchievementVersionCreateRequest{
@@ -60,22 +44,6 @@ func (c *Client) CreateGameCenterAchievementVersion(ctx context.Context, achieve
 		Path:    "/v2/gameCenterAchievementVersions",
 		Payload: payload,
 	})
-}
-
-// GetGameCenterAchievementVersionLocalizations retrieves localizations for a v2 achievement version.
-func (c *Client) GetGameCenterAchievementVersionLocalizations(ctx context.Context, versionID string, opts ...GCAchievementLocalizationsOption) (*GameCenterAchievementLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterAchievementLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/gameCenterAchievementVersions/%s/localizations", strings.TrimSpace(versionID)),
-		Query:       buildGCAchievementLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-achievement-version-localizations",
-	})
-}
-
-// GetGameCenterAchievementLocalizationV2 retrieves a v2 achievement localization by ID.
-func (c *Client) GetGameCenterAchievementLocalizationV2(ctx context.Context, localizationID string) (*GameCenterAchievementLocalizationResponse, error) {
-	return getJSON[GameCenterAchievementLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterAchievementLocalizations/%s", strings.TrimSpace(localizationID))})
 }
 
 // CreateGameCenterAchievementLocalizationV2 creates a new v2 achievement localization.
@@ -117,21 +85,6 @@ func (c *Client) UpdateGameCenterAchievementLocalizationV2(ctx context.Context, 
 		Path:    fmt.Sprintf("/v2/gameCenterAchievementLocalizations/%s", strings.TrimSpace(localizationID)),
 		Payload: payload,
 	})
-}
-
-// DeleteGameCenterAchievementLocalizationV2 deletes a v2 achievement localization.
-func (c *Client) DeleteGameCenterAchievementLocalizationV2(ctx context.Context, localizationID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterAchievementLocalizations/%s", strings.TrimSpace(localizationID)), nil)
-}
-
-// GetGameCenterAchievementLocalizationImageV2 retrieves the image for a v2 achievement localization.
-func (c *Client) GetGameCenterAchievementLocalizationImageV2(ctx context.Context, localizationID string) (*GameCenterAchievementImageResponse, error) {
-	return getJSON[GameCenterAchievementImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterAchievementLocalizations/%s/image", strings.TrimSpace(localizationID))})
-}
-
-// GetGameCenterAchievementImageV2 retrieves a v2 achievement image by ID.
-func (c *Client) GetGameCenterAchievementImageV2(ctx context.Context, imageID string) (*GameCenterAchievementImageResponse, error) {
-	return getJSON[GameCenterAchievementImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterAchievementImages/%s", strings.TrimSpace(imageID))})
 }
 
 // CreateGameCenterAchievementImageV2 reserves a new v2 achievement image upload.
@@ -178,11 +131,6 @@ func (c *Client) UpdateGameCenterAchievementImageV2(ctx context.Context, imageID
 		Path:    fmt.Sprintf("/v2/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)),
 		Payload: payload,
 	})
-}
-
-// DeleteGameCenterAchievementImageV2 deletes a v2 achievement image.
-func (c *Client) DeleteGameCenterAchievementImageV2(ctx context.Context, imageID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)), nil)
 }
 
 // UploadGameCenterAchievementImageV2 performs the full upload flow for a v2 achievement image.

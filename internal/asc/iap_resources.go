@@ -22,12 +22,6 @@ type InAppPurchaseLocalizationCreateData struct {
 	Relationships InAppPurchaseLocalizationCreateRelationships `json:"relationships"`
 }
 
-type InAppPurchaseLocalizationCreateRequest struct {
-	Data InAppPurchaseLocalizationCreateData `json:"data"`
-}
-
-type InAppPurchaseLocalizationResponse = SingleResponse[InAppPurchaseLocalizationAttributes]
-
 // In-app purchase App Store review screenshots.
 type InAppPurchaseAppStoreReviewScreenshotAttributes struct {
 	FileSize           int64               `json:"fileSize,omitempty"`
@@ -41,8 +35,6 @@ type InAppPurchaseAppStoreReviewScreenshotAttributes struct {
 
 	api apiAttributes
 }
-
-type InAppPurchaseAppStoreReviewScreenshotResponse = SingleResponse[InAppPurchaseAppStoreReviewScreenshotAttributes]
 
 type InAppPurchaseAppStoreReviewScreenshotCreateAttributes struct {
 	FileSize int64  `json:"fileSize"`
@@ -59,33 +51,8 @@ type InAppPurchaseAppStoreReviewScreenshotCreateData struct {
 	Relationships InAppPurchaseAppStoreReviewScreenshotRelationships    `json:"relationships"`
 }
 
-type InAppPurchaseAppStoreReviewScreenshotCreateRequest struct {
-	Data InAppPurchaseAppStoreReviewScreenshotCreateData `json:"data"`
-}
-
-type InAppPurchaseAppStoreReviewScreenshotUpdateAttributes struct {
-	SourceFileChecksum *string `json:"sourceFileChecksum,omitempty"`
-	Uploaded           *bool   `json:"uploaded,omitempty"`
-}
-
-type InAppPurchaseAppStoreReviewScreenshotUpdateData struct {
-	Type       ResourceType                                           `json:"type"`
-	ID         string                                                 `json:"id"`
-	Attributes *InAppPurchaseAppStoreReviewScreenshotUpdateAttributes `json:"attributes,omitempty"`
-}
-
-type InAppPurchaseAppStoreReviewScreenshotUpdateRequest struct {
-	Data InAppPurchaseAppStoreReviewScreenshotUpdateData `json:"data"`
-}
-
 // In-app purchase availability.
 type InAppPurchaseAvailabilityAttributes struct {
-	AvailableInNewTerritories bool `json:"availableInNewTerritories"`
-}
-
-type InAppPurchaseAvailabilityResponse = SingleResponse[InAppPurchaseAvailabilityAttributes]
-
-type InAppPurchaseAvailabilityCreateAttributes struct {
 	AvailableInNewTerritories bool `json:"availableInNewTerritories"`
 }
 
@@ -100,10 +67,6 @@ type InAppPurchaseAvailabilityCreateData struct {
 	Relationships InAppPurchaseAvailabilityCreateRelationships `json:"relationships"`
 }
 
-type InAppPurchaseAvailabilityCreateRequest struct {
-	Data InAppPurchaseAvailabilityCreateData `json:"data"`
-}
-
 // In-app purchase content.
 type InAppPurchaseContentAttributes struct {
 	FileName         string `json:"fileName,omitempty"`
@@ -111,8 +74,6 @@ type InAppPurchaseContentAttributes struct {
 	URL              string `json:"url,omitempty"`
 	LastModifiedDate string `json:"lastModifiedDate,omitempty"`
 }
-
-type InAppPurchaseContentResponse = SingleResponse[InAppPurchaseContentAttributes]
 
 // In-app purchase price points and schedules.
 type InAppPurchasePricePointAttributes struct {
@@ -123,8 +84,6 @@ type InAppPurchasePricePointAttributes struct {
 type InAppPurchasePricePointsResponse = Response[InAppPurchasePricePointAttributes]
 
 type InAppPurchasePriceScheduleAttributes struct{}
-
-type InAppPurchasePriceScheduleResponse = SingleResponse[InAppPurchasePriceScheduleAttributes]
 
 type InAppPurchasePriceAttributes struct {
 	StartDate string `json:"startDate,omitempty"`
@@ -178,15 +137,6 @@ type InAppPurchasePriceInlineRelationships struct {
 	InAppPurchasePricePoint Relationship `json:"inAppPurchasePricePoint"`
 }
 
-// In-app purchase offer codes.
-type InAppPurchaseOfferCodeAttributes struct {
-	Name                  string   `json:"name,omitempty"`
-	CustomerEligibilities []string `json:"customerEligibilities,omitempty"`
-	ProductionCodeCount   int      `json:"productionCodeCount,omitempty"`
-	SandboxCodeCount      int      `json:"sandboxCodeCount,omitempty"`
-	Active                bool     `json:"active,omitempty"`
-}
-
 type (
 	InAppPurchaseOfferCodesResponse = Response[InAppPurchaseOfferCodeAttributes]
 	InAppPurchaseOfferCodeResponse  = SingleResponse[InAppPurchaseOfferCodeAttributes]
@@ -224,20 +174,6 @@ type InAppPurchaseOfferCodeCreateRelationships struct {
 	Prices        RelationshipList `json:"prices"`
 }
 
-type InAppPurchaseOfferCodeUpdateAttributes struct {
-	Active *bool `json:"active,omitempty"`
-}
-
-type InAppPurchaseOfferCodeUpdateRequest struct {
-	Data InAppPurchaseOfferCodeUpdateData `json:"data"`
-}
-
-type InAppPurchaseOfferCodeUpdateData struct {
-	Type       ResourceType                            `json:"type"`
-	ID         string                                  `json:"id"`
-	Attributes *InAppPurchaseOfferCodeUpdateAttributes `json:"attributes,omitempty"`
-}
-
 type InAppPurchaseOfferPriceAttributes struct{}
 
 type InAppPurchaseOfferPricesResponse = Response[InAppPurchaseOfferPriceAttributes]
@@ -253,26 +189,10 @@ type InAppPurchaseOfferPriceInlineRelationships struct {
 	PricePoint *Relationship `json:"pricePoint,omitempty"`
 }
 
-// Offer code custom codes and one-time use codes.
-type InAppPurchaseOfferCodeCustomCodeAttributes struct {
-	CustomCode     string `json:"customCode,omitempty"`
-	NumberOfCodes  int    `json:"numberOfCodes,omitempty"`
-	CreatedDate    string `json:"createdDate,omitempty"`
-	ExpirationDate string `json:"expirationDate,omitempty"`
-	Active         bool   `json:"active,omitempty"`
-}
-
 type (
 	InAppPurchaseOfferCodeCustomCodesResponse = Response[InAppPurchaseOfferCodeCustomCodeAttributes]
 	InAppPurchaseOfferCodeCustomCodeResponse  = SingleResponse[InAppPurchaseOfferCodeCustomCodeAttributes]
 )
-
-// InAppPurchaseOfferCodeCustomCodeCreateAttributes describes attributes for creating custom codes.
-type InAppPurchaseOfferCodeCustomCodeCreateAttributes struct {
-	CustomCode     string  `json:"customCode"`
-	NumberOfCodes  int     `json:"numberOfCodes"`
-	ExpirationDate *string `json:"expirationDate,omitempty"`
-}
 
 // InAppPurchaseOfferCodeCustomCodeCreateRelationships describes relationships for creating custom codes.
 type InAppPurchaseOfferCodeCustomCodeCreateRelationships struct {
@@ -284,28 +204,6 @@ type InAppPurchaseOfferCodeCustomCodeCreateData struct {
 	Type          ResourceType                                        `json:"type"`
 	Attributes    InAppPurchaseOfferCodeCustomCodeCreateAttributes    `json:"attributes"`
 	Relationships InAppPurchaseOfferCodeCustomCodeCreateRelationships `json:"relationships"`
-}
-
-// InAppPurchaseOfferCodeCustomCodeCreateRequest is a request to create custom codes.
-type InAppPurchaseOfferCodeCustomCodeCreateRequest struct {
-	Data InAppPurchaseOfferCodeCustomCodeCreateData `json:"data"`
-}
-
-// InAppPurchaseOfferCodeCustomCodeUpdateAttributes describes attributes for updating custom codes.
-type InAppPurchaseOfferCodeCustomCodeUpdateAttributes struct {
-	Active *bool `json:"active,omitempty"`
-}
-
-// InAppPurchaseOfferCodeCustomCodeUpdateData is the data portion of an update request.
-type InAppPurchaseOfferCodeCustomCodeUpdateData struct {
-	Type       ResourceType                                      `json:"type"`
-	ID         string                                            `json:"id"`
-	Attributes *InAppPurchaseOfferCodeCustomCodeUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// InAppPurchaseOfferCodeCustomCodeUpdateRequest is a request to update custom codes.
-type InAppPurchaseOfferCodeCustomCodeUpdateRequest struct {
-	Data InAppPurchaseOfferCodeCustomCodeUpdateData `json:"data"`
 }
 
 type InAppPurchaseOfferCodeOneTimeUseCodeAttributes struct {
@@ -338,26 +236,4 @@ type InAppPurchaseOfferCodeOneTimeUseCodeCreateData struct {
 	Type          ResourceType                                            `json:"type"`
 	Attributes    InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes    `json:"attributes"`
 	Relationships InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships `json:"relationships"`
-}
-
-// InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest is a request to generate one-time use codes.
-type InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest struct {
-	Data InAppPurchaseOfferCodeOneTimeUseCodeCreateData `json:"data"`
-}
-
-// InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes describes attributes for updating one-time use codes.
-type InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes struct {
-	Active *bool `json:"active,omitempty"`
-}
-
-// InAppPurchaseOfferCodeOneTimeUseCodeUpdateData is the data portion of an update request.
-type InAppPurchaseOfferCodeOneTimeUseCodeUpdateData struct {
-	Type       ResourceType                                          `json:"type"`
-	ID         string                                                `json:"id"`
-	Attributes *InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// InAppPurchaseOfferCodeOneTimeUseCodeUpdateRequest is a request to update one-time use codes.
-type InAppPurchaseOfferCodeOneTimeUseCodeUpdateRequest struct {
-	Data InAppPurchaseOfferCodeOneTimeUseCodeUpdateData `json:"data"`
 }

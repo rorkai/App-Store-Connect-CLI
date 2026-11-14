@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-// ValidateMatrixPlan validates all matrix inputs that can be checked without
-// executing commands. The base plan must already be loaded and validated.
-func ValidateMatrixPlan(plan *MatrixPlan, base *Plan) error {
-	return validateMatrixPlan(plan, base, "")
-}
-
 func validateMatrixPlan(plan *MatrixPlan, base *Plan, outputBaseDir string) error {
 	if plan == nil {
 		return errors.New("matrix plan is required")

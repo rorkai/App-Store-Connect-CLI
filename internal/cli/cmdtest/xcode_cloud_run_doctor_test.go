@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestXcodeCloudRunDoctorRequiresWait(t *testing.T) {
@@ -29,34 +31,17 @@ func TestXcodeCloudRunWaitDoctorReturnsDiagnosticReportForFailedRun(t *testing.T
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	requests := make(map[string]int)
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests[req.Method+" "+req.URL.Path]++
-		var body string
-		switch req.Method + " " + req.URL.Path {
-		case "POST /v1/ciBuildRuns":
-			body = `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"PENDING"}}}`
-		case "GET /v1/ciBuildRuns/run-1":
-			body = `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"number":93,"executionProgress":"COMPLETE","completionStatus":"FAILED"}}}`
-		case "GET /v1/ciBuildRuns/run-1/actions":
-			body = `{"data":[{"type":"ciBuildActions","id":"action-1","attributes":{"name":"Build - iOS","actionType":"BUILD","executionProgress":"COMPLETE","completionStatus":"FAILED"}}]}`
-		case "GET /v1/ciBuildActions/action-1/issues":
-			body = `{"data":[{"type":"ciIssues","id":"issue-1","attributes":{"issueType":"ERROR","category":"Xcodebuild","message":"Swift compilation failed"}}]}`
-		case "GET /v1/ciBuildActions/action-1/artifacts":
-			body = `{"data":[]}`
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/ciBuildRuns").JSONBody(`{"data":{"type":"ciBuildRuns","relationships":{"workflow":{"data":{"type":"ciWorkflows","id":"wf-1"}},"sourceBranchOrTag":{"data":{"type":"scmGitReferences","id":"ref-1"}}}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"PENDING"}}}`))
+	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"number":93,"executionProgress":"COMPLETE","completionStatus":"FAILED"}}}`))
+	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1/actions", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciBuildActions","id":"action-1","attributes":{"name":"Build - iOS","actionType":"BUILD","executionProgress":"COMPLETE","completionStatus":"FAILED"}}]}`))
+	reg.Register(asctest.GET("/v1/ciBuildActions/action-1/issues", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciIssues","id":"issue-1","attributes":{"issueType":"ERROR","category":"Xcodebuild","message":"Swift compilation failed"}}]}`))
+	reg.Register(asctest.GET("/v1/ciBuildActions/action-1/artifacts", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -95,6 +80,10 @@ func TestXcodeCloudRunWaitDoctorReturnsDiagnosticReportForFailedRun(t *testing.T
 	if !strings.Contains(result.Conclusion, "actionable issues") {
 		t.Fatalf("unexpected conclusion %q", result.Conclusion)
 	}
+	requests := make(map[string]int)
+	for _, req := range reg.Requests() {
+		requests[req.Method+" "+req.URL.Path]++
+	}
 	for _, request := range []string{
 		"POST /v1/ciBuildRuns",
 		"GET /v1/ciBuildRuns/run-1",
@@ -112,26 +101,12 @@ func TestXcodeCloudRunWaitWithoutDoctorKeepsFailureExit(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		var body string
-		switch req.Method + " " + req.URL.Path {
-		case "POST /v1/ciBuildRuns":
-			body = `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"PENDING"}}}`
-		case "GET /v1/ciBuildRuns/run-1":
-			body = `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"COMPLETE","completionStatus":"FAILED"}}}`
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/ciBuildRuns").JSONBody(`{"data":{"type":"ciBuildRuns","relationships":{"workflow":{"data":{"type":"ciWorkflows","id":"wf-1"}},"sourceBranchOrTag":{"data":{"type":"scmGitReferences","id":"ref-1"}}}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"PENDING"}}}`))
+	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"COMPLETE","completionStatus":"FAILED"}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

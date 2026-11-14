@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // metadataCategoriesHTTP serves version and app-info resolution plus category
@@ -146,17 +147,15 @@ func TestMetadataCategoriesPullPreservesFileWhenAppInfoIsMissing(t *testing.T) {
 	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	withMetadataReviewHTTP(t, func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
-		case req.URL.Path == "/v1/appInfos/missing-app-info" || strings.HasPrefix(req.URL.Path, "/v1/appInfos/missing-app-info/relationships/"):
-			return jsonHTTPResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist"}]}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
+	notFound := asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist"}]}`)
+	for _, relationship := range []string{"primaryCategory", "primarySubcategoryOne", "primarySubcategoryTwo", "secondaryCategory", "secondarySubcategoryOne", "secondarySubcategoryTwo"} {
+		reg.Register(asctest.GET("/v1/appInfos/missing-app-info/relationships/"+relationship), notFound)
+	}
+	reg.Register(asctest.GET("/v1/appInfos/missing-app-info"), notFound)
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"metadata", "pull", "--app", "app-1", "--app-info", "missing-app-info", "--version", "1.2.3",
@@ -232,10 +231,7 @@ func TestMetadataCategoriesRejectsInvalidCanonicalFile(t *testing.T) {
 					t.Fatalf("write categories: %v", err)
 				}
 			}
-			withMetadataReviewHTTP(t, func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				return nil, nil
-			})
+			asctest.NewRegistry(t).Install()
 			stdout, stderr, runErr := runRootCommand(t, []string{
 				"metadata", "plan", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "categories",
 				"--review-dir", filepath.Join(t.TempDir(), "review"),

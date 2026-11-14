@@ -1,0 +1,11 @@
+{
+  "tag": "BetaCrashLogs",
+  "file": "beta_crash_logs_gen.go",
+  "types": [
+    "BetaCrashLogAttributes",
+    "BetaCrashLogResponse"
+  ],
+  "operations": [
+    {"operation":"betaCrashLogs_getInstance","name":"GetBetaCrashLog","params":["logID"],"check":"require"}
+  ]
+}

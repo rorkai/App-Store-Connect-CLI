@@ -1,0 +1,13 @@
+{
+  "tag": "InAppPurchaseOfferCodeOneTimeUseCodes",
+  "file": "in_app_purchase_offer_code_one_time_use_codes_gen.go",
+  "types": [
+    "InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest",
+    "InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes",
+    "InAppPurchaseOfferCodeOneTimeUseCodeUpdateData",
+    "InAppPurchaseOfferCodeOneTimeUseCodeUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"inAppPurchaseOfferCodeOneTimeUseCodes_getInstance","name":"GetInAppPurchaseOfferCodeOneTimeUseCode","params":["oneTimeUseCodeID"],"check":"require"}
+  ]
+}

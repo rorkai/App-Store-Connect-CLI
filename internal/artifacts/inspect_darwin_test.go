@@ -37,7 +37,7 @@ func TestInspectPKGNativeComponentPackage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manifest, err := InspectPKG(bytes.NewReader(data), int64(len(data)))
+	manifest, err := inspectPKG(bytes.NewReader(data), int64(len(data)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestInspectPKGNativeProductArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manifest, err := InspectPKG(bytes.NewReader(data), int64(len(data)))
+	manifest, err := inspectPKG(bytes.NewReader(data), int64(len(data)), nil)
 	if err != nil {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}

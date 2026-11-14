@@ -16,9 +16,6 @@ type RoutingAppCoverageAttributes struct {
 	AssetDeliveryState *AppMediaAssetState `json:"assetDeliveryState,omitempty"`
 }
 
-// RoutingAppCoverageResponse is the response for routing app coverage endpoints.
-type RoutingAppCoverageResponse = SingleResponse[RoutingAppCoverageAttributes]
-
 // RoutingAppCoverageCreateAttributes describes create attributes.
 type RoutingAppCoverageCreateAttributes struct {
 	FileSize int64  `json:"fileSize"`
@@ -37,43 +34,10 @@ type RoutingAppCoverageCreateData struct {
 	Relationships *RoutingAppCoverageRelationships   `json:"relationships"`
 }
 
-// RoutingAppCoverageCreateRequest is a request to create routing app coverage.
-type RoutingAppCoverageCreateRequest struct {
-	Data RoutingAppCoverageCreateData `json:"data"`
-}
-
-// RoutingAppCoverageUpdateAttributes describes update attributes.
-type RoutingAppCoverageUpdateAttributes struct {
-	SourceFileChecksum *string `json:"sourceFileChecksum,omitempty"`
-	Uploaded           *bool   `json:"uploaded,omitempty"`
-}
-
-// RoutingAppCoverageUpdateData is the data portion of an update request.
-type RoutingAppCoverageUpdateData struct {
-	Type       ResourceType                        `json:"type"`
-	ID         string                              `json:"id"`
-	Attributes *RoutingAppCoverageUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// RoutingAppCoverageUpdateRequest is a request to update routing app coverage.
-type RoutingAppCoverageUpdateRequest struct {
-	Data RoutingAppCoverageUpdateData `json:"data"`
-}
-
 // RoutingAppCoverageDeleteResult represents CLI output for deletions.
 type RoutingAppCoverageDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// GetRoutingAppCoverage retrieves routing app coverage by ID.
-func (c *Client) GetRoutingAppCoverage(ctx context.Context, coverageID string) (*RoutingAppCoverageResponse, error) {
-	coverageID = strings.TrimSpace(coverageID)
-	if coverageID == "" {
-		return nil, fmt.Errorf("coverageID is required")
-	}
-
-	return getJSON[RoutingAppCoverageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/routingAppCoverages/%s", coverageID)})
 }
 
 // GetRoutingAppCoverageForVersion retrieves routing app coverage for an app store version.
@@ -139,14 +103,4 @@ func (c *Client) UpdateRoutingAppCoverage(ctx context.Context, coverageID string
 	}
 
 	return sendJSON[RoutingAppCoverageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/routingAppCoverages/%s", coverageID), Payload: payload})
-}
-
-// DeleteRoutingAppCoverage deletes routing app coverage by ID.
-func (c *Client) DeleteRoutingAppCoverage(ctx context.Context, coverageID string) error {
-	coverageID = strings.TrimSpace(coverageID)
-	if coverageID == "" {
-		return fmt.Errorf("coverageID is required")
-	}
-
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/routingAppCoverages/%s", coverageID), nil)
 }

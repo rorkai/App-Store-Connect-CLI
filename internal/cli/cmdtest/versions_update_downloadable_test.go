@@ -3,13 +3,14 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // The public write path that replaces the retired read's missing write.
@@ -31,19 +32,10 @@ func TestVersionsUpdateSendsDownloadable(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			var body map[string]any
-			stubTransport(t, func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodPatch || req.URL.Path != "/v1/appStoreVersions/version-1" {
-					t.Fatalf("request = %s %s, want PATCH /v1/appStoreVersions/version-1", req.Method, req.URL.Path)
-				}
-				payload, err := io.ReadAll(req.Body)
-				if err != nil {
-					t.Fatalf("read request body: %v", err)
-				}
-				if err := json.Unmarshal(payload, &body); err != nil {
-					t.Fatalf("unmarshal request body: %v; body=%s", err, payload)
-				}
-				return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"READY_FOR_DISTRIBUTION","downloadable":`+strconv.FormatBool(test.want)+`}}}`)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH("/v1/appStoreVersions/version-1"),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"READY_FOR_DISTRIBUTION","downloadable":`+strconv.FormatBool(test.want)+`}}}`))
 
 			args := append([]string{"versions", "update", "--version-id", "version-1", "--output", "json"}, test.args...)
 			root := RootCommand("test")
@@ -57,6 +49,11 @@ func TestVersionsUpdateSendsDownloadable(t *testing.T) {
 				}
 			})
 
+			if requests := reg.Requests(); len(requests) == 1 {
+				if err := json.Unmarshal(requests[0].Body, &body); err != nil {
+					t.Fatalf("unmarshal request body: %v; body=%s", err, requests[0].Body)
+				}
+			}
 			data, _ := body["data"].(map[string]any)
 			attributes, _ := data["attributes"].(map[string]any)
 			got, ok := attributes["downloadable"]
@@ -85,16 +82,10 @@ func TestVersionsUpdateOmitsDownloadableWhenUnset(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	var body map[string]any
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		payload, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read request body: %v", err)
-		}
-		if err := json.Unmarshal(payload, &body); err != nil {
-			t.Fatalf("unmarshal request body: %v; body=%s", err, payload)
-		}
-		return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}}`)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.PATCH("/v1/appStoreVersions/version-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}}`))
 
 	root := RootCommand("test")
 	root.FlagSet.SetOutput(io.Discard)
@@ -107,6 +98,11 @@ func TestVersionsUpdateOmitsDownloadableWhenUnset(t *testing.T) {
 		}
 	})
 
+	if requests := reg.Requests(); len(requests) == 1 {
+		if err := json.Unmarshal(requests[0].Body, &body); err != nil {
+			t.Fatalf("unmarshal request body: %v; body=%s", err, requests[0].Body)
+		}
+	}
 	data, _ := body["data"].(map[string]any)
 	attributes, _ := data["attributes"].(map[string]any)
 	if _, ok := attributes["downloadable"]; ok {
@@ -135,10 +131,7 @@ func TestVersionsUpdateConfirmValidationFailsBeforeHTTP(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			stubTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("must fail before HTTP: %s %s", req.Method, req.URL.String())
-				return nil, errors.New("unexpected request")
-			}))
+			asctest.NewRegistry(t).Install()
 
 			args := append([]string{"versions", "update", "--version-id", "version-1"}, test.args...)
 			stdout, stderr, runErr := runCommand(t, args)

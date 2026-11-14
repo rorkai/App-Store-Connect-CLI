@@ -1205,7 +1205,7 @@ func createDefaultKoubouConfig(
 	if err != nil {
 		return "", frameExecutionMetadata{}, "", fmt.Errorf("create temp config directory: %w", err)
 	}
-	configPath, metadata, err := createDefaultKoubouConfigAt(absInputPath, spec, canvas, workDir)
+	configPath, metadata, err := createDefaultKoubouConfigAtRoot(absInputPath, spec, canvas, workDir, nil)
 	if err != nil {
 		_ = os.RemoveAll(workDir)
 		return "", frameExecutionMetadata{}, "", err

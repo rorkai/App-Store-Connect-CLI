@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -173,52 +172,28 @@ Examples:
 
 // LocalizationsScreenshotSetsDeleteCommand returns the screenshot sets delete subcommand.
 func LocalizationsScreenshotSetsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations screenshot-sets delete", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "id", "appScreenshotSets", "App screenshot set ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc localizations screenshot-sets delete --id \"SCREENSHOT_SET_ID\" --confirm",
-		ShortHelp:  "Delete a screenshot set by ID.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "localizations screenshot-sets delete",
+		Name:        "delete",
+		ShortUsage:  "asc localizations screenshot-sets delete --id \"SCREENSHOT_SET_ID\" --confirm",
+		ShortHelp:   "Delete a screenshot set by ID.",
 		LongHelp: `Delete a screenshot set by ID.
 
 Examples:
   asc localizations screenshot-sets delete --id "SCREENSHOT_SET_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*setID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("localizations screenshot-sets delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppScreenshotSet(requestCtx, trimmedID); err != nil {
-				return fmt.Errorf("localizations screenshot-sets delete: %w", err)
-			}
-
-			result := asc.AssetDeleteResult{
-				ID:      trimmedID,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+		IDFlag:                 "id",
+		IDUsage:                "App screenshot set ID",
+		IDType:                 "appScreenshotSets",
+		RequiredDiagnostic:     true,
+		ConfirmRequiredMessage: "--confirm is required to delete",
+		ErrorPrefix:            "localizations screenshot-sets delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppScreenshotSet(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // LocalizationsScreenshotSetsListCommand returns the screenshot sets list subcommand.

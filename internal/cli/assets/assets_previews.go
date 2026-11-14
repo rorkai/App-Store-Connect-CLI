@@ -652,52 +652,28 @@ func renderPreviewDownloadResult(result *previewDownloadResult, markdown bool) e
 
 // AssetsPreviewsDeleteCommand returns the preview delete subcommand.
 func AssetsPreviewsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "appPreviews", "Preview ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc video-previews delete --id \"PREVIEW_ID\" --confirm",
-		ShortHelp:  "Delete a preview by ID.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc video-previews delete --id \"PREVIEW_ID\" --confirm",
+		ShortHelp:   "Delete a preview by ID.",
 		LongHelp: `Delete a preview by ID.
 
 Examples:
   asc video-previews delete --id "PREVIEW_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			assetID := strings.TrimSpace(*id)
-			if assetID == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("video-previews delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppPreview(requestCtx, assetID); err != nil {
-				return fmt.Errorf("video-previews delete: %w", err)
-			}
-
-			result := asc.AssetDeleteResult{
-				ID:      assetID,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+		IDFlag:                 "id",
+		IDUsage:                "Preview ID",
+		IDType:                 "appPreviews",
+		RequiredDiagnostic:     true,
+		ConfirmRequiredMessage: "--confirm is required to delete",
+		ErrorPrefix:            "video-previews delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppPreview(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // AssetsPreviewsSetPosterFrameCommand returns the set-poster-frame subcommand.

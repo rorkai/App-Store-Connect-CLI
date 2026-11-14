@@ -1,12 +1,11 @@
 package cmdtest
 
 import (
-	"fmt"
-	"net/http"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSigningSyncLifecycleUsageErrorsExitTwoBeforeSideEffects(t *testing.T) {
@@ -75,11 +74,8 @@ func TestSigningSyncNukeRejectsConfirmWithDryRunBeforeRequests(t *testing.T) {
 	setupSubmitCreateAuth(t)
 	t.Setenv("ASC_SIGNING_SYNC_PASSWORD", "repository-password")
 
-	var requests lockedCounter
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Inc()
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
@@ -101,7 +97,7 @@ func TestSigningSyncNukeRejectsConfirmWithDryRunBeforeRequests(t *testing.T) {
 	if strings.Contains(stderr, "Cloning signing repo") || strings.Contains(stderr, "Listing signing assets") || strings.Contains(stderr, "Dry run:") {
 		t.Fatalf("stderr shows side effects: %q", stderr)
 	}
-	if got := requests.Load(); got != 0 {
+	if got := len(reg.Requests()); got != 0 {
 		t.Fatalf("HTTP requests = %d, want 0", got)
 	}
 }

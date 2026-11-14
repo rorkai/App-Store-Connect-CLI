@@ -1,0 +1,12 @@
+{
+  "tag": "GameCenterActivityVersionReleases",
+  "file": "game_center_activity_version_releases_gen.go",
+  "types": [
+    "GameCenterActivityVersionReleaseCreateRequest",
+    "GameCenterActivityVersionReleaseResponse"
+  ],
+  "operations": [
+    {"operation":"gameCenterActivityVersionReleases_deleteInstance","name":"DeleteGameCenterActivityVersionRelease","params":["releaseID"]},
+    {"operation":"gameCenterActivityVersionReleases_getInstance","name":"GetGameCenterActivityVersionRelease","params":["releaseID"]}
+  ]
+}

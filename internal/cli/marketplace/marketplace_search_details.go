@@ -44,50 +44,36 @@ Examples:
 
 // MarketplaceSearchDetailsGetCommand returns the search details get subcommand.
 func MarketplaceSearchDetailsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	var fieldsValue []string
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(marketplaceSearchDetailFieldsList(), ", "))
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc marketplace search-details view --app \"APP_ID\" [flags]",
-		ShortHelp:  "View marketplace search details for an app.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc marketplace search-details view --app \"APP_ID\" [flags]",
+		ShortHelp:   "View marketplace search details for an app.",
 		LongHelp: `View marketplace search details for an app.
 
 Examples:
   asc marketplace search-details view --app "APP_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
+		IDFlag:             "app",
+		IDUsage:            "App Store Connect app ID (or ASC_APP_ID env)",
+		ResolveApp:         true,
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(marketplaceSearchDetailFieldsList(), ", "))
+			return func() (err error) {
+				if fieldsValue, err = normalizeMarketplaceSearchDetailFields(*fields); err != nil {
+					return shared.UsageErrorf("marketplace search-details view: %v", err)
+				}
+				return nil
 			}
-
-			fieldsValue, err := normalizeMarketplaceSearchDetailFields(*fields)
-			if err != nil {
-				return shared.UsageErrorf("marketplace search-details view: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("marketplace search-details view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			detail, err := client.GetMarketplaceSearchDetailForApp(requestCtx, resolvedAppID, fieldsValue)
-			if err != nil {
-				return fmt.Errorf("marketplace search-details view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(detail, *output.Output, *output.Pretty)
 		},
-	}
+		ErrorPrefix:      "marketplace search-details view",
+		FetchErrorPrefix: "marketplace search-details view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, appID string) (any, error) {
+			return client.GetMarketplaceSearchDetailForApp(ctx, appID, fieldsValue)
+		},
+	})
 }
 
 // MarketplaceSearchDetailsCreateCommand returns the search details create subcommand.

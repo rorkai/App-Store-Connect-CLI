@@ -534,68 +534,6 @@ func (g *GitStore) Cleanup() error {
 	return errors.Join(closeErr, removeErr)
 }
 
-// EnsureInsideDir checks that target stays inside baseDir and does not traverse
-// any symlinked parent directories.
-func EnsureInsideDir(baseDir, target string) error {
-	absBase, err := filepath.Abs(baseDir)
-	if err != nil {
-		return fmt.Errorf("resolve base dir: %w", err)
-	}
-	absTarget, err := filepath.Abs(target)
-	if err != nil {
-		return fmt.Errorf("resolve target path: %w", err)
-	}
-	if !strings.HasPrefix(absTarget, absBase+string(filepath.Separator)) && absTarget != absBase {
-		return fmt.Errorf("path %q escapes base directory %q", target, baseDir)
-	}
-
-	if absTarget == absBase {
-		return nil
-	}
-
-	parent := filepath.Dir(absTarget)
-	relParent, err := filepath.Rel(absBase, parent)
-	if err != nil {
-		return fmt.Errorf("resolve target parent: %w", err)
-	}
-
-	current := absBase
-	for _, component := range strings.Split(relParent, string(filepath.Separator)) {
-		if component == "" || component == "." {
-			continue
-		}
-
-		current = filepath.Join(current, component)
-		info, err := os.Lstat(current)
-		if err != nil {
-			if os.IsNotExist(err) {
-				break
-			}
-			return fmt.Errorf("inspect path %q: %w", current, err)
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("path %q uses symlink component %q", target, current)
-		}
-	}
-
-	return nil
-}
-
-// RejectSymlinkIfExists rejects writes through an existing symlink path.
-func RejectSymlinkIfExists(path string) error {
-	info, err := os.Lstat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("refusing to write symlink %q (potential escape)", path)
-	}
-	return nil
-}
-
 // gitConfigProbeError marks a failure of the local Git configuration probe, so
 // callers can tell it apart from a failure of the Git command they asked for.
 type gitConfigProbeError struct {

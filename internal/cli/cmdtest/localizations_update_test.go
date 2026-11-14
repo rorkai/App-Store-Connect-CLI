@@ -18,12 +18,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-type locUpdateRoundTripFunc func(*http.Request) (*http.Response, error)
-
-func (fn locUpdateRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return fn(req)
-}
-
 func setupLocUpdateAuth(t *testing.T) {
 	t.Helper()
 	tempDir := t.TempDir()

@@ -1,0 +1,8 @@
+{
+  "tag": "CiBuildRuns",
+  "file": "ci_build_runs_gen.go",
+  "types": [
+    "CiBuildRunCreateAttributes",
+    "CiBuildRunCreateRequest"
+  ]
+}

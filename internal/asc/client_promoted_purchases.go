@@ -86,8 +86,3 @@ func (c *Client) UpdatePromotedPurchase(ctx context.Context, promotedPurchaseID 
 		ParseErr: "failed to parse promoted purchase response",
 	})
 }
-
-// DeletePromotedPurchase deletes a promoted purchase by ID.
-func (c *Client) DeletePromotedPurchase(ctx context.Context, promotedPurchaseID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/promotedPurchases/%s", strings.TrimSpace(promotedPurchaseID)), nil)
-}

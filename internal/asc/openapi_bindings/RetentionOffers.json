@@ -1,0 +1,8 @@
+{
+  "tag": "RetentionOffers",
+  "file": "retention_offers_gen.go",
+  "types": [
+    "RetentionOfferResponse",
+    "RetentionOfferUpdateAttributes"
+  ]
+}
