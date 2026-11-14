@@ -28,7 +28,9 @@ func ShotsRunCommand() *ffcli.Command {
 		LongHelp: `Run a deterministic screenshot automation sequence.
 
 By default it loads .asc/screenshots.json from the current project root.
-Supported actions: launch, tap, type, wait, wait_for (polling), screenshot.`,
+Supported actions: launch, tap, type, wait, wait_for (polling), screenshot.
+Set defaults.status_bar to screenshot, low-battery, no-service, or charging to
+override the simulator status bar during the run (needs AXe 2.0+ and Xcode 27+).`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
