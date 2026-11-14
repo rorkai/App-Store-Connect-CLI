@@ -305,6 +305,9 @@ func parseDeviceBatchRow(row []string, line int, defaultPlatform string) (device
 	platform := defaultPlatform
 	if len(row) == 3 && strings.TrimSpace(row[2]) != "" {
 		platform = strings.TrimSpace(row[2])
+		if strings.EqualFold(platform, "mac") {
+			platform = string(asc.DevicePlatformMacOS)
+		}
 	}
 	if platform == "" {
 		return deviceBatchRecord{}, fmt.Errorf("line %d: device platform is required (provide a third column or --platform)", line)
