@@ -123,43 +123,24 @@ Examples:
 
 // GameCenterLeaderboardLocalizationsGetCommand returns the leaderboard localizations get subcommand.
 func GameCenterLeaderboardLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardLocalizations", "Game Center leaderboard localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center leaderboards localizations view --id \"LOCALIZATION_ID\"",
-		ShortHelp:  "View a Game Center leaderboard localization by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center leaderboards localizations view --id \"LOCALIZATION_ID\"",
+		ShortHelp:   "View a Game Center leaderboard localization by ID.",
 		LongHelp: `View a Game Center leaderboard localization by ID.
 
 Examples:
   asc game-center leaderboards localizations view --id "LOCALIZATION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards localizations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterLeaderboardLocalization(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards localizations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center leaderboard localization ID",
+		IDType:             "gameCenterLeaderboardLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboards localizations view",
+		FetchErrorPrefix:   "game-center leaderboards localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterLeaderboardLocalization(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardLocalizationsCreateCommand returns the leaderboard localizations create subcommand.
@@ -408,41 +389,22 @@ Examples:
 
 // GameCenterLeaderboardLocalizationImageGetCommand returns the localization image get subcommand.
 func GameCenterLeaderboardLocalizationImageGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardLocalizations", "Game Center leaderboard localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center leaderboards localizations image view --id \"LOCALIZATION_ID\"",
-		ShortHelp:  "View a leaderboard localization image.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center leaderboards localizations image view --id \"LOCALIZATION_ID\"",
+		ShortHelp:   "View a leaderboard localization image.",
 		LongHelp: `View a leaderboard localization image.
 
 Examples:
   asc game-center leaderboards localizations image view --id "LOCALIZATION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards localizations image view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterLeaderboardLocalizationImage(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards localizations image view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center leaderboard localization ID",
+		IDType:             "gameCenterLeaderboardLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboards localizations image view",
+		FetchErrorPrefix:   "game-center leaderboards localizations image view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterLeaderboardLocalizationImage(ctx, id)
 		},
-	}
+	})
 }

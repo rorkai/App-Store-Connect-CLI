@@ -144,43 +144,24 @@ Examples:
 
 // GameCenterLeaderboardSetsV2GetCommand returns the leaderboard-sets v2 get subcommand.
 func GameCenterLeaderboardSetsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center leaderboard-sets v2 view --id \"SET_ID\"",
-		ShortHelp:  "View a Game Center leaderboard set (v2) by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center leaderboard-sets v2 view --id \"SET_ID\"",
+		ShortHelp:   "View a Game Center leaderboard set (v2) by ID.",
 		LongHelp: `View a Game Center leaderboard set (v2) by ID.
 
 Examples:
   asc game-center leaderboard-sets v2 view --id "SET_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*setID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterLeaderboardSetV2(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center leaderboard set ID",
+		IDType:             "gameCenterLeaderboardSets",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboard-sets v2 view",
+		FetchErrorPrefix:   "game-center leaderboard-sets v2 view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterLeaderboardSetV2(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetsV2CreateCommand returns the leaderboard-sets v2 create subcommand.
@@ -661,43 +642,24 @@ Examples:
 
 // GameCenterLeaderboardSetVersionsV2GetCommand returns the leaderboard set versions v2 get subcommand.
 func GameCenterLeaderboardSetVersionsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSetVersions", "Game Center leaderboard set version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center leaderboard-sets v2 versions view --id \"VERSION_ID\"",
-		ShortHelp:  "View a Game Center leaderboard set version (v2) by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center leaderboard-sets v2 versions view --id \"VERSION_ID\"",
+		ShortHelp:   "View a Game Center leaderboard set version (v2) by ID.",
 		LongHelp: `View a Game Center leaderboard set version (v2) by ID.
 
 Examples:
   asc game-center leaderboard-sets v2 versions view --id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 versions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterLeaderboardSetVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 versions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center leaderboard set version ID",
+		IDType:             "gameCenterLeaderboardSetVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboard-sets v2 versions view",
+		FetchErrorPrefix:   "game-center leaderboard-sets v2 versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterLeaderboardSetVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetVersionsV2CreateCommand returns the leaderboard set versions v2 create subcommand.
@@ -845,43 +807,24 @@ Examples:
 
 // GameCenterLeaderboardSetLocalizationsV2GetCommand returns the leaderboard set localizations v2 get subcommand.
 func GameCenterLeaderboardSetLocalizationsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSetLocalizations", "Game Center leaderboard set localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center leaderboard-sets v2 localizations view --id \"LOC_ID\"",
-		ShortHelp:  "View a Game Center leaderboard set localization (v2) by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center leaderboard-sets v2 localizations view --id \"LOC_ID\"",
+		ShortHelp:   "View a Game Center leaderboard set localization (v2) by ID.",
 		LongHelp: `View a Game Center leaderboard set localization (v2) by ID.
 
 Examples:
   asc game-center leaderboard-sets v2 localizations view --id "LOC_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterLeaderboardSetLocalizationV2(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center leaderboard set localization ID",
+		IDType:             "gameCenterLeaderboardSetLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboard-sets v2 localizations view",
+		FetchErrorPrefix:   "game-center leaderboard-sets v2 localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterLeaderboardSetLocalizationV2(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetLocalizationsV2CreateCommand returns the leaderboard set localizations v2 create subcommand.

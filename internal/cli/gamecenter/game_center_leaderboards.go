@@ -282,50 +282,34 @@ Examples:
 
 // GameCenterLeaderboardsGetCommand returns the leaderboards get subcommand.
 func GameCenterLeaderboardsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	var v2 *bool
 
-	leaderboardID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboards", "Game Center leaderboard ID")
-	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center leaderboards view --id \"LEADERBOARD_ID\" [--v2]",
-		ShortHelp:  "View a Game Center leaderboard by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center leaderboards view --id \"LEADERBOARD_ID\" [--v2]",
+		ShortHelp:   "View a Game Center leaderboard by ID.",
 		LongHelp: `View a Game Center leaderboard by ID.
 
 Examples:
   asc game-center leaderboards view --id "LEADERBOARD_ID"
   asc game-center leaderboards view --id "LEADERBOARD_ID" --v2`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*leaderboardID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			var resp *asc.GameCenterLeaderboardResponse
-			if *v2 {
-				resp, err = client.GetGameCenterLeaderboardV2(requestCtx, id)
-			} else {
-				resp, err = client.GetGameCenterLeaderboard(requestCtx, id)
-			}
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center leaderboard ID",
+		IDType:             "gameCenterLeaderboards",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			v2 = fs.Bool("v2", false, "Use v2 leaderboards endpoint")
+			return nil
 		},
-	}
+		ErrorPrefix:      "game-center leaderboards view",
+		FetchErrorPrefix: "game-center leaderboards view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			if *v2 {
+				return client.GetGameCenterLeaderboardV2(ctx, id)
+			}
+			return client.GetGameCenterLeaderboard(ctx, id)
+		},
+	})
 }
 
 // GameCenterLeaderboardsCreateCommand returns the leaderboards create subcommand.
@@ -853,43 +837,24 @@ Examples:
 
 // GameCenterLeaderboardGroupLeaderboardGetCommand returns the group leaderboard get subcommand.
 func GameCenterLeaderboardGroupLeaderboardGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	leaderboardID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboards", "Game Center leaderboard ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center leaderboards group-leaderboard view --id \"LEADERBOARD_ID\"",
-		ShortHelp:  "View a group leaderboard by leaderboard ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center leaderboards group-leaderboard view --id \"LEADERBOARD_ID\"",
+		ShortHelp:   "View a group leaderboard by leaderboard ID.",
 		LongHelp: `View a group leaderboard by leaderboard ID.
 
 Examples:
   asc game-center leaderboards group-leaderboard view --id "LEADERBOARD_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*leaderboardID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards group-leaderboard view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterLeaderboardGroupLeaderboard(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards group-leaderboard view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center leaderboard ID",
+		IDType:             "gameCenterLeaderboards",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboards group-leaderboard view",
+		FetchErrorPrefix:   "game-center leaderboards group-leaderboard view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterLeaderboardGroupLeaderboard(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardReleasesCommand returns the releases command group.

@@ -149,43 +149,24 @@ Examples:
 
 // GameCenterMatchmakingQueuesGetCommand returns the matchmaking queues get subcommand.
 func GameCenterMatchmakingQueuesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	queueID := shared.BindResourceIDFlag(fs, "id", "gameCenterMatchmakingQueues", "Matchmaking queue ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center matchmaking queues view --id \"QUEUE_ID\"",
-		ShortHelp:  "View a matchmaking queue by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center matchmaking queues view --id \"QUEUE_ID\"",
+		ShortHelp:   "View a matchmaking queue by ID.",
 		LongHelp: `View a matchmaking queue by ID.
 
 Examples:
   asc game-center matchmaking queues view --id "QUEUE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*queueID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking queues view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterMatchmakingQueue(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking queues view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Matchmaking queue ID",
+		IDType:             "gameCenterMatchmakingQueues",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center matchmaking queues view",
+		FetchErrorPrefix:   "game-center matchmaking queues view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterMatchmakingQueue(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterMatchmakingQueuesCreateCommand returns the matchmaking queues create subcommand.
@@ -452,43 +433,24 @@ Examples:
 
 // GameCenterMatchmakingRuleSetsGetCommand returns the rule sets get subcommand.
 func GameCenterMatchmakingRuleSetsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	ruleSetID := shared.BindResourceIDFlag(fs, "id", "gameCenterMatchmakingRuleSets", "Matchmaking rule set ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center matchmaking rule-sets view --id \"RULE_SET_ID\"",
-		ShortHelp:  "View a matchmaking rule set by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center matchmaking rule-sets view --id \"RULE_SET_ID\"",
+		ShortHelp:   "View a matchmaking rule set by ID.",
 		LongHelp: `View a matchmaking rule set by ID.
 
 Examples:
   asc game-center matchmaking rule-sets view --id "RULE_SET_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*ruleSetID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking rule-sets view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterMatchmakingRuleSet(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking rule-sets view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Matchmaking rule set ID",
+		IDType:             "gameCenterMatchmakingRuleSets",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center matchmaking rule-sets view",
+		FetchErrorPrefix:   "game-center matchmaking rule-sets view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterMatchmakingRuleSet(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterMatchmakingRuleSetsCreateCommand returns the rule sets create subcommand.
