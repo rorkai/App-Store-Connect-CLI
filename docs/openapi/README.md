@@ -48,7 +48,20 @@ query builder, and error prefixes. Do not edit generated files or the bindings
 by hand.
 
 - `make generate-client` regenerates every generated file.
-- `make check-openapi` fails when a generated file is out of date.
+- `make check-openapi` and `go test ./internal/openapigen` fail when a
+  generated file is out of date.
+- `go test ./internal/asc -run TestGeneratedClient` checks the generated code
+  against `latest.json`: every bound operation and type must still exist, and
+  every generated method must send the operation's HTTP method and path, only
+  query parameters the operation defines, and a body whose type, attribute and
+  relationship names the request schema defines, with the required ones
+  present. A snapshot update that drops or changes a bound operation fails
+  here, naming the operation and the method.
+- `cd internal/asc && go run ../openapigen -report` lists the hand-written
+  client methods that send a request no operation in `latest.json` describes,
+  and the hand-written attribute structs that lack an attribute of their
+  resource and neither keep unmodeled attributes (`apiAttributes`) nor encode
+  themselves. It changes nothing and never fails.
 - To move hand-written code of more tags to the generator, run
   `cd internal/asc && go run ../openapigen -adopt <Tag>[,<Tag>...]`. For each
   operation of a tag it renders the method from the spec and the choices read

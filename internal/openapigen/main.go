@@ -21,7 +21,19 @@ func main() {
 	check := flag.Bool("check", false, "fail if generated files are out of date instead of writing them")
 	adopt := flag.String("adopt", "", "comma-separated tags (or \"all\") whose hand-written methods and types to replace")
 	dryRun := flag.Bool("dry-run", false, "with -adopt, only report what would be generated")
+	report := flag.Bool("report", false, "list hand-written methods and attribute structs the spec does not back, and change nothing")
 	flag.Parse()
+	if *report {
+		spec, err := LoadSpec(*specPath)
+		if err == nil {
+			err = Report(spec, *dir, os.Stdout)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "openapigen:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(*specPath, *bindingsDir, *dir, *check, *adopt, *dryRun, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "openapigen:", err)
 		os.Exit(1)
