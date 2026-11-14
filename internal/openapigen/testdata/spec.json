@@ -19,6 +19,26 @@
         }
       }
     },
+    "/v1/widgetNotes": {
+      "post": {
+        "tags": ["Widgets"],
+        "operationId": "widgetNotes_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetNoteCreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
+    },
+    "/v1/widgetReleases": {
+      "post": {
+        "tags": ["Widgets"],
+        "operationId": "widgetReleases_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetReleaseCreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
+    },
     "/v1/widgets/{id}": {
       "get": {
         "tags": ["Widgets"],
@@ -147,6 +167,54 @@
               }
             },
             "required": ["id", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "WidgetNoteCreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["widgetNotes"]},
+              "attributes": {
+                "type": "object",
+                "properties": {"text": {"type": "string"}},
+                "required": ["text"]
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "widget": {"type": "object", "properties": {"data": {"type": "object", "properties": {"type": {"type": "string", "enum": ["widgets"]}, "id": {"type": "string"}}, "required": ["id", "type"]}}, "required": ["data"]},
+                  "gadgets": {"type": "object", "properties": {"data": {"type": "array", "items": {"type": "object", "properties": {"type": {"type": "string", "enum": ["gadgets"]}, "id": {"type": "string"}}, "required": ["id", "type"]}}}}
+                },
+                "required": ["widget"]
+              }
+            },
+            "required": ["attributes", "relationships", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "WidgetReleaseCreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["widgetReleases"]},
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "widget": {"type": "object", "properties": {"data": {"type": "object", "properties": {"type": {"type": "string", "enum": ["widgets"]}, "id": {"type": "string"}}, "required": ["id", "type"]}}, "required": ["data"]},
+                  "gadget": {"type": "object", "properties": {"data": {"type": "object", "properties": {"type": {"type": "string", "enum": ["gadgets"]}, "id": {"type": "string"}}, "required": ["id", "type"]}}, "required": ["data"]},
+                  "owner": {"type": "object", "properties": {"data": {"type": "object", "properties": {"type": {"type": "string", "enum": ["widgets"]}, "id": {"type": "string"}}, "required": ["id", "type"]}}}
+                },
+                "required": ["widget", "gadget"]
+              }
+            },
+            "required": ["relationships", "type"]
           }
         },
         "required": ["data"]

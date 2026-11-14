@@ -83,6 +83,8 @@ func TestLoadBindingsRejects(t *testing.T) {
 
 func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 	spec, _ := loadTestdata(t)
+	note := []*RelBind{{Data: "WidgetNoteCreateData", Type: "*WidgetNoteRelationships"}}
+	release := []*RelBind{{Data: "WidgetReleaseCreateData", Type: "WidgetReleaseCreateRelationships"}}
 	tests := []struct {
 		name string
 		fam  *Family
@@ -94,6 +96,15 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"unknown check style", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, Check: "bogus"}}}},
 		{"check first without options", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, Check: checkRequire, CheckFirst: true}}}},
 		{"check first with nothing to check", &Family{Operations: []*OpBind{{Operation: "widgets_parts_getToManyRelated", Name: "X", Params: []string{"id"}, Check: checkRaw, CheckFirst: true, Options: "PartsOption", Query: "buildPartsQuery"}}}},
+		{"links on an operation that is not a create", &Family{Operations: []*OpBind{{Operation: "widgets_updateInstance", Name: "X", Params: []string{"id", "widgetID"}, Links: []string{"widget"}}}}},
+		{"link to a relationship the schema does not define", &Family{Relationships: release, Operations: []*OpBind{{Operation: "widgetReleases_createInstance", Name: "X", Params: []string{"widgetID", "gadgetID", "otherID"}, Links: []string{"widget", "gadget", "other"}}}}},
+		{"relationship linked twice", &Family{Relationships: release, Operations: []*OpBind{{Operation: "widgetReleases_createInstance", Name: "X", Params: []string{"widgetID", "gadgetID", "otherID"}, Links: []string{"widget", "gadget", "widget"}}}}},
+		{"link to a to-many relationship", &Family{Relationships: note, Operations: []*OpBind{{Operation: "widgetNotes_createInstance", Name: "X", Params: []string{"widgetID", "gadgetID"}, Links: []string{"widget", "gadgets"}}}}},
+		{"required relationship not linked", &Family{Relationships: release, Operations: []*OpBind{{Operation: "widgetReleases_createInstance", Name: "X", Params: []string{"widgetID"}, Links: []string{"widget"}}}}},
+		{"links without a relationships record", &Family{Operations: []*OpBind{{Operation: "widgetReleases_createInstance", Name: "X", Params: []string{"widgetID", "gadgetID"}, Links: []string{"widget", "gadget"}}}}},
+		{"create with relationships and no links", &Family{Relationships: release, Operations: []*OpBind{{Operation: "widgetReleases_createInstance", Name: "X"}}}},
+		{"data with relationships and no record", &Family{Types: []string{"WidgetReleaseCreateData"}}},
+		{"relationships record of data without relationships", &Family{Relationships: []*RelBind{{Data: "WidgetCreateData", Type: "WidgetRelationships"}}, Types: []string{"WidgetRelationships"}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
