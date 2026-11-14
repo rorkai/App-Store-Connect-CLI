@@ -20,6 +20,26 @@ type BetaTesterResponse = SingleResponse[BetaTesterAttributes]
 // BetaTestersResponse is the BetaTestersResponse schema.
 type BetaTestersResponse = Response[BetaTesterAttributes]
 
+// RemoveBetaTesterFromApps sends DELETE /v1/betaTesters/{id}/relationships/apps (betaTesters_apps_deleteToManyRelationship).
+func (c *Client) RemoveBetaTesterFromApps(ctx context.Context, testerID string, appIDs []string) error {
+	testerID = strings.TrimSpace(testerID)
+	appIDs = normalizeList(appIDs)
+	if testerID == "" {
+		return fmt.Errorf("tester ID is required")
+	}
+	if len(appIDs) == 0 {
+		return fmt.Errorf("app IDs are required")
+	}
+	relData := make([]ResourceData, 0, len(appIDs))
+	for _, appID := range appIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeApps,
+			ID:   appID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaTesters/%s/relationships/apps", testerID), RelationshipList{Data: relData})
+}
+
 // GetBetaTesterApps sends GET /v1/betaTesters/{id}/apps (betaTesters_apps_getToManyRelated).
 func (c *Client) GetBetaTesterApps(ctx context.Context, testerID string, opts ...BetaTesterAppsOption) (*AppsResponse, error) {
 	query := applyOptions(opts)
@@ -35,6 +55,46 @@ func (c *Client) GetBetaTesterApps(ctx context.Context, testerID string, opts ..
 	})
 }
 
+// AddBetaTesterToGroups sends POST /v1/betaTesters/{id}/relationships/betaGroups (betaTesters_betaGroups_createToManyRelationship).
+func (c *Client) AddBetaTesterToGroups(ctx context.Context, testerID string, groupIDs []string) error {
+	testerID = strings.TrimSpace(testerID)
+	groupIDs = normalizeList(groupIDs)
+	if testerID == "" {
+		return fmt.Errorf("tester ID is required")
+	}
+	if len(groupIDs) == 0 {
+		return fmt.Errorf("group IDs are required")
+	}
+	relData := make([]ResourceData, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeBetaGroups,
+			ID:   groupID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID), RelationshipList{Data: relData})
+}
+
+// RemoveBetaTesterFromGroups sends DELETE /v1/betaTesters/{id}/relationships/betaGroups (betaTesters_betaGroups_deleteToManyRelationship).
+func (c *Client) RemoveBetaTesterFromGroups(ctx context.Context, testerID string, groupIDs []string) error {
+	testerID = strings.TrimSpace(testerID)
+	groupIDs = normalizeList(groupIDs)
+	if testerID == "" {
+		return fmt.Errorf("tester ID is required")
+	}
+	if len(groupIDs) == 0 {
+		return fmt.Errorf("group IDs are required")
+	}
+	relData := make([]ResourceData, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeBetaGroups,
+			ID:   groupID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID), RelationshipList{Data: relData})
+}
+
 // GetBetaTesterBetaGroups sends GET /v1/betaTesters/{id}/betaGroups (betaTesters_betaGroups_getToManyRelated).
 func (c *Client) GetBetaTesterBetaGroups(ctx context.Context, testerID string, opts ...BetaTesterBetaGroupsOption) (*BetaGroupsResponse, error) {
 	query := applyOptions(opts)
@@ -48,6 +108,46 @@ func (c *Client) GetBetaTesterBetaGroups(ctx context.Context, testerID string, o
 		Next:        query.nextURL,
 		NextContext: "betaTesterBetaGroups",
 	})
+}
+
+// AddBuildsToBetaTester sends POST /v1/betaTesters/{id}/relationships/builds (betaTesters_builds_createToManyRelationship).
+func (c *Client) AddBuildsToBetaTester(ctx context.Context, testerID string, buildIDs []string) error {
+	testerID = strings.TrimSpace(testerID)
+	buildIDs = normalizeList(buildIDs)
+	if testerID == "" {
+		return fmt.Errorf("tester ID is required")
+	}
+	if len(buildIDs) == 0 {
+		return fmt.Errorf("build IDs are required")
+	}
+	relData := make([]ResourceData, 0, len(buildIDs))
+	for _, buildID := range buildIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeBuilds,
+			ID:   buildID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID), RelationshipList{Data: relData})
+}
+
+// RemoveBuildsFromBetaTester sends DELETE /v1/betaTesters/{id}/relationships/builds (betaTesters_builds_deleteToManyRelationship).
+func (c *Client) RemoveBuildsFromBetaTester(ctx context.Context, testerID string, buildIDs []string) error {
+	testerID = strings.TrimSpace(testerID)
+	buildIDs = normalizeList(buildIDs)
+	if testerID == "" {
+		return fmt.Errorf("tester ID is required")
+	}
+	if len(buildIDs) == 0 {
+		return fmt.Errorf("build IDs are required")
+	}
+	relData := make([]ResourceData, 0, len(buildIDs))
+	for _, buildID := range buildIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeBuilds,
+			ID:   buildID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID), RelationshipList{Data: relData})
 }
 
 // GetBetaTesterBuilds sends GET /v1/betaTesters/{id}/builds (betaTesters_builds_getToManyRelated).

@@ -76,6 +76,50 @@ func (c *Client) GetBetaGroupBetaRecruitmentCriterionCompatibleBuildCheck(ctx co
 	})
 }
 
+// AddBetaTestersToGroup sends POST /v1/betaGroups/{id}/relationships/betaTesters (betaGroups_betaTesters_createToManyRelationship).
+func (c *Client) AddBetaTestersToGroup(ctx context.Context, groupID string, testerIDs []string) error {
+	groupID = strings.TrimSpace(groupID)
+	testerIDs = normalizeList(testerIDs)
+	if groupID == "" {
+		return fmt.Errorf("groupID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("testerIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
+}
+
+// RemoveBetaTestersFromGroup sends DELETE /v1/betaGroups/{id}/relationships/betaTesters (betaGroups_betaTesters_deleteToManyRelationship).
+func (c *Client) RemoveBetaTestersFromGroup(ctx context.Context, groupID string, testerIDs []string) error {
+	groupID = strings.TrimSpace(groupID)
+	testerIDs = normalizeList(testerIDs)
+	if groupID == "" {
+		return fmt.Errorf("groupID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("testerIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
+}
+
 // GetBetaGroupTesters sends GET /v1/betaGroups/{id}/betaTesters (betaGroups_betaTesters_getToManyRelated).
 func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts ...BetaGroupTestersOption) (*BetaTestersResponse, error) {
 	query := applyOptions(opts)

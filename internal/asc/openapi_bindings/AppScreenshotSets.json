@@ -6,6 +6,7 @@
   ],
   "operations": [
     {"operation":"appScreenshotSets_appScreenshots_getToManyRelationship","name":"GetAppScreenshotSetAppScreenshotsRelationships","params":["setID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appScreenshotsRelationships","response":"LinkagesResponse"},
+    {"operation":"appScreenshotSets_appScreenshots_replaceToManyRelationship","name":"UpdateAppScreenshotSetAppScreenshotsRelationship","params":["setID"],"check":"require","ids":"screenshotIDs","idList":{"payload":"nonNil"}},
     {"operation":"appScreenshotSets_deleteInstance","name":"DeleteAppScreenshotSet","params":["setID"],"check":"raw"},
     {"operation":"appScreenshotSets_getInstance","name":"GetAppScreenshotSet","params":["setID"],"check":"raw"}
   ]
