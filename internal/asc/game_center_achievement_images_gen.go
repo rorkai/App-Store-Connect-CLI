@@ -62,3 +62,21 @@ func (c *Client) GetGameCenterAchievementImage(ctx context.Context, imageID stri
 		Path: fmt.Sprintf("/v1/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)),
 	})
 }
+
+// UpdateGameCenterAchievementImage sends PATCH /v1/gameCenterAchievementImages/{id} (gameCenterAchievementImages_updateInstance).
+func (c *Client) UpdateGameCenterAchievementImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterAchievementImageResponse, error) {
+	payload := GameCenterAchievementImageUpdateRequest{
+		Data: GameCenterAchievementImageUpdateData{
+			Type: ResourceTypeGameCenterAchievementImages,
+			ID:   strings.TrimSpace(imageID),
+			Attributes: &GameCenterAchievementImageUpdateAttributes{
+				Uploaded: &uploaded,
+			},
+		},
+	}
+	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)),
+		Payload: payload,
+	})
+}

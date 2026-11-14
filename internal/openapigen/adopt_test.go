@@ -466,3 +466,65 @@ func TestAdoptReadsIDListHandling(t *testing.T) {
 		t.Errorf("UpdateWidgetGadgets normalizes after building the payload and must stay hand-written:\n%s", client)
 	}
 }
+
+const handWrittenUploads = `package asc
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"strings"
+)
+
+// CreateWrench reserves an upload.
+func (c *Client) CreateWrench(ctx context.Context, fileName string, fileSize int64) (*WrenchResponse, error) {
+	payload := WrenchCreateRequest{Data: WrenchCreateData{Type: ResourceTypeWrenches, Attributes: WrenchCreateAttributes{FileName: fileName, FileSize: fileSize}}}
+	return sendJSON[WrenchResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/wrenches", Payload: payload})
+}
+
+// UpdateWrench commits an upload.
+func (c *Client) UpdateWrench(ctx context.Context, wrenchID string, uploaded bool, checksum string) (*WrenchResponse, error) {
+	wrenchID = strings.TrimSpace(wrenchID)
+	if wrenchID == "" {
+		return nil, fmt.Errorf("wrenchID is required")
+	}
+
+	payload := WrenchUpdateRequest{
+		Data: WrenchUpdateData{
+			Type:       ResourceTypeWrenches,
+			ID:         wrenchID,
+			Attributes: &WrenchUpdateAttributes{Uploaded: &uploaded, SourceFileChecksum: &checksum},
+		},
+	}
+	return sendJSON[WrenchResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/wrenches/%s", wrenchID), Payload: payload})
+}
+`
+
+func TestAdoptBindsScalarArgumentsToAttributes(t *testing.T) {
+	dir := writeHandWritten(t, map[string]string{"uploads.go": handWrittenUploads})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "uploads.go")); !os.IsNotExist(err) {
+		t.Errorf("uploads.go should be deleted once both methods are adopted, stat err = %v", err)
+	}
+	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bindings.Families) != 1 {
+		t.Fatalf("adopt wrote %d bindings files, want 1", len(bindings.Families))
+	}
+	got, err := bindings.Families[0].Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`{"operation":"wrenches_createInstance","name":"CreateWrench","args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]}`,
+		`{"operation":"wrenches_updateInstance","name":"UpdateWrench","params":["wrenchID"],"check":"require","args":[{"name":"uploaded"},{"name":"checksum","attribute":"sourceFileChecksum"}]}`,
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("bindings lack %s:\n%s", want, got)
+		}
+	}
+}

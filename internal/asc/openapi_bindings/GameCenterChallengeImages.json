@@ -10,6 +10,7 @@
   ],
   "operations": [
     {"operation":"gameCenterChallengeImages_deleteInstance","name":"DeleteGameCenterChallengeImage","params":["imageID"]},
-    {"operation":"gameCenterChallengeImages_getInstance","name":"GetGameCenterChallengeImage","params":["imageID"]}
+    {"operation":"gameCenterChallengeImages_getInstance","name":"GetGameCenterChallengeImage","params":["imageID"]},
+    {"operation":"gameCenterChallengeImages_updateInstance","name":"UpdateGameCenterChallengeImage","params":["imageID"],"args":[{"name":"uploaded"}]}
   ]
 }

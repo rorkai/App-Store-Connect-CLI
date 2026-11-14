@@ -9,6 +9,7 @@
   ],
   "operations": [
     {"operation":"appEventScreenshots_deleteInstance","name":"DeleteAppEventScreenshot","params":["screenshotID"],"check":"require"},
-    {"operation":"appEventScreenshots_getInstance","name":"GetAppEventScreenshot","params":["screenshotID"],"check":"require"}
+    {"operation":"appEventScreenshots_getInstance","name":"GetAppEventScreenshot","params":["screenshotID"],"check":"require"},
+    {"operation":"appEventScreenshots_updateInstance","name":"UpdateAppEventScreenshot","params":["screenshotID"],"check":"require","args":[{"name":"uploaded"}]}
   ]
 }

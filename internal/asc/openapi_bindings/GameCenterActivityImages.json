@@ -10,6 +10,7 @@
   ],
   "operations": [
     {"operation":"gameCenterActivityImages_deleteInstance","name":"DeleteGameCenterActivityImage","params":["imageID"]},
-    {"operation":"gameCenterActivityImages_getInstance","name":"GetGameCenterActivityImage","params":["imageID"]}
+    {"operation":"gameCenterActivityImages_getInstance","name":"GetGameCenterActivityImage","params":["imageID"]},
+    {"operation":"gameCenterActivityImages_updateInstance","name":"UpdateGameCenterActivityImage","params":["imageID"],"args":[{"name":"uploaded"}]}
   ]
 }

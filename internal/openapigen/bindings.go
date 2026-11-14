@@ -56,6 +56,10 @@ type OpBind struct {
 	// next URL. Its builder takes the options, or a fields []string argument
 	// when there is no option type.
 	Single bool `json:"single,omitempty"`
+	// Args are parameters after the path parameters that a create or update
+	// sets as body attributes, in signature order, which is also the order
+	// the attributes literal lists them in.
+	Args []ArgBind `json:"args,omitempty"`
 	// Deviations are known differences from the schema that the contract test
 	// in internal/asc pins. They change no generated code.
 	Deviations []Deviation `json:"deviations,omitempty"`
@@ -77,6 +81,13 @@ type IDList struct {
 	Message   string `json:"message,omitempty"`   // error for an empty list after normalizing; none allows it
 	Payload   string `json:"payload,omitempty"`   // one of the payload styles
 	Item      string `json:"item,omitempty"`      // loop variable of the append and resourceList styles
+}
+
+// ArgBind is one scalar parameter set as one request attribute.
+type ArgBind struct {
+	Name      string `json:"name"`
+	Attribute string `json:"attribute,omitempty"` // default Name
+	Type      string `json:"type,omitempty"`      // Go type; default the attribute's, "int64" may replace "int"
 }
 
 // Deviation is one problem text of the contract test that the method is known

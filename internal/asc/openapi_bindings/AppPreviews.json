@@ -8,6 +8,8 @@
   ],
   "operations": [
     {"operation":"appPreviews_deleteInstance","name":"DeleteAppPreview","params":["previewID"],"check":"raw"},
-    {"operation":"appPreviews_getInstance","name":"GetAppPreview","params":["previewID"],"check":"raw"}
+    {"operation":"appPreviews_getInstance","name":"GetAppPreview","params":["previewID"],"check":"raw"},
+    {"operation":"appPreviews_updateInstance","name":"UpdateAppPreview","params":["previewID"],"check":"raw","args":[{"name":"uploaded"},{"name":"checksumHash","attribute":"sourceFileChecksum"}]},
+    {"operation":"appPreviews_updateInstance","name":"SetAppPreviewFrameTimeCode","params":["previewID"],"check":"raw","args":[{"name":"timeCode","attribute":"previewFrameTimeCode"}]}
   ]
 }

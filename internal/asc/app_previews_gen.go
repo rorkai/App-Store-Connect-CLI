@@ -36,3 +36,40 @@ func (c *Client) GetAppPreview(ctx context.Context, previewID string) (*AppPrevi
 		Path: fmt.Sprintf("/v1/appPreviews/%s", previewID),
 	})
 }
+
+// UpdateAppPreview sends PATCH /v1/appPreviews/{id} (appPreviews_updateInstance).
+func (c *Client) UpdateAppPreview(ctx context.Context, previewID string, uploaded bool, checksumHash string) (*AppPreviewResponse, error) {
+	payload := AppPreviewUpdateRequest{
+		Data: AppPreviewUpdateData{
+			Type: ResourceTypeAppPreviews,
+			ID:   previewID,
+			Attributes: &AppPreviewUpdateAttributes{
+				Uploaded:           &uploaded,
+				SourceFileChecksum: &checksumHash,
+			},
+		},
+	}
+	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appPreviews/%s", previewID),
+		Payload: payload,
+	})
+}
+
+// SetAppPreviewFrameTimeCode sends PATCH /v1/appPreviews/{id} (appPreviews_updateInstance).
+func (c *Client) SetAppPreviewFrameTimeCode(ctx context.Context, previewID string, timeCode string) (*AppPreviewResponse, error) {
+	payload := AppPreviewUpdateRequest{
+		Data: AppPreviewUpdateData{
+			Type: ResourceTypeAppPreviews,
+			ID:   previewID,
+			Attributes: &AppPreviewUpdateAttributes{
+				PreviewFrameTimeCode: &timeCode,
+			},
+		},
+	}
+	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appPreviews/%s", previewID),
+		Payload: payload,
+	})
+}
