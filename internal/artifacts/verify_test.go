@@ -390,6 +390,16 @@ func TestEmbeddedAppleCertificates(t *testing.T) {
 	if len(policy.intermediates) != 5 || len(policy.rootNames) != 2 {
 		t.Fatalf("policy has %d intermediates and %d roots", len(policy.intermediates), len(policy.rootNames))
 	}
+	intermediates, err := AppleIntermediateCertificates()
+	if err != nil || len(intermediates) != 5 {
+		t.Fatalf("intermediates = %d, err = %v", len(intermediates), err)
+	}
+	for _, intermediate := range intermediates {
+		digest := sha256.Sum256(intermediate.Certificate.Raw)
+		if hex.EncodeToString(digest[:]) != want["intermediate-"+intermediate.Name+".pem"] {
+			t.Fatalf("%s fingerprint = %x", intermediate.Name, digest)
+		}
+	}
 }
 
 func TestXarChecksumHash(t *testing.T) {

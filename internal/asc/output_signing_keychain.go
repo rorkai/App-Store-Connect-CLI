@@ -1,6 +1,9 @@
 package asc
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // SigningKeychainInstallResult is the public, non-secret receipt for a
 // persistent signing keychain installation.
@@ -11,6 +14,17 @@ type SigningKeychainInstallResult struct {
 	CertificateSHA1   string `json:"certificateSha1"`
 	TeamID            string `json:"teamId"`
 	SearchListUpdated bool   `json:"searchListUpdated"`
+
+	Intermediates []SigningKeychainIntermediate `json:"intermediates,omitempty"`
+}
+
+// SigningKeychainIntermediate reports an embedded Apple intermediate
+// certificate that matches the identity's issuer. Status is added or
+// skipped-expired.
+type SigningKeychainIntermediate struct {
+	Name   string `json:"name"`
+	SHA256 string `json:"sha256"`
+	Status string `json:"status"`
 }
 
 // SigningKeychainActionResult is the non-secret receipt for a keychain mutation.
@@ -48,14 +62,23 @@ func signingKeychainInstallRows(result *SigningKeychainInstallResult) ([]string,
 	if result == nil {
 		return headers, nil
 	}
-	return headers, [][]string{{
+	row := []string{
 		result.Action,
 		result.KeychainPath,
 		result.CertificateSHA256,
 		result.CertificateSHA1,
 		result.TeamID,
 		formatBool(result.SearchListUpdated),
-	}}
+	}
+	if len(result.Intermediates) > 0 {
+		intermediates := make([]string, 0, len(result.Intermediates))
+		for _, intermediate := range result.Intermediates {
+			intermediates = append(intermediates, intermediate.Name+" ("+intermediate.Status+")")
+		}
+		headers = append(headers, "Apple Intermediates")
+		row = append(row, strings.Join(intermediates, ", "))
+	}
+	return headers, [][]string{row}
 }
 
 func signingKeychainActionRows(result *SigningKeychainActionResult) ([]string, [][]string) {

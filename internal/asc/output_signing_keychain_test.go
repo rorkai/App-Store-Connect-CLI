@@ -54,6 +54,15 @@ func TestSigningKeychainInstallResultRendererRegistered(t *testing.T) {
 	assertSingleRowEquals(t, headers, rows,
 		[]string{"Action", "Keychain Path", "Certificate SHA-256", "Certificate SHA-1", "Team ID", "Search List Updated"},
 		[]string{"installed", "/tmp/release.keychain-db", strings.Repeat("A", 64), strings.Repeat("B", 40), "TEAM12345", "true"})
+
+	result.Intermediates = []SigningKeychainIntermediate{{Name: "apple-wwdr-g3", Status: "added"}, {Name: "apple-wwdr-g6", Status: "skipped-expired"}}
+	headers, rows, err = handler(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertSingleRowEquals(t, headers, rows,
+		[]string{"Action", "Keychain Path", "Certificate SHA-256", "Certificate SHA-1", "Team ID", "Search List Updated", "Apple Intermediates"},
+		[]string{"installed", "/tmp/release.keychain-db", strings.Repeat("A", 64), strings.Repeat("B", 40), "TEAM12345", "true", "apple-wwdr-g3 (added), apple-wwdr-g6 (skipped-expired)"})
 }
 
 func TestSigningKeychainActionResultRendererShowsPartition(t *testing.T) {
