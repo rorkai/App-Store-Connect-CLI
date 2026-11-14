@@ -121,7 +121,7 @@ func TestBuildsMetricsBetaUsagesFetchFromNextWithoutBuild(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/metrics/betaBuildUsages", "cursor=AQ", "limit=50"),
-		asctest.JSON(http.StatusOK, `{"data":[{"date":"2026-02-01","sessions":5}],"links":{"next":""}}`))
+		asctest.JSON(http.StatusOK, body))
 
 	stdout, stderr, err := runCommand(t, []string{"builds", "metrics", "beta-usages", "--next", nextURL})
 	if err != nil {
