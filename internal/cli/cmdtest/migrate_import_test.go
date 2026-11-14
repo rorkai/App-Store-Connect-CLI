@@ -248,7 +248,7 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		if itemPathResolved == nonLocaleDirResolved && strings.Contains(item.Reason, "skipped non-locale directory") {
 			found = true
 		}
-		if filepath.Dir(item.Path) == defaultDir {
+		if strings.HasSuffix(item.Path, filepath.Join("default", "apple_tv_privacy_policy.txt")) {
 			defaultPolicyReason = item.Reason
 		} else if strings.HasSuffix(item.Path, ".txt") {
 			appLevelReasons[filepath.Base(item.Path)] = item.Reason
