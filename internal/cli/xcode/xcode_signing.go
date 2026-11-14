@@ -125,8 +125,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*project) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --project is required")
-				return shared.MissingRequiredUsageError("--project")
+				return shared.RequiredFlag("--project")
 			}
 			if strings.TrimSpace(*settingsFile) == "" && len(profiles) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --settings-file or --profile is required")
@@ -240,12 +239,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*planPath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --plan is required")
-				return shared.MissingRequiredUsageError("--plan")
+				return shared.RequiredFlag("--plan")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
