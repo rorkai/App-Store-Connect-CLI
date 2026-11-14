@@ -96,3 +96,15 @@ func UsageErrorCtx(ctx context.Context, message string) error {
 func UsageErrorfCtx(ctx context.Context, format string, args ...any) error {
 	return UsageErrorCtx(ctx, fmt.Sprintf(format, args...))
 }
+
+// UsageErrorCtx is UsageErrorCtx with the "Error:" line written to d's
+// stderr.
+func (d *Deps) UsageErrorCtx(ctx context.Context, message string) error {
+	return d.UsageError(RewriteUsageMessage(ctx, message))
+}
+
+// UsageErrorfCtx is UsageErrorfCtx with the "Error:" line written to d's
+// stderr.
+func (d *Deps) UsageErrorfCtx(ctx context.Context, format string, args ...any) error {
+	return d.UsageErrorCtx(ctx, fmt.Sprintf(format, args...))
+}

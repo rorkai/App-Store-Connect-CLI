@@ -3,6 +3,7 @@ package shared
 import (
 	"flag"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -13,6 +14,16 @@ import (
 // recovering `--flag true` / `--flag false` for commands that don't accept
 // positional args.
 func RecoverBoolFlagTailArgs(original *flag.FlagSet, args []string, currentValue *bool) error {
+	return recoverBoolFlagTailArgsTo(os.Stderr, original, args, currentValue)
+}
+
+// RecoverBoolFlagTailArgs is RecoverBoolFlagTailArgs with the "Error:" line
+// written to d's stderr.
+func (d *Deps) RecoverBoolFlagTailArgs(original *flag.FlagSet, args []string, currentValue *bool) error {
+	return recoverBoolFlagTailArgsTo(d.IO.ErrOut, original, args, currentValue)
+}
+
+func recoverBoolFlagTailArgsTo(stderr io.Writer, original *flag.FlagSet, args []string, currentValue *bool) error {
 	if original == nil || len(args) == 0 {
 		return nil
 	}
@@ -36,10 +47,10 @@ func RecoverBoolFlagTailArgs(original *flag.FlagSet, args []string, currentValue
 	})
 
 	if err := reparsed.Parse(remaining); err != nil {
-		return UsageError(err.Error())
+		return usageErrorTo(stderr, err.Error())
 	}
 	if extras := reparsed.Args(); len(extras) > 0 {
-		return UsageErrorf("unexpected argument(s): %s", strings.Join(extras, " "))
+		return usageErrorfTo(stderr, "unexpected argument(s): %s", strings.Join(extras, " "))
 	}
 	return nil
 }

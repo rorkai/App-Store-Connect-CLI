@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -58,6 +59,29 @@ func PreflightBuildBetaGroupAssignment(
 	plan BuildBetaGroupAssignmentPlan,
 	opts BuildBetaGroupPreflightOptions,
 ) error {
+	return preflightBuildBetaGroupAssignmentTo(ctx, os.Stderr, client, buildID, plan, opts)
+}
+
+// PreflightBuildBetaGroupAssignment is PreflightBuildBetaGroupAssignment with
+// the "Error:" lines written to d's stderr.
+func (d *Deps) PreflightBuildBetaGroupAssignment(
+	ctx context.Context,
+	client buildBetaGroupPreflightClient,
+	buildID string,
+	plan BuildBetaGroupAssignmentPlan,
+	opts BuildBetaGroupPreflightOptions,
+) error {
+	return preflightBuildBetaGroupAssignmentTo(ctx, d.IO.ErrOut, client, buildID, plan, opts)
+}
+
+func preflightBuildBetaGroupAssignmentTo(
+	ctx context.Context,
+	stderr io.Writer,
+	client buildBetaGroupPreflightClient,
+	buildID string,
+	plan BuildBetaGroupAssignmentPlan,
+	opts BuildBetaGroupPreflightOptions,
+) error {
 	buildID = strings.TrimSpace(buildID)
 	if buildID == "" || len(plan.GroupsToAdd) == 0 {
 		return nil
@@ -65,14 +89,14 @@ func PreflightBuildBetaGroupAssignment(
 
 	build, err := client.GetBuild(ctx, buildID)
 	if err != nil {
-		return reportBuildBetaGroupPreflightUnknown(opts.OperationName, buildID, "build state", err)
+		return reportBuildBetaGroupPreflightUnknown(stderr, opts.OperationName, buildID, "build state", err)
 	}
 	if build == nil {
-		return reportBuildBetaGroupPreflightUnknown(opts.OperationName, buildID, "build state", nil)
+		return reportBuildBetaGroupPreflightUnknown(stderr, opts.OperationName, buildID, "build state", nil)
 	}
 
 	if precondition, ok := evaluateBuildBetaGroupBuildState(buildID, build.Data.Attributes, plan.IncludesExternalGroup()); ok {
-		return reportBuildBetaGroupPrecondition(opts.OperationName, precondition)
+		return reportBuildBetaGroupPrecondition(stderr, opts.OperationName, precondition)
 	}
 	if !plan.IncludesExternalGroup() {
 		return nil
@@ -80,14 +104,14 @@ func PreflightBuildBetaGroupAssignment(
 
 	detail, err := client.GetBuildBuildBetaDetail(ctx, buildID)
 	if err != nil {
-		return reportBuildBetaGroupPreflightUnknown(opts.OperationName, buildID, "external beta state", err)
+		return reportBuildBetaGroupPreflightUnknown(stderr, opts.OperationName, buildID, "external beta state", err)
 	}
 	if detail == nil {
-		return reportBuildBetaGroupPreflightUnknown(opts.OperationName, buildID, "external beta state", nil)
+		return reportBuildBetaGroupPreflightUnknown(stderr, opts.OperationName, buildID, "external beta state", nil)
 	}
 
 	if precondition, ok := evaluateBuildBetaGroupExternalState(buildID, build.Data.Attributes, detail.Data.Attributes.ExternalBuildState); ok {
-		return reportBuildBetaGroupPrecondition(opts.OperationName, precondition)
+		return reportBuildBetaGroupPrecondition(stderr, opts.OperationName, precondition)
 	}
 	return nil
 }
@@ -250,15 +274,15 @@ func unknownExternalStatePrecondition(buildID, reason string) (buildBetaGroupPre
 	}, true
 }
 
-func reportBuildBetaGroupPrecondition(operationName string, precondition buildBetaGroupPrecondition) error {
+func reportBuildBetaGroupPrecondition(stderr io.Writer, operationName string, precondition buildBetaGroupPrecondition) error {
 	message := precondition.Summary
 	if operation := strings.TrimSpace(operationName); operation != "" && !strings.HasPrefix(message, operation+":") {
 		message = fmt.Sprintf("%s: %s", operation, message)
 	}
 
-	fmt.Fprintf(os.Stderr, "Error: %s\n", SanitizeTerminal(message))
+	fmt.Fprintf(stderr, "Error: %s\n", SanitizeTerminal(message))
 	if fix := strings.TrimSpace(precondition.Fix); fix != "" {
-		fmt.Fprintln(os.Stderr, SanitizeTerminal(fix))
+		fmt.Fprintln(stderr, SanitizeTerminal(fix))
 	}
 
 	return WithDiagnostic(
@@ -268,7 +292,7 @@ func reportBuildBetaGroupPrecondition(operationName string, precondition buildBe
 	)
 }
 
-func reportBuildBetaGroupPreflightUnknown(operationName, buildID, subject string, cause error) error {
+func reportBuildBetaGroupPreflightUnknown(stderr io.Writer, operationName, buildID, subject string, cause error) error {
 	reason := "the response was empty"
 	if cause != nil {
 		reason = SanitizeTerminal(cause.Error())
@@ -281,8 +305,8 @@ func reportBuildBetaGroupPreflightUnknown(operationName, buildID, subject string
 	if operation := strings.TrimSpace(operationName); operation != "" {
 		message = fmt.Sprintf("%s: %s", operation, message)
 	}
-	fmt.Fprintf(os.Stderr, "Error: %s\n", SanitizeTerminal(message))
-	fmt.Fprintln(os.Stderr, SanitizeTerminal(precondition.Fix))
+	fmt.Fprintf(stderr, "Error: %s\n", SanitizeTerminal(message))
+	fmt.Fprintln(stderr, SanitizeTerminal(precondition.Fix))
 
 	// A provider/read failure is not evidence that the build is unsuitable.
 	// Keep the rendered diagnostic concise while preserving the original cause

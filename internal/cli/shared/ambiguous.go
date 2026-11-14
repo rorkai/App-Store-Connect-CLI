@@ -3,6 +3,7 @@ package shared
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"unicode/utf8"
@@ -149,18 +150,34 @@ func AmbiguousUsageError(err error) error {
 	return AmbiguousUsageErrorWithKind(err, UsageErrorOther)
 }
 
+// AmbiguousUsageError is AmbiguousUsageError with the "Error:" lines written
+// to d's stderr.
+func (d *Deps) AmbiguousUsageError(err error) error {
+	return d.AmbiguousUsageErrorWithKind(err, UsageErrorOther)
+}
+
 // AmbiguousUsageErrorWithKind prints an ambiguity error to stderr line by
 // line and returns a usage-class error (exit code 2) with the requested
 // telemetry classification. The default AmbiguousUsageError intentionally
 // remains UsageErrorOther for callers whose ambiguity is not a missing or
 // invalid flag.
 func AmbiguousUsageErrorWithKind(err error, kind UsageErrorKind) error {
+	return ambiguousUsageErrorTo(os.Stderr, err, kind)
+}
+
+// AmbiguousUsageErrorWithKind is AmbiguousUsageErrorWithKind with the
+// "Error:" lines written to d's stderr.
+func (d *Deps) AmbiguousUsageErrorWithKind(err error, kind UsageErrorKind) error {
+	return ambiguousUsageErrorTo(d.IO.ErrOut, err, kind)
+}
+
+func ambiguousUsageErrorTo(stderr io.Writer, err error, kind UsageErrorKind) error {
 	if err == nil {
 		return nil
 	}
 	message := strings.TrimSpace(err.Error())
 	if message != "" {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", message)
+		fmt.Fprintf(stderr, "Error: %s\n", message)
 	}
 	// The full table stays on the error so wrapped callers and tests can read
 	// the candidates; cmd does not reprint usage-class errors, so this cannot

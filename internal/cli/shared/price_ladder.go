@@ -2,7 +2,9 @@ package shared
 
 import (
 	"fmt"
+	"io"
 	"math/big"
+	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -73,6 +75,16 @@ func IsPriceDecimal(value string) bool {
 }
 
 func ParsePriceRounding(value string) (PriceRounding, error) {
+	return parsePriceRoundingTo(os.Stderr, value)
+}
+
+// ParsePriceRounding is ParsePriceRounding with the "Error:" line written to
+// d's stderr.
+func (d *Deps) ParsePriceRounding(value string) (PriceRounding, error) {
+	return parsePriceRoundingTo(d.IO.ErrOut, value)
+}
+
+func parsePriceRoundingTo(stderr io.Writer, value string) (PriceRounding, error) {
 	normalized := PriceRounding(strings.ToLower(strings.TrimSpace(value)))
 	switch normalized {
 	case PriceRoundingExact,
@@ -81,7 +93,7 @@ func ParsePriceRounding(value string) (PriceRounding, error) {
 		PriceRoundingDown:
 		return normalized, nil
 	default:
-		return "", UsageError("--round must be one of: exact, nearest, up, down")
+		return "", usageErrorTo(stderr, "--round must be one of: exact, nearest, up, down")
 	}
 }
 

@@ -3,6 +3,7 @@ package shared
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -85,10 +86,26 @@ func ResolveAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID 
 	return ResolveAppInfoIDWithFlag(ctx, client, appID, appInfoID, "--app-info")
 }
 
+// ResolveAppInfoID is ResolveAppInfoID with the auto-selection notice written
+// to d's stderr.
+func (d *Deps) ResolveAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID string) (string, error) {
+	return d.ResolveAppInfoIDWithFlag(ctx, client, appID, appInfoID, "--app-info")
+}
+
 // ResolveAppInfoIDWithFlag resolves the app info ID, optionally using a
 // provided override. appInfoFlag names the command's override flag so an
 // ambiguity error can tell the caller which flag accepts one candidate ID.
 func ResolveAppInfoIDWithFlag(ctx context.Context, client *asc.Client, appID, appInfoID, appInfoFlag string) (string, error) {
+	return resolveAppInfoIDTo(ctx, os.Stderr, client, appID, appInfoID, appInfoFlag)
+}
+
+// ResolveAppInfoIDWithFlag is ResolveAppInfoIDWithFlag with the
+// auto-selection notice written to d's stderr.
+func (d *Deps) ResolveAppInfoIDWithFlag(ctx context.Context, client *asc.Client, appID, appInfoID, appInfoFlag string) (string, error) {
+	return resolveAppInfoIDTo(ctx, d.IO.ErrOut, client, appID, appInfoID, appInfoFlag)
+}
+
+func resolveAppInfoIDTo(ctx context.Context, stderr io.Writer, client *asc.Client, appID, appInfoID, appInfoFlag string) (string, error) {
 	if strings.TrimSpace(appInfoID) != "" {
 		return strings.TrimSpace(appInfoID), nil
 	}
@@ -118,7 +135,7 @@ func ResolveAppInfoIDWithFlag(ctx context.Context, client *asc.Client, appID, ap
 		return candidates[0].ID, nil
 	}
 	if selected, ok := asc.AutoResolveAppInfoIDByVersionState(candidates, "PREPARE_FOR_SUBMISSION"); ok {
-		fmt.Fprintf(os.Stderr, "Multiple app infos found for app %s, auto-selected %s (PREPARE_FOR_SUBMISSION).\n", appID, selected)
+		fmt.Fprintf(stderr, "Multiple app infos found for app %s, auto-selected %s (PREPARE_FOR_SUBMISSION).\n", appID, selected)
 		return selected, nil
 	}
 	return "", AmbiguousAppInfoError(appID, appInfoFlag, candidates)
@@ -127,7 +144,17 @@ func ResolveAppInfoIDWithFlag(ctx context.Context, client *asc.Client, appID, ap
 // ResolveOwnedAppInfoID resolves the app info ID and verifies that an explicit
 // override belongs to the requested app.
 func ResolveOwnedAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID string) (string, error) {
-	resolvedAppInfoID, err := ResolveAppInfoID(ctx, client, appID, appInfoID)
+	return resolveOwnedAppInfoIDTo(ctx, os.Stderr, client, appID, appInfoID)
+}
+
+// ResolveOwnedAppInfoID is ResolveOwnedAppInfoID with the auto-selection
+// notice written to d's stderr.
+func (d *Deps) ResolveOwnedAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID string) (string, error) {
+	return resolveOwnedAppInfoIDTo(ctx, d.IO.ErrOut, client, appID, appInfoID)
+}
+
+func resolveOwnedAppInfoIDTo(ctx context.Context, stderr io.Writer, client *asc.Client, appID, appInfoID string) (string, error) {
+	resolvedAppInfoID, err := resolveAppInfoIDTo(ctx, stderr, client, appID, appInfoID, "--app-info")
 	if err != nil {
 		return "", err
 	}

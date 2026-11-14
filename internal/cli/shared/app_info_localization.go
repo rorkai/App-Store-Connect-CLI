@@ -3,6 +3,8 @@ package shared
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -28,7 +30,32 @@ func PlanAppInfoLocalizationUpsert(
 	locale string,
 	values map[string]string,
 ) (*AppInfoLocalizationUpsertPlan, error) {
-	resolvedAppInfoID, err := ResolveOwnedAppInfoID(ctx, client, appID, appInfoID)
+	return planAppInfoLocalizationUpsertTo(ctx, os.Stderr, client, appID, appInfoID, locale, values)
+}
+
+// PlanAppInfoLocalizationUpsert is PlanAppInfoLocalizationUpsert with the
+// app info auto-selection notice written to d's stderr.
+func (d *Deps) PlanAppInfoLocalizationUpsert(
+	ctx context.Context,
+	client *asc.Client,
+	appID string,
+	appInfoID string,
+	locale string,
+	values map[string]string,
+) (*AppInfoLocalizationUpsertPlan, error) {
+	return planAppInfoLocalizationUpsertTo(ctx, d.IO.ErrOut, client, appID, appInfoID, locale, values)
+}
+
+func planAppInfoLocalizationUpsertTo(
+	ctx context.Context,
+	stderr io.Writer,
+	client *asc.Client,
+	appID string,
+	appInfoID string,
+	locale string,
+	values map[string]string,
+) (*AppInfoLocalizationUpsertPlan, error) {
+	resolvedAppInfoID, err := resolveOwnedAppInfoIDTo(ctx, stderr, client, appID, appInfoID)
 	if err != nil {
 		return nil, err
 	}

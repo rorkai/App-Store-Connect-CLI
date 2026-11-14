@@ -3,6 +3,8 @@ package shared
 import (
 	"context"
 	"flag"
+	"io"
+	"os"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -30,13 +32,22 @@ func BindMediaPollIntervalFlag(fs *flag.FlagSet) *MediaPollIntervalFlag {
 // Apply validates the flag and, when set, returns a context whose media
 // processing waits poll at the requested fixed interval.
 func (f *MediaPollIntervalFlag) Apply(ctx context.Context) (context.Context, error) {
+	return f.applyTo(ctx, os.Stderr)
+}
+
+// ApplyWith is Apply with the "Error:" line written to d's stderr.
+func (f *MediaPollIntervalFlag) ApplyWith(ctx context.Context, d *Deps) (context.Context, error) {
+	return f.applyTo(ctx, d.IO.ErrOut)
+}
+
+func (f *MediaPollIntervalFlag) applyTo(ctx context.Context, stderr io.Writer) (context.Context, error) {
 	set := false
 	f.fs.Visit(func(fl *flag.Flag) { set = set || fl.Name == "poll-interval" })
 	if !set {
 		return ctx, nil
 	}
 	if *f.value < minMediaPollInterval {
-		return ctx, UsageErrorf("--poll-interval must be at least %s", minMediaPollInterval)
+		return ctx, usageErrorfTo(stderr, "--poll-interval must be at least %s", minMediaPollInterval)
 	}
 	return asc.WithMediaPollInterval(ctx, *f.value), nil
 }

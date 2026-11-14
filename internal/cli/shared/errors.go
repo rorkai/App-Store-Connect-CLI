@@ -333,7 +333,11 @@ func usageErrorTo(stderr io.Writer, message string) error {
 
 // UsageErrorf formats and returns a usage-class validation error.
 func UsageErrorf(format string, args ...any) error {
-	return UsageError(fmt.Sprintf(format, args...))
+	return usageErrorfTo(os.Stderr, format, args...)
+}
+
+func usageErrorfTo(stderr io.Writer, format string, args ...any) error {
+	return usageErrorTo(stderr, fmt.Sprintf(format, args...))
 }
 
 // MissingRequiredUsageError classifies a required-input failure after the
