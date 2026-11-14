@@ -34,10 +34,6 @@ func isPermanentDeliveryError(err error) bool {
 	return errors.As(err, &permanentError)
 }
 
-func Emit(commandName, version string, duration time.Duration, exitCode int) {
-	EmitWithContext(commandName, version, duration, exitCode, EventContext{InvocationShape: InvocationShapeLeaf})
-}
-
 func EmitWithContext(
 	commandName, version string,
 	duration time.Duration,

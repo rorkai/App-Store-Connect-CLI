@@ -16,12 +16,7 @@ func TestBuildEventSanitizesCommand(t *testing.T) {
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
-	ev, ok := BuildEvent(
-		"asc apps info edit",
-		"1.2.3",
-		450*time.Millisecond,
-		0,
-	)
+	ev, ok := BuildEventWithContext("asc apps info edit", "1.2.3", 450*time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	if !ok {
 		t.Fatal("expected event")
 	}
@@ -581,11 +576,11 @@ func TestBuildEventReusesProcessSessionID(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)
 
-	first, ok := BuildEvent("asc builds list", "1.2.3", time.Second, 0)
+	first, ok := BuildEventWithContext("asc builds list", "1.2.3", time.Second, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	if !ok {
 		t.Fatal("expected first event")
 	}
-	second, ok := BuildEvent("asc apps list", "1.2.3", time.Second, 0)
+	second, ok := BuildEventWithContext("asc apps list", "1.2.3", time.Second, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	if !ok {
 		t.Fatal("expected second event")
 	}
@@ -603,7 +598,7 @@ func TestBuildEventReusesInstallIDAcrossLocalInvocationSources(t *testing.T) {
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
-	terminalEvent, ok := BuildEvent("asc builds list", "1.2.3", time.Second, 0)
+	terminalEvent, ok := BuildEventWithContext("asc builds list", "1.2.3", time.Second, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	if !ok {
 		t.Fatal("expected terminal event")
 	}
@@ -644,7 +639,7 @@ func TestBuildEventReusesInstallIDAcrossLocalInvocationSources(t *testing.T) {
 				t.Setenv(key, value)
 			}
 
-			agentEvent, ok := BuildEvent("asc builds list", "1.2.3", time.Second, 0)
+			agentEvent, ok := BuildEventWithContext("asc builds list", "1.2.3", time.Second, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 			if !ok {
 				t.Fatal("expected agent event")
 			}
@@ -718,7 +713,7 @@ func TestBuildEventOmitsInstallIDForEphemeralAgentRuntime(t *testing.T) {
 				t.Setenv(key, value)
 			}
 
-			ev, ok := BuildEvent("asc builds list", "1.2.3", time.Second, 1)
+			ev, ok := BuildEventWithContext("asc builds list", "1.2.3", time.Second, 1, EventContext{InvocationShape: InvocationShapeLeaf})
 			if !ok {
 				t.Fatal("expected event")
 			}
@@ -739,12 +734,7 @@ func TestBuildEventTreatsLocalRorkProfileAsTerminal(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)
 
-	ev, ok := BuildEvent(
-		"asc auth login",
-		"1.2.3",
-		time.Second,
-		0,
-	)
+	ev, ok := BuildEventWithContext("asc auth login", "1.2.3", time.Second, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	if !ok {
 		t.Fatal("expected event")
 	}
@@ -780,7 +770,7 @@ func testBuildEventDoesNotWaitForInstallIDLock(t *testing.T) {
 	defer unlock()
 
 	start := time.Now()
-	ev, ok := BuildEvent("asc builds list", "1.2.3", time.Second, 0)
+	ev, ok := BuildEventWithContext("asc builds list", "1.2.3", time.Second, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	elapsed := time.Since(start)
 
 	if !ok {
@@ -797,7 +787,7 @@ func testBuildEventDoesNotWaitForInstallIDLock(t *testing.T) {
 func TestBuildEventSkipsControlCommands(t *testing.T) {
 	for _, commandPath := range []string{"asc", "asc completion", "asc version", "asc telemetry", "asc telemetry status"} {
 		t.Run(commandPath, func(t *testing.T) {
-			if _, ok := BuildEvent(commandPath, "1.2.3", 0, 0); ok {
+			if _, ok := BuildEventWithContext(commandPath, "1.2.3", 0, 0, EventContext{InvocationShape: InvocationShapeLeaf}); ok {
 				t.Fatalf("expected %q to be skipped", commandPath)
 			}
 		})

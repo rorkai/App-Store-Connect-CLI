@@ -18,7 +18,7 @@ func TestInspectIPAReadsExtensionAndProfile(t *testing.T) {
 		"Payload/Demo.app/PlugIns/Widget.appex/Info.plist": plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo.widget", "CFBundleDisplayName": "Widget"}),
 		"Payload/Demo.app/embedded.mobileprovision":        []byte("ignore<?xml version=\"1.0\"?><plist version=\"1.0\"><dict><key>Name</key><string>Demo Profile</string><key>UUID</key><string>PROFILE-UUID</string><key>ExpirationDate</key><string>2030-01-01T00:00:00Z</string><key>ProvisionedDevices</key><array><string>device</string></array><key>Entitlements</key><dict><key>com.apple.developer.team-identifier</key><string>TEAM1</string><key>get-task-allow</key><false/></dict></dict></plist>tail"),
 	})
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), true, true)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: true, IncludeProfile: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestInspectIPAReadsNestedBundleWithBackslashSeparators(t *testing.T) {
 		`Payload\Demo.app\Info.plist`:                      plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo"}),
 		`Payload\Demo.app\PlugIns\Widget.appex\Info.plist`: plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo.widget", "CFBundleDisplayName": "Widget"}),
 	})
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil && manifest.Status == "unreadable" {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestInspectIPAUnsignedReturnsMetadata(t *testing.T) {
 	ipa := zipArtifact(t, map[string][]byte{
 		"Payload/Demo.app/Info.plist": plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo"}),
 	})
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestInspectIPAUnsignedReturnsMetadata(t *testing.T) {
 func TestInspectPKGReadsPackageInfo(t *testing.T) {
 	info := []byte(`<pkg-info version="1.4.0" install-location="/Applications" identifier="com.example.pkg"><bundle id="com.example.demo" path="./Demo.app"/><bundle id="com.example.demo.widget" path="./Widget.appex"/></pkg-info>`)
 	pkg := writeXar(t, map[string][]byte{"PackageInfo": info})
-	manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

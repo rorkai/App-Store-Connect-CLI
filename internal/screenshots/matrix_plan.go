@@ -244,12 +244,6 @@ func loadMatrixBasePlan(matrixPath string, matrixPlan *MatrixPlan) (*Plan, error
 	return &plan, nil
 }
 
-// ExpandMatrix returns cells in declaration order: device, locale, appearance,
-// then content variant. Paths are logical paths until RunMatrix resolves them.
-func ExpandMatrix(plan *MatrixPlan, base *Plan) ([]MatrixCell, error) {
-	return expandMatrix(plan, base, "")
-}
-
 func expandMatrix(plan *MatrixPlan, base *Plan, outputBaseDir string) ([]MatrixCell, error) {
 	if err := validateMatrixPlan(plan, base, outputBaseDir); err != nil {
 		return nil, err

@@ -125,16 +125,6 @@ func (reader *forwardReader) read(length int64) ([]byte, error) {
 	return data, nil
 }
 
-// readMachOSignatures classifies every architecture slice of a thin or
-// universal Mach-O executable and extracts each CMS signer's leaf certificate.
-// Slices are returned in universal header order; primary indexes the slice
-// stored first. The source is consumed once, front to back, so slices are read
-// in file order. A slice that cannot be read is reported as unreadable; an
-// error means no slice could be identified.
-func readMachOSignatures(source io.Reader, size int64) ([]ArchitectureSignature, int, error) {
-	return readMachOSignaturesCapture(source, size, nil)
-}
-
 // readMachOSignaturesCapture is readMachOSignatures that also keeps the
 // primary slice's code signature in capture when capture is non-nil.
 func readMachOSignaturesCapture(source io.Reader, size int64, capture *signatureCapture) ([]ArchitectureSignature, int, error) {

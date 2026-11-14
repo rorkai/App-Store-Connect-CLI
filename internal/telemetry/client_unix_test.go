@@ -31,7 +31,7 @@ func TestEmitHonorsEnvironmentOptOutBeforeStateRead(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+		EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	}()
 
 	select {
@@ -73,7 +73,7 @@ func TestEmitDoesNotBlockOnNonRegularState(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+		EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	}()
 
 	select {
@@ -109,7 +109,7 @@ func TestEmitSkipsIgnoredCommandBeforeStateRead(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		Emit("asc telemetry status", "1.2.3", time.Millisecond, 0)
+		EmitWithContext("asc telemetry status", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	}()
 
 	select {
