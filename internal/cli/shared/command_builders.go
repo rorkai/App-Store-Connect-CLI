@@ -217,7 +217,7 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	cmd.Exec = func(ctx context.Context, args []string) error {
 		checkLimit := func() error {
 			if *limit != 0 && (*limit < 1 || *limit > limitMax) {
-				return UsageErrorf("%s: --limit must be between 1 and %d", usageErrorPrefix(), limitMax)
+				return d.UsageErrorf("%s: --limit must be between 1 and %d", usageErrorPrefix(), limitMax)
 			}
 			return nil
 		}
@@ -227,9 +227,9 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 			}
 		}
 		if err := ValidateNextURL(*next); err != nil {
-			return UsageErrorf("%s: %v", usageErrorPrefix(), err)
+			return d.UsageErrorf("%s: %v", usageErrorPrefix(), err)
 		}
-		if err := RejectNextFlagConflicts(fs, *next, usageErrorPrefix(), config.NextConflicts...); err != nil {
+		if err := d.RejectNextFlagConflicts(fs, *next, usageErrorPrefix(), config.NextConflicts...); err != nil {
 			return err
 		}
 		if err := checkLimit(); err != nil {
@@ -322,7 +322,7 @@ func missingBuilderInput(d *Deps, diagnostic, resolveApp bool, name string) erro
 	}
 	message := fmt.Sprintf("--%s is required (or set ASC_APP_ID)", name)
 	if !diagnostic {
-		return UsageError(message)
+		return d.UsageError(message)
 	}
 	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
 	return MissingRequiredUsageError("--" + name)
@@ -569,7 +569,7 @@ func bindBuilderFlags(fs *flag.FlagSet, bind func(*flag.FlagSet) func() error) f
 
 func missingBuilderFlag(d *Deps, diagnostic bool, name string) error {
 	if !diagnostic {
-		return UsageErrorf("--%s is required", name)
+		return d.UsageErrorf("--%s is required", name)
 	}
 	fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", name)
 	return MissingRequiredUsageError("--" + name)
@@ -577,7 +577,7 @@ func missingBuilderFlag(d *Deps, diagnostic bool, name string) error {
 
 func missingBuilderConfirm(d *Deps, diagnostic bool, message string) error {
 	if !diagnostic {
-		return UsageError(message)
+		return d.UsageError(message)
 	}
 	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
 	return MissingRequiredUsageError("--confirm")

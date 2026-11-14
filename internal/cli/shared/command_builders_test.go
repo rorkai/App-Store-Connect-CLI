@@ -330,9 +330,10 @@ func TestBuildPaginatedListCommandOptions(t *testing.T) {
 			wantErr: "bad filter",
 		},
 		{
-			name:    "next conflicts",
-			args:    []string{"--next", nextURL, "--filter", "value"},
-			wantErr: "items list: --next cannot be combined with --filter",
+			name:       "next conflicts",
+			args:       []string{"--next", nextURL, "--filter", "value"},
+			wantErr:    "items list: --next cannot be combined with --filter",
+			wantStderr: "Error: items list: --next cannot be combined with --filter\n",
 		},
 		{
 			name:      "single page error uses the fetch prefix",
@@ -362,21 +363,24 @@ func TestBuildPaginatedListCommandOptions(t *testing.T) {
 			wantCalls: []builderTestCall{{parent: "parent-1", limit: 200}, {parent: "parent-1", next: secondPageURL}},
 		},
 		{
-			name:    "limit is checked before next",
-			args:    []string{"--next", "http://example.test/items", "--limit", "500"},
-			wantErr: "items list: --limit must be between 1 and 200",
+			name:       "limit is checked before next",
+			args:       []string{"--next", "http://example.test/items", "--limit", "500"},
+			wantErr:    "items list: --limit must be between 1 and 200",
+			wantStderr: "Error: items list: --limit must be between 1 and 200\n",
 		},
 		{
 			name:            "next and its conflicts are checked before limit on request",
 			nextBeforeLimit: true,
 			args:            []string{"--next", nextURL, "--filter", "value", "--limit", "500"},
 			wantErr:         "items list: --next cannot be combined with --filter",
+			wantStderr:      "Error: items list: --next cannot be combined with --filter\n",
 		},
 		{
 			name:            "limit is still checked after next on request",
 			nextBeforeLimit: true,
 			args:            []string{"--id", "parent-1", "--limit", "500"},
 			wantErr:         "items list: --limit must be between 1 and 200",
+			wantStderr:      "Error: items list: --limit must be between 1 and 200\n",
 		},
 		{
 			name:       "top-level collection has no parent flag",
@@ -831,7 +835,8 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 				c.RequiredDiagnostic = false
 				c.ConfirmRequiredMessage = "--confirm is required to delete"
 			},
-			wantErr: "--confirm is required to delete",
+			wantErr:    "--confirm is required to delete",
+			wantStderr: "Error: --confirm is required to delete\n",
 		},
 		{
 			name: "confirm flag uses the configured usage",

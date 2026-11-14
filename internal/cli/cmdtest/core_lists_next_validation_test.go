@@ -15,6 +15,7 @@ type invalidNextURLCase struct {
 	args        []string // command args without --next
 	wantErr     string   // diagnostic prefix, e.g. "builds icons list: --next"
 	wantWarning string   // stderr line printed before the diagnostic
+	deps        bool     // the command is built on shared.Deps: stub its client and read its deps streams
 }
 
 // runInvalidNextURLCases runs each command with an http:// and a malformed
@@ -43,18 +44,23 @@ func runInvalidNextURLCases(t *testing.T, cases []invalidNextURLCase) {
 		for _, nc := range nextCases {
 			t.Run(strings.Join(tc.args, " ")+"/"+nc.name, func(t *testing.T) {
 				args := append(append([]string{}, tc.args...), "--next", nc.next)
-				assertInvalidNextURLRun(t, args, tc.wantErr+nc.wantErr, tc.wantWarning)
+				assertInvalidNextURLRun(t, args, tc.wantErr+nc.wantErr, tc.wantWarning, tc.deps)
 			})
 		}
 	}
 }
 
-func assertInvalidNextURLRun(t *testing.T, args []string, wantErr, wantWarning string) {
+func assertInvalidNextURLRun(t *testing.T, args []string, wantErr, wantWarning string, deps bool) {
 	t.Helper()
 
-	asctest.NewRegistry(t).Install()
-
-	stdout, stderr, runErr := runCommand(t, args)
+	var stdout, stderr string
+	var runErr error
+	if deps {
+		stdout, stderr, runErr = runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), args...)
+	} else {
+		asctest.NewRegistry(t).Install()
+		stdout, stderr, runErr = runCommand(t, args)
+	}
 
 	if runErr == nil || !strings.Contains(runErr.Error(), wantErr) {
 		t.Fatalf("expected error %q, got %v", wantErr, runErr)
@@ -152,11 +158,11 @@ func TestCoreListsRejectsInvalidNextURL(t *testing.T) {
 		{args: []string{"certificates", "list"}, wantErr: "certificates list: --next"},
 		{args: []string{"nominations", "list", "--status", "DRAFT"}, wantErr: "nominations list: --next"},
 		{args: []string{"accessibility", "list"}, wantErr: "accessibility list: --next"},
-		{args: []string{"actors", "list"}, wantErr: "actors list: --next"},
+		{args: []string{"actors", "list"}, wantErr: "actors list: --next", deps: true},
 		{args: []string{"android-ios-mapping", "list", "--app", "app-1"}, wantErr: "android-ios-mapping list: --next"},
 		{args: []string{"testflight", "feedback", "list"}, wantErr: "testflight feedback list: --next"},
 		{args: []string{"testflight", "crashes", "list"}, wantErr: "testflight crashes list: --next"},
-		{args: []string{"agreements", "territories", "list"}, wantErr: "agreements territories list: --next"},
+		{args: []string{"agreements", "territories", "list"}, wantErr: "agreements territories list: --next", deps: true},
 	})
 }
 
@@ -171,6 +177,7 @@ func TestCoreListsPaginateFromNext(t *testing.T) {
 			args:     []string{"agreements", "territories", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/endUserLicenseAgreements/eula-1/territories?cursor=AQ&limit=200",
 			dataType: "territories",
+			deps:     true,
 		},
 		{
 			args:     []string{"nominations", "list"},
@@ -237,7 +244,7 @@ func TestListsRejectNextURLWithEmptyParentID(t *testing.T) {
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
 			args := append(append([]string{}, test.args...), "--next", test.next)
-			assertInvalidNextURLRun(t, args, test.wantErr, "")
+			assertInvalidNextURLRun(t, args, test.wantErr, "", false)
 		})
 	}
 }

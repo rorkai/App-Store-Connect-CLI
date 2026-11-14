@@ -6,6 +6,8 @@ import (
 
 	"github.com/kballard/go-shellquote"
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // Help examples are copied by agents verbatim, so every concrete example must
@@ -51,7 +53,7 @@ func TestHelpExamplesParseAgainstCurrentCLI(t *testing.T) {
 			continue
 		}
 		args := fields[1:]
-		root := rootCommandForArgs("dev", args)
+		root := rootCommandForArgs("dev", shared.DefaultDeps(), args)
 		if _, helpRequested := requestedHelpArgs(root, args); helpRequested {
 			continue
 		}

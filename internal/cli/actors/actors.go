@@ -62,7 +62,7 @@ Examples:
 			fields := fs.String("fields", "", "Fields to include: "+strings.Join(actorFieldsList(), ", "))
 			return func() (err error) {
 				if fieldsValue, err = normalizeActorFields(*fields); err != nil {
-					return shared.UsageErrorf("actors list: %v", err)
+					return d.UsageErrorf("actors list: %v", err)
 				}
 				return nil
 			}
@@ -105,7 +105,7 @@ Examples:
 			fields := fs.String("fields", "", "Fields to include: "+strings.Join(actorFieldsList(), ", "))
 			return func() (err error) {
 				if fieldsValue, err = normalizeActorFields(*fields); err != nil {
-					return shared.UsageErrorf("actors view: %v", err)
+					return d.UsageErrorf("actors view: %v", err)
 				}
 				return nil
 			}

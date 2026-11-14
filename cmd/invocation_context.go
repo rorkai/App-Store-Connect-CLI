@@ -5,7 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
+	"io"
 	"runtime"
 	"strconv"
 	"strings"
@@ -131,28 +131,28 @@ func shouldRenderConciseUnknownChild(root *ffcli.Command, analysis invocationAna
 	return analysis.command == root || !preservesLegacyChild(analysis, commandName)
 }
 
-func printConciseUnknownCommand(analysis invocationAnalysis, commandName string) {
-	fmt.Fprintf(os.Stderr, "Error: %s\n", unknownCommandError(analysis, commandName))
+func printConciseUnknownCommand(stderr io.Writer, analysis invocationAnalysis, commandName string) {
+	fmt.Fprintf(stderr, "Error: %s\n", unknownCommandError(analysis, commandName))
 
 	suggestions := unknownChildSuggestions(analysis.command, commandName, analysis.unknownToken)
 	if len(suggestions) > 0 {
-		fmt.Fprintln(os.Stderr, "Try:")
+		fmt.Fprintln(stderr, "Try:")
 		for _, suggestion := range suggestions {
-			fmt.Fprintf(os.Stderr, "  %s\n", suggestion)
+			fmt.Fprintf(stderr, "  %s\n", suggestion)
 		}
 	} else {
 		// Nothing was confident enough to name a target. Curated task hints cover
 		// that remaining case: a plausible verb this group never had, in a group
 		// worth describing.
-		printUnknownChildTaskHints(commandName)
+		printUnknownChildTaskHints(stderr, commandName)
 	}
-	fmt.Fprintln(os.Stderr, "For help:")
-	fmt.Fprintf(os.Stderr, "  %s --help\n", commandName)
+	fmt.Fprintln(stderr, "For help:")
+	fmt.Fprintf(stderr, "  %s --help\n", commandName)
 }
 
-func printConciseUnknownFlag(root *ffcli.Command, analysis invocationAnalysis, commandName string, args []string) {
+func printConciseUnknownFlag(stderr io.Writer, root *ffcli.Command, analysis invocationAnalysis, commandName string, args []string) {
 	flagName := unknownFlagName(analysis)
-	if printRemovedFlagHint(os.Stderr, commandName, flagName, analysis.command.FlagSet) {
+	if printRemovedFlagHint(stderr, commandName, flagName, analysis.command.FlagSet) {
 		return
 	}
 	if name, ok := flagLookupName(flagName); ok && name == rootProfileFlagName &&
@@ -162,27 +162,27 @@ func printConciseUnknownFlag(root *ffcli.Command, analysis invocationAnalysis, c
 		// reaches this path when no profile name could be read from the
 		// invocation, so report exactly that.
 		fmt.Fprintf(
-			os.Stderr,
+			stderr,
 			"Error: `%s` needs a profile name; pass `--%s=NAME`.\nFor help:\n  asc --help\n",
 			shared.SanitizeTerminal(flagName),
 			rootProfileFlagName,
 		)
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Error: %s\n", unknownFlagError(analysis, commandName))
-	if printMetadataValidateFlagRecovery(flagName, commandName, analysis, args) {
+	fmt.Fprintf(stderr, "Error: %s\n", unknownFlagError(analysis, commandName))
+	if printMetadataValidateFlagRecovery(stderr, flagName, commandName, analysis, args) {
 		return
 	}
 	// A recovery path that later became a real command, such as
 	// `testflight groups builds list`, still recovers when every flag belongs
 	// to the old destination.
 	if _, suggested, ok := commonCommandPathRecovery(root, invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}, args); ok {
-		fmt.Fprintf(os.Stderr, "Try:\n  %s\nFor help:\n  %s --help\n", suggested, commandName)
+		fmt.Fprintf(stderr, "Try:\n  %s\nFor help:\n  %s --help\n", suggested, commandName)
 		return
 	}
 	if name, ok := flagLookupName(flagName); ok && root != nil && root.FlagSet != nil && root.FlagSet.Lookup(name) != nil {
 		fmt.Fprintf(
-			os.Stderr,
+			stderr,
 			"`%s` is a global flag; the flag and any required valid value must appear before the command name.\nFor help:\n  asc --help\n",
 			shared.SanitizeTerminal(flagName),
 		)
@@ -196,20 +196,20 @@ func printConciseUnknownFlag(root *ffcli.Command, analysis invocationAnalysis, c
 			}
 		}
 		if len(accepting) > 0 {
-			fmt.Fprintf(os.Stderr, "Did you mean a subcommand? These accept `--%s`: %s\n", name, strings.Join(accepting, ", "))
+			fmt.Fprintf(stderr, "Did you mean a subcommand? These accept `--%s`: %s\n", name, strings.Join(accepting, ", "))
 		}
 	}
 
-	printFlagSuggestions(os.Stderr, unknownFlagSuggestions(
+	printFlagSuggestions(stderr, unknownFlagSuggestions(
 		analysis.command.FlagSet,
 		flagName,
 		unknownFlagSuggestionOptions{allowSelectorFallback: true, passed: passedFlagNames(args)},
 	))
-	fmt.Fprintln(os.Stderr, "For help:")
-	fmt.Fprintf(os.Stderr, "  %s --help\n", commandName)
+	fmt.Fprintln(stderr, "For help:")
+	fmt.Fprintf(stderr, "  %s --help\n", commandName)
 }
 
-func printMetadataValidateFlagRecovery(flagName, commandName string, analysis invocationAnalysis, args []string) bool {
+func printMetadataValidateFlagRecovery(stderr io.Writer, flagName, commandName string, analysis invocationAnalysis, args []string) bool {
 	if commandName != "asc metadata validate" || (flagName != "--app" && flagName != "--version") {
 		return false
 	}
@@ -217,12 +217,12 @@ func printMetadataValidateFlagRecovery(flagName, commandName string, analysis in
 		return false
 	}
 
-	fmt.Fprintln(os.Stderr, "`asc metadata validate` reads from `--dir`; omit `--app` and `--version`. Run `asc metadata pull` first if needed.")
-	fmt.Fprintln(os.Stderr, "Try:")
-	fmt.Fprintln(os.Stderr, `  asc metadata validate --dir "./metadata"`)
-	fmt.Fprintln(os.Stderr, `  asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"`)
-	fmt.Fprintln(os.Stderr, "For help:")
-	fmt.Fprintln(os.Stderr, "  asc metadata validate --help")
+	fmt.Fprintln(stderr, "`asc metadata validate` reads from `--dir`; omit `--app` and `--version`. Run `asc metadata pull` first if needed.")
+	fmt.Fprintln(stderr, "Try:")
+	fmt.Fprintln(stderr, `  asc metadata validate --dir "./metadata"`)
+	fmt.Fprintln(stderr, `  asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"`)
+	fmt.Fprintln(stderr, "For help:")
+	fmt.Fprintln(stderr, "  asc metadata validate --help")
 	return true
 }
 
@@ -1018,7 +1018,7 @@ func attemptedChildToken(analysis invocationAnalysis) string {
 	return telemetry.ClassifyAttemptedChild(analysis.unknownToken)
 }
 
-func printUnknownSubcommandSuggestion(analysis invocationAnalysis, commandName string) {
+func printUnknownSubcommandSuggestion(stderr io.Writer, analysis invocationAnalysis, commandName string) {
 	if analysis.shape != telemetry.InvocationShapeUnknownChild || analysis.command == nil || analysis.command.Name == "asc" {
 		return
 	}
@@ -1029,7 +1029,7 @@ func printUnknownSubcommandSuggestion(analysis invocationAnalysis, commandName s
 	for _, sub := range analysis.command.Subcommands {
 		candidates = append(candidates, sub.Name)
 	}
-	printSuggestions(analysis.unknownToken, candidates, "")
+	printSuggestions(stderr, analysis.unknownToken, candidates, "")
 }
 
 func isRemovedReviewItemDetailInvocation(analysis invocationAnalysis, commandName string) bool {
@@ -1038,17 +1038,17 @@ func isRemovedReviewItemDetailInvocation(analysis invocationAnalysis, commandNam
 		(commandName == "asc review items" && token == "view")
 }
 
-func printSuggestions(input string, candidates []string, prefix string) {
+func printSuggestions(stderr io.Writer, input string, candidates []string, prefix string) {
 	suggestions := suggest.Commands(input, candidates)
-	printSuggestionList(suggestions, prefix)
+	printSuggestionList(stderr, suggestions, prefix)
 }
 
-func printSuggestionList(suggestions []string, prefix string) {
+func printSuggestionList(stderr io.Writer, suggestions []string, prefix string) {
 	if len(suggestions) == 0 {
 		return
 	}
 	for i, item := range suggestions {
 		suggestions[i] = prefix + shared.SanitizeTerminal(item)
 	}
-	fmt.Fprintf(os.Stderr, "Did you mean: %s?\n", strings.Join(suggestions, ", "))
+	fmt.Fprintf(stderr, "Did you mean: %s?\n", strings.Join(suggestions, ", "))
 }

@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"os"
+	"io"
 )
 
 // taskHint is one curated entry of a command group's "Common tasks" map.
@@ -106,7 +106,7 @@ var unknownChildTaskHints = map[string][]taskHint{
 // or nothing when the group has no curated entries. Callers print it after the
 // error line and before the help pointer, so the error stays the first thing on
 // stderr and the exit code is unaffected.
-func printUnknownChildTaskHints(commandName string) {
+func printUnknownChildTaskHints(stderr io.Writer, commandName string) {
 	hints := unknownChildTaskHints[commandName]
 	if len(hints) == 0 {
 		return
@@ -119,8 +119,8 @@ func printUnknownChildTaskHints(commandName string) {
 		}
 	}
 
-	fmt.Fprintln(os.Stderr, "Common tasks:")
+	fmt.Fprintln(stderr, "Common tasks:")
 	for _, hint := range hints {
-		fmt.Fprintf(os.Stderr, "  %-*s  %s\n", width, hint.task, hint.command)
+		fmt.Fprintf(stderr, "  %-*s  %s\n", width, hint.task, hint.command)
 	}
 }
