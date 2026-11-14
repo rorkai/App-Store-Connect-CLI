@@ -50,6 +50,24 @@
         }
       }
     },
+    "/v1/widgets/{id}/owner": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_owner_getToOneRelated",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
+    },
+    "/v1/widgets/{id}/parts": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_parts_getToManyRelated",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/GadgetsResponse"}}}}
+        }
+      }
+    },
     "/v1/widgets/{id}/relationships/gadgets": {
       "patch": {
         "tags": ["Widgets"],

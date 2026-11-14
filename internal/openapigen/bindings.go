@@ -30,6 +30,7 @@ const (
 	checkInline  = ""        // strings.TrimSpace inside the path expression
 	checkTrim    = "trim"    // trim the parameter before use
 	checkRequire = "require" // trim, then reject a blank value
+	checkRaw     = "raw"     // use the parameter as given
 )
 
 // OpBind binds one spec operation to one client method. Empty fields take the
@@ -38,7 +39,10 @@ type OpBind struct {
 	Operation string   `json:"operation"`
 	Name      string   `json:"name"`
 	Params    []string `json:"params,omitempty"` // Go names of the path parameters, in path order
-	Check     string   `json:"check,omitempty"`  // checkInline, checkTrim or checkRequire
+	Check     string   `json:"check,omitempty"`  // checkInline, checkTrim, checkRequire or checkRaw
+	// CheckFirst runs the trim and require checks of a paged read before its
+	// options, so a next URL does not lift the require check.
+	CheckFirst bool `json:"checkFirst,omitempty"`
 	// Messages are the errors for blank parameters; default "<param> is required".
 	Messages    []string `json:"messages,omitempty"`
 	Options     string   `json:"options,omitempty"`     // option type of a paged read

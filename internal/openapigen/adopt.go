@@ -249,6 +249,8 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 	}
 
 	var messages []string
+	var trimmed bool
+	var trimAt, optionsAt token.Pos
 	ast.Inspect(fn.Body, func(x ast.Node) bool {
 		switch n := x.(type) {
 		case *ast.KeyValueExpr:
@@ -271,10 +273,19 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 				b.Response = exprString(n.Index)
 			}
 		case *ast.AssignStmt:
-			if call, ok := n.Rhs[0].(*ast.CallExpr); ok && exprString(call.Fun) == "strings.TrimSpace" && b.Check == checkInline {
+			call, ok := n.Rhs[0].(*ast.CallExpr)
+			switch {
+			case !ok:
+			case exprString(call.Fun) == "strings.TrimSpace" && b.Check == checkInline:
 				b.Check = checkTrim
+				trimAt = n.Pos()
+			case exprString(call.Fun) == "applyOptions" && !optionsAt.IsValid():
+				optionsAt = n.Pos()
 			}
 		case *ast.CallExpr:
+			if exprString(n.Fun) == "strings.TrimSpace" {
+				trimmed = true
+			}
 			if exprString(n.Fun) == "fmt.Errorf" && len(n.Args) == 1 {
 				messages = append(messages, stringLit(n.Args[0]))
 				b.Check = checkRequire
@@ -282,6 +293,10 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 		}
 		return true
 	})
+	if !trimmed && len(b.Params) > 0 {
+		b.Check = checkRaw
+	}
+	b.CheckFirst = b.Options != "" && trimAt.IsValid() && optionsAt.IsValid() && trimAt < optionsAt
 	for i, msg := range messages {
 		if i >= len(b.Params) || msg != b.Params[i]+" is required" {
 			b.Messages = messages

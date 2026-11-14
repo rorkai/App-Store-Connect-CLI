@@ -33,6 +33,22 @@ func (c *Client) UpdateWidgetGadgets(ctx context.Context, widgetID string, gadge
 	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/widgets/%s/relationships/gadgets", strings.TrimSpace(widgetID)), payload)
 }
 
+// GetWidgetParts lists the parts of a widget.
+func (c *Client) GetWidgetParts(ctx context.Context, widgetID string, opts ...PartsOption) (*GadgetListResponse, error) {
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+
+	query := applyOptions(opts)
+	return getJSON[GadgetListResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/parts", widgetID), Query: buildPartsQuery(query), Next: query.nextURL})
+}
+
+// GetWidgetOwner fetches the owner of a widget as given.
+func (c *Client) GetWidgetOwner(ctx context.Context, widgetID string) (*WidgetResponse, error) {
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/owner", widgetID)})
+}
+
 // DeleteWidget logs before it deletes, so it stays hand-written.
 func (c *Client) DeleteWidget(ctx context.Context, widgetID string) error {
 	fmt.Println("deleting", widgetID)
@@ -104,12 +120,21 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 	for _, op := range fam.Operations {
 		adopted[op.Name] = op
 	}
-	get := adopted["GetWidget"]
-	if len(adopted) != 2 || get == nil || adopted["UpdateWidgetGadgets"] == nil {
+	get, parts, owner := adopted["GetWidget"], adopted["GetWidgetParts"], adopted["GetWidgetOwner"]
+	if len(adopted) != 4 || get == nil || parts == nil || owner == nil || adopted["UpdateWidgetGadgets"] == nil {
 		t.Fatalf("adopted methods = %v", adopted)
 	}
-	if get.Check != checkRequire || get.ParseErr != "failed to parse widget" || strings.Join(get.Messages, ",") != "widget ID is required" {
+	if get.Check != checkRequire || get.CheckFirst || get.ParseErr != "failed to parse widget" || strings.Join(get.Messages, ",") != "widget ID is required" {
 		t.Errorf("GetWidget binding = %+v", get)
+	}
+	if parts.Check != checkRequire || !parts.CheckFirst || parts.Messages != nil {
+		t.Errorf("GetWidgetParts binding = %+v", parts)
+	}
+	if owner.Check != checkRaw || owner.CheckFirst {
+		t.Errorf("GetWidgetOwner binding = %+v", owner)
+	}
+	if update := adopted["UpdateWidgetGadgets"]; update.Check != checkInline {
+		t.Errorf("UpdateWidgetGadgets binding = %+v", update)
 	}
 
 	generated := readFile(t, filepath.Join(dir, "widgets_gen.go"))
