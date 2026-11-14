@@ -2,13 +2,14 @@ package cmdtest
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // TestMigrateExportRejectsVersionOwnedByAnotherAppBeforeOutput proves that an
@@ -19,19 +20,10 @@ func TestMigrateExportRejectsVersionOwnedByAnotherAppBeforeOutput(t *testing.T) 
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	outputDir := filepath.Join(t.TempDir(), "fastlane")
-	var localizationRequests int
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_B":
-			body := `{"data":{"type":"appStoreVersions","id":"VERSION_B","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_B"}}}}}`
-			return migrateJSONResponse(http.StatusOK, body), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_B/appStoreVersionLocalizations":
-			localizationRequests++
-			return migrateJSONResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_B", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_B","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_B"}}}}}`))
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)
@@ -54,6 +46,12 @@ func TestMigrateExportRejectsVersionOwnedByAnotherAppBeforeOutput(t *testing.T) 
 	}
 	if !strings.Contains(runErr.Error(), "belongs to app") {
 		t.Fatalf("expected ownership error, got %v", runErr)
+	}
+	localizationRequests := 0
+	for _, req := range reg.Requests() {
+		if req.URL.Path == "/v1/appStoreVersions/VERSION_B/appStoreVersionLocalizations" {
+			localizationRequests++
+		}
 	}
 	if localizationRequests != 0 {
 		t.Fatalf("expected ownership rejection before localization fetch, got %d requests", localizationRequests)

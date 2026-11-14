@@ -141,7 +141,7 @@ func TestReconcileProductionAdaptersDoNotPrintOrReturnCanaryDetails(t *testing.T
 			return err
 		},
 		"verify": func() error {
-			_, err := VerifyReconcileCompletion(context.Background(), options)
+			_, err := verifyReconcileCompletionAdapter(context.Background(), options, "", nil)
 			return err
 		},
 	} {

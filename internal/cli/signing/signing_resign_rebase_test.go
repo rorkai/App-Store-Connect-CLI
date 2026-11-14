@@ -415,7 +415,7 @@ func TestPlanSigningResignEntitlementsKeepsDefaultCrossTeamRefusal(t *testing.T)
 	profile := rebaseTestProfile(target.BundleID, "NEWPREFIX", map[string]any{
 		signingResignKeychainGroupsEntitlement: []any{"NEWPREFIX.*"},
 	})
-	_, err := buildSigningResignEntitlements(target.ExistingEntitlements, profile.Entitlements)
+	_, err := buildSigningResignEntitlementsWithClass(target.ExistingEntitlements, profile.Entitlements, "")
 	if err == nil || !strings.Contains(err.Error(), "not authorized by the replacement profile") {
 		t.Fatalf("buildSigningResignEntitlements() error = %v, want unchanged fail-closed refusal", err)
 	}

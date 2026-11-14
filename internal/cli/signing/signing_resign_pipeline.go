@@ -1432,10 +1432,6 @@ func validateSigningResignCodeEntitlements(ctx context.Context, plan signingResi
 	return validateSigningResignEntitlementsAgainstDocumentAtStage(actual, plan.EntitlementsPath, "signed entitlements", signingResignStageVerification)
 }
 
-func validateSigningResignEntitlementsAgainstDocument(actual map[string]any, documentPath, subject string) error {
-	return validateSigningResignEntitlementsAgainstDocumentAtStage(actual, documentPath, subject, signingResignStagePreparation)
-}
-
 func validateSigningResignEntitlementsAgainstDocumentAtStage(actual map[string]any, documentPath, subject string, stage signingResignOperationalStage) error {
 	want, err := readSigningResignGeneratedEntitlementsAtStage(documentPath, stage)
 	if err != nil {

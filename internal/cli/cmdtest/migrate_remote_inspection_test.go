@@ -19,6 +19,7 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -307,27 +308,22 @@ func TestMigrateImportRemoteInspectionCreateLocales(t *testing.T) {
 					file = "name.txt"
 				}
 				writeFile(t, filepath.Join(dir, file), "Dutch metadata")
-				reads := 0
-				installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					reads++
-					if req.Method != http.MethodGet {
-						return nil, fmt.Errorf("mutation attempted")
-					}
-					switch req.URL.Path {
-					case "/v1/appStoreVersions/VERSION_ID":
-						return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
-					case "/v1/apps/APP_ID/appInfos":
-						return migrateJSONResponse(200, `{"data":[{"type":"appInfos","id":"INFO","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-					case "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "/v1/appInfos/INFO/appInfoLocalizations":
-						if exists {
-							return migrateJSONResponse(200, `{"data":[{"id":"EXISTING","attributes":{"locale":"nl"}}]}`), nil
-						}
-						return migrateJSONResponse(200, `{"data":[]}`), nil
-					default:
-						return nil, fmt.Errorf("unexpected request %s", req.URL.Path)
-					}
-				}))
+				localizations := asctest.JSON(200, `{"data":[]}`)
+				if exists {
+					localizations = asctest.JSON(200, `{"data":[{"id":"EXISTING","attributes":{"locale":"nl"}}]}`)
+				}
+				reg := asctest.NewRegistry(t)
+				reg.Install()
+				reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID", "include=app"),
+					asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`))
+				reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "limit=200"), localizations)
+				if kind == "app info" && exists {
+					reg.Register(asctest.GET("/v1/apps/APP_ID/appInfos"),
+						asctest.JSON(200, `{"data":[{"type":"appInfos","id":"INFO","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
+					reg.Register(asctest.GET("/v1/appInfos/INFO/appInfoLocalizations", "limit=200"), localizations)
+				}
 				stdout, _, err := runMigrateInspection(t, "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--dry-run", "--check-remote", "--output", "json")
+				reads := len(reg.Requests())
 				if reads < 2 {
 					t.Fatalf("locale exemption evaluated before remote reads: %d", reads)
 				}

@@ -1,47 +1,29 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSandboxListNormalizesTerritoryFilter(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/sandboxTesters"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{"type":"sandboxTesters","id":"tester-usa","attributes":{"email":"usa@example.com","territory":"USA"}},
+			{"type":"sandboxTesters","id":"tester-fra","attributes":{"email":"fra@example.com","territory":"FRA"}}
+		]
+	}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET request, got %s", req.Method)
-		}
-		if req.URL.Path != "/v2/sandboxTesters" {
-			t.Fatalf("unexpected path %q", req.URL.Path)
-		}
-		return jsonResponse(http.StatusOK, `{
-			"data":[
-				{"type":"sandboxTesters","id":"tester-usa","attributes":{"email":"usa@example.com","territory":"USA"}},
-				{"type":"sandboxTesters","id":"tester-fra","attributes":{"email":"fra@example.com","territory":"FRA"}}
-			]
-		}`)
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"sandbox", "list", "--territory", "United States"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"sandbox", "list", "--territory", "United States"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	assertEmptyStderr(t, stderr)
 	if !strings.Contains(stdout, `"id":"tester-usa"`) {
@@ -55,37 +37,19 @@ func TestSandboxListNormalizesTerritoryFilter(t *testing.T) {
 func TestSandboxListAllowsEmptyTerritoryFilter(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/sandboxTesters"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{"type":"sandboxTesters","id":"tester-usa","attributes":{"territory":"USA"}},
+			{"type":"sandboxTesters","id":"tester-fra","attributes":{"territory":"FRA"}}
+		]
+	}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET request, got %s", req.Method)
-		}
-		if req.URL.Path != "/v2/sandboxTesters" {
-			t.Fatalf("unexpected path %q", req.URL.Path)
-		}
-		return jsonResponse(http.StatusOK, `{
-			"data":[
-				{"type":"sandboxTesters","id":"tester-usa","attributes":{"territory":"USA"}},
-				{"type":"sandboxTesters","id":"tester-fra","attributes":{"territory":"FRA"}}
-			]
-		}`)
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"sandbox", "list", "--territory="}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"sandbox", "list", "--territory="})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	assertEmptyStderr(t, stderr)
 	if !strings.Contains(stdout, `"id":"tester-usa"`) || !strings.Contains(stdout, `"id":"tester-fra"`) {
@@ -155,38 +119,15 @@ func runSandboxListFilterPagination(t *testing.T, filterArgs []string, initialNe
 	t.Helper()
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	secondURL := "https://api.appstoreconnect.apple.com/v2/sandboxTesters?cursor=page-2"
-	requests := []string{}
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET request, got %s", req.Method)
-		}
-		if req.URL.Path != "/v2/sandboxTesters" {
-			t.Fatalf("unexpected path %q", req.URL.Path)
-		}
-
-		requests = append(requests, req.URL.String())
-		switch len(requests) {
-		case 1:
-			if initialNext == "" && req.URL.Query().Get("limit") != "200" {
-				t.Fatalf("expected limit=200 for --paginate, got %q", req.URL.Query().Get("limit"))
-			}
-			return jsonResponse(http.StatusOK, `{"data":[`+firstData+`],"links":{"next":"`+secondURL+`"}}`)
-		case 2:
-			if req.URL.String() != secondURL {
-				t.Fatalf("expected continuation URL %q, got %q", secondURL, req.URL.String())
-			}
-			return jsonResponse(http.StatusOK, `{"data":[`+secondData+`]}`)
-		default:
-			t.Fatalf("unexpected request %d: %s", len(requests), req.URL)
-			return nil, nil
-		}
-	})
+	firstQuery := "limit=200"
+	if initialNext != "" {
+		firstQuery = "cursor=page-1"
+	}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/sandboxTesters", firstQuery), asctest.JSON(http.StatusOK, `{"data":[`+firstData+`],"links":{"next":"`+secondURL+`"}}`))
+	reg.Register(asctest.GET("/v2/sandboxTesters", "cursor=page-2"), asctest.JSON(http.StatusOK, `{"data":[`+secondData+`]}`))
 
 	args := append([]string{"sandbox", "list"}, filterArgs...)
 	args = append(args, "--paginate", "--output", "json")
@@ -194,16 +135,14 @@ func runSandboxListFilterPagination(t *testing.T, filterArgs []string, initialNe
 		args = append(args, "--next", initialNext)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, args)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
+	requests := []string{}
+	for _, req := range reg.Requests() {
+		requests = append(requests, req.URL.String())
+	}
 	return stdout, stderr, requests
 }

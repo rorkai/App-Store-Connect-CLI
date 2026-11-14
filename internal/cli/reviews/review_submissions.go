@@ -87,11 +87,12 @@ Examples:
 			if len(args) != 0 {
 				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
+			command := shared.RewriteUsageMessage(ctx, "review submissions-list")
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("review submissions-list: %v", err)), shared.DiagnosticInvalidInput, "--next")
+				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("%s: %v", command, err)), shared.DiagnosticInvalidInput, "--next")
 			}
 			if err := rejectReviewNextFlagConflicts(
-				fs, *next, "review submissions-list",
+				fs, *next, command,
 				"app", "global", "platform", "state", "limit", "item-fields", "include",
 			); err != nil {
 				return err
@@ -116,7 +117,7 @@ Examples:
 			if err != nil {
 				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--include")
 			}
-			included, err := includedFields.Resolve("review submissions-list", *next, normalizedIncludes)
+			included, err := includedFields.Resolve(command, *next, normalizedIncludes)
 			if err != nil {
 				return err
 			}

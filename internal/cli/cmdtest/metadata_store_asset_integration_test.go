@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestMetadataPreviewsPreserveLocalizationPolicy(t *testing.T) {
@@ -145,23 +147,12 @@ func TestMetadataPreviewsRejectDeletedLocalizationParent(t *testing.T) {
 			writeMetadataScopeFile(t, filepath.Join(root, "version", "1.2.3", "en-US.json"), `{"description":"Keep"}`)
 			writeMetadataScopeFile(t, filepath.Join(root, "app_previews", "ja", "iphone_65", "preview.mp4"), "fixture-video")
 			installValidStoreAssetProbe(t)
-			mutations := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet {
-					mutations++
-					return nil, fmt.Errorf("unexpected mutation %s %s", req.Method, req.URL.Path)
-				}
-				switch req.URL.Path {
-				case "/v1/apps/app-1/appStoreVersions":
-					return migrateJSONResponse(200, metadataPushVersionsList), nil
-				case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-					return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Keep"}},{"type":"appStoreVersionLocalizations","id":"loc-ja","attributes":{"locale":"ja","description":"Preview parent"}}]}`), nil
-				case "/v1/appStoreVersionLocalizations/loc-ja/appPreviewSets":
-					return migrateJSONResponse(200, metadataPushEmptyList), nil
-				default:
-					return nil, fmt.Errorf("unexpected request %s", req.URL.Path)
-				}
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+				asctest.JSON(200, metadataPushVersionsList))
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+				asctest.JSON(200, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Keep"}},{"type":"appStoreVersionLocalizations","id":"loc-ja","attributes":{"locale":"ja","description":"Preview parent"}}]}`))
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
 				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--dir", root, "--include", "localizations,previews", "--allow-deletes", mode, "--output", "json"})
@@ -169,6 +160,7 @@ func TestMetadataPreviewsRejectDeletedLocalizationParent(t *testing.T) {
 			if runErr == nil || !strings.Contains(stderr, `version localization "ja" is required by local previews`) {
 				t.Fatalf("expected contradictory-input diagnostic: err=%v stderr=%s stdout=%s", runErr, stderr, stdout)
 			}
+			mutations := metadataMutationCount(reg)
 			if mutations != 0 {
 				t.Fatalf("must reject before any mutation, got %d", mutations)
 			}

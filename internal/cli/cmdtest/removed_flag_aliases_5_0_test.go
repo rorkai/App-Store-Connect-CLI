@@ -1,10 +1,10 @@
 package cmdtest
 
 import (
-	"errors"
-	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // TestRemovedFlagAliasesAreUnknownFlags locks the 5.0.0 removal of the
@@ -38,10 +38,7 @@ func TestRemovedFlagAliasesAreUnknownFlags(t *testing.T) {
 		{path: []string{"apps", "info", "territory-age-ratings", "list"}, alias: "id", canonical: "info-id", args: []string{"--id", "info-1"}},
 	}
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("removed aliases must fail before HTTP: %s %s", req.Method, req.URL.String())
-		return nil, errors.New("unexpected request")
-	}))
+	asctest.NewRegistry(t).Install()
 
 	root := RootCommand("1.2.3")
 	for _, test := range tests {

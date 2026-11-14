@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assets"
 )
 
 func TestAppClipLayoutRejectsSymlinkedNestedFolder(t *testing.T) {
@@ -35,12 +37,12 @@ func TestAppClipLayoutEmptyFolderDoesNotRequestImport(t *testing.T) {
 
 func TestPreviewPosterFrameMatchesUploadContract(t *testing.T) {
 	for _, tc := range []string{"00:00:01.000", "00:00:01:29"} {
-		if !validPosterFrame(tc) {
+		if !assets.ValidPreviewFrameTimeCode(tc) {
 			t.Errorf("rejects valid poster frame %q", tc)
 		}
 	}
 	for _, tc := range []string{"00:99:00", "0:0:0", "00:00:01:30", "00:00:01"} {
-		if validPosterFrame(tc) {
+		if assets.ValidPreviewFrameTimeCode(tc) {
 			t.Errorf("accepts invalid poster frame %q", tc)
 		}
 	}

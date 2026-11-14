@@ -37,10 +37,6 @@ func NormalizeSandboxTerritoryCode(value string) (string, error) {
 	return normalized, nil
 }
 
-func normalizeSandboxTerritory(value string) (string, error) {
-	return NormalizeSandboxTerritoryCode(value)
-}
-
 func normalizeSandboxTerritoryFilter(value string) (string, error) {
 	if strings.TrimSpace(value) == "" {
 		return "", nil

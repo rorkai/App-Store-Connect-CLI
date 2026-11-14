@@ -198,17 +198,17 @@ func TestSelectReconcileCertificateAcceptsLiveMissingActivationAndRequiresValidi
 			CertificateContent: base64.StdEncoding.EncodeToString(certificate.Raw),
 		},
 	}
-	if selected, blockers := selectReconcileCertificate([]asc.Resource[asc.CertificateAttributes]{resource}, "cert-1", time.Now(), 7); selected == nil || len(blockers) != 0 {
+	if selected, blockers := selectReconcileCertificateWithFingerprint([]asc.Resource[asc.CertificateAttributes]{resource}, "cert-1", "", time.Now(), 7); selected == nil || len(blockers) != 0 {
 		t.Fatalf("live-shaped certificate without activated selected=%#v blockers=%#v", selected, blockers)
 	}
 	inactive := false
 	resource.Attributes.Activated = &inactive
-	if selected, blockers := selectReconcileCertificate([]asc.Resource[asc.CertificateAttributes]{resource}, "cert-1", time.Now(), 7); selected != nil || len(blockers) == 0 {
+	if selected, blockers := selectReconcileCertificateWithFingerprint([]asc.Resource[asc.CertificateAttributes]{resource}, "cert-1", "", time.Now(), 7); selected != nil || len(blockers) == 0 {
 		t.Fatalf("explicitly inactive certificate selected=%#v blockers=%#v", selected, blockers)
 	}
 	active := true
 	resource.Attributes.Activated = &active
-	if selected, blockers := selectReconcileCertificate([]asc.Resource[asc.CertificateAttributes]{resource}, "cert-1", time.Date(2099, 12, 30, 0, 0, 0, 0, time.UTC), 7); selected != nil || len(blockers) == 0 {
+	if selected, blockers := selectReconcileCertificateWithFingerprint([]asc.Resource[asc.CertificateAttributes]{resource}, "cert-1", "", time.Date(2099, 12, 30, 0, 0, 0, 0, time.UTC), 7); selected != nil || len(blockers) == 0 {
 		t.Fatalf("certificate shorter than validity window selected=%#v blockers=%#v", selected, blockers)
 	}
 }
@@ -1383,7 +1383,7 @@ func TestLoadSigningReceiptRejectsPathsOutsidePlan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := loadOrStartSigningReceipt(plan); err == nil {
+	if _, err := loadOrStartSigningReceiptWithUsage(plan, shared.UsageError); err == nil {
 		t.Fatal("loadOrStartSigningReceipt() error = nil, want path-binding rejection")
 	}
 	outside, err := os.ReadFile(outsideReceipt)
