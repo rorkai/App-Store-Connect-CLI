@@ -65,24 +65,18 @@ Examples:
 
 // DevicesListCommand returns the devices list subcommand.
 func DevicesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	var (
+		name, udid, ids, sort *string
+		platformValues        []string
+		statusValue           string
+		fieldsValue           []string
+	)
 
-	name := fs.String("name", "", "Filter by device name(s), comma-separated")
-	platform := fs.String("platform", "", "Filter by platform(s), comma-separated: "+strings.Join(devicePlatformList(), ", "))
-	status := fs.String("status", "", "Filter by status: ENABLED, DISABLED")
-	udid := fs.String("udid", "", "Filter by UDID(s), comma-separated")
-	ids := fs.String("id", "", "Filter by device ID(s), comma-separated")
-	sort := fs.String("sort", "", "Sort by id, -id, name, -name, platform, -platform, status, -status, udid, -udid")
-	fields := fs.String("fields", "", "Fields to include: addedDate, deviceClass, model, name, platform, status, udid")
-	output := shared.BindOutputFlags(fs)
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc devices list [flags]",
-		ShortHelp:  "List devices in App Store Connect.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc devices list [flags]",
+		ShortHelp:   "List devices in App Store Connect.",
 		LongHelp: `List devices in App Store Connect.
 
 Examples:
@@ -93,51 +87,45 @@ Examples:
   asc devices list --fields "name,udid,platform,status"
   asc devices list --limit 50
   asc devices list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorf("devices list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("devices list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "devices list", "name", "platform", "status", "udid", "id", "sort", "fields"); err != nil {
-				return err
-			}
-			if err := shared.ValidateSort(*sort, "id", "-id", "name", "-name", "platform", "-platform", "status", "-status", "udid", "-udid"); err != nil {
-				return shared.UsageErrorf("devices list: %v", err)
-			}
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"name", "platform", "status", "udid", "id", "sort", "fields"},
+		Flags: func(fs *flag.FlagSet) func() error {
+			name = fs.String("name", "", "Filter by device name(s), comma-separated")
+			platform := fs.String("platform", "", "Filter by platform(s), comma-separated: "+strings.Join(devicePlatformList(), ", "))
+			status := fs.String("status", "", "Filter by status: ENABLED, DISABLED")
+			udid = fs.String("udid", "", "Filter by UDID(s), comma-separated")
+			ids = fs.String("id", "", "Filter by device ID(s), comma-separated")
+			sort = fs.String("sort", "", "Sort by id, -id, name, -name, platform, -platform, status, -status, udid, -udid")
+			fields := fs.String("fields", "", "Fields to include: addedDate, deviceClass, model, name, platform, status, udid")
 
-			platformValues, err := normalizeDevicePlatforms(shared.SplitCSV(*platform))
-			if err != nil {
-				return fmt.Errorf("devices list: %w", shared.UsageError(err.Error()))
+			return func() error {
+				if err := shared.ValidateSort(*sort, "id", "-id", "name", "-name", "platform", "-platform", "status", "-status", "udid", "-udid"); err != nil {
+					return shared.UsageErrorf("devices list: %v", err)
+				}
+				var err error
+				if platformValues, err = normalizeDevicePlatforms(shared.SplitCSV(*platform)); err != nil {
+					return fmt.Errorf("devices list: %w", shared.UsageError(err.Error()))
+				}
+				if statusValue, err = normalizeDeviceStatus(*status); err != nil {
+					return shared.UsageErrorf("devices list: %v", err)
+				}
+				if fieldsValue, err = normalizeDeviceFields(*fields); err != nil {
+					return shared.UsageErrorf("devices list: %v", err)
+				}
+				return nil
 			}
-
-			statusValue, err := normalizeDeviceStatus(*status)
-			if err != nil {
-				return shared.UsageErrorf("devices list: %v", err)
-			}
-
-			fieldsValue, err := normalizeDeviceFields(*fields)
-			if err != nil {
-				return shared.UsageErrorf("devices list: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("devices list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
+		},
+		ErrorPrefix:      "devices list",
+		FetchErrorPrefix: "devices list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.DevicesOption{
 				asc.WithDevicesNames(shared.SplitCSV(*name)),
 				asc.WithDevicesUDIDs(shared.SplitCSV(*udid)),
 				asc.WithDevicesIDs(shared.SplitCSV(*ids)),
-				asc.Limit[asc.DevicesOption](*limit),
-				asc.NextURL[asc.DevicesOption](*next),
+				asc.Limit[asc.DevicesOption](limit),
+				asc.NextURL[asc.DevicesOption](next),
 			}
 			if len(platformValues) > 0 {
 				opts = append(opts, asc.WithDevicesPlatforms(platformValues))
@@ -151,80 +139,43 @@ Examples:
 			if len(fieldsValue) > 0 {
 				opts = append(opts, asc.WithDevicesFields(fieldsValue))
 			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.DevicesOption](200))
-				firstPage, err := client.GetDevices(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("devices list: failed to fetch: %w", err)
-				}
-
-				devices, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetDevices(ctx, asc.NextURL[asc.DevicesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("devices list: %w", err)
-				}
-
-				return shared.PrintOutput(devices, *output.Output, *output.Pretty)
-			}
-
-			devices, err := client.GetDevices(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("devices list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(devices, *output.Output, *output.Pretty)
+			return client.GetDevices(ctx, opts...)
 		},
-	}
+	})
 }
 
 // DevicesGetCommand returns the devices view subcommand.
 func DevicesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	var fieldsValue []string
 
-	id := shared.BindResourceIDFlag(fs, "id", "devices", "Device ID")
-	fields := fs.String("fields", "", "Fields to include: addedDate, deviceClass, model, name, platform, status, udid")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc devices view --id DEVICE_ID",
-		ShortHelp:  "View a device by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc devices view --id DEVICE_ID",
+		ShortHelp:   "View a device by ID.",
 		LongHelp: `View a device by ID.
 
 Examples:
   asc devices view --id "DEVICE_ID"
   asc devices view --id "DEVICE_ID" --fields "name,udid,platform,status"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
+		IDUsage:            "Device ID",
+		IDType:             "devices",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Fields to include: addedDate, deviceClass, model, name, platform, status, udid")
+			return func() (err error) {
+				if fieldsValue, err = normalizeDeviceFields(*fields); err != nil {
+					return shared.UsageErrorf("devices view: %v", err)
+				}
+				return nil
 			}
-
-			fieldsValue, err := normalizeDeviceFields(*fields)
-			if err != nil {
-				return shared.UsageErrorf("devices view: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("devices view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			device, err := client.GetDevice(requestCtx, idValue, fieldsValue)
-			if err != nil {
-				return fmt.Errorf("devices view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(device, *output.Output, *output.Pretty)
 		},
-	}
+		ErrorPrefix:      "devices view",
+		FetchErrorPrefix: "devices view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetDevice(ctx, id, fieldsValue)
+		},
+	})
 }
 
 // DevicesLocalUDIDCommand returns the devices local-udid subcommand.
