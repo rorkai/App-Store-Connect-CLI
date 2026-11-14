@@ -222,35 +222,25 @@ func SubscriptionsVersionImagesPrimaryLinkCommand() *ffcli.Command {
 
 // SubscriptionsVersionImagesViewCommand views a v2 image.
 func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images view", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "id", "subscriptionImages", "Subscription image ID")
-	fields := fs.String("fields", "", "Sparse fields for subscriptionImages")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "view", ShortUsage: "asc subscriptions versions images view --id \"IMAGE_ID\"", ShortHelp: "View a version-scoped image.",
-		LongHelp: "View a version-scoped subscription image by ID.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			imageID := strings.TrimSpace(*id)
-			if imageID == "" {
-				return shared.RequiredFlag("--id")
-			}
-			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
-			if err != nil {
+	var fieldValues []string
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "versions images view",
+		Name:        "view", ShortUsage: "asc subscriptions versions images view --id \"IMAGE_ID\"", ShortHelp: "View a version-scoped image.",
+		LongHelp: "View a version-scoped subscription image by ID.",
+		IDUsage:  "Subscription image ID", IDType: "subscriptionImages", RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Sparse fields for subscriptionImages")
+			return func() (err error) {
+				fieldValues, err = normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 				return err
 			}
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions versions images view: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			resp, err := client.GetSubscriptionImageV2(requestCtx, imageID, asc.WithSubscriptionImageV2Fields(fieldValues))
-			if err != nil {
-				return fmt.Errorf("subscriptions versions images view: failed to fetch: %w", err)
-			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		ErrorPrefix:      "subscriptions versions images view",
+		FetchErrorPrefix: "subscriptions versions images view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetSubscriptionImageV2(ctx, id, asc.WithSubscriptionImageV2Fields(fieldValues))
+		},
+	})
 }
 
 // SubscriptionsVersionImagesUploadCommand reserves, uploads, and commits a v2 image.

@@ -1,14 +1,13 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestLocalizationsViewRequestsLocalizationAndPrintsEnvelope(t *testing.T) {
@@ -46,44 +45,22 @@ func TestLocalizationsViewRequestsLocalizationAndPrintsEnvelope(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.wantPath, strings.Split(test.wantQuery, "&")...),
+				asctest.JSON(http.StatusOK, test.body))
 
-			requestCount := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requestCount++
-				if req.Method != http.MethodGet {
-					t.Fatalf("expected GET, got %s", req.Method)
-				}
-				if req.URL.Path != test.wantPath {
-					t.Fatalf("expected path %q, got %q", test.wantPath, req.URL.Path)
-				}
-				if req.URL.RawQuery != test.wantQuery {
-					t.Fatalf("expected query %q, got %q", test.wantQuery, req.URL.RawQuery)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(test.body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
+			stdout, stderr, err := runCommand(t, append([]string{"localizations", "view", "--output", "json"}, test.args...))
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(append([]string{"localizations", "view", "--output", "json"}, test.args...)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
-
-			if requestCount != 1 {
+			requests := reg.Requests()
+			if requestCount := len(requests); requestCount != 1 {
 				t.Fatalf("expected exactly 1 request, got %d", requestCount)
+			}
+			if got := requests[0].URL.RawQuery; got != test.wantQuery {
+				t.Fatalf("expected query %q, got %q", test.wantQuery, got)
 			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -99,31 +76,15 @@ func TestLocalizationsViewMarkdownShowsRequestedFields(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"description":"Long text","supportUrl":null},` +
-			`"relationships":{"appScreenshotSets":{"links":{"related":"https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets"}}}}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/loc-1", "fields[appStoreVersionLocalizations]=description,supportUrl,appScreenshotSets"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"description":"Long text","supportUrl":null},"relationships":{"appScreenshotSets":{"links":{"related":"https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets"}}}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"localizations", "view", "--id", "loc-1", "--fields", "description,supportUrl,appScreenshotSets", "--output", "markdown"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err := runCommand(t, []string{"localizations", "view", "--id", "loc-1", "--fields", "description,supportUrl,appScreenshotSets", "--output", "markdown"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	for _, row := range []string{
 		"| id                | loc-1",
@@ -162,14 +123,7 @@ func TestLocalizationsViewRejectsInvalidFlags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request: %s", req.URL.String())
-				return nil, nil
-			})
+			asctest.NewRegistry(t).Install()
 
 			var code int
 			stdout, stderr := captureOutput(t, func() {

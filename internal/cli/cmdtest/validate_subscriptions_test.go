@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -705,8 +706,10 @@ func TestValidateSubscriptionsRefreshesContextBeforeBuildProbeAfterSlowSubscript
 		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected slow subscription fetch to still allow build probing, got %v", err)
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if runErr != nil {
+			t.Fatalf("expected slow subscription fetch to still allow build probing, got %v", runErr)
 		}
 	})
 	if stderr != "" {

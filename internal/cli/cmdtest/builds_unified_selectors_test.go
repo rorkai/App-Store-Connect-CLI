@@ -9,17 +9,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestBuildsReadCommandsResolveLatestSelector(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
 
 	tests := []struct {
 		name         string
@@ -95,55 +92,18 @@ func TestBuildsReadCommandsResolveLatestSelector(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			requestCount := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requestCount++
-				switch requestCount {
-				case 1:
-					if req.Method != http.MethodGet {
-						t.Fatalf("expected GET, got %s", req.Method)
-					}
-					if req.URL.Path != "/v1/builds" {
-						t.Fatalf("expected build lookup path /v1/builds, got %s", req.URL.Path)
-					}
-					query := req.URL.Query()
-					if query.Get("filter[app]") != "123456789" {
-						t.Fatalf("expected filter[app]=123456789, got %q", query.Get("filter[app]"))
-					}
-					if query.Get("sort") != "-uploadedDate" {
-						t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
-					}
-					if query.Get("limit") != "200" {
-						t.Fatalf("expected limit=200 for latest selector lookup, got %q", query.Get("limit"))
-					}
-					return jsonHTTPResponse(http.StatusOK, `{
-						"data":[{"type":"builds","id":"BUILD_123","attributes":{"uploadedDate":"2026-03-13T00:00:00Z","processingState":"VALID","version":"42"},"relationships":{}}]
-					}`), nil
-				case 2:
-					if req.Method != http.MethodGet {
-						t.Fatalf("expected GET, got %s", req.Method)
-					}
-					if req.URL.Path != test.expectedPath {
-						t.Fatalf("expected path %s, got %s", test.expectedPath, req.URL.Path)
-					}
-					return jsonHTTPResponse(http.StatusOK, test.responseBody), nil
-				default:
-					t.Fatalf("unexpected request count %d", requestCount)
-					return nil, nil
-				}
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/builds", "filter[app]=123456789", "limit=200", "sort=-uploadedDate"),
+				asctest.JSON(http.StatusOK, `{
+					"data":[{"type":"builds","id":"BUILD_123","attributes":{"uploadedDate":"2026-03-13T00:00:00Z","processingState":"VALID","version":"42"},"relationships":{}}]
+				}`))
+			reg.Register(asctest.GET(test.expectedPath), asctest.JSON(http.StatusOK, test.responseBody))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, test.args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func subscriptionPriceListFixture(pricePointID, territoryID, attrs string) string {
@@ -216,29 +217,10 @@ func TestSubscriptionsPricesAdd_NormalizesTerritory(t *testing.T) {
 
 func TestSubscriptionsPricesAdd_ProbeErrorReturnsWithoutWrite(t *testing.T) {
 	setupAuth(t)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/relationships/prices"):
-			body := `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"An unexpected error occurred.","detail":"An unexpected error occurred on the server side."}]}`
-			return &http.Response{
-				StatusCode: http.StatusInternalServerError,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodPatch && strings.Contains(req.URL.Path, "/v1/subscriptions/"):
-			t.Fatalf("unexpected PATCH write request after failed probe: %s", req.URL.Path)
-			return nil, nil
-		case req.Method == http.MethodPost && strings.Contains(req.URL.Path, "/subscriptionPrices"):
-			t.Fatalf("unexpected POST write request after failed probe: %s", req.URL.Path)
-			return nil, nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000003/relationships/prices"),
+		asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"An unexpected error occurred.","detail":"An unexpected error occurred on the server side."}]}`))
 
 	t.Setenv("HOME", t.TempDir())
 	root := RootCommand("1.2.3")

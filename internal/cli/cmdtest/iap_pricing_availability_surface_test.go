@@ -1,60 +1,25 @@
 package cmdtest
 
 import (
-	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestIAPPricingAvailabilitySetAcceptsSpacedBoolValue(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/inAppPurchaseAvailabilities").JSONBody(`{"data":{"type":"inAppPurchaseAvailabilities","attributes":{"availableInNewTerritories":false},"relationships":{"inAppPurchase":{"data":{"type":"inAppPurchases","id":"9000000001"}},"availableTerritories":{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}]}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"inAppPurchaseAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":false}}}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchaseAvailabilities" {
-			t.Fatalf("expected path /v1/inAppPurchaseAvailabilities, got %s", req.URL.Path)
-		}
-
-		var payload asc.InAppPurchaseAvailabilityCreateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode payload: %v", err)
-		}
-		if payload.Data.Relationships.InAppPurchase.Data.ID != "9000000001" {
-			t.Fatalf("expected iap relationship 9000000001, got %q", payload.Data.Relationships.InAppPurchase.Data.ID)
-		}
-		if payload.Data.Attributes.AvailableInNewTerritories {
-			t.Fatalf("expected availableInNewTerritories false")
-		}
-		if len(payload.Data.Relationships.AvailableTerritories.Data) != 2 {
-			t.Fatalf("expected two territories, got %+v", payload.Data.Relationships.AvailableTerritories.Data)
-		}
-
-		return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"inAppPurchaseAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":false}}}`), nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"iap", "pricing", "availability", "set", "--iap-id", "9000000001", "--available-in-new-territories", "false", "--territories", "USA,CAN", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"iap", "pricing", "availability", "set", "--iap-id", "9000000001", "--available-in-new-territories", "false", "--territories", "USA,CAN", "--output", "json"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

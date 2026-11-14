@@ -247,19 +247,19 @@ Examples:
 			}
 
 			opts := []asc.BuildIconsOption{
-				asc.WithBuildIconsLimit(*limit),
-				asc.WithBuildIconsNextURL(*next),
+				asc.Limit[asc.BuildIconsOption](*limit),
+				asc.NextURL[asc.BuildIconsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBuildIconsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BuildIconsOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuildIcons(ctx, buildID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBuildIcons(ctx, buildID, asc.WithBuildIconsNextURL(nextURL))
+						return client.GetBuildIcons(ctx, buildID, asc.NextURL[asc.BuildIconsOption](nextURL))
 					},
 				)
 				if err != nil {

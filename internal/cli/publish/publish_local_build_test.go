@@ -19,6 +19,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -847,7 +848,7 @@ func TestPublishLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.T) {
 			}
 			scriptPublishRequests(t, test.requests...)
 
-			stdout, stderr, runErr := runPublishCommand(t, test.command, append([]string{
+			stdout, stderr, runErr := runPublishCommandOnFakeClock(t, test.command, append([]string{
 				"--app", "friendly-app",
 				"--workspace", "Demo.xcworkspace",
 				"--scheme", "Demo",
@@ -1104,7 +1105,7 @@ func TestPublishAppStoreMetadataDirAppliesAfterEnsureVersionBeforeAttach(t *test
 		}
 	}))
 
-	stdout, _, runErr := runPublishCommand(t, PublishAppStoreCommand, []string{
+	stdout, _, runErr := runPublishCommandOnFakeClock(t, PublishAppStoreCommand, []string{
 		"--app", "app-1",
 		"--ipa", "app.ipa",
 		"--version", "1.2.3",
@@ -1237,7 +1238,7 @@ func TestPublishAppStoreRefreshesVersionContextAfterProcessingWait(t *testing.T)
 		}
 	}))
 
-	stdout, stderr, _ := runPublishCommand(t, PublishAppStoreCommand, []string{
+	stdout, stderr, _ := runPublishCommandOnFakeClock(t, PublishAppStoreCommand, []string{
 		"--app", "app-1",
 		"--ipa", "app.ipa",
 		"--version", "1.2.3",
@@ -1457,6 +1458,24 @@ func runPublishCommand(t *testing.T, newCommand func() *ffcli.Command, args []st
 	var runErr error
 	stdout, stderr := capturePublishCommandOutput(t, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
+		return runErr
+	})
+	return stdout, stderr, runErr
+}
+
+// runPublishCommandOnFakeClock runs the command like runPublishCommand but in
+// a synctest bubble, so stage durations and request timeouts use its fake clock.
+func runPublishCommandOnFakeClock(t *testing.T, newCommand func() *ffcli.Command, args []string) (string, string, error) {
+	t.Helper()
+
+	cmd := newCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse(args); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+	var runErr error
+	stdout, stderr := capturePublishCommandOutput(t, func() error {
+		synctest.Test(t, func(*testing.T) { runErr = cmd.Exec(context.Background(), nil) })
 		return runErr
 	})
 	return stdout, stderr, runErr

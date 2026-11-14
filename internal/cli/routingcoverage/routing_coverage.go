@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -41,44 +40,25 @@ Examples:
 
 // RoutingCoverageGetCommand returns the routing coverage get subcommand.
 func RoutingCoverageGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("routing-coverage view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc routing-coverage view --version-id \"VERSION_ID\"",
-		ShortHelp:  "View routing app coverage for a version.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "routing-coverage view",
+		Name:        "view",
+		ShortUsage:  "asc routing-coverage view --version-id \"VERSION_ID\"",
+		ShortHelp:   "View routing app coverage for a version.",
 		LongHelp: `View routing app coverage for an App Store version.
 
 Examples:
   asc routing-coverage view --version-id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			versionValue := strings.TrimSpace(*versionID)
-			if versionValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("routing-coverage view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetRoutingAppCoverageForVersion(requestCtx, versionValue)
-			if err != nil {
-				return fmt.Errorf("routing-coverage view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "version-id",
+		IDUsage:            "App Store version ID (required)",
+		IDType:             "appStoreVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "routing-coverage view",
+		FetchErrorPrefix:   "routing-coverage view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetRoutingAppCoverageForVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // RoutingCoverageInfoCommand returns the routing coverage info subcommand.
@@ -101,8 +81,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			coverageValue := strings.TrimSpace(*coverageID)
 			if coverageValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -144,14 +123,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			prepared, err := PrepareRoutingCoverageFile(pathValue)

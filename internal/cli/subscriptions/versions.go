@@ -220,62 +220,55 @@ Examples:
 
 // SubscriptionsVersionsViewCommand returns the versions view command.
 func SubscriptionsVersionsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions view", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "id", "subscriptionVersions", "Subscription version ID")
-	fields := fs.String("fields", "", "Sparse fields for subscriptionVersions")
-	subscriptionFields := fs.String("subscription-fields", "", "Sparse fields for included subscriptions")
-	imageFields := fs.String("image-fields", "", "Sparse fields for included subscriptionImages")
-	localizationFields := fs.String("localization-fields", "", "Sparse fields for included subscriptionLocalizations")
-	include := fs.String("include", "", "Include relationships: subscription,image,images,localizations")
-	imagesLimit := fs.Int("images-limit", 0, "Maximum included images (1-50)")
-	localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "view", ShortUsage: "asc subscriptions versions view --id \"VERSION_ID\"", ShortHelp: "View a subscription version.",
+	var (
+		imagesLimit, localizationsLimit                                                                       *int
+		versionFieldValues, subscriptionFieldValues, imageFieldValues, localizationFieldValues, includeValues []string
+	)
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "versions view",
+		Name:        "view", ShortUsage: "asc subscriptions versions view --id \"VERSION_ID\"", ShortHelp: "View a subscription version.",
 		LongHelp: `View a subscription version by ID.
 
 Examples:
   asc subscriptions versions view --id "VERSION_ID"
-  asc subscriptions versions view --id "VERSION_ID" --include images,localizations --images-limit 10 --localizations-limit 10`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			versionID := strings.TrimSpace(*id)
-			if versionID == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if err := validateRelationshipLimit("--images-limit", *imagesLimit); err != nil {
+  asc subscriptions versions view --id "VERSION_ID" --include images,localizations --images-limit 10 --localizations-limit 10`,
+		IDUsage: "Subscription version ID", IDType: "subscriptionVersions", RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Sparse fields for subscriptionVersions")
+			subscriptionFields := fs.String("subscription-fields", "", "Sparse fields for included subscriptions")
+			imageFields := fs.String("image-fields", "", "Sparse fields for included subscriptionImages")
+			localizationFields := fs.String("localization-fields", "", "Sparse fields for included subscriptionLocalizations")
+			include := fs.String("include", "", "Include relationships: subscription,image,images,localizations")
+			imagesLimit = fs.Int("images-limit", 0, "Maximum included images (1-50)")
+			localizationsLimit = fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
+			return func() (err error) {
+				if err := validateRelationshipLimit("--images-limit", *imagesLimit); err != nil {
+					return err
+				}
+				if err := validateRelationshipLimit("--localizations-limit", *localizationsLimit); err != nil {
+					return err
+				}
+				if versionFieldValues, err = normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionFieldsList()); err != nil {
+					return err
+				}
+				if subscriptionFieldValues, err = normalizeSelectionFlag(fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList()); err != nil {
+					return err
+				}
+				if imageFieldValues, err = normalizeSelectionFlag(fs, *imageFields, "--image-fields", subscriptionVersionImageFieldsList()); err != nil {
+					return err
+				}
+				if localizationFieldValues, err = normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionVersionLocalizationFieldsList()); err != nil {
+					return err
+				}
+				includeValues, err = normalizeSelectionFlag(fs, *include, "--include", subscriptionVersionIncludeList())
 				return err
 			}
-			if err := validateRelationshipLimit("--localizations-limit", *localizationsLimit); err != nil {
-				return err
-			}
-			versionFieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionFieldsList())
-			if err != nil {
-				return err
-			}
-			subscriptionFieldValues, err := normalizeSelectionFlag(fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
-			if err != nil {
-				return err
-			}
-			imageFieldValues, err := normalizeSelectionFlag(fs, *imageFields, "--image-fields", subscriptionVersionImageFieldsList())
-			if err != nil {
-				return err
-			}
-			localizationFieldValues, err := normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionVersionLocalizationFieldsList())
-			if err != nil {
-				return err
-			}
-			includeValues, err := normalizeSelectionFlag(fs, *include, "--include", subscriptionVersionIncludeList())
-			if err != nil {
-				return err
-			}
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions versions view: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			resp, err := client.GetSubscriptionVersion(
-				requestCtx, versionID,
+		},
+		ErrorPrefix:      "subscriptions versions view",
+		FetchErrorPrefix: "subscriptions versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetSubscriptionVersion(
+				ctx, id,
 				asc.WithSubscriptionVersionFields(versionFieldValues),
 				asc.WithSubscriptionVersionSubscriptionFields(subscriptionFieldValues),
 				asc.WithSubscriptionVersionImageFields(imageFieldValues),
@@ -284,12 +277,8 @@ Examples:
 				asc.WithSubscriptionVersionImageLimit(*imagesLimit),
 				asc.WithSubscriptionVersionLocalizationLimit(*localizationsLimit),
 			)
-			if err != nil {
-				return fmt.Errorf("subscriptions versions view: failed to fetch: %w", err)
-			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	})
 }
 
 // SubscriptionsVersionsLinksCommand returns the subscription-to-version linkage command.

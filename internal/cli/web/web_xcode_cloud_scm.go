@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -132,8 +131,7 @@ Show the connection status for one SCM provider returned by
 			}
 			providerID := strings.TrimSpace(*scmProviderID)
 			if providerID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --scm-provider-id is required")
-				return shared.MissingRequiredUsageError("--scm-provider-id")
+				return shared.RequiredFlag("--scm-provider-id")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)

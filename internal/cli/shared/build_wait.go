@@ -133,7 +133,7 @@ func LatestBuildUploadForWait(ctx context.Context, client *asc.Client, selector 
 
 	opts := []asc.BuildUploadsOption{
 		asc.WithBuildUploadsSort("-uploadedDate"),
-		asc.WithBuildUploadsLimit(buildUploadWaitLookupLimit),
+		asc.Limit[asc.BuildUploadsOption](buildUploadWaitLookupLimit),
 	}
 	if buildNumber := strings.TrimSpace(selector.BuildNumber); buildNumber != "" {
 		opts = append(opts, asc.WithBuildUploadsCFBundleVersions([]string{buildNumber}))
@@ -288,7 +288,7 @@ func findBuildIDForUpload(ctx context.Context, client *asc.Client, appID, upload
 		ctx, appID,
 		asc.WithBuildsVersion(buildNumber),
 		asc.WithBuildsInclude([]string{"buildUpload"}),
-		asc.WithBuildsLimit(200),
+		asc.Limit[asc.BuildsOption](200),
 	)
 	if err != nil {
 		return "", err
@@ -309,7 +309,7 @@ func findBuildByNumber(ctx context.Context, client *asc.Client, appID, preReleas
 	buildOpts := []asc.BuildsOption{
 		asc.WithBuildsPreReleaseVersion(preReleaseID),
 		asc.WithBuildsSort("-uploadedDate"),
-		asc.WithBuildsLimit(200),
+		asc.Limit[asc.BuildsOption](200),
 	}
 	if uploadID != "" {
 		buildOpts = append(buildOpts, asc.WithBuildsInclude([]string{"buildUpload"}))
@@ -678,7 +678,7 @@ func linkedBuildUploadID(ctx context.Context, client *asc.Client, appID, buildID
 		ctx, appID,
 		asc.WithBuildsVersion(bundleVersion),
 		asc.WithBuildsInclude([]string{"buildUpload"}),
-		asc.WithBuildsLimit(buildProcessingFailureLookupLimit),
+		asc.Limit[asc.BuildsOption](buildProcessingFailureLookupLimit),
 	)
 	if err != nil {
 		return ""
@@ -712,7 +712,7 @@ func findBuildUploadByVersion(ctx context.Context, client *asc.Client, appID, bu
 		asc.WithBuildUploadsCFBundleShortVersionStrings([]string{shortVersion}),
 		asc.WithBuildUploadsPlatforms([]string{platform}),
 		asc.WithBuildUploadsSort("-uploadedDate"),
-		asc.WithBuildUploadsLimit(buildProcessingFailureLookupLimit),
+		asc.Limit[asc.BuildUploadsOption](buildProcessingFailureLookupLimit),
 	)
 	if err != nil {
 		return nil, err

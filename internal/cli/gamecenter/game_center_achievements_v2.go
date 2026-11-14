@@ -164,117 +164,50 @@ Examples:
 
 // GameCenterAchievementVersionsV2ListCommand returns the achievement versions v2 list subcommand.
 func GameCenterAchievementVersionsV2ListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	achievementID := shared.BindResourceIDFlag(fs, "achievement-id", "gameCenterAchievements", "Game Center achievement ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center achievements v2 versions list --achievement-id \"ACH_ID\"",
-		ShortHelp:  "List versions for a Game Center achievement (v2).",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center achievements v2 versions list --achievement-id \"ACH_ID\"",
+		ShortHelp:   "List versions for a Game Center achievement (v2).",
 		LongHelp: `List versions for a Game Center achievement (v2).
 
 Examples:
   asc game-center achievements v2 versions list --achievement-id "ACH_ID"
   asc game-center achievements v2 versions list --achievement-id "ACH_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center achievements v2 versions list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center achievements v2 versions list: %v", err)
-			}
-
-			id := strings.TrimSpace(*achievementID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--achievement-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 versions list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCAchievementVersionsOption{
-				asc.WithGCAchievementVersionsLimit(*limit),
-				asc.WithGCAchievementVersionsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementVersionsLimit(200))
-				firstPage, err := client.GetGameCenterAchievementVersions(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center achievements v2 versions list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievementVersions(ctx, id, asc.WithGCAchievementVersionsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center achievements v2 versions list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterAchievementVersions(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 versions list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "achievement-id",
+		ParentUsage:          "Game Center achievement ID",
+		ParentType:           "gameCenterAchievements",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center achievements v2 versions list",
+		FetchErrorPrefix:     "game-center achievements v2 versions list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterAchievementVersions(ctx, achievementId, asc.WithGCAchievementVersionsLimit(limit), asc.WithGCAchievementVersionsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterAchievementVersionsV2GetCommand returns the achievement versions v2 get subcommand.
 func GameCenterAchievementVersionsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementVersions", "Game Center achievement version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center achievements v2 versions view --id \"VERSION_ID\"",
-		ShortHelp:  "View a Game Center achievement version (v2) by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center achievements v2 versions view --id \"VERSION_ID\"",
+		ShortHelp:   "View a Game Center achievement version (v2) by ID.",
 		LongHelp: `View a Game Center achievement version (v2) by ID.
 
 Examples:
   asc game-center achievements v2 versions view --id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 versions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAchievementVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 versions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center achievement version ID",
+		IDType:             "gameCenterAchievementVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements v2 versions view",
+		FetchErrorPrefix:   "game-center achievements v2 versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAchievementVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAchievementVersionsV2CreateCommand returns the achievement versions v2 create subcommand.
@@ -348,117 +281,50 @@ Examples:
 
 // GameCenterAchievementLocalizationsV2ListCommand returns the achievement localizations v2 list subcommand.
 func GameCenterAchievementLocalizationsV2ListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterAchievementVersions", "Game Center achievement version ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center achievements v2 localizations list --version-id \"VER_ID\"",
-		ShortHelp:  "List localizations for an achievement version (v2).",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center achievements v2 localizations list --version-id \"VER_ID\"",
+		ShortHelp:   "List localizations for an achievement version (v2).",
 		LongHelp: `List localizations for an achievement version (v2).
 
 Examples:
   asc game-center achievements v2 localizations list --version-id "VER_ID"
   asc game-center achievements v2 localizations list --version-id "VER_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center achievements v2 localizations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center achievements v2 localizations list: %v", err)
-			}
-
-			id := strings.TrimSpace(*versionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 localizations list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCAchievementLocalizationsOption{
-				asc.WithGCAchievementLocalizationsLimit(*limit),
-				asc.WithGCAchievementLocalizationsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementLocalizationsLimit(200))
-				firstPage, err := client.GetGameCenterAchievementVersionLocalizations(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center achievements v2 localizations list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievementVersionLocalizations(ctx, id, asc.WithGCAchievementLocalizationsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center achievements v2 localizations list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterAchievementVersionLocalizations(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 localizations list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "version-id",
+		ParentUsage:          "Game Center achievement version ID",
+		ParentType:           "gameCenterAchievementVersions",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center achievements v2 localizations list",
+		FetchErrorPrefix:     "game-center achievements v2 localizations list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterAchievementVersionLocalizations(ctx, versionId, asc.WithGCAchievementLocalizationsLimit(limit), asc.WithGCAchievementLocalizationsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterAchievementLocalizationsV2GetCommand returns the achievement localizations v2 get subcommand.
 func GameCenterAchievementLocalizationsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center achievements v2 localizations view --id \"LOC_ID\"",
-		ShortHelp:  "View a Game Center achievement localization (v2) by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center achievements v2 localizations view --id \"LOC_ID\"",
+		ShortHelp:   "View a Game Center achievement localization (v2) by ID.",
 		LongHelp: `View a Game Center achievement localization (v2) by ID.
 
 Examples:
   asc game-center achievements v2 localizations view --id "LOC_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 localizations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAchievementLocalizationV2(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 localizations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center achievement localization ID",
+		IDType:             "gameCenterAchievementLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements v2 localizations view",
+		FetchErrorPrefix:   "game-center achievements v2 localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAchievementLocalizationV2(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAchievementLocalizationsV2CreateCommand returns the achievement localizations v2 create subcommand.

@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -356,14 +357,16 @@ func TestWebAgreementsAcceptVerificationGetsFreshTimeout(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 	captureWebCommandOutput(t, func() {
-		if err := cmd.Exec(context.Background(), nil); err != nil {
-			t.Fatalf("Exec() error: %v", err)
+		var execErr error
+		synctest.Test(t, func(*testing.T) { execErr = cmd.Exec(context.Background(), nil) })
+		if execErr != nil {
+			t.Fatalf("Exec() error: %v", execErr)
 		}
 	})
 	if acceptDeadline.IsZero() || verifyDeadline.IsZero() {
 		t.Fatalf("deadlines accept=%v verify=%v, want both requests bounded by a timeout", acceptDeadline, verifyDeadline)
 	}
-	if verifyDeadline.Sub(acceptDeadline) < 20*time.Millisecond {
+	if verifyDeadline.Sub(acceptDeadline) != 30*time.Millisecond {
 		t.Fatalf("verification deadline %v is not fresh relative to accept deadline %v; the post-mutation read must get its own timeout", verifyDeadline, acceptDeadline)
 	}
 }

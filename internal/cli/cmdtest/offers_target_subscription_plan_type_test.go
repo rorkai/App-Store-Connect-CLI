@@ -1,13 +1,13 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 const targetPlanTypeFlag = "--target-subscription-plan-type"
@@ -62,42 +62,28 @@ func TestOfferCreateCommandsSendTargetSubscriptionPlanTypeOnlyWhenSet(t *testing
 				setupAuth(t)
 				t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-				originalTransport := http.DefaultTransport
-				t.Cleanup(func() { http.DefaultTransport = originalTransport })
+				reg := asctest.NewRegistry(t)
+				reg.Install()
+				reg.Register(asctest.POST(command.path), asctest.JSON(http.StatusCreated, `{"data":{"type":"offers","id":"offer-1"}}`))
 
-				posts := 0
-				http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					if req.Method != http.MethodPost || req.URL.Path != command.path {
-						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-					}
-					posts++
-					var payload struct {
-						Data struct {
-							Attributes map[string]any `json:"attributes"`
-						} `json:"data"`
-					}
-					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-						t.Fatalf("decode request: %v", err)
-					}
-					got, present := payload.Data.Attributes["targetSubscriptionPlanType"]
-					if present != (test.want != nil) || got != test.want {
-						t.Fatalf("targetSubscriptionPlanType = %#v (present %t), want %#v", got, present, test.want)
-					}
-					return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"offers","id":"offer-1"}}`), nil
-				})
-
-				root := RootCommand("1.2.3")
-				root.FlagSet.SetOutput(io.Discard)
-				captureOutput(t, func() {
-					if err := root.Parse(append(append([]string{}, command.args...), test.extraArgs...)); err != nil {
-						t.Fatalf("parse error: %v", err)
-					}
-					if err := root.Run(context.Background()); err != nil {
-						t.Fatalf("run error: %v", err)
-					}
-				})
-				if posts != 1 {
+				if _, _, err := runCommand(t, append(append([]string{}, command.args...), test.extraArgs...)); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+				requests := reg.Requests()
+				if posts := len(requests); posts != 1 {
 					t.Fatalf("expected one create request, got %d", posts)
+				}
+				var payload struct {
+					Data struct {
+						Attributes map[string]any `json:"attributes"`
+					} `json:"data"`
+				}
+				if err := json.Unmarshal(requests[0].Body, &payload); err != nil {
+					t.Fatalf("decode request: %v", err)
+				}
+				got, present := payload.Data.Attributes["targetSubscriptionPlanType"]
+				if present != (test.want != nil) || got != test.want {
+					t.Fatalf("targetSubscriptionPlanType = %#v (present %t), want %#v", got, present, test.want)
 				}
 			})
 		}
@@ -110,12 +96,7 @@ func TestOfferCreateCommandsRejectInvalidTargetSubscriptionPlanTypeBeforeHTTP(t 
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("validation must happen before HTTP: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	type command struct {
 		name string
@@ -171,28 +152,19 @@ func TestOfferListCommandsShowTargetSubscriptionPlanType(t *testing.T) {
 				setupAuth(t)
 				t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-				originalTransport := http.DefaultTransport
-				t.Cleanup(func() { http.DefaultTransport = originalTransport })
-				http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					if req.Method != http.MethodGet || req.URL.Path != test.path {
-						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-					}
-					if got := req.URL.Query().Get("fields[winBackOffers]"); got != test.wantFields {
-						t.Fatalf("fields[winBackOffers] = %q, want %q", got, test.wantFields)
-					}
-					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"`+test.resource+`","id":"offer-1","attributes":{"targetSubscriptionPlanType":"MONTHLY"}}],"links":{}}`), nil
-				})
+				var query []string
+				if test.wantFields != "" {
+					query = append(query, "fields[winBackOffers]="+test.wantFields)
+				}
+				reg := asctest.NewRegistry(t)
+				reg.Install()
+				reg.Register(asctest.GET(test.path, query...),
+					asctest.JSON(http.StatusOK, `{"data":[{"type":"`+test.resource+`","id":"offer-1","attributes":{"targetSubscriptionPlanType":"MONTHLY"}}],"links":{}}`))
 
-				root := RootCommand("1.2.3")
-				root.FlagSet.SetOutput(io.Discard)
-				stdout, _ := captureOutput(t, func() {
-					if err := root.Parse(append(append([]string{}, test.args...), "--output", format)); err != nil {
-						t.Fatalf("parse error: %v", err)
-					}
-					if err := root.Run(context.Background()); err != nil {
-						t.Fatalf("run error: %v", err)
-					}
-				})
+				stdout, _, err := runCommand(t, append(append([]string{}, test.args...), "--output", format))
+				if err != nil {
+					t.Fatalf("run error: %v", err)
+				}
 
 				if format == "json" {
 					var envelope struct {
@@ -239,46 +211,32 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesScopesExistingOffers
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/subscriptions/8000000001/subscriptionAvailability"),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1"}}`))
+			reg.Register(asctest.GET("/v1/subscriptionAvailabilities/avail-1/availableTerritories", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{}}`))
+			reg.Register(asctest.GET("/v1/subscriptions/8000000001/introductoryOffers", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionIntroductoryOffers","id":"intro-existing",`+test.existing+`"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{}}`))
+			if test.wantCreated == 1 {
+				reg.Register(asctest.POST("/v1/subscriptionIntroductoryOffers").JSONBody(`{"data":{"type":"subscriptionIntroductoryOffers","attributes":{"duration":"ONE_MONTH","offerMode":"FREE_TRIAL","numberOfPeriods":1,"targetSubscriptionPlanType":"MONTHLY"},"relationships":{"subscription":{"data":{"type":"subscriptions","id":"8000000001"}},"territory":{"data":{"type":"territories","id":"USA"}}}}}`),
+					asctest.JSON(http.StatusCreated, `{"data":{"type":"subscriptionIntroductoryOffers","id":"intro-new"}}`))
+			}
 
-			posts := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/subscriptionAvailability":
-					return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1"}}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionAvailabilities/avail-1/availableTerritories":
-					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{}}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/introductoryOffers":
-					return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionIntroductoryOffers","id":"intro-existing",`+test.existing+`"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{}}`), nil
-				case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionIntroductoryOffers":
-					posts++
-					return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionIntroductoryOffers","id":"intro-new"}}`), nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, _ := captureOutput(t, func() {
-				args := []string{
-					"subscriptions", "offers", "introductory", "create",
-					"--subscription-id", "8000000001",
-					"--offer-duration", "ONE_MONTH",
-					"--offer-mode", "FREE_TRIAL",
-					"--number-of-periods", "1",
-					"--all-territories",
-					"--output", "json",
-				}
-				if err := root.Parse(append(args, test.extraArgs...)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			args := []string{
+				"subscriptions", "offers", "introductory", "create",
+				"--subscription-id", "8000000001",
+				"--offer-duration", "ONE_MONTH",
+				"--offer-mode", "FREE_TRIAL",
+				"--number-of-periods", "1",
+				"--all-territories",
+				"--output", "json",
+			}
+			stdout, _, err := runCommand(t, append(args, test.extraArgs...))
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			var summary struct {
 				Created int `json:"created"`
@@ -286,6 +244,12 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesScopesExistingOffers
 			}
 			if err := json.Unmarshal([]byte(stdout), &summary); err != nil {
 				t.Fatalf("parse JSON summary: %v", err)
+			}
+			posts := 0
+			for _, req := range reg.Requests() {
+				if req.Method == http.MethodPost {
+					posts++
+				}
 			}
 			if summary.Created != test.wantCreated || summary.Skipped != test.wantSkipped || posts != test.wantCreated {
 				t.Fatalf("created=%d skipped=%d posts=%d, want created=%d skipped=%d", summary.Created, summary.Skipped, posts, test.wantCreated, test.wantSkipped)
@@ -313,50 +277,29 @@ func TestSubscriptionsIntroductoryOffersImportTargetSubscriptionPlanType(t *test
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/subscriptions/8000000003/introductoryOffers", "fields[subscriptionIntroductoryOffers]=startDate,endDate,duration,offerMode,numberOfPeriods,targetSubscriptionPlanType,territory,subscriptionPricePoint", "include=territory,subscriptionPricePoint", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
+			for index, planType := range test.want {
+				territory := []string{"USA", "FRA"}[index]
+				reg.Register(asctest.POST("/v1/subscriptionIntroductoryOffers").JSONBody(`{"data":{"type":"subscriptionIntroductoryOffers","attributes":{"duration":"ONE_WEEK","offerMode":"FREE_TRIAL","numberOfPeriods":1,"targetSubscriptionPlanType":"`+planType+`"},"relationships":{"subscription":{"data":{"type":"subscriptions","id":"8000000003"}},"territory":{"data":{"type":"territories","id":"`+territory+`"}}}}}`),
+					asctest.JSON(http.StatusCreated, `{"data":{"type":"subscriptionIntroductoryOffers","id":"offer-1"}}`))
+			}
 
-			var sent []string
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000003/introductoryOffers" {
-					return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
-				}
-				if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionIntroductoryOffers" {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				var payload struct {
-					Data struct {
-						Attributes struct {
-							TargetSubscriptionPlanType string `json:"targetSubscriptionPlanType"`
-						} `json:"attributes"`
-					} `json:"data"`
-				}
-				if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-					t.Fatalf("decode request: %v", err)
-				}
-				sent = append(sent, payload.Data.Attributes.TargetSubscriptionPlanType)
-				return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionIntroductoryOffers","id":"offer-1"}}`), nil
-			})
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, _ := captureOutput(t, func() {
-				args := []string{
-					"subscriptions", "offers", "introductory", "import",
-					"--subscription-id", "8000000003",
-					"--input", writeTempIntroOffersCSV(t, test.csv),
-					"--offer-duration", "ONE_WEEK",
-					"--offer-mode", "FREE_TRIAL",
-					"--number-of-periods", "1",
-					"--confirm",
-				}
-				if err := root.Parse(append(args, test.extraArgs...)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			args := []string{
+				"subscriptions", "offers", "introductory", "import",
+				"--subscription-id", "8000000003",
+				"--input", writeTempIntroOffersCSV(t, test.csv),
+				"--offer-duration", "ONE_WEEK",
+				"--offer-mode", "FREE_TRIAL",
+				"--number-of-periods", "1",
+				"--confirm",
+			}
+			stdout, _, err := runCommand(t, append(args, test.extraArgs...))
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			var summary struct {
 				Results []struct {
@@ -365,9 +308,6 @@ func TestSubscriptionsIntroductoryOffersImportTargetSubscriptionPlanType(t *test
 			}
 			if err := json.Unmarshal([]byte(stdout), &summary); err != nil {
 				t.Fatalf("parse JSON summary: %v", err)
-			}
-			if strings.Join(sent, ",") != strings.Join(test.want, ",") {
-				t.Fatalf("sent plan types %v, want %v", sent, test.want)
 			}
 			if len(summary.Results) != len(test.want) {
 				t.Fatalf("results = %+v, want %d", summary.Results, len(test.want))
@@ -386,12 +326,7 @@ func TestSubscriptionsIntroductoryOffersImportRejectsInvalidRowPlanTypeBeforeHTT
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("validation must happen before HTTP: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	assertUsageExit(t, []string{
 		"subscriptions", "offers", "introductory", "import",

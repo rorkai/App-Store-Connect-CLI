@@ -1,14 +1,12 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
-	"reflect"
-	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestBetaGroupsUpdateSendsOnlyRequestedPlatformAvailability(t *testing.T) {
@@ -58,54 +56,23 @@ func TestBetaGroupsUpdateSendsOnlyRequestedPlatformAvailability(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
+			attributes, err := json.Marshal(tt.want)
+			if err != nil {
+				t.Fatalf("encode attributes: %v", err)
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH("/v1/betaGroups/bg-1").JSONBody(`{"data":{"type":"betaGroups","id":"bg-1","attributes":`+string(attributes)+`}}`),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Group"}}}`))
 
-			requests := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requests++
-				if req.Method != http.MethodPatch || req.URL.Path != "/v1/betaGroups/bg-1" {
-					t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-
-				var payload struct {
-					Data struct {
-						Attributes map[string]any `json:"attributes"`
-					} `json:"data"`
-				}
-				if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-					t.Fatalf("decode body error: %v", err)
-				}
-				if !reflect.DeepEqual(payload.Data.Attributes, tt.want) {
-					t.Errorf("attributes = %#v, want %#v", payload.Data.Attributes, tt.want)
-				}
-
-				response := `{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Group"}}}`
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(response)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			_, stderr := captureOutput(t, func() {
-				args := append([]string{"testflight", "groups", "edit", "--id", "bg-1"}, tt.args...)
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			_, stderr, err := runCommand(t, append([]string{"testflight", "groups", "edit", "--id", "bg-1"}, tt.args...))
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if requests != 1 {
+			if requests := len(reg.Requests()); requests != 1 {
 				t.Fatalf("requests = %d, want 1", requests)
 			}
 		})

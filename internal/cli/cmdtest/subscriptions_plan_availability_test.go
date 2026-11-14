@@ -10,6 +10,7 @@ import (
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSubscriptionsPricingPlanAvailabilityValidationErrors(t *testing.T) {
@@ -112,14 +113,8 @@ func TestSubscriptionsPricingPlanAvailabilityValidationErrors(t *testing.T) {
 func TestSubscriptionsPricingPlanAvailabilitySetRejectsConfirmFalseAfterBoolean(t *testing.T) {
 	setupAuth(t)
 
-	var patched bool
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method == http.MethodPatch {
-			patched = true
-		}
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -141,7 +136,7 @@ func TestSubscriptionsPricingPlanAvailabilitySetRejectsConfirmFalseAfterBoolean(
 			t.Fatalf("expected a --confirm rejection, got %v", err)
 		}
 	})
-	if patched {
+	if len(reg.Requests()) != 0 {
 		t.Fatal("must not PATCH when --confirm false is supplied")
 	}
 	if stdout != "" {
@@ -152,41 +147,22 @@ func TestSubscriptionsPricingPlanAvailabilitySetRejectsConfirmFalseAfterBoolean(
 func TestSubscriptionsPricingPlanAvailabilityShowIncludesTerritories(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/planAvailabilities" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-		if got := req.URL.Query().Get("include"); got != "availableTerritories" {
-			t.Fatalf("expected include=availableTerritories, got %q", got)
-		}
-		if got := req.URL.Query().Get("limit[availableTerritories]"); got != "50" {
-			t.Fatalf("expected limit[availableTerritories]=50, got %q", got)
-		}
-		body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/planAvailabilities", "include=availableTerritories", "limit[availableTerritories]=50"),
+		asctest.JSON(http.StatusOK, `{
 			"data":[{
 				"type":"subscriptionPlanAvailabilities","id":"plan-upfront",
 				"attributes":{"planType":"UPFRONT","availableInNewTerritories":true},
 				"relationships":{"availableTerritories":{"data":[{"type":"territories","id":"USA"}]}}
 			}],
 			"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}]
-		}`
-		return jsonResponse(http.StatusOK, body)
-	}))
+		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "plan-availability", "show",
-			"--subscription-id", "8000000001",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"subscriptions", "pricing", "plan-availability", "show",
+		"--subscription-id", "8000000001",
+		"--output", "json",
 	})
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
@@ -323,34 +299,20 @@ func TestSubscriptionsPricingPlanAvailabilitySetAppliesTerritoryDiff(t *testing.
 func TestSubscriptionsPricingPlanAvailabilitySetIsNoOpWhenCurrent(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.URL.Path == "/v1/subscriptions/8000000001/planAvailabilities" && req.Method == http.MethodGet:
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-upfront","attributes":{"planType":"UPFRONT","availableInNewTerritories":false}}]}`)
-		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-upfront/relationships/availableTerritories" && req.Method == http.MethodGet:
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"CAN"},{"type":"territories","id":"USA"}],"links":{"next":""}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/planAvailabilities"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-upfront","attributes":{"planType":"UPFRONT","availableInNewTerritories":false}}]}`))
+	reg.Register(asctest.GET("/v1/subscriptionPlanAvailabilities/plan-upfront/relationships/availableTerritories", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"territories","id":"CAN"},{"type":"territories","id":"USA"}],"links":{"next":""}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "plan-availability", "set",
-			"--subscription-id", "8000000001",
-			"--plan-type", "UPFRONT",
-			"--territories", "Canada,United States",
-			"--confirm",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"subscriptions", "pricing", "plan-availability", "set",
+		"--subscription-id", "8000000001",
+		"--plan-type", "UPFRONT",
+		"--territories", "Canada,United States",
+		"--confirm",
+		"--output", "json",
 	})
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
@@ -500,34 +462,20 @@ func TestSubscriptionsPricingPlanAvailabilitySetFailsWhenReadbackDiffers(t *test
 func TestSubscriptionsPricingPlanAvailabilitySetRendersTableReceipt(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.URL.Path == "/v1/subscriptions/8000000001/planAvailabilities" && req.Method == http.MethodGet:
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-upfront","attributes":{"planType":"UPFRONT","availableInNewTerritories":false}}]}`)
-		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-upfront/relationships/availableTerritories" && req.Method == http.MethodGet:
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/planAvailabilities"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-upfront","attributes":{"planType":"UPFRONT","availableInNewTerritories":false}}]}`))
+	reg.Register(asctest.GET("/v1/subscriptionPlanAvailabilities/plan-upfront/relationships/availableTerritories", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "plan-availability", "set",
-			"--subscription-id", "8000000001",
-			"--plan-type", "UPFRONT",
-			"--territories", "United States",
-			"--confirm",
-			"--output", "table",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"subscriptions", "pricing", "plan-availability", "set",
+		"--subscription-id", "8000000001",
+		"--plan-type", "UPFRONT",
+		"--territories", "United States",
+		"--confirm",
+		"--output", "table",
 	})
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
@@ -617,12 +565,10 @@ func TestSubscriptionsPricingPlanAvailabilitySetFailsWhenAttributeReadbackDiffer
 func TestSubscriptionsPricingPlanAvailabilityShowTableIncludesTerritories(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/planAvailabilities" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-		body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/planAvailabilities", "include=availableTerritories", "limit[availableTerritories]=50"),
+		asctest.JSON(http.StatusOK, `{
 			"data":[{
 				"type":"subscriptionPlanAvailabilities","id":"plan-upfront",
 				"attributes":{"planType":"UPFRONT","availableInNewTerritories":true},
@@ -633,23 +579,12 @@ func TestSubscriptionsPricingPlanAvailabilityShowTableIncludesTerritories(t *tes
 					}
 				}
 			}]
-		}`
-		return jsonResponse(http.StatusOK, body)
-	}))
+		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "plan-availability", "show",
-			"--subscription-id", "8000000001",
-			"--output", "table",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"subscriptions", "pricing", "plan-availability", "show",
+		"--subscription-id", "8000000001",
+		"--output", "table",
 	})
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
@@ -740,49 +675,24 @@ func TestSubscriptionsPricingPlanAvailabilityAvailableTerritoriesPaginatesPastIn
 	setupAuth(t)
 
 	const secondPage = "https://api.appstoreconnect.apple.com/v1/subscriptionPlanAvailabilities/plan-upfront/availableTerritories?cursor=AQ&limit=200"
-	requests := 0
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		switch requests {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionPlanAvailabilities/plan-upfront/availableTerritories" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			if got := req.URL.Query().Get("limit"); got != "200" {
-				t.Fatalf("expected limit=200, got %q", got)
-			}
-			return jsonResponse(http.StatusOK, `{
-				"data":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
-				"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptionPlanAvailabilities/plan-upfront/availableTerritories","next":"`+secondPage+`"}
-			}`)
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondPage {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			return jsonResponse(http.StatusOK, `{
-				"data":[{"type":"territories","id":"NOR","attributes":{"currency":"NOK"}}],
-				"links":{"self":"`+secondPage+`"}
-			}`)
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptionPlanAvailabilities/plan-upfront/availableTerritories", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
+			"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptionPlanAvailabilities/plan-upfront/availableTerritories","next":"`+secondPage+`"}
+		}`))
+	reg.Register(asctest.GET("/v1/subscriptionPlanAvailabilities/plan-upfront/availableTerritories", "cursor=AQ", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{"type":"territories","id":"NOR","attributes":{"currency":"NOK"}}],
+			"links":{"self":"`+secondPage+`"}
+		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "plan-availability", "available-territories",
-			"--plan-availability-id", "plan-upfront",
-			"--paginate",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"subscriptions", "pricing", "plan-availability", "available-territories",
+		"--plan-availability-id", "plan-upfront",
+		"--paginate",
+		"--output", "json",
 	})
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
@@ -859,27 +769,15 @@ func TestSubscriptionsPricingPlanAvailabilitySetAcceptsSpacedBooleanAnywhere(t *
 func TestSubscriptionsPricingMonthlyCommitmentListTableOmitsTerritoriesColumn(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/planAvailabilities" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-		return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-monthly","attributes":{"planType":"MONTHLY","availableInNewTerritories":false}}]}`)
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/planAvailabilities"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-monthly","attributes":{"planType":"MONTHLY","availableInNewTerritories":false}}]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "monthly-commitment", "list",
-			"--subscription-id", "8000000001",
-			"--output", "table",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"subscriptions", "pricing", "monthly-commitment", "list",
+		"--subscription-id", "8000000001",
+		"--output", "table",
 	})
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)

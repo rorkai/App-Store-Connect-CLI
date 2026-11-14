@@ -125,43 +125,25 @@ Examples:
 
 // PromotedPurchasesGetCommand returns the promoted purchases get subcommand.
 func PromotedPurchasesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "promoted-purchase-id", "promotedPurchases", "Promoted purchase ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc promoted-purchases view --promoted-purchase-id PROMO_ID",
-		ShortHelp:  "View a promoted purchase by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc promoted-purchases view --promoted-purchase-id PROMO_ID",
+		ShortHelp:   "View a promoted purchase by ID.",
 		LongHelp: `View a promoted purchase by ID.
 
 Examples:
   asc promoted-purchases view --promoted-purchase-id "PROMO_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--promoted-purchase-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("promoted-purchases view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetPromotedPurchase(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("promoted-purchases view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "promoted-purchase-id",
+		IDUsage:            "Promoted purchase ID",
+		IDType:             "promotedPurchases",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "promoted-purchases view",
+		FetchErrorPrefix:   "promoted-purchases view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetPromotedPurchase(ctx, id)
 		},
-	}
+	})
 }
 
 // PromotedPurchasesCreateCommand returns the promoted purchases create subcommand.

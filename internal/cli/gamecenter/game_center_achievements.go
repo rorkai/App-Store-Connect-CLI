@@ -158,50 +158,34 @@ Examples:
 
 // GameCenterAchievementsGetCommand returns the achievements get subcommand.
 func GameCenterAchievementsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	var v2 *bool
 
-	achievementID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievements", "Game Center achievement ID")
-	v2 := fs.Bool("v2", false, "Use v2 achievements endpoint")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center achievements view --id \"ACHIEVEMENT_ID\" [--v2]",
-		ShortHelp:  "View a Game Center achievement by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center achievements view --id \"ACHIEVEMENT_ID\" [--v2]",
+		ShortHelp:   "View a Game Center achievement by ID.",
 		LongHelp: `View a Game Center achievement by ID.
 
 Examples:
   asc game-center achievements view --id "ACHIEVEMENT_ID"
   asc game-center achievements view --id "ACHIEVEMENT_ID" --v2`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*achievementID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			var resp *asc.GameCenterAchievementResponse
-			if *v2 {
-				resp, err = client.GetGameCenterAchievementV2(requestCtx, id)
-			} else {
-				resp, err = client.GetGameCenterAchievement(requestCtx, id)
-			}
-			if err != nil {
-				return fmt.Errorf("game-center achievements view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center achievement ID",
+		IDType:             "gameCenterAchievements",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			v2 = fs.Bool("v2", false, "Use v2 achievements endpoint")
+			return nil
 		},
-	}
+		ErrorPrefix:      "game-center achievements view",
+		FetchErrorPrefix: "game-center achievements view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			if *v2 {
+				return client.GetGameCenterAchievementV2(ctx, id)
+			}
+			return client.GetGameCenterAchievement(ctx, id)
+		},
+	})
 }
 
 // GameCenterAchievementsCreateCommand returns the achievements create subcommand.
@@ -610,118 +594,51 @@ Examples:
 
 // GameCenterAchievementLocalizationsListCommand returns the localizations list subcommand.
 func GameCenterAchievementLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	achievementID := shared.BindResourceIDFlag(fs, "achievement-id", "gameCenterAchievements", "Game Center achievement ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center achievements localizations list --achievement-id \"ACHIEVEMENT_ID\"",
-		ShortHelp:  "List localizations for a Game Center achievement.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center achievements localizations list --achievement-id \"ACHIEVEMENT_ID\"",
+		ShortHelp:   "List localizations for a Game Center achievement.",
 		LongHelp: `List localizations for a Game Center achievement.
 
 Examples:
   asc game-center achievements localizations list --achievement-id "ACHIEVEMENT_ID"
   asc game-center achievements localizations list --achievement-id "ACHIEVEMENT_ID" --limit 50
   asc game-center achievements localizations list --achievement-id "ACHIEVEMENT_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center achievements localizations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center achievements localizations list: %v", err)
-			}
-
-			achID := strings.TrimSpace(*achievementID)
-			if achID == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--achievement-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCAchievementLocalizationsOption{
-				asc.WithGCAchievementLocalizationsLimit(*limit),
-				asc.WithGCAchievementLocalizationsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementLocalizationsLimit(200))
-				firstPage, err := client.GetGameCenterAchievementLocalizations(requestCtx, achID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center achievements localizations list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievementLocalizations(ctx, achID, asc.WithGCAchievementLocalizationsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center achievements localizations list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterAchievementLocalizations(requestCtx, achID, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "achievement-id",
+		ParentUsage:          "Game Center achievement ID",
+		ParentType:           "gameCenterAchievements",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center achievements localizations list",
+		FetchErrorPrefix:     "game-center achievements localizations list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterAchievementLocalizations(ctx, achievementId, asc.WithGCAchievementLocalizationsLimit(limit), asc.WithGCAchievementLocalizationsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterAchievementLocalizationsGetCommand returns the localizations get subcommand.
 func GameCenterAchievementLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center achievements localizations view --id \"LOC_ID\"",
-		ShortHelp:  "View a Game Center achievement localization by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center achievements localizations view --id \"LOC_ID\"",
+		ShortHelp:   "View a Game Center achievement localization by ID.",
 		LongHelp: `View a Game Center achievement localization by ID.
 
 Examples:
   asc game-center achievements localizations view --id "LOC_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAchievementLocalization(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center achievement localization ID",
+		IDType:             "gameCenterAchievementLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements localizations view",
+		FetchErrorPrefix:   "game-center achievements localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAchievementLocalization(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAchievementLocalizationsCreateCommand returns the localizations create subcommand.
@@ -946,77 +863,29 @@ Examples:
 
 // GameCenterAchievementReleasesListCommand returns the achievement releases list subcommand.
 func GameCenterAchievementReleasesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	achievementID := shared.BindResourceIDFlag(fs, "achievement-id", "gameCenterAchievements", "Game Center achievement ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center achievements releases list --achievement-id \"ACHIEVEMENT_ID\"",
-		ShortHelp:  "List releases for a Game Center achievement.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center achievements releases list --achievement-id \"ACHIEVEMENT_ID\"",
+		ShortHelp:   "List releases for a Game Center achievement.",
 		LongHelp: `List releases for a Game Center achievement.
 
 Examples:
   asc game-center achievements releases list --achievement-id "ACHIEVEMENT_ID"
   asc game-center achievements releases list --achievement-id "ACHIEVEMENT_ID" --limit 50
   asc game-center achievements releases list --achievement-id "ACHIEVEMENT_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center achievements releases list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center achievements releases list: %v", err)
-			}
-
-			id := strings.TrimSpace(*achievementID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--achievement-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements releases list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCAchievementReleasesOption{
-				asc.WithGCAchievementReleasesLimit(*limit),
-				asc.WithGCAchievementReleasesNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementReleasesLimit(200))
-				firstPage, err := client.GetGameCenterAchievementReleases(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center achievements releases list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievementReleases(ctx, id, asc.WithGCAchievementReleasesNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center achievements releases list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterAchievementReleases(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center achievements releases list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "achievement-id",
+		ParentUsage:          "Game Center achievement ID",
+		ParentType:           "gameCenterAchievements",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center achievements releases list",
+		FetchErrorPrefix:     "game-center achievements releases list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterAchievementReleases(ctx, achievementId, asc.WithGCAchievementReleasesLimit(limit), asc.WithGCAchievementReleasesNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterAchievementReleasesCreateCommand returns the achievement releases create subcommand.
@@ -1200,43 +1069,23 @@ Examples:
 
 // GameCenterAchievementImagesGetCommand returns the achievement images get subcommand.
 func GameCenterAchievementImagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementImages", "Game Center achievement image ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center achievements images view --id \"IMAGE_ID\"",
-		ShortHelp:  "View a Game Center achievement image by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center achievements images view --id \"IMAGE_ID\"",
+		ShortHelp:   "View a Game Center achievement image by ID.",
 		LongHelp: `View a Game Center achievement image by ID.
 
 Examples:
   asc game-center achievements images view --id "IMAGE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*imageID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements images view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAchievementImage(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center achievements images view: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center achievement image ID",
+		IDType:             "gameCenterAchievementImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements images view",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAchievementImage(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAchievementImagesDeleteCommand returns the achievement images delete subcommand.
@@ -1313,43 +1162,24 @@ Examples:
 
 // GameCenterAchievementGroupAchievementGetCommand returns the group achievement get subcommand.
 func GameCenterAchievementGroupAchievementGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	achievementID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievements", "Game Center achievement ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center achievements group-achievement view --id \"ACHIEVEMENT_ID\"",
-		ShortHelp:  "View a group achievement by achievement ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center achievements group-achievement view --id \"ACHIEVEMENT_ID\"",
+		ShortHelp:   "View a group achievement by achievement ID.",
 		LongHelp: `View a group achievement by achievement ID.
 
 Examples:
   asc game-center achievements group-achievement view --id "ACHIEVEMENT_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*achievementID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements group-achievement view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAchievementGroupAchievement(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center achievements group-achievement view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center achievement ID",
+		IDType:             "gameCenterAchievements",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements group-achievement view",
+		FetchErrorPrefix:   "game-center achievements group-achievement view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAchievementGroupAchievement(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAchievementLocalizationImageCommand returns the localization image command group.
@@ -1377,43 +1207,24 @@ Examples:
 
 // GameCenterAchievementLocalizationImageGetCommand returns the localization image get subcommand.
 func GameCenterAchievementLocalizationImageGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center achievements localizations image view --id \"LOC_ID\"",
-		ShortHelp:  "View an achievement localization image.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center achievements localizations image view --id \"LOC_ID\"",
+		ShortHelp:   "View an achievement localization image.",
 		LongHelp: `View an achievement localization image.
 
 Examples:
   asc game-center achievements localizations image view --id "LOC_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations image view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAchievementLocalizationImage(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations image view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center achievement localization ID",
+		IDType:             "gameCenterAchievementLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements localizations image view",
+		FetchErrorPrefix:   "game-center achievements localizations image view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAchievementLocalizationImage(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAchievementLocalizationAchievementCommand returns the localization achievement command group.
@@ -1441,41 +1252,22 @@ Examples:
 
 // GameCenterAchievementLocalizationAchievementGetCommand returns the localization achievement get subcommand.
 func GameCenterAchievementLocalizationAchievementGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center achievements localizations achievement view --id \"LOC_ID\"",
-		ShortHelp:  "View an achievement for a localization.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center achievements localizations achievement view --id \"LOC_ID\"",
+		ShortHelp:   "View an achievement for a localization.",
 		LongHelp: `View an achievement for a Game Center achievement localization.
 
 Examples:
   asc game-center achievements localizations achievement view --id "LOC_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations achievement view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAchievementLocalizationAchievement(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations achievement view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center achievement localization ID",
+		IDType:             "gameCenterAchievementLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements localizations achievement view",
+		FetchErrorPrefix:   "game-center achievements localizations achievement view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAchievementLocalizationAchievement(ctx, id)
 		},
-	}
+	})
 }

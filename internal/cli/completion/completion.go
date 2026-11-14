@@ -42,8 +42,7 @@ func CompletionCommand(resolveCommands func() []*ffcli.Command, resolveRootFlags
 
 		s := strings.ToLower(strings.TrimSpace(*shell))
 		if s == "" {
-			fmt.Fprintln(os.Stderr, "Error: --shell is required")
-			return shared.MissingRequiredUsageError("--shell")
+			return shared.RequiredFlag("--shell")
 		}
 		if s != "bash" && s != "zsh" && s != "fish" {
 			fmt.Fprintf(os.Stderr, "Error: unsupported shell: %s\n", shared.SanitizeTerminal(s))

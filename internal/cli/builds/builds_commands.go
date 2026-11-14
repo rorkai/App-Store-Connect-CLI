@@ -716,8 +716,8 @@ Examples:
 			}
 
 			opts := []asc.BuildsOption{
-				asc.WithBuildsLimit(*limit),
-				asc.WithBuildsNextURL(nextValue),
+				asc.Limit[asc.BuildsOption](*limit),
+				asc.NextURL[asc.BuildsOption](nextValue),
 				asc.WithBuildsInclude(includeValues),
 				asc.WithIncludedFields[asc.BuildsOption](included),
 			}
@@ -744,14 +744,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBuildsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BuildsOption](200))
 				builds, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuilds(ctx, resolvedAppID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBuilds(ctx, resolvedAppID, asc.WithBuildsNextURL(nextURL))
+						return client.GetBuilds(ctx, resolvedAppID, asc.NextURL[asc.BuildsOption](nextURL))
 					},
 				)
 				if err != nil {

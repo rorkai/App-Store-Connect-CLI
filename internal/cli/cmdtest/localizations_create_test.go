@@ -9,15 +9,11 @@ import (
 	"testing"
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestLocalizationsCreateSuccess(t *testing.T) {
 	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
 
 	var seenPayload struct {
 		Data struct {
@@ -38,58 +34,23 @@ func TestLocalizationsCreateSuccess(t *testing.T) {
 		} `json:"data"`
 	}
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			if err := json.NewDecoder(req.Body).Decode(&seenPayload); err != nil {
-				t.Fatalf("decode payload: %v", err)
-			}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"ja","description":"Hello","keywords":"foo,bar","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"ja","description":"Hello","keywords":"foo,bar","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}}`))
 
-			body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"ja","description":"Hello","keywords":"foo,bar","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"localizations", "create",
+		"--version", "version-1",
+		"--locale", "ja",
+		"--description", "  Hello  ",
+		"--keywords", "foo,bar",
+		"--support-url", " https://example.com/support ",
+		"--whats-new", " Bug fixes ",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"localizations", "create",
-			"--version", "version-1",
-			"--locale", "ja",
-			"--description", "  Hello  ",
-			"--keywords", "foo,bar",
-			"--support-url", " https://example.com/support ",
-			"--whats-new", " Bug fixes ",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -111,6 +72,13 @@ func TestLocalizationsCreateSuccess(t *testing.T) {
 	}
 	if out.Data.Attributes.Locale != "ja" {
 		t.Fatalf("expected locale ja, got %q", out.Data.Attributes.Locale)
+	}
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPost {
+			if err := json.Unmarshal(req.Body, &seenPayload); err != nil {
+				t.Fatalf("decode payload: %v", err)
+			}
+		}
 	}
 	if seenPayload.Data.Relationships.AppStoreVersion.Data.ID != "version-1" {
 		t.Fatalf("expected version relationship version-1, got %q", seenPayload.Data.Relationships.AppStoreVersion.Data.ID)
@@ -195,47 +163,29 @@ func TestLocalizationsCreateSubmitReadinessWarnings(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-					return jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"`+test.createdID+`","attributes":`+test.createdAttrs+`}}`)
-				case test.versionStatus != 0 && req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-					if test.versionStatus != http.StatusOK {
-						return jsonResponse(test.versionStatus, `{"errors":[{"status":"500","code":"INTERNAL_SERVER_ERROR","title":"Internal Server Error"}]}`)
-					}
-					if got := req.URL.Query().Get("include"); got != "app" {
-						t.Fatalf("expected include=app, got %q", got)
-					}
-					return jsonResponse(http.StatusOK, versionWithApp)
-				case test.releasedBody != "" && req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-					query := req.URL.Query()
-					if !isReleasedVersionStateQuery(query) {
-						t.Fatalf("expected released-state filter, got %q", req.URL.RawQuery)
-					}
-					if got := query.Get("filter[platform]"); got != "IOS" {
-						t.Fatalf("expected platform filter IOS, got %q", got)
-					}
-					if got := query.Get("limit"); got != "1" {
-						t.Fatalf("expected limit=1, got %q", got)
-					}
-					return jsonResponse(http.StatusOK, test.releasedBody)
-				default:
-					t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-					return nil, nil
-				}
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.POST("/v1/appStoreVersionLocalizations"),
+				asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"`+test.createdID+`","attributes":`+test.createdAttrs+`}}`))
+			if test.versionStatus == http.StatusOK {
+				reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, versionWithApp))
+			} else if test.versionStatus != 0 {
+				reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"),
+					asctest.JSON(test.versionStatus, `{"errors":[{"status":"500","code":"INTERNAL_SERVER_ERROR","title":"Internal Server Error"}]}`))
+			}
+			if test.releasedBody != "" {
+				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"),
+					asctest.JSON(http.StatusOK, test.releasedBody))
+			}
+			if test.releasedBody == noReleased {
+				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"),
+					asctest.JSON(http.StatusOK, test.releasedBody))
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(append([]string{"localizations", "create", "--version", "version-1"}, test.args...)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, append([]string{"localizations", "create", "--version", "version-1"}, test.args...))
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if test.wantEmptyStderr && stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -264,17 +214,8 @@ func TestLocalizationsCreateSubmitReadinessWarnings(t *testing.T) {
 func TestLocalizationsCreate_InvalidLocaleReturnsUsageError(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
@@ -293,7 +234,7 @@ func TestLocalizationsCreate_InvalidLocaleReturnsUsageError(t *testing.T) {
 	if !strings.Contains(stderr, `invalid locale "not_a_locale"`) {
 		t.Fatalf("expected invalid locale error, got %q", stderr)
 	}
-	if requestCount != 0 {
+	if requestCount := len(reg.Requests()); requestCount != 0 {
 		t.Fatalf("expected no HTTP requests, got %d", requestCount)
 	}
 }
@@ -301,38 +242,11 @@ func TestLocalizationsCreate_InvalidLocaleReturnsUsageError(t *testing.T) {
 func TestLocalizationsCreate_NormalizesKnownLocaleCodes(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	var seenLocale string
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			var payload struct {
-				Data struct {
-					Attributes struct {
-						Locale string `json:"locale"`
-					} `json:"attributes"`
-				} `json:"data"`
-			}
-			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-				t.Fatalf("decode payload: %v", err)
-			}
-			seenLocale = payload.Data.Attributes.Locale
-
-			body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Updated app","keywords":"timer,focus","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
-		}
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"en-US","description":"Updated app","keywords":"timer,focus","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Updated app","keywords":"timer,focus","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		root := RootCommand("1.2.3")
@@ -360,6 +274,19 @@ func TestLocalizationsCreate_NormalizesKnownLocaleCodes(t *testing.T) {
 	if !strings.Contains(stdout, `"locale":"en-US"`) {
 		t.Fatalf("expected canonicalized locale in output, got %q", stdout)
 	}
+	for _, req := range reg.Requests() {
+		var payload struct {
+			Data struct {
+				Attributes struct {
+					Locale string `json:"locale"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(req.Body, &payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		seenLocale = payload.Data.Attributes.Locale
+	}
 	if seenLocale != "en-US" {
 		t.Fatalf("expected request locale en-US, got %q", seenLocale)
 	}
@@ -368,17 +295,8 @@ func TestLocalizationsCreate_NormalizesKnownLocaleCodes(t *testing.T) {
 func TestLocalizationsCreate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
@@ -399,7 +317,7 @@ func TestLocalizationsCreate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T
 			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
 		}
 	}
-	if requestCount != 0 {
+	if requestCount := len(reg.Requests()); requestCount != 0 {
 		t.Fatalf("expected no HTTP requests, got %d", requestCount)
 	}
 }
@@ -407,36 +325,11 @@ func TestLocalizationsCreate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T
 func TestLocalizationsCreate_AllowsForwardCompatibleLocaleCodes(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	var seenLocale string
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost || req.URL.Path != "/v1/appStoreVersionLocalizations" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-
-		var payload struct {
-			Data struct {
-				Attributes struct {
-					Locale string `json:"locale"`
-				} `json:"attributes"`
-			} `json:"data"`
-		}
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode payload: %v", err)
-		}
-		seenLocale = payload.Data.Attributes.Locale
-
-		body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-forward","attributes":{"locale":"zh-Hant-HK","description":"Updated app","keywords":"timer,focus","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"zh-Hant-HK","description":"Updated app","keywords":"timer,focus","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-forward","attributes":{"locale":"zh-Hant-HK","description":"Updated app","keywords":"timer,focus","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		root := RootCommand("1.2.3")
@@ -464,6 +357,19 @@ func TestLocalizationsCreate_AllowsForwardCompatibleLocaleCodes(t *testing.T) {
 	if !strings.Contains(stdout, `"locale":"zh-Hant-HK"`) {
 		t.Fatalf("expected forward-compatible locale in output, got %q", stdout)
 	}
+	for _, req := range reg.Requests() {
+		var payload struct {
+			Data struct {
+				Attributes struct {
+					Locale string `json:"locale"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(req.Body, &payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		seenLocale = payload.Data.Attributes.Locale
+	}
 	if seenLocale != "zh-Hant-HK" {
 		t.Fatalf("expected request locale zh-Hant-HK, got %q", seenLocale)
 	}
@@ -472,17 +378,8 @@ func TestLocalizationsCreate_AllowsForwardCompatibleLocaleCodes(t *testing.T) {
 func TestLocalizationsCreate_RejectsPositionalArgs(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
@@ -502,7 +399,7 @@ func TestLocalizationsCreate_RejectsPositionalArgs(t *testing.T) {
 	if !strings.Contains(stderr, `unexpected argument "extra"`) {
 		t.Fatalf("expected positional-args error, got %q", stderr)
 	}
-	if requestCount != 0 {
+	if requestCount := len(reg.Requests()); requestCount != 0 {
 		t.Fatalf("expected no HTTP requests, got %d", requestCount)
 	}
 }

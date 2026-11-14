@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"testing/synctest"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
 )
@@ -62,6 +63,24 @@ func runCommand(t *testing.T, args []string) (string, string, error) {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())
+	})
+	return stdout, stderr, runErr
+}
+
+// runCommandOnFakeClock runs the command like runCommand but in a synctest
+// bubble, so stub delays and request timeouts use its fake clock.
+func runCommandOnFakeClock(t *testing.T, args []string) (string, string, error) {
+	t.Helper()
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse(args); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 	})
 	return stdout, stderr, runErr
 }

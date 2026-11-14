@@ -118,43 +118,25 @@ Examples:
 
 // BackgroundAssetsUploadFilesGetCommand returns the upload files get subcommand.
 func BackgroundAssetsUploadFilesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	uploadFileID := shared.BindResourceIDFlag(fs, "upload-file-id", "backgroundAssetUploadFiles", "Background asset upload file ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc background-assets upload-files view --upload-file-id \"UPLOAD_FILE_ID\"",
-		ShortHelp:  "View a background asset upload file by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc background-assets upload-files view --upload-file-id \"UPLOAD_FILE_ID\"",
+		ShortHelp:   "View a background asset upload file by ID.",
 		LongHelp: `View a background asset upload file by ID.
 
 Examples:
   asc background-assets upload-files view --upload-file-id "UPLOAD_FILE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
-			if uploadFileIDValue == "" {
-				return shared.RequiredFlag("--upload-file-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("background-assets upload-files view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBackgroundAssetUploadFile(requestCtx, uploadFileIDValue)
-			if err != nil {
-				return fmt.Errorf("background-assets upload-files view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "upload-file-id",
+		IDUsage:            "Background asset upload file ID",
+		IDType:             "backgroundAssetUploadFiles",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "background-assets upload-files view",
+		FetchErrorPrefix:   "background-assets upload-files view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBackgroundAssetUploadFile(ctx, id)
 		},
-	}
+	})
 }
 
 // BackgroundAssetsUploadFilesCreateCommand returns the upload files create subcommand.

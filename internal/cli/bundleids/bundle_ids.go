@@ -255,42 +255,24 @@ func bundleIDsListFlagWasSet(fs *flag.FlagSet, name string) bool {
 
 // BundleIDsGetCommand returns the bundle IDs get subcommand.
 func BundleIDsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "bundleIds", "Bundle ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc bundle-ids view --id \"BUNDLE_ID\"",
-		ShortHelp:  "View a bundle ID by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc bundle-ids view --id \"BUNDLE_ID\"",
+		ShortHelp:   "View a bundle ID by ID.",
 		LongHelp: `View a bundle ID by ID.
 
 Examples:
   asc bundle-ids view --id "BUNDLE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if strings.TrimSpace(*id) == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("bundle-ids view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBundleID(requestCtx, strings.TrimSpace(*id))
-			if err != nil {
-				return fmt.Errorf("bundle-ids view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Bundle ID",
+		IDType:             "bundleIds",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "bundle-ids view",
+		FetchErrorPrefix:   "bundle-ids view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBundleID(ctx, id)
 		},
-	}
+	})
 }
 
 // BundleIDsCreateCommand returns the bundle IDs create subcommand.

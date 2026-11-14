@@ -250,7 +250,7 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 			path:  "/v1/apps/app-1/preReleaseVersions",
 			limit: "5",
 			call: func(client *Client) error {
-				_, err := client.GetAppPreReleaseVersions(ctx, "app-1", WithAppPreReleaseVersionsLimit(5))
+				_, err := client.GetAppPreReleaseVersions(ctx, "app-1", Limit[AppPreReleaseVersionsOption](5))
 				return err
 			},
 		},
@@ -286,7 +286,7 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 			path:  "/v1/builds/build-1/icons",
 			limit: "9",
 			call: func(client *Client) error {
-				_, err := client.GetBuildIcons(ctx, "build-1", WithBuildIconsLimit(9))
+				_, err := client.GetBuildIcons(ctx, "build-1", Limit[BuildIconsOption](9))
 				return err
 			},
 		},
@@ -295,7 +295,7 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 			path:  "/v1/preReleaseVersions/pre-1/builds",
 			limit: "7",
 			call: func(client *Client) error {
-				_, err := client.GetPreReleaseVersionBuilds(ctx, "pre-1", WithPreReleaseVersionBuildsLimit(7))
+				_, err := client.GetPreReleaseVersionBuilds(ctx, "pre-1", Limit[PreReleaseVersionBuildsOption](7))
 				return err
 			},
 		},
@@ -328,7 +328,7 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 			name: "GetAppPreReleaseVersions",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/preReleaseVersions?cursor=next",
 			call: func(client *Client) error {
-				_, err := client.GetAppPreReleaseVersions(ctx, "app-1", WithAppPreReleaseVersionsNextURL("https://api.appstoreconnect.apple.com/v1/apps/app-1/preReleaseVersions?cursor=next"))
+				_, err := client.GetAppPreReleaseVersions(ctx, "app-1", NextURL[AppPreReleaseVersionsOption]("https://api.appstoreconnect.apple.com/v1/apps/app-1/preReleaseVersions?cursor=next"))
 				return err
 			},
 		},
@@ -360,7 +360,7 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 			name: "GetBuildIcons",
 			next: "https://api.appstoreconnect.apple.com/v1/builds/build-1/icons?cursor=next",
 			call: func(client *Client) error {
-				_, err := client.GetBuildIcons(ctx, "build-1", WithBuildIconsNextURL("https://api.appstoreconnect.apple.com/v1/builds/build-1/icons?cursor=next"))
+				_, err := client.GetBuildIcons(ctx, "build-1", NextURL[BuildIconsOption]("https://api.appstoreconnect.apple.com/v1/builds/build-1/icons?cursor=next"))
 				return err
 			},
 		},
@@ -368,7 +368,7 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 			name: "GetPreReleaseVersionBuilds",
 			next: "https://api.appstoreconnect.apple.com/v1/preReleaseVersions/pre-1/builds?cursor=next",
 			call: func(client *Client) error {
-				_, err := client.GetPreReleaseVersionBuilds(ctx, "pre-1", WithPreReleaseVersionBuildsNextURL("https://api.appstoreconnect.apple.com/v1/preReleaseVersions/pre-1/builds?cursor=next"))
+				_, err := client.GetPreReleaseVersionBuilds(ctx, "pre-1", NextURL[PreReleaseVersionBuildsOption]("https://api.appstoreconnect.apple.com/v1/preReleaseVersions/pre-1/builds?cursor=next"))
 				return err
 			},
 		},

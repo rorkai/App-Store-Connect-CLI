@@ -137,43 +137,24 @@ Examples:
 
 // GameCenterAppVersionsGetCommand returns the app versions get subcommand.
 func GameCenterAppVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	appVersionID := shared.BindResourceIDFlag(fs, "id", "gameCenterAppVersions", "Game Center app version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center app-versions view --id \"GC_APP_VERSION_ID\"",
-		ShortHelp:  "View a Game Center app version by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center app-versions view --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:   "View a Game Center app version by ID.",
 		LongHelp: `View a Game Center app version by ID.
 
 Examples:
   asc game-center app-versions view --id "GC_APP_VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*appVersionID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center app-versions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAppVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center app-versions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center app version ID",
+		IDType:             "gameCenterAppVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center app-versions view",
+		FetchErrorPrefix:   "game-center app-versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAppVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAppVersionsCreateCommand returns the app versions create subcommand.
@@ -304,81 +285,29 @@ Examples:
 
 // GameCenterAppVersionCompatibilityListCommand returns the compatibility list subcommand.
 func GameCenterAppVersionCompatibilityListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	appVersionID := shared.BindResourceIDFlag(fs, "id", "gameCenterAppVersions", "Game Center app version ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center app-versions compatibility list --id \"GC_APP_VERSION_ID\"",
-		ShortHelp:  "List compatible Game Center app versions.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center app-versions compatibility list --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:   "List compatible Game Center app versions.",
 		LongHelp: `List compatible Game Center app versions.
 
 Examples:
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID"
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID" --limit 50
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center app-versions compatibility list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center app-versions compatibility list: %v", err)
-			}
-
-			id := strings.TrimSpace(*appVersionID)
-			nextURL := strings.TrimSpace(*next)
-			if id == "" && nextURL == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center app-versions compatibility list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCAppVersionsOption{
-				asc.WithGCAppVersionsLimit(*limit),
-				asc.WithGCAppVersionsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := []asc.GCAppVersionsOption{asc.WithGCAppVersionsNextURL(*next)}
-				if nextURL == "" {
-					paginateOpts = []asc.GCAppVersionsOption{asc.WithGCAppVersionsLimit(200)}
-				}
-				firstPage, err := client.GetGameCenterAppVersionCompatibilityVersions(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center app-versions compatibility list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAppVersionCompatibilityVersions(ctx, id, asc.WithGCAppVersionsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center app-versions compatibility list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterAppVersionCompatibilityVersions(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center app-versions compatibility list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "id",
+		ParentUsage:          "Game Center app version ID",
+		ParentType:           "gameCenterAppVersions",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center app-versions compatibility list",
+		FetchErrorPrefix:     "game-center app-versions compatibility list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterAppVersionCompatibilityVersions(ctx, id, asc.WithGCAppVersionsLimit(limit), asc.WithGCAppVersionsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterAppVersionAppStoreVersionCommand returns the app store version command group.
@@ -406,41 +335,22 @@ Examples:
 
 // GameCenterAppVersionAppStoreVersionGetCommand returns the app store version get subcommand.
 func GameCenterAppVersionAppStoreVersionGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	appVersionID := shared.BindResourceIDFlag(fs, "id", "gameCenterAppVersions", "Game Center app version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center app-versions app-store-version view --id \"GC_APP_VERSION_ID\"",
-		ShortHelp:  "View the App Store version for a Game Center app version.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center app-versions app-store-version view --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:   "View the App Store version for a Game Center app version.",
 		LongHelp: `View the App Store version for a Game Center app version.
 
 Examples:
   asc game-center app-versions app-store-version view --id "GC_APP_VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*appVersionID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center app-versions app-store-version view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterAppVersionAppStoreVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center app-versions app-store-version view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center app version ID",
+		IDType:             "gameCenterAppVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center app-versions app-store-version view",
+		FetchErrorPrefix:   "game-center app-versions app-store-version view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterAppVersionAppStoreVersion(ctx, id)
 		},
-	}
+	})
 }

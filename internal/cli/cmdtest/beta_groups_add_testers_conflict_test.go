@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // Apple's live 409 on POST /v1/betaGroups/{id}/relationships/betaTesters when
@@ -32,57 +34,39 @@ const betaGroupAddTestersStateConflictBody = `{
 // betaTesterGroupConflictAlreadySatisfied in internal/cli/testflight).
 const betaGroupAddTestersRelationshipConflictBody = `{"errors":[{"id":"29f5cf4e-6a41-4d03-9c4f-4c8d2b6a1d55","status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"The provided entity includes a relationship with an invalid value","detail":"The relationship 'betaTesters' includes a value that is already related to this resource."}]}`
 
-type addTestersConflictRequest struct {
-	method string
-	path   string
-}
-
-// stubAddTestersTransport replays a POST conflict followed by the membership
-// read-back. membership maps a tester ID to the group IDs it belongs to; the
-// read-back (GET /v1/betaTesters filtered by group and tester ID) answers with
-// the requested testers that list the filtered group.
+// stubAddTestersTransport stubs the POST adding testerIDs to group-1 and, when
+// readBackStatus is not zero, the membership read-back in chunks of 50 tester
+// IDs. membership maps a tester ID to the group IDs it belongs to; each
+// read-back answers with the requested testers that list group-1.
 func stubAddTestersTransport(
 	t *testing.T,
+	testerIDs []string,
 	postStatus int,
 	postBody string,
 	membership map[string][]string,
 	readBackStatus int,
-) *[]addTestersConflictRequest {
+) *asctest.Registry {
 	t.Helper()
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
-	requests := make([]addTestersConflictRequest, 0, 4)
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, addTestersConflictRequest{method: req.Method, path: req.URL.Path})
+	testers := make([]string, 0, len(testerIDs))
+	for _, testerID := range testerIDs {
+		testers = append(testers, `{"type":"betaTesters","id":"`+testerID+`"}`)
+	}
+	reg.Register(asctest.POST("/v1/betaGroups/group-1/relationships/betaTesters").JSONBody(`{"data":[`+strings.Join(testers, ",")+`]}`),
+		asctest.JSON(postStatus, postBody))
+	if readBackStatus == 0 {
+		return reg
+	}
 
-		if req.Method == http.MethodPost {
-			if req.URL.Path != "/v1/betaGroups/group-1/relationships/betaTesters" {
-				t.Fatalf("unexpected POST path %q", req.URL.Path)
-			}
-			return jsonResponse(postStatus, postBody)
-		}
-
-		if req.Method != http.MethodGet {
-			t.Fatalf("unexpected %s request to %q", req.Method, req.URL.Path)
-		}
-		if readBackStatus != 0 && readBackStatus != http.StatusOK {
-			return jsonResponse(readBackStatus, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"An unexpected error occurred.","detail":"Request failed."}]}`)
-		}
-
-		if req.URL.Path != "/v1/betaTesters" {
-			t.Fatalf("unexpected read-back path %q", req.URL.Path)
-		}
-		query := req.URL.Query()
-		if query.Get("filter[betaGroups]") != "group-1" {
-			t.Fatalf("read-back filter[betaGroups] = %q, want group-1", query.Get("filter[betaGroups]"))
-		}
-		requested := strings.Split(query.Get("filter[id]"), ",")
-		if len(requested) == 0 || requested[0] == "" {
-			t.Fatalf("expected the read-back to filter by tester ID, got %q", req.URL.RawQuery)
+	for start := 0; start < len(testerIDs); start += 50 {
+		requested := testerIDs[start:min(start+50, len(testerIDs))]
+		readBack := asctest.GET("/v1/betaTesters", "filter[betaGroups]=group-1", "filter[id]="+strings.Join(requested, ","), "limit=200")
+		if readBackStatus != http.StatusOK {
+			reg.Register(readBack, asctest.JSON(readBackStatus, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"An unexpected error occurred.","detail":"Request failed."}]}`))
+			return reg
 		}
 
 		matches := make([]string, 0, len(requested))
@@ -94,10 +78,9 @@ func stubAddTestersTransport(
 				}
 			}
 		}
-		return jsonResponse(http.StatusOK, `{"data":[`+strings.Join(matches, ",")+`],"links":{}}`)
-	})
-
-	return &requests
+		reg.Register(readBack, asctest.JSON(http.StatusOK, `{"data":[`+strings.Join(matches, ",")+`],"links":{}}`))
+	}
+	return reg
 }
 
 type betaGroupAddTestersReceipt struct {
@@ -135,7 +118,7 @@ func TestBetaGroupsAddTestersAlreadyMemberIsExpectedNegative(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			requests := stubAddTestersTransport(t, http.StatusConflict, conflict.body, map[string][]string{
+			requests := stubAddTestersTransport(t, []string{"tester-1"}, http.StatusConflict, conflict.body, map[string][]string{
 				"tester-1": {"group-0", "group-1"},
 			}, http.StatusOK)
 
@@ -169,7 +152,7 @@ func TestBetaGroupsAddTestersAlreadyMemberIsExpectedNegative(t *testing.T) {
 			if !strings.Contains(stderr, "already in group group-1") {
 				t.Fatalf("expected stderr to report the already-present tester, got %q", stderr)
 			}
-			if got := *requests; len(got) != 2 || got[0].method != http.MethodPost || got[1].method != http.MethodGet {
+			if got := requests.Requests(); len(got) != 2 || got[0].Method != http.MethodPost || got[1].Method != http.MethodGet {
 				t.Fatalf("expected one POST then one membership read-back, got %v", got)
 			}
 		})
@@ -180,7 +163,7 @@ func TestBetaGroupsAddTestersConflictWithoutMembershipStillFails(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	requests := stubAddTestersTransport(t, http.StatusConflict, betaGroupAddTestersStateConflictBody, map[string][]string{
+	requests := stubAddTestersTransport(t, []string{"tester-1"}, http.StatusConflict, betaGroupAddTestersStateConflictBody, map[string][]string{
 		"tester-1": {"group-0"},
 	}, http.StatusOK)
 
@@ -203,7 +186,7 @@ func TestBetaGroupsAddTestersConflictWithoutMembershipStillFails(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected no receipt for a failed add, got %q", stdout)
 	}
-	if got := *requests; len(got) != 2 {
+	if got := requests.Requests(); len(got) != 2 {
 		t.Fatalf("expected one POST and one read-back, got %v", got)
 	}
 }
@@ -212,7 +195,7 @@ func TestBetaGroupsAddTestersPartialMembershipStillFails(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	requests := stubAddTestersTransport(t, http.StatusConflict, betaGroupAddTestersStateConflictBody, map[string][]string{
+	requests := stubAddTestersTransport(t, []string{"tester-1", "tester-2"}, http.StatusConflict, betaGroupAddTestersStateConflictBody, map[string][]string{
 		"tester-1": {"group-1"},
 		"tester-2": {},
 	}, http.StatusOK)
@@ -233,7 +216,7 @@ func TestBetaGroupsAddTestersPartialMembershipStillFails(t *testing.T) {
 	}
 	// One read-back resolves the whole batch: the requested testers are
 	// filtered server-side rather than read one membership at a time.
-	if got := *requests; len(got) != 2 {
+	if got := requests.Requests(); len(got) != 2 {
 		t.Fatalf("expected one POST and one batched read-back, got %v", got)
 	}
 }
@@ -248,7 +231,7 @@ func TestBetaGroupsAddTestersConflictReadBackChunksTesterIDs(t *testing.T) {
 		testerIDs[index] = fmt.Sprintf("tester-%02d", index+1)
 		membership[testerIDs[index]] = []string{"group-1"}
 	}
-	requests := stubAddTestersTransport(t, http.StatusConflict, betaGroupAddTestersStateConflictBody, membership, http.StatusOK)
+	requests := stubAddTestersTransport(t, testerIDs, http.StatusConflict, betaGroupAddTestersStateConflictBody, membership, http.StatusOK)
 
 	stdout, _, err := runAddTesters(
 		t,
@@ -267,7 +250,7 @@ func TestBetaGroupsAddTestersConflictReadBackChunksTesterIDs(t *testing.T) {
 	if len(receipt.TesterIDs) != len(testerIDs) {
 		t.Fatalf("receipt testerIds count = %d, want %d", len(receipt.TesterIDs), len(testerIDs))
 	}
-	if got := *requests; len(got) != 3 || got[0].method != http.MethodPost || got[1].method != http.MethodGet || got[2].method != http.MethodGet {
+	if got := requests.Requests(); len(got) != 3 || got[0].Method != http.MethodPost || got[1].Method != http.MethodGet || got[2].Method != http.MethodGet {
 		t.Fatalf("expected one POST and two chunked read-backs, got %v", got)
 	}
 }
@@ -276,26 +259,14 @@ func TestBetaGroupsAddTestersConflictReadBackPaginates(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	requests := make([]addTestersConflictRequest, 0, 3)
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, addTestersConflictRequest{method: req.Method, path: req.URL.Path})
-		switch {
-		case req.Method == http.MethodPost:
-			return jsonResponse(http.StatusConflict, betaGroupAddTestersStateConflictBody)
-		case req.Method == http.MethodGet && req.URL.Query().Get("cursor") == "2":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2"}],"links":{}}`)
-		case req.Method == http.MethodGet:
-			if req.URL.Query().Get("filter[betaGroups]") != "group-1" || req.URL.Query().Get("filter[id]") != "tester-1,tester-2" {
-				t.Fatalf("unexpected initial read-back query %q", req.URL.RawQuery)
-			}
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=2"}}`)
-		default:
-			t.Fatalf("unexpected %s request to %q", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/betaGroups/group-1/relationships/betaTesters").JSONBody(`{"data":[{"type":"betaTesters","id":"tester-1"},{"type":"betaTesters","id":"tester-2"}]}`),
+		asctest.JSON(http.StatusConflict, betaGroupAddTestersStateConflictBody))
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[betaGroups]=group-1", "filter[id]=tester-1,tester-2", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=2"}}`))
+	reg.Register(asctest.GET("/v1/betaTesters", "cursor=2"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2"}],"links":{}}`))
 
 	stdout, _, err := runAddTesters(
 		t,
@@ -314,7 +285,7 @@ func TestBetaGroupsAddTestersConflictReadBackPaginates(t *testing.T) {
 	if receipt.Action != "skipped" || !receipt.AlreadyPresent || len(receipt.TesterIDs) != 2 {
 		t.Fatalf("unexpected skip receipt: %+v", receipt)
 	}
-	if len(requests) != 3 || requests[0].method != http.MethodPost || requests[1].method != http.MethodGet || requests[2].method != http.MethodGet {
+	if requests := reg.Requests(); len(requests) != 3 || requests[0].Method != http.MethodPost || requests[1].Method != http.MethodGet || requests[2].Method != http.MethodGet {
 		t.Fatalf("expected one POST and two paginated read-backs, got %v", requests)
 	}
 }
@@ -323,9 +294,9 @@ func TestBetaGroupsAddTestersNonConflictFailureSkipsReadBack(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	requests := stubAddTestersTransport(t, http.StatusForbidden,
+	requests := stubAddTestersTransport(t, []string{"tester-1"}, http.StatusForbidden,
 		`{"errors":[{"status":"403","code":"FORBIDDEN_ERROR","title":"This request is forbidden for security reasons","detail":"The API key in use does not allow this request."}]}`,
-		map[string][]string{"tester-1": {"group-1"}}, http.StatusOK)
+		nil, 0)
 
 	_, _, err := runAddTesters(
 		t,
@@ -336,7 +307,7 @@ func TestBetaGroupsAddTestersNonConflictFailureSkipsReadBack(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected a non-conflict failure to fail")
 	}
-	if got := *requests; len(got) != 1 || got[0].method != http.MethodPost {
+	if got := requests.Requests(); len(got) != 1 || got[0].Method != http.MethodPost {
 		t.Fatalf("expected only the POST for a non-conflict failure, got %v", got)
 	}
 }
@@ -345,9 +316,9 @@ func TestBetaGroupsAddTestersConflictCodeWithoutHTTP409SkipsReadBack(t *testing.
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	requests := stubAddTestersTransport(t, http.StatusUnprocessableEntity,
+	requests := stubAddTestersTransport(t, []string{"tester-1"}, http.StatusUnprocessableEntity,
 		`{"errors":[{"status":"422","code":"CONFLICT","title":"The request cannot be fulfilled","detail":"The build is not eligible for this tester."}]}`,
-		map[string][]string{"tester-1": {"group-1"}}, http.StatusOK)
+		nil, 0)
 
 	_, _, err := runAddTesters(
 		t,
@@ -361,7 +332,7 @@ func TestBetaGroupsAddTestersConflictCodeWithoutHTTP409SkipsReadBack(t *testing.
 	if !strings.Contains(err.Error(), "not eligible") {
 		t.Fatalf("expected Apple's error detail to survive, got %v", err)
 	}
-	if got := *requests; len(got) != 1 || got[0].method != http.MethodPost {
+	if got := requests.Requests(); len(got) != 1 || got[0].Method != http.MethodPost {
 		t.Fatalf("expected only the POST for a non-409 failure, got %v", got)
 	}
 }
@@ -370,7 +341,7 @@ func TestBetaGroupsAddTestersReadBackFailureReportsBothErrors(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	stubAddTestersTransport(t, http.StatusConflict, betaGroupAddTestersStateConflictBody,
+	stubAddTestersTransport(t, []string{"tester-1"}, http.StatusConflict, betaGroupAddTestersStateConflictBody,
 		map[string][]string{"tester-1": {"group-1"}}, http.StatusInternalServerError)
 
 	_, _, err := runAddTesters(
@@ -394,7 +365,7 @@ func TestBetaGroupsAddTestersSuccessPrintsCreatedReceipt(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	requests := stubAddTestersTransport(t, http.StatusNoContent, "", nil, http.StatusOK)
+	requests := stubAddTestersTransport(t, []string{"tester-1", "tester-2"}, http.StatusNoContent, "", nil, 0)
 
 	stdout, stderr, err := runAddTesters(
 		t,
@@ -423,7 +394,7 @@ func TestBetaGroupsAddTestersSuccessPrintsCreatedReceipt(t *testing.T) {
 	if !strings.Contains(stderr, "Successfully added 2 tester(s) to group group-1") {
 		t.Fatalf("expected the success diagnostic, got %q", stderr)
 	}
-	if got := *requests; len(got) != 1 || got[0].method != http.MethodPost {
+	if got := requests.Requests(); len(got) != 1 || got[0].Method != http.MethodPost {
 		t.Fatalf("expected only the POST on the success path, got %v", got)
 	}
 }

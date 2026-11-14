@@ -116,43 +116,25 @@ Examples:
 
 // AlternativeDistributionPackageVersionsGetCommand returns the package versions get subcommand.
 func AlternativeDistributionPackageVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "alternativeDistributionPackageVersions", "Alternative distribution package version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc alternative-distribution packages versions view --version-id \"VERSION_ID\"",
-		ShortHelp:  "View an alternative distribution package version.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc alternative-distribution packages versions view --version-id \"VERSION_ID\"",
+		ShortHelp:   "View an alternative distribution package version.",
 		LongHelp: `View an alternative distribution package version.
 
 Examples:
   asc alternative-distribution packages versions view --version-id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*versionID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("alternative-distribution packages versions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAlternativeDistributionPackageVersion(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("alternative-distribution packages versions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "version-id",
+		IDUsage:            "Alternative distribution package version ID",
+		IDType:             "alternativeDistributionPackageVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "alternative-distribution packages versions view",
+		FetchErrorPrefix:   "alternative-distribution packages versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAlternativeDistributionPackageVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // AlternativeDistributionPackageVersionsDeltasCommand returns the package version deltas subcommand.

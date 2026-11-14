@@ -13,6 +13,7 @@ import (
 	"testing/synctest"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestLocalizationsUploadDryRunWarnsForPlannedCreate(t *testing.T) {
@@ -23,56 +24,26 @@ func TestLocalizationsUploadDryRunWarnsForPlannedCreate(t *testing.T) {
 		t.Fatalf("write strings file: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"localizations", "upload",
+		"--version", "version-1",
+		"--path", dir,
+		"--dry-run",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"localizations", "upload",
-			"--version", "version-1",
-			"--path", dir,
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if !strings.Contains(stderr, "creating locale ja would make it participate in submission validation") {
 		t.Fatalf("expected planned create warning on stderr, got %q", stderr)
@@ -107,65 +78,34 @@ func TestLocalizationsUploadAppliedCreateWarns(t *testing.T) {
 		t.Fatalf("write strings file: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"ja","description":"日本語説明"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ja","attributes":{"locale":"ja","description":"日本語説明"}}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"localizations", "upload",
+		"--version", "version-1",
+		"--path", dir,
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	createCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPost {
 			createCount++
-			body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ja","attributes":{"locale":"ja","description":"日本語説明"}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
 		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"localizations", "upload",
-			"--version", "version-1",
-			"--path", dir,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
+	}
 	if createCount != 1 {
 		t.Fatalf("expected one create request, got %d", createCount)
 	}
@@ -199,65 +139,34 @@ func TestLocalizationsUploadUpdateOnlyDoesNotWarn(t *testing.T) {
 		t.Fatalf("write strings file: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Old description"}}],"links":{"next":""}}`))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-en").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"description":"Updated description"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Updated description"}}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"localizations", "upload",
+		"--version", "version-1",
+		"--path", dir,
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	updateCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			body := `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Old description"}}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en":
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPatch {
 			updateCount++
-			body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Updated description"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
 		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"localizations", "upload",
-			"--version", "version-1",
-			"--path", dir,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
+	}
 	if updateCount != 1 {
 		t.Fatalf("expected one update request, got %d", updateCount)
 	}
@@ -424,14 +333,10 @@ func TestLocalizationsUploadInitialReadFailureIsNotZeroFailureSummary(t *testing
 	if err := os.WriteFile(filepath.Join(dir, "en-US.strings"), []byte("\"description\" = \"Desired\";\n\"whatsNew\" = \"Notes\";\n"), 0o644); err != nil {
 		t.Fatalf("write strings: %v", err)
 	}
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreVersions/version-1/appStoreVersionLocalizations" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return jsonHTTPResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","detail":"conflicting state"}]}`), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","detail":"conflicting state"}]}`))
 
 	var exitCode int
 	stdout, stderr := captureOutput(t, func() {
@@ -460,14 +365,8 @@ func TestLocalizationUploadCommandsRejectLateEmptyLocaleBeforeAuth(t *testing.T)
 	if err := os.WriteFile(filepath.Join(dir, "fr-FR.strings"), []byte("// intentionally empty\n"), 0o644); err != nil {
 		t.Fatalf("write empty locale: %v", err)
 	}
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	for _, args := range [][]string{
 		{"localizations", "upload", "--version", "version-1", "--path", dir},
@@ -482,7 +381,7 @@ func TestLocalizationUploadCommandsRejectLateEmptyLocaleBeforeAuth(t *testing.T)
 			t.Fatalf("unexpected validation output for %v: stdout=%q stderr=%q", args, stdout, stderr)
 		}
 	}
-	if requests != 0 {
+	if requests := len(reg.Requests()); requests != 0 {
 		t.Fatalf("expected zero network requests, got %d", requests)
 	}
 }
@@ -552,27 +451,18 @@ func runPartialLocalizationsUploadCore(t *testing.T, blockArtifact, appSetup boo
 		}
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	patches := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"en-id","attributes":{"locale":"en-US","description":"Old English"}},{"type":"appStoreVersionLocalizations","id":"fr-id","attributes":{"locale":"fr-FR","description":"Old French"}},{"type":"appStoreVersionLocalizations","id":"ja-id","attributes":{"locale":"ja","description":"Old Japanese"}}],"links":{"next":""}}`), nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/en-id":
-			patches++
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"en-id","attributes":{"locale":"en-US","description":"New English","whatsNew":"English notes"}}}`), nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/fr-id":
-			patches++
-			return jsonHTTPResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"ENTITY_ERROR","detail":"French rejected"}]}`), nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/ja-id":
-			patches++
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"ja-id","attributes":{"locale":"ja","description":"New Japanese","whatsNew":"Japanese notes"}}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"en-id","attributes":{"locale":"en-US","description":"Old English"}},{"type":"appStoreVersionLocalizations","id":"fr-id","attributes":{"locale":"fr-FR","description":"Old French"}},{"type":"appStoreVersionLocalizations","id":"ja-id","attributes":{"locale":"ja","description":"Old Japanese"}}],"links":{"next":""}}`))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/en-id").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"en-id","attributes":{"description":"New English","whatsNew":"English notes"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"en-id","attributes":{"locale":"en-US","description":"New English","whatsNew":"English notes"}}}`))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/fr-id").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"fr-id","attributes":{"description":"New French","whatsNew":"French notes"}}}`),
+		asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"ENTITY_ERROR","detail":"French rejected"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"en-id","attributes":{"locale":"en-US","description":"Old English"}},{"type":"appStoreVersionLocalizations","id":"fr-id","attributes":{"locale":"fr-FR","description":"Old French"}},{"type":"appStoreVersionLocalizations","id":"ja-id","attributes":{"locale":"ja","description":"Old Japanese"}}],"links":{"next":""}}`))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/ja-id").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"ja-id","attributes":{"description":"New Japanese","whatsNew":"Japanese notes"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"ja-id","attributes":{"locale":"ja","description":"New Japanese","whatsNew":"Japanese notes"}}}`))
 
 	var runErr error
 	exitCode := cmd.ExitSuccess
@@ -592,6 +482,12 @@ func runPartialLocalizationsUploadCore(t *testing.T, blockArtifact, appSetup boo
 		}
 		runErr = root.Run(context.Background())
 	})
+	patches := 0
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPatch {
+			patches++
+		}
+	}
 	if patches != 3 {
 		t.Fatalf("expected later locale after failure, patches=%d", patches)
 	}
@@ -624,29 +520,20 @@ func runPartialAppInfoLocalizationUpload(t *testing.T) (partialLocalizationUploa
 			t.Fatalf("write %s: %v", name, err)
 		}
 	}
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	patches := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1":
-			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"appinfo-1","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"en-id","attributes":{"locale":"en-US","name":"Old English"}},{"type":"appInfoLocalizations","id":"fr-id","attributes":{"locale":"fr-FR","name":"Old French"}},{"type":"appInfoLocalizations","id":"ja-id","attributes":{"locale":"ja","name":"Old Japanese"}}],"links":{"next":""}}`), nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appInfoLocalizations/en-id":
-			patches++
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"en-id","attributes":{"locale":"en-US","name":"English","subtitle":"English subtitle"}}}`), nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appInfoLocalizations/fr-id":
-			patches++
-			return jsonHTTPResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"ENTITY_ERROR","detail":"French rejected"}]}`), nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appInfoLocalizations/ja-id":
-			patches++
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"ja-id","attributes":{"locale":"ja","name":"Japanese","subtitle":"Japanese subtitle"}}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appInfos/appinfo-1", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"appinfo-1","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"en-id","attributes":{"locale":"en-US","name":"Old English"}},{"type":"appInfoLocalizations","id":"fr-id","attributes":{"locale":"fr-FR","name":"Old French"}},{"type":"appInfoLocalizations","id":"ja-id","attributes":{"locale":"ja","name":"Old Japanese"}}],"links":{"next":""}}`))
+	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/en-id").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"en-id","attributes":{"name":"English","subtitle":"English subtitle"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"en-id","attributes":{"locale":"en-US","name":"English","subtitle":"English subtitle"}}}`))
+	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/fr-id").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"fr-id","attributes":{"name":"French","subtitle":"French subtitle"}}}`),
+		asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"ENTITY_ERROR","detail":"French rejected"}]}`))
+	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"en-id","attributes":{"locale":"en-US","name":"Old English"}},{"type":"appInfoLocalizations","id":"fr-id","attributes":{"locale":"fr-FR","name":"Old French"}},{"type":"appInfoLocalizations","id":"ja-id","attributes":{"locale":"ja","name":"Old Japanese"}}],"links":{"next":""}}`))
+	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/ja-id").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"ja-id","attributes":{"name":"Japanese","subtitle":"Japanese subtitle"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"ja-id","attributes":{"locale":"ja","name":"Japanese","subtitle":"Japanese subtitle"}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -659,6 +546,12 @@ func runPartialAppInfoLocalizationUpload(t *testing.T) (partialLocalizationUploa
 		}
 		runErr = root.Run(context.Background())
 	})
+	patches := 0
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPatch {
+			patches++
+		}
+	}
 	if patches != 3 {
 		t.Fatalf("expected app-info locale after failure, patches=%d", patches)
 	}

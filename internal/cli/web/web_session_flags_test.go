@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -258,8 +259,10 @@ func TestWebCommandOperationSurvivesSlowInteractiveAuthentication(t *testing.T) 
 	}
 
 	captureOutput(t, func() {
-		if err := cmd.Exec(context.Background(), nil); err != nil {
-			t.Fatalf("exec error: %v", err)
+		var execErr error
+		synctest.Test(t, func(*testing.T) { execErr = cmd.Exec(context.Background(), nil) })
+		if execErr != nil {
+			t.Fatalf("exec error: %v", execErr)
 		}
 	})
 
@@ -285,24 +288,26 @@ func TestResolveWebSessionForCommandStartsRequestBudgetAfterAuthentication(t *te
 		twoFactorCodeCommand: ptrTo(""),
 	}
 
-	session, requestCtx, cancel, err := resolveWebSessionForCommand(context.Background(), flags)
-	defer cancel()
-	if err != nil {
-		t.Fatalf("resolveWebSessionForCommand() error = %v", err)
-	}
-	if session == nil {
-		t.Fatal("expected session")
-	}
-	if err := requestCtx.Err(); err != nil {
-		t.Fatalf("request context expired during authentication: %v", err)
-	}
-	deadline, ok := requestCtx.Deadline()
-	if !ok {
-		t.Fatal("expected the request context to be bounded")
-	}
-	if remaining := time.Until(deadline); remaining <= 0 {
-		t.Fatalf("expected a positive request budget, got %v", remaining)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		session, requestCtx, cancel, err := resolveWebSessionForCommand(context.Background(), flags)
+		defer cancel()
+		if err != nil {
+			t.Fatalf("resolveWebSessionForCommand() error = %v", err)
+		}
+		if session == nil {
+			t.Fatal("expected session")
+		}
+		if err := requestCtx.Err(); err != nil {
+			t.Fatalf("request context expired during authentication: %v", err)
+		}
+		deadline, ok := requestCtx.Deadline()
+		if !ok {
+			t.Fatal("expected the request context to be bounded")
+		}
+		if remaining := time.Until(deadline); remaining != 150*time.Millisecond {
+			t.Fatalf("expected the full 150ms request budget, got %v", remaining)
+		}
+	})
 }
 
 func TestResolveWebSessionForCommandSelectsProviderOnRefreshedContext(t *testing.T) {
@@ -336,8 +341,12 @@ func TestResolveWebSessionForCommandSelectsProviderOnRefreshedContext(t *testing
 		providerID:           &providerID,
 	}
 
-	_, _, cancel, err := resolveWebSessionForCommand(context.Background(), flags)
-	defer cancel()
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		var cancel context.CancelFunc
+		_, _, cancel, err = resolveWebSessionForCommand(context.Background(), flags)
+		cancel()
+	})
 	if err != nil {
 		t.Fatalf("resolveWebSessionForCommand() error = %v", err)
 	}

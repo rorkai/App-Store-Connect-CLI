@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // TestBetaGroupsListSortPropagates proves --sort reaches the API.
@@ -12,19 +14,10 @@ func TestBetaGroupsListSortPropagates(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/betaGroups" {
-			t.Errorf("expected path /v1/betaGroups, got %s", req.URL.Path)
-		}
-		query := req.URL.Query()
-		if got := query.Get("filter[app]"); got != "app-1" {
-			t.Errorf("filter[app] = %q, want app-1", got)
-		}
-		if got := query.Get("sort"); got != "-createdDate" {
-			t.Errorf("sort = %q, want -createdDate", got)
-		}
-		return betaGroupsJSONResponse(`{"data":[]}`), nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaGroups", "filter[app]=app-1", "sort=-createdDate"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	stdout, stderr := runBetaGroupsList(t, "--app", "app-1", "--sort", "-createdDate")
 
@@ -42,22 +35,10 @@ func TestBetaGroupsListGlobalNameAndSortPropagate(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/betaGroups" {
-			t.Errorf("expected path /v1/betaGroups, got %s", req.URL.Path)
-		}
-		query := req.URL.Query()
-		if got := query.Get("filter[name]"); got != "QA Testers" {
-			t.Errorf("filter[name] = %q, want QA Testers", got)
-		}
-		if got := query.Get("sort"); got != "name" {
-			t.Errorf("sort = %q, want name", got)
-		}
-		if got := query.Get("filter[app]"); got != "" {
-			t.Errorf("filter[app] = %q, want none for --global", got)
-		}
-		return betaGroupsJSONResponse(`{"data":[]}`), nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaGroups", "filter[name]=QA Testers", "sort=name"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	_, stderr := runBetaGroupsList(t, "--global", "--name", "QA Testers", "--sort", "name")
 
@@ -117,30 +98,22 @@ func TestBetaGroupsListNameFilterUsesTopLevelEndpoint(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var count int
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				count++
-				if count > len(test.requests) {
-					t.Errorf("unexpected request %d: %s", count, req.URL.String())
-					return betaGroupsJSONResponse(`{"data":[]}`), nil
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			for _, want := range test.requests {
+				query := []string{"fields[betaGroups]=name", "limit=200"}
+				if want.path == "/v1/betaGroups" {
+					query = []string{"filter[app]=app-1", "filter[name]=" + want.name}
 				}
-				want := test.requests[count-1]
-				query := req.URL.Query()
-				if req.URL.Path != want.path || query.Get("filter[name]") != want.name {
-					t.Errorf("request %d = %s filter[name]=%q, want %s filter[name]=%q", count, req.URL.Path, query.Get("filter[name]"), want.path, want.name)
-				}
-				if want.path == "/v1/betaGroups" && query.Get("filter[app]") != "app-1" {
-					t.Errorf("request %d filter[app] = %q, want app-1", count, query.Get("filter[app]"))
-				}
-				return betaGroupsJSONResponse(want.body), nil
-			}))
+				reg.Register(asctest.GET(want.path, query...), asctest.JSON(http.StatusOK, want.body))
+			}
 
 			stdout, stderr := runBetaGroupsList(t, "--app", "app-1", "--name", test.nameFlag, "--output", "json")
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if count != len(test.requests) {
+			if count := len(reg.Requests()); count != len(test.requests) {
 				t.Fatalf("made %d requests, want %d", count, len(test.requests))
 			}
 			if !strings.Contains(stdout, test.wantStdout) {

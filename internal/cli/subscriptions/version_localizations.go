@@ -186,50 +186,38 @@ func SubscriptionsVersionLocalizationsLinksCommand() *ffcli.Command {
 
 // SubscriptionsVersionLocalizationsViewCommand views a v2 localization.
 func SubscriptionsVersionLocalizationsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions localizations view", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "id", "subscriptionLocalizations", "Subscription localization ID")
-	fields := fs.String("fields", "", "Sparse fields for subscriptionLocalizations")
-	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
-	include := fs.String("include", "", "Include relationships: version")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "view", ShortUsage: "asc subscriptions versions localizations view --id \"LOCALIZATION_ID\"", ShortHelp: "View a version-scoped localization.",
-		LongHelp: "View a version-scoped subscription localization by ID.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			localizationID := strings.TrimSpace(*id)
-			if localizationID == "" {
-				return shared.RequiredFlag("--id")
-			}
-			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList())
-			if err != nil {
+	var fieldValues, versionFieldValues, includeValues []string
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "versions localizations view",
+		Name:        "view", ShortUsage: "asc subscriptions versions localizations view --id \"LOCALIZATION_ID\"", ShortHelp: "View a version-scoped localization.",
+		LongHelp: "View a version-scoped subscription localization by ID.",
+		IDUsage:  "Subscription localization ID", IDType: "subscriptionLocalizations", RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Sparse fields for subscriptionLocalizations")
+			versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
+			include := fs.String("include", "", "Include relationships: version")
+			return func() (err error) {
+				if fieldValues, err = normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList()); err != nil {
+					return err
+				}
+				if versionFieldValues, err = normalizeSelectionFlag(fs, *versionFields, "--version-fields", subscriptionVersionFieldsList()); err != nil {
+					return err
+				}
+				includeValues, err = normalizeSelectionFlag(fs, *include, "--include", subscriptionLocalizationV2IncludeList())
 				return err
 			}
-			versionFieldValues, err := normalizeSelectionFlag(fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
-			if err != nil {
-				return err
-			}
-			includeValues, err := normalizeSelectionFlag(fs, *include, "--include", subscriptionLocalizationV2IncludeList())
-			if err != nil {
-				return err
-			}
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions versions localizations view: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			resp, err := client.GetSubscriptionLocalizationV2(
-				requestCtx, localizationID,
+		},
+		ErrorPrefix:      "subscriptions versions localizations view",
+		FetchErrorPrefix: "subscriptions versions localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetSubscriptionLocalizationV2(
+				ctx, id,
 				asc.WithSubscriptionLocalizationV2Fields(fieldValues),
 				asc.WithSubscriptionLocalizationV2VersionFields(versionFieldValues),
 				asc.WithSubscriptionLocalizationV2Include(includeValues),
 			)
-			if err != nil {
-				return fmt.Errorf("subscriptions versions localizations view: failed to fetch: %w", err)
-			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	})
 }
 
 // SubscriptionsVersionLocalizationsCreateCommand creates a v2 localization.

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -463,11 +464,16 @@ func TestLoadAppThreadsWarnsOnIndependentTimeout(t *testing.T) {
 		"/iris/v1/apps/app-1/resolutionCenterThreads": reviewThreadsAppFixture,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
-	defer cancel()
-	time.Sleep(time.Millisecond)
+	client := testWebReviewClient(t)
+	var warning string
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+		defer cancel()
+		time.Sleep(time.Millisecond)
 
-	_, warning, err := loadAppThreads(ctx, testWebReviewClient(t), "app-1")
+		_, warning, err = loadAppThreads(ctx, client, "app-1")
+	})
 	if err != nil {
 		t.Fatalf("independent timeout should stay warning-only, got %v", err)
 	}

@@ -156,8 +156,7 @@ and container file path recommendations. JSON output only.
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 
 			return executeWorkflowOptionsFetch(
@@ -198,8 +197,7 @@ JSON output only.
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			if flagProvided(fs, "limit") && *limit <= 0 {
 				fmt.Fprintln(os.Stderr, "Error: --limit must be greater than 0 when provided")
@@ -240,8 +238,7 @@ Show workflow test destination options for a given Xcode version. JSON output on
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*xcodeVersion)
 			if version == "" {
-				fmt.Fprintln(os.Stderr, "Error: --xcode-version is required")
-				return shared.MissingRequiredUsageError("--xcode-version")
+				return shared.RequiredFlag("--xcode-version")
 			}
 
 			return executeWorkflowOptionsFetch(

@@ -2,14 +2,13 @@ package cmdtest
 
 import (
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -76,23 +75,9 @@ func TestLocalizationsUpdateClearsNullableFields(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupLocUpdateAuth(t)
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-			requestCount := 0
-			patchBody := ""
-			http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodPatch || req.URL.Path != test.path {
-					return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				requestCount++
-				body, err := io.ReadAll(req.Body)
-				if err != nil {
-					return nil, err
-				}
-				patchBody = string(body)
-				return locUpdateJSONResponse(test.response)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH(test.path), asctest.JSON(http.StatusOK, test.response))
 
 			stdout, stderr := captureOutput(t, func() {
 				code := cmd.Run(append([]string{"localizations", "update"}, test.args...), "1.2.3")
@@ -104,9 +89,11 @@ func TestLocalizationsUpdateClearsNullableFields(t *testing.T) {
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if requestCount != 1 {
+			requests := reg.Requests()
+			if requestCount := len(requests); requestCount != 1 {
 				t.Fatalf("request count = %d, want one PATCH", requestCount)
 			}
+			patchBody := string(requests[0].Body)
 			for _, want := range test.wantContains {
 				if !strings.Contains(patchBody, want) {
 					t.Fatalf("expected patch body to contain %s, got %s", want, patchBody)
@@ -255,19 +242,10 @@ func TestLocalizationsUpdateRejectsClearFlagsForWrongType(t *testing.T) {
 func TestLocalizationsUpdateClearFailureListsClearedField(t *testing.T) {
 	setupLocUpdateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPatch || req.URL.Path != "/v1/appStoreVersionLocalizations/loc-1" {
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		return &http.Response{
-			StatusCode: http.StatusConflict,
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"409","code":"ENTITY_ERROR.INVALID","title":"Invalid","detail":"(-50)"}]}`)),
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-1").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"promotionalText":null}}}`),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.INVALID","title":"Invalid","detail":"(-50)"}]}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{

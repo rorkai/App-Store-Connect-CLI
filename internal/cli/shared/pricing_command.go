@@ -79,8 +79,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 
 			baseTerritoryInput := strings.TrimSpace(*baseTerritory)
 			if requiresExplicitBaseTerritory(config, baseTerritoryInput, tierValue, priceValue, freeValue) {
-				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
-				return MissingRequiredUsageError("--base-territory")
+				return RequiredFlag("--base-territory")
 			}
 			baseTerritoryValue := baseTerritoryInput
 			if baseTerritoryInput != "" {
@@ -94,8 +93,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 			startDateValue := strings.TrimSpace(*startDate)
 			startDateDefaulted := startDateValue == ""
 			if startDateDefaulted && !config.StartDateDefaultToday {
-				fmt.Fprintln(os.Stderr, "Error: --start-date is required")
-				return MissingRequiredUsageError("--start-date")
+				return RequiredFlag("--start-date")
 			}
 
 			var normalizedStartDate string

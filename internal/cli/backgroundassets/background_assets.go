@@ -170,43 +170,24 @@ Examples:
 
 // BackgroundAssetsGetCommand returns the background assets get subcommand.
 func BackgroundAssetsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	assetID := shared.BindResourceIDFlag(fs, "id", "backgroundAssets", "Background asset ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc background-assets view --id \"ASSET_ID\"",
-		ShortHelp:  "View a background asset by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc background-assets view --id \"ASSET_ID\"",
+		ShortHelp:   "View a background asset by ID.",
 		LongHelp: `View a background asset by ID.
 
 Examples:
   asc background-assets view --id "ASSET_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			assetIDValue := strings.TrimSpace(*assetID)
-			if assetIDValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("background-assets view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBackgroundAsset(requestCtx, assetIDValue)
-			if err != nil {
-				return fmt.Errorf("background-assets view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Background asset ID",
+		IDType:             "backgroundAssets",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "background-assets view",
+		FetchErrorPrefix:   "background-assets view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBackgroundAsset(ctx, id)
 		},
-	}
+	})
 }
 
 // BackgroundAssetsCreateCommand returns the background assets create subcommand.

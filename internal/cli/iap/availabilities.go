@@ -39,43 +39,24 @@ Examples:
 
 // IAPAvailabilitiesGetCommand returns the availability get subcommand.
 func IAPAvailabilitiesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing availabilities view", flag.ExitOnError)
-
-	availabilityID := shared.BindResourceIDFlag(fs, "id", "inAppPurchaseAvailabilities", "Availability ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc iap pricing availabilities view --id \"AVAILABILITY_ID\"",
-		ShortHelp:  "View an in-app purchase availability by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "pricing availabilities view",
+		Name:        "view",
+		ShortUsage:  "asc iap pricing availabilities view --id \"AVAILABILITY_ID\"",
+		ShortHelp:   "View an in-app purchase availability by ID.",
 		LongHelp: `View an in-app purchase availability by ID.
 
 Examples:
   asc iap pricing availabilities view --id "AVAILABILITY_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*availabilityID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("iap availabilities view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetInAppPurchaseAvailabilityByID(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("iap availabilities view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Availability ID",
+		IDType:             "inAppPurchaseAvailabilities",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "iap availabilities view",
+		FetchErrorPrefix:   "iap availabilities view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetInAppPurchaseAvailabilityByID(ctx, id)
 		},
-	}
+	})
 }
 
 // IAPAvailabilitiesAvailableTerritoriesCommand returns the available territories subcommand.
