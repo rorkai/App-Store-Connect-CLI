@@ -205,13 +205,3 @@ func (c *Client) CreateSubscriptionSubmission(ctx context.Context, subscriptionI
 	}
 	return result, nil
 }
-
-// DeleteSubscriptionSubmission detaches a subscription from the next app version review via the private web flow.
-func (c *Client) DeleteSubscriptionSubmission(ctx context.Context, subscriptionID string) error {
-	subscriptionID = strings.TrimSpace(subscriptionID)
-	if subscriptionID == "" {
-		return fmt.Errorf("subscription id is required")
-	}
-	_, err := c.doRequest(ctx, http.MethodDelete, "/subscriptionSubmissions/"+url.PathEscape(subscriptionID), nil)
-	return err
-}

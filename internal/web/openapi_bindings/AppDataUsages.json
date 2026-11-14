@@ -1,0 +1,7 @@
+{
+  "tag": "AppDataUsages",
+  "file": "app_data_usages_gen.go",
+  "operations": [
+    {"operation":"appDataUsages_deleteInstance","name":"DeleteAppDataUsage","params":["appDataUsageID"],"check":"require","messages":["app data usage id is required"]}
+  ]
+}
