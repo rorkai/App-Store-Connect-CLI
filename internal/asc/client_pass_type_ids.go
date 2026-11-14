@@ -8,26 +8,26 @@ import (
 
 // CreatePassTypeID creates a new pass type ID.
 func (c *Client) CreatePassTypeID(ctx context.Context, attrs PassTypeIDCreateAttributes) (*PassTypeIDResponse, error) {
-	request := PassTypeIDCreateRequest{
+	payload := PassTypeIDCreateRequest{
 		Data: PassTypeIDCreateData{
 			Type:       ResourceTypePassTypeIds,
 			Attributes: attrs,
 		},
 	}
-	return sendJSON[PassTypeIDResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/passTypeIds", Payload: request})
+	return sendJSON[PassTypeIDResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/passTypeIds", Payload: payload})
 }
 
 // UpdatePassTypeID updates an existing pass type ID.
 func (c *Client) UpdatePassTypeID(ctx context.Context, id string, attrs PassTypeIDUpdateAttributes) (*PassTypeIDResponse, error) {
 	id = strings.TrimSpace(id)
-	request := PassTypeIDUpdateRequest{
+	payload := PassTypeIDUpdateRequest{
 		Data: PassTypeIDUpdateData{
 			Type:       ResourceTypePassTypeIds,
 			ID:         id,
 			Attributes: &attrs,
 		},
 	}
-	return sendJSON[PassTypeIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/passTypeIds/%s", id), Payload: request})
+	return sendJSON[PassTypeIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/passTypeIds/%s", id), Payload: payload})
 }
 
 // GetPassTypeIDCertificatesRelationships retrieves certificate linkages for a pass type ID.

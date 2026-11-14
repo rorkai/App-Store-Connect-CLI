@@ -8,26 +8,26 @@ import (
 
 // CreateMerchantID creates a new merchant ID.
 func (c *Client) CreateMerchantID(ctx context.Context, attrs MerchantIDCreateAttributes) (*MerchantIDResponse, error) {
-	request := MerchantIDCreateRequest{
+	payload := MerchantIDCreateRequest{
 		Data: MerchantIDCreateData{
 			Type:       ResourceTypeMerchantIds,
 			Attributes: attrs,
 		},
 	}
-	return sendJSON[MerchantIDResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/merchantIds", Payload: request})
+	return sendJSON[MerchantIDResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/merchantIds", Payload: payload})
 }
 
 // UpdateMerchantID updates an existing merchant ID.
 func (c *Client) UpdateMerchantID(ctx context.Context, id string, attrs MerchantIDUpdateAttributes) (*MerchantIDResponse, error) {
 	id = strings.TrimSpace(id)
-	request := MerchantIDUpdateRequest{
+	payload := MerchantIDUpdateRequest{
 		Data: MerchantIDUpdateData{
 			Type:       ResourceTypeMerchantIds,
 			ID:         id,
 			Attributes: &attrs,
 		},
 	}
-	return sendJSON[MerchantIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/merchantIds/%s", id), Payload: request})
+	return sendJSON[MerchantIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/merchantIds/%s", id), Payload: payload})
 }
 
 // GetMerchantIDCertificatesRelationships retrieves certificate linkages for a merchant ID.

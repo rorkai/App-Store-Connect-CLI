@@ -398,32 +398,32 @@ func splitBundleIDsIdentifierFilter(query *bundleIDsQuery) ([][]string, error) {
 
 // CreateBundleID creates a new bundle ID.
 func (c *Client) CreateBundleID(ctx context.Context, attrs BundleIDCreateAttributes) (*BundleIDResponse, error) {
-	request := BundleIDCreateRequest{
+	payload := BundleIDCreateRequest{
 		Data: BundleIDCreateData{
 			Type:       ResourceTypeBundleIds,
 			Attributes: attrs,
 		},
 	}
-	return sendJSON[BundleIDResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/bundleIds", Payload: request})
+	return sendJSON[BundleIDResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/bundleIds", Payload: payload})
 }
 
 // UpdateBundleID updates an existing bundle ID.
 func (c *Client) UpdateBundleID(ctx context.Context, id string, attrs BundleIDUpdateAttributes) (*BundleIDResponse, error) {
 	id = strings.TrimSpace(id)
-	request := BundleIDUpdateRequest{
+	payload := BundleIDUpdateRequest{
 		Data: BundleIDUpdateData{
 			Type:       ResourceTypeBundleIds,
 			ID:         id,
 			Attributes: &attrs,
 		},
 	}
-	return sendJSON[BundleIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIds/%s", id), Payload: request})
+	return sendJSON[BundleIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIds/%s", id), Payload: payload})
 }
 
 // CreateBundleIDCapability adds a capability to a bundle ID.
 func (c *Client) CreateBundleIDCapability(ctx context.Context, bundleID string, attrs BundleIDCapabilityCreateAttributes) (*BundleIDCapabilityResponse, error) {
 	bundleID = strings.TrimSpace(bundleID)
-	request := BundleIDCapabilityCreateRequest{
+	payload := BundleIDCapabilityCreateRequest{
 		Data: BundleIDCapabilityCreateData{
 			Type:       ResourceTypeBundleIdCapabilities,
 			Attributes: attrs,
@@ -437,7 +437,7 @@ func (c *Client) CreateBundleIDCapability(ctx context.Context, bundleID string, 
 			},
 		},
 	}
-	return sendJSON[BundleIDCapabilityResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/bundleIdCapabilities", Payload: request})
+	return sendJSON[BundleIDCapabilityResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/bundleIdCapabilities", Payload: payload})
 }
 
 // UpdateBundleIDCapability updates an existing bundle ID capability.
@@ -446,14 +446,14 @@ func (c *Client) UpdateBundleIDCapability(ctx context.Context, capabilityID stri
 	if capabilityID == "" {
 		return nil, fmt.Errorf("capability ID is required")
 	}
-	request := BundleIDCapabilityUpdateRequest{
+	payload := BundleIDCapabilityUpdateRequest{
 		Data: BundleIDCapabilityUpdateData{
 			Type:       ResourceTypeBundleIdCapabilities,
 			ID:         capabilityID,
 			Attributes: &attrs,
 		},
 	}
-	return sendJSON[BundleIDCapabilityResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), Payload: request})
+	return sendJSON[BundleIDCapabilityResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), Payload: payload})
 }
 
 // GetCertificate retrieves a single certificate by ID.
