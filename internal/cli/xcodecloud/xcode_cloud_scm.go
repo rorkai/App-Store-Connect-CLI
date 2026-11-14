@@ -144,8 +144,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, providerID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.ScmRepositoriesOption{
-				asc.WithScmRepositoriesLimit(limit),
-				asc.WithScmRepositoriesNextURL(next),
+				asc.Limit[asc.ScmRepositoriesOption](limit),
+				asc.NextURL[asc.ScmRepositoriesOption](next),
 			}
 			resp, err := client.GetScmProviderRepositories(ctx, providerID, opts...)
 			if err != nil {
@@ -257,8 +257,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, repoID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.ScmGitReferencesOption{
-				asc.WithScmGitReferencesLimit(limit),
-				asc.WithScmGitReferencesNextURL(next),
+				asc.Limit[asc.ScmGitReferencesOption](limit),
+				asc.NextURL[asc.ScmGitReferencesOption](next),
 			}
 			resp, err := client.GetScmGitReferences(ctx, repoID, opts...)
 			if err != nil {
@@ -290,8 +290,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, repoID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.ScmPullRequestsOption{
-				asc.WithScmPullRequestsLimit(limit),
-				asc.WithScmPullRequestsNextURL(next),
+				asc.Limit[asc.ScmPullRequestsOption](limit),
+				asc.NextURL[asc.ScmPullRequestsOption](next),
 			}
 			resp, err := client.GetScmRepositoryPullRequests(ctx, repoID, opts...)
 			if err != nil {
@@ -496,12 +496,12 @@ func xcodeCloudScmProvidersList(ctx context.Context, limit int, next string, pag
 		func(ctx context.Context, client *asc.Client, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetScmProviders(
 				ctx,
-				asc.WithScmProvidersLimit(limit),
-				asc.WithScmProvidersNextURL(next),
+				asc.Limit[asc.ScmProvidersOption](limit),
+				asc.NextURL[asc.ScmProvidersOption](next),
 			)
 		},
 		func(ctx context.Context, client *asc.Client, next string) (asc.PaginatedResponse, error) {
-			return client.GetScmProviders(ctx, asc.WithScmProvidersNextURL(next))
+			return client.GetScmProviders(ctx, asc.NextURL[asc.ScmProvidersOption](next))
 		},
 	)
 }
@@ -518,12 +518,12 @@ func xcodeCloudScmRepositoriesList(ctx context.Context, limit int, next string, 
 		func(ctx context.Context, client *asc.Client, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetScmRepositories(
 				ctx,
-				asc.WithScmRepositoriesLimit(limit),
-				asc.WithScmRepositoriesNextURL(next),
+				asc.Limit[asc.ScmRepositoriesOption](limit),
+				asc.NextURL[asc.ScmRepositoriesOption](next),
 			)
 		},
 		func(ctx context.Context, client *asc.Client, next string) (asc.PaginatedResponse, error) {
-			return client.GetScmRepositories(ctx, asc.WithScmRepositoriesNextURL(next))
+			return client.GetScmRepositories(ctx, asc.NextURL[asc.ScmRepositoriesOption](next))
 		},
 	)
 }

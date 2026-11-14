@@ -67,15 +67,6 @@ func WithAppCategoriesLimit(limit int) AppCategoriesOption {
 	}
 }
 
-// WithAppCategoriesNextURL uses a next page URL directly.
-func WithAppCategoriesNextURL(next string) AppCategoriesOption {
-	return func(q *appCategoriesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildAppCategoriesQuery(query *appCategoriesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)

@@ -180,7 +180,7 @@ func TestGetAnalyticsReportRequests_WithAccessTypeFilter(t *testing.T) {
 	if _, err := client.GetAnalyticsReportRequests(
 		context.Background(),
 		"app-1",
-		WithAnalyticsReportRequestsLimit(10),
+		Limit[AnalyticsReportRequestsOption](10),
 		WithAnalyticsReportRequestsAccessType(AnalyticsAccessTypeOngoing),
 	); err != nil {
 		t.Fatalf("GetAnalyticsReportRequests() error: %v", err)
@@ -293,7 +293,7 @@ func TestAnalyticsListEndpoints_UseNextURL(t *testing.T) {
 			next:     "https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/req-1/reports?cursor=abc",
 			response: `{"data":[{"type":"analyticsReports","id":"report-1"}]}`,
 			call: func(t *testing.T, c *Client, next string) {
-				resp, err := c.GetAnalyticsReports(ctx, "req-1", WithAnalyticsReportsNextURL(next))
+				resp, err := c.GetAnalyticsReports(ctx, "req-1", NextURL[AnalyticsReportsOption](next))
 				if err != nil {
 					t.Fatalf("GetAnalyticsReports() error: %v", err)
 				}
@@ -307,7 +307,7 @@ func TestAnalyticsListEndpoints_UseNextURL(t *testing.T) {
 			next:     "https://api.appstoreconnect.apple.com/v1/analyticsReports/report-1/instances?cursor=abc",
 			response: `{"data":[{"type":"analyticsReportInstances","id":"inst-1"}]}`,
 			call: func(t *testing.T, c *Client, next string) {
-				resp, err := c.GetAnalyticsReportInstances(ctx, "report-1", WithAnalyticsReportInstancesNextURL(next))
+				resp, err := c.GetAnalyticsReportInstances(ctx, "report-1", NextURL[AnalyticsReportInstancesOption](next))
 				if err != nil {
 					t.Fatalf("GetAnalyticsReportInstances() error: %v", err)
 				}
@@ -321,7 +321,7 @@ func TestAnalyticsListEndpoints_UseNextURL(t *testing.T) {
 			next:     "https://api.appstoreconnect.apple.com/v1/analyticsReportInstances/inst-1/segments?cursor=abc",
 			response: `{"data":[{"type":"analyticsReportSegments","id":"seg-1"}]}`,
 			call: func(t *testing.T, c *Client, next string) {
-				resp, err := c.GetAnalyticsReportSegments(ctx, "inst-1", WithAnalyticsReportSegmentsNextURL(next))
+				resp, err := c.GetAnalyticsReportSegments(ctx, "inst-1", NextURL[AnalyticsReportSegmentsOption](next))
 				if err != nil {
 					t.Fatalf("GetAnalyticsReportSegments() error: %v", err)
 				}

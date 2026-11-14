@@ -90,7 +90,7 @@ Examples:
 
 			opts := []asc.AppCategoriesOption{
 				asc.WithAppCategoriesLimit(*limit),
-				asc.WithAppCategoriesNextURL(*next),
+				asc.NextURL[asc.AppCategoriesOption](*next),
 			}
 
 			if *paginate {
@@ -99,7 +99,7 @@ Examples:
 					return fmt.Errorf("categories list: %w", err)
 				}
 				categories, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppCategories(ctx, asc.WithAppCategoriesNextURL(nextURL))
+					return client.GetAppCategories(ctx, asc.NextURL[asc.AppCategoriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("categories list: %w", err)

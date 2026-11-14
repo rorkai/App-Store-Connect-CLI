@@ -99,21 +99,21 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppEventLocalizationsOption{
-				asc.WithAppEventLocalizationsLimit(*limit),
-				asc.WithAppEventLocalizationsNextURL(*next),
+				asc.Limit[asc.AppEventLocalizationsOption](*limit),
+				asc.NextURL[asc.AppEventLocalizationsOption](*next),
 				asc.WithAppEventLocalizationsInclude(includeValues),
 				asc.WithAppEventLocalizationsPlacementsLimit(placementsLimit),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppEventLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppEventLocalizationsOption](200))
 				firstPage, err := client.GetAppEventLocalizations(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-events localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventLocalizations(ctx, id, asc.WithAppEventLocalizationsNextURL(nextURL))
+					return client.GetAppEventLocalizations(ctx, id, asc.NextURL[asc.AppEventLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-events localizations list: %w", err)

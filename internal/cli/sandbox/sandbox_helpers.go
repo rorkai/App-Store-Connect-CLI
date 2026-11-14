@@ -88,8 +88,8 @@ func findSandboxTesterByEmail(ctx context.Context, client *asc.Client, email str
 		resp, err := client.GetSandboxTesters(
 			ctx,
 			asc.WithSandboxTestersEmail(email),
-			asc.WithSandboxTestersLimit(200),
-			asc.WithSandboxTestersNextURL(next),
+			asc.Limit[asc.SandboxTestersOption](200),
+			asc.NextURL[asc.SandboxTestersOption](next),
 		)
 		if err != nil {
 			return nil, err

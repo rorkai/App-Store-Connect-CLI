@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 )
 
 // CiTestDestinationKind represents the kind of test destination.
@@ -123,24 +122,6 @@ type ciMacOsVersionsQuery struct {
 // CiMacOsVersionsOption is a functional option for GetCiMacOsVersions.
 type CiMacOsVersionsOption func(*ciMacOsVersionsQuery)
 
-// WithCiMacOsVersionsLimit sets the max number of macOS versions to return.
-func WithCiMacOsVersionsLimit(limit int) CiMacOsVersionsOption {
-	return func(q *ciMacOsVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiMacOsVersionsNextURL uses a next page URL directly.
-func WithCiMacOsVersionsNextURL(next string) CiMacOsVersionsOption {
-	return func(q *ciMacOsVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildCiMacOsVersionsQuery(query *ciMacOsVersionsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -153,24 +134,6 @@ type ciXcodeVersionsQuery struct {
 
 // CiXcodeVersionsOption is a functional option for GetCiXcodeVersions.
 type CiXcodeVersionsOption func(*ciXcodeVersionsQuery)
-
-// WithCiXcodeVersionsLimit sets the max number of Xcode versions to return.
-func WithCiXcodeVersionsLimit(limit int) CiXcodeVersionsOption {
-	return func(q *ciXcodeVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiXcodeVersionsNextURL uses a next page URL directly.
-func WithCiXcodeVersionsNextURL(next string) CiXcodeVersionsOption {
-	return func(q *ciXcodeVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
 
 func buildCiXcodeVersionsQuery(query *ciXcodeVersionsQuery) string {
 	values := url.Values{}

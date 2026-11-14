@@ -465,7 +465,7 @@ func fetchAllScreenshotSetsForValidation(ctx context.Context, client *asc.Client
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetAppScreenshotSets(requestCtx, "", asc.WithAppScreenshotSetsNextURL(nextURL))
+			return client.GetAppScreenshotSets(requestCtx, "", asc.NextURL[asc.AppScreenshotSetsOption](nextURL))
 		})
 	})
 	if err != nil {
@@ -489,7 +489,7 @@ func fetchAllScreenshotsForValidation(ctx context.Context, client *asc.Client, s
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetAppScreenshots(requestCtx, "", asc.WithAppScreenshotsNextURL(nextURL))
+			return client.GetAppScreenshots(requestCtx, "", asc.NextURL[asc.AppScreenshotsOption](nextURL))
 		})
 	})
 	if err != nil {

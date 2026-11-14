@@ -219,7 +219,7 @@ func diagnoseXcodeCloudAction(ctx context.Context, client *asc.Client, action as
 }
 
 func listAllXcodeCloudActionIssues(ctx context.Context, client *asc.Client, actionID string) ([]asc.CiIssueResource, error) {
-	resp, err := client.GetCiBuildActionIssues(ctx, actionID, asc.WithCiIssuesLimit(200))
+	resp, err := client.GetCiBuildActionIssues(ctx, actionID, asc.Limit[asc.CiIssuesOption](200))
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +227,7 @@ func listAllXcodeCloudActionIssues(ctx context.Context, client *asc.Client, acti
 		return resp.Data, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetCiBuildActionIssues(ctx, actionID, asc.WithCiIssuesNextURL(nextURL))
+		return client.GetCiBuildActionIssues(ctx, actionID, asc.NextURL[asc.CiIssuesOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -240,7 +240,7 @@ func listAllXcodeCloudActionIssues(ctx context.Context, client *asc.Client, acti
 }
 
 func listAllXcodeCloudActionArtifacts(ctx context.Context, client *asc.Client, actionID string) ([]asc.CiArtifactResource, error) {
-	resp, err := client.GetCiBuildActionArtifacts(ctx, actionID, asc.WithCiArtifactsLimit(200))
+	resp, err := client.GetCiBuildActionArtifacts(ctx, actionID, asc.Limit[asc.CiArtifactsOption](200))
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func listAllXcodeCloudActionArtifacts(ctx context.Context, client *asc.Client, a
 		return resp.Data, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetCiBuildActionArtifacts(ctx, actionID, asc.WithCiArtifactsNextURL(nextURL))
+		return client.GetCiBuildActionArtifacts(ctx, actionID, asc.NextURL[asc.CiArtifactsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

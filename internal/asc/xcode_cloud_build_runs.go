@@ -164,24 +164,6 @@ func WithCiBuildRunFields(fields ...string) CiBuildRunGetOption {
 	}
 }
 
-// WithCiBuildRunsLimit sets the max number of build runs to return.
-func WithCiBuildRunsLimit(limit int) CiBuildRunsOption {
-	return func(q *ciBuildRunsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiBuildRunsNextURL uses a next page URL directly.
-func WithCiBuildRunsNextURL(next string) CiBuildRunsOption {
-	return func(q *ciBuildRunsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithCiBuildRunsSort sets the sort order for build runs.
 func WithCiBuildRunsSort(sort string) CiBuildRunsOption {
 	return func(q *ciBuildRunsQuery) {
@@ -213,24 +195,6 @@ type ciBuildRunBuildsQuery struct {
 
 // CiBuildRunBuildsOption is a functional option for GetCiBuildRunBuilds.
 type CiBuildRunBuildsOption func(*ciBuildRunBuildsQuery)
-
-// WithCiBuildRunBuildsLimit sets the max number of builds to return.
-func WithCiBuildRunBuildsLimit(limit int) CiBuildRunBuildsOption {
-	return func(q *ciBuildRunBuildsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiBuildRunBuildsNextURL uses a next page URL directly.
-func WithCiBuildRunBuildsNextURL(next string) CiBuildRunBuildsOption {
-	return func(q *ciBuildRunBuildsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
 
 func buildCiBuildRunBuildsQuery(query *ciBuildRunBuildsQuery) string {
 	values := url.Values{}

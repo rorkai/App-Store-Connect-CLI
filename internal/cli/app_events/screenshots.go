@@ -178,19 +178,19 @@ Examples:
 			}
 
 			opts := []asc.AppEventScreenshotsOption{
-				asc.WithAppEventScreenshotsLimit(*limit),
-				asc.WithAppEventScreenshotsNextURL(*next),
+				asc.Limit[asc.AppEventScreenshotsOption](*limit),
+				asc.NextURL[asc.AppEventScreenshotsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppEventScreenshotsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppEventScreenshotsOption](200))
 				firstPage, err := client.GetAppEventScreenshots(requestCtx, resolvedLocalizationID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-events screenshots list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventScreenshots(ctx, resolvedLocalizationID, asc.WithAppEventScreenshotsNextURL(nextURL))
+					return client.GetAppEventScreenshots(ctx, resolvedLocalizationID, asc.NextURL[asc.AppEventScreenshotsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-events screenshots list: %w", err)

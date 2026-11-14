@@ -3,7 +3,6 @@ package asc
 import (
 	"net/url"
 	"strconv"
-	"strings"
 )
 
 // AppEventBadge represents the app event badge/event type.
@@ -257,24 +256,6 @@ type appEventVideoClipsQuery struct {
 	listQuery
 }
 
-// WithAppEventsLimit sets the max number of app events to return.
-func WithAppEventsLimit(limit int) AppEventsOption {
-	return func(q *appEventsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppEventsNextURL uses a next page URL directly.
-func WithAppEventsNextURL(next string) AppEventsOption {
-	return func(q *appEventsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAppEventsStates filters app events by lifecycle state(s).
 func WithAppEventsStates(states []string) AppEventsOption {
 	return func(q *appEventsQuery) {
@@ -319,15 +300,6 @@ func WithAppEventsLocalizationsLimit(limit int) AppEventsOption {
 	}
 }
 
-// WithAppEventLocalizationsLimit sets the max number of localizations to return.
-func WithAppEventLocalizationsLimit(limit int) AppEventLocalizationsOption {
-	return func(q *appEventLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 // WithAppEventLocalizationsInclude includes related resources.
 func WithAppEventLocalizationsInclude(include []string) AppEventLocalizationsOption {
 	return func(q *appEventLocalizationsQuery) {
@@ -339,51 +311,6 @@ func WithAppEventLocalizationsInclude(include []string) AppEventLocalizationsOpt
 func WithAppEventLocalizationsPlacementsLimit(limit int) AppEventLocalizationsOption {
 	return func(q *appEventLocalizationsQuery) {
 		q.placementsLimit = limit
-	}
-}
-
-// WithAppEventLocalizationsNextURL uses a next page URL directly.
-func WithAppEventLocalizationsNextURL(next string) AppEventLocalizationsOption {
-	return func(q *appEventLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppEventScreenshotsLimit sets the max number of screenshots to return.
-func WithAppEventScreenshotsLimit(limit int) AppEventScreenshotsOption {
-	return func(q *appEventScreenshotsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppEventScreenshotsNextURL uses a next page URL directly.
-func WithAppEventScreenshotsNextURL(next string) AppEventScreenshotsOption {
-	return func(q *appEventScreenshotsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppEventVideoClipsLimit sets the max number of video clips to return.
-func WithAppEventVideoClipsLimit(limit int) AppEventVideoClipsOption {
-	return func(q *appEventVideoClipsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppEventVideoClipsNextURL uses a next page URL directly.
-func WithAppEventVideoClipsNextURL(next string) AppEventVideoClipsOption {
-	return func(q *appEventVideoClipsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
