@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -190,7 +191,7 @@ func TestApplyPublishVersionMetadataUsesFreshDeadlinePerLocale(t *testing.T) {
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/fr-id":
 			patches++
 			deadline, ok := req.Context().Deadline()
-			if !ok || time.Until(deadline) < 70*time.Millisecond {
+			if !ok || time.Until(deadline) != 100*time.Millisecond {
 				t.Fatalf("expected fresh second-locale deadline, remaining=%s", time.Until(deadline))
 			}
 			return publishJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"fr-id","attributes":{"description":"New French"}}}`), nil
@@ -201,12 +202,16 @@ func TestApplyPublishVersionMetadataUsesFreshDeadlinePerLocale(t *testing.T) {
 	}))
 	client := newPublishCommandTestClient(t)
 
-	results, err := applyPublishVersionMetadata(context.Background(), client, publishVersionMetadataOptions{
-		VersionID: "version-1",
-		ValuesByLocale: map[string]map[string]string{
-			"en-US": {"description": "New English"},
-			"fr-FR": {"description": "New French"},
-		},
+	var results []asc.LocalizationUploadLocaleResult
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		results, err = applyPublishVersionMetadata(context.Background(), client, publishVersionMetadataOptions{
+			VersionID: "version-1",
+			ValuesByLocale: map[string]map[string]string{
+				"en-US": {"description": "New English"},
+				"fr-FR": {"description": "New French"},
+			},
+		})
 	})
 	if err != nil || patches != 2 || len(results) != 2 {
 		t.Fatalf("unexpected metadata batch: results=%+v patches=%d err=%v", results, patches, err)

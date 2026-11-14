@@ -238,6 +238,12 @@ func TestNotarizationSubmitDetectsReplacementBetweenLstatAndOpen(t *testing.T) {
 func newNotarizationTestClient(t *testing.T, server *httptest.Server) *asc.Client {
 	t.Helper()
 
+	return newNotarizationTestClientWithHTTPClient(t, server.Client(), server.URL)
+}
+
+func newNotarizationTestClientWithHTTPClient(t *testing.T, httpClient *http.Client, notaryBaseURL string) *asc.Client {
+	t.Helper()
+
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("generate private key: %v", err)
@@ -252,10 +258,10 @@ func newNotarizationTestClient(t *testing.T, server *httptest.Server) *asc.Clien
 		t.Fatalf("write private key: %v", err)
 	}
 
-	client, err := asc.NewClientWithHTTPClient("TEST_KEY", "TEST_ISSUER", keyPath, server.Client())
+	client, err := asc.NewClientWithHTTPClient("TEST_KEY", "TEST_ISSUER", keyPath, httpClient)
 	if err != nil {
 		t.Fatalf("create test client: %v", err)
 	}
-	client.SetNotaryBaseURL(server.URL)
+	client.SetNotaryBaseURL(notaryBaseURL)
 	return client
 }

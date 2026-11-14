@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -73,14 +74,16 @@ func TestBuildsDsymsCommandGivesEachDownloadFreshTimeout(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}
-	if err := cmd.Exec(t.Context(), nil); err != nil {
-		t.Fatalf("BuildsDsymsCommand.Exec() error: %v", err)
+	var execErr error
+	synctest.Test(t, func(t *testing.T) { execErr = cmd.Exec(t.Context(), nil) })
+	if execErr != nil {
+		t.Fatalf("BuildsDsymsCommand.Exec() error: %v", execErr)
 	}
 
 	if len(downloadDeadlines) != 2 {
 		t.Fatalf("download requests = %d, want 2", len(downloadDeadlines))
 	}
-	if delta := downloadDeadlines[1].Sub(downloadDeadlines[0]); delta < 10*time.Millisecond {
-		t.Fatalf("second download deadline advanced by %v, want at least 10ms from a fresh timeout", delta)
+	if delta := downloadDeadlines[1].Sub(downloadDeadlines[0]); delta != 15*time.Millisecond {
+		t.Fatalf("second download deadline advanced by %v, want 15ms from a fresh timeout", delta)
 	}
 }

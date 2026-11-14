@@ -347,19 +347,22 @@ func TestRunReconciledMutationRetriesReadbackChildDeadline(t *testing.T) {
 }
 
 func TestRunReconciledMutationDoesNotStartAfterParentDeadline(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
-	defer cancel()
-	time.Sleep(time.Millisecond)
 	mutations := 0
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+		defer cancel()
+		time.Sleep(time.Millisecond)
 
-	_, _, err := RunReconciledMutation(
-		ctx,
-		func(context.Context) (string, error) {
-			mutations++
-			return "", nil
-		},
-		func(context.Context) (string, bool, error) { return "", false, nil },
-	)
+		_, _, err = RunReconciledMutation(
+			ctx,
+			func(context.Context) (string, error) {
+				mutations++
+				return "", nil
+			},
+			func(context.Context) (string, bool, error) { return "", false, nil },
+		)
+	})
 	if !errors.Is(err, context.DeadlineExceeded) || mutations != 0 {
 		t.Fatalf("expected parent deadline before mutation, err=%v mutations=%d", err, mutations)
 	}
