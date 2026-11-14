@@ -3,15 +3,17 @@ package cmdtest
 import (
 	"archive/zip"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 
 	"howett.net/plist"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestBuildsUploadResolvesExactBundleIDAndChecksIPAIdentityBeforeReservation(t *testing.T) {
@@ -19,33 +21,15 @@ func TestBuildsUploadResolvesExactBundleIDAndChecksIPAIdentityBeforeReservation(
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	ipaPath := writeBuildUploadIPA(t, "com.example.demo")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	var reservations int32
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps" && req.URL.Query().Get("filter[bundleId]") == "com.example.demo":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
-			atomic.AddInt32(&reservations, 1)
-			body, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("read reservation request: %v", err)
-			}
-			if !strings.Contains(string(body), `"id":"123456789"`) {
-				t.Fatalf("expected resolved app ID in reservation body: %s", body)
-			}
-			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":1,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[]}}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.demo", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/123456789"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`))
+	reg.Register(asctest.POST("/v1/buildUploads").JSONBody(`{"data":{"type":"buildUploads","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"}}}`))
+	reg.Register(asctest.POST("/v1/buildUploadFiles").JSONBody(buildUploadFileRequestBody(t, ipaPath)),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":1,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[]}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -64,7 +48,7 @@ func TestBuildsUploadResolvesExactBundleIDAndChecksIPAIdentityBeforeReservation(
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
-	if got := atomic.LoadInt32(&reservations); got != 1 {
+	if got := countBuildUploadReservations(reg); got != 1 {
 		t.Fatalf("expected one upload reservation, got %d", got)
 	}
 }
@@ -74,29 +58,13 @@ func TestBuildsUploadAutoDetectsIPAPlatformBeforeReservation(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	ipaPath := writeBuildUploadIPAWithPlatform(t, "com.example.demo", "appletvos", []string{"AppleTVOS"})
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
-			body, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("read reservation request: %v", err)
-			}
-			if !strings.Contains(string(body), `"platform":"TV_OS"`) {
-				t.Fatalf("expected auto-detected TV_OS platform in reservation body: %s", body)
-			}
-			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"TV_OS"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":1,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[]}}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`))
+	reg.Register(asctest.POST("/v1/buildUploads").JSONBody(`{"data":{"type":"buildUploads","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"TV_OS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"TV_OS"}}}`))
+	reg.Register(asctest.POST("/v1/buildUploadFiles").JSONBody(buildUploadFileRequestBody(t, ipaPath)),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":1,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[]}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -118,12 +86,7 @@ func TestBuildsUploadRejectsExplicitIPAPlatformMismatchBeforeNetwork(t *testing.
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	ipaPath := writeBuildUploadIPAWithPlatform(t, "com.example.demo", "xros", []string{"XROS"})
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -150,12 +113,14 @@ func TestBuildsUploadRejectsMissingOrAmbiguousExactAppBeforeReservation(t *testi
 		name     string
 		appInput string
 		appList  string
+		scanAll  bool
 		wantErr  string
 	}{
 		{
 			name:     "missing",
 			appInput: "Missing App",
 			appList:  `{"data":[]}`,
+			scanAll:  true,
 			wantErr:  `app "Missing App" not found (expected app ID, exact bundle ID, or exact app name)`,
 		},
 		{
@@ -175,25 +140,15 @@ func TestBuildsUploadRejectsMissingOrAmbiguousExactAppBeforeReservation(t *testi
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			ipaPath := writeBuildUploadIPA(t, "com.example.demo")
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-			var reservations int32
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/v1/apps":
-					if req.URL.Query().Get("filter[bundleId]") != "" {
-						return jsonResponse(http.StatusOK, `{"data":[]}`)
-					}
-					return jsonResponse(http.StatusOK, test.appList)
-				case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
-					atomic.AddInt32(&reservations, 1)
-					return nil, http.ErrUseLastResponse
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps", "filter[bundleId]="+test.appInput, "limit=2"),
+				asctest.JSON(http.StatusOK, `{"data":[]}`))
+			reg.Register(asctest.GET("/v1/apps", "filter[name]="+test.appInput, "limit=200"),
+				asctest.JSON(http.StatusOK, test.appList))
+			if test.scanAll {
+				reg.Register(asctest.GET("/v1/apps", "limit=200"), asctest.JSON(http.StatusOK, test.appList))
+			}
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
@@ -212,7 +167,7 @@ func TestBuildsUploadRejectsMissingOrAmbiguousExactAppBeforeReservation(t *testi
 			if !strings.Contains(err.Error(), test.wantErr) {
 				t.Fatalf("unexpected lookup error: %v", err)
 			}
-			if got := atomic.LoadInt32(&reservations); got != 0 {
+			if got := countBuildUploadReservations(reg); got != 0 {
 				t.Fatalf("expected no upload reservation, got %d", got)
 			}
 		})
@@ -224,22 +179,10 @@ func TestBuildsUploadRejectsBundleMismatchBeforeReservation(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	ipaPath := writeBuildUploadIPA(t, "com.example.ipa")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	var reservations int32
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Selected App","bundleId":"com.example.selected"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
-			atomic.AddInt32(&reservations, 1)
-			return nil, http.ErrUseLastResponse
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Selected App","bundleId":"com.example.selected"}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -258,7 +201,7 @@ func TestBuildsUploadRejectsBundleMismatchBeforeReservation(t *testing.T) {
 	if !strings.Contains(err.Error(), `IPA bundle ID "com.example.ipa" does not match selected app "Selected App" bundle ID "com.example.selected"`) {
 		t.Fatalf("unexpected mismatch error: %v", err)
 	}
-	if got := atomic.LoadInt32(&reservations); got != 0 {
+	if got := countBuildUploadReservations(reg); got != 0 {
 		t.Fatalf("expected no upload reservation, got %d", got)
 	}
 }
@@ -268,12 +211,7 @@ func TestBuildsUploadRequiresTopLevelIPABundleIDBeforeAppLookup(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	ipaPath := writeBuildUploadIPA(t, "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -292,6 +230,25 @@ func TestBuildsUploadRequiresTopLevelIPABundleIDBeforeAppLookup(t *testing.T) {
 	if !strings.Contains(err.Error(), "IPA top-level app Info.plist is missing CFBundleIdentifier") {
 		t.Fatalf("unexpected missing bundle ID error: %v", err)
 	}
+}
+
+func buildUploadFileRequestBody(t *testing.T, ipaPath string) string {
+	t.Helper()
+	info, err := os.Stat(ipaPath)
+	if err != nil {
+		t.Fatalf("stat IPA: %v", err)
+	}
+	return fmt.Sprintf(`{"data":{"type":"buildUploadFiles","attributes":{"assetType":"ASSET","fileName":"app.ipa","fileSize":%d,"uti":"com.apple.ipa"},"relationships":{"buildUpload":{"data":{"type":"buildUploads","id":"upload-1"}}}}}`, info.Size())
+}
+
+func countBuildUploadReservations(reg *asctest.Registry) int {
+	count := 0
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads" {
+			count++
+		}
+	}
+	return count
 }
 
 func writeBuildUploadIPA(t *testing.T, bundleID string) string {

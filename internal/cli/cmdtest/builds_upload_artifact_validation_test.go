@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestBuildsUploadRejectsUnsafePKGBeforeNetwork(t *testing.T) {
@@ -30,12 +32,7 @@ func TestBuildsUploadRejectsUnsafePKGBeforeNetwork(t *testing.T) {
 		t.Fatalf("create PKG symlink: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request for unsafe PKG: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	tests := []struct {
 		name    string
