@@ -864,7 +864,10 @@ func checkContractAttributeFields(call *contractCall, response contractResponse,
 				Attributes map[string]json.RawMessage `json:"attributes"`
 			} `json:"data"`
 		}
-		return body.Data.Attributes, json.Unmarshal(requests[0].body, &body)
+		if err := json.Unmarshal(requests[0].body, &body); err != nil {
+			return nil, err
+		}
+		return body.Data.Attributes, nil
 	}
 	zero, err := encode(reflect.New(typ).Elem())
 	if err != nil {
