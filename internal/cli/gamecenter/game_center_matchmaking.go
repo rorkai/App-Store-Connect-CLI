@@ -80,71 +80,26 @@ Examples:
 
 // GameCenterMatchmakingQueuesListCommand returns the matchmaking queues list subcommand.
 func GameCenterMatchmakingQueuesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center matchmaking queues list [flags]",
-		ShortHelp:  "List matchmaking queues.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center matchmaking queues list [flags]",
+		ShortHelp:   "List matchmaking queues.",
 		LongHelp: `List matchmaking queues.
 
 Examples:
   asc game-center matchmaking queues list
   asc game-center matchmaking queues list --limit 50
   asc game-center matchmaking queues list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center matchmaking queues list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center matchmaking queues list: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking queues list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCMatchmakingQueuesOption{
-				asc.WithGCMatchmakingQueuesLimit(*limit),
-				asc.WithGCMatchmakingQueuesNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCMatchmakingQueuesLimit(200))
-				firstPage, err := client.GetGameCenterMatchmakingQueues(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center matchmaking queues list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterMatchmakingQueues(ctx, asc.WithGCMatchmakingQueuesNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center matchmaking queues list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterMatchmakingQueues(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking queues list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center matchmaking queues list",
+		FetchErrorPrefix:     "game-center matchmaking queues list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterMatchmakingQueues(ctx, asc.WithGCMatchmakingQueuesLimit(limit), asc.WithGCMatchmakingQueuesNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterMatchmakingQueuesGetCommand returns the matchmaking queues get subcommand.
@@ -383,71 +338,26 @@ Examples:
 
 // GameCenterMatchmakingRuleSetsListCommand returns the rule sets list subcommand.
 func GameCenterMatchmakingRuleSetsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center matchmaking rule-sets list [flags]",
-		ShortHelp:  "List matchmaking rule sets.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center matchmaking rule-sets list [flags]",
+		ShortHelp:   "List matchmaking rule sets.",
 		LongHelp: `List matchmaking rule sets.
 
 Examples:
   asc game-center matchmaking rule-sets list
   asc game-center matchmaking rule-sets list --limit 50
   asc game-center matchmaking rule-sets list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center matchmaking rule-sets list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center matchmaking rule-sets list: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking rule-sets list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCMatchmakingRuleSetsOption{
-				asc.WithGCMatchmakingRuleSetsLimit(*limit),
-				asc.WithGCMatchmakingRuleSetsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCMatchmakingRuleSetsLimit(200))
-				firstPage, err := client.GetGameCenterMatchmakingRuleSets(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center matchmaking rule-sets list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterMatchmakingRuleSets(ctx, asc.WithGCMatchmakingRuleSetsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center matchmaking rule-sets list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterMatchmakingRuleSets(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking rule-sets list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center matchmaking rule-sets list",
+		FetchErrorPrefix:     "game-center matchmaking rule-sets list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterMatchmakingRuleSets(ctx, asc.WithGCMatchmakingRuleSetsLimit(limit), asc.WithGCMatchmakingRuleSetsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterMatchmakingRuleSetsGetCommand returns the rule sets get subcommand.
@@ -686,77 +596,29 @@ Examples:
 
 // GameCenterMatchmakingRuleSetQueuesListCommand returns the rule set queues list subcommand.
 func GameCenterMatchmakingRuleSetQueuesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	ruleSetID := shared.BindResourceIDFlag(fs, "rule-set-id", "gameCenterMatchmakingRuleSets", "Matchmaking rule set ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center matchmaking rule-sets queues list --rule-set-id \"RULE_SET_ID\"",
-		ShortHelp:  "List queues for a matchmaking rule set.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center matchmaking rule-sets queues list --rule-set-id \"RULE_SET_ID\"",
+		ShortHelp:   "List queues for a matchmaking rule set.",
 		LongHelp: `List queues for a matchmaking rule set.
 
 Examples:
   asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID"
   asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID" --limit 50
   asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center matchmaking rule-sets queues list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center matchmaking rule-sets queues list: %v", err)
-			}
-
-			id := strings.TrimSpace(*ruleSetID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--rule-set-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking rule-sets queues list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCMatchmakingQueuesOption{
-				asc.WithGCMatchmakingQueuesLimit(*limit),
-				asc.WithGCMatchmakingQueuesNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCMatchmakingQueuesLimit(200))
-				firstPage, err := client.GetGameCenterMatchmakingRuleSetQueues(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center matchmaking rule-sets queues list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterMatchmakingRuleSetQueues(ctx, id, asc.WithGCMatchmakingQueuesNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center matchmaking rule-sets queues list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterMatchmakingRuleSetQueues(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking rule-sets queues list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "rule-set-id",
+		ParentUsage:          "Matchmaking rule set ID",
+		ParentType:           "gameCenterMatchmakingRuleSets",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center matchmaking rule-sets queues list",
+		FetchErrorPrefix:     "game-center matchmaking rule-sets queues list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterMatchmakingRuleSetQueues(ctx, ruleSetId, asc.WithGCMatchmakingQueuesLimit(limit), asc.WithGCMatchmakingQueuesNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterMatchmakingRulesCommand returns the matchmaking rules command group.
@@ -790,77 +652,29 @@ Examples:
 
 // GameCenterMatchmakingRulesListCommand returns the rules list subcommand.
 func GameCenterMatchmakingRulesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	ruleSetID := shared.BindResourceIDFlag(fs, "rule-set-id", "gameCenterMatchmakingRuleSets", "Matchmaking rule set ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center matchmaking rules list --rule-set-id \"RULE_SET_ID\"",
-		ShortHelp:  "List matchmaking rules for a rule set.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center matchmaking rules list --rule-set-id \"RULE_SET_ID\"",
+		ShortHelp:   "List matchmaking rules for a rule set.",
 		LongHelp: `List matchmaking rules for a rule set.
 
 Examples:
   asc game-center matchmaking rules list --rule-set-id "RULE_SET_ID"
   asc game-center matchmaking rules list --rule-set-id "RULE_SET_ID" --limit 50
   asc game-center matchmaking rules list --rule-set-id "RULE_SET_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center matchmaking rules list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center matchmaking rules list: %v", err)
-			}
-
-			id := strings.TrimSpace(*ruleSetID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--rule-set-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking rules list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCMatchmakingRulesOption{
-				asc.WithGCMatchmakingRulesLimit(*limit),
-				asc.WithGCMatchmakingRulesNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCMatchmakingRulesLimit(200))
-				firstPage, err := client.GetGameCenterMatchmakingRules(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center matchmaking rules list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterMatchmakingRules(ctx, id, asc.WithGCMatchmakingRulesNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center matchmaking rules list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterMatchmakingRules(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking rules list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "rule-set-id",
+		ParentUsage:          "Matchmaking rule set ID",
+		ParentType:           "gameCenterMatchmakingRuleSets",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center matchmaking rules list",
+		FetchErrorPrefix:     "game-center matchmaking rules list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterMatchmakingRules(ctx, ruleSetId, asc.WithGCMatchmakingRulesLimit(limit), asc.WithGCMatchmakingRulesNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterMatchmakingRulesCreateCommand returns the rules create subcommand.
@@ -1103,77 +917,29 @@ Examples:
 
 // GameCenterMatchmakingTeamsListCommand returns the teams list subcommand.
 func GameCenterMatchmakingTeamsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	ruleSetID := shared.BindResourceIDFlag(fs, "rule-set-id", "gameCenterMatchmakingRuleSets", "Matchmaking rule set ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center matchmaking teams list --rule-set-id \"RULE_SET_ID\"",
-		ShortHelp:  "List matchmaking teams for a rule set.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center matchmaking teams list --rule-set-id \"RULE_SET_ID\"",
+		ShortHelp:   "List matchmaking teams for a rule set.",
 		LongHelp: `List matchmaking teams for a rule set.
 
 Examples:
   asc game-center matchmaking teams list --rule-set-id "RULE_SET_ID"
   asc game-center matchmaking teams list --rule-set-id "RULE_SET_ID" --limit 50
   asc game-center matchmaking teams list --rule-set-id "RULE_SET_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center matchmaking teams list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center matchmaking teams list: %v", err)
-			}
-
-			id := strings.TrimSpace(*ruleSetID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--rule-set-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking teams list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCMatchmakingTeamsOption{
-				asc.WithGCMatchmakingTeamsLimit(*limit),
-				asc.WithGCMatchmakingTeamsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCMatchmakingTeamsLimit(200))
-				firstPage, err := client.GetGameCenterMatchmakingTeams(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center matchmaking teams list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterMatchmakingTeams(ctx, id, asc.WithGCMatchmakingTeamsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center matchmaking teams list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterMatchmakingTeams(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking teams list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "rule-set-id",
+		ParentUsage:          "Matchmaking rule set ID",
+		ParentType:           "gameCenterMatchmakingRuleSets",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center matchmaking teams list",
+		FetchErrorPrefix:     "game-center matchmaking teams list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterMatchmakingTeams(ctx, ruleSetId, asc.WithGCMatchmakingTeamsLimit(limit), asc.WithGCMatchmakingTeamsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterMatchmakingTeamsCreateCommand returns the teams create subcommand.
