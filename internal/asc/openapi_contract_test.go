@@ -91,6 +91,7 @@ type contractResponse struct {
 	body         string
 	resource     *contractSchema // nil for a response without a document
 	resourceName string          // schema name of the resource; empty when defined inline
+	schemaName   string          // schema name of the response document
 }
 
 // isResource reports whether the response's data item is a resource with an
@@ -101,7 +102,8 @@ func (r contractResponse) isResource() bool {
 
 func (op *contractOperation) response(spec *contractSpec) (contractResponse, error) {
 	for _, status := range []int{http.StatusOK, http.StatusCreated} {
-		schema := op.Responses[strconv.Itoa(status)].schema(spec)
+		media := op.Responses[strconv.Itoa(status)]
+		schema := media.schema(spec)
 		if schema == nil {
 			continue
 		}
@@ -113,7 +115,12 @@ func (op *contractOperation) response(spec *contractSpec) (contractResponse, err
 		if data.Type == "array" {
 			resource, ref = spec.resolve(data.Items), data.Items.Ref
 		}
-		response := contractResponse{status: status, resource: resource, resourceName: strings.TrimPrefix(ref, "#/components/schemas/")}
+		response := contractResponse{
+			status:       status,
+			resource:     resource,
+			resourceName: strings.TrimPrefix(ref, "#/components/schemas/"),
+			schemaName:   strings.TrimPrefix(media.Content["application/json"].Schema.Ref, "#/components/schemas/"),
+		}
 		item := spec.sample(resource)
 		if response.isResource() {
 			resourceItem := map[string]any{"id": contractResourceID}
@@ -645,7 +652,8 @@ func checkContractResult(spec *contractSpec, result any, response contractRespon
 // resource R are type RAttributes; hand-written types may differ in case.
 // Attribute names alone cannot tell two resources apart when both have the
 // same names, or when a type keeps whatever attributes it decodes. Linkages
-// carry no attributes, so their items must have none.
+// carry no attributes and all look alike, so a linkage result must be the type
+// named after the response schema, or LinkagesResponse for a list.
 func checkContractResultType(result reflect.Type, response contractResponse) []string {
 	data, ok := result.Elem().FieldByName("Data")
 	if !ok {
@@ -659,6 +667,10 @@ func checkContractResultType(result reflect.Type, response contractResponse) []s
 	if response.resourceName == "" {
 		if hasAttrs {
 			return []string{fmt.Sprintf("result data %s has attributes, the response holds linkages", item)}
+		}
+		list := data.Type.Kind() == reflect.Slice && result.Elem() == reflect.TypeFor[LinkagesResponse]()
+		if !list && !strings.EqualFold(result.Elem().Name(), response.schemaName) {
+			return []string{fmt.Sprintf("result %s is not the %s linkage response", result.Elem().Name(), response.schemaName)}
 		}
 		return nil
 	}

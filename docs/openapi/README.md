@@ -59,7 +59,8 @@ by hand.
   attribute, named like the field, and together they must be able to send
   every attribute the request defines. The result must hold the response's
   resource: its attributes type is named after the resource schema, as the
-  generator names it, and a linkage response holds items without attributes.
+  generator names it. A linkage result has no attributes and is the type
+  named after the response schema, or `LinkagesResponse` for a list.
   A snapshot update that drops or changes a bound operation fails
   here, naming the operation and the method.
 - A known difference that must stay for now is recorded by hand on its
