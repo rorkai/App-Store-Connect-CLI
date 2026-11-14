@@ -13,18 +13,6 @@ type BackgroundAssetCreateAttributes struct {
 	AssetPackIdentifier string `json:"assetPackIdentifier"`
 }
 
-// BackgroundAssetCreateData is the data object of the BackgroundAssetCreateRequest schema.
-type BackgroundAssetCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    BackgroundAssetCreateAttributes    `json:"attributes"`
-	Relationships BackgroundAssetCreateRelationships `json:"relationships"`
-}
-
-// BackgroundAssetCreateRelationships is the data.relationships object of the BackgroundAssetCreateRequest schema.
-type BackgroundAssetCreateRelationships struct {
-	App Relationship `json:"app"`
-}
-
 // BackgroundAssetCreateRequest is the BackgroundAssetCreateRequest schema.
 type BackgroundAssetCreateRequest struct {
 	Data BackgroundAssetCreateData `json:"data"`

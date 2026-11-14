@@ -9,19 +9,6 @@ import (
 	"strings"
 )
 
-// WinBackOfferCreateData is the data object of the WinBackOfferCreateRequest schema.
-type WinBackOfferCreateData struct {
-	Type          ResourceType                    `json:"type"`
-	Attributes    WinBackOfferCreateAttributes    `json:"attributes"`
-	Relationships WinBackOfferCreateRelationships `json:"relationships"`
-}
-
-// WinBackOfferCreateRelationships is the data.relationships object of the WinBackOfferCreateRequest schema.
-type WinBackOfferCreateRelationships struct {
-	Subscription Relationship     `json:"subscription"`
-	Prices       RelationshipList `json:"prices"`
-}
-
 // WinBackOfferResponse is the WinBackOfferResponse schema.
 type WinBackOfferResponse = SingleResponse[WinBackOfferAttributes]
 

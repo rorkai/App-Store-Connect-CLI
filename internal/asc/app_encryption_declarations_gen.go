@@ -17,21 +17,9 @@ type AppEncryptionDeclarationCreateAttributes struct {
 	AvailableOnFrenchStore          bool   `json:"availableOnFrenchStore"`
 }
 
-// AppEncryptionDeclarationCreateData is the data object of the AppEncryptionDeclarationCreateRequest schema.
-type AppEncryptionDeclarationCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    AppEncryptionDeclarationCreateAttributes `json:"attributes"`
-	Relationships *AppEncryptionDeclarationRelationships   `json:"relationships"`
-}
-
 // AppEncryptionDeclarationCreateRequest is the AppEncryptionDeclarationCreateRequest schema.
 type AppEncryptionDeclarationCreateRequest struct {
 	Data AppEncryptionDeclarationCreateData `json:"data"`
-}
-
-// AppEncryptionDeclarationRelationships is the data.relationships object of the AppEncryptionDeclarationCreateRequest schema.
-type AppEncryptionDeclarationRelationships struct {
-	App *Relationship `json:"app"`
 }
 
 // AppEncryptionDeclarationResponse is the AppEncryptionDeclarationResponse schema.
@@ -62,25 +50,24 @@ func (c *Client) GetAppEncryptionDeclarationApp(ctx context.Context, declaration
 	})
 }
 
-// CreateAppEncryptionDeclaration sends POST /v1/appEncryptionDeclarations (appEncryptionDeclarations_createInstance).
-func (c *Client) CreateAppEncryptionDeclaration(ctx context.Context, appID string, attrs AppEncryptionDeclarationCreateAttributes) (*AppEncryptionDeclarationResponse, error) {
-	payload := AppEncryptionDeclarationCreateRequest{
-		Data: AppEncryptionDeclarationCreateData{
-			Type:       ResourceTypeAppEncryptionDeclarations,
-			Attributes: attrs,
-			Relationships: &AppEncryptionDeclarationRelationships{
-				App: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   strings.TrimSpace(appID),
-					},
-				},
-			},
-		},
+// AddBuildsToAppEncryptionDeclaration sends POST /v1/appEncryptionDeclarations/{id}/relationships/builds (appEncryptionDeclarations_builds_createToManyRelationship).
+func (c *Client) AddBuildsToAppEncryptionDeclaration(ctx context.Context, declarationID string, buildIDs []string) error {
+	declarationID = strings.TrimSpace(declarationID)
+	buildIDs = normalizeList(buildIDs)
+	if declarationID == "" {
+		return fmt.Errorf("declarationID is required")
 	}
-	return sendJSON[AppEncryptionDeclarationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appEncryptionDeclarations",
-		Payload: payload,
-	})
+	if len(buildIDs) == 0 {
+		return fmt.Errorf("buildIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(buildIDs)),
+	}
+	for i, id := range buildIDs {
+		payload.Data[i] = RelationshipData{
+			Type: ResourceTypeBuilds,
+			ID:   id,
+		}
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/appEncryptionDeclarations/%s/relationships/builds", declarationID), payload)
 }

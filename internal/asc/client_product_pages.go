@@ -31,6 +31,13 @@ type AppCustomProductPageTemplate struct {
 	CustomPageID      string
 }
 
+// AppCustomProductPageCreateData is the data payload for create requests.
+type AppCustomProductPageCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    AppCustomProductPageCreateAttributes     `json:"attributes"`
+	Relationships *AppCustomProductPageCreateRelationships `json:"relationships"`
+}
+
 // AppCustomProductPageCreateRequest is a request to create a custom product page.
 type AppCustomProductPageCreateRequest struct {
 	Data     AppCustomProductPageCreateData       `json:"data"`
@@ -94,6 +101,13 @@ type AppCustomProductPageLocalizationCreateAttributes struct {
 // AppCustomProductPageLocalizationCreateRelationships describes create relationships.
 type AppCustomProductPageLocalizationCreateRelationships struct {
 	AppCustomProductPageVersion *Relationship `json:"appCustomProductPageVersion"`
+}
+
+// AppCustomProductPageLocalizationCreateData is the data payload for create requests.
+type AppCustomProductPageLocalizationCreateData struct {
+	Type          ResourceType                                         `json:"type"`
+	Attributes    AppCustomProductPageLocalizationCreateAttributes     `json:"attributes"`
+	Relationships *AppCustomProductPageLocalizationCreateRelationships `json:"relationships"`
 }
 
 // AppCustomProductPageLocalizationDeleteResult represents CLI output for custom page localization deletions.
@@ -287,50 +301,4 @@ func (c *Client) UpdateAppCustomProductPageLocalization(ctx context.Context, loc
 		payload.Data.Attributes = &attrs
 	}
 	return sendJSON[AppCustomProductPageLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), Payload: payload})
-}
-
-// AddAppCustomProductPageLocalizationSearchKeywords adds search keywords to a localization.
-func (c *Client) AddAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	keywords = normalizeList(keywords)
-	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	if len(keywords) == 0 {
-		return fmt.Errorf("keywords are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(keywords)),
-	}
-	for _, keyword := range keywords {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeAppKeywords,
-			ID:   keyword,
-		})
-	}
-	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID), payload)
-}
-
-// DeleteAppCustomProductPageLocalizationSearchKeywords removes search keywords from a localization.
-func (c *Client) DeleteAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	keywords = normalizeList(keywords)
-	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	if len(keywords) == 0 {
-		return fmt.Errorf("keywords are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(keywords)),
-	}
-	for _, keyword := range keywords {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeAppKeywords,
-			ID:   keyword,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID), payload)
 }

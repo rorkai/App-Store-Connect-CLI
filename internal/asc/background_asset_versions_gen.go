@@ -8,17 +8,6 @@ import (
 	"strings"
 )
 
-// BackgroundAssetVersionCreateData is the data object of the BackgroundAssetVersionCreateRequest schema.
-type BackgroundAssetVersionCreateData struct {
-	Type          ResourceType                              `json:"type"`
-	Relationships BackgroundAssetVersionCreateRelationships `json:"relationships"`
-}
-
-// BackgroundAssetVersionCreateRelationships is the data.relationships object of the BackgroundAssetVersionCreateRequest schema.
-type BackgroundAssetVersionCreateRelationships struct {
-	BackgroundAsset Relationship `json:"backgroundAsset"`
-}
-
 // BackgroundAssetVersionCreateRequest is the BackgroundAssetVersionCreateRequest schema.
 type BackgroundAssetVersionCreateRequest struct {
 	Data BackgroundAssetVersionCreateData `json:"data"`

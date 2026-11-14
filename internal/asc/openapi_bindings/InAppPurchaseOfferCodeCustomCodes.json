@@ -4,15 +4,10 @@
   "types": [
     "InAppPurchaseOfferCodeCustomCodeAttributes",
     "InAppPurchaseOfferCodeCustomCodeCreateAttributes",
-    "InAppPurchaseOfferCodeCustomCodeCreateData",
-    "InAppPurchaseOfferCodeCustomCodeCreateRelationships",
     "InAppPurchaseOfferCodeCustomCodeCreateRequest",
     "InAppPurchaseOfferCodeCustomCodeUpdateAttributes",
     "InAppPurchaseOfferCodeCustomCodeUpdateData",
     "InAppPurchaseOfferCodeCustomCodeUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"InAppPurchaseOfferCodeCustomCodeCreateData","type":"InAppPurchaseOfferCodeCustomCodeCreateRelationships"}
   ],
   "operations": [
     {"operation":"inAppPurchaseOfferCodeCustomCodes_getInstance","name":"GetInAppPurchaseOfferCodeCustomCode","params":["customCodeID"],"check":"require"}

@@ -2,21 +2,9 @@
 
 package asc
 
-// AppEncryptionDeclarationDocumentCreateData is the data object of the AppEncryptionDeclarationDocumentCreateRequest schema.
-type AppEncryptionDeclarationDocumentCreateData struct {
-	Type          ResourceType                                     `json:"type"`
-	Attributes    AppEncryptionDeclarationDocumentCreateAttributes `json:"attributes"`
-	Relationships *AppEncryptionDeclarationDocumentRelationships   `json:"relationships"`
-}
-
 // AppEncryptionDeclarationDocumentCreateRequest is the AppEncryptionDeclarationDocumentCreateRequest schema.
 type AppEncryptionDeclarationDocumentCreateRequest struct {
 	Data AppEncryptionDeclarationDocumentCreateData `json:"data"`
-}
-
-// AppEncryptionDeclarationDocumentRelationships is the data.relationships object of the AppEncryptionDeclarationDocumentCreateRequest schema.
-type AppEncryptionDeclarationDocumentRelationships struct {
-	AppEncryptionDeclaration *Relationship `json:"appEncryptionDeclaration"`
 }
 
 // AppEncryptionDeclarationDocumentResponse is the AppEncryptionDeclarationDocumentResponse schema.

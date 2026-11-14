@@ -9,21 +9,9 @@ import (
 	"strings"
 )
 
-// GameCenterLeaderboardSetImageCreateData is the data object of the GameCenterLeaderboardSetImageCreateRequest schema.
-type GameCenterLeaderboardSetImageCreateData struct {
-	Type          ResourceType                                  `json:"type"`
-	Attributes    GameCenterLeaderboardSetImageCreateAttributes `json:"attributes"`
-	Relationships *GameCenterLeaderboardSetImageRelationships   `json:"relationships"`
-}
-
 // GameCenterLeaderboardSetImageCreateRequest is the GameCenterLeaderboardSetImageCreateRequest schema.
 type GameCenterLeaderboardSetImageCreateRequest struct {
 	Data GameCenterLeaderboardSetImageCreateData `json:"data"`
-}
-
-// GameCenterLeaderboardSetImageRelationships is the data.relationships object of the GameCenterLeaderboardSetImageCreateRequest schema.
-type GameCenterLeaderboardSetImageRelationships struct {
-	GameCenterLeaderboardSetLocalization *Relationship `json:"gameCenterLeaderboardSetLocalization"`
 }
 
 // GameCenterLeaderboardSetImageResponse is the GameCenterLeaderboardSetImageResponse schema.
@@ -49,11 +37,6 @@ type GameCenterLeaderboardSetImageUpdateRequest struct {
 // GameCenterLeaderboardSetImageV2CreateRequest is the GameCenterLeaderboardSetImageV2CreateRequest schema.
 type GameCenterLeaderboardSetImageV2CreateRequest struct {
 	Data GameCenterLeaderboardSetImageV2CreateData `json:"data"`
-}
-
-// GameCenterLeaderboardSetImageV2Relationships is the data.relationships object of the GameCenterLeaderboardSetImageV2CreateRequest schema.
-type GameCenterLeaderboardSetImageV2Relationships struct {
-	Localization *Relationship `json:"localization"`
 }
 
 // DeleteGameCenterLeaderboardSetImageV2 sends DELETE /v2/gameCenterLeaderboardSetImages/{id} (gameCenterLeaderboardSetImagesV2_deleteInstance).

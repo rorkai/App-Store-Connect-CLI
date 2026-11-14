@@ -72,6 +72,44 @@ func (c *Client) UpdateGameCenterMatchmakingQueue(ctx context.Context, queueID s
 	return sendJSON[GameCenterMatchmakingQueueResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterMatchmakingQueues/%s", strings.TrimSpace(queueID)), Payload: payload})
 }
 
+// CreateGameCenterMatchmakingRule creates a new rule for a rule set.
+func (c *Client) CreateGameCenterMatchmakingRule(ctx context.Context, ruleSetID string, attrs GameCenterMatchmakingRuleCreateAttributes) (*GameCenterMatchmakingRuleResponse, error) {
+	payload := GameCenterMatchmakingRuleCreateRequest{
+		Data: GameCenterMatchmakingRuleCreateData{
+			Type:       ResourceTypeGameCenterMatchmakingRules,
+			Attributes: attrs,
+			Relationships: &GameCenterMatchmakingRuleRelationships{
+				RuleSet: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterMatchmakingRuleSets,
+						ID:   strings.TrimSpace(ruleSetID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterMatchmakingRuleResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterMatchmakingRules", Payload: payload})
+}
+
+// CreateGameCenterMatchmakingTeam creates a new team for a rule set.
+func (c *Client) CreateGameCenterMatchmakingTeam(ctx context.Context, ruleSetID string, attrs GameCenterMatchmakingTeamCreateAttributes) (*GameCenterMatchmakingTeamResponse, error) {
+	payload := GameCenterMatchmakingTeamCreateRequest{
+		Data: GameCenterMatchmakingTeamCreateData{
+			Type:       ResourceTypeGameCenterMatchmakingTeams,
+			Attributes: attrs,
+			Relationships: &GameCenterMatchmakingTeamRelationships{
+				RuleSet: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterMatchmakingRuleSets,
+						ID:   strings.TrimSpace(ruleSetID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterMatchmakingTeamResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterMatchmakingTeams", Payload: payload})
+}
+
 // CreateGameCenterMatchmakingRuleSetTest creates a rule set test from a JSON payload.
 func (c *Client) CreateGameCenterMatchmakingRuleSetTest(ctx context.Context, payload json.RawMessage) (*GameCenterMatchmakingRuleSetTestResponse, error) {
 	if len(bytes.TrimSpace(payload)) == 0 {

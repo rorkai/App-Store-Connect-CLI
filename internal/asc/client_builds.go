@@ -163,6 +163,11 @@ type BuildUploadFileAttributes struct {
 	Uploaded            *bool               `json:"uploaded,omitempty"`
 }
 
+// BuildUploadFileRelationships describes the relationships for a build upload file.
+type BuildUploadFileRelationships struct {
+	BuildUpload *Relationship `json:"buildUpload"`
+}
+
 // BuildUploadFileCreateData is the data portion of a build upload file create request.
 type BuildUploadFileCreateData struct {
 	Type          ResourceType                  `json:"type"`
@@ -547,78 +552,6 @@ func isAutoNotifyAlreadyEnabledNotificationError(err error) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(strings.TrimSpace(apiErr.Detail)), "auto-notify already enabled")
-}
-
-// RemoveBetaGroupsFromBuild removes beta groups from a build.
-func (c *Client) RemoveBetaGroupsFromBuild(ctx context.Context, buildID string, groupIDs []string) error {
-	buildID = strings.TrimSpace(buildID)
-	groupIDs = normalizeList(groupIDs)
-	if buildID == "" {
-		return fmt.Errorf("buildID is required")
-	}
-	if len(groupIDs) == 0 {
-		return fmt.Errorf("groupIDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, len(groupIDs)),
-	}
-	for i, id := range groupIDs {
-		payload.Data[i] = RelationshipData{
-			Type: ResourceTypeBetaGroups,
-			ID:   id,
-		}
-	}
-
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/builds/%s/relationships/betaGroups", buildID), payload)
-}
-
-// AddIndividualTestersToBuild adds individual testers to a build.
-func (c *Client) AddIndividualTestersToBuild(ctx context.Context, buildID string, testerIDs []string) error {
-	buildID = strings.TrimSpace(buildID)
-	testerIDs = normalizeList(testerIDs)
-	if buildID == "" {
-		return fmt.Errorf("buildID is required")
-	}
-	if len(testerIDs) == 0 {
-		return fmt.Errorf("testerIDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, len(testerIDs)),
-	}
-	for i, id := range testerIDs {
-		payload.Data[i] = RelationshipData{
-			Type: ResourceTypeBetaTesters,
-			ID:   id,
-		}
-	}
-
-	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID), payload)
-}
-
-// RemoveIndividualTestersFromBuild removes individual testers from a build.
-func (c *Client) RemoveIndividualTestersFromBuild(ctx context.Context, buildID string, testerIDs []string) error {
-	buildID = strings.TrimSpace(buildID)
-	testerIDs = normalizeList(testerIDs)
-	if buildID == "" {
-		return fmt.Errorf("buildID is required")
-	}
-	if len(testerIDs) == 0 {
-		return fmt.Errorf("testerIDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, len(testerIDs)),
-	}
-	for i, id := range testerIDs {
-		payload.Data[i] = RelationshipData{
-			Type: ResourceTypeBetaTesters,
-			ID:   id,
-		}
-	}
-
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID), payload)
 }
 
 // GetBuildUploads retrieves build uploads for an app.

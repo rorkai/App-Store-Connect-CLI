@@ -64,6 +64,13 @@ type AppStoreVersionCreateRelationships struct {
 	Build *Relationship `json:"build,omitempty"`
 }
 
+// AppStoreVersionCreateData is the data portion of an app store version create request.
+type AppStoreVersionCreateData struct {
+	Type          ResourceType                        `json:"type"`
+	Attributes    AppStoreVersionCreateAttributes     `json:"attributes"`
+	Relationships *AppStoreVersionCreateRelationships `json:"relationships"`
+}
+
 // AppStoreVersionsResponse is the response from app store versions endpoints.
 type AppStoreVersionsResponse = Response[AppStoreVersionAttributes]
 

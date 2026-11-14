@@ -482,6 +482,11 @@ type BetaAppLocalizationUpdateAttributes struct {
 	Description       *string `json:"description,omitempty"`
 }
 
+// BetaAppLocalizationRelationships describes relationships for beta app localizations.
+type BetaAppLocalizationRelationships struct {
+	App *Relationship `json:"app"`
+}
+
 // BetaBuildLocalizationCreateData is the data portion of a beta build localization create request.
 type BetaBuildLocalizationCreateData struct {
 	Type          ResourceType                        `json:"type"`
@@ -494,6 +499,11 @@ type BetaBuildLocalizationUpdateData struct {
 	Type       ResourceType                    `json:"type"`
 	ID         string                          `json:"id"`
 	Attributes BetaBuildLocalizationAttributes `json:"attributes"`
+}
+
+// BetaBuildLocalizationRelationships describes relationships for beta build localizations.
+type BetaBuildLocalizationRelationships struct {
+	Build *Relationship `json:"build"`
 }
 
 // AppInfoLocalizationCreateData is the data portion of an app info localization create request.
@@ -510,6 +520,18 @@ type AppInfoLocalizationUpdateData struct {
 	Attributes AppInfoLocalizationAttributes `json:"attributes"`
 }
 
+// AppInfoLocalizationRelationships describes relationships for app info localizations.
+type AppInfoLocalizationRelationships struct {
+	AppInfo *Relationship `json:"appInfo"`
+}
+
+// BetaGroupCreateData is the data portion of a beta group create request.
+type BetaGroupCreateData struct {
+	Type          ResourceType              `json:"type"`
+	Attributes    BetaGroupCreateAttributes `json:"attributes"`
+	Relationships *BetaGroupRelationships   `json:"relationships"`
+}
+
 // BetaGroupUpdateAttributes describes attributes for updating a beta group.
 type BetaGroupUpdateAttributes struct {
 	Name                                 string `json:"name,omitempty"`
@@ -521,6 +543,13 @@ type BetaGroupUpdateAttributes struct {
 	IOSBuildsAvailableForAppleVision     *bool  `json:"iosBuildsAvailableForAppleVision,omitempty"`
 }
 
+// BetaGroupRelationships describes relationships for beta groups.
+type BetaGroupRelationships struct {
+	App         *Relationship     `json:"app"`
+	Builds      *RelationshipList `json:"builds,omitempty"`
+	BetaTesters *RelationshipList `json:"betaTesters,omitempty"`
+}
+
 // BetaTesterCreateAttributes describes attributes for creating a beta tester.
 type BetaTesterCreateAttributes struct {
 	FirstName string `json:"firstName,omitempty"`
@@ -528,10 +557,29 @@ type BetaTesterCreateAttributes struct {
 	Email     string `json:"email"`
 }
 
+// BetaTesterCreateRelationships describes relationships for beta tester creation.
+type BetaTesterCreateRelationships struct {
+	BetaGroups *RelationshipList `json:"betaGroups,omitempty"`
+	Builds     *RelationshipList `json:"builds,omitempty"`
+}
+
+// BetaTesterCreateData is the data portion of a beta tester create request.
+type BetaTesterCreateData struct {
+	Type          ResourceType                   `json:"type"`
+	Attributes    BetaTesterCreateAttributes     `json:"attributes"`
+	Relationships *BetaTesterCreateRelationships `json:"relationships,omitempty"`
+}
+
 // BetaTesterInvitationCreateRelationships describes relationships for invitations.
 type BetaTesterInvitationCreateRelationships struct {
 	App        *Relationship `json:"app"`
 	BetaTester *Relationship `json:"betaTester,omitempty"`
+}
+
+// BetaTesterInvitationCreateData is the data portion of an invitation create request.
+type BetaTesterInvitationCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Relationships *BetaTesterInvitationCreateRelationships `json:"relationships"`
 }
 
 // GetReviews retrieves App Store reviews
@@ -586,50 +634,6 @@ func (c *Client) UpdateBetaGroup(ctx context.Context, groupID string, req BetaGr
 	return sendJSON[BetaGroupResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/betaGroups/%s", groupID), Payload: req})
 }
 
-// AddBetaTestersToGroup adds testers to a beta group.
-func (c *Client) AddBetaTestersToGroup(ctx context.Context, groupID string, testerIDs []string) error {
-	groupID = strings.TrimSpace(groupID)
-	testerIDs = normalizeList(testerIDs)
-	if groupID == "" {
-		return fmt.Errorf("groupID is required")
-	}
-	if len(testerIDs) == 0 {
-		return fmt.Errorf("testerIDs are required")
-	}
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(testerIDs)),
-	}
-	for _, testerID := range testerIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeBetaTesters,
-			ID:   testerID,
-		})
-	}
-	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
-}
-
-// RemoveBetaTestersFromGroup removes testers from a beta group.
-func (c *Client) RemoveBetaTestersFromGroup(ctx context.Context, groupID string, testerIDs []string) error {
-	groupID = strings.TrimSpace(groupID)
-	testerIDs = normalizeList(testerIDs)
-	if groupID == "" {
-		return fmt.Errorf("groupID is required")
-	}
-	if len(testerIDs) == 0 {
-		return fmt.Errorf("testerIDs are required")
-	}
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(testerIDs)),
-	}
-	for _, testerID := range testerIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeBetaTesters,
-			ID:   testerID,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
-}
-
 // GetBetaTesters retrieves beta testers for an app.
 func (c *Client) GetBetaTesters(ctx context.Context, appID string, opts ...BetaTestersOption) (*BetaTestersResponse, error) {
 	query := applyOptions(opts)
@@ -670,132 +674,28 @@ func (c *Client) CreateBetaTester(ctx context.Context, email, firstName, lastNam
 	return sendJSON[BetaTesterResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaTesters", Payload: payload})
 }
 
-// AddBetaTesterToGroups adds a tester to multiple beta groups.
-func (c *Client) AddBetaTesterToGroups(ctx context.Context, testerID string, groupIDs []string) error {
-	testerID = strings.TrimSpace(testerID)
-	groupIDs = normalizeList(groupIDs)
-	if testerID == "" {
-		return fmt.Errorf("tester ID is required")
+// CreateBetaTesterInvitation creates a beta tester invitation.
+func (c *Client) CreateBetaTesterInvitation(ctx context.Context, appID, testerID string) (*BetaTesterInvitationResponse, error) {
+	payload := BetaTesterInvitationCreateRequest{
+		Data: BetaTesterInvitationCreateData{
+			Type: ResourceTypeBetaTesterInvitations,
+			Relationships: &BetaTesterInvitationCreateRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   appID,
+					},
+				},
+				BetaTester: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeBetaTesters,
+						ID:   testerID,
+					},
+				},
+			},
+		},
 	}
-	if len(groupIDs) == 0 {
-		return fmt.Errorf("group IDs are required")
-	}
-
-	relData := make([]ResourceData, 0, len(groupIDs))
-	for _, groupID := range groupIDs {
-		relData = append(relData, ResourceData{
-			Type: ResourceTypeBetaGroups,
-			ID:   groupID,
-		})
-	}
-	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID), RelationshipList{Data: relData})
-}
-
-// RemoveBetaTesterFromGroups removes a tester from multiple beta groups.
-func (c *Client) RemoveBetaTesterFromGroups(ctx context.Context, testerID string, groupIDs []string) error {
-	testerID = strings.TrimSpace(testerID)
-	groupIDs = normalizeList(groupIDs)
-	if testerID == "" {
-		return fmt.Errorf("tester ID is required")
-	}
-	if len(groupIDs) == 0 {
-		return fmt.Errorf("group IDs are required")
-	}
-
-	relData := make([]ResourceData, 0, len(groupIDs))
-	for _, groupID := range groupIDs {
-		relData = append(relData, ResourceData{
-			Type: ResourceTypeBetaGroups,
-			ID:   groupID,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID), RelationshipList{Data: relData})
-}
-
-// RemoveBetaTesterFromApps removes a tester from multiple apps.
-func (c *Client) RemoveBetaTesterFromApps(ctx context.Context, testerID string, appIDs []string) error {
-	testerID = strings.TrimSpace(testerID)
-	appIDs = normalizeList(appIDs)
-	if testerID == "" {
-		return fmt.Errorf("tester ID is required")
-	}
-	if len(appIDs) == 0 {
-		return fmt.Errorf("app IDs are required")
-	}
-
-	relData := make([]ResourceData, 0, len(appIDs))
-	for _, appID := range appIDs {
-		relData = append(relData, ResourceData{
-			Type: ResourceTypeApps,
-			ID:   appID,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s/relationships/apps", testerID), RelationshipList{Data: relData})
-}
-
-// AddBuildsToBetaTester adds builds to a beta tester.
-func (c *Client) AddBuildsToBetaTester(ctx context.Context, testerID string, buildIDs []string) error {
-	testerID = strings.TrimSpace(testerID)
-	buildIDs = normalizeList(buildIDs)
-	if testerID == "" {
-		return fmt.Errorf("tester ID is required")
-	}
-	if len(buildIDs) == 0 {
-		return fmt.Errorf("build IDs are required")
-	}
-
-	relData := make([]ResourceData, 0, len(buildIDs))
-	for _, buildID := range buildIDs {
-		relData = append(relData, ResourceData{
-			Type: ResourceTypeBuilds,
-			ID:   buildID,
-		})
-	}
-	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID), RelationshipList{Data: relData})
-}
-
-// RemoveBuildsFromBetaTester removes builds from a beta tester.
-func (c *Client) RemoveBuildsFromBetaTester(ctx context.Context, testerID string, buildIDs []string) error {
-	testerID = strings.TrimSpace(testerID)
-	buildIDs = normalizeList(buildIDs)
-	if testerID == "" {
-		return fmt.Errorf("tester ID is required")
-	}
-	if len(buildIDs) == 0 {
-		return fmt.Errorf("build IDs are required")
-	}
-
-	relData := make([]ResourceData, 0, len(buildIDs))
-	for _, buildID := range buildIDs {
-		relData = append(relData, ResourceData{
-			Type: ResourceTypeBuilds,
-			ID:   buildID,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID), RelationshipList{Data: relData})
-}
-
-// RemoveBetaTestersFromApp removes beta testers from an app.
-func (c *Client) RemoveBetaTestersFromApp(ctx context.Context, appID string, testerIDs []string) error {
-	appID = strings.TrimSpace(appID)
-	testerIDs = normalizeList(testerIDs)
-	if appID == "" {
-		return fmt.Errorf("app ID is required")
-	}
-	if len(testerIDs) == 0 {
-		return fmt.Errorf("tester IDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(testerIDs)),
-	}
-	for _, testerID := range testerIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeBetaTesters,
-			ID:   testerID,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/apps/%s/relationships/betaTesters", appID), payload)
+	return sendJSON[BetaTesterInvitationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaTesterInvitations", Payload: payload})
 }
 
 // CreateAppStoreVersionLocalization creates a localization for an app store version.

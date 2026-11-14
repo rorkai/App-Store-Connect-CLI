@@ -251,6 +251,9 @@ func renderMethod(spec *Spec, fam *Family, b *OpBind) (string, error) {
 	default:
 		return "", fmt.Errorf("unknown check style %q", b.Check)
 	}
+	if b.IDList != nil && !strings.HasSuffix(op.Request, "LinkagesRequest") {
+		return "", fmt.Errorf("idList needs a relationship change")
+	}
 	if b.CheckFirst && (op.Method != "GET" || b.Options == "" || (b.Check != checkTrim && b.Check != checkRequire)) {
 		return "", fmt.Errorf("checkFirst needs a paged read with trim or require checks")
 	}
@@ -285,8 +288,11 @@ func renderMethod(spec *Spec, fam *Family, b *OpBind) (string, error) {
 		m.params = append(m.params, b.IDs+" []string")
 		m.result = "error"
 		m.checks()
-		m.pre = append(m.pre, fmt.Sprintf("payload := RelationshipRequest{\nData: buildRelationshipData(%s, %s),\n}", resourceTypeConst(linkType), b.IDs))
-		call = fmt.Sprintf("return sendNoContent(ctx, c, http.Method%s, %s, payload)", methodConst(op.Method), m.path())
+		body, err := m.idList(resourceTypeConst(linkType))
+		if err != nil {
+			return "", err
+		}
+		call = fmt.Sprintf("return sendNoContent(ctx, c, http.Method%s, %s, %s)", methodConst(op.Method), m.path(), body)
 	case (op.Method == "PATCH" && strings.HasSuffix(op.Request, "UpdateRequest")) ||
 		(op.Method == "POST" && strings.HasSuffix(op.Request, "CreateRequest")):
 		if response == "" {
@@ -470,6 +476,47 @@ func addressOf(typ string) string {
 		return "&" + t
 	}
 	return typ
+}
+
+// idList adds the ID list handling of a relationship change after the path
+// parameter checks and returns the request body expression.
+func (m *method) idList(typ string) (string, error) {
+	ids, l := m.b.IDs, m.b.IDList
+	if l == nil {
+		l = &IDList{}
+	}
+	if l.Message != "" && !l.Normalize {
+		return "", fmt.Errorf("an empty ID list message needs normalize")
+	}
+	if loop := l.Payload == payloadAppend || l.Payload == payloadResourceList; loop != (l.Item != "") {
+		return "", fmt.Errorf("payload %q with item %q", l.Payload, l.Item)
+	}
+	if l.Normalize {
+		at := 0
+		if m.b.Check == checkTrim || m.b.Check == checkRequire {
+			at = len(m.b.Params)
+		}
+		m.pre = slices.Insert(m.pre, at, fmt.Sprintf("%s = normalizeList(%s)", ids, ids))
+	}
+	if l.Message != "" {
+		m.pre = append(m.pre, fmt.Sprintf("if len(%s) == 0 {\nreturn fmt.Errorf(%s)\n}", ids, strconv.Quote(l.Message)))
+	}
+	switch l.Payload {
+	case payloadDefault:
+		m.pre = append(m.pre, fmt.Sprintf("payload := RelationshipRequest{\nData: buildRelationshipData(%s, %s),\n}", typ, ids))
+	case payloadAppend:
+		m.pre = append(m.pre, fmt.Sprintf("payload := RelationshipRequest{\nData: make([]RelationshipData, 0, len(%s)),\n}\nfor _, %s := range %s {\npayload.Data = append(payload.Data, RelationshipData{\nType: %s,\nID: %s,\n})\n}", ids, l.Item, ids, typ, l.Item))
+	case payloadIndex:
+		m.pre = append(m.pre, fmt.Sprintf("payload := RelationshipRequest{\nData: make([]RelationshipData, len(%s)),\n}\nfor i, id := range %s {\npayload.Data[i] = RelationshipData{\nType: %s,\nID: id,\n}\n}", ids, ids, typ))
+	case payloadResourceList:
+		m.pre = append(m.pre, fmt.Sprintf("relData := make([]ResourceData, 0, len(%s))\nfor _, %s := range %s {\nrelData = append(relData, ResourceData{\nType: %s,\nID: %s,\n})\n}", ids, l.Item, ids, typ, l.Item))
+		return "RelationshipList{Data: relData}", nil
+	case payloadNonNil:
+		m.pre = append(m.pre, fmt.Sprintf("data := buildRelationshipData(%s, %s)\nif data == nil {\ndata = []RelationshipData{}\n}\npayload := RelationshipRequest{Data: data}", typ, ids))
+	default:
+		return "", fmt.Errorf("unknown ID list payload %q", l.Payload)
+	}
+	return "payload", nil
 }
 
 func linkageType(spec *Spec, request string) (string, error) {

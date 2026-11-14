@@ -9,53 +9,13 @@ import (
 	"strings"
 )
 
-// GameCenterAchievementReleaseCreateData is the data object of the GameCenterAchievementReleaseCreateRequest schema.
-type GameCenterAchievementReleaseCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Relationships *GameCenterAchievementReleaseRelationships `json:"relationships"`
-}
-
 // GameCenterAchievementReleaseCreateRequest is the GameCenterAchievementReleaseCreateRequest schema.
 type GameCenterAchievementReleaseCreateRequest struct {
 	Data GameCenterAchievementReleaseCreateData `json:"data"`
 }
 
-// GameCenterAchievementReleaseRelationships is the data.relationships object of the GameCenterAchievementReleaseCreateRequest schema.
-type GameCenterAchievementReleaseRelationships struct {
-	GameCenterDetail      *Relationship `json:"gameCenterDetail"`
-	GameCenterAchievement *Relationship `json:"gameCenterAchievement"`
-}
-
 // GameCenterAchievementReleaseResponse is the GameCenterAchievementReleaseResponse schema.
 type GameCenterAchievementReleaseResponse = SingleResponse[GameCenterAchievementReleaseAttributes]
-
-// CreateGameCenterAchievementRelease sends POST /v1/gameCenterAchievementReleases (gameCenterAchievementReleases_createInstance).
-func (c *Client) CreateGameCenterAchievementRelease(ctx context.Context, gcDetailID, achievementID string) (*GameCenterAchievementReleaseResponse, error) {
-	payload := GameCenterAchievementReleaseCreateRequest{
-		Data: GameCenterAchievementReleaseCreateData{
-			Type: ResourceTypeGameCenterAchievementReleases,
-			Relationships: &GameCenterAchievementReleaseRelationships{
-				GameCenterDetail: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterDetails,
-						ID:   strings.TrimSpace(gcDetailID),
-					},
-				},
-				GameCenterAchievement: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterAchievements,
-						ID:   strings.TrimSpace(achievementID),
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[GameCenterAchievementReleaseResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/gameCenterAchievementReleases",
-		Payload: payload,
-	})
-}
 
 // DeleteGameCenterAchievementRelease sends DELETE /v1/gameCenterAchievementReleases/{id} (gameCenterAchievementReleases_deleteInstance).
 func (c *Client) DeleteGameCenterAchievementRelease(ctx context.Context, releaseID string) error {

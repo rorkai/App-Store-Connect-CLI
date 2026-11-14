@@ -106,6 +106,11 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"data with relationships and no record", &Family{Types: []string{"WidgetReleaseCreateData"}}},
 		{"relationships record that is not a type name", &Family{Relationships: []*RelBind{{Data: "WidgetReleaseCreateData", Type: "json.RawMessage"}}, Types: []string{"WidgetReleaseCreateData"}}},
 		{"relationships record of data without relationships", &Family{Relationships: []*RelBind{{Data: "WidgetCreateData", Type: "WidgetRelationships"}}, Types: []string{"WidgetRelationships"}}},
+		{"id list handling on a read", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, IDList: &IDList{Normalize: true}}}}},
+		{"empty list message without normalizing", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Message: "ids are required"}}}}},
+		{"unknown id list payload", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Payload: "bogus"}}}}},
+		{"loop payload without an item name", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Payload: payloadAppend}}}}},
+		{"item name without a loop payload", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Payload: payloadIndex, Item: "id"}}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

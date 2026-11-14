@@ -20,23 +20,9 @@ type BetaGroupCreateAttributes struct {
 	FeedbackEnabled        *bool  `json:"feedbackEnabled,omitempty"`
 }
 
-// BetaGroupCreateData is the data object of the BetaGroupCreateRequest schema.
-type BetaGroupCreateData struct {
-	Type          ResourceType              `json:"type"`
-	Attributes    BetaGroupCreateAttributes `json:"attributes"`
-	Relationships *BetaGroupRelationships   `json:"relationships"`
-}
-
 // BetaGroupCreateRequest is the BetaGroupCreateRequest schema.
 type BetaGroupCreateRequest struct {
 	Data BetaGroupCreateData `json:"data"`
-}
-
-// BetaGroupRelationships is the data.relationships object of the BetaGroupCreateRequest schema.
-type BetaGroupRelationships struct {
-	App         *Relationship     `json:"app"`
-	Builds      *RelationshipList `json:"builds,omitempty"`
-	BetaTesters *RelationshipList `json:"betaTesters,omitempty"`
 }
 
 // BetaGroupResponse is the BetaGroupResponse schema.
@@ -88,6 +74,50 @@ func (c *Client) GetBetaGroupBetaRecruitmentCriterionCompatibleBuildCheck(ctx co
 	return getJSON[BetaRecruitmentCriterionCompatibleBuildCheckResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/betaGroups/%s/betaRecruitmentCriterionCompatibleBuildCheck", groupID),
 	})
+}
+
+// AddBetaTestersToGroup sends POST /v1/betaGroups/{id}/relationships/betaTesters (betaGroups_betaTesters_createToManyRelationship).
+func (c *Client) AddBetaTestersToGroup(ctx context.Context, groupID string, testerIDs []string) error {
+	groupID = strings.TrimSpace(groupID)
+	testerIDs = normalizeList(testerIDs)
+	if groupID == "" {
+		return fmt.Errorf("groupID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("testerIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
+}
+
+// RemoveBetaTestersFromGroup sends DELETE /v1/betaGroups/{id}/relationships/betaTesters (betaGroups_betaTesters_deleteToManyRelationship).
+func (c *Client) RemoveBetaTestersFromGroup(ctx context.Context, groupID string, testerIDs []string) error {
+	groupID = strings.TrimSpace(groupID)
+	testerIDs = normalizeList(testerIDs)
+	if groupID == "" {
+		return fmt.Errorf("groupID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("testerIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
 }
 
 // GetBetaGroupTesters sends GET /v1/betaGroups/{id}/betaTesters (betaGroups_betaTesters_getToManyRelated).

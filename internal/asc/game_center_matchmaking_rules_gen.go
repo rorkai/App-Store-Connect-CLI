@@ -18,13 +18,6 @@ type GameCenterMatchmakingRuleCreateAttributes struct {
 	Weight        *float64 `json:"weight,omitempty"`
 }
 
-// GameCenterMatchmakingRuleCreateData is the data object of the GameCenterMatchmakingRuleCreateRequest schema.
-type GameCenterMatchmakingRuleCreateData struct {
-	Type          ResourceType                              `json:"type"`
-	Attributes    GameCenterMatchmakingRuleCreateAttributes `json:"attributes"`
-	Relationships *GameCenterMatchmakingRuleRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterMatchmakingRuleCreateRequest is the GameCenterMatchmakingRuleCreateRequest schema.
 type GameCenterMatchmakingRuleCreateRequest struct {
 	Data GameCenterMatchmakingRuleCreateData `json:"data"`
@@ -50,29 +43,6 @@ type GameCenterMatchmakingRuleUpdateData struct {
 // GameCenterMatchmakingRuleUpdateRequest is the GameCenterMatchmakingRuleUpdateRequest schema.
 type GameCenterMatchmakingRuleUpdateRequest struct {
 	Data GameCenterMatchmakingRuleUpdateData `json:"data"`
-}
-
-// CreateGameCenterMatchmakingRule sends POST /v1/gameCenterMatchmakingRules (gameCenterMatchmakingRules_createInstance).
-func (c *Client) CreateGameCenterMatchmakingRule(ctx context.Context, ruleSetID string, attrs GameCenterMatchmakingRuleCreateAttributes) (*GameCenterMatchmakingRuleResponse, error) {
-	payload := GameCenterMatchmakingRuleCreateRequest{
-		Data: GameCenterMatchmakingRuleCreateData{
-			Type:       ResourceTypeGameCenterMatchmakingRules,
-			Attributes: attrs,
-			Relationships: &GameCenterMatchmakingRuleRelationships{
-				RuleSet: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterMatchmakingRuleSets,
-						ID:   strings.TrimSpace(ruleSetID),
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[GameCenterMatchmakingRuleResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/gameCenterMatchmakingRules",
-		Payload: payload,
-	})
 }
 
 // DeleteGameCenterMatchmakingRule sends DELETE /v1/gameCenterMatchmakingRules/{id} (gameCenterMatchmakingRules_deleteInstance).

@@ -2,17 +2,11 @@
   "tag": "AppEvents",
   "file": "app_events_gen.go",
   "types": [
-    "AppEventCreateData",
-    "AppEventCreateRelationships",
     "AppEventCreateRequest",
     "AppEventUpdateData",
     "AppEventUpdateRequest"
   ],
-  "relationships": [
-    {"data":"AppEventCreateData","type":"*AppEventCreateRelationships"}
-  ],
   "operations": [
-    {"operation":"appEvents_createInstance","name":"CreateAppEvent","params":["appID"],"check":"require","links":["app"]},
     {"operation":"appEvents_deleteInstance","name":"DeleteAppEvent","params":["eventID"],"check":"require"},
     {"operation":"appEvents_getInstance","name":"GetAppEvent","params":["eventID"],"check":"require"},
     {"operation":"appEvents_localizations_getToManyRelated","name":"GetAppEventLocalizations","params":["eventID"],"check":"require","options":"AppEventLocalizationsOption","query":"buildAppEventLocalizationsQuery","nextContext":"appEventLocalizations"},

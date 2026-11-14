@@ -9,21 +9,9 @@ import (
 	"strings"
 )
 
-// AccessibilityDeclarationCreateData is the data object of the AccessibilityDeclarationCreateRequest schema.
-type AccessibilityDeclarationCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    AccessibilityDeclarationCreateAttributes `json:"attributes"`
-	Relationships *AccessibilityDeclarationRelationships   `json:"relationships"`
-}
-
 // AccessibilityDeclarationCreateRequest is the AccessibilityDeclarationCreateRequest schema.
 type AccessibilityDeclarationCreateRequest struct {
 	Data AccessibilityDeclarationCreateData `json:"data"`
-}
-
-// AccessibilityDeclarationRelationships is the data.relationships object of the AccessibilityDeclarationCreateRequest schema.
-type AccessibilityDeclarationRelationships struct {
-	App *Relationship `json:"app"`
 }
 
 // AccessibilityDeclarationResponse is the AccessibilityDeclarationResponse schema.
@@ -53,29 +41,6 @@ type AccessibilityDeclarationUpdateData struct {
 // AccessibilityDeclarationUpdateRequest is the AccessibilityDeclarationUpdateRequest schema.
 type AccessibilityDeclarationUpdateRequest struct {
 	Data AccessibilityDeclarationUpdateData `json:"data"`
-}
-
-// CreateAccessibilityDeclaration sends POST /v1/accessibilityDeclarations (accessibilityDeclarations_createInstance).
-func (c *Client) CreateAccessibilityDeclaration(ctx context.Context, appID string, attrs AccessibilityDeclarationCreateAttributes) (*AccessibilityDeclarationResponse, error) {
-	payload := AccessibilityDeclarationCreateRequest{
-		Data: AccessibilityDeclarationCreateData{
-			Type:       ResourceTypeAccessibilityDeclarations,
-			Attributes: attrs,
-			Relationships: &AccessibilityDeclarationRelationships{
-				App: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   strings.TrimSpace(appID),
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[AccessibilityDeclarationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/accessibilityDeclarations",
-		Payload: payload,
-	})
 }
 
 // DeleteAccessibilityDeclaration sends DELETE /v1/accessibilityDeclarations/{id} (accessibilityDeclarations_deleteInstance).

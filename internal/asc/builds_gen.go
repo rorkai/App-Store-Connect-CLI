@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -78,6 +79,28 @@ func (c *Client) GetBetaBuildLocalizations(ctx context.Context, buildID string, 
 	})
 }
 
+// RemoveBetaGroupsFromBuild sends DELETE /v1/builds/{id}/relationships/betaGroups (builds_betaGroups_deleteToManyRelationship).
+func (c *Client) RemoveBetaGroupsFromBuild(ctx context.Context, buildID string, groupIDs []string) error {
+	buildID = strings.TrimSpace(buildID)
+	groupIDs = normalizeList(groupIDs)
+	if buildID == "" {
+		return fmt.Errorf("buildID is required")
+	}
+	if len(groupIDs) == 0 {
+		return fmt.Errorf("groupIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(groupIDs)),
+	}
+	for i, id := range groupIDs {
+		payload.Data[i] = RelationshipData{
+			Type: ResourceTypeBetaGroups,
+			ID:   id,
+		}
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/builds/%s/relationships/betaGroups", buildID), payload)
+}
+
 // GetBuildBuildBetaDetail sends GET /v1/builds/{id}/buildBetaDetail (builds_buildBetaDetail_getToOneRelated).
 func (c *Client) GetBuildBuildBetaDetail(ctx context.Context, buildID string) (*BuildBetaDetailResponse, error) {
 	buildID = strings.TrimSpace(buildID)
@@ -130,6 +153,50 @@ func (c *Client) GetBuildIcons(ctx context.Context, buildID string, opts ...Buil
 		Next:        query.nextURL,
 		NextContext: "buildIcons",
 	})
+}
+
+// AddIndividualTestersToBuild sends POST /v1/builds/{id}/relationships/individualTesters (builds_individualTesters_createToManyRelationship).
+func (c *Client) AddIndividualTestersToBuild(ctx context.Context, buildID string, testerIDs []string) error {
+	buildID = strings.TrimSpace(buildID)
+	testerIDs = normalizeList(testerIDs)
+	if buildID == "" {
+		return fmt.Errorf("buildID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("testerIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(testerIDs)),
+	}
+	for i, id := range testerIDs {
+		payload.Data[i] = RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   id,
+		}
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID), payload)
+}
+
+// RemoveIndividualTestersFromBuild sends DELETE /v1/builds/{id}/relationships/individualTesters (builds_individualTesters_deleteToManyRelationship).
+func (c *Client) RemoveIndividualTestersFromBuild(ctx context.Context, buildID string, testerIDs []string) error {
+	buildID = strings.TrimSpace(buildID)
+	testerIDs = normalizeList(testerIDs)
+	if buildID == "" {
+		return fmt.Errorf("buildID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("testerIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(testerIDs)),
+	}
+	for i, id := range testerIDs {
+		payload.Data[i] = RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   id,
+		}
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID), payload)
 }
 
 // GetBuildIndividualTesters sends GET /v1/builds/{id}/individualTesters (builds_individualTesters_getToManyRelated).

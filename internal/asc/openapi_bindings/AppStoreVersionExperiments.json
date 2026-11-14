@@ -3,24 +3,16 @@
   "file": "app_store_version_experiments_gen.go",
   "types": [
     "AppStoreVersionExperimentCreateAttributes",
-    "AppStoreVersionExperimentCreateData",
-    "AppStoreVersionExperimentCreateRelationships",
     "AppStoreVersionExperimentCreateRequest",
     "AppStoreVersionExperimentResponse",
     "AppStoreVersionExperimentUpdateAttributes",
     "AppStoreVersionExperimentUpdateData",
     "AppStoreVersionExperimentUpdateRequest",
-    "AppStoreVersionExperimentV2CreateData",
-    "AppStoreVersionExperimentV2CreateRelationships",
     "AppStoreVersionExperimentV2CreateRequest",
     "AppStoreVersionExperimentV2Response",
     "AppStoreVersionExperimentV2UpdateAttributes",
     "AppStoreVersionExperimentV2UpdateData",
     "AppStoreVersionExperimentV2UpdateRequest"
-  ],
-  "relationships": [
-    {"data":"AppStoreVersionExperimentCreateData","type":"*AppStoreVersionExperimentCreateRelationships"},
-    {"data":"AppStoreVersionExperimentV2CreateData","type":"*AppStoreVersionExperimentV2CreateRelationships"}
   ],
   "operations": [
     {"operation":"appStoreVersionExperimentsV2_appStoreVersionExperimentTreatments_getToManyRelated","name":"GetAppStoreVersionExperimentTreatmentsV2","params":["experimentID"],"check":"require","options":"AppStoreVersionExperimentTreatmentsOption","query":"buildAppStoreVersionExperimentTreatmentsQuery","nextContext":"appStoreVersionExperimentTreatments"},

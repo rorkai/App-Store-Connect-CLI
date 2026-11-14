@@ -15,13 +15,6 @@ type GameCenterLeaderboardSetCreateAttributes struct {
 	VendorIdentifier string `json:"vendorIdentifier"`
 }
 
-// GameCenterLeaderboardSetCreateData is the data object of the GameCenterLeaderboardSetCreateRequest schema.
-type GameCenterLeaderboardSetCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    GameCenterLeaderboardSetCreateAttributes `json:"attributes"`
-	Relationships *GameCenterLeaderboardSetRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterLeaderboardSetCreateRequest is the GameCenterLeaderboardSetCreateRequest schema.
 type GameCenterLeaderboardSetCreateRequest struct {
 	Data GameCenterLeaderboardSetCreateData `json:"data"`
@@ -45,14 +38,6 @@ type GameCenterLeaderboardSetUpdateData struct {
 // GameCenterLeaderboardSetUpdateRequest is the GameCenterLeaderboardSetUpdateRequest schema.
 type GameCenterLeaderboardSetUpdateRequest struct {
 	Data GameCenterLeaderboardSetUpdateData `json:"data"`
-}
-
-// GameCenterLeaderboardSetV2Relationships is the data.relationships object of the GameCenterLeaderboardSetV2CreateRequest schema.
-type GameCenterLeaderboardSetV2Relationships struct {
-	GameCenterDetail       *Relationship     `json:"gameCenterDetail,omitempty"`
-	GameCenterGroup        *Relationship     `json:"gameCenterGroup,omitempty"`
-	GameCenterLeaderboards *RelationshipList `json:"gameCenterLeaderboards,omitempty"`
-	Versions               *RelationshipList `json:"versions"`
 }
 
 // DeleteGameCenterLeaderboardSetV2 sends DELETE /v2/gameCenterLeaderboardSets/{id} (gameCenterLeaderboardSetsV2_deleteInstance).
@@ -108,6 +93,38 @@ func (c *Client) GetGameCenterLeaderboardSetVersions(ctx context.Context, setID 
 // DeleteGameCenterLeaderboardSet sends DELETE /v1/gameCenterLeaderboardSets/{id} (gameCenterLeaderboardSets_deleteInstance).
 func (c *Client) DeleteGameCenterLeaderboardSet(ctx context.Context, setID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s", strings.TrimSpace(setID)), nil)
+}
+
+// AddGameCenterLeaderboardSetMembers sends POST /v1/gameCenterLeaderboardSets/{id}/relationships/gameCenterLeaderboards (gameCenterLeaderboardSets_gameCenterLeaderboards_createToManyRelationship).
+func (c *Client) AddGameCenterLeaderboardSetMembers(ctx context.Context, setID string, leaderboardIDs []string) error {
+	setID = strings.TrimSpace(setID)
+	leaderboardIDs = normalizeList(leaderboardIDs)
+	if setID == "" {
+		return fmt.Errorf("setID is required")
+	}
+	if len(leaderboardIDs) == 0 {
+		return fmt.Errorf("leaderboardIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: buildRelationshipData(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID), payload)
+}
+
+// RemoveGameCenterLeaderboardSetMembers sends DELETE /v1/gameCenterLeaderboardSets/{id}/relationships/gameCenterLeaderboards (gameCenterLeaderboardSets_gameCenterLeaderboards_deleteToManyRelationship).
+func (c *Client) RemoveGameCenterLeaderboardSetMembers(ctx context.Context, setID string, leaderboardIDs []string) error {
+	setID = strings.TrimSpace(setID)
+	leaderboardIDs = normalizeList(leaderboardIDs)
+	if setID == "" {
+		return fmt.Errorf("setID is required")
+	}
+	if len(leaderboardIDs) == 0 {
+		return fmt.Errorf("leaderboardIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: buildRelationshipData(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID), payload)
 }
 
 // GetGameCenterLeaderboardSetMembers sends GET /v1/gameCenterLeaderboardSets/{id}/gameCenterLeaderboards (gameCenterLeaderboardSets_gameCenterLeaderboards_getToManyRelated).

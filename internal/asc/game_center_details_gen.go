@@ -13,18 +13,6 @@ type GameCenterDetailCreateAttributes struct {
 	ChallengeEnabled *bool `json:"challengeEnabled,omitempty"`
 }
 
-// GameCenterDetailCreateData is the data object of the GameCenterDetailCreateRequest schema.
-type GameCenterDetailCreateData struct {
-	Type          ResourceType                         `json:"type"`
-	Attributes    *GameCenterDetailCreateAttributes    `json:"attributes,omitempty"`
-	Relationships *GameCenterDetailCreateRelationships `json:"relationships"`
-}
-
-// GameCenterDetailCreateRelationships is the data.relationships object of the GameCenterDetailCreateRequest schema.
-type GameCenterDetailCreateRelationships struct {
-	App *Relationship `json:"app"`
-}
-
 // GameCenterDetailCreateRequest is the GameCenterDetailCreateRequest schema.
 type GameCenterDetailCreateRequest struct {
 	Data GameCenterDetailCreateData `json:"data"`

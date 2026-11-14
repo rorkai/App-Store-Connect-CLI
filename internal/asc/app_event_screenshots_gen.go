@@ -9,21 +9,9 @@ import (
 	"strings"
 )
 
-// AppEventScreenshotCreateData is the data object of the AppEventScreenshotCreateRequest schema.
-type AppEventScreenshotCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    AppEventScreenshotCreateAttributes `json:"attributes"`
-	Relationships *AppEventScreenshotRelationships   `json:"relationships"`
-}
-
 // AppEventScreenshotCreateRequest is the AppEventScreenshotCreateRequest schema.
 type AppEventScreenshotCreateRequest struct {
 	Data AppEventScreenshotCreateData `json:"data"`
-}
-
-// AppEventScreenshotRelationships is the data.relationships object of the AppEventScreenshotCreateRequest schema.
-type AppEventScreenshotRelationships struct {
-	AppEventLocalization *Relationship `json:"appEventLocalization"`
 }
 
 // AppEventScreenshotUpdateAttributes is the data.attributes object of the AppEventScreenshotUpdateRequest schema.

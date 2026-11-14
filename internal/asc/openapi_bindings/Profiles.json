@@ -2,12 +2,8 @@
   "tag": "Profiles",
   "file": "profiles_gen.go",
   "types": [
-    "ProfileCreateData",
     "ProfileCreateRequest",
     "ProfileResponse"
-  ],
-  "relationships": [
-    {"data":"ProfileCreateData","type":"*ProfileCreateRelationships"}
   ],
   "operations": [
     {"operation":"profiles_bundleId_getToOneRelated","name":"GetProfileBundleID","params":["profileID"],"check":"trim","response":"BundleIDResponse"},

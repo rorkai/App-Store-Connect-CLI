@@ -31,6 +31,12 @@
     {"operation":"widgets_getInstance","name":"GetWidget","params":["widgetID"],"check":"require","parseErr":"failed to parse widget response"},
     {"operation":"widgets_owner_getToOneRelated","name":"GetWidgetOwner","params":["widgetID"],"check":"raw"},
     {"operation":"widgets_parts_getToManyRelated","name":"GetWidgetParts","params":["widgetID"],"check":"require","checkFirst":true,"options":"PartsOption","query":"buildPartsQuery","response":"GadgetListResponse"},
-    {"operation":"widgets_updateInstance","name":"UpdateWidget","params":["widgetID"]}
+    {"operation":"widgets_updateInstance","name":"UpdateWidget","params":["widgetID"]},
+    {"operation":"widgets_visibleParts_createToManyRelationship","name":"AddWidgetVisibleParts","params":["widgetID"],"check":"require","ids":"partIDs","idList":{"normalize":true,"message":"partIDs are required"}},
+    {"operation":"widgets_visibleParts_deleteToManyRelationship","name":"RemoveWidgetVisibleParts","params":["widgetID"],"check":"require","messages":["widget ID is required"],"ids":"partIDs","idList":{"normalize":true,"message":"part IDs are required","payload":"append","item":"partID"}},
+    {"operation":"widgets_visibleParts_replaceToManyRelationship","name":"UpdateWidgetVisibleParts","params":["widgetID"],"check":"require","ids":"partIDs","idList":{"payload":"nonNil"}},
+    {"operation":"widgets_wheels_createToManyRelationship","name":"AddWidgetWheels","params":["widgetID"],"check":"require","ids":"wheelIDs","idList":{"normalize":true,"message":"wheelIDs are required","payload":"index"}},
+    {"operation":"widgets_wheels_deleteToManyRelationship","name":"RemoveWidgetWheels","params":["widgetID"],"check":"require","ids":"wheelIDs","idList":{"normalize":true,"message":"wheelIDs are required","payload":"resourceList","item":"wheelID"}},
+    {"operation":"widgets_wheels_replaceToManyRelationship","name":"SetWidgetWheels","params":["widgetID"],"ids":"wheelIDs","idList":{"normalize":true,"payload":"append","item":"id"}}
   ]
 }

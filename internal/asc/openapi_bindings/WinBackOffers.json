@@ -2,13 +2,8 @@
   "tag": "WinBackOffers",
   "file": "win_back_offers_gen.go",
   "types": [
-    "WinBackOfferCreateData",
-    "WinBackOfferCreateRelationships",
     "WinBackOfferResponse",
     "WinBackOfferUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"WinBackOfferCreateData","type":"WinBackOfferCreateRelationships"}
   ],
   "operations": [
     {"operation":"winBackOffers_deleteInstance","name":"DeleteWinBackOffer","params":["offerID"]},

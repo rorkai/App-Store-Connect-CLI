@@ -3,21 +3,16 @@
   "file": "app_event_localizations_gen.go",
   "types": [
     "AppEventLocalizationAttributes",
-    "AppEventLocalizationCreateData",
     "AppEventLocalizationCreateRequest",
     "AppEventLocalizationUpdateAttributes",
     "AppEventLocalizationUpdateData",
     "AppEventLocalizationUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"AppEventLocalizationCreateData","type":"*AppEventLocalizationRelationships"}
   ],
   "operations": [
     {"operation":"appEventLocalizations_appEventScreenshots_getToManyRelated","name":"GetAppEventScreenshots","params":["localizationID"],"check":"require","options":"AppEventScreenshotsOption","query":"buildAppEventScreenshotsQuery","nextContext":"appEventScreenshots"},
     {"operation":"appEventLocalizations_appEventScreenshots_getToManyRelationship","name":"GetAppEventScreenshotsRelationships","params":["localizationID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appEventScreenshotsRelationships","response":"AppEventLocalizationScreenshotsLinkagesResponse"},
     {"operation":"appEventLocalizations_appEventVideoClips_getToManyRelated","name":"GetAppEventVideoClips","params":["localizationID"],"check":"require","options":"AppEventVideoClipsOption","query":"buildAppEventVideoClipsQuery","nextContext":"appEventVideoClips"},
     {"operation":"appEventLocalizations_appEventVideoClips_getToManyRelationship","name":"GetAppEventVideoClipsRelationships","params":["localizationID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appEventVideoClipsRelationships","response":"AppEventLocalizationVideoClipsLinkagesResponse"},
-    {"operation":"appEventLocalizations_createInstance","name":"CreateAppEventLocalization","params":["eventID"],"check":"require","links":["appEvent"]},
     {"operation":"appEventLocalizations_deleteInstance","name":"DeleteAppEventLocalization","params":["localizationID"],"check":"require"},
     {"operation":"appEventLocalizations_updateInstance","name":"UpdateAppEventLocalization","params":["localizationID"],"check":"require"}
   ]

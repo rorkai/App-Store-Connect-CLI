@@ -7,11 +7,23 @@ import (
 	"strings"
 )
 
+// AppScreenshotSetRelationships describes relationships for screenshot sets.
+type AppScreenshotSetRelationships struct {
+	AppStoreVersionLocalization                    *Relationship `json:"appStoreVersionLocalization,omitempty"`
+	AppCustomProductPageLocalization               *Relationship `json:"appCustomProductPageLocalization,omitempty"`
+	AppStoreVersionExperimentTreatmentLocalization *Relationship `json:"appStoreVersionExperimentTreatmentLocalization,omitempty"`
+}
+
 // AppScreenshotSetCreateData is the data portion of a screenshot set create request.
 type AppScreenshotSetCreateData struct {
 	Type          ResourceType                   `json:"type"`
 	Attributes    AppScreenshotSetAttributes     `json:"attributes"`
 	Relationships *AppScreenshotSetRelationships `json:"relationships"`
+}
+
+// AppScreenshotRelationships describes relationships for screenshots.
+type AppScreenshotRelationships struct {
+	AppScreenshotSet *Relationship `json:"appScreenshotSet"`
 }
 
 // AppScreenshotCreateData is the data portion of a screenshot create request.
@@ -21,11 +33,23 @@ type AppScreenshotCreateData struct {
 	Relationships *AppScreenshotRelationships `json:"relationships"`
 }
 
+// AppPreviewSetRelationships describes relationships for preview sets.
+type AppPreviewSetRelationships struct {
+	AppStoreVersionLocalization                    *Relationship `json:"appStoreVersionLocalization,omitempty"`
+	AppCustomProductPageLocalization               *Relationship `json:"appCustomProductPageLocalization,omitempty"`
+	AppStoreVersionExperimentTreatmentLocalization *Relationship `json:"appStoreVersionExperimentTreatmentLocalization,omitempty"`
+}
+
 // AppPreviewSetCreateData is the data portion of a preview set create request.
 type AppPreviewSetCreateData struct {
 	Type          ResourceType                `json:"type"`
 	Attributes    AppPreviewSetAttributes     `json:"attributes"`
 	Relationships *AppPreviewSetRelationships `json:"relationships"`
+}
+
+// AppPreviewRelationships describes relationships for previews.
+type AppPreviewRelationships struct {
+	AppPreviewSet *Relationship `json:"appPreviewSet"`
 }
 
 // AppPreviewCreateData is the data portion of a preview create request.
@@ -118,21 +142,6 @@ func (c *Client) GetAppScreenshots(ctx context.Context, setID string, opts ...Ap
 		Next:        query.nextURL,
 		NextContext: "appScreenshots",
 	})
-}
-
-// UpdateAppScreenshotSetAppScreenshotsRelationship replaces the screenshots on a screenshot set.
-func (c *Client) UpdateAppScreenshotSetAppScreenshotsRelationship(ctx context.Context, setID string, screenshotIDs []string) error {
-	setID = strings.TrimSpace(setID)
-	if setID == "" {
-		return fmt.Errorf("setID is required")
-	}
-
-	data := buildRelationshipData(ResourceTypeAppScreenshots, screenshotIDs)
-	if data == nil {
-		data = []RelationshipData{}
-	}
-	payload := RelationshipRequest{Data: data}
-	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", setID), payload)
 }
 
 // CreateAppScreenshot creates a screenshot reservation.
@@ -266,21 +275,6 @@ func (c *Client) GetAppPreviews(ctx context.Context, setID string, opts ...AppPr
 		Next:        query.nextURL,
 		NextContext: "appPreviews",
 	})
-}
-
-// UpdateAppPreviewSetAppPreviewsRelationship replaces the previews on a preview set.
-func (c *Client) UpdateAppPreviewSetAppPreviewsRelationship(ctx context.Context, setID string, previewIDs []string) error {
-	setID = strings.TrimSpace(setID)
-	if setID == "" {
-		return fmt.Errorf("setID is required")
-	}
-
-	data := buildRelationshipData(ResourceTypeAppPreviews, previewIDs)
-	if data == nil {
-		data = []RelationshipData{}
-	}
-	payload := RelationshipRequest{Data: data}
-	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appPreviewSets/%s/relationships/appPreviews", setID), payload)
 }
 
 // CreateAppPreview creates a preview reservation.

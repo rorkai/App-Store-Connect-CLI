@@ -3,23 +3,14 @@
   "file": "subscription_group_localizations_gen.go",
   "types": [
     "SubscriptionGroupLocalizationAttributes",
-    "SubscriptionGroupLocalizationCreateData",
     "SubscriptionGroupLocalizationCreateRequest",
-    "SubscriptionGroupLocalizationRelationships",
     "SubscriptionGroupLocalizationV2Attributes",
-    "SubscriptionGroupLocalizationV2CreateData",
-    "SubscriptionGroupLocalizationV2CreateRelationships",
     "SubscriptionGroupLocalizationV2CreateRequest",
     "SubscriptionGroupLocalizationV2UpdateData",
     "SubscriptionGroupLocalizationV2UpdateRequest"
   ],
-  "relationships": [
-    {"data":"SubscriptionGroupLocalizationCreateData","type":"*SubscriptionGroupLocalizationRelationships","omitempty":true},
-    {"data":"SubscriptionGroupLocalizationV2CreateData","type":"SubscriptionGroupLocalizationV2CreateRelationships"}
-  ],
   "operations": [
     {"operation":"subscriptionGroupLocalizationsV2_deleteInstance","name":"DeleteSubscriptionGroupLocalizationV2","params":["localizationID"],"check":"require"},
-    {"operation":"subscriptionGroupLocalizationsV2_updateInstance","name":"UpdateSubscriptionGroupLocalizationV2","params":["localizationID"],"check":"require"},
-    {"operation":"subscriptionGroupLocalizations_createInstance","name":"CreateSubscriptionGroupLocalization","params":["groupID"],"check":"require","messages":["group ID is required"],"links":["subscriptionGroup"]}
+    {"operation":"subscriptionGroupLocalizationsV2_updateInstance","name":"UpdateSubscriptionGroupLocalizationV2","params":["localizationID"],"check":"require"}
   ]
 }

@@ -2,16 +2,10 @@
   "tag": "GameCenterLeaderboardReleases",
   "file": "game_center_leaderboard_releases_gen.go",
   "types": [
-    "GameCenterLeaderboardReleaseCreateData",
     "GameCenterLeaderboardReleaseCreateRequest",
-    "GameCenterLeaderboardReleaseRelationships",
     "GameCenterLeaderboardReleaseResponse"
   ],
-  "relationships": [
-    {"data":"GameCenterLeaderboardReleaseCreateData","type":"*GameCenterLeaderboardReleaseRelationships"}
-  ],
   "operations": [
-    {"operation":"gameCenterLeaderboardReleases_createInstance","name":"CreateGameCenterLeaderboardRelease","params":["gcDetailID","leaderboardID"],"links":["gameCenterDetail","gameCenterLeaderboard"]},
     {"operation":"gameCenterLeaderboardReleases_deleteInstance","name":"DeleteGameCenterLeaderboardRelease","params":["releaseID"]},
     {"operation":"gameCenterLeaderboardReleases_getInstance","name":"GetGameCenterLeaderboardRelease","params":["releaseID"]}
   ]

@@ -3,13 +3,9 @@
   "file": "app_screenshots_gen.go",
   "types": [
     "AppScreenshotCreateRequest",
-    "AppScreenshotRelationships",
     "AppScreenshotUpdateAttributes",
     "AppScreenshotUpdateData",
     "AppScreenshotUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"AppScreenshotCreateData","type":"*AppScreenshotRelationships"}
   ],
   "operations": [
     {"operation":"appScreenshots_deleteInstance","name":"DeleteAppScreenshot","params":["screenshotID"],"check":"raw"},

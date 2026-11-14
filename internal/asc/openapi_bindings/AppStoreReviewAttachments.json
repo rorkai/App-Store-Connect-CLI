@@ -2,16 +2,11 @@
   "tag": "AppStoreReviewAttachments",
   "file": "app_store_review_attachments_gen.go",
   "types": [
-    "AppStoreReviewAttachmentCreateData",
     "AppStoreReviewAttachmentCreateRequest",
-    "AppStoreReviewAttachmentRelationships",
     "AppStoreReviewAttachmentResponse",
     "AppStoreReviewAttachmentUpdateAttributes",
     "AppStoreReviewAttachmentUpdateData",
     "AppStoreReviewAttachmentUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"AppStoreReviewAttachmentCreateData","type":"*AppStoreReviewAttachmentRelationships"}
   ],
   "operations": [
     {"operation":"appStoreReviewAttachments_deleteInstance","name":"DeleteAppStoreReviewAttachment","params":["attachmentID"],"check":"require"}

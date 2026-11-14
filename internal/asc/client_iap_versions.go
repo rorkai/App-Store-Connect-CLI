@@ -252,6 +252,18 @@ func buildIAPLocalizationV2Query(q *iapLocalizationV2Query) string {
 	return values.Encode()
 }
 
+func (c *Client) CreateInAppPurchaseVersion(ctx context.Context, iapID string) (*InAppPurchaseVersionResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+	payload := InAppPurchaseVersionCreateRequest{Data: InAppPurchaseVersionCreateData{
+		Type:          ResourceTypeInAppPurchaseVersions,
+		Relationships: InAppPurchaseVersionCreateRelationships{InAppPurchase: Relationship{Data: ResourceData{Type: ResourceTypeInAppPurchases, ID: iapID}}},
+	}}
+	return sendJSON[InAppPurchaseVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseVersions", Payload: payload})
+}
+
 func (c *Client) GetInAppPurchaseVersion(ctx context.Context, versionID string, opts ...IAPVersionGetOption) (*InAppPurchaseVersionResponse, error) {
 	versionID = strings.TrimSpace(versionID)
 	if versionID == "" {

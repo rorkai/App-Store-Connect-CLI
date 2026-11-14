@@ -2,13 +2,8 @@
   "tag": "SubscriptionOfferCodes",
   "file": "subscription_offer_codes_gen.go",
   "types": [
-    "SubscriptionOfferCodeCreateData",
-    "SubscriptionOfferCodeRelationships",
     "SubscriptionOfferCodeUpdateAttributes",
     "SubscriptionOfferCodeUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"SubscriptionOfferCodeCreateData","type":"SubscriptionOfferCodeRelationships"}
   ],
   "operations": [
     {"operation":"subscriptionOfferCodes_customCodes_getToManyRelated","name":"GetSubscriptionOfferCodeCustomCodes","params":["offerCodeID"],"options":"SubscriptionOfferCodeCustomCodesOption","query":"buildSubscriptionOfferCodeCustomCodesQuery","nextContext":"subscriptionOfferCodeCustomCodes"},

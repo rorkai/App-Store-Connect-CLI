@@ -62,3 +62,23 @@ func (c *Client) GetInAppPurchaseV2(ctx context.Context, iapID string, opts ...I
 	query := applyOptions(opts)
 	return getJSON[InAppPurchaseV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s", iapID), Query: buildInAppPurchaseGetQuery(query)})
 }
+
+// CreateInAppPurchaseV2 creates a new in-app purchase.
+func (c *Client) CreateInAppPurchaseV2(ctx context.Context, appID string, attrs InAppPurchaseV2CreateAttributes) (*InAppPurchaseV2Response, error) {
+	payload := InAppPurchaseV2CreateRequest{
+		Data: InAppPurchaseV2CreateData{
+			Type:       ResourceTypeInAppPurchases,
+			Attributes: attrs,
+			Relationships: &InAppPurchaseV2Relationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   strings.TrimSpace(appID),
+					},
+				},
+			},
+		},
+	}
+
+	return sendJSON[InAppPurchaseV2Response](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/inAppPurchases", Payload: payload})
+}

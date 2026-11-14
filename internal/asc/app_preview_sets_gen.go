@@ -14,13 +14,6 @@ type AppPreviewSetCreateRequest struct {
 	Data AppPreviewSetCreateData `json:"data"`
 }
 
-// AppPreviewSetRelationships is the data.relationships object of the AppPreviewSetCreateRequest schema.
-type AppPreviewSetRelationships struct {
-	AppStoreVersionLocalization                    *Relationship `json:"appStoreVersionLocalization,omitempty"`
-	AppCustomProductPageLocalization               *Relationship `json:"appCustomProductPageLocalization,omitempty"`
-	AppStoreVersionExperimentTreatmentLocalization *Relationship `json:"appStoreVersionExperimentTreatmentLocalization,omitempty"`
-}
-
 // GetAppPreviewSetAppPreviewsRelationships sends GET /v1/appPreviewSets/{id}/relationships/appPreviews (appPreviewSets_appPreviews_getToManyRelationship).
 func (c *Client) GetAppPreviewSetAppPreviewsRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := applyOptions(opts)
@@ -34,6 +27,20 @@ func (c *Client) GetAppPreviewSetAppPreviewsRelationships(ctx context.Context, s
 		Next:        query.nextURL,
 		NextContext: "appPreviewsRelationships",
 	})
+}
+
+// UpdateAppPreviewSetAppPreviewsRelationship sends PATCH /v1/appPreviewSets/{id}/relationships/appPreviews (appPreviewSets_appPreviews_replaceToManyRelationship).
+func (c *Client) UpdateAppPreviewSetAppPreviewsRelationship(ctx context.Context, setID string, previewIDs []string) error {
+	setID = strings.TrimSpace(setID)
+	if setID == "" {
+		return fmt.Errorf("setID is required")
+	}
+	data := buildRelationshipData(ResourceTypeAppPreviews, previewIDs)
+	if data == nil {
+		data = []RelationshipData{}
+	}
+	payload := RelationshipRequest{Data: data}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/appPreviewSets/%s/relationships/appPreviews", setID), payload)
 }
 
 // DeleteAppPreviewSet sends DELETE /v1/appPreviewSets/{id} (appPreviewSets_deleteInstance).

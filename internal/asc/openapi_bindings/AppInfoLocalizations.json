@@ -3,12 +3,8 @@
   "file": "app_info_localizations_gen.go",
   "types": [
     "AppInfoLocalizationCreateRequest",
-    "AppInfoLocalizationRelationships",
     "AppInfoLocalizationResponse",
     "AppInfoLocalizationUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"AppInfoLocalizationCreateData","type":"*AppInfoLocalizationRelationships"}
   ],
   "operations": [
     {"operation":"appInfoLocalizations_deleteInstance","name":"DeleteAppInfoLocalization","params":["localizationID"],"check":"require"}

@@ -2,19 +2,13 @@
   "tag": "AccessibilityDeclarations",
   "file": "accessibility_declarations_gen.go",
   "types": [
-    "AccessibilityDeclarationCreateData",
     "AccessibilityDeclarationCreateRequest",
-    "AccessibilityDeclarationRelationships",
     "AccessibilityDeclarationResponse",
     "AccessibilityDeclarationUpdateAttributes",
     "AccessibilityDeclarationUpdateData",
     "AccessibilityDeclarationUpdateRequest"
   ],
-  "relationships": [
-    {"data":"AccessibilityDeclarationCreateData","type":"*AccessibilityDeclarationRelationships"}
-  ],
   "operations": [
-    {"operation":"accessibilityDeclarations_createInstance","name":"CreateAccessibilityDeclaration","params":["appID"],"links":["app"]},
     {"operation":"accessibilityDeclarations_deleteInstance","name":"DeleteAccessibilityDeclaration","params":["declarationID"]}
   ]
 }

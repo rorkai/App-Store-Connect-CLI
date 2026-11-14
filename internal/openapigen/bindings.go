@@ -66,10 +66,29 @@ type OpBind struct {
 	IDs         string   `json:"ids,omitempty"`         // ID list parameter of a relationship change
 	// Links are the to-one relationships a create sets, one for each of the
 	// last len(Links) Params.
-	Links []string `json:"links,omitempty"`
+	Links  []string `json:"links,omitempty"`
+	IDList *IDList  `json:"idList,omitempty"` // how a relationship change handles its ID list
 	// Deviations are known differences from the schema that the contract test
 	// in internal/asc pins. They change no generated code.
 	Deviations []Deviation `json:"deviations,omitempty"`
+}
+
+// Payload styles of a relationship change.
+const (
+	payloadDefault      = ""             // RelationshipRequest{Data: buildRelationshipData(...)}
+	payloadAppend       = "append"       // append to RelationshipRequest.Data in a loop over Item
+	payloadIndex        = "index"        // assign RelationshipRequest.Data[i] in a loop over i, id
+	payloadResourceList = "resourceList" // RelationshipList of ResourceData, in a loop over Item
+	payloadNonNil       = "nonNil"       // buildRelationshipData, with nil replaced by an empty list
+)
+
+// IDList is how a relationship change prepares its ID list. Without it the
+// list goes to buildRelationshipData as given.
+type IDList struct {
+	Normalize bool   `json:"normalize,omitempty"` // normalizeList after the path parameter trims
+	Message   string `json:"message,omitempty"`   // error for an empty list after normalizing; none allows it
+	Payload   string `json:"payload,omitempty"`   // one of the payload styles
+	Item      string `json:"item,omitempty"`      // loop variable of the append and resourceList styles
 }
 
 // Deviation is one problem text of the contract test that the method is known

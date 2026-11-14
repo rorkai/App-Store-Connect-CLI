@@ -9,13 +9,6 @@ import (
 	"strings"
 )
 
-// AppStoreVersionCreateData is the data object of the AppStoreVersionCreateRequest schema.
-type AppStoreVersionCreateData struct {
-	Type          ResourceType                        `json:"type"`
-	Attributes    AppStoreVersionCreateAttributes     `json:"attributes"`
-	Relationships *AppStoreVersionCreateRelationships `json:"relationships"`
-}
-
 // AppStoreVersionCreateRequest is the AppStoreVersionCreateRequest schema.
 type AppStoreVersionCreateRequest struct {
 	Data AppStoreVersionCreateData `json:"data"`

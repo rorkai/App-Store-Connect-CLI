@@ -249,3 +249,112 @@ func (c *Client) UpdateWidget(ctx context.Context, widgetID string, attrs Widget
 		Payload: payload,
 	})
 }
+
+// AddWidgetVisibleParts sends POST /v1/widgets/{id}/relationships/visibleParts (widgets_visibleParts_createToManyRelationship).
+func (c *Client) AddWidgetVisibleParts(ctx context.Context, widgetID string, partIDs []string) error {
+	widgetID = strings.TrimSpace(widgetID)
+	partIDs = normalizeList(partIDs)
+	if widgetID == "" {
+		return fmt.Errorf("widgetID is required")
+	}
+	if len(partIDs) == 0 {
+		return fmt.Errorf("partIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: buildRelationshipData(ResourceTypeParts, partIDs),
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/widgets/%s/relationships/visibleParts", widgetID), payload)
+}
+
+// RemoveWidgetVisibleParts sends DELETE /v1/widgets/{id}/relationships/visibleParts (widgets_visibleParts_deleteToManyRelationship).
+func (c *Client) RemoveWidgetVisibleParts(ctx context.Context, widgetID string, partIDs []string) error {
+	widgetID = strings.TrimSpace(widgetID)
+	partIDs = normalizeList(partIDs)
+	if widgetID == "" {
+		return fmt.Errorf("widget ID is required")
+	}
+	if len(partIDs) == 0 {
+		return fmt.Errorf("part IDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(partIDs)),
+	}
+	for _, partID := range partIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeParts,
+			ID:   partID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/widgets/%s/relationships/visibleParts", widgetID), payload)
+}
+
+// UpdateWidgetVisibleParts sends PATCH /v1/widgets/{id}/relationships/visibleParts (widgets_visibleParts_replaceToManyRelationship).
+func (c *Client) UpdateWidgetVisibleParts(ctx context.Context, widgetID string, partIDs []string) error {
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return fmt.Errorf("widgetID is required")
+	}
+	data := buildRelationshipData(ResourceTypeParts, partIDs)
+	if data == nil {
+		data = []RelationshipData{}
+	}
+	payload := RelationshipRequest{Data: data}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/widgets/%s/relationships/visibleParts", widgetID), payload)
+}
+
+// AddWidgetWheels sends POST /v1/widgets/{id}/relationships/wheels (widgets_wheels_createToManyRelationship).
+func (c *Client) AddWidgetWheels(ctx context.Context, widgetID string, wheelIDs []string) error {
+	widgetID = strings.TrimSpace(widgetID)
+	wheelIDs = normalizeList(wheelIDs)
+	if widgetID == "" {
+		return fmt.Errorf("widgetID is required")
+	}
+	if len(wheelIDs) == 0 {
+		return fmt.Errorf("wheelIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(wheelIDs)),
+	}
+	for i, id := range wheelIDs {
+		payload.Data[i] = RelationshipData{
+			Type: ResourceTypeWheels,
+			ID:   id,
+		}
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/widgets/%s/relationships/wheels", widgetID), payload)
+}
+
+// RemoveWidgetWheels sends DELETE /v1/widgets/{id}/relationships/wheels (widgets_wheels_deleteToManyRelationship).
+func (c *Client) RemoveWidgetWheels(ctx context.Context, widgetID string, wheelIDs []string) error {
+	widgetID = strings.TrimSpace(widgetID)
+	wheelIDs = normalizeList(wheelIDs)
+	if widgetID == "" {
+		return fmt.Errorf("widgetID is required")
+	}
+	if len(wheelIDs) == 0 {
+		return fmt.Errorf("wheelIDs are required")
+	}
+	relData := make([]ResourceData, 0, len(wheelIDs))
+	for _, wheelID := range wheelIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeWheels,
+			ID:   wheelID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/widgets/%s/relationships/wheels", widgetID), RelationshipList{Data: relData})
+}
+
+// SetWidgetWheels sends PATCH /v1/widgets/{id}/relationships/wheels (widgets_wheels_replaceToManyRelationship).
+func (c *Client) SetWidgetWheels(ctx context.Context, widgetID string, wheelIDs []string) error {
+	wheelIDs = normalizeList(wheelIDs)
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(wheelIDs)),
+	}
+	for _, id := range wheelIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeWheels,
+			ID:   id,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/widgets/%s/relationships/wheels", strings.TrimSpace(widgetID)), payload)
+}

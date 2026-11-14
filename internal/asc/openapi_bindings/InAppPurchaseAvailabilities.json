@@ -3,13 +3,8 @@
   "file": "in_app_purchase_availabilities_gen.go",
   "types": [
     "InAppPurchaseAvailabilityCreateAttributes",
-    "InAppPurchaseAvailabilityCreateData",
-    "InAppPurchaseAvailabilityCreateRelationships",
     "InAppPurchaseAvailabilityCreateRequest",
     "InAppPurchaseAvailabilityResponse"
-  ],
-  "relationships": [
-    {"data":"InAppPurchaseAvailabilityCreateData","type":"InAppPurchaseAvailabilityCreateRelationships"}
   ],
   "operations": [
     {"operation":"inAppPurchaseAvailabilities_availableTerritories_getToManyRelated","name":"GetInAppPurchaseAvailabilityAvailableTerritories","params":["availabilityID"],"check":"require","options":"IAPAvailabilityTerritoriesOption","query":"buildIAPAvailabilityTerritoriesQuery","nextContext":"in-app-purchase-availability-territories"},

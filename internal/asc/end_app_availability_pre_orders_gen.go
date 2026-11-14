@@ -2,20 +2,9 @@
 
 package asc
 
-// EndAppAvailabilityPreOrderCreateData is the data object of the EndAppAvailabilityPreOrderCreateRequest schema.
-type EndAppAvailabilityPreOrderCreateData struct {
-	Type          ResourceType                            `json:"type"`
-	Relationships EndAppAvailabilityPreOrderRelationships `json:"relationships"`
-}
-
 // EndAppAvailabilityPreOrderCreateRequest is the EndAppAvailabilityPreOrderCreateRequest schema.
 type EndAppAvailabilityPreOrderCreateRequest struct {
 	Data EndAppAvailabilityPreOrderCreateData `json:"data"`
-}
-
-// EndAppAvailabilityPreOrderRelationships is the data.relationships object of the EndAppAvailabilityPreOrderCreateRequest schema.
-type EndAppAvailabilityPreOrderRelationships struct {
-	TerritoryAvailabilities RelationshipList `json:"territoryAvailabilities"`
 }
 
 // EndAppAvailabilityPreOrderResponse is the EndAppAvailabilityPreOrderResponse schema.

@@ -13,11 +13,6 @@ type AppPreviewCreateRequest struct {
 	Data AppPreviewCreateData `json:"data"`
 }
 
-// AppPreviewRelationships is the data.relationships object of the AppPreviewCreateRequest schema.
-type AppPreviewRelationships struct {
-	AppPreviewSet *Relationship `json:"appPreviewSet"`
-}
-
 // AppPreviewUpdateData is the data object of the AppPreviewUpdateRequest schema.
 type AppPreviewUpdateData struct {
 	Type       ResourceType                `json:"type"`

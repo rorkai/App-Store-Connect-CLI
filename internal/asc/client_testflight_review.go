@@ -54,6 +54,34 @@ func (c *Client) UpdateBetaAppReviewDetail(ctx context.Context, detailID string,
 	return &response, nil
 }
 
+// CreateBetaAppReviewSubmission submits a build for beta app review.
+func (c *Client) CreateBetaAppReviewSubmission(ctx context.Context, buildID string) (*BetaAppReviewSubmissionResponse, error) {
+	buildID = strings.TrimSpace(buildID)
+	if buildID == "" {
+		return nil, fmt.Errorf("buildID is required")
+	}
+
+	payload := BetaAppReviewSubmissionCreateRequest{
+		Data: BetaAppReviewSubmissionCreateData{
+			Type: ResourceTypeBetaAppReviewSubmissions,
+			Relationships: &BetaAppReviewSubmissionCreateRelationships{
+				Build: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeBuilds,
+						ID:   buildID,
+					},
+				},
+			},
+		},
+	}
+
+	return sendJSON[BetaAppReviewSubmissionResponse](ctx, c, writeRequest{
+		Method:  "POST",
+		Path:    "/v1/betaAppReviewSubmissions",
+		Payload: payload,
+	})
+}
+
 // CreateBetaRecruitmentCriteria creates beta recruitment criteria for a group.
 func (c *Client) CreateBetaRecruitmentCriteria(ctx context.Context, groupID string, filters []DeviceFamilyOsVersionFilter) (*BetaRecruitmentCriteriaResponse, error) {
 	groupID = strings.TrimSpace(groupID)

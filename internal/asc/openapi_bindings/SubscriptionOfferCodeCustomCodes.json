@@ -4,15 +4,10 @@
   "types": [
     "SubscriptionOfferCodeCustomCodeAttributes",
     "SubscriptionOfferCodeCustomCodeCreateAttributes",
-    "SubscriptionOfferCodeCustomCodeCreateData",
-    "SubscriptionOfferCodeCustomCodeCreateRelationships",
     "SubscriptionOfferCodeCustomCodeCreateRequest",
     "SubscriptionOfferCodeCustomCodeResponse",
     "SubscriptionOfferCodeCustomCodeUpdateAttributes",
     "SubscriptionOfferCodeCustomCodeUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"SubscriptionOfferCodeCustomCodeCreateData","type":"SubscriptionOfferCodeCustomCodeCreateRelationships"}
   ],
   "operations": [
     {"operation":"subscriptionOfferCodeCustomCodes_getInstance","name":"GetSubscriptionOfferCodeCustomCode","params":["customCodeID"]}

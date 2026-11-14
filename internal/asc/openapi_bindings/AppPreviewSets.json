@@ -2,14 +2,11 @@
   "tag": "AppPreviewSets",
   "file": "app_preview_sets_gen.go",
   "types": [
-    "AppPreviewSetCreateRequest",
-    "AppPreviewSetRelationships"
-  ],
-  "relationships": [
-    {"data":"AppPreviewSetCreateData","type":"*AppPreviewSetRelationships"}
+    "AppPreviewSetCreateRequest"
   ],
   "operations": [
     {"operation":"appPreviewSets_appPreviews_getToManyRelationship","name":"GetAppPreviewSetAppPreviewsRelationships","params":["setID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appPreviewsRelationships","response":"LinkagesResponse"},
+    {"operation":"appPreviewSets_appPreviews_replaceToManyRelationship","name":"UpdateAppPreviewSetAppPreviewsRelationship","params":["setID"],"check":"require","ids":"previewIDs","idList":{"payload":"nonNil"}},
     {"operation":"appPreviewSets_deleteInstance","name":"DeleteAppPreviewSet","params":["setID"],"check":"raw"},
     {"operation":"appPreviewSets_getInstance","name":"GetAppPreviewSet","params":["setID"],"check":"raw"}
   ]

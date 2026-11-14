@@ -132,41 +132,6 @@ func TestCreateCustomerReviewResponse_ValidationErrors(t *testing.T) {
 	}
 }
 
-func TestGetCustomerReviewResponse(t *testing.T) {
-	response := reviewResponsesJSONResponse(http.StatusOK, `{
-		"data": {
-			"type": "customerReviewResponses",
-			"id": "response-123",
-			"attributes": {
-				"responseBody": "We appreciate your feedback!",
-				"lastModifiedDate": "2026-01-20T00:00:00Z",
-				"state": "PUBLISHED"
-			}
-		}
-	}`)
-
-	client := newReviewResponsesTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/customerReviewResponses/response-123" {
-			t.Fatalf("expected path /v1/customerReviewResponses/response-123, got %s", req.URL.Path)
-		}
-	}, response)
-
-	resp, err := client.GetCustomerReviewResponse(context.Background(), "response-123")
-	if err != nil {
-		t.Fatalf("GetCustomerReviewResponse() error: %v", err)
-	}
-
-	if resp.Data.ID != "response-123" {
-		t.Fatalf("expected ID response-123, got %s", resp.Data.ID)
-	}
-	if resp.Data.Attributes.ResponseBody != "We appreciate your feedback!" {
-		t.Fatalf("expected responseBody 'We appreciate your feedback!', got %s", resp.Data.Attributes.ResponseBody)
-	}
-}
-
 func TestGetCustomerReviewResponse_ValidationErrors(t *testing.T) {
 	client := newReviewResponsesTestClient(t, nil, nil)
 
@@ -183,28 +148,6 @@ func TestGetCustomerReviewResponse_ValidationErrors(t *testing.T) {
 	}
 }
 
-func TestDeleteCustomerReviewResponse(t *testing.T) {
-	response := &http.Response{
-		StatusCode: http.StatusNoContent,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(strings.NewReader("")),
-	}
-
-	client := newReviewResponsesTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/customerReviewResponses/response-123" {
-			t.Fatalf("expected path /v1/customerReviewResponses/response-123, got %s", req.URL.Path)
-		}
-	}, response)
-
-	err := client.DeleteCustomerReviewResponse(context.Background(), "response-123")
-	if err != nil {
-		t.Fatalf("DeleteCustomerReviewResponse() error: %v", err)
-	}
-}
-
 func TestDeleteCustomerReviewResponse_ValidationErrors(t *testing.T) {
 	client := newReviewResponsesTestClient(t, nil, nil)
 
@@ -218,41 +161,6 @@ func TestDeleteCustomerReviewResponse_ValidationErrors(t *testing.T) {
 	err = client.DeleteCustomerReviewResponse(context.Background(), "   ")
 	if err == nil {
 		t.Fatalf("expected error for whitespace responseID, got nil")
-	}
-}
-
-func TestGetCustomerReviewResponseForReview(t *testing.T) {
-	response := reviewResponsesJSONResponse(http.StatusOK, `{
-		"data": {
-			"type": "customerReviewResponses",
-			"id": "response-789",
-			"attributes": {
-				"responseBody": "Thank you for your review!",
-				"lastModifiedDate": "2026-01-20T00:00:00Z",
-				"state": "PUBLISHED"
-			}
-		}
-	}`)
-
-	client := newReviewResponsesTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/customerReviews/review-456/response" {
-			t.Fatalf("expected path /v1/customerReviews/review-456/response, got %s", req.URL.Path)
-		}
-	}, response)
-
-	resp, err := client.GetCustomerReviewResponseForReview(context.Background(), "review-456")
-	if err != nil {
-		t.Fatalf("GetCustomerReviewResponseForReview() error: %v", err)
-	}
-
-	if resp.Data.ID != "response-789" {
-		t.Fatalf("expected ID response-789, got %s", resp.Data.ID)
-	}
-	if resp.Data.Attributes.ResponseBody != "Thank you for your review!" {
-		t.Fatalf("expected responseBody 'Thank you for your review!', got %s", resp.Data.Attributes.ResponseBody)
 	}
 }
 

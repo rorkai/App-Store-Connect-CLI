@@ -2,15 +2,10 @@
   "tag": "Webhooks",
   "file": "webhooks_gen.go",
   "types": [
-    "WebhookCreateData",
-    "WebhookCreateRelationships",
     "WebhookCreateRequest",
     "WebhookResponse",
     "WebhookUpdateData",
     "WebhookUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"WebhookCreateData","type":"WebhookCreateRelationships"}
   ],
   "operations": [
     {"operation":"webhooks_deleteInstance","name":"DeleteWebhook","params":["webhookID"]},

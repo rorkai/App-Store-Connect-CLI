@@ -12,21 +12,6 @@ type CiBuildRunCreateAttributes struct {
 	Clean *bool `json:"clean,omitempty"`
 }
 
-// CiBuildRunCreateData is the data object of the CiBuildRunCreateRequest schema.
-type CiBuildRunCreateData struct {
-	Type          ResourceType                   `json:"type"`
-	Attributes    *CiBuildRunCreateAttributes    `json:"attributes,omitempty"`
-	Relationships *CiBuildRunCreateRelationships `json:"relationships,omitempty"`
-}
-
-// CiBuildRunCreateRelationships is the data.relationships object of the CiBuildRunCreateRequest schema.
-type CiBuildRunCreateRelationships struct {
-	BuildRun          *Relationship `json:"buildRun,omitempty"`
-	Workflow          *Relationship `json:"workflow,omitempty"`
-	SourceBranchOrTag *Relationship `json:"sourceBranchOrTag,omitempty"`
-	PullRequest       *Relationship `json:"pullRequest,omitempty"`
-}
-
 // CiBuildRunCreateRequest is the CiBuildRunCreateRequest schema.
 type CiBuildRunCreateRequest struct {
 	Data CiBuildRunCreateData `json:"data"`

@@ -21,13 +21,6 @@ type BetaAppClipInvocationLocalizationCreateAttributes struct {
 	Locale string `json:"locale"`
 }
 
-// BetaAppClipInvocationLocalizationCreateData is the data object of the BetaAppClipInvocationLocalizationCreateRequest schema.
-type BetaAppClipInvocationLocalizationCreateData struct {
-	Type          ResourceType                                      `json:"type"`
-	Attributes    BetaAppClipInvocationLocalizationCreateAttributes `json:"attributes"`
-	Relationships *BetaAppClipInvocationLocalizationRelationships   `json:"relationships"`
-}
-
 // BetaAppClipInvocationLocalizationCreateRequest is the BetaAppClipInvocationLocalizationCreateRequest schema.
 type BetaAppClipInvocationLocalizationCreateRequest struct {
 	Data BetaAppClipInvocationLocalizationCreateData `json:"data"`
@@ -48,33 +41,6 @@ type BetaAppClipInvocationLocalizationUpdateData struct {
 // BetaAppClipInvocationLocalizationUpdateRequest is the BetaAppClipInvocationLocalizationUpdateRequest schema.
 type BetaAppClipInvocationLocalizationUpdateRequest struct {
 	Data BetaAppClipInvocationLocalizationUpdateData `json:"data"`
-}
-
-// CreateBetaAppClipInvocationLocalization sends POST /v1/betaAppClipInvocationLocalizations (betaAppClipInvocationLocalizations_createInstance).
-func (c *Client) CreateBetaAppClipInvocationLocalization(ctx context.Context, invocationID string, attrs BetaAppClipInvocationLocalizationCreateAttributes) (*BetaAppClipInvocationLocalizationResponse, error) {
-	invocationID = strings.TrimSpace(invocationID)
-	if invocationID == "" {
-		return nil, fmt.Errorf("invocationID is required")
-	}
-	payload := BetaAppClipInvocationLocalizationCreateRequest{
-		Data: BetaAppClipInvocationLocalizationCreateData{
-			Type:       ResourceTypeBetaAppClipInvocationLocalizations,
-			Attributes: attrs,
-			Relationships: &BetaAppClipInvocationLocalizationRelationships{
-				BetaAppClipInvocation: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeBetaAppClipInvocations,
-						ID:   invocationID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[BetaAppClipInvocationLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/betaAppClipInvocationLocalizations",
-		Payload: payload,
-	})
 }
 
 // DeleteBetaAppClipInvocationLocalization sends DELETE /v1/betaAppClipInvocationLocalizations/{id} (betaAppClipInvocationLocalizations_deleteInstance).

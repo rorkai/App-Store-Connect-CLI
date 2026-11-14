@@ -2,14 +2,10 @@
   "tag": "AppClipHeaderImages",
   "file": "app_clip_header_images_gen.go",
   "types": [
-    "AppClipHeaderImageCreateData",
     "AppClipHeaderImageCreateRequest",
     "AppClipHeaderImageUpdateAttributes",
     "AppClipHeaderImageUpdateData",
     "AppClipHeaderImageUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"AppClipHeaderImageCreateData","type":"*AppClipHeaderImageRelationships"}
   ],
   "operations": [
     {"operation":"appClipHeaderImages_deleteInstance","name":"DeleteAppClipHeaderImage","params":["imageID"],"check":"require"},

@@ -15,13 +15,6 @@ type AppCustomProductPageLocalizationAttributes struct {
 	PromotionalText string `json:"promotionalText,omitempty"`
 }
 
-// AppCustomProductPageLocalizationCreateData is the data object of the AppCustomProductPageLocalizationCreateRequest schema.
-type AppCustomProductPageLocalizationCreateData struct {
-	Type          ResourceType                                         `json:"type"`
-	Attributes    AppCustomProductPageLocalizationCreateAttributes     `json:"attributes"`
-	Relationships *AppCustomProductPageLocalizationCreateRelationships `json:"relationships"`
-}
-
 // AppCustomProductPageLocalizationCreateRequest is the AppCustomProductPageLocalizationCreateRequest schema.
 type AppCustomProductPageLocalizationCreateRequest struct {
 	Data AppCustomProductPageLocalizationCreateData `json:"data"`
@@ -84,6 +77,50 @@ func (c *Client) DeleteAppCustomProductPageLocalization(ctx context.Context, loc
 		return fmt.Errorf("localizationID is required")
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), nil)
+}
+
+// AddAppCustomProductPageLocalizationSearchKeywords sends POST /v1/appCustomProductPageLocalizations/{id}/relationships/searchKeywords (appCustomProductPageLocalizations_searchKeywords_createToManyRelationship).
+func (c *Client) AddAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
+	localizationID = strings.TrimSpace(localizationID)
+	keywords = normalizeList(keywords)
+	if localizationID == "" {
+		return fmt.Errorf("localizationID is required")
+	}
+	if len(keywords) == 0 {
+		return fmt.Errorf("keywords are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(keywords)),
+	}
+	for _, keyword := range keywords {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeAppKeywords,
+			ID:   keyword,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID), payload)
+}
+
+// DeleteAppCustomProductPageLocalizationSearchKeywords sends DELETE /v1/appCustomProductPageLocalizations/{id}/relationships/searchKeywords (appCustomProductPageLocalizations_searchKeywords_deleteToManyRelationship).
+func (c *Client) DeleteAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
+	localizationID = strings.TrimSpace(localizationID)
+	keywords = normalizeList(keywords)
+	if localizationID == "" {
+		return fmt.Errorf("localizationID is required")
+	}
+	if len(keywords) == 0 {
+		return fmt.Errorf("keywords are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(keywords)),
+	}
+	for _, keyword := range keywords {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeAppKeywords,
+			ID:   keyword,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID), payload)
 }
 
 // GetAppCustomProductPageLocalizationSearchKeywords sends GET /v1/appCustomProductPageLocalizations/{id}/searchKeywords (appCustomProductPageLocalizations_searchKeywords_getToManyRelated).

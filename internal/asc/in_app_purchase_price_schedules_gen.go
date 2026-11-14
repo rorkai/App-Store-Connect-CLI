@@ -8,19 +8,6 @@ import (
 	"strings"
 )
 
-// InAppPurchasePriceScheduleCreateData is the data object of the InAppPurchasePriceScheduleCreateRequest schema.
-type InAppPurchasePriceScheduleCreateData struct {
-	Type          ResourceType                                  `json:"type"`
-	Relationships InAppPurchasePriceScheduleCreateRelationships `json:"relationships"`
-}
-
-// InAppPurchasePriceScheduleCreateRelationships is the data.relationships object of the InAppPurchasePriceScheduleCreateRequest schema.
-type InAppPurchasePriceScheduleCreateRelationships struct {
-	InAppPurchase Relationship     `json:"inAppPurchase"`
-	BaseTerritory Relationship     `json:"baseTerritory"`
-	ManualPrices  RelationshipList `json:"manualPrices"`
-}
-
 // InAppPurchasePriceScheduleResponse is the InAppPurchasePriceScheduleResponse schema.
 type InAppPurchasePriceScheduleResponse = SingleResponse[InAppPurchasePriceScheduleAttributes]
 

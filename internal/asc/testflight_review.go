@@ -19,3 +19,14 @@ type BetaAppReviewSubmissionAttributes struct {
 	BetaReviewState string `json:"betaReviewState,omitempty"`
 	SubmittedDate   string `json:"submittedDate,omitempty"`
 }
+
+// BetaAppReviewSubmissionCreateRelationships describes relationships for submission creates.
+type BetaAppReviewSubmissionCreateRelationships struct {
+	Build *Relationship `json:"build"`
+}
+
+// BetaAppReviewSubmissionCreateData is the data portion of a beta app review submission create.
+type BetaAppReviewSubmissionCreateData struct {
+	Type          ResourceType                                `json:"type"`
+	Relationships *BetaAppReviewSubmissionCreateRelationships `json:"relationships"`
+}

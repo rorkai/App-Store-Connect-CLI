@@ -9,21 +9,9 @@ import (
 	"strings"
 )
 
-// AppStoreReviewAttachmentCreateData is the data object of the AppStoreReviewAttachmentCreateRequest schema.
-type AppStoreReviewAttachmentCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    AppStoreReviewAttachmentCreateAttributes `json:"attributes"`
-	Relationships *AppStoreReviewAttachmentRelationships   `json:"relationships"`
-}
-
 // AppStoreReviewAttachmentCreateRequest is the AppStoreReviewAttachmentCreateRequest schema.
 type AppStoreReviewAttachmentCreateRequest struct {
 	Data AppStoreReviewAttachmentCreateData `json:"data"`
-}
-
-// AppStoreReviewAttachmentRelationships is the data.relationships object of the AppStoreReviewAttachmentCreateRequest schema.
-type AppStoreReviewAttachmentRelationships struct {
-	AppStoreReviewDetail *Relationship `json:"appStoreReviewDetail"`
 }
 
 // AppStoreReviewAttachmentResponse is the AppStoreReviewAttachmentResponse schema.

@@ -323,3 +323,151 @@ func readFile(t *testing.T, path string) string {
 	}
 	return string(data)
 }
+
+const handWrittenIDLists = `package asc
+
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+// AddWidgetVisibleParts adds parts to a widget.
+func (c *Client) AddWidgetVisibleParts(ctx context.Context, widgetID string, partIDs []string) error {
+	widgetID = strings.TrimSpace(widgetID)
+	partIDs = normalizeList(partIDs)
+	if widgetID == "" {
+		return fmt.Errorf("widgetID is required")
+	}
+	if len(partIDs) == 0 {
+		return fmt.Errorf("partIDs are required")
+	}
+
+	payload := RelationshipRequest{Data: buildRelationshipData(ResourceTypeParts, partIDs)}
+	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/widgets/%s/relationships/visibleParts", widgetID), payload)
+}
+
+// RemoveWidgetVisibleParts removes parts from a widget.
+func (c *Client) RemoveWidgetVisibleParts(ctx context.Context, widgetID string, partIDs []string) error {
+	widgetID = strings.TrimSpace(widgetID)
+	partIDs = normalizeList(partIDs)
+	if widgetID == "" {
+		return fmt.Errorf("widget ID is required")
+	}
+	if len(partIDs) == 0 {
+		return fmt.Errorf("part IDs are required")
+	}
+
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(partIDs)),
+	}
+	for _, partID := range partIDs {
+		payload.Data = append(payload.Data, RelationshipData{Type: ResourceTypeParts, ID: partID})
+	}
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/widgets/%s/relationships/visibleParts", widgetID), payload)
+}
+
+// UpdateWidgetVisibleParts replaces the parts of a widget; an empty list clears them.
+func (c *Client) UpdateWidgetVisibleParts(ctx context.Context, widgetID string, partIDs []string) error {
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return fmt.Errorf("widgetID is required")
+	}
+
+	data := buildRelationshipData(ResourceTypeParts, partIDs)
+	if data == nil {
+		data = []RelationshipData{}
+	}
+	payload := RelationshipRequest{Data: data}
+	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/widgets/%s/relationships/visibleParts", widgetID), payload)
+}
+
+// AddWidgetWheels adds wheels to a widget.
+func (c *Client) AddWidgetWheels(ctx context.Context, widgetID string, wheelIDs []string) error {
+	widgetID = strings.TrimSpace(widgetID)
+	wheelIDs = normalizeList(wheelIDs)
+	if widgetID == "" {
+		return fmt.Errorf("widgetID is required")
+	}
+	if len(wheelIDs) == 0 {
+		return fmt.Errorf("wheelIDs are required")
+	}
+
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(wheelIDs)),
+	}
+	for i, id := range wheelIDs {
+		payload.Data[i] = RelationshipData{Type: ResourceTypeWheels, ID: id}
+	}
+	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/widgets/%s/relationships/wheels", widgetID), payload)
+}
+
+// RemoveWidgetWheels removes wheels from a widget.
+func (c *Client) RemoveWidgetWheels(ctx context.Context, widgetID string, wheelIDs []string) error {
+	widgetID = strings.TrimSpace(widgetID)
+	wheelIDs = normalizeList(wheelIDs)
+	if widgetID == "" {
+		return fmt.Errorf("widgetID is required")
+	}
+	if len(wheelIDs) == 0 {
+		return fmt.Errorf("wheelIDs are required")
+	}
+
+	relData := make([]ResourceData, 0, len(wheelIDs))
+	for _, wheelID := range wheelIDs {
+		relData = append(relData, ResourceData{Type: ResourceTypeWheels, ID: wheelID})
+	}
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/widgets/%s/relationships/wheels", widgetID), RelationshipList{Data: relData})
+}
+
+// SetWidgetWheels replaces the wheels of a widget; an empty list clears them.
+func (c *Client) SetWidgetWheels(ctx context.Context, widgetID string, wheelIDs []string) error {
+	wheelIDs = normalizeList(wheelIDs)
+	payload := RelationshipRequest{Data: make([]RelationshipData, 0, len(wheelIDs))}
+	for _, id := range wheelIDs {
+		payload.Data = append(payload.Data, RelationshipData{Type: ResourceTypeWheels, ID: id})
+	}
+	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/widgets/%s/relationships/wheels", strings.TrimSpace(widgetID)), payload)
+}
+
+// UpdateWidgetGadgets checks the list after building the payload, so it stays hand-written.
+func (c *Client) UpdateWidgetGadgets(ctx context.Context, widgetID string, gadgetIDs []string) error {
+	payload := RelationshipRequest{Data: buildRelationshipData(ResourceTypeGadgets, gadgetIDs)}
+	gadgetIDs = normalizeList(gadgetIDs)
+	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/widgets/%s/relationships/gadgets", strings.TrimSpace(widgetID)), payload)
+}
+`
+
+func TestAdoptReadsIDListHandling(t *testing.T) {
+	dir := writeHandWritten(t, map[string]string{"client.go": handWrittenIDLists})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, golden := loadTestdata(t)
+	want := map[string]*OpBind{}
+	for _, op := range golden.Families[0].Operations {
+		if op.IDList != nil {
+			want[op.Name] = op
+		}
+	}
+	got := map[string]*OpBind{}
+	for _, op := range bindings.Families[0].Operations {
+		got[op.Name] = op
+	}
+	if len(got) != len(want) || len(want) != 6 {
+		t.Fatalf("adopted %d methods, want the %d of testdata/bindings/Widgets.json with an idList", len(got), len(want))
+	}
+	for name, w := range want {
+		g := got[name]
+		if g == nil || g.IDs != w.IDs || g.Check != w.Check || *g.IDList != *w.IDList {
+			t.Errorf("%s binding = %+v %+v, want %+v %+v", name, g, g.IDList, w, w.IDList)
+		}
+	}
+	if client := readFile(t, filepath.Join(dir, "client.go")); !strings.Contains(client, "func (c *Client) UpdateWidgetGadgets(") {
+		t.Errorf("UpdateWidgetGadgets normalizes after building the payload and must stay hand-written:\n%s", client)
+	}
+}

@@ -9,21 +9,9 @@ import (
 	"strings"
 )
 
-// RoutingAppCoverageCreateData is the data object of the RoutingAppCoverageCreateRequest schema.
-type RoutingAppCoverageCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    RoutingAppCoverageCreateAttributes `json:"attributes"`
-	Relationships *RoutingAppCoverageRelationships   `json:"relationships"`
-}
-
 // RoutingAppCoverageCreateRequest is the RoutingAppCoverageCreateRequest schema.
 type RoutingAppCoverageCreateRequest struct {
 	Data RoutingAppCoverageCreateData `json:"data"`
-}
-
-// RoutingAppCoverageRelationships is the data.relationships object of the RoutingAppCoverageCreateRequest schema.
-type RoutingAppCoverageRelationships struct {
-	AppStoreVersion *Relationship `json:"appStoreVersion"`
 }
 
 // RoutingAppCoverageResponse is the RoutingAppCoverageResponse schema.
