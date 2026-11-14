@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -48,43 +49,25 @@ Examples:
 
 // AlternativeDistributionPackagesGetCommand returns the packages get subcommand.
 func AlternativeDistributionPackagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	packageID := shared.BindResourceIDFlag(fs, "package-id", "alternativeDistributionPackages", "Alternative distribution package ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc alternative-distribution packages view --package-id \"PACKAGE_ID\"",
-		ShortHelp:  "View an alternative distribution package.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc alternative-distribution packages view --package-id \"PACKAGE_ID\"",
+		ShortHelp:   "View an alternative distribution package.",
 		LongHelp: `View an alternative distribution package.
 
 Examples:
   asc alternative-distribution packages view --package-id "PACKAGE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*packageID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--package-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("alternative-distribution packages view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAlternativeDistributionPackage(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("alternative-distribution packages view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "package-id",
+		IDUsage:            "Alternative distribution package ID",
+		IDType:             "alternativeDistributionPackages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "alternative-distribution packages view",
+		FetchErrorPrefix:   "alternative-distribution packages view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAlternativeDistributionPackage(ctx, id)
 		},
-	}
+	})
 }
 
 // AlternativeDistributionPackagesCreateCommand returns the packages create subcommand.
