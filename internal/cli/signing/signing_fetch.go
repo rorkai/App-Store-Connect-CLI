@@ -132,6 +132,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) (runErr error) {
+			if err := shared.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
+				return err
+			}
 			bundle := strings.TrimSpace(*bundleID)
 			if bundle == "" {
 				return shared.RequiredFlag("--bundle-id")

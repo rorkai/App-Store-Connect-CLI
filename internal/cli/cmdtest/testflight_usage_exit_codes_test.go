@@ -228,6 +228,16 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 			args:    []string{"testflight", "distribution", "build", "view"},
 			wantErr: "--id is required",
 		},
+		{
+			name:    "testers export output given a format",
+			args:    []string{"testflight", "testers", "export", "--output", "json"},
+			wantErr: "--output takes a path in this command, not an output format; use --format json to choose the format, or --output ./json to write to a path named json",
+		},
+		{
+			name:    "config export output given a format",
+			args:    []string{"testflight", "config", "export", "--output", "table"},
+			wantErr: "--output takes a path in this command, not an output format, and no flag here chooses json, table or markdown output; use --output ./table to write to a path named table",
+		},
 	}
 
 	for _, test := range tests {

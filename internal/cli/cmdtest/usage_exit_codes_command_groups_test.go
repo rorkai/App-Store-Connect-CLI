@@ -1110,6 +1110,21 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			args:    []string{"app-events", "video-clips", "view"},
 			wantErr: "--clip-id is required",
 		},
+		{
+			name:    "performance download output given a format alias",
+			args:    []string{"performance", "download", "--output", "md"},
+			wantErr: "--output takes a path in this command, not an output format; use --output-format markdown to choose the format, or --output ./md to write to a path named md",
+		},
+		{
+			name:    "screenshots download output given a format",
+			args:    []string{"screenshots", "download", "--output", "json"},
+			wantErr: "--output takes a path in this command, not an output format; use --format json to choose the format, or --output ./json to write to a path named json",
+		},
+		{
+			name:    "video-previews download output given a format",
+			args:    []string{"video-previews", "download", "--output", "table"},
+			wantErr: "--output takes a path in this command, not an output format; use --format table to choose the format, or --output ./table to write to a path named table",
+		},
 	}
 
 	for _, test := range tests {

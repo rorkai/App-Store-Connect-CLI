@@ -65,6 +65,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
+				return err
+			}
 			if strings.TrimSpace(*group) != "" && strings.TrimSpace(*buildID) != "" {
 				return shared.WithDiagnostic(
 					shared.UsageError("--group cannot be combined with --build-id"),
