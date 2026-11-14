@@ -19,6 +19,7 @@ const (
 type XcodeTestResult struct {
 	Workspace        string            `json:"workspace,omitempty"`
 	Project          string            `json:"project,omitempty"`
+	PackagePath      string            `json:"packagePath,omitempty"`
 	Scheme           string            `json:"scheme,omitempty"`
 	Action           string            `json:"action"`
 	Configuration    string            `json:"configuration,omitempty"`
@@ -99,6 +100,9 @@ func xcodeTestResultRows(result *XcodeTestResult) ([]string, [][]string) {
 	}
 	if result.Project != "" {
 		rows = append(rows, []string{"project", result.Project})
+	}
+	if result.PackagePath != "" {
+		rows = append(rows, []string{"package_path", result.PackagePath})
 	}
 	if result.Scheme != "" {
 		rows = append(rows, []string{"scheme", result.Scheme})

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestIDsListsPaginateFromNext(t *testing.T) {
@@ -30,6 +30,7 @@ func TestIDsListsPaginateFromNext(t *testing.T) {
 			args:     []string{"pass-type-ids", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/passTypeIds?cursor=AQ&limit=200",
 			dataType: "passTypeIds",
+			deps:     true,
 		},
 		{
 			args:     []string{"merchant-ids", "list"},
@@ -64,11 +65,10 @@ func TestPassTypeIDCertificatesListRejectsInvalidNextURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run([]string{"pass-type-ids", "certificates", "list", "--next", test.next}, "1.2.3"); code != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, "pass-type-ids", "certificates", "list", "--next", test.next)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
@@ -96,11 +96,10 @@ func TestPassTypeIDCertificatesRejectsConflictingPassTypeIDAndNext(t *testing.T)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
@@ -119,7 +118,7 @@ func TestPassTypeIDCertificatesListPaginateFromNextWithoutPassTypeID(t *testing.
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/passTypeIds/pass-1/certificates?cursor=BQ&limit=200"
 
 	requestCount := 0
-	installAppStoreConnectTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	client := appStoreConnectTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
 		switch requestCount {
 		case 1:
@@ -146,17 +145,10 @@ func TestPassTypeIDCertificatesListPaginateFromNextWithoutPassTypeID(t *testing.
 		}
 	}))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"pass-type-ids", "certificates", "list", "--paginate", "--next", firstURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, client, "pass-type-ids", "certificates", "list", "--paginate", "--next", firstURL)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -191,11 +183,10 @@ func TestPassTypeIDCertificatesGetRejectsInvalidNextURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run([]string{"pass-type-ids", "certificates", "view", "--next", test.next}, "1.2.3"); code != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, "pass-type-ids", "certificates", "view", "--next", test.next)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
@@ -214,7 +205,7 @@ func TestPassTypeIDCertificatesGetPaginateFromNextWithoutPassTypeID(t *testing.T
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/passTypeIds/pass-1/relationships/certificates?cursor=BQ&limit=200"
 
 	requestCount := 0
-	installAppStoreConnectTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	client := appStoreConnectTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
 		switch requestCount {
 		case 1:
@@ -241,17 +232,10 @@ func TestPassTypeIDCertificatesGetPaginateFromNextWithoutPassTypeID(t *testing.T
 		}
 	}))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"pass-type-ids", "certificates", "view", "--paginate", "--next", firstURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, client, "pass-type-ids", "certificates", "view", "--paginate", "--next", firstURL)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -261,7 +245,9 @@ func TestPassTypeIDCertificatesGetPaginateFromNextWithoutPassTypeID(t *testing.T
 	}
 }
 
-func installAppStoreConnectTestServer(t *testing.T, handler http.Handler) {
+// appStoreConnectTestServerClient returns a client factory whose clients send
+// every App Store Connect request to a test server running handler.
+func appStoreConnectTestServerClient(t *testing.T, handler http.Handler) func() (*asc.Client, error) {
 	t.Helper()
 
 	server := httptest.NewServer(handler)
@@ -272,7 +258,7 @@ func installAppStoreConnectTestServer(t *testing.T, handler http.Handler) {
 		t.Fatalf("parse test server URL: %v", err)
 	}
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	return stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Scheme != "https" || req.URL.Host != "api.appstoreconnect.apple.com" {
 			return nil, fmt.Errorf("unexpected App Store Connect URL: %s", req.URL.String())
 		}

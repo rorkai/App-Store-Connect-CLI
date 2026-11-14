@@ -444,6 +444,15 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 			},
 		},
 		{
+			name: "PlanAppInfoLocalizationUpsert without a name to create",
+			process: func() (any, error) {
+				return PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"subtitle": "Sleep better"})
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"subtitle": "Sleep better"})
+			},
+		},
+		{
 			name: "WarnDeprecatedAppInfoFields",
 			process: func() (any, error) {
 				WarnDeprecatedAppInfoFields([]string{"kidsAgeBand"}, "")

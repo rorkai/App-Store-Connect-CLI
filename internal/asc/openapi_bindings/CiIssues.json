@@ -1,0 +1,7 @@
+{
+  "tag": "CiIssues",
+  "file": "ci_issues_gen.go",
+  "operations": [
+    {"operation":"ciIssues_getInstance","name":"GetCiIssue","params":["issueID"],"check":"raw"}
+  ]
+}

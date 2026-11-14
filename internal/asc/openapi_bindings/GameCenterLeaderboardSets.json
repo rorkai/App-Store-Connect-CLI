@@ -17,6 +17,8 @@
     {"operation":"gameCenterLeaderboardSetsV2_getInstance","name":"GetGameCenterLeaderboardSetV2","params":["setID"],"response":"GameCenterLeaderboardSetResponse"},
     {"operation":"gameCenterLeaderboardSetsV2_versions_getToManyRelated","name":"GetGameCenterLeaderboardSetVersions","params":["setID"],"options":"GCLeaderboardSetVersionsOption","query":"buildGCLeaderboardSetVersionsQuery","nextContext":"game-center-leaderboard-set-versions","response":"GameCenterLeaderboardSetVersionsResponse"},
     {"operation":"gameCenterLeaderboardSets_deleteInstance","name":"DeleteGameCenterLeaderboardSet","params":["setID"]},
+    {"operation":"gameCenterLeaderboardSets_gameCenterLeaderboards_createToManyRelationship","name":"AddGameCenterLeaderboardSetMembers","params":["setID"],"check":"require","ids":"leaderboardIDs","idList":{"normalize":true,"message":"leaderboardIDs are required"}},
+    {"operation":"gameCenterLeaderboardSets_gameCenterLeaderboards_deleteToManyRelationship","name":"RemoveGameCenterLeaderboardSetMembers","params":["setID"],"check":"require","ids":"leaderboardIDs","idList":{"normalize":true,"message":"leaderboardIDs are required"}},
     {"operation":"gameCenterLeaderboardSets_gameCenterLeaderboards_getToManyRelated","name":"GetGameCenterLeaderboardSetMembers","params":["setID"],"options":"GCLeaderboardSetMembersOption","query":"buildGCLeaderboardSetMembersQuery","nextContext":"game-center-leaderboard-set-members"},
     {"operation":"gameCenterLeaderboardSets_getInstance","name":"GetGameCenterLeaderboardSet","params":["setID"]},
     {"operation":"gameCenterLeaderboardSets_groupLeaderboardSet_getToOneRelated","name":"GetGameCenterLeaderboardSetGroupLeaderboardSet","params":["setID"]},

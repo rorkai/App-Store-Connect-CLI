@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -75,6 +76,77 @@ func (c *Client) GetBetaGroupBetaRecruitmentCriterionCompatibleBuildCheck(ctx co
 	})
 }
 
+// AddBetaTestersToGroup sends POST /v1/betaGroups/{id}/relationships/betaTesters (betaGroups_betaTesters_createToManyRelationship).
+func (c *Client) AddBetaTestersToGroup(ctx context.Context, groupID string, testerIDs []string) error {
+	groupID = strings.TrimSpace(groupID)
+	testerIDs = normalizeList(testerIDs)
+	if groupID == "" {
+		return fmt.Errorf("groupID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("testerIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
+}
+
+// RemoveBetaTestersFromGroup sends DELETE /v1/betaGroups/{id}/relationships/betaTesters (betaGroups_betaTesters_deleteToManyRelationship).
+func (c *Client) RemoveBetaTestersFromGroup(ctx context.Context, groupID string, testerIDs []string) error {
+	groupID = strings.TrimSpace(groupID)
+	testerIDs = normalizeList(testerIDs)
+	if groupID == "" {
+		return fmt.Errorf("groupID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("testerIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
+}
+
+// GetBetaGroupTesters sends GET /v1/betaGroups/{id}/betaTesters (betaGroups_betaTesters_getToManyRelated).
+func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts ...BetaGroupTestersOption) (*BetaTestersResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[BetaTestersResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaGroups/%s/betaTesters", groupID),
+		Query:       buildBetaGroupTestersQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroupTesters",
+	})
+}
+
+// GetBetaGroupBuilds sends GET /v1/betaGroups/{id}/builds (betaGroups_builds_getToManyRelated).
+func (c *Client) GetBetaGroupBuilds(ctx context.Context, groupID string, opts ...BetaGroupBuildsOption) (*BuildsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[BuildsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaGroups/%s/builds", groupID),
+		Query:       buildBetaGroupBuildsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroupBuilds",
+	})
+}
+
+// DeleteBetaGroup sends DELETE /v1/betaGroups/{id} (betaGroups_deleteInstance).
+func (c *Client) DeleteBetaGroup(ctx context.Context, groupID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaGroups/%s", groupID), nil)
+}
+
 // ListBetaGroups sends GET /v1/betaGroups (betaGroups_getCollection).
 func (c *Client) ListBetaGroups(ctx context.Context, opts ...BetaGroupsOption) (*BetaGroupsResponse, error) {
 	query := applyOptions(opts)
@@ -83,6 +155,13 @@ func (c *Client) ListBetaGroups(ctx context.Context, opts ...BetaGroupsOption) (
 		Query:       buildBetaGroupsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "betaGroups",
+	})
+}
+
+// GetBetaGroup sends GET /v1/betaGroups/{id} (betaGroups_getInstance).
+func (c *Client) GetBetaGroup(ctx context.Context, groupID string) (*BetaGroupResponse, error) {
+	return getJSON[BetaGroupResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/betaGroups/%s", groupID),
 	})
 }
 

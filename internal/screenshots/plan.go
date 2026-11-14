@@ -28,6 +28,8 @@ const (
 	ActionWait        StepAction = "wait"
 	ActionWaitFor     StepAction = "wait_for"
 	ActionScreenshot  StepAction = "screenshot"
+	ActionScroll      StepAction = "scroll"
+	ActionSwipe       StepAction = "swipe"
 )
 
 // PlanValidationCode classifies validation failures.
@@ -48,6 +50,12 @@ const (
 	PlanErrWaitForNegTimeout  PlanValidationCode = "wait_for_negative_timeout"
 	PlanErrWaitForNegPoll     PlanValidationCode = "wait_for_negative_poll"
 	PlanErrScreenshotNoName   PlanValidationCode = "screenshot_missing_name"
+	PlanErrScrollDirection    PlanValidationCode = "scroll_invalid_direction"
+	PlanErrScrollLabelAndID   PlanValidationCode = "scroll_label_and_id"
+	PlanErrScrollDistance     PlanValidationCode = "scroll_distance_out_of_range"
+	PlanErrScrollMaxSwipes    PlanValidationCode = "scroll_invalid_max_swipes"
+	PlanErrSwipeCoordinates   PlanValidationCode = "swipe_invalid_coordinates"
+	PlanErrSwipeDuration      PlanValidationCode = "swipe_invalid_duration"
 	PlanErrUnsupportedAction  PlanValidationCode = "unsupported_action"
 )
 
@@ -103,6 +111,11 @@ type PlanStep struct {
 	Keycodes       []int      `json:"keycodes,omitempty"`
 	X              *float64   `json:"x,omitempty"`
 	Y              *float64   `json:"y,omitempty"`
+	EndX           *float64   `json:"end_x,omitempty"`
+	EndY           *float64   `json:"end_y,omitempty"`
+	Direction      *string    `json:"direction,omitempty"`
+	Distance       *float64   `json:"distance,omitempty"`
+	MaxSwipes      *int       `json:"max_swipes,omitempty"`
 	DurationMS     *int       `json:"duration_ms,omitempty"`
 	TimeoutMS      *int       `json:"timeout_ms,omitempty"`
 	PollIntervalMS *int       `json:"poll_interval_ms,omitempty"`
@@ -249,6 +262,67 @@ func validatePlan(plan *Plan) error {
 					PlanErrScreenshotNoName,
 					idx,
 					fmt.Sprintf("steps[%d] screenshot requires name", idx),
+				)
+			}
+		case ActionScroll:
+			direction := strings.TrimSpace(strings.ToLower(stringValue(step.Direction)))
+			switch direction {
+			case "up", "down", "left", "right":
+				step.Direction = &direction
+			default:
+				return newPlanValidationError(
+					PlanErrScrollDirection,
+					idx,
+					fmt.Sprintf("steps[%d] scroll requires direction up, down, left, or right", idx),
+				)
+			}
+			hasLabel := hasString(step.Label)
+			hasID := hasString(step.ID)
+			if hasLabel && hasID {
+				return newPlanValidationError(
+					PlanErrScrollLabelAndID,
+					idx,
+					fmt.Sprintf("steps[%d] scroll accepts label or id, not both", idx),
+				)
+			}
+			if step.Distance != nil && (*step.Distance < 0.05 || *step.Distance > 0.95) {
+				return newPlanValidationError(
+					PlanErrScrollDistance,
+					idx,
+					fmt.Sprintf("steps[%d] scroll distance must be from 0.05 to 0.95", idx),
+				)
+			}
+			if step.MaxSwipes != nil {
+				if !hasLabel && !hasID {
+					return newPlanValidationError(
+						PlanErrScrollMaxSwipes,
+						idx,
+						fmt.Sprintf("steps[%d] scroll max_swipes requires label or id", idx),
+					)
+				}
+				if *step.MaxSwipes < 1 || *step.MaxSwipes > 50 {
+					return newPlanValidationError(
+						PlanErrScrollMaxSwipes,
+						idx,
+						fmt.Sprintf("steps[%d] scroll max_swipes must be from 1 to 50", idx),
+					)
+				}
+			}
+		case ActionSwipe:
+			for _, coord := range []*float64{step.X, step.Y, step.EndX, step.EndY} {
+				if coord == nil || *coord < 0 {
+					return newPlanValidationError(
+						PlanErrSwipeCoordinates,
+						idx,
+						fmt.Sprintf("steps[%d] swipe requires x, y, end_x, and end_y >= 0", idx),
+					)
+				}
+			}
+			if step.DurationMS != nil && *step.DurationMS <= 0 {
+				return newPlanValidationError(
+					PlanErrSwipeDuration,
+					idx,
+					fmt.Sprintf("steps[%d] swipe duration_ms must be > 0", idx),
 				)
 			}
 		default:

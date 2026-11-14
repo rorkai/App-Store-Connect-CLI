@@ -9,6 +9,18 @@ import (
 	"strings"
 )
 
+// GetPassTypeIDCertificates sends GET /v1/passTypeIds/{id}/certificates (passTypeIds_certificates_getToManyRelated).
+func (c *Client) GetPassTypeIDCertificates(ctx context.Context, passTypeID string, opts ...PassTypeIDCertificatesOption) (*CertificatesResponse, error) {
+	passTypeID = strings.TrimSpace(passTypeID)
+	query := applyOptions(opts)
+	return getJSON[CertificatesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/passTypeIds/%s/certificates", passTypeID),
+		Query:       buildPassTypeIDCertificatesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "passTypeIdCertificates",
+	})
+}
+
 // DeletePassTypeID sends DELETE /v1/passTypeIds/{id} (passTypeIds_deleteInstance).
 func (c *Client) DeletePassTypeID(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)

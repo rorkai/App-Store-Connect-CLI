@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -47,4 +48,26 @@ func (c *Client) GetAppEncryptionDeclarationApp(ctx context.Context, declaration
 	return getJSON[AppResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appEncryptionDeclarations/%s/app", declarationID),
 	})
+}
+
+// AddBuildsToAppEncryptionDeclaration sends POST /v1/appEncryptionDeclarations/{id}/relationships/builds (appEncryptionDeclarations_builds_createToManyRelationship).
+func (c *Client) AddBuildsToAppEncryptionDeclaration(ctx context.Context, declarationID string, buildIDs []string) error {
+	declarationID = strings.TrimSpace(declarationID)
+	buildIDs = normalizeList(buildIDs)
+	if declarationID == "" {
+		return fmt.Errorf("declarationID is required")
+	}
+	if len(buildIDs) == 0 {
+		return fmt.Errorf("buildIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(buildIDs)),
+	}
+	for i, id := range buildIDs {
+		payload.Data[i] = RelationshipData{
+			Type: ResourceTypeBuilds,
+			ID:   id,
+		}
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/appEncryptionDeclarations/%s/relationships/builds", declarationID), payload)
 }

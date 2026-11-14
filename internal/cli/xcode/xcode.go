@@ -114,8 +114,12 @@ func XcodeArchiveCommand() *ffcli.Command {
 	projectPath := fs.String("project", "", "Path to .xcodeproj directory")
 	scheme := fs.String("scheme", "", "Xcode scheme name (required)")
 	configuration := fs.String("configuration", "", "Build configuration (for example Release)")
+	destination := fs.String("destination", "", "Xcode destination specifier")
+	derivedDataPath := fs.String("derived-data-path", "", "DerivedData directory")
+	resultBundlePath := fs.String("result-bundle-path", "", "Destination for a new Xcode result bundle (must not already exist)")
 	archivePath := fs.String("archive-path", "", "Destination path for the .xcarchive output (required)")
 	clean := fs.Bool("clean", false, "Run clean before archive")
+	noCodeSigning := fs.Bool("no-code-signing", false, "Set CODE_SIGNING_ALLOWED=NO explicitly")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing archive at --archive-path")
 	var xcodebuildFlags shared.MultiStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
@@ -128,12 +132,18 @@ func XcodeArchiveCommand() *ffcli.Command {
 		LongHelp: `Create an .xcarchive at an exact path.
 
 Provide exactly one of --workspace or --project, plus --scheme and
---archive-path.
+--archive-path. Signing follows Xcode defaults; --no-code-signing explicitly
+sets CODE_SIGNING_ALLOWED=NO.
+
+When --derived-data-path is omitted, xcodebuild uses its own default
+DerivedData location. Use --result-bundle-path to write a new .xcresult bundle;
+the destination must not already exist.
 
 Examples:
   asc xcode archive --workspace App.xcworkspace --scheme App --archive-path .asc/artifacts/App.xcarchive
   asc xcode archive --project App.xcodeproj --scheme App --configuration Release --clean --archive-path .asc/artifacts/App.xcarchive
-  asc xcode archive --workspace App.xcworkspace --scheme App --archive-path .asc/artifacts/App.xcarchive --xcodebuild-flag=-destination --xcodebuild-flag=generic/platform=iOS --output json`,
+  asc xcode archive --workspace App.xcworkspace --scheme App --destination 'generic/platform=iOS' --archive-path .asc/artifacts/App.xcarchive --output json
+  asc xcode archive --project App.xcodeproj --scheme App --destination 'generic/platform=iOS' --derived-data-path /tmp/AppDerivedData --result-bundle-path /tmp/AppArchive.xcresult --no-code-signing --archive-path .asc/artifacts/App.xcarchive`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -151,24 +161,32 @@ Examples:
 			if strings.TrimSpace(*archivePath) == "" {
 				return shared.RequiredFlag("--archive-path")
 			}
-			if emptyFlag := firstExplicitlyEmptyFlag(fs, "configuration"); emptyFlag != "" {
+			if emptyFlag := firstExplicitlyEmptyFlag(fs, "configuration", "destination", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+			}
+			opts := localxcode.ArchiveOptions{
+				WorkspacePath:    strings.TrimSpace(*workspacePath),
+				ProjectPath:      strings.TrimSpace(*projectPath),
+				Scheme:           strings.TrimSpace(*scheme),
+				Configuration:    strings.TrimSpace(*configuration),
+				Destination:      strings.TrimSpace(*destination),
+				DerivedDataPath:  strings.TrimSpace(*derivedDataPath),
+				ResultBundlePath: strings.TrimSpace(*resultBundlePath),
+				ArchivePath:      strings.TrimSpace(*archivePath),
+				Clean:            *clean,
+				NoCodeSigning:    *noCodeSigning,
+				Overwrite:        *overwrite,
+				XcodebuildArgs:   []string(xcodebuildFlags),
+				LogWriter:        os.Stderr,
+			}
+			if err := localxcode.ValidateArchiveXcodebuildArgs(opts); err != nil {
+				return shared.UsageError(err.Error())
 			}
 			if _, err := os.Stat(strings.TrimSpace(*archivePath)); err == nil && !*overwrite {
 				return shared.UsageErrorf("--archive-path already exists: %s (use --overwrite to replace it)", strings.TrimSpace(*archivePath))
 			}
 
-			result, err := runArchive(ctx, localxcode.ArchiveOptions{
-				WorkspacePath:  strings.TrimSpace(*workspacePath),
-				ProjectPath:    strings.TrimSpace(*projectPath),
-				Scheme:         strings.TrimSpace(*scheme),
-				Configuration:  strings.TrimSpace(*configuration),
-				ArchivePath:    strings.TrimSpace(*archivePath),
-				Clean:          *clean,
-				Overwrite:      *overwrite,
-				XcodebuildArgs: []string(xcodebuildFlags),
-				LogWriter:      os.Stderr,
-			})
+			result, err := runArchive(ctx, opts)
 			if err != nil {
 				return xcodeCommandError("xcode archive", err)
 			}

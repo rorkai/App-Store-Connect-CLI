@@ -5,6 +5,8 @@
     "AlternativeDistributionPackageVersionResponse"
   ],
   "operations": [
-    {"operation":"alternativeDistributionPackageVersions_getInstance","name":"GetAlternativeDistributionPackageVersion","params":["versionID"],"check":"require","parseErr":"failed to parse alternative distribution package version response"}
+    {"operation":"alternativeDistributionPackageVersions_deltas_getToManyRelated","name":"GetAlternativeDistributionPackageVersionDeltas","params":["versionID"],"check":"require","checkFirst":true,"options":"AlternativeDistributionPackageDeltasOption","query":"buildAlternativeDistributionPackageDeltasQuery","nextContext":"alternativeDistributionPackageDeltas","parseErr":"failed to parse alternative distribution package deltas response"},
+    {"operation":"alternativeDistributionPackageVersions_getInstance","name":"GetAlternativeDistributionPackageVersion","params":["versionID"],"check":"require","parseErr":"failed to parse alternative distribution package version response"},
+    {"operation":"alternativeDistributionPackageVersions_variants_getToManyRelated","name":"GetAlternativeDistributionPackageVersionVariants","params":["versionID"],"check":"require","checkFirst":true,"options":"AlternativeDistributionPackageVariantsOption","query":"buildAlternativeDistributionPackageVariantsQuery","nextContext":"alternativeDistributionPackageVariants","parseErr":"failed to parse alternative distribution package variants response"}
   ]
 }

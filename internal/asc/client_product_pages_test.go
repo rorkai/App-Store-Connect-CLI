@@ -8,83 +8,6 @@ import (
 	"testing"
 )
 
-func TestAppCustomProductPageListEndpoints_WithLimit(t *testing.T) {
-	ctx := context.Background()
-	tests := []struct {
-		name     string
-		path     string
-		limit    string
-		response string
-		call     func(*testing.T, *Client)
-	}{
-		{
-			name:     "GetAppCustomProductPages",
-			path:     "/v1/apps/app-1/appCustomProductPages",
-			limit:    "10",
-			response: `{"data":[{"type":"appCustomProductPages","id":"page-1","attributes":{"name":"Summer"}}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppCustomProductPages(ctx, "app-1", Limit[AppCustomProductPagesOption](10))
-				if err != nil {
-					t.Fatalf("GetAppCustomProductPages() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].Attributes.Name != "Summer" {
-					t.Fatalf("expected decoded custom product page, got %+v", resp.Data)
-				}
-			},
-		},
-		{
-			name:     "GetAppCustomProductPageVersions",
-			path:     "/v1/appCustomProductPages/page-1/appCustomProductPageVersions",
-			limit:    "5",
-			response: `{"data":[{"type":"appCustomProductPageVersions","id":"version-1","attributes":{"deepLink":"https://example.com/deeplink"}}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppCustomProductPageVersions(ctx, "page-1", Limit[AppCustomProductPageVersionsOption](5))
-				if err != nil {
-					t.Fatalf("GetAppCustomProductPageVersions() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].ID != "version-1" {
-					t.Fatalf("expected decoded custom product page version, got %+v", resp.Data)
-				}
-			},
-		},
-		{
-			name:     "GetAppCustomProductPageLocalizations",
-			path:     "/v1/appCustomProductPageVersions/version-1/appCustomProductPageLocalizations",
-			limit:    "20",
-			response: `{"data":[{"type":"appCustomProductPageLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppCustomProductPageLocalizations(ctx, "version-1", Limit[AppCustomProductPageLocalizationsOption](20))
-				if err != nil {
-					t.Fatalf("GetAppCustomProductPageLocalizations() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].Attributes.Locale != "en-US" {
-					t.Fatalf("expected decoded custom product page localization, got %+v", resp.Data)
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			client := newTestClient(t, func(req *http.Request) {
-				if req.Method != http.MethodGet {
-					t.Fatalf("expected GET, got %s", req.Method)
-				}
-				if req.URL.Path != tt.path {
-					t.Fatalf("expected path %s, got %s", tt.path, req.URL.Path)
-				}
-				if req.URL.Query().Get("limit") != tt.limit {
-					t.Fatalf("expected limit=%s, got %q", tt.limit, req.URL.Query().Get("limit"))
-				}
-				assertAuthorized(t, req)
-			}, jsonResponse(http.StatusOK, tt.response))
-
-			tt.call(t, client)
-		})
-	}
-}
-
 func TestGetAppCustomProductPages_SendsQuerySurface(t *testing.T) {
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
@@ -123,23 +46,6 @@ func TestGetAppCustomProductPages_SendsQuerySurface(t *testing.T) {
 	)
 	if err != nil {
 		t.Fatalf("GetAppCustomProductPages() error: %v", err)
-	}
-}
-
-func TestGetAppCustomProductPage_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appCustomProductPages","id":"page-1","attributes":{"name":"Summer"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appCustomProductPages/page-1" {
-			t.Fatalf("expected path /v1/appCustomProductPages/page-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppCustomProductPage(context.Background(), "page-1"); err != nil {
-		t.Fatalf("GetAppCustomProductPage() error: %v", err)
 	}
 }
 
@@ -275,40 +181,6 @@ func TestUpdateAppCustomProductPage_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestDeleteAppCustomProductPage_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appCustomProductPages/page-1" {
-			t.Fatalf("expected path /v1/appCustomProductPages/page-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppCustomProductPage(context.Background(), "page-1"); err != nil {
-		t.Fatalf("DeleteAppCustomProductPage() error: %v", err)
-	}
-}
-
-func TestGetAppCustomProductPageVersion_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appCustomProductPageVersions","id":"version-1","attributes":{"version":"1.0"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appCustomProductPageVersions/version-1" {
-			t.Fatalf("expected path /v1/appCustomProductPageVersions/version-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppCustomProductPageVersion(context.Background(), "version-1"); err != nil {
-		t.Fatalf("GetAppCustomProductPageVersion() error: %v", err)
-	}
-}
-
 func TestCreateAppCustomProductPageVersion_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appCustomProductPageVersions","id":"version-1","attributes":{"version":"1.0"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -392,23 +264,6 @@ func TestGetAppCustomProductPageLocalization_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestGetAppCustomProductPageLocalizationSearchKeywords_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appKeywords","id":"keyword-1"}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appCustomProductPageLocalizations/loc-1/searchKeywords" {
-			t.Fatalf("expected path /v1/appCustomProductPageLocalizations/loc-1/searchKeywords, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppCustomProductPageLocalizationSearchKeywords(context.Background(), "loc-1"); err != nil {
-		t.Fatalf("GetAppCustomProductPageLocalizationSearchKeywords() error: %v", err)
-	}
-}
-
 func TestAddAppCustomProductPageLocalizationSearchKeywords_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, ``)
 	client := newTestClient(t, func(req *http.Request) {
@@ -469,117 +324,6 @@ func TestDeleteAppCustomProductPageLocalizationSearchKeywords_SendsRequest(t *te
 
 	if err := client.DeleteAppCustomProductPageLocalizationSearchKeywords(context.Background(), "loc-1", []string{"kw-1"}); err != nil {
 		t.Fatalf("DeleteAppCustomProductPageLocalizationSearchKeywords() error: %v", err)
-	}
-}
-
-func TestGetAppCustomProductPageLocalizationAssetSets_SendsRequest(t *testing.T) {
-	ctx := context.Background()
-	tests := []struct {
-		name  string
-		path  string
-		limit string
-		call  func(*Client) error
-	}{
-		{
-			name: "preview sets default",
-			path: "/v1/appCustomProductPageLocalizations/loc-1/appPreviewSets",
-			call: func(c *Client) error {
-				_, err := c.GetAppCustomProductPageLocalizationPreviewSets(ctx, "loc-1")
-				return err
-			},
-		},
-		{
-			name:  "preview sets with limit",
-			path:  "/v1/appCustomProductPageLocalizations/loc-1/appPreviewSets",
-			limit: "5",
-			call: func(c *Client) error {
-				_, err := c.GetAppCustomProductPageLocalizationPreviewSets(ctx, "loc-1", Limit[AppCustomProductPageLocalizationPreviewSetsOption](5))
-				return err
-			},
-		},
-		{
-			name: "screenshot sets default",
-			path: "/v1/appCustomProductPageLocalizations/loc-1/appScreenshotSets",
-			call: func(c *Client) error {
-				_, err := c.GetAppCustomProductPageLocalizationScreenshotSets(ctx, "loc-1")
-				return err
-			},
-		},
-		{
-			name:  "screenshot sets with limit",
-			path:  "/v1/appCustomProductPageLocalizations/loc-1/appScreenshotSets",
-			limit: "7",
-			call: func(c *Client) error {
-				_, err := c.GetAppCustomProductPageLocalizationScreenshotSets(ctx, "loc-1", Limit[AppCustomProductPageLocalizationScreenshotSetsOption](7))
-				return err
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			response := jsonResponse(http.StatusOK, `{"data":[]}`)
-			client := newTestClient(t, func(req *http.Request) {
-				if req.Method != http.MethodGet {
-					t.Fatalf("expected GET, got %s", req.Method)
-				}
-				if req.URL.Path != tt.path {
-					t.Fatalf("expected path %s, got %s", tt.path, req.URL.Path)
-				}
-				if tt.limit != "" && req.URL.Query().Get("limit") != tt.limit {
-					t.Fatalf("expected limit=%s, got %q", tt.limit, req.URL.Query().Get("limit"))
-				}
-				assertAuthorized(t, req)
-			}, response)
-
-			if err := tt.call(client); err != nil {
-				t.Fatalf("%s error: %v", tt.name, err)
-			}
-		})
-	}
-}
-
-func TestGetAppCustomProductPageLocalizationAssetSets_UsesNextURL(t *testing.T) {
-	ctx := context.Background()
-	tests := []struct {
-		name string
-		next string
-		call func(*Client, string) error
-	}{
-		{
-			name: "preview sets",
-			next: "https://api.appstoreconnect.apple.com/v1/appCustomProductPageLocalizations/loc-1/appPreviewSets?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetAppCustomProductPageLocalizationPreviewSets(ctx, "", NextURL[AppCustomProductPageLocalizationPreviewSetsOption](next))
-				return err
-			},
-		},
-		{
-			name: "screenshot sets",
-			next: "https://api.appstoreconnect.apple.com/v1/appCustomProductPageLocalizations/loc-1/appScreenshotSets?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetAppCustomProductPageLocalizationScreenshotSets(ctx, "", NextURL[AppCustomProductPageLocalizationScreenshotSetsOption](next))
-				return err
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			response := jsonResponse(http.StatusOK, `{"data":[]}`)
-			client := newTestClient(t, func(req *http.Request) {
-				if req.URL.String() != tt.next {
-					t.Fatalf("expected next url %q, got %q", tt.next, req.URL.String())
-				}
-				assertAuthorized(t, req)
-			}, response)
-
-			if err := tt.call(client, tt.next); err != nil {
-				t.Fatalf("%s error: %v", tt.name, err)
-			}
-		})
 	}
 }
 
@@ -759,23 +503,6 @@ func TestUpdateAppCustomProductPageLocalization_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestDeleteAppCustomProductPageLocalization_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appCustomProductPageLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/appCustomProductPageLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppCustomProductPageLocalization(context.Background(), "loc-1"); err != nil {
-		t.Fatalf("DeleteAppCustomProductPageLocalization() error: %v", err)
-	}
-}
-
 func TestGetAppStoreVersionExperiments_WithState(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -813,40 +540,6 @@ func TestGetAppStoreVersionExperimentsV2_WithState(t *testing.T) {
 
 	if _, err := client.GetAppStoreVersionExperimentsV2(context.Background(), "app-1", WithAppStoreVersionExperimentsV2State([]string{"READY_FOR_REVIEW"})); err != nil {
 		t.Fatalf("GetAppStoreVersionExperimentsV2() error: %v", err)
-	}
-}
-
-func TestGetAppStoreVersionExperiment_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionExperiments","id":"exp-1","attributes":{"name":"Icon Test"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersionExperiments/exp-1" {
-			t.Fatalf("expected path /v1/appStoreVersionExperiments/exp-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppStoreVersionExperiment(context.Background(), "exp-1"); err != nil {
-		t.Fatalf("GetAppStoreVersionExperiment() error: %v", err)
-	}
-}
-
-func TestGetAppStoreVersionExperimentV2_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionExperiments","id":"exp-2","attributes":{"name":"Icon Test V2","platform":"IOS"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v2/appStoreVersionExperiments/exp-2" {
-			t.Fatalf("expected path /v2/appStoreVersionExperiments/exp-2, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppStoreVersionExperimentV2(context.Background(), "exp-2"); err != nil {
-		t.Fatalf("GetAppStoreVersionExperimentV2() error: %v", err)
 	}
 }
 
@@ -983,164 +676,6 @@ func TestUpdateAppStoreVersionExperimentV2_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestDeleteAppStoreVersionExperiment_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersionExperiments/exp-1" {
-			t.Fatalf("expected path /v1/appStoreVersionExperiments/exp-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppStoreVersionExperiment(context.Background(), "exp-1"); err != nil {
-		t.Fatalf("DeleteAppStoreVersionExperiment() error: %v", err)
-	}
-}
-
-func TestDeleteAppStoreVersionExperimentV2_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v2/appStoreVersionExperiments/exp-2" {
-			t.Fatalf("expected path /v2/appStoreVersionExperiments/exp-2, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppStoreVersionExperimentV2(context.Background(), "exp-2"); err != nil {
-		t.Fatalf("DeleteAppStoreVersionExperimentV2() error: %v", err)
-	}
-}
-
-func TestAppStoreVersionExperimentTreatmentListEndpoints_WithLimit(t *testing.T) {
-	ctx := context.Background()
-	tests := []struct {
-		name     string
-		path     string
-		limit    string
-		response string
-		call     func(*testing.T, *Client)
-	}{
-		{
-			name:     "GetAppStoreVersionExperimentTreatments",
-			path:     "/v1/appStoreVersionExperiments/exp-1/appStoreVersionExperimentTreatments",
-			limit:    "15",
-			response: `{"data":[{"type":"appStoreVersionExperimentTreatments","id":"treat-1","attributes":{"name":"Variant A"}}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentTreatments(ctx, "exp-1", Limit[AppStoreVersionExperimentTreatmentsOption](15))
-				if err != nil {
-					t.Fatalf("GetAppStoreVersionExperimentTreatments() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].Attributes.Name != "Variant A" {
-					t.Fatalf("expected decoded experiment treatment, got %+v", resp.Data)
-				}
-			},
-		},
-		{
-			name:     "GetAppStoreVersionExperimentTreatmentsV2",
-			path:     "/v2/appStoreVersionExperiments/exp-1/appStoreVersionExperimentTreatments",
-			limit:    "10",
-			response: `{"data":[{"type":"appStoreVersionExperimentTreatments","id":"treat-1","attributes":{"name":"Variant A"}}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentTreatmentsV2(ctx, "exp-1", Limit[AppStoreVersionExperimentTreatmentsOption](10))
-				if err != nil {
-					t.Fatalf("GetAppStoreVersionExperimentTreatmentsV2() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].Attributes.Name != "Variant A" {
-					t.Fatalf("expected decoded v2 experiment treatment, got %+v", resp.Data)
-				}
-			},
-		},
-		{
-			name:     "GetAppStoreVersionExperimentTreatmentLocalizations",
-			path:     "/v1/appStoreVersionExperimentTreatments/treat-1/appStoreVersionExperimentTreatmentLocalizations",
-			limit:    "8",
-			response: `{"data":[{"type":"appStoreVersionExperimentTreatmentLocalizations","id":"tloc-1","attributes":{"locale":"en-US"}}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentTreatmentLocalizations(ctx, "treat-1", Limit[AppStoreVersionExperimentTreatmentLocalizationsOption](8))
-				if err != nil {
-					t.Fatalf("GetAppStoreVersionExperimentTreatmentLocalizations() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].Attributes.Locale != "en-US" {
-					t.Fatalf("expected decoded treatment localization, got %+v", resp.Data)
-				}
-			},
-		},
-		{
-			name:     "GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets",
-			path:     "/v1/appStoreVersionExperimentTreatmentLocalizations/tloc-1/appPreviewSets",
-			limit:    "6",
-			response: `{"data":[{"type":"appPreviewSets","id":"preview-1"}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx, "tloc-1", Limit[AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](6))
-				if err != nil {
-					t.Fatalf("GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].ID != "preview-1" {
-					t.Fatalf("expected decoded preview set, got %+v", resp.Data)
-				}
-			},
-		},
-		{
-			name:     "GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets",
-			path:     "/v1/appStoreVersionExperimentTreatmentLocalizations/tloc-1/appScreenshotSets",
-			limit:    "4",
-			response: `{"data":[{"type":"appScreenshotSets","id":"shot-1"}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(ctx, "tloc-1", Limit[AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption](4))
-				if err != nil {
-					t.Fatalf("GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].ID != "shot-1" {
-					t.Fatalf("expected decoded screenshot set, got %+v", resp.Data)
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			client := newTestClient(t, func(req *http.Request) {
-				if req.Method != http.MethodGet {
-					t.Fatalf("expected GET, got %s", req.Method)
-				}
-				if req.URL.Path != tt.path {
-					t.Fatalf("expected path %s, got %s", tt.path, req.URL.Path)
-				}
-				if req.URL.Query().Get("limit") != tt.limit {
-					t.Fatalf("expected limit=%s, got %q", tt.limit, req.URL.Query().Get("limit"))
-				}
-				assertAuthorized(t, req)
-			}, jsonResponse(http.StatusOK, tt.response))
-
-			tt.call(t, client)
-		})
-	}
-}
-
-func TestGetAppStoreVersionExperimentTreatment_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionExperimentTreatments","id":"treat-1","attributes":{"name":"Variant A"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersionExperimentTreatments/treat-1" {
-			t.Fatalf("expected path /v1/appStoreVersionExperimentTreatments/treat-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppStoreVersionExperimentTreatment(context.Background(), "treat-1"); err != nil {
-		t.Fatalf("GetAppStoreVersionExperimentTreatment() error: %v", err)
-	}
-}
-
 func TestCreateAppStoreVersionExperimentTreatment_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionExperimentTreatments","id":"treat-1","attributes":{"name":"Variant A"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -1204,23 +739,6 @@ func TestUpdateAppStoreVersionExperimentTreatment_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestDeleteAppStoreVersionExperimentTreatment_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersionExperimentTreatments/treat-1" {
-			t.Fatalf("expected path /v1/appStoreVersionExperimentTreatments/treat-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppStoreVersionExperimentTreatment(context.Background(), "treat-1"); err != nil {
-		t.Fatalf("DeleteAppStoreVersionExperimentTreatment() error: %v", err)
-	}
-}
-
 func TestGetAppStoreVersionExperimentTreatmentLocalization_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionExperimentTreatmentLocalizations","id":"tloc-1","attributes":{"locale":"en-US"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -1268,22 +786,5 @@ func TestCreateAppStoreVersionExperimentTreatmentLocalization_SendsRequest(t *te
 
 	if _, err := client.CreateAppStoreVersionExperimentTreatmentLocalization(context.Background(), "treat-1", "en-US"); err != nil {
 		t.Fatalf("CreateAppStoreVersionExperimentTreatmentLocalization() error: %v", err)
-	}
-}
-
-func TestDeleteAppStoreVersionExperimentTreatmentLocalization_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersionExperimentTreatmentLocalizations/tloc-1" {
-			t.Fatalf("expected path /v1/appStoreVersionExperimentTreatmentLocalizations/tloc-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppStoreVersionExperimentTreatmentLocalization(context.Background(), "tloc-1"); err != nil {
-		t.Fatalf("DeleteAppStoreVersionExperimentTreatmentLocalization() error: %v", err)
 	}
 }

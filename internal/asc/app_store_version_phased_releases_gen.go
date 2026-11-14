@@ -2,6 +2,12 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+	"net/http"
+)
+
 // AppStoreVersionPhasedReleaseCreateRequest is the AppStoreVersionPhasedReleaseCreateRequest schema.
 type AppStoreVersionPhasedReleaseCreateRequest struct {
 	Data AppStoreVersionPhasedReleaseCreateData `json:"data"`
@@ -17,4 +23,9 @@ type AppStoreVersionPhasedReleaseUpdateData struct {
 // AppStoreVersionPhasedReleaseUpdateRequest is the AppStoreVersionPhasedReleaseUpdateRequest schema.
 type AppStoreVersionPhasedReleaseUpdateRequest struct {
 	Data AppStoreVersionPhasedReleaseUpdateData `json:"data"`
+}
+
+// DeleteAppStoreVersionPhasedRelease sends DELETE /v1/appStoreVersionPhasedReleases/{id} (appStoreVersionPhasedReleases_deleteInstance).
+func (c *Client) DeleteAppStoreVersionPhasedRelease(ctx context.Context, phasedReleaseID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreVersionPhasedReleases/%s", phasedReleaseID), nil)
 }

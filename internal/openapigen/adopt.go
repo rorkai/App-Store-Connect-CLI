@@ -249,7 +249,13 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 	}
 
 	var messages []string
+	var trimmed bool
+	var trimAt, optionsAt token.Pos
+	list := &IDList{}
 	ast.Inspect(fn.Body, func(x ast.Node) bool {
+		if b.IDs != "" && strings.HasSuffix(op.Request, "LinkagesRequest") && readIDList(x, b.IDs, list) {
+			return false
+		}
 		switch n := x.(type) {
 		case *ast.KeyValueExpr:
 			key, _ := n.Key.(*ast.Ident)
@@ -271,10 +277,19 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 				b.Response = exprString(n.Index)
 			}
 		case *ast.AssignStmt:
-			if call, ok := n.Rhs[0].(*ast.CallExpr); ok && exprString(call.Fun) == "strings.TrimSpace" && b.Check == checkInline {
+			call, ok := n.Rhs[0].(*ast.CallExpr)
+			switch {
+			case !ok:
+			case exprString(call.Fun) == "strings.TrimSpace" && b.Check == checkInline:
 				b.Check = checkTrim
+				trimAt = n.Pos()
+			case exprString(call.Fun) == "applyOptions" && !optionsAt.IsValid():
+				optionsAt = n.Pos()
 			}
 		case *ast.CallExpr:
+			if exprString(n.Fun) == "strings.TrimSpace" {
+				trimmed = true
+			}
 			if exprString(n.Fun) == "fmt.Errorf" && len(n.Args) == 1 {
 				messages = append(messages, stringLit(n.Args[0]))
 				b.Check = checkRequire
@@ -282,6 +297,13 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 		}
 		return true
 	})
+	if !trimmed && len(b.Params) > 0 {
+		b.Check = checkRaw
+	}
+	if *list != (IDList{}) {
+		b.IDList = list
+	}
+	b.CheckFirst = b.Options != "" && trimAt.IsValid() && optionsAt.IsValid() && trimAt < optionsAt
 	for i, msg := range messages {
 		if i >= len(b.Params) || msg != b.Params[i]+" is required" {
 			b.Messages = messages
@@ -297,6 +319,49 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 		return nil, "differs at " + diff
 	}
 	return b, ""
+}
+
+// readIDList records what a node does with the ID list of a relationship
+// change. It returns true for the empty list check, whose message is not a
+// path parameter message.
+func readIDList(x ast.Node, ids string, l *IDList) bool {
+	switch n := x.(type) {
+	case *ast.AssignStmt:
+		if call, ok := n.Rhs[0].(*ast.CallExpr); ok && exprString(call.Fun) == "normalizeList" && exprString(n.Lhs[0]) == ids {
+			l.Normalize = true
+		}
+	case *ast.IfStmt:
+		if exprString(n.Cond) != "len("+ids+") == 0" {
+			return false
+		}
+		ast.Inspect(n.Body, func(y ast.Node) bool {
+			if call, ok := y.(*ast.CallExpr); ok && exprString(call.Fun) == "fmt.Errorf" && len(call.Args) == 1 {
+				l.Message = stringLit(call.Args[0])
+			}
+			return true
+		})
+		return true
+	case *ast.RangeStmt:
+		if exprString(n.X) != ids || n.Value == nil {
+			return false
+		}
+		if exprString(n.Key) != "_" {
+			l.Payload = payloadIndex
+			return false
+		}
+		l.Item = exprString(n.Value)
+		if l.Payload == payloadDefault {
+			l.Payload = payloadAppend
+		}
+	case *ast.CompositeLit:
+		switch exprString(n.Type) {
+		case "RelationshipList":
+			l.Payload = payloadResourceList
+		case "[]RelationshipData":
+			l.Payload = payloadNonNil
+		}
+	}
+	return false
 }
 
 func stringLit(expr ast.Expr) string {

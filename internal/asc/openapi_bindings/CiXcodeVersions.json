@@ -2,6 +2,8 @@
   "tag": "CiXcodeVersions",
   "file": "ci_xcode_versions_gen.go",
   "operations": [
-    {"operation":"ciXcodeVersions_getCollection","name":"GetCiXcodeVersions","options":"CiXcodeVersionsOption","query":"buildCiXcodeVersionsQuery","nextContext":"ciXcodeVersions"}
+    {"operation":"ciXcodeVersions_getCollection","name":"GetCiXcodeVersions","options":"CiXcodeVersionsOption","query":"buildCiXcodeVersionsQuery","nextContext":"ciXcodeVersions"},
+    {"operation":"ciXcodeVersions_getInstance","name":"GetCiXcodeVersion","params":["xcodeVersionID"],"check":"raw"},
+    {"operation":"ciXcodeVersions_macOsVersions_getToManyRelated","name":"GetCiXcodeVersionMacOsVersions","params":["xcodeVersionID"],"check":"raw","options":"CiMacOsVersionsOption","query":"buildCiMacOsVersionsQuery","nextContext":"ciXcodeVersionMacOsVersions"}
   ]
 }

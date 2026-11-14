@@ -30,6 +30,18 @@ func (c *Client) GetScmGitReferences(ctx context.Context, repositoryID string, o
 	})
 }
 
+// GetScmRepositoryGitReferencesRelationships sends GET /v1/scmRepositories/{id}/relationships/gitReferences (scmRepositories_gitReferences_getToManyRelationship).
+func (c *Client) GetScmRepositoryGitReferencesRelationships(ctx context.Context, repositoryID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	repositoryID = strings.TrimSpace(repositoryID)
+	query := applyOptions(opts)
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/scmRepositories/%s/relationships/gitReferences", repositoryID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "scmRepositoryGitReferencesRelationships",
+	})
+}
+
 // GetScmRepositoryPullRequests sends GET /v1/scmRepositories/{id}/pullRequests (scmRepositories_pullRequests_getToManyRelated).
 func (c *Client) GetScmRepositoryPullRequests(ctx context.Context, repositoryID string, opts ...ScmPullRequestsOption) (*ScmPullRequestsResponse, error) {
 	query := applyOptions(opts)
@@ -38,5 +50,17 @@ func (c *Client) GetScmRepositoryPullRequests(ctx context.Context, repositoryID 
 		Query:       buildScmPullRequestsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "scmRepositoryPullRequests",
+	})
+}
+
+// GetScmRepositoryPullRequestsRelationships sends GET /v1/scmRepositories/{id}/relationships/pullRequests (scmRepositories_pullRequests_getToManyRelationship).
+func (c *Client) GetScmRepositoryPullRequestsRelationships(ctx context.Context, repositoryID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	repositoryID = strings.TrimSpace(repositoryID)
+	query := applyOptions(opts)
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/scmRepositories/%s/relationships/pullRequests", repositoryID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "scmRepositoryPullRequestsRelationships",
 	})
 }

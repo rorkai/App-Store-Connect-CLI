@@ -2,6 +2,11 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+)
+
 // CiBuildRunCreateAttributes is the data.attributes object of the CiBuildRunCreateRequest schema.
 type CiBuildRunCreateAttributes struct {
 	Clean *bool `json:"clean,omitempty"`
@@ -10,4 +15,26 @@ type CiBuildRunCreateAttributes struct {
 // CiBuildRunCreateRequest is the CiBuildRunCreateRequest schema.
 type CiBuildRunCreateRequest struct {
 	Data CiBuildRunCreateData `json:"data"`
+}
+
+// GetCiBuildActions sends GET /v1/ciBuildRuns/{id}/actions (ciBuildRuns_actions_getToManyRelated).
+func (c *Client) GetCiBuildActions(ctx context.Context, buildRunID string, opts ...CiBuildActionsOption) (*CiBuildActionsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[CiBuildActionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciBuildRuns/%s/actions", buildRunID),
+		Query:       buildCiBuildActionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciBuildActions",
+	})
+}
+
+// GetCiBuildRunBuilds sends GET /v1/ciBuildRuns/{id}/builds (ciBuildRuns_builds_getToManyRelated).
+func (c *Client) GetCiBuildRunBuilds(ctx context.Context, buildRunID string, opts ...CiBuildRunBuildsOption) (*BuildsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[BuildsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciBuildRuns/%s/builds", buildRunID),
+		Query:       buildCiBuildRunBuildsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciBuildRunBuilds",
+	})
 }

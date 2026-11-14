@@ -27,3 +27,19 @@ func (c *Client) GetAlternativeDistributionPackage(ctx context.Context, packageI
 		ParseErr: "failed to parse alternative distribution package response",
 	})
 }
+
+// GetAlternativeDistributionPackageVersions sends GET /v1/alternativeDistributionPackages/{id}/versions (alternativeDistributionPackages_versions_getToManyRelated).
+func (c *Client) GetAlternativeDistributionPackageVersions(ctx context.Context, packageID string, opts ...AlternativeDistributionPackageVersionsOption) (*AlternativeDistributionPackageVersionsResponse, error) {
+	packageID = strings.TrimSpace(packageID)
+	if packageID == "" {
+		return nil, fmt.Errorf("packageID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[AlternativeDistributionPackageVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/alternativeDistributionPackages/%s/versions", packageID),
+		Query:       buildAlternativeDistributionPackageVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "alternativeDistributionPackageVersions",
+		ParseErr:    "failed to parse alternative distribution package versions response",
+	})
+}

@@ -10,6 +10,7 @@
   ],
   "operations": [
     {"operation":"endUserLicenseAgreements_deleteInstance","name":"DeleteEndUserLicenseAgreement","params":["id"],"check":"require"},
-    {"operation":"endUserLicenseAgreements_getInstance","name":"GetEndUserLicenseAgreement","params":["id"],"check":"require"}
+    {"operation":"endUserLicenseAgreements_getInstance","name":"GetEndUserLicenseAgreement","params":["id"],"check":"require"},
+    {"operation":"endUserLicenseAgreements_territories_getToManyRelated","name":"GetEndUserLicenseAgreementTerritories","params":["id"],"check":"trim","checkFirst":true,"options":"EndUserLicenseAgreementTerritoriesOption","query":"buildEndUserLicenseAgreementTerritoriesQuery","nextContext":"endUserLicenseAgreementTerritories","response":"TerritoriesResponse"}
   ]
 }

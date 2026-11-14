@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -35,6 +36,11 @@ func (c *Client) GetBetaBuildLocalizationBuild(ctx context.Context, localization
 	})
 }
 
+// DeleteBetaBuildLocalization sends DELETE /v1/betaBuildLocalizations/{id} (betaBuildLocalizations_deleteInstance).
+func (c *Client) DeleteBetaBuildLocalization(ctx context.Context, localizationID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID), nil)
+}
+
 // ListBetaBuildLocalizations sends GET /v1/betaBuildLocalizations (betaBuildLocalizations_getCollection).
 func (c *Client) ListBetaBuildLocalizations(ctx context.Context, opts ...BetaBuildLocalizationsOption) (*BetaBuildLocalizationsResponse, error) {
 	query := applyOptions(opts)
@@ -43,5 +49,12 @@ func (c *Client) ListBetaBuildLocalizations(ctx context.Context, opts ...BetaBui
 		Query:       buildBetaBuildLocalizationsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "betaBuildLocalizations",
+	})
+}
+
+// GetBetaBuildLocalization sends GET /v1/betaBuildLocalizations/{id} (betaBuildLocalizations_getInstance).
+func (c *Client) GetBetaBuildLocalization(ctx context.Context, localizationID string) (*BetaBuildLocalizationResponse, error) {
+	return getJSON[BetaBuildLocalizationResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID),
 	})
 }

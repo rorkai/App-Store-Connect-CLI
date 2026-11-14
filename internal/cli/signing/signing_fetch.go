@@ -55,7 +55,8 @@ func SigningFetchCommand() *ffcli.Command {
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (optional); when set, --bundle-id must be this app's bundle ID")
 	bundleID := fs.String("bundle-id", "", "Bundle identifier (e.g., com.example.app) - required")
 	profileType := fs.String("profile-type", "", "Profile type: IOS_APP_STORE, IOS_APP_DEVELOPMENT, MAC_APP_STORE, etc. (required)")
-	deviceIDs := fs.String("device", "", "Device ID(s), comma-separated (requires --create-missing; required for development profiles)")
+	deviceIDs := fs.String("device", "", "Device ID(s), comma-separated (requires --create-missing; development and ad hoc profiles need --device or --all-devices)")
+	allDevices := fs.Bool("all-devices", false, "With --create-missing, include every enabled device the profile type accepts (development and ad hoc profiles)")
 	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
 	outputPath := fs.String("output", "./signing", "Output directory for signing files")
 	createMissing := fs.Bool("create-missing", false, "Create missing profiles")
@@ -88,6 +89,10 @@ profiles continue to use .mobileprovision files.
 With --create-missing, it will create a new profile if none exist for the
 specified configuration. Devices are only applied to profiles this command
 creates, so --device without --create-missing is rejected with a usage error.
+Development and ad hoc profiles need either --device or --all-devices.
+--all-devices lists enabled devices only when a profile has to be created and
+uses every one the profile type accepts; it fails before creating anything
+when none match.
 --create-missing-certificate also creates a key, CSR, certificate, and
 password-protected .p12 when no active certificate exists. It requires
 --create-missing and --identity-password-file. The .p12 uses the modern
@@ -119,6 +124,7 @@ before any deletion, and each result carries its own staleProfiles receipt.
 Examples:
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --output ./signing
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_DEVELOPMENT --create-missing --device "DEVICE1,DEVICE2"
+  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_ADHOC --create-missing --all-devices
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --create-missing --create-missing-certificate --identity-password-file ./secrets/p12-password
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --match-extensions --output ./signing
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --delete-stale-profiles --dry-run
@@ -172,6 +178,17 @@ Examples:
 			if err := rejectDeviceWithoutCreateMissing(*deviceIDs, *createMissing); err != nil {
 				return err
 			}
+			if *allDevices {
+				if !*createMissing {
+					return shared.UsageError("--all-devices requires --create-missing because devices are only applied to profiles this command creates")
+				}
+				if !isDeviceProfileType(profType) {
+					return shared.UsageErrorf("--all-devices requires a development or ad hoc profile type; %s profiles have no device list", profType)
+				}
+				if strings.TrimSpace(*deviceIDs) != "" {
+					return shared.UsageError("--all-devices and --device are mutually exclusive")
+				}
+			}
 			if *createMissingCertificate && !*createMissing {
 				fmt.Fprintln(os.Stderr, "Error: --create-missing-certificate requires --create-missing")
 				return shared.UsageError("--create-missing-certificate requires --create-missing")
@@ -192,8 +209,8 @@ Examples:
 			if *createMissingCertificate && strings.TrimSpace(*identityPasswordFile) == "" {
 				return shared.RequiredFlag("--identity-password-file")
 			}
-			if *createMissing && isDevelopmentProfile(profType) && strings.TrimSpace(*deviceIDs) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --device is required for development profiles")
+			if *createMissing && isDevelopmentProfile(profType) && strings.TrimSpace(*deviceIDs) == "" && !*allDevices {
+				fmt.Fprintln(os.Stderr, "Error: --device or --all-devices is required for development and ad hoc profiles")
 				return shared.MissingRequiredUsageError("--device")
 			}
 
@@ -282,6 +299,7 @@ Examples:
 					OutputDir:       outputDir,
 					CertificateType: *certType,
 					DeviceIDs:       shared.SplitCSV(*deviceIDs),
+					AllDevices:      *allDevices,
 					CreateMissing:   *createMissing,
 					DeleteStale:     *deleteStale,
 					DryRun:          *dryRun,
@@ -345,6 +363,7 @@ Examples:
 					ProfileType:              profType,
 					CertificateType:          *certType,
 					DeviceIDs:                shared.SplitCSV(*deviceIDs),
+					AllDevices:               *allDevices,
 					CreateMissing:            *createMissing,
 					CreateMissingCertificate: *createMissingCertificate,
 					CertificateCreate: signingCertificateCreateRequest{
@@ -492,6 +511,7 @@ type matchedSigningFetchOptions struct {
 	OutputDir       string
 	CertificateType string
 	DeviceIDs       []string
+	AllDevices      bool
 	CreateMissing   bool
 	DeleteStale     bool
 	DryRun          bool
@@ -666,6 +686,7 @@ func fetchMatchedSigningBundle(
 		ProfileType:        opts.ProfileType,
 		CertificateType:    opts.CertificateType,
 		DeviceIDs:          opts.DeviceIDs,
+		AllDevices:         opts.AllDevices,
 		CreateMissing:      opts.CreateMissing,
 		Progress:           progress,
 		BeforeCreate: func(plan profileCreatePlan) error {
@@ -959,6 +980,9 @@ type signingAssetsOptions struct {
 	// IncludeMacDevices adds enabled Apple silicon Macs to the enabled device
 	// set used by ForceForNewDevices for iOS profiles.
 	IncludeMacDevices bool
+	// AllDevices uses every enabled device ProfileType accepts when a profile
+	// is created and DeviceIDs is empty.
+	AllDevices bool
 }
 
 // profileCreatePlan describes the profile that is about to be created so callers
@@ -1078,8 +1102,8 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	}
 
 	deviceIDs := options.DeviceIDs
-	if isDeviceProfileType(options.ProfileType) && (options.ForceForNewDevices || replacement != nil) {
-		if options.ForceForNewDevices {
+	if isDeviceProfileType(options.ProfileType) && (options.ForceForNewDevices || options.AllDevices || replacement != nil) {
+		if options.ForceForNewDevices || options.AllDevices {
 			desired, err := resolveDesiredDevices()
 			if err != nil {
 				return nil, nil, false, err

@@ -1,0 +1,11 @@
+{
+  "tag": "CiBuildActions",
+  "file": "ci_build_actions_gen.go",
+  "operations": [
+    {"operation":"ciBuildActions_artifacts_getToManyRelated","name":"GetCiBuildActionArtifacts","params":["buildActionID"],"check":"raw","options":"CiArtifactsOption","query":"buildCiArtifactsQuery","nextContext":"ciArtifacts"},
+    {"operation":"ciBuildActions_buildRun_getToOneRelated","name":"GetCiBuildActionBuildRun","params":["buildActionID"],"check":"raw"},
+    {"operation":"ciBuildActions_getInstance","name":"GetCiBuildAction","params":["buildActionID"],"check":"raw"},
+    {"operation":"ciBuildActions_issues_getToManyRelated","name":"GetCiBuildActionIssues","params":["buildActionID"],"check":"raw","options":"CiIssuesOption","query":"buildCiIssuesQuery","nextContext":"ciIssues"},
+    {"operation":"ciBuildActions_testResults_getToManyRelated","name":"GetCiBuildActionTestResults","params":["buildActionID"],"check":"raw","options":"CiTestResultsOption","query":"buildCiTestResultsQuery","nextContext":"ciTestResults"}
+  ]
+}

@@ -57,6 +57,16 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (*RunRe
 	if udid == "" {
 		udid = "booted"
 	}
+	for _, step := range plan.Steps {
+		if StepAction(strings.TrimSpace(strings.ToLower(string(step.Action)))) != ActionWait {
+			resolved, err := resolveSimulatorUDID(ctx, udid)
+			if err != nil {
+				return nil, err
+			}
+			udid = resolved
+			break
+		}
+	}
 	outputDir := plan.App.OutputDir
 	if strings.TrimSpace(outputDir) == "" {
 		outputDir = "./screenshots/raw"
@@ -136,6 +146,21 @@ func runStep(ctx context.Context, action StepAction, step PlanStep, bundleID str
 			keycodes = append(keycodes, strconv.Itoa(keycode))
 		}
 		return runExternal(ctx, "axe", "key-sequence", "--keycodes", strings.Join(keycodes, ","), "--udid", udid)
+	case ActionScroll:
+		return runScrollStep(ctx, step, udid)
+	case ActionSwipe:
+		args := []string{
+			"swipe",
+			"--start-x", formatFloat(floatValue(step.X)),
+			"--start-y", formatFloat(floatValue(step.Y)),
+			"--end-x", formatFloat(floatValue(step.EndX)),
+			"--end-y", formatFloat(floatValue(step.EndY)),
+		}
+		if step.DurationMS != nil {
+			args = append(args, "--duration", formatFloat(float64(*step.DurationMS)/1000))
+		}
+		args = append(args, "--udid", udid)
+		return runExternal(ctx, "axe", args...)
 	case ActionWait:
 		return waitContext(ctx, time.Duration(intValue(step.DurationMS))*time.Millisecond)
 	case ActionWaitFor:
@@ -200,6 +225,28 @@ func runTapStep(ctx context.Context, step PlanStep, udid string) error {
 		y := strconv.FormatFloat(floatValue(step.Y), 'f', -1, 64)
 		return runExternal(ctx, "axe", "tap", "-x", x, "-y", y, "--udid", udid)
 	}
+}
+
+func runScrollStep(ctx context.Context, step PlanStep, udid string) error {
+	args := []string{"gesture", "scroll-" + stringValue(step.Direction)}
+	if step.Distance != nil {
+		args = append(args, "--distance", formatFloat(*step.Distance))
+	}
+	switch {
+	case hasString(step.Label):
+		args = append(args, "--until-label", stringValue(step.Label))
+	case hasString(step.ID):
+		args = append(args, "--until-id", stringValue(step.ID))
+	}
+	if step.MaxSwipes != nil {
+		args = append(args, "--max-swipes", strconv.Itoa(*step.MaxSwipes))
+	}
+	args = append(args, "--udid", udid)
+	return runExternal(ctx, "axe", args...)
+}
+
+func formatFloat(value float64) string {
+	return strconv.FormatFloat(value, 'f', -1, 64)
 }
 
 func axeMatchesTarget(ctx context.Context, udid string, step PlanStep) (bool, error) {

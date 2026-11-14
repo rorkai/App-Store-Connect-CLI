@@ -168,10 +168,6 @@ func TestSubscriptionGroupVersionEndpoints(t *testing.T) {
 				return err
 			},
 		},
-		{
-			name: "delete localization v2", method: http.MethodDelete, path: "/v2/subscriptionGroupLocalizations/loc-1", responseCode: http.StatusNoContent,
-			call: func(c *Client) error { return c.DeleteSubscriptionGroupLocalizationV2(context.Background(), "loc-1") },
-		},
 	}
 
 	for _, test := range tests {

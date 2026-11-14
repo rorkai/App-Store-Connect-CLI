@@ -192,35 +192,11 @@ func buildCiBuildRunBuildsQuery(query *ciBuildRunBuildsQuery) string {
 	return values.Encode()
 }
 
-// GetCiBuildRuns retrieves build runs for a workflow.
-func (c *Client) GetCiBuildRuns(ctx context.Context, workflowID string, opts ...CiBuildRunsOption) (*CiBuildRunsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiBuildRunsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/ciWorkflows/%s/buildRuns", workflowID),
-		Query:       buildCiBuildRunsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciBuildRuns",
-	})
-}
-
 // GetCiBuildRun retrieves a CI build run by ID.
 func (c *Client) GetCiBuildRun(ctx context.Context, buildRunID string, opts ...CiBuildRunGetOption) (*CiBuildRunResponse, error) {
 	query := applyOptions(opts)
 
 	return getJSON[CiBuildRunResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciBuildRuns/%s", buildRunID), Query: buildCiBuildRunGetQuery(query)})
-}
-
-// GetCiBuildRunBuilds retrieves builds for a CI build run.
-func (c *Client) GetCiBuildRunBuilds(ctx context.Context, buildRunID string, opts ...CiBuildRunBuildsOption) (*BuildsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[BuildsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/ciBuildRuns/%s/builds", buildRunID),
-		Query:       buildCiBuildRunBuildsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciBuildRunBuilds",
-	})
 }
 
 // CreateCiBuildRun creates a new CI build run (triggers a workflow).

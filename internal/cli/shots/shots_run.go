@@ -28,7 +28,9 @@ func ShotsRunCommand() *ffcli.Command {
 		LongHelp: `Run a deterministic screenshot automation sequence.
 
 By default it loads .asc/screenshots.json from the current project root.
-Supported actions: launch, tap, type, wait, wait_for (polling), screenshot.`,
+Supported actions: launch, tap, type, key_sequence, wait, wait_for (polling), scroll, swipe, screenshot.
+scroll takes direction up, down, left, or right, the way the finger moves: up drags the content up to show what is below it.
+scroll and swipe need AXe 2.0 or later.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

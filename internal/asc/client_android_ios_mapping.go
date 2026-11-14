@@ -6,22 +6,6 @@ import (
 	"strings"
 )
 
-// GetAndroidToIosAppMappingDetails retrieves mappings for an app.
-func (c *Client) GetAndroidToIosAppMappingDetails(ctx context.Context, appID string, opts ...AndroidToIosAppMappingDetailsOption) (*AndroidToIosAppMappingDetailsResponse, error) {
-	appID = strings.TrimSpace(appID)
-	if appID == "" {
-		return nil, fmt.Errorf("app ID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[AndroidToIosAppMappingDetailsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/androidToIosAppMappingDetails", appID),
-		Query:       buildAndroidToIosAppMappingDetailsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "androidToIosAppMappingDetails",
-	})
-}
-
 // GetAndroidToIosAppMappingDetail retrieves a mapping by ID.
 func (c *Client) GetAndroidToIosAppMappingDetail(ctx context.Context, id string, opts ...AndroidToIosAppMappingDetailsOption) (*AndroidToIosAppMappingDetailResponse, error) {
 	id = strings.TrimSpace(id)

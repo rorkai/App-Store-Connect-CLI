@@ -89,18 +89,6 @@ func (c *Client) CreateUserInvitation(ctx context.Context, attrs UserInvitationC
 	return sendJSON[UserInvitationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/userInvitations", Payload: payload})
 }
 
-// GetUserVisibleApps retrieves the visible apps for a user.
-func (c *Client) GetUserVisibleApps(ctx context.Context, userID string, opts ...UserVisibleAppsOption) (*AppsResponse, error) {
-	userID = strings.TrimSpace(userID)
-	query := applyOptions(opts)
-	return getJSON[AppsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/users/%s/visibleApps", userID),
-		Query:       buildUserVisibleAppsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "userVisibleApps",
-	})
-}
-
 // GetUserVisibleAppsRelationships retrieves visible app linkages for a user.
 func (c *Client) GetUserVisibleAppsRelationships(ctx context.Context, userID string, opts ...LinkagesOption) (*UserVisibleAppsLinkagesResponse, error) {
 	userID = strings.TrimSpace(userID)
@@ -114,48 +102,4 @@ func (c *Client) GetUserVisibleAppsRelationships(ctx context.Context, userID str
 		Next:        query.nextURL,
 		NextContext: "userVisibleAppsRelationships",
 	})
-}
-
-// AddUserVisibleApps adds visible apps to a user.
-func (c *Client) AddUserVisibleApps(ctx context.Context, userID string, appIDs []string) error {
-	userID = strings.TrimSpace(userID)
-	appIDs = normalizeList(appIDs)
-	if userID == "" {
-		return fmt.Errorf("userID is required")
-	}
-	if len(appIDs) == 0 {
-		return fmt.Errorf("appIDs are required")
-	}
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(appIDs)),
-	}
-	for _, id := range appIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeApps,
-			ID:   id,
-		})
-	}
-	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID), payload)
-}
-
-// RemoveUserVisibleApps removes visible apps from a user.
-func (c *Client) RemoveUserVisibleApps(ctx context.Context, userID string, appIDs []string) error {
-	userID = strings.TrimSpace(userID)
-	appIDs = normalizeList(appIDs)
-	if userID == "" {
-		return fmt.Errorf("userID is required")
-	}
-	if len(appIDs) == 0 {
-		return fmt.Errorf("appIDs are required")
-	}
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(appIDs)),
-	}
-	for _, id := range appIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeApps,
-			ID:   id,
-		})
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID), payload)
 }

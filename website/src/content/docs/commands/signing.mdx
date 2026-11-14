@@ -147,7 +147,7 @@ asc signing fetch \
   --output .asc/signing/app-store
 ```
 
-For development or ad hoc distribution, profile creation needs device resource IDs:
+For development or ad hoc distribution, profile creation needs device resource IDs in `--device`, or `--all-devices`:
 
 ```bash
 asc devices list --platform IOS --output table
@@ -161,6 +161,8 @@ asc signing fetch \
 ```
 
 `--device` only affects profiles created by that invocation and requires `--create-missing`. Passing `--device` without `--create-missing` is a usage error (exit 2).
+
+`--all-devices` uses every enabled device the profile type accepts. It also requires `--create-missing`, cannot be combined with `--device`, and lists devices only when a profile has to be created. If no enabled device matches, the command fails before creating anything.
 
 The command does not overwrite output files. This prevents a failed write from silently replacing a known profile or certificate.
 

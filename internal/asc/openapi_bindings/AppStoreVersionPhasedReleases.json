@@ -5,5 +5,8 @@
     "AppStoreVersionPhasedReleaseCreateRequest",
     "AppStoreVersionPhasedReleaseUpdateData",
     "AppStoreVersionPhasedReleaseUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appStoreVersionPhasedReleases_deleteInstance","name":"DeleteAppStoreVersionPhasedRelease","params":["phasedReleaseID"],"check":"raw"}
   ]
 }

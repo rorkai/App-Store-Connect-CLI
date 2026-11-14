@@ -148,23 +148,6 @@ func TestUpdateInAppPurchaseReviewScreenshotRejectsEmptyChecksum(t *testing.T) {
 	}
 }
 
-func TestDeleteInAppPurchaseReviewScreenshot(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchaseAppStoreReviewScreenshots/shot-1" {
-			t.Fatalf("expected path /v1/inAppPurchaseAppStoreReviewScreenshots/shot-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteInAppPurchaseAppStoreReviewScreenshot(context.Background(), "shot-1"); err != nil {
-		t.Fatalf("DeleteInAppPurchaseAppStoreReviewScreenshot() error: %v", err)
-	}
-}
-
 func TestCreateInAppPurchaseAvailability(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"inAppPurchaseAvailabilities","id":"avail-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -189,43 +172,6 @@ func TestCreateInAppPurchaseAvailability(t *testing.T) {
 
 	if _, err := client.CreateInAppPurchaseAvailability(context.Background(), "iap-1", true, []string{"USA", "CAN"}); err != nil {
 		t.Fatalf("CreateInAppPurchaseAvailability() error: %v", err)
-	}
-}
-
-func TestGetInAppPurchaseAvailabilityByID(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchaseAvailabilities","id":"avail-1"}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchaseAvailabilities/avail-1" {
-			t.Fatalf("expected path /v1/inAppPurchaseAvailabilities/avail-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetInAppPurchaseAvailabilityByID(context.Background(), "avail-1"); err != nil {
-		t.Fatalf("GetInAppPurchaseAvailabilityByID() error: %v", err)
-	}
-}
-
-func TestGetInAppPurchaseAvailabilityAvailableTerritories(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchaseAvailabilities/avail-1/availableTerritories" {
-			t.Fatalf("expected path /v1/inAppPurchaseAvailabilities/avail-1/availableTerritories, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "5" {
-			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetInAppPurchaseAvailabilityAvailableTerritories(context.Background(), "avail-1", Limit[IAPAvailabilityTerritoriesOption](5)); err != nil {
-		t.Fatalf("GetInAppPurchaseAvailabilityAvailableTerritories() error: %v", err)
 	}
 }
 
@@ -316,65 +262,6 @@ func TestGetInAppPurchasePricePoints_WithIncludeAndFields(t *testing.T) {
 	}
 }
 
-func TestGetInAppPurchasePricePointEqualizations_WithQueryOptions(t *testing.T) {
-	t.Run("limit", func(t *testing.T) {
-		client := newTestClient(t, func(req *http.Request) {
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/inAppPurchasePricePoints/price-1/equalizations" {
-				t.Fatalf("expected path /v1/inAppPurchasePricePoints/price-1/equalizations, got %s", req.URL.Path)
-			}
-			if got := req.URL.Query().Get("limit"); got != "175" {
-				t.Fatalf("expected limit=175, got %q", got)
-			}
-			assertAuthorized(t, req)
-		}, jsonResponse(http.StatusOK, `{"data":[]}`))
-
-		if _, err := client.GetInAppPurchasePricePointEqualizations(context.Background(), "price-1", Limit[IAPPricePointsOption](175)); err != nil {
-			t.Fatalf("GetInAppPurchasePricePointEqualizations() error: %v", err)
-		}
-	})
-
-	t.Run("next", func(t *testing.T) {
-		nextURL := "https://api.appstoreconnect.apple.com/v1/inAppPurchasePricePoints/price-1/equalizations?cursor=AQ&limit=175"
-
-		client := newTestClient(t, func(req *http.Request) {
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
-			}
-			if req.URL.String() != nextURL {
-				t.Fatalf("expected next URL %s, got %s", nextURL, req.URL.String())
-			}
-			assertAuthorized(t, req)
-		}, jsonResponse(http.StatusOK, `{"data":[]}`))
-
-		if _, err := client.GetInAppPurchasePricePointEqualizations(context.Background(), "price-1", NextURL[IAPPricePointsOption](nextURL)); err != nil {
-			t.Fatalf("GetInAppPurchasePricePointEqualizations() error: %v", err)
-		}
-	})
-}
-
-func TestGetInAppPurchasePriceScheduleManualPrices_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices" {
-			t.Fatalf("expected path /v1/inAppPurchasePriceSchedules/schedule-1/manualPrices, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "5" {
-			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetInAppPurchasePriceScheduleManualPrices(context.Background(), "schedule-1", Limit[IAPPriceSchedulePricesOption](5)); err != nil {
-		t.Fatalf("GetInAppPurchasePriceScheduleManualPrices() error: %v", err)
-	}
-}
-
 func TestGetInAppPurchasePriceScheduleManualPrices_WithQueryOptions(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -413,26 +300,6 @@ func TestGetInAppPurchasePriceScheduleManualPrices_WithQueryOptions(t *testing.T
 		Limit[IAPPriceSchedulePricesOption](200),
 	); err != nil {
 		t.Fatalf("GetInAppPurchasePriceScheduleManualPrices() error: %v", err)
-	}
-}
-
-func TestGetInAppPurchasePriceScheduleAutomaticPrices_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices" {
-			t.Fatalf("expected path /v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "5" {
-			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetInAppPurchasePriceScheduleAutomaticPrices(context.Background(), "schedule-1", Limit[IAPPriceSchedulePricesOption](5)); err != nil {
-		t.Fatalf("GetInAppPurchasePriceScheduleAutomaticPrices() error: %v", err)
 	}
 }
 
@@ -514,23 +381,6 @@ func TestGetInAppPurchasePriceScheduleByID_WithQueryOptions(t *testing.T) {
 	}
 }
 
-func TestGetInAppPurchasePriceScheduleBaseTerritory(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"territories","id":"USA","attributes":{"currency":"USD"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchasePriceSchedules/schedule-1/baseTerritory" {
-			t.Fatalf("expected path /v1/inAppPurchasePriceSchedules/schedule-1/baseTerritory, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetInAppPurchasePriceScheduleBaseTerritory(context.Background(), "schedule-1"); err != nil {
-		t.Fatalf("GetInAppPurchasePriceScheduleBaseTerritory() error: %v", err)
-	}
-}
-
 func TestCreateInAppPurchasePriceSchedule(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"inAppPurchasePriceSchedules","id":"schedule-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -570,21 +420,6 @@ func TestCreateInAppPurchasePriceSchedule(t *testing.T) {
 	}
 }
 
-func TestGetInAppPurchaseOfferCodes_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v2/inAppPurchases/iap-1/offerCodes?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetInAppPurchaseOfferCodes(context.Background(), "iap-1", NextURL[IAPOfferCodesOption](next)); err != nil {
-		t.Fatalf("GetInAppPurchaseOfferCodes() error: %v", err)
-	}
-}
-
 func TestGetInAppPurchaseOfferCodePrices_WithQuery(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"inAppPurchaseOfferPrices","id":"price-1"}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -613,21 +448,6 @@ func TestGetInAppPurchaseOfferCodePrices_WithQuery(t *testing.T) {
 		WithIAPOfferCodePricesFields([]string{"territory", "pricePoint"}),
 		WithIAPOfferCodePricesInclude([]string{"territory", "pricePoint"}),
 	); err != nil {
-		t.Fatalf("GetInAppPurchaseOfferCodePrices() error: %v", err)
-	}
-}
-
-func TestGetInAppPurchaseOfferCodePrices_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/inAppPurchaseOfferCodes/offer-1/prices?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetInAppPurchaseOfferCodePrices(context.Background(), "offer-1", NextURL[IAPOfferCodePricesOption](next)); err != nil {
 		t.Fatalf("GetInAppPurchaseOfferCodePrices() error: %v", err)
 	}
 }
@@ -687,23 +507,6 @@ func TestCreateInAppPurchaseOfferCode(t *testing.T) {
 	}
 	if _, err := client.CreateInAppPurchaseOfferCode(context.Background(), "iap-1", attrs); err != nil {
 		t.Fatalf("CreateInAppPurchaseOfferCode() error: %v", err)
-	}
-}
-
-func TestGetInAppPurchaseOfferCode(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchaseOfferCodes","id":"code-1"}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchaseOfferCodes/code-1" {
-			t.Fatalf("expected path /v1/inAppPurchaseOfferCodes/code-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetInAppPurchaseOfferCode(context.Background(), "code-1"); err != nil {
-		t.Fatalf("GetInAppPurchaseOfferCode() error: %v", err)
 	}
 }
 

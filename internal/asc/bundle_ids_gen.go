@@ -17,6 +17,18 @@ func (c *Client) GetBundleIDApp(ctx context.Context, bundleID string) (*AppRespo
 	})
 }
 
+// GetBundleIDCapabilities sends GET /v1/bundleIds/{id}/bundleIdCapabilities (bundleIds_bundleIdCapabilities_getToManyRelated).
+func (c *Client) GetBundleIDCapabilities(ctx context.Context, bundleID string, opts ...BundleIDCapabilitiesOption) (*BundleIDCapabilitiesResponse, error) {
+	bundleID = strings.TrimSpace(bundleID)
+	query := applyOptions(opts)
+	return getJSON[BundleIDCapabilitiesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/bundleIds/%s/bundleIdCapabilities", bundleID),
+		Query:       buildBundleIDCapabilitiesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "bundleIdCapabilities",
+	})
+}
+
 // DeleteBundleID sends DELETE /v1/bundleIds/{id} (bundleIds_deleteInstance).
 func (c *Client) DeleteBundleID(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)

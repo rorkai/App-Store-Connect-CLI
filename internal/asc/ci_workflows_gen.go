@@ -9,8 +9,26 @@ import (
 	"strings"
 )
 
+// GetCiBuildRuns sends GET /v1/ciWorkflows/{id}/buildRuns (ciWorkflows_buildRuns_getToManyRelated).
+func (c *Client) GetCiBuildRuns(ctx context.Context, workflowID string, opts ...CiBuildRunsOption) (*CiBuildRunsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[CiBuildRunsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciWorkflows/%s/buildRuns", workflowID),
+		Query:       buildCiBuildRunsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciBuildRuns",
+	})
+}
+
 // DeleteCiWorkflow sends DELETE /v1/ciWorkflows/{id} (ciWorkflows_deleteInstance).
 func (c *Client) DeleteCiWorkflow(ctx context.Context, workflowID string) error {
 	workflowID = strings.TrimSpace(workflowID)
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/ciWorkflows/%s", workflowID), nil)
+}
+
+// GetCiWorkflow sends GET /v1/ciWorkflows/{id} (ciWorkflows_getInstance).
+func (c *Client) GetCiWorkflow(ctx context.Context, workflowID string) (*CiWorkflowResponse, error) {
+	return getJSON[CiWorkflowResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/ciWorkflows/%s", workflowID),
+	})
 }

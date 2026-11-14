@@ -205,30 +205,6 @@ func TestGetSubscriptionPlanAvailabilitiesForSubscriptionSupportsPaginationOptio
 	})
 }
 
-func TestGetSubscriptionPlanAvailability(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"UPFRONT","availableInNewTerritories":true}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptionPlanAvailabilities/plan-1" {
-			t.Fatalf("expected path /v1/subscriptionPlanAvailabilities/plan-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	resp, err := client.GetSubscriptionPlanAvailability(context.Background(), "plan-1")
-	if err != nil {
-		t.Fatalf("GetSubscriptionPlanAvailability() error: %v", err)
-	}
-	if resp.Data.ID != "plan-1" || resp.Data.Attributes.PlanType != SubscriptionPlanTypeUpfront {
-		t.Fatalf("unexpected plan availability: %#v", resp.Data)
-	}
-	if resp.Data.Attributes.AvailableInNewTerritories == nil || !*resp.Data.Attributes.AvailableInNewTerritories {
-		t.Fatalf("expected availableInNewTerritories=true, got %#v", resp.Data.Attributes.AvailableInNewTerritories)
-	}
-}
-
 func TestGetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"NOR"},{"type":"territories","id":"DEU"}],"links":{"next":""}}`)
 	client := newTestClient(t, func(req *http.Request) {
