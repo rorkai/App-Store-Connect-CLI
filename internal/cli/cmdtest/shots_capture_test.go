@@ -66,7 +66,7 @@ func TestShotsCapturePreservesWhitespaceOutputDirectory(t *testing.T) {
 	binDir := t.TempDir()
 	writeShotsMatrixExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
 if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
-  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","state":"Booted","isAvailable":true}]}}'
+  printf '%s\n' '{"devices":{"runtime":[{"udid":"SIM-UDID","name":"iPhone 17","state":"Booted","isAvailable":true}]}}'
 fi
 `)
 	writeShotsMatrixExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh

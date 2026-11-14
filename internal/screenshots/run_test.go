@@ -257,7 +257,11 @@ func TestRunPlanResolvesBootedSimulatorWhenUDIDOmitted(t *testing.T) {
 		{
 			name:    "none booted",
 			devices: `[{"udid":"SHUTDOWN-1","name":"iPad Air","state":"Shutdown","isAvailable":true}]`,
-			wantErr: []string{"no simulator is booted", "--udid"},
+			wantErr: []string{"no iPhone or iPad simulator is booted", "--udid"},
+		},
+		{
+			name:    "another platform booted alongside",
+			devices: `[{"udid":"BOOTED-1","name":"iPhone 17","state":"Booted","isAvailable":true},{"udid":"BOOTED-TV","name":"Apple TV 4K","state":"Booted","isAvailable":true}]`,
 		},
 		{
 			name:    "several booted",

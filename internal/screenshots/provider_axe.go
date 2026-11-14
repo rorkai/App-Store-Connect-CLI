@@ -54,7 +54,8 @@ func resolveSimulatorUDID(ctx context.Context, requested string) (string, error)
 	}
 	var booted []matrixSimulatorDevice
 	for _, device := range devices {
-		if validateMatrixSimulatorDevice(device) == nil {
+		family := matrixSimulatorFamily(device)
+		if validateMatrixSimulatorDevice(device) == nil && (family == "iphone" || family == "ipad") {
 			booted = append(booted, device)
 		}
 	}
@@ -62,7 +63,7 @@ func resolveSimulatorUDID(ctx context.Context, requested string) (string, error)
 	case 1:
 		return strings.TrimSpace(booted[0].UDID), nil
 	case 0:
-		return "", errors.New("no simulator is booted; boot one or pass --udid")
+		return "", errors.New("no iPhone or iPad simulator is booted; boot one or pass --udid")
 	default:
 		names := make([]string, 0, len(booted))
 		for _, device := range booted {
