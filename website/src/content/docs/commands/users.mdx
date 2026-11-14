@@ -160,6 +160,8 @@ List user invitations:
 asc users invites list
 asc users invites list --limit 50
 asc users invites list --paginate
+asc users invites list --role "DEVELOPER,APP_MANAGER" --sort "-lastName"
+asc users invites list --include visibleApps --app-fields "name,bundleId"
 ```
 
 **Flags:**
@@ -170,12 +172,24 @@ asc users invites list --paginate
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 
+**Query flags** (each sends the App Store Connect query parameter it names; `--next` cannot be combined with them):
+
+* `--email` - `filter[email]`, comma-separated
+* `--role` - `filter[roles]`, comma-separated: `ADMIN`, `DEVELOPER`, `APP_MANAGER`, etc.
+* `--visible-app` - `filter[visibleApps]`, comma-separated app IDs
+* `--sort` - `sort`: `email`, `-email`, `lastName`, `-lastName`
+* `--fields` - `fields[userInvitations]`, comma-separated
+* `--app-fields` - `fields[apps]`, comma-separated
+* `--include` - `include`: `visibleApps`
+* `--visible-apps-limit` - `limit[visibleApps]` (1-50; requires `--include visibleApps`)
+
 ### users invites view
 
 Get a user invitation by ID:
 
 ```bash
 asc users invites view --id "INVITE_ID"
+asc users invites view --id "INVITE_ID" --include visibleApps --app-fields "name"
 ```
 
 **Flags:**
@@ -183,6 +197,8 @@ asc users invites view --id "INVITE_ID"
 * `--id` - Invitation ID (required)
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
+
+**Query flags:** `--fields`, `--app-fields`, `--include` and `--visible-apps-limit`, as for `users invites list`.
 
 ### users invites revoke
 

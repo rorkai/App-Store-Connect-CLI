@@ -502,6 +502,7 @@ Examples:
 
 // newUsersInvitesListCommand returns the users invites list subcommand.
 func newUsersInvitesListCommand(d *shared.Deps) *ffcli.Command {
+	query := shared.NewQueryFlags[asc.UserInvitationsOption]()
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Deps:       d,
 		Name:       "list",
@@ -516,10 +517,12 @@ Examples:
 		TopLevel:             true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
+		Query:                query,
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetUserInvitations(ctx,
 				asc.Limit[asc.UserInvitationsOption](limit),
 				asc.NextURL[asc.UserInvitationsOption](next),
+				query.Option(),
 			)
 		},
 	})
@@ -527,6 +530,7 @@ Examples:
 
 // newUsersInvitesGetCommand returns the users invites view subcommand.
 func newUsersInvitesGetCommand(d *shared.Deps) *ffcli.Command {
+	query := shared.NewQueryFlags[asc.UserInvitationOption]()
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Deps:       d,
 		Name:       "view",
@@ -539,8 +543,9 @@ Examples:
 		IDUsage:            "Invitation ID",
 		IDType:             "userInvitations",
 		RequiredDiagnostic: true,
+		Query:              query,
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
-			return client.GetUserInvitation(ctx, id)
+			return client.GetUserInvitation(ctx, id, query.Option())
 		},
 	})
 }
