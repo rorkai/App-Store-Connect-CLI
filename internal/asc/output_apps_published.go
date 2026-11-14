@@ -2,7 +2,7 @@ package asc
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strconv"
 )
 
@@ -33,7 +33,7 @@ type AppsPublishedReport struct {
 	Failures          []PublishedAppFailure `json:"failures,omitempty"`
 }
 
-func appsPublishedReportTables(report *AppsPublishedReport, render func([]string, [][]string)) error {
+func appsPublishedReportTables(w io.Writer, report *AppsPublishedReport, render func([]string, [][]string)) error {
 	headers := []string{"ID", "Name", "Bundle ID", "SKU", "Availability ID", "Published Territories"}
 	rows := make([][]string, 0, len(report.Apps))
 	for _, app := range report.Apps {
@@ -53,10 +53,10 @@ func appsPublishedReportTables(report *AppsPublishedReport, render func([]string
 		for _, failure := range report.Failures {
 			failureRows = append(failureRows, []string{failure.ID, failure.Name, failure.Error})
 		}
-		fmt.Fprintln(os.Stdout, "\nFailed app audits:")
+		fmt.Fprintln(w, "\nFailed app audits:")
 		render([]string{"ID", "Name", "Error"}, failureRows)
 	}
-	fmt.Fprintf(os.Stdout, "\n%s\n", PublishedAppsSummary(*report))
+	fmt.Fprintf(w, "\n%s\n", PublishedAppsSummary(*report))
 	return nil
 }
 

@@ -35,12 +35,22 @@ func (w *renderErrorWriter) Write(data []byte) (int, error) {
 // Headers preserve their original casing and are center-aligned.
 // Data rows are left-aligned for readability.
 func RenderTable(headers []string, rows [][]string) {
-	_ = renderTable(os.Stdout, headers, rows)
+	RenderTableTo(os.Stdout, headers, rows)
+}
+
+// RenderTableTo is RenderTable writing to w.
+func RenderTableTo(w io.Writer, headers []string, rows [][]string) {
+	_ = renderTable(w, headers, rows)
 }
 
 // WriteTable is RenderTable that reports stdout write failures.
 func WriteTable(headers []string, rows [][]string) error {
-	return renderTable(os.Stdout, headers, rows)
+	return WriteTableTo(os.Stdout, headers, rows)
+}
+
+// WriteTableTo is WriteTable writing to w.
+func WriteTableTo(w io.Writer, headers []string, rows [][]string) error {
+	return renderTable(w, headers, rows)
 }
 
 func renderTable(w io.Writer, headers []string, rows [][]string) error {
@@ -74,12 +84,22 @@ func renderTable(w io.Writer, headers []string, rows [][]string) error {
 // Headers preserve their original casing. Data rows are left-aligned.
 // Pipe characters in cell values are escaped automatically by the renderer.
 func RenderMarkdown(headers []string, rows [][]string) {
-	_ = renderMarkdown(os.Stdout, headers, rows)
+	RenderMarkdownTo(os.Stdout, headers, rows)
+}
+
+// RenderMarkdownTo is RenderMarkdown writing to w.
+func RenderMarkdownTo(w io.Writer, headers []string, rows [][]string) {
+	_ = renderMarkdown(w, headers, rows)
 }
 
 // WriteMarkdown is RenderMarkdown that reports stdout write failures.
 func WriteMarkdown(headers []string, rows [][]string) error {
-	return renderMarkdown(os.Stdout, headers, rows)
+	return WriteMarkdownTo(os.Stdout, headers, rows)
+}
+
+// WriteMarkdownTo is WriteMarkdown writing to w.
+func WriteMarkdownTo(w io.Writer, headers []string, rows [][]string) error {
+	return renderMarkdown(w, headers, rows)
 }
 
 func renderMarkdown(w io.Writer, headers []string, rows [][]string) error {

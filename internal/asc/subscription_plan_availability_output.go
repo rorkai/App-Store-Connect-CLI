@@ -3,6 +3,7 @@ package asc
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -37,14 +38,26 @@ func subscriptionPlanAvailabilityShowRows(resp *SubscriptionPlanAvailabilitiesRe
 
 // PrintSubscriptionPlanAvailabilityShowTable renders plan-availability show as a table.
 func PrintSubscriptionPlanAvailabilityShowTable(resp *SubscriptionPlanAvailabilitiesResponse) error {
+	return PrintSubscriptionPlanAvailabilityShowTableTo(os.Stdout, resp)
+}
+
+// PrintSubscriptionPlanAvailabilityShowTableTo is
+// PrintSubscriptionPlanAvailabilityShowTable writing to w.
+func PrintSubscriptionPlanAvailabilityShowTableTo(w io.Writer, resp *SubscriptionPlanAvailabilitiesResponse) error {
 	headers, rows := subscriptionPlanAvailabilityShowRows(resp)
-	return renderTable(os.Stdout, headers, rows)
+	return renderTable(w, headers, rows)
 }
 
 // PrintSubscriptionPlanAvailabilityShowMarkdown renders plan-availability show as Markdown.
 func PrintSubscriptionPlanAvailabilityShowMarkdown(resp *SubscriptionPlanAvailabilitiesResponse) error {
+	return PrintSubscriptionPlanAvailabilityShowMarkdownTo(os.Stdout, resp)
+}
+
+// PrintSubscriptionPlanAvailabilityShowMarkdownTo is
+// PrintSubscriptionPlanAvailabilityShowMarkdown writing to w.
+func PrintSubscriptionPlanAvailabilityShowMarkdownTo(w io.Writer, resp *SubscriptionPlanAvailabilitiesResponse) error {
 	headers, rows := subscriptionPlanAvailabilityShowRows(resp)
-	return renderMarkdown(os.Stdout, headers, rows)
+	return renderMarkdown(w, headers, rows)
 }
 
 // SubscriptionPlanAvailabilityIncludedTerritories extracts included available

@@ -3,6 +3,7 @@ package asc
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"slices"
@@ -323,7 +324,7 @@ func runOutputRegistryRenderByRegistryScenarios(t *testing.T) {
 		cleanupRegistryTypes(t, key)
 
 		wantErr := errors.New("direct failed")
-		rowsHandlerCalled := seedRowsAndDirectHandlersForTest(key, func(any, func([]string, [][]string)) error {
+		rowsHandlerCalled := seedRowsAndDirectHandlersForTest(key, func(io.Writer, any, func([]string, [][]string)) error {
 			return wantErr
 		})
 
@@ -1013,7 +1014,7 @@ func expectNilDirectRenderFunctionPanic(t *testing.T, fn func()) {
 }
 
 func renderWithRows(headers []string, rows [][]string) directRenderFunc {
-	return func(_ any, render func([]string, [][]string)) error {
+	return func(_ io.Writer, _ any, render func([]string, [][]string)) error {
 		render(headers, rows)
 		return nil
 	}
