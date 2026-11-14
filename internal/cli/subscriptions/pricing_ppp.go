@@ -75,13 +75,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			subID := strings.TrimSpace(*subscriptionID)
 			if subID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 			price := strings.TrimSpace(*basePrice)
 			if price == "" {
-				fmt.Fprintln(os.Stderr, "Error: --base-price is required")
-				return shared.MissingRequiredUsageError("--base-price")
+				return shared.RequiredFlag("--base-price")
 			}
 			basePriceValue, ok := new(big.Rat).SetString(price)
 			if !shared.IsPriceDecimal(price) || !ok || basePriceValue.Sign() <= 0 {

@@ -70,12 +70,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*subscriptionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 			if strings.TrimSpace(*inputPath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --input is required")
-				return shared.MissingRequiredUsageError("--input")
+				return shared.RequiredFlag("--input")
 			}
 			normalizedOfferDuration := ""
 			if strings.TrimSpace(*offerDuration) != "" {
