@@ -17,11 +17,16 @@ type CategoriesSetCommandConfig struct {
 	LongHelp       string
 	ErrorPrefix    string
 	IncludeAppInfo bool
+	// Deps supplies the streams, the request timeout and the output. It
+	// defaults to DefaultDeps(). The client is not taken from it: the command
+	// resolves credentials without the auth spinner GetASCClient shows.
+	Deps *Deps
 }
 
 // NewCategoriesSetCommand builds a categories set command with shared behavior.
 func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
-	fs := flag.NewFlagSet(config.FlagSetName, flag.ExitOnError)
+	d := builderDeps(config.Deps)
+	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (required)")
 	var appInfoID *string
@@ -34,7 +39,7 @@ func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
 	primarySubTwo := BindResourceIDFlag(fs, "primary-subcategory-two", "appCategories", "Primary subcategory two (e.g. GAMES_SIMULATION)")
 	secondarySubOne := BindResourceIDFlag(fs, "secondary-subcategory-one", "appCategories", "Secondary subcategory one")
 	secondarySubTwo := BindResourceIDFlag(fs, "secondary-subcategory-two", "appCategories", "Secondary subcategory two")
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -44,7 +49,7 @@ func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			appIDValue, err := AppIDFlagValue(ResolveAppID(*appID))
+			appIDValue, err := d.AppIDFlagValue(ResolveAppID(*appID))
 			if err != nil {
 				return err
 			}
@@ -61,10 +66,10 @@ func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
 			}
 
 			if appIDValue == "" {
-				return UsageErrorf("%s: --app is required (or set ASC_APP_ID)", config.ErrorPrefix)
+				return d.UsageErrorf("%s: --app is required (or set ASC_APP_ID)", config.ErrorPrefix)
 			}
 			if primaryValue == "" {
-				return UsageErrorf("%s: --primary is required", config.ErrorPrefix)
+				return d.UsageErrorf("%s: --primary is required", config.ErrorPrefix)
 			}
 
 			client, err := getASCClient()
@@ -72,10 +77,10 @@ func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			resolvedAppInfoID, err := ResolveAppInfoID(requestCtx, client, appIDValue, appInfoIDValue)
+			resolvedAppInfoID, err := d.ResolveAppInfoID(requestCtx, client, appIDValue, appInfoIDValue)
 			if err != nil {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
@@ -85,7 +90,7 @@ func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 
-			return printOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

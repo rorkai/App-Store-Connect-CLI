@@ -25,6 +25,7 @@
     {"operation":"appStoreVersions_deleteInstance","name":"DeleteAppStoreVersion","params":["versionID"]},
     {"operation":"appStoreVersions_gameCenterAppVersion_getToOneRelated","name":"GetAppStoreVersionGameCenterAppVersion","params":["versionID"]},
     {"operation":"appStoreVersions_gameCenterAppVersion_getToOneRelationship","name":"GetAppStoreVersionGameCenterAppVersionRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse gameCenterAppVersion relationship response"},
+    {"operation":"appStoreVersions_getInstance","name":"GetAppStoreVersion","params":["versionID"],"check":"raw","options":"AppStoreVersionOption","query":"buildAppStoreVersionQuery","single":true},
     {"operation":"appStoreVersions_routingAppCoverage_getToOneRelated","name":"GetRoutingAppCoverageForVersion","params":["versionID"],"check":"require"},
     {"operation":"appStoreVersions_routingAppCoverage_getToOneRelationship","name":"GetAppStoreVersionRoutingAppCoverageRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse routingAppCoverage relationship response"}
   ]

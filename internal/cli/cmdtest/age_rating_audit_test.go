@@ -38,11 +38,10 @@ func registerAgeRatingAuditApps(reg *asctest.Registry, appIDs ...string) {
 func TestAgeRatingAuditReportsMissingSocialMediaResponses(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=200"), asctest.JSON(http.StatusOK, ageRatingAuditApps))
 	registerAgeRatingAuditApps(reg, "app-ready", "app-social", "app-unset")
 
-	stdout, stderr, err := runCommand(t, []string{"age-rating", "audit", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{"age-rating", "audit", "--output", "json"}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -94,11 +93,10 @@ func TestAgeRatingAuditReportsMissingSocialMediaResponses(t *testing.T) {
 func TestAgeRatingAuditAppFilterRestrictsSweep(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=200"), asctest.JSON(http.StatusOK, ageRatingAuditApps))
 	registerAgeRatingAuditApps(reg, "app-social")
 
-	stdout, _, err := runCommand(t, []string{"age-rating", "audit", "--app", "app-social", "--output", "json"})
+	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), []string{"age-rating", "audit", "--app", "app-social", "--output", "json"}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -120,7 +118,6 @@ func TestAgeRatingAuditAppFilterRestrictsSweep(t *testing.T) {
 func TestAgeRatingAuditSelectsCurrentAppInfo(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"Current App"}}],"links":{}}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appInfos", "fields[appInfos]=state", "limit=200"),
@@ -128,7 +125,7 @@ func TestAgeRatingAuditSelectsCurrentAppInfo(t *testing.T) {
 	reg.Register(asctest.GET("/v1/appInfos/info-current/ageRatingDeclaration"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-current","attributes":{"socialMedia":false,"socialMediaAgeRestricted":false,"messagingAndChat":false,"ageAssurance":false}}}`))
 
-	stdout, _, err := runCommand(t, []string{"age-rating", "audit", "--output", "json"})
+	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), []string{"age-rating", "audit", "--output", "json"}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -149,7 +146,6 @@ func TestAgeRatingAuditSelectsCurrentAppInfo(t *testing.T) {
 func TestAgeRatingAuditChecksEveryCurrentAppInfo(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"Multi-platform App"}}],"links":{}}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appInfos", "fields[appInfos]=state", "limit=200"),
@@ -159,7 +155,7 @@ func TestAgeRatingAuditChecksEveryCurrentAppInfo(t *testing.T) {
 	reg.Register(asctest.GET("/v1/appInfos/info-mac/ageRatingDeclaration"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-mac","attributes":{"socialMedia":true,"socialMediaAgeRestricted":false,"messagingAndChat":true,"ageAssurance":false,"userGeneratedContent":true}}}`))
 
-	stdout, _, err := runCommand(t, []string{"age-rating", "audit", "--output", "json"})
+	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), []string{"age-rating", "audit", "--output", "json"}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -230,14 +226,13 @@ func TestAgeRatingAuditReportsMissingReadinessResponses(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/apps", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1"}],"links":{}}`))
 			reg.Register(asctest.GET("/v1/apps/app-1/appInfos", "fields[appInfos]=state", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`))
 			reg.Register(asctest.GET("/v1/appInfos/info-1/ageRatingDeclaration"),
 				asctest.JSON(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"decl-1","attributes":`+test.attributes+`}}`))
 
-			stdout, _, err := runCommand(t, []string{"age-rating", "audit", "--output", "json"})
+			stdout, _, err := runRootWithDeps(t, stubClient(t, reg), []string{"age-rating", "audit", "--output", "json"}...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -261,15 +256,13 @@ func TestAgeRatingAuditReportsMissingReadinessResponses(t *testing.T) {
 func TestAgeRatingAuditReturnsFailureAfterRenderingRowErrors(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1"}],"links":{}}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appInfos", "fields[appInfos]=state", "limit=200"), asctest.JSON(http.StatusForbidden, `{"errors":[{"status":"403","title":"Forbidden"}]}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"age-rating", "audit", "--output", "json"}, "1.2.3"); code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "age-rating", "audit", "--output", "json")
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+	}
 	var result struct {
 		Apps []struct {
 			Error string `json:"error"`
@@ -295,13 +288,11 @@ func TestAgeRatingAuditRejectsExplicitEmptyApp(t *testing.T) {
 	t.Setenv("ASC_PRIVATE_KEY", "")
 	t.Setenv("ASC_PRIVATE_KEY_B64", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	asctest.NewRegistry(t).Install()
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"age-rating", "audit", "--app", " , \t"}, "1.2.3"); code != cmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "age-rating", "audit", "--app", " , \t")
+	if code != cmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+	}
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
@@ -323,7 +314,6 @@ func TestAgeRatingAuditPaginationIsExplicit(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			ready := `{"data":{"type":"ageRatingDeclarations","id":"decl-1","attributes":{"socialMedia":false,"socialMediaAgeRestricted":false,"messagingAndChat":false,"ageAssurance":false}}}`
 			appIDs := []string{"app-1"}
 			reg.Register(asctest.GET("/v1/apps", "limit=200"),
@@ -338,7 +328,7 @@ func TestAgeRatingAuditPaginationIsExplicit(t *testing.T) {
 				reg.Register(asctest.GET("/v1/appInfos/info-"+appID+"/ageRatingDeclaration"), asctest.JSON(http.StatusOK, ready))
 			}
 
-			stdout, stderr, err := runCommand(t, tt.args)
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), tt.args...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -372,13 +362,12 @@ func TestAgeRatingAuditRejectsRepeatedAppPaginationURL(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "100ms")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps?cursor=repeat"}}`))
 	reg.Register(asctest.GET("/v1/apps", "cursor=repeat"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps?cursor=repeat"}}`))
 
-	_, _, err := runCommand(t, []string{"age-rating", "audit", "--paginate", "--output", "json"})
+	_, _, err := runRootWithDeps(t, stubClient(t, reg), []string{"age-rating", "audit", "--paginate", "--output", "json"}...)
 	if !errors.Is(err, asc.ErrRepeatedPaginationURL) {
 		t.Fatalf("run error = %v, want ErrRepeatedPaginationURL", err)
 	}

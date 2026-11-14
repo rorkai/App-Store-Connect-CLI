@@ -336,6 +336,10 @@ func UsageErrorf(format string, args ...any) error {
 	return UsageError(fmt.Sprintf(format, args...))
 }
 
+func usageErrorfTo(stderr io.Writer, format string, args ...any) error {
+	return usageErrorTo(stderr, fmt.Sprintf(format, args...))
+}
+
 // MissingRequiredUsageError classifies a required-input failure after the
 // command has already written its diagnostic to stderr.
 func MissingRequiredUsageError(parameters ...string) error {

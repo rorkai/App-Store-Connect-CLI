@@ -7,17 +7,6 @@ import (
 	"strings"
 )
 
-// GetPromotedPurchase retrieves a promoted purchase by ID.
-func (c *Client) GetPromotedPurchase(ctx context.Context, promotedPurchaseID string, opts ...PromotedPurchaseGetOption) (*PromotedPurchaseResponse, error) {
-	promotedPurchaseID = strings.TrimSpace(promotedPurchaseID)
-	query := applyOptions(opts)
-	return getJSON[PromotedPurchaseResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/promotedPurchases/%s", promotedPurchaseID),
-		Query:    buildPromotedPurchaseGetQuery(query),
-		ParseErr: "failed to parse promoted purchase response",
-	})
-}
-
 // CreatePromotedPurchase creates a new promoted purchase.
 func (c *Client) CreatePromotedPurchase(ctx context.Context, attrs PromotedPurchaseCreateAttributes, relationships PromotedPurchaseCreateRelationships) (*PromotedPurchaseResponse, error) {
 	payload := PromotedPurchaseCreateRequest{

@@ -40,7 +40,11 @@ type contractOpBinding struct {
 	Params     []string `json:"params"`
 	Check      string   `json:"check"`
 	CheckFirst bool     `json:"checkFirst"`
-	Deviations []struct {
+	Single     bool     `json:"single"`
+	// SkipEmptyAttributes is set on an update that sends its attributes only
+	// when one of them is set.
+	SkipEmptyAttributes bool `json:"skipEmptyAttributes"`
+	Deviations          []struct {
 		Problem string `json:"problem"`
 		Reason  string `json:"reason"`
 	} `json:"deviations"`
@@ -372,8 +376,8 @@ type contractCall struct {
 
 // newContractCall builds arguments from the method's parameter types: path
 // parameters (string, in path order), an ID list ([]string), attributes (a
-// struct with every field set) and options (one option that sets every field
-// of the query).
+// struct, or a pointer to one, with every field set) and options (one
+// option that sets every field of the query).
 func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*contractCall, error) {
 	c := &contractCall{name: name}
 	if typ.NumIn() == 0 || typ.In(0) != reflect.TypeFor[context.Context]() {
@@ -383,7 +387,7 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 	if typ.IsVariadic() {
 		last--
 		opt := typ.In(last).Elem()
-		if opt.Kind() != reflect.Func || opt.NumIn() != 1 || opt.In(0).Kind() != reflect.Pointer || !opt.In(0).Implements(reflect.TypeFor[pager]()) {
+		if opt.Kind() != reflect.Func || opt.NumIn() != 1 || opt.In(0).Kind() != reflect.Pointer || (!b.Single && !opt.In(0).Implements(reflect.TypeFor[pager]())) {
 			return nil, fmt.Errorf("options %s are not a func of a paged query", opt)
 		}
 		c.query = opt
@@ -399,9 +403,9 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 		case in == reflect.TypeFor[[]string]():
 			c.ids = []string{"related-1", "related-2"}
 			c.args = append(c.args, reflect.ValueOf(c.ids))
-		case in.Kind() == reflect.Struct:
+		case in.Kind() == reflect.Struct, in.Kind() == reflect.Pointer && in.Elem().Kind() == reflect.Struct:
 			value := reflect.New(in).Elem()
-			if err := fillContractValue(value, in.Name()); err != nil {
+			if err := fillContractValue(value, in.String()); err != nil {
 				return nil, err
 			}
 			attrs, err := json.Marshal(value.Interface())
@@ -488,6 +492,9 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 	if call.query != nil {
 		args = append(slices.Clone(args), call.option(func(q reflect.Value) {
 			fillErr = fillContractValue(q.Elem(), q.Elem().Type().Name())
+			if b.Single {
+				return
+			}
 			page := q.Interface().(pager).page()
 			page.limit = contractLimit
 			page.nextURL = ""
@@ -518,9 +525,15 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 	if want := contractPath(op.path, call.pathArgs); req.url.Path != want {
 		problems = append(problems, fmt.Sprintf("sent path %s, want %s", req.url.Path, want))
 	}
-	problems = append(problems, checkContractQuery(op, req.url.Query(), call.query != nil)...)
-	if call.query != nil {
+	problems = append(problems, checkContractQuery(op, req.url.Query(), call.query != nil && !b.Single)...)
+	if b.Single && len(req.url.Query()) == 0 {
+		problems = append(problems, "sent no query, the method reads one resource with a query argument")
+	}
+	if call.query != nil && !b.Single {
 		problems = append(problems, checkContractNextURL(call, op.path, response, b.CheckFirst && b.Check == "require")...)
+	}
+	if b.SkipEmptyAttributes {
+		problems = append(problems, checkContractAttributesIfSet(call, response)...)
 	}
 	problems = append(problems, checkContractBody(spec, op, req.body, call)...)
 	if call.attrsArg != nil {
@@ -603,6 +616,43 @@ func checkContractNextURL(call *contractCall, path string, response contractResp
 		return []string{fmt.Sprintf("with a next URL and %s sent %v, want one request to %s (error: %v)", with, requests, next, err)}
 	}
 	return nil
+}
+
+// checkContractAttributesIfSet calls an update that sends its attributes
+// only when one is set: with none set it must send no attributes, and with
+// any single field set it must send them.
+func checkContractAttributesIfSet(call *contractCall, response contractResponse) []string {
+	at := slices.IndexFunc(call.params, func(typ reflect.Type) bool { return typ.Kind() == reflect.Struct })
+	if at < 0 {
+		return []string{"sends attributes only when set, but takes no attributes struct"}
+	}
+	typ := call.params[at]
+	var problems []string
+	send := func(label string, attrs reflect.Value, want bool) {
+		args := slices.Clone(call.args)
+		args[at] = attrs
+		requests, _, err := call.invoke(args, response)
+		if len(requests) != 1 {
+			problems = append(problems, fmt.Sprintf("with %s sent %v, want one request (error: %v)", label, requests, err))
+			return
+		}
+		var body struct {
+			Data map[string]json.RawMessage `json:"data"`
+		}
+		_ = json.Unmarshal(requests[0].body, &body)
+		if sent := body.Data["attributes"] != nil; sent != want {
+			problems = append(problems, fmt.Sprintf("with %s sent attributes %t, want %t", label, sent, want))
+		}
+	}
+	send("no attribute set", reflect.New(typ).Elem(), false)
+	for i := range typ.NumField() {
+		attrs := reflect.New(typ).Elem()
+		if err := fillContractValue(attrs.Field(i), typ.Name()+"."+typ.Field(i).Name); err != nil {
+			return append(problems, "cannot fill the attributes: "+err.Error())
+		}
+		send("only "+typ.Field(i).Name+" set", attrs, true)
+	}
+	return problems
 }
 
 // checkContractResult checks that the method returns the resource of the
@@ -796,8 +846,14 @@ func checkContractBody(spec *contractSpec, op *contractOperation, body []byte, c
 // the body with the argument's JSON cannot see it.
 func checkContractAttributeFields(call *contractCall, response contractResponse, schema *contractSchema) []string {
 	typ := call.attrsArg
+	if typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
 	encode := func(v reflect.Value) (map[string]json.RawMessage, error) {
 		args := slices.Clone(call.args)
+		if call.attrsArg.Kind() == reflect.Pointer {
+			v = v.Addr()
+		}
 		args[call.attrsAt] = v
 		requests, _, err := call.invoke(args, response)
 		if err != nil || len(requests) != 1 {

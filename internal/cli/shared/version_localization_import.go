@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -52,17 +51,21 @@ type VersionLocalizationImportConfig struct {
 	ExampleValues string
 	NewClient     func() (*asc.Client, error)
 	Ops           func(*asc.Client) VersionLocalizationImportOps
+	// Deps supplies the streams, the request timeout and the output. It
+	// defaults to DefaultDeps(). The client comes from NewClient.
+	Deps *Deps
 }
 
 // NewVersionLocalizationImportCommand builds a command that creates missing
 // locales and updates changed ones for a version from one JSON file.
 func NewVersionLocalizationImportCommand(config VersionLocalizationImportConfig) *ffcli.Command {
-	fs := flag.NewFlagSet(config.CommandPath, flag.ExitOnError)
+	d := builderDeps(config.Deps)
+	fs := d.NewFlagSet(config.CommandPath, flag.ExitOnError)
 	versionID := BindResourceIDFlag(fs, "version-id", config.VersionResourceType, config.VersionFlagUsage)
 	filePath := fs.String("file", "", "Path to a JSON file mapping locales to fields (required)")
 	dryRun := fs.Bool("dry-run", false, "Print the create/update/skip plan without writing")
 	confirm := fs.Bool("confirm", false, "Confirm writing localizations (required unless --dry-run)")
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	fields := []string{"name", config.OptionalField}
 	shortUsage := fmt.Sprintf(`asc %s --version-id "VERSION_ID" --file "./localizations.json" --confirm`, config.CommandPath)
@@ -97,16 +100,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				return RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				return RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 			if _, err := ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			if err := RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 
@@ -114,7 +117,7 @@ Examples:
 			// bury the one line that names the bad locale or field.
 			reportInputError := func(err error) error {
 				message := fmt.Sprintf("%s: %v", config.CommandPath, err)
-				fmt.Fprintln(os.Stderr, "Error:", message)
+				fmt.Fprintln(d.IO.ErrOut, "Error:", message)
 				return NewReportedUsageError(UsageErrorInvalidValue, message)
 			}
 			desired, err := readVersionLocalizationImportFile(pathValue, fields)
@@ -127,7 +130,7 @@ Examples:
 				return fmt.Errorf("%s: %w", config.CommandPath, err)
 			}
 			ops := config.Ops(client)
-			listCtx, cancel := ContextWithTimeout(ctx)
+			listCtx, cancel := d.Timeout(ctx)
 			existing, err := ops.List(listCtx, id)
 			cancel()
 			if err != nil {
@@ -146,13 +149,13 @@ Examples:
 				Total:     len(plan),
 				Results:   make([]asc.LocalizationImportLocaleResult, 0, len(plan)),
 			}
-			refused := executeVersionLocalizationImport(ctx, ops, id, plan, result)
-			if err := PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			refused := executeVersionLocalizationImport(ctx, d.Timeout, ops, id, plan, result)
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 			if result.Failed > 0 {
 				err := fmt.Errorf("%s: %d of %d locales failed", config.CommandPath, result.Failed, result.Total)
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %v\n", err)
 				return NewStderrReportedError(NewErrorWithCause(err, refused))
 			}
 			return nil
@@ -278,7 +281,7 @@ func planVersionLocalizationImport(desired, existing []VersionLocalization, fiel
 
 // executeVersionLocalizationImport writes each planned locale independently so
 // one rejected locale does not block the others; the receipt reports each one.
-func executeVersionLocalizationImport(ctx context.Context, ops VersionLocalizationImportOps, versionID string, plan []versionLocalizationImportStep, result *asc.LocalizationImportResult) error {
+func executeVersionLocalizationImport(ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), ops VersionLocalizationImportOps, versionID string, plan []versionLocalizationImportStep, result *asc.LocalizationImportResult) error {
 	var refused error
 	for _, step := range plan {
 		entry := step.LocalizationImportLocaleResult
@@ -290,7 +293,7 @@ func executeVersionLocalizationImport(ctx context.Context, ops VersionLocalizati
 			entry.Status = "planned"
 			result.Planned++
 		default:
-			requestCtx, cancel := ContextWithTimeout(ctx)
+			requestCtx, cancel := timeout(ctx)
 			var err error
 			if entry.Action == "create" {
 				entry.LocalizationID, err = ops.Create(requestCtx, versionID, entry.Locale, step.values)

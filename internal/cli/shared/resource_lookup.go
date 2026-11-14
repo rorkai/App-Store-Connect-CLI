@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"slices"
 	"strings"
 
@@ -140,13 +142,23 @@ func SelectorNeedsLookup(value string) bool {
 
 // RequireAppForStableSelector returns a usage error when a non-numeric selector needs app context.
 func RequireAppForStableSelector(appID, selector, flagName string) error {
+	return requireAppForStableSelectorTo(os.Stderr, appID, selector, flagName)
+}
+
+// RequireAppForStableSelector is RequireAppForStableSelector with the
+// "Error:" line written to d's stderr.
+func (d *Deps) RequireAppForStableSelector(appID, selector, flagName string) error {
+	return requireAppForStableSelectorTo(d.IO.ErrOut, appID, selector, flagName)
+}
+
+func requireAppForStableSelectorTo(stderr io.Writer, appID, selector, flagName string) error {
 	if !SelectorNeedsLookup(selector) {
 		return nil
 	}
 	if strings.TrimSpace(appID) != "" {
 		return nil
 	}
-	return UsageErrorf("--app is required (or set ASC_APP_ID) when %s is a product ID or name", strings.TrimSpace(flagName))
+	return usageErrorfTo(stderr, "--app is required (or set ASC_APP_ID) when %s is a product ID or name", strings.TrimSpace(flagName))
 }
 
 // ResolveExactSelectorCandidate resolves a unique candidate by exact product ID first, then exact current name.

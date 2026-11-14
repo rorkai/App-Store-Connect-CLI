@@ -3,7 +3,9 @@ package shared
 import (
 	"context"
 	"fmt"
+	"io"
 	"math/big"
+	"os"
 	"slices"
 	"sort"
 	"time"
@@ -19,15 +21,25 @@ type PPPScheduleSnapshot struct {
 
 // PPPTerritorySelection validates an optional, explicitly supplied mutation scope.
 func PPPTerritorySelection(value *OnceCSVValue) ([]string, error) {
+	return pppTerritorySelectionTo(os.Stderr, value)
+}
+
+// PPPTerritorySelection is PPPTerritorySelection with the "Error:" line
+// written to d's stderr.
+func (d *Deps) PPPTerritorySelection(value *OnceCSVValue) ([]string, error) {
+	return pppTerritorySelectionTo(d.IO.ErrOut, value)
+}
+
+func pppTerritorySelectionTo(stderr io.Writer, value *OnceCSVValue) ([]string, error) {
 	if !value.Provided() {
 		return nil, nil
 	}
 	territories, err := NormalizeASCTerritoryCSV(value.String())
 	if err != nil {
-		return nil, UsageError(fmt.Sprintf("invalid --territory: %v", err))
+		return nil, usageErrorTo(stderr, fmt.Sprintf("invalid --territory: %v", err))
 	}
 	if len(territories) == 0 {
-		return nil, UsageError("invalid --territory: provide at least one territory")
+		return nil, usageErrorTo(stderr, "invalid --territory: provide at least one territory")
 	}
 	sort.Strings(territories)
 	return slices.Compact(territories), nil
